@@ -1,0 +1,45 @@
+#!/bin/bash -eux
+
+# Created this because it wasn't working to pass the scm parameters on the command-line as properties, and I preferred that over
+# having scm info in the pom, since the local path will vary by developer.  Unless that takes a relative path...hm.  Improve?
+
+CHECK_FOR="ERROR"  #|WARNING"
+function maven() {
+  # mvn apparently always returns 0 (success) if it was able to execute the goal, without errors 
+  # in its effort to execute the goal, but ignores whether the goal itself had errors!  I prefer 
+  # it to exit nonzero (indicate failure to calling scripts) if the goal failed, so it's reliably scriptable:
+  LOG=$(mktemp --tmpdir MVN_RUN_XXXXX)
+  #echo "cmd is: mvn $*"
+  mvn $* 2>&1 | tee $LOG
+  # (don't "fail" only due to the grep line or similar code from calling a scripted mvn cmd that may be doing the same kind
+  # of check....)
+  if grep -E "$CHECK_FOR" $LOG|grep -v grep|grep -v CHECK_FOR; then
+    echo "FOUND ${CHECK_FOR}(s); aborting partway through, so you need to fix it from where it left off:"
+    #rm $LOG
+    exit 1
+  fi
+  #rm $LOG
+}
+
+echo "OLD VERSION IS..."
+grep version pom.xml|grep SNAPSHOT
+read -a RELEASE_VERSION -p "Enter the release version: "
+maven versions:set -DnewVersion=$RELEASE_VERSION
+
+# but ignore some warnings on this one for now
+CHECK_FOR="ERROR"
+mvn clean install
+git add pom.xml
+git commit -m "Release version $RELEASE_VERSION"
+
+read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (omitting '-SNAPSHOT'): "
+CHECK_FOR="ERROR|WARNING"
+maven versions:set -DnewVersion=$NEW_SNAPSHOT_VERSION
+git add pom.xml
+git commit -m "Begin new version: $NEW_SNAPSHOT_VERSION"
+
+# but ignore some warnings on this one for now
+CHECK_FOR="ERROR"
+mvn clean
+c
+

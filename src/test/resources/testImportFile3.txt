@@ -1,0 +1,17 @@
+vsgeer
+  purpose
+  vision
+  strategy
+  goals
+  empowerment
+  execution
+    physical/financial
+    mental
+    spiritual
+      a test relation type<ta> with some initial data on a line
+      1
+  To fail, because the end text attribute marker for now should be the last text on a line </ta>Not part of the TextAttribute.
+reference
+  likes/dislikes
+.
+

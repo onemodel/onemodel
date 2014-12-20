@@ -1,0 +1,12 @@
+*~
+target/
+.classpath
+.project
+.settings
+*.iml
+.idea/
+.cache
+classes/
+other-untracked/
+out/
+.todo-om-dev-details.txt.marks
