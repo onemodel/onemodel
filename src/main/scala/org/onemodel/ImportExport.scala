@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2014-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -35,10 +35,6 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
         val includePublicData: Option[Boolean] = ui.askYesNoQuestion("Include public data?", Some("y"))
         val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?")
         val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?")
-
-        //%%del if not used:
-        //val choices: Array[String] = Array("all","public only","public and unspecified","private only","unspecified only")
-        //val whichDataToExport: Option[Int] = ui.askWhich(Some(Array("Choose which data to export (public or restricting):")), choices, Array[String]())
 
         if (includePublicData != None && includeNonPublicData != None && includeUnspecifiedData != None) {
           require(levelsToDescend >= 0)
@@ -199,7 +195,7 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
                           addingToExistingGroup, putEntriesAtEnd, makeThemPublic)
 
               val keepAnswer: Option[Boolean] = {
-                //%%look into how long that time is (see below same cmt):
+                //idea: look into how long that time is (see below same cmt):
                 val msg: String = "Group imported, but browse around to see if you want to keep it, " +
                                   "then ESC back here to commit the changes....  (If you wait beyond some amount of time(?), it seems that postgres will commit " +
                                   "the change whether you want it or not, even if the message at that time says 'rolled back...')"
@@ -214,7 +210,7 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
               }
               if (keepAnswer == None || !keepAnswer.get) {
                 mDB.rollbackTrans()
-                //%%look into how long that time is (see above same cmt)
+                //idea: look into how long that time is (see above same cmt)
                 ui.displayText("Rolled back the import: no changes made (unless you waited too long and postgres committed it anyway...?).")
               } else {
                 mDB.commitTrans()

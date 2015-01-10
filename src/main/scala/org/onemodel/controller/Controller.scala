@@ -51,7 +51,6 @@ object Controller {
 class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None, defaultPasswordIn: Option[String] = None) {
   protected val mRelTypeExamples = "i.e., ownership of or \"has\" another entity, family ties, etc"
 
-  //%%
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
   val mDB: PostgreSQLDatabase = tryLogins(forceUserPassPromptIn, defaultUsernameIn, defaultPasswordIn)
 
@@ -638,7 +637,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     else {
       val limit = 10
       val delimiter = ", "
-      // (%%BUG: see comments in psql.java re "OTHER ENTITY NOTED IN A DELETION BUG")
+      // (BUG: see comments in psql.java re "OTHER ENTITY NOTED IN A DELETION BUG")
       val descrArray = mDB.getRelationToGroupDescriptionsContaining(entityIn.getId, Some(limit))
       var descriptions = ""
       var counter = 0
@@ -692,7 +691,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def editEntityName(entityIn: Entity): Option[Entity] = {
     val editedEntity: Option[Entity] = entityIn match {
       case relTypeIn: RelationType =>
-        val previousNameInReverse: String = relTypeIn.getNameInReverseDirection //%%: this edits name w/ prefill also?:
+        val previousNameInReverse: String = relTypeIn.getNameInReverseDirection //idea: check: this edits name w/ prefill also?:
         askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE, Some(relTypeIn.getId), Some(relTypeIn.getName), Some(relTypeIn.getDirectionality),
                                  if (previousNameInReverse == null || previousNameInReverse.trim().isEmpty) None else Some(previousNameInReverse),
                                  None)
@@ -1711,7 +1710,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val answer = ans.get
       if (answer == 1 && answer <= choices.size) {
         // see comment above
-        ui.displayText("not yet implemented") //%%
+        ui.displayText("not yet implemented")
         None
       } else if (answer > choices.length && answer <= (choices.length + containingEntities.size)) {
         // those in the condition on the previous line are 1-based, not 0-based.

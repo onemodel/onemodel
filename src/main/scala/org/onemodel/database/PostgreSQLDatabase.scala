@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-14 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -1244,14 +1244,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
       val numberOfSegments = groupSize + 1
       val increment = maxIdValue / numberOfSegments * 2
       var next: Long = minIdValue
-      //%%we could have a problem here no?, because the query returns !archived, and so we might assign the same sorting_index to an archived one & have an err?
+      //we could have a problem here no?, because the query returns !archived, and so we might assign the same sorting_index to an archived one & have an err?
       beginTrans()
       for (groupEntry <- getGroupEntriesData(relationToGroupIdIn)) {
         next += increment
         while (sortingIndexInUse(relationToGroupIdIn, next)) {
-          // renumbering can choose already-used numbers, because it always uses the same algorithm.  This causes a constraint violation (unique index), so
+          // Renumbering can choose already-used numbers, because it always uses the same algorithm.  This causes a constraint violation (unique index), so
           // get around that with a (hopefully quick & simple) increment to get the next unused one.  If they're all used...that's a surprise.
-          //%%should also fix this bug in the case where it's near the end & the last #s are used: wrap around? when give err after too many loops: count?
+          // Should also fix this bug in the case where it's near the end & the last #s are used: wrap around? when give err after too many loops: count?
           next += 1
         }
         require(next < maxIdValue)
@@ -1748,7 +1748,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def getContainingEntities1(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
     val sql: String = "select rel_type_id, entity_id_1 from relationtoentity where entity_id_2=" + entityIn.getId + " order by entity_id_1 limit " +
                       checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
-    //%%note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
+    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
     // 2: helpfully returned; & in UI?)
     getContainingEntities_helper(sql)
   }
@@ -1770,7 +1770,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getContainingRelationToGroups(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup] = {
-    // %%BUG: there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
+    // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
     // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
     // So, could: see the expectation of the place(s) calling this method, if uniform, make these 2 methods more uniform in what they do in meeting that,
     // OR, could consider whether we really should have an enforcement between the 2 tables...?
@@ -1858,12 +1858,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
                       " and group_id=" + relationToGroupIn.getGroupId +
                       " order by entity_id, rel_type_id limit " +
                       checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
-    //%%note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
+    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
     // 2: helpfully returned; & in UI?)
     getContainingEntities_helper(sql)
   }
 
-  //%%consider: do we want this? if so finish,revu,test:
+  //idea: consider: do we want this? if so finish,revu,test:
   //(see similar comment in controller)
   //def getContainingRelationToGroups(relationToGroupIn:RelationToGroup, startingIndexIn:Long, maxValsIn:Option[Long]=None): java.util
   // .ArrayList[RelationToGroup] = {

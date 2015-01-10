@@ -192,7 +192,7 @@ class QuickGroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConn
                                 "Move (*) to calling menu (up one)",
                                 "Move up 25",
                                 "Move down 25"
-                                // make an option #9 here which is a "quick archive"? (for removing todos: maybe only after showing archived things works
+                                // idea: make an option #9 here which is a "quick archive"? (for removing completed tasks: maybe only after showing archived things works
                                 // well)
                                )
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn),
@@ -395,7 +395,7 @@ class QuickGroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConn
             quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, editedEntity, targetForMoves, callingMenusRtgIn)
           }
         } else if (answer == 4) {
-          //askWhich(%%$% create it INSIDE or UNDER selected entity "(creating a subgroup on entity if needed)")
+          //feature idea: askWhich(create it INSIDE or UNDER selected entity "(creating a subgroup on entity if needed)")
           val targetRtgCount: Long = mDB.getRelationToGroupCountByEntity(Some(highlightedEntry.getId))
           if (targetRtgCount > 1) {
             // IDEA: (see idea at similar logic above where entry is moved into a targeted group, about guessing which one)
@@ -523,7 +523,7 @@ class QuickGroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConn
           new GroupMenu(ui,mDB).groupMenu(startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
         } else if (false /*can this be changed so that if they hit Enter it makes it to here ?*/ ) {
           // do something with enter: do a quick text edit & update the dates. Or quickAddEntry ?
-          ui.displayText("not yet implemented")  //%%
+          ui.displayText("not yet implemented")
           quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn = callingMenusRtgIn)
         } else if (answer == 0) None
         else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
@@ -544,7 +544,7 @@ class QuickGroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConn
             var entityToHighlightNext: Option[Entity] = Some(userSelection)
             if (groupId != None && !moreThanOneGroupAvailable) {
               entityToHighlightNext = findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOne, highlightedIndexInObjList, highlightedEntry)
-              //%%now, do something w/ this? Like, if the userSelection was deleted, then use this in its place in parms to qGM just below? or what was it for
+              //idea: do something w/ this? Like, if the userSelection was deleted, then use this in its place in parms to qGM just below? or what was it for
               // originally?  Or, del this var around here?
             }
 

@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -166,8 +166,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     when(mockDB.getEntityData(id)).thenReturn(Array[Option[Any]](Some("entity1Name"), Some(classId)))
     val entity = new Entity(mockDB, id)
     val ds = entity.getDisplayString
-    // %%put next line back after color refactoring is done, or after there is a cleaner approach to managing colors, which might change next line's failure.
-    // %% see other places w/ similar comments.  Will probably also have to update it to account for the public/private status string now displayed.
+    // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
     //assert(ds == "entity1Name (class: class1Name)")
 
     val id2 = 2L
@@ -179,15 +178,13 @@ class EntityTest extends FlatSpec with MockitoSugar {
     when(mockDB2.getClassName(classId2)).thenReturn(None)
     val entity2 = new Entity(mockDB2, id2, name2, Some(false), Some(classId2))
     val ds2 = entity2.getDisplayString
-    // %%put next line back after color refactoring is done, or after there is a cleaner approach to managing colors, which might change next line's failure.
-    // %% see other places w/ similar comments.  Will probably also have to update it to account for the public/private status string now displayed.
+    // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
     //assert(ds2 == name2)
 
     when(mockDB2.getClassName(classId2)).thenReturn(Some("class2Name"))
     when(mockDB2.getClassCount(Some(id2))).thenReturn(1)
     when(mockDB2.getEntityData(id2)).thenReturn(Array[Option[Any]](Some(name2), Some(classId2)))
-    // %%put next line back after color refactoring is done, or after there is a cleaner approach to managing colors, which might change next line's failure.
-    // %% see other places w/ similar comments.  Will probably also have to update it to account for the public/private status string now displayed.
+    // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
     //assert(entity2.getDisplayString == name2 + " (defining entity (template) for class: " + "class2Name)")
   }
 

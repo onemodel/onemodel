@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -54,8 +54,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     val expected = wholeThing.substring(0, smallLimit - 3) + "..."
     assert(displayed == expected)
     val all: String = relationToGroup.getDisplayString(0, None, Some(mockRelationType))
-    // %%put next line back after color refactoring is done, or after there is a cleaner approach to managing colors, which might change next line's failure.
-    // %% see other places w/ similar comments.
+    // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
     //  assert(all == wholeThing)
 
     val relationToGroup2 = new RelationToGroup(mockDB, entityId, relTypeId, groupId, None, date)

@@ -85,7 +85,7 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
         if (importOrExport != None) {
           if (importOrExport.get == 1) new ImportExport(ui,mDB).importCollapsibleOutlineAsGroups(relationToGroupIn)
           else if (importOrExport.get == 2) {
-            ui.displayText("not yet implemented: try it from an entity rather than a group where it is supported, for now.")  //%%
+            ui.displayText("not yet implemented: try it from an entity rather than a group where it is supported, for now.")
             //exportToCollapsibleOutline(entityIn)
           }
         }
@@ -158,7 +158,7 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
                             if (numContainingEntities == 1) "Go to entity containing this group: " + containingEntities.get(0)._2.getName
                                                             else "See entities that contain this group ( " + numContainingEntities + ")",
                             if (definingEntity != None) "Go to class-defining entity" else "(stub: no class-defining entity to go to)")
-        //%%consider: do we want this?:
+        //idea: consider: do we want this?:
         //(see similar comment in postgresqldatabase)
         //"See groups containing this group (" + numContainingGroups + ")")
         //val numContainingGroups = mDB.getContainingRelationToGroups(relationToGroupIn, 0).size

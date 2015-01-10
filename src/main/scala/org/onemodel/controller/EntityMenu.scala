@@ -264,7 +264,6 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
           entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
         }
       } else if (answer == 5) {
-        //%%:
         //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
         val leadingText = Some(Array("Go to..."))
         val seeContainingEntities_choiceNumber: Int = 1
@@ -322,7 +321,7 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
               val answer = ans.get
               if (answer == 1 && answer <= choices.size) {
                 // see comment above
-                ui.displayText("not yet implemented") //%%
+                ui.displayText("not yet implemented")
               } else if (answer > choices.length && answer <= (choices.length + containingEntities.size)) {
                 // those in the condition on the previous line are 1-based, not 0-based.
                 val index = answer - choices.length - 1
@@ -364,7 +363,7 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
                 val index = answer - choices.length - 1
                 if (answer == 1 && answer <= choices.size) {
                   // see comment above
-                  ui.displayText("not yet implemented") //%%
+                  ui.displayText("not yet implemented")
                 } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && !userChoseAlternate) {
                   val containingRelationToGroup = containingRelationToGroups.get(index)
                   val containingEntities = mDB.getContainingEntities2(containingRelationToGroup, 0)

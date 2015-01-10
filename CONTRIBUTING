@@ -56,8 +56,9 @@ KEEP IN MIND:
 - Search for the article "how to ask a question well" or some such, by Eric Raymond (ESR): very practical suggestions.
 - Design reviews save time or avoid wasting time with an idea that can be readily improved with discussion.
 - Failure isn't often failure, but how we learn and move forward.
-- Not hearing back is not an insult, it's just that people are sometimes busy with many competing priorities.  You can wait a few weeks and try again, perhaps with revisions.
+- Not hearing back is not an insult, it's just that people are sometimes busy with many competing priorities.  You can wait a few weeks and try again, perhaps with revisions (if it matters).
 - It's usually best to mimic the code style, etc, that is already in place.  And let's keep the scala code at a level that is generally easy to read (guessable) for a java programmer, or make it that way if it isn't so now.
+- Let's have fewer build warnings rather than more.
 - Test well.  Consider the audience.  Be diligent at not introducing new bugs.  Consider testing more than one facet of the program, in more than one way.  Write automated tests; make sure to test all lines changed or impacted; use the changes personally for a while.
 - There is currently a way to configure aspectj inside OM to provide very much debugging output, if that helps; it's comparable to what "set -x" does in shell scripts.  See the comments in src/main/java/org/onemodel/MethodTracing.aj.
 - Please forgive faults of others; we'll all keep trying.

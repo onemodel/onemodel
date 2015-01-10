@@ -141,7 +141,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   }
 
   def getUserInputChar(allowedCharsIn: List[Char]): (Char, Boolean) = {
-    var input: Int = jlineReader.readCharacter(true) //%%%chars.toArray)
+    var input: Int = jlineReader.readCharacter(true)
     if (!input.isValidChar) {
       throw new Exception("Unexpected non-char value " + input + " from readCharacter().")
     }

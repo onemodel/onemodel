@@ -34,7 +34,7 @@ class TextUITest extends FlatSpec {
 
 
   /*
-  %%PUT ALL THESE BACK: WHEN ready to adjust tests for new jline2 usage (& fix surrounding known issues):
+  In task list is: PUT ALL THESE BACK: WHEN ready to adjust tests for new jline2 usage (& fix surrounding known issues):
   val ui:TextUI = new TextUI()
   ui.weAreTesting(testing = true)
 
