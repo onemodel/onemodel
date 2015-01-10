@@ -1,7 +1,7 @@
 #!/bin/bash -eu
 
 #    This file is part of OneModel, a program to manage knowledge.
-#    Copyright in each year of 2010-2014 inclusive, Luke A Call; all rights reserved.
+#    Copyright in each year of 2010-2015 inclusive, Luke A Call; all rights reserved.
 #    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
 #    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
 #    of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -30,3 +30,7 @@ if [[ $# -gt 0 && $1 == 'd' ]]; then
 fi
 
 java $DEBUG -Djline.keybindings="$THIS_SCRIPT_DIR/../jlinebindings.properties" -jar target/onemodel-*.jar $*
+
+# Idea: put in a trap so ^C or ^Z gets handled right on those signals? (search 'man bash' for "times  Print the accumulated user and system times for the shell and for processes run from the shell",
+# and then see 'trap' there):  Or just fix the behavior of the application by watching for those & resetting the terminal state propertly. But what about coming back to it after a ^Z?
+echo "On unix, if the terminal is messed up now, you might have to blindly type (making sure the command line is clear first) "reset" and hit Enter.  Not usually, but there's a bug such that sometimes after ^Z or ^C it happens."

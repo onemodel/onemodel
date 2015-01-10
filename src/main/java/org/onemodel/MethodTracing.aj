@@ -1,5 +1,5 @@
-/*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2014 inclusive, Luke A Call; all rights reserved.
+/*  This file is part of OneModel, a program to manage knowledge.  
+    Copyright in each year of 2013-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -14,6 +14,8 @@ import org.aspectj.lang.reflect.CodeSignature;
 
 /** This is an attempt to make debugging work along the lines of "set -x"
     in bash code.  This can be modified to get only certain log output.
+    There's probably a way to do it at runtime w/o recompilation, but this is
+    what is working now.
 
     **************************
     When changing this class, one has to run 'mvn clean' once, then 'mvn package' 
@@ -22,8 +24,8 @@ import org.aspectj.lang.reflect.CodeSignature;
     in the pom.xml. 
     **************************
     
-    TO USE: comment out BOTH lines that say "/*" at the before() & after() 
-    methods, but don't commit that change.  I.e., change "/*" to "// /*" 
+    TO USE:  at the "before()" & "after() methods, comment out BOTH lines 
+    that say "/*"  but don't commit that change.  I.e., change "/*" to "// /*" 
     or "///*".
 */
 public aspect MethodTracing {

@@ -1,42 +1,66 @@
-Thanks for your interest in the OneModel project, whether as a consumer and/or contributor.  It is my great desire to help everyone do good things, by knowing what has the most worth and the best way to carry that out.
+Thanks for your interest in the OneModel project, whether as a consumer or contributor.  It is my great desire that it help you in doing good.
 
 
 If you simply need other terms than those found in the file LICENSE, send a message to "licensing" and (to avoid address
 harvesters next comes the) at, then onemodel.org, with subject "onemodel licensing".  Your message might be forwarded to a public list for discussion.
 
 
-For code contributions and web site improvements, etc:  Please include in the *first* git commit comment of the first pull request (or equivalent), the following statement with your name inserted in the blank:
-    "I, ______, certify that I am authorized without restriction to contribute this work to the OneModel project, and I assign to Luke A. Call all rights to this work.  Luke A. Call, by incorporating this work promises that it will immediately be made publicly available under the license agreement under which the project is generally made available at the time of this contribution.  I also understand that he may assign rights to other entities or release this work under other licenses in the future, as seems to him best for the good of this project and humankind as a whole, in his sole judgement as the rights holder.  Also, by making any future submissions of work to Luke A Call or his successors or assigns, for use in the OneModel project, I assert that they will be under these same terms, until I explicitly and clearly revoke this by message to them through channels similarly reliable, or others generally known to be reliable (among which are email to which I receive a notice of receipt in common form, or certified postal mail)."
+For code contributions, web site improvements, etc:  Please include in the *first* git commit comment of the first pull request (or equivalent), the following statement with your name inserted in the blank, only if you are legally an adult.  (Explanation follows.  But hopefully this will simply never matter.)
+    "I, ______, being over 18 years of age, certify, and take full responsibility for this certification, that I am authorized, without restriction of employer agreement or any other kind, to assign all rights to this work, and I do assign all rights to this work to Luke A. Call, who, by incorporating this work into the OneModel project, promises that it will immediately be made publicly available under the license agreement under which the project is generally made available, and also thereby grants back to me non-exclusive, royalty-free and non-cancellable rights to use the work (i.e., these changes and/or enhancements, not the program that they enhance), as I see fit.  I understand that Luke A. Call may assign rights to other entities or release this work under other licenses in the future, as seems to him best for the good of this project and humankind as a whole, in his sole judgement as the rights holder.
+    
+    Also, by making any future submissions or contributions of work to Luke A. Call or his successors or assigns, for use in the OneModel project, I assert that such contributions will be under the same terms as here stated, until I explicitly and clearly revoke this assertion by message to him or them through a similarly reliable means, or by a means generally known to be reliable (among which are email to which I receive a notice of receipt in common form, or certified postal mail).  Such revocation may only be made with respect to work contributed after the revocation.  Luke A. Call or his successors or assigns may revoke his or their participation in this agreement simply by removing the contribution in question from use by the OneModel project, or by replacing the contribution with other material.
+    
+    Any legal contest around this agreement will be decided in and per the laws of the State of Utah, or at Luke A. Call's discretion.  Remaining aspects of this agreement will survive a court's declaration of the invalidity of any aspect of this agreement."
 
 
-WHY REQUIRE ASSIGNMENT OF RIGHTS:
-- It is easier to defend the copyright of a work or make necessary legal changes etc, if there is a single entity holding rights.  Other projects have learned this.
-- For the viability of the project, it needs flexibility for future changes as circumstances require, whether for dual licensing (what the FSF calls "selling exceptions") as a way to fund the project, or in case it becomes clearly necessary to move from the AGPL to an LGPL or BSD license, assign rights to a nonprofit, or other unanticipated requirements.
-- I am not an attorney, I often personally resent long (nonstandard) legal agreements and avoid situations that require them, and just want us all to do the right thing.  So let's just all behave well and be helpful.  Maybe someday I'll be less naive and have to do things the hard way, but let's avoid that as long as possible, hopefully forever.
-- I chose AGPL because with the amount of work in this, if someone enhances it for their own benefit, I'd like for everyone to get the benefit of the enhancements.  AGPL seems to provide the most benefit to the most people, which is the whole point.
-- References:
-  %%TODO: insert them here...
-  And others.
+ABOUT COPYRIGHT ASSIGNMENT:
+- The single biggest reason is to maintain the ability to make changes or manage the rights in the ways that make this project have the most benefit to mankind.  For viability, the project needs ability to make necessary adjustments, in case, for example, it becomes clearly necessary to move from the AGPL to an LGPL or BSD license, assign rights to a nonprofit (something I wish for but it's not yet top priority), dual licensing (what the FSF calls "selling exceptions") as a way to fund paid work, or whatever it takes to do the most good.
+- It is easier to defend the copyright (e.g., to enforce the requirement that redistributors also distribute source code, per the AGPL) of a work if there is a single entity holding rights.  The FSF requests copyright assignment in GNU projects for at least that reason.
+- I am not an attorney, I often personally resent long (nonstandard) legal agreements, (their authors probably do not read long agreements themselves before clicking "I agree", and they don't seem to really expect you to read them--which feels dishonest to me, as we should know what we promise).  I try to avoid situations that require such, and just want us all to do the right thing and be helpful.  Maybe someday we'll have to do things the hard way (ie, decide what attorneys to trust with such tasks and how to pay and direct them etc etc), but let's avoid that as long as possible, right?
+- I chose AGPL because with the amount of work in this, if someone improves it for their own benefit, I'd like for everyone to get the benefit of the improvements.  AGPL seems to provide the most benefit to the most people, which is the whole point.
+- In this, I've tried to strike a balance for now, between burdening the future with lack of preparation, vs. burdening the present with undue distraction and complication.
+- References (in case you are interested, and to show how complicated this topic can be.  
+  http://en.wikipedia.org/wiki/Contributor_License_Agreement
+  https://www.clahub.com/pages/why_cla
+  http://www.gnu.org/philosophy/assigning-copyright.html
+  http://www.gnu.org/licenses/gpl-faq.html#WhoHasThePower
+  http://www.gnu.org/licenses/gpl-faq.html#AssignCopyright  (includes an example of the FSF doing this)
+  http://git.savannah.gnu.org/cgit/gnulib.git/tree/doc/Copyright  (gnu / fsf do this, it seems largely for the reasons I've described).
+  https://fsf.org/bulletin/2014/spring/copyright-assignment-at-the-fsf?pk_campaign=spring2014Bulletin&pk_kwd=social_media
+  http://www.groklaw.net/article.php?story=20110524120303815
+  http://opensource.com/law/10/9/copyright-aggregation (This argues against copyright ass't, except for when putting it with a trusted entity such as a nonprofit, which we might be able to do in the future.)
+  http://www.harmonyagreements.org/
+  http://www.harmonyagreements.org/use.html
+  http://www.harmonyagreements.org/guide.html
+  http://www.harmonyagreements.org/overview.html
+  http://www.harmonyagreements.org/use.html
+  https://ref.fedorapeople.org/fontana-linuxcon.htm
+  https://wiki.gnome.org/FoundationBoard/Resources/CopyrightAssignment/Guidelines  (I think we've addressed the concerns, and benefit from the good points.)
 
 
 OTHER WAYS TO HELP WITH THIS PROJECT: 
-- bug reports with clear and simple instructions on how to reproduce the bug from the latest code
+- bug reports with the simplest viable and CLEAR instructions for reproducing the bug from the latest code (some bugs are already known).
 - web site improvements (see http://www.github.com/onemodel/onemodel-website)
-- supporting other users on project mailing lists etc
+- supporting other users on project mailing lists etc, or helping someone you know start using OneModel if it helps them.
 - suggestions, constructive feedback
-- create good data and share it, such as around maturity models of all kinds, or improve & extend the work of others.  (Note:  as of 2015-01, upcoming priorities include data sharing/cloud usage, mouse & mobile support, internal improvements, and other features.)
+- create good data and share it, such as around best practices on all subjects, integrated with maturity models (step-by-step learning/growth plans) for all areas of life, share ideas & discussion in that direction, or improve & extend the work of others.  (Note:  as of 2015-01, upcoming priorities include data sharing/cloud usage, mouse & mobile support, important internal improvements of many kinds, and other features.)
 - money
 
 
 KEEP IN MIND:
-- I am / we are grateful for your participation!  If this project is useful to you, that's good!
-- Search for the article "how to ask a question well" or some such, by Eric Raymond: very practical suggestions.
+- Other information about this project are at:
+    http://www.onemodel.org
+    http://www.github.com/onemodel/onemodel
+    http://www.github.com/onemodel/onemodel-website
+- I am / we are grateful for your participation!  It is very gratifying if this project is helpful.
+- Search for the article "how to ask a question well" or some such, by Eric Raymond (ESR): very practical suggestions.
 - Design reviews save time or avoid wasting time with an idea that can be readily improved with discussion.
 - Failure isn't often failure, but how we learn and move forward.
 - Not hearing back is not an insult, it's just that people are sometimes busy with many competing priorities.  You can wait a few weeks and try again, perhaps with revisions.
-- It's usually best to mimic the code style, etc, that is already in place.
-- Test well.  Consider the audience.  Be diligent at not introducing new bugs.  Consider testing more than one facet of the program, in more than one way.  Write tests, use it for a while, and make sure to test all lines changed or impacted.
-- There is currently a way to configure aspectj inside OM to provide very much debugging output, if that helps; it's comparable to what "set -x" does in shell scripts.
+- It's usually best to mimic the code style, etc, that is already in place.  And let's keep the scala code at a level that is generally easy to read (guessable) for a java programmer, or make it that way if it isn't so now.
+- Test well.  Consider the audience.  Be diligent at not introducing new bugs.  Consider testing more than one facet of the program, in more than one way.  Write automated tests; make sure to test all lines changed or impacted; use the changes personally for a while.
+- There is currently a way to configure aspectj inside OM to provide very much debugging output, if that helps; it's comparable to what "set -x" does in shell scripts.  See the comments in src/main/java/org/onemodel/MethodTracing.aj.
 - Please forgive faults of others; we'll all keep trying.
 - etc
+
 
