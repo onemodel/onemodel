@@ -141,39 +141,6 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   }
 
   def getUserInputChar(allowedCharsIn: List[Char]): (Char, Boolean) = {
-    /*
-    //%%unused? see below, how to leave it.
-    val allowedInputChars = {
-      var chars = allowedCharsIn
-      if (chars == null || chars.length == 0) {
-        val allowedCharCount = 65
-        // stuff in all #'s and letters (both cases)
-        for (i <- new RichChar('0') to '9')
-          chars = i :: chars
-        for (i <- new RichChar('A') to 'Z') {
-          chars = i :: chars
-        }
-        for (i <- new RichChar('a') to 'z')
-          chars = i :: chars
-        // and any others:
-        chars = '\u001B' :: chars // same as ascii 27 or ESCape
-        chars = '\u000D' :: chars // CR
-        chars = '\u000A' :: chars // LF
-        if (chars.length != allowedCharCount)
-          throw new Exception("Added only " + chars.length + " characters to array? S.b. " + allowedCharCount)
-      }
-      chars
-    }
-    */
-
-    //%%unused? see below, how to leave it.
-    //val chars = {
-    //  for (char <- allowedInputChars) yield char.asInstanceOf[Char]
-    //}
-
-    //val x = String.valueOf('c')
-    //val y = ConsoleReader.BACKSPACE
-    //val z = ConsoleReader.
     var input: Int = jlineReader.readCharacter(true) //%%%chars.toArray)
     if (!input.isValidChar) {
       throw new Exception("Unexpected non-char value " + input + " from readCharacter().")
