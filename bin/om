@@ -7,7 +7,8 @@
 #    of the License, or (at your option) any later version.  See the file LICENSE for details.
 #    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
-#    You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
+#    You should have received a copy of the GNU Affero General Public License along with OneModel.  If 
+#    not, see http://www.gnu.org/licenses/  .
 
 #useful to debug or observe scripts if uncommented:
 #set -x

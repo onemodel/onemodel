@@ -8,5 +8,6 @@ target/
 .cache
 classes/
 other-untracked/
+other-tracked/
 out/
 .todo-om-dev-details.txt.marks

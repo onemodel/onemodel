@@ -25,7 +25,9 @@ First you'll need a java SDK, like openJdk 1.7.  Then install maven (mvn).  Thes
     Apache Maven 3.0.4
     Java version: OpenJDK 1.7.0_65.
 
-And run
+Then you have to get "jline2-om" from github (my fork w/ needed features, not merged as of 2014-12), probably "git checkout 3c735c2" (or the version needed per any error messages you get in the next step), and run "mvn install".
+
+Then in the directory where you have onemodel, run
   mvn clean package -DskipTests=true
 ...which builds the .jar -- but it can't run until the other steps below are complete.
   
@@ -49,7 +51,7 @@ Steps to be performed from a command prompt:
 
 - Become the root user (i.e., run "/bin/su -" and enter the root password), then edit the file
     /etc/postgresql/9.1/main/pg_hba.conf
-  (or its equivalent on your system).  Add some configuration lines at the end, after where the file says "Put your actual configuration here", making sure there were no conflicting lines below them.  Replace <username> with the username you want to use to access your OneModel data (usually the same as your username on the computer; I don't know if spaces will work so omit them if your username has any):
+  (or its equivalent on your system).  Add some configuration lines at the end, after where the file says "Put your actual configuration here", making sure there were no conflicting lines below them [should that say "ABOVE", not "below"?].  Replace <username> with the username you want to use to access your OneModel data (usually the same as your username on the computer; I don't know if spaces will work so omit them if your username has any):
   
 #This works for postgresql 9.1
 host    om_<username>   <username>    127.0.0.1/32    md5	
@@ -145,9 +147,7 @@ There is no substitute for making regular backups of all data that matters to yo
 
 You'll almost certainly want to have a long scrollback buffer in your command window, for times when you just need to review the recent past, or there was an errant keystroke and you want to see what happened.
 
-Workaround: To edit an entity name, you have to copy/paste then edit (ie it doesn't appear as the default for you to edit; probably due to old version of JLine in use).
-
-If it ever crashes, and you find you can't type anything at all on the command-line, on gnu/linux with the bash shell, you can run the 'reset' command (even if you can't see what you're typing) and that should fix it (by resetting the line editor at that bash prompt).
+If it ever crashes, and you find you can't type anything at all on the command-line, on gnu/linux with the bash shell, you can run Ctrl-c then the 'reset' command (even if you can't see what you're typing) and that should fix it (by resetting the line editor at that bash prompt).
 
 If you make some changes in subgroups, then ESCape back to a group which suddenly doesn't look right (has too few entries or something), then you can see the right entries by ESCaping from the incorrectly displayed group then going back into it.  It's an infrequent bug.  If you learn a way to reproduce it consistently, let me know.
 

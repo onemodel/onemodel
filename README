@@ -1,5 +1,5 @@
     This file is part of OneModel, a program to manage knowledge.
-    This file is copyrighted in each year of 2003, 2007, 2010, and 2012-2014 inclusive, Luke A Call; all rights reserved.
+    This file is copyrighted in each year of 2003, 2007, 2010, and 2012-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -14,7 +14,9 @@ See the web site http://www.onemodel.org for background, contact or support info
 
 See the file LICENSE for copyright, license & distribution information.  (The file inside the onemodel*.jar file, called META-INF/LICENSE.txt, applies only to any Apache Project artifacts (such as from commons-io) used inside OM, and not to OM itself; similarly for any others like that.  The OM copyright is in the file LICENSE).
 
-PROJECT STATUS as of 2014-4-26:  Currently in an early state but suitable for daily use for maintaining lists and notes.  Allows import/export & manipulation of entities, attributes (including file storage with md5sums for integrity verification), nested groups, and relationships with efficient traversal.  The structure and concepts will allow it to do much more.  See elsewhere for upcoming features.  
+PROJECT STATUS
+    As of 2014-04-26:  Currently in an early state but suitable for daily use for maintaining lists and notes.  Allows import/export & manipulation of entities, attributes (including file storage with md5sums for integrity verification), nested groups, and relationships with very efficient traversal.  At any given time, everything you need to know is on the screen (or nearly so), and once you get used to the keystrokes, the most common operations are fast.  The structure and concepts will allow it to do much more, and it allows for expressing rich info in well-modeled ways, though to do that and share it is not efficient (yet!).
+    As of 2015-02, upcoming priorities include to finish making it run on OpenBSD, data sharing/cloud usage (so local postgres installation will be optional), mouse & mobile support, important internal improvements of many kinds (possibly including efficient graph queries), and other features.
 
 See the file INSTALLING for instructions on compiling, installing, and running.
 

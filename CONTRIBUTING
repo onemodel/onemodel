@@ -16,10 +16,15 @@ For code contributions, web site improvements, etc:  Please include in the *firs
 ABOUT COPYRIGHT ASSIGNMENT:
 - The single biggest reason is to maintain the ability to make changes or manage the rights in the ways that make this project have the most benefit to mankind.  For viability, the project needs ability to make necessary adjustments, in case, for example, it becomes clearly necessary to move from the AGPL to an LGPL or BSD license, assign rights to a nonprofit (something I wish for but it's not yet top priority), dual licensing (what the FSF calls "selling exceptions") as a way to fund paid work, or whatever it takes to do the most good.
 - It is easier to defend the copyright (e.g., to enforce the requirement that redistributors also distribute source code, per the AGPL) of a work if there is a single entity holding rights.  The FSF requests copyright assignment in GNU projects for at least that reason.
-- I am not an attorney, I often personally resent long (nonstandard) legal agreements, (their authors probably do not read long agreements themselves before clicking "I agree", and they don't seem to really expect you to read them--which feels dishonest to me, as we should know what we promise).  I try to avoid situations that require such, and just want us all to do the right thing and be helpful.  Maybe someday we'll have to do things the hard way (ie, decide what attorneys to trust with such tasks and how to pay and direct them etc etc), but let's avoid that as long as possible, right?
-- I chose AGPL because with the amount of work in this, if someone improves it for their own benefit, I'd like for everyone to get the benefit of the improvements.  AGPL seems to provide the most benefit to the most people, which is the whole point.
+  (References:
+    [something at fsf.org explaining their own requests for copyright assignment.]
+    https://www.fsf.org/news/android-termination-upgrade-gplv3  says "only copyright holders can enforce free software licenses in most countries"
+    )
+- I am not an attorney, I often personally resent long (nonstandard) legal agreements, (their authors probably do not read long agreements themselves before clicking "I agree", and they don't seem to really expect you to read them as they're in a tiny window. hard to understand, and I've gathered that lawyers don't typically read their own mortgage agreements or EULAs they accept -- which feels dishonest to me, as we should know what we promise and we should use the Golden Rule when asking others to promise!).  I try to avoid such messes, and just want us all to do the right thing and be helpful.  Maybe someday we'll have to do things the hard way (ie, decide what attorneys to trust with such tasks and how to pay and direct them etc etc), but let's avoid that as long as possible, right?
+- Why the AGPL?  Because with the amount of work in this, if someone improves it for their own benefit, I'd like for everyone to get the benefit of the improvements.  AGPL seems to provide the most benefit to the most people, which is the whole point.  If that bothers you, you probably haven't read much about the reasoning behind things like the AGPL:  Richard M Stallman & others give compelling arguments about freedom for the end-user vs. freedom for some to have power over others.  In many cases it seems most beneficial for anyone to have freedom to modify the software that they run, hire someone to do that, know for certain what the software is actually doing, and to share what they learn with others, if they so choose.  The AGPL preserves that ability for any recipient of the software who so wishes; many other licenses allow easy loss of those end-user rights.  The AGPL also allows selling software if one wishes to and follows the license.  And using the AGPL means there is less often any legal restriction to prevent using other free-software libraries in OM.
 - In this, I've tried to strike a balance for now, between burdening the future with lack of preparation, vs. burdening the present with undue distraction and complication.
 - References (in case you are interested, and to show how complicated this topic can be.  
+  http://www.tcpdump.org/license.html (they would change their license, but are not doing so, only because of the # of contributors they'd have to contact; I believe mozilla had to work through that issue, and I don't want to waste that much time.)
   http://en.wikipedia.org/wiki/Contributor_License_Agreement
   https://www.clahub.com/pages/why_cla
   http://www.gnu.org/philosophy/assigning-copyright.html
@@ -43,20 +48,22 @@ OTHER WAYS TO HELP WITH THIS PROJECT:
 - web site improvements (see http://www.github.com/onemodel/onemodel-website)
 - supporting other users on project mailing lists etc, or helping someone you know start using OneModel if it helps them.
 - suggestions, constructive feedback
-- create good data and share it, such as around best practices on all subjects, integrated with maturity models (step-by-step learning/growth plans) for all areas of life, share ideas & discussion in that direction, or improve & extend the work of others.  (Note:  as of 2015-01, upcoming priorities include data sharing/cloud usage, mouse & mobile support, important internal improvements of many kinds, and other features.)
+- create good data and share it, such as around best practices on all subjects, integrated with maturity models (step-by-step learning/growth plans) for all areas of life, share ideas & discussion in that direction, or improve & extend the work of others.
 - money
 
 
 KEEP IN MIND:
+- See the README for project status; there is much to do.  In the future I hope to use OM itself to share plans, bug reports, etc.
 - Other information about this project are at:
     http://www.onemodel.org
     http://www.github.com/onemodel/onemodel
     http://www.github.com/onemodel/onemodel-website
 - I am / we are grateful for your participation!  It is very gratifying if this project is helpful.
+- I have not seen value in the "tl;dr" ("too long so didn't read") philosophy.  Instead, I try to write in skimmable ways so you can read the beginning and ending, then if need more info read the first sentences of sections, first sentences of paragraphs, look for bold & caps, & read the rest if details would help.  Don't ask for an explanation if you won't read something where I already tried to save you time, with clear writing.
 - Search for the article "how to ask a question well" or some such, by Eric Raymond (ESR): very practical suggestions.
 - Design reviews save time or avoid wasting time with an idea that can be readily improved with discussion.
 - Failure isn't often failure, but how we learn and move forward.
-- Not hearing back is not an insult, it's just that people are sometimes busy with many competing priorities.  You can wait a few weeks and try again, perhaps with revisions (if it matters).
+- Not hearing back is not an insult, it's just that people are sometimes busy with many competing priorities.  If it's important, you could wait a few weeks and try again, perhaps with revisions.
 - It's usually best to mimic the code style, etc, that is already in place.  And let's keep the scala code at a level that is generally easy to read (guessable) for a java programmer, or make it that way if it isn't so now.
 - Let's have fewer build warnings rather than more.
 - Test well.  Consider the audience.  Be diligent at not introducing new bugs.  Consider testing more than one facet of the program, in more than one way.  Write automated tests; make sure to test all lines changed or impacted; use the changes personally for a while.
