@@ -15,9 +15,7 @@ import org.onemodel._
 import org.onemodel.model._
 import org.onemodel.database.PostgreSQLDatabase
 
-class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectionTHATWEDONTWANT: PostgreSQLDatabase) extends Controller(ui) {
-  override val mDB = dbInOVERRIDESmDBWhichHasANewDbConnectionTHATWEDONTWANT
-
+class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
   /** returns None if user wants out. */
   //@tailrec //removed for now until the compiler can handle it with where the method calls itself.
   //idea: make this limited like this somehow?:  private[org.onemodel] ... Same for all others like it?
@@ -31,8 +29,8 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
       leadingTextIn(0) = "**CURRENT ENTITY:" + entityIn.getDisplayString
       if (relationIn != None) {
         leadingTextIn(0) += ": found via relation: " + relationSourceEntityIn.get.getName + " " +
-                            relationIn.get.getDisplayString(0, Some(new Entity(mDB, relationIn.get.getRelatedId2)),
-                                                            Some(new RelationType(mDB, relationIn.get.getAttrTypeId)))
+                            relationIn.get.getDisplayString(0, Some(new Entity(db, relationIn.get.getRelatedId2)),
+                                                            Some(new RelationType(db, relationIn.get.getAttrTypeId)))
       }
       if (containingGroupIn != None) {
         leadingTextIn(0) += ": found via group: " + containingGroupIn.get.getName
@@ -45,12 +43,12 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
     def getItemDisplayStrings(attributeObjListIn: java.util.ArrayList[Attribute]) = {
       val attributeNames: Array[String] = for (attribute: Attribute <- attributeObjListIn.toArray(Array[Attribute]())) yield attribute match {
         case relation: RelationToEntity =>
-          val relationType = new RelationType(mDB, relation.getAttrTypeId)
-          attribute.getDisplayString(maxNameLength, Some(new Entity(mDB, relation.getRelatedId2)), Some(relationType))
+          val relationType = new RelationType(db, relation.getAttrTypeId)
+          attribute.getDisplayString(controller.maxNameLength, Some(new Entity(db, relation.getRelatedId2)), Some(relationType))
         case relation: RelationToGroup =>
-          val relationType = new RelationType(mDB, relation.getAttrTypeId)
-          attribute.getDisplayString(maxNameLength, None, Some(relationType))
-        case _ => attribute.getDisplayString(maxNameLength, None, None)
+          val relationType = new RelationType(db, relation.getAttrTypeId)
+          attribute.getDisplayString(controller.maxNameLength, None, Some(relationType))
+        case _ => attribute.getDisplayString(controller.maxNameLength, None, None)
       }
       attributeNames
     }
@@ -76,54 +74,54 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
           def addQuantityAttribute(dhIn: QuantityAttributeDataHolder): Option[QuantityAttribute] = {
             Some(entityIn.addQuantityAttribute(dhIn.attrTypeId, dhIn.unitId, dhIn.number, dhIn.validOnDate, dhIn.observationDate))
           }
-          askForInfoAndAddAttribute[QuantityAttributeDataHolder](new QuantityAttributeDataHolder(0, None, 0, 0, 0), Controller.QUANTITY_TYPE,
-                                                                 quantityDescription,
-                                                                 askForQuantityAttributeNumberAndUnit, addQuantityAttribute)
+          controller.askForInfoAndAddAttribute[QuantityAttributeDataHolder](new QuantityAttributeDataHolder(0, None, 0, 0, 0), Controller.QUANTITY_TYPE,
+                                                                            controller.quantityDescription,
+                                                                            controller.askForQuantityAttributeNumberAndUnit, addQuantityAttribute)
         } else if (whichKindAnswer == 2) {
           def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
             Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean))
           }
-          askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(0, Some(0), 0, false), Controller.BOOLEAN_TYPE,
-                                                                "SELECT TYPE OF TRUE/FALSE VALUE: ", askForBooleanAttributeValue, addBooleanAttribute)
+          controller.askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(0, Some(0), 0, false), Controller.BOOLEAN_TYPE,
+                                                                "SELECT TYPE OF TRUE/FALSE VALUE: ", controller.askForBooleanAttributeValue, addBooleanAttribute)
         } else if (whichKindAnswer == 3) {
           def addDateAttribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
             Some(entityIn.addDateAttribute(dhIn.attrTypeId, dhIn.date))
           }
-          askForInfoAndAddAttribute[DateAttributeDataHolder](new DateAttributeDataHolder(0, 0), Controller.DATE_TYPE,
-                                                             "SELECT TYPE OF DATE: ", askForDateAttributeValue, addDateAttribute)
+          controller.askForInfoAndAddAttribute[DateAttributeDataHolder](new DateAttributeDataHolder(0, 0), Controller.DATE_TYPE,
+                                                             "SELECT TYPE OF DATE: ", controller.askForDateAttributeValue, addDateAttribute)
         } else if (whichKindAnswer == 4) {
           def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
             Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, dhIn.validOnDate, dhIn.observationDate))
           }
-          askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(0, Some(0), 0, ""), Controller.TEXT_TYPE,
-                                                             "SELECT TYPE OF " + textDescription + ": ", askForTextAttributeText, addTextAttribute)
+          controller.askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(0, Some(0), 0, ""), Controller.TEXT_TYPE,
+                                                             "SELECT TYPE OF " + controller.textDescription + ": ", controller.askForTextAttributeText, addTextAttribute)
         } else if (whichKindAnswer == 5) {
           def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[RelationToEntity] = {
             Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId1, dhIn.entityId2, dhIn.validOnDate, dhIn.observationDate))
           }
-          askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(0, None, 0, entityIn.getId, 0), Controller.RELATION_TYPE_TYPE,
-                                                                "CREATE OR SELECT RELATION TYPE: (" + mRelTypeExamples + ")",
-                                                                askForRelationEntityIdNumber2, addRelationToEntity)
+          controller.askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(0, None, 0, entityIn.getId, 0), Controller.RELATION_TYPE_TYPE,
+                                                                "CREATE OR SELECT RELATION TYPE: (" + controller.mRelTypeExamples + ")",
+                                                                controller.askForRelationEntityIdNumber2, addRelationToEntity)
         } else if (whichKindAnswer == 6) {
           def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
             entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
-            Some(new RelationToGroup(mDB, dhIn.entityId, dhIn.attrTypeId, dhIn.groupId))
+            Some(new RelationToGroup(db, dhIn.entityId, dhIn.attrTypeId, dhIn.groupId))
           }
-          val result: Option[Attribute] = askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, 0, 0, None,
+          val result: Option[Attribute] = controller.askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, 0, 0, None,
                                                                                                                              System.currentTimeMillis()),
                                                                                                Controller.RELATION_TYPE_TYPE,
-                                                                                               "CREATE OR SELECT RELATION TYPE: (" + mRelTypeExamples + ")" +
+                                                                                               "CREATE OR SELECT RELATION TYPE: (" + controller.mRelTypeExamples + ")" +
                                                                                                "." + TextUI.NEWLN + "(Does anyone see a specific " +
                                                                                                "reason to keep asking for these dates?)",
-                                                                                               askForRelToGroupInfo, addRelationToGroup)
+                                                                                               controller.askForRelToGroupInfo, addRelationToGroup)
           if (result == None) entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-          else new GroupMenu(ui, mDB).groupMenu(0, result.get.asInstanceOf[RelationToGroup])
+          else new GroupMenu(ui, db, controller).groupMenu(0, result.get.asInstanceOf[RelationToGroup])
         } else if (whichKindAnswer == 7) {
           def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
             Some(entityIn.addFileAttribute(dhIn.attrTypeId, dhIn.description, new java.io.File(dhIn.originalFilePath)))
           }
-          val result: Option[FileAttribute] = askForInfoAndAddAttribute[FileAttributeDataHolder](new FileAttributeDataHolder(0, "", ""), Controller.FILE_TYPE,
-                                                                                                 "SELECT TYPE OF FILE: ", askForFileAttributeInfo,
+          val result: Option[FileAttribute] = controller.askForInfoAndAddAttribute[FileAttributeDataHolder](new FileAttributeDataHolder(0, "", ""), Controller.FILE_TYPE,
+                                                                                                 "SELECT TYPE OF FILE: ", controller.askForFileAttributeInfo,
                                                                                                  addFileAttribute).asInstanceOf[Option[FileAttribute]]
           if (result != None) {
             val ans = ui.askYesNoQuestion("Document successfully added. Do you want to DELETE the local copy (at " + result.get.getOriginalFilePath + " ?")
@@ -159,13 +157,13 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
         val o: Attribute = attributeObjListIn.get(attributeChoicesIndex)
         o match {
           //idea: there's probably also some more scala-like cleaner syntax 4 this, as elsewhere:
-          case qa: QuantityAttribute => attributeEditMenu(qa)
-          case ta: TextAttribute => attributeEditMenu(ta)
-          case relToEntity: RelationToEntity => entityMenu(0, new Entity(mDB, relToEntity.getRelatedId2), Some(entityIn), Some(relToEntity))
-          case relToGroup: RelationToGroup => new QuickGroupMenu(ui,mDB).quickGroupMenu(0, relToGroup)
-          case da: DateAttribute => attributeEditMenu(da)
-          case ba: BooleanAttribute => attributeEditMenu(ba)
-          case fa: FileAttribute => attributeEditMenu(fa)
+          case qa: QuantityAttribute => controller.attributeEditMenu(qa)
+          case ta: TextAttribute => controller.attributeEditMenu(ta)
+          case relToEntity: RelationToEntity => entityMenu(0, new Entity(db, relToEntity.getRelatedId2), Some(entityIn), Some(relToEntity))
+          case relToGroup: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, relToGroup)
+          case da: DateAttribute => controller.attributeEditMenu(da)
+          case ba: BooleanAttribute => controller.attributeEditMenu(ba)
+          case fa: FileAttribute => controller.attributeEditMenu(fa)
           case _ => throw new Exception("Unexpected choice has class " + o.getClass.getName + "--what should we do here?")
         }
       }
@@ -174,19 +172,19 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
     // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
     def getChoices: (Array[String], Boolean) = {
       // (idea: might be a little silly to do it this way, once this # gets very big?:)
-      var choices = Array[String]("Add attribute (quantity, true/false, date, text, external file, relation to entity or group: " + mRelTypeExamples + ")...",
+      var choices = Array[String]("Add attribute (quantity, true/false, date, text, external file, relation to entity or group: " + controller.mRelTypeExamples + ")...",
                                   "Import/Export...",
                                   "Edit name",
                                   "Delete or Archive...",
                                   "Go to...",
-                                  listNextItemsPrompt)
+                                  controller.listNextItemsPrompt)
       if (relationIn != None) {
         // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options, because
         // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
         require(relationIn.get.getRelatedId2 == entityIn.getId && relationSourceEntityIn != None)
       }
 
-      val defaultEntity: Option[Long] = findDefaultDisplayEntity
+      val defaultEntity: Option[Long] = controller.findDefaultDisplayEntity
       //  don't show the "set default" option if it's already been done w/ this same one:
       val entityIsAlreadyTheDefault: Boolean = defaultEntity != None && defaultEntity.get == entityIn.getId
       if (! entityIsAlreadyTheDefault) {
@@ -200,10 +198,10 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
 
     val leadingText: Array[String] = new Array[String](2)
     val (choices: Array[String], entityIsAlreadyTheDefault: Boolean) = getChoices
-    val numDisplayableAttributes = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.size, maxNameLength)
+    val numDisplayableAttributes = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.size, controller.maxNameLength)
     val (attributeObjList: java.util.ArrayList[Attribute], totalRowsAvailable) =
-      mDB.getSortedAttributes(entityIn.getId, startingAttributeIndexIn, numDisplayableAttributes)
-    val choicesModified = addRemainingCountToPrompt(choices, attributeObjList.size, totalRowsAvailable, startingAttributeIndexIn)
+      db.getSortedAttributes(entityIn.getId, startingAttributeIndexIn, numDisplayableAttributes)
+    val choicesModified = controller.addRemainingCountToPrompt(choices, attributeObjList.size, totalRowsAvailable, startingAttributeIndexIn)
     val leadingTextModified = getLeadingText(leadingText, attributeObjList)
     val attributeDisplayStrings: Array[String] = getItemDisplayStrings(attributeObjList)
 
@@ -219,23 +217,23 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
       if (answer == 2) {
         val importOrExport = ui.askWhich(None, Array("Import", "Export"), Array[String]())
         if (importOrExport != None) {
-          if (importOrExport.get == 1) new ImportExport(ui, mDB).importCollapsibleOutlineAsGroups(entityIn)
-          else if (importOrExport.get == 2) new ImportExport(ui, mDB).exportToCollapsibleOutline(entityIn)
+          if (importOrExport.get == 1) new ImportExport(ui, db, controller).importCollapsibleOutlineAsGroups(entityIn)
+          else if (importOrExport.get == 2) new ImportExport(ui, db, controller).exportToCollapsibleOutline(entityIn)
         }
         entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }
       else if (answer == 3) {
-        val editedEntity: Option[Entity] = editEntityName(entityIn)
+        val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
         entityMenu(startingAttributeIndexIn, if (editedEntity != None) editedEntity.get else entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }
       else if (answer == 4) {
         val (delOrArchiveAnswer, delLinkingRelation_choiceNumber, delFromContainingGroup_choiceNumber) =
-          askWhetherDeleteOrArchiveEtc(entityIn, relationIn, relationSourceEntityIn, containingGroupIn)
+          controller.askWhetherDeleteOrArchiveEtc(entityIn, relationIn, relationSourceEntityIn, containingGroupIn)
 
         if (delOrArchiveAnswer != None) {
           val answer = delOrArchiveAnswer.get
           if (answer == 1 || answer == 2) {
-            val thisEntityWasDeletedOrArchived = deleteOrArchiveEntity(entityIn, answer == 1)
+            val thisEntityWasDeletedOrArchived = controller.deleteOrArchiveEntity(entityIn, answer == 1)
             if (thisEntityWasDeletedOrArchived) None
             else entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
           } else if (answer == delLinkingRelation_choiceNumber && relationIn != None && answer <= choices.size) {
@@ -271,14 +269,14 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
         val goToRelation_choiceNumber: Int = 3
         val goToRelationType_choiceNumber: Int = 4
         var goToClassDefiningEntity_choiceNumber: Int = 3
-        val numContainingEntities = mDB.getContainingEntities1(entityIn, 0).size
+        val numContainingEntities = db.getContainingEntities1(entityIn, 0).size
         // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
-        val numContainingGroups = mDB.getCountOfGroupsContainingEntity(entityIn.getId)
+        val numContainingGroups = db.getCountOfGroupsContainingEntity(entityIn.getId)
         var containingGroup: Option[Group] = None
         var containingRtg: Option[RelationToGroup] = None
         if (numContainingGroups == 1) {
-          containingRtg = Some(mDB.getContainingRelationToGroups(entityIn, 0, Some(1)).get(0))
-          containingGroup = Some(new Group(mDB, containingRtg.get.getGroupId))
+          containingRtg = Some(db.getContainingRelationToGroups(entityIn, 0, Some(1)).get(0))
+          containingGroup = Some(new Group(db, containingRtg.get.getGroupId))
         }
 
         var choices = Array[String]("See entities that directly relate to this entity ( " + numContainingEntities + ")",
@@ -290,8 +288,8 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
 
         if (relationIn != None) {
           choices = choices :+ "Go edit the relation to entity that that led here: " +
-                               relationIn.get.getDisplayString(15, relationSourceEntityIn, Some(new RelationType(mDB, relationIn.get.getAttrTypeId)))
-          choices = choices :+ "Go to the type, for the relation that that led here: " + new Entity(mDB, relationIn.get.getAttrTypeId).getName
+                               relationIn.get.getDisplayString(15, relationSourceEntityIn, Some(new RelationType(db, relationIn.get.getAttrTypeId)))
+          choices = choices :+ "Go to the type, for the relation that that led here: " + new Entity(db, relationIn.get.getAttrTypeId).getName
           goToClassDefiningEntity_choiceNumber += 2
         }
         if (classDefiningEntityId != None) {
@@ -302,13 +300,13 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
           val answer = goToWhereAnswer.get
           if (answer == seeContainingEntities_choiceNumber && answer <= choices.size) {
             val leadingText = List[String]("Pick from menu, or an entity by letter")
-            val choices: Array[String] = Array(listNextItemsPrompt)
-            val numDisplayableItems: Long = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.size, maxNameLength)
+            val choices: Array[String] = Array(controller.listNextItemsPrompt)
+            val numDisplayableItems: Long = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.size, controller.maxNameLength)
             // This is partly set up so it could handle multiple screensful, but would need to be broken into a recursive method that
             // can specify dif't values on each call, for the startingIndexIn parm of getRelatingEntities.  I.e., could make it look more like
             // searchForExistingObject or such ? IF needed.  But to be needed means the user is putting the same object related by multiple
             // entities: enough to fill > 1 screen when listed.
-            val containingEntities: java.util.ArrayList[(Long, Entity)] = mDB.getContainingEntities1(entityIn, 0, Some(numDisplayableItems))
+            val containingEntities: java.util.ArrayList[(Long, Entity)] = db.getContainingEntities1(entityIn, 0, Some(numDisplayableItems))
             val containingEntitiesNames: Array[String] = containingEntities.toArray.map {
                                                                                           case relTypeIdAndEntity: (Long, Entity) =>
                                                                                             val entity: Entity = relTypeIdAndEntity._2
@@ -335,23 +333,23 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
             }
           } else if (answer == seeContainingGroups_choiceNumber && answer <= choices.size) {
             if (numContainingGroups == 1) {
-              new QuickGroupMenu(ui,mDB).quickGroupMenu(0, containingRtg.get)
+              new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, containingRtg.get)
             } else {
               val leadingText = List[String]("Pick from menu, or a letter to (go to if one or) see the entities containing that group, or Alt+<letter> for the actual *group* by letter")
-              val choices: Array[String] = Array(listNextItemsPrompt)
-              val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.size, maxNameLength)
+              val choices: Array[String] = Array(controller.listNextItemsPrompt)
+              val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.size, controller.maxNameLength)
               // (see comment in similar location just above)
-              val containingRelationToGroups: java.util.ArrayList[RelationToGroup] = mDB.getContainingRelationToGroups(entityIn, 0,
+              val containingRelationToGroups: java.util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn, 0,
                                                                                                                        Some(numDisplayableItems))
               val containingRtgDescriptions: Array[String] = containingRelationToGroups.toArray.map {
                                                                                                       case rtg: (RelationToGroup) =>
-                                                                                                        val entityName: String = new Entity(mDB,
+                                                                                                        val entityName: String = new Entity(db,
                                                                                                                                             rtg.getParentId)
                                                                                                                                  .getName
-                                                                                                        val rt: RelationType = new RelationType(mDB,
+                                                                                                        val rt: RelationType = new RelationType(db,
                                                                                                                                                 rtg.getAttrTypeId)
                                                                                                         "entity " + entityName + " " +
-                                                                                                        rtg.getDisplayString(maxNameLength, None, Some(rt))
+                                                                                                        rtg.getDisplayString(controller.maxNameLength, None, Some(rt))
                                                                                                       case _ => throw new OmException("??")
                                                                                                     }
 
@@ -366,20 +364,20 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
                   ui.displayText("not yet implemented")
                 } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && !userChoseAlternate) {
                   val containingRelationToGroup = containingRelationToGroups.get(index)
-                  val containingEntities = mDB.getContainingEntities2(containingRelationToGroup, 0)
+                  val containingEntities = db.getContainingEntities2(containingRelationToGroup, 0)
                   val numContainingEntities = containingEntities.size
                   if (numContainingEntities == 1) {
                     val containingEntity = containingEntities.get(0)._2
-                    entityMenu(0, containingEntity, None, None, Some(new Group(mDB, containingRelationToGroup.getGroupId)))
+                    entityMenu(0, containingEntity, None, None, Some(new Group(db, containingRelationToGroup.getGroupId)))
                   } else {
-                    chooseAmongEntities(containingEntities)
+                    controller.chooseAmongEntities(containingEntities)
                   }
                 } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && userChoseAlternate) {
                   // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
                   val entityId: Long = containingRelationToGroups.get(index).getParentId
                   val groupId: Long = containingRelationToGroups.get(index).getGroupId
                   val relTypeId: Long = containingRelationToGroups.get(index).getAttrTypeId
-                  new QuickGroupMenu(ui,mDB).quickGroupMenu(0, new RelationToGroup(mDB, entityId, relTypeId, groupId), Some(entityIn))
+                  new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, new RelationToGroup(db, entityId, relTypeId, groupId), Some(entityIn))
                 } else {
                   ui.displayText("unknown response")
                 }
@@ -396,20 +394,20 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
             val relationToEntityDH: RelationToEntityDataHolder = new RelationToEntityDataHolder(relationIn.get.getAttrTypeId, relationIn.get.getValidOnDate,
                                                                                                 relationIn.get.getObservationDate, relationIn.get.getRelatedId1,
                                                                                                 relationIn.get.getRelatedId2)
-            askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, Controller.RELATION_TO_ENTITY_TYPE,
+            controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, Controller.RELATION_TO_ENTITY_TYPE,
                                                                      "CHOOSE TYPE OF Relation to Entity:",
                                                                      dummyMethod, updateRelationToEntity)
             //force a reread from the DB so it shows the right info on the repeated menu:
-            entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, Some(new RelationToEntity(mDB, relationIn.get.getAttrTypeId,
+            entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, Some(new RelationToEntity(db, relationIn.get.getAttrTypeId,
                                                                                                              relationIn.get.getRelatedId1,
                                                                                                              relationIn.get.getRelatedId2)), containingGroupIn)
           }
           else if (answer == goToRelationType_choiceNumber && relationIn != None && answer <= choices.size) {
-            entityMenu(0, new Entity(mDB, relationIn.get.getAttrTypeId))
+            entityMenu(0, new Entity(db, relationIn.get.getAttrTypeId))
             entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
           }
           else if (answer == goToClassDefiningEntity_choiceNumber && classDefiningEntityId != None && answer <= choices.size) {
-            entityMenu(0, new Entity(mDB, classDefiningEntityId.get))
+            entityMenu(0, new Entity(db, classDefiningEntityId.get))
             entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
           } else {
             ui.displayText("invalid response")
@@ -425,11 +423,11 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
       }
       else if (answer == 7 && answer <= choices.size && !entityIsAlreadyTheDefault) {
         // updates user preferences such that this obj will be the one displayed by default in future.
-        mPrefs.putLong("first_display_entity", entityIn.getId)
+        controller.mPrefs.putLong("first_display_entity", entityIn.getId)
         entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }
       else if (answer == 8 && answer <= choices.size && !entityIn.isInstanceOf[RelationType]) {
-        val editedEntity: Option[Entity] = editEntityPublicStatus(entityIn)
+        val editedEntity: Option[Entity] = controller.editEntityPublicStatus(entityIn)
         entityMenu(startingAttributeIndexIn, editedEntity.get, relationSourceEntityIn, relationIn, containingGroupIn)
       }
       else if (answer > choices.length && answer <= (choices.length + attributeObjList.size)) {
@@ -447,7 +445,7 @@ class EntityMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnecti
   }
   catch {
     case e: Exception =>
-      showException(e)
+      controller.handleException(e)
       val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
       if (ans != None && ans.get) entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       else None

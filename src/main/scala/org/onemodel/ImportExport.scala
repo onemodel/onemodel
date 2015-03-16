@@ -18,12 +18,10 @@ import org.onemodel.model._
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHasANewDbConnectionTHATWEDONTWANT: PostgreSQLDatabase) extends Controller(ui) {
-  override val mDB = dbIn_OVERRIDES_mDB_variable_WhichHasANewDbConnectionTHATWEDONTWANT
-
+class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Controller) {
   // idea: see commend in EntityMenu about scoping.
   def exportToCollapsibleOutline(entity: Entity) {
-    val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels (0 = 'all'); ESC to cancel")), Some(isNumeric), Some("0"))
+    val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels (0 = 'all'); ESC to cancel")), Some(controller.isNumeric), Some("0"))
     if (ans != None) {
       val levelsToDescend: Int = ans.get.toInt
 
@@ -72,11 +70,11 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
                 if (includeMetadataIn) out.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString)
                 else out.println(entityName)
 
-                val attributeObjList: java.util.ArrayList[Attribute] = mDB.getSortedAttributes(entityIn.getId, 0, 0)._1
+                val attributeObjList: java.util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
                 for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) yield attribute match {
                   case relation: RelationToEntity =>
-                    val relationType = new RelationType(mDB, relation.getAttrTypeId)
-                    val entity2 = new Entity(mDB, relation.getRelatedId2)
+                    val relationType = new RelationType(db, relation.getAttrTypeId)
+                    val entity2 = new Entity(db, relation.getRelatedId2)
                     if (includeMetadataIn) {
                       printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevel, out)
                       out.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
@@ -86,8 +84,8 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
                              includeMetadataIn)
                     }
                   case relation: RelationToGroup =>
-                    val relationType = new RelationType(mDB, relation.getAttrTypeId)
-                    val group = new Group(mDB, relation.getGroupId)
+                    val relationType = new RelationType(db, relation.getAttrTypeId)
+                    val group = new Group(db, relation.getGroupId)
                     val grpName = group.getName
 
                     // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
@@ -160,7 +158,7 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
                                                           " collapsible outline where each level change is marked by 1 tab or 2 spaces; textAttribute content" +
                                                           " can be indicated by surrounding a body of text thus: <ta>text</ta> )," +
                                                           " then press Enter; ESC to cancel")),
-                                               Some(inputFileValid))
+                                               Some(controller.inputFileValid))
     if (ans1 != None) {
       val path = ans1.get
       val makeThemPublic: Option[Boolean] = ui.askYesNoQuestion("Do you want the entities imported to be marked as public?  Set it to the value the majority of " +
@@ -189,7 +187,7 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
               val putEntriesAtEnd: Boolean = putEntriesAtEndOption.get
               val fileToImport = new File(path)
               reader = new FileReader(fileToImport)
-              mDB.beginTrans()
+              db.beginTrans()
 
               doTheImport(reader, fileToImport.getCanonicalPath, fileToImport.lastModified(), firstContainingEntryIn, creatingNewStartingGroupFromTheFilename,
                           addingToExistingGroup, putEntriesAtEnd, makeThemPublic)
@@ -201,23 +199,23 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
                                   "the change whether you want it or not, even if the message at that time says 'rolled back...')"
                 ui.displayText(msg)
                 firstContainingEntryIn match {
-                  case entity: Entity => new EntityMenu(ui, mDB).entityMenu(0, entity)
-                  case rtg: RelationToGroup => new QuickGroupMenu(ui, mDB).quickGroupMenu(0, firstContainingEntryIn
+                  case entity: Entity => new EntityMenu(ui, db, controller).entityMenu(0, entity)
+                  case rtg: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, firstContainingEntryIn
                                                                                              .asInstanceOf[RelationToGroup])
                   case _ => throw new OmException("??")
                 }
                 ui.askYesNoQuestion("Do you want to commit the changes as they were made?")
               }
               if (keepAnswer == None || !keepAnswer.get) {
-                mDB.rollbackTrans()
+                db.rollbackTrans()
                 //idea: look into how long that time is (see above same cmt)
                 ui.displayText("Rolled back the import: no changes made (unless you waited too long and postgres committed it anyway...?).")
               } else {
-                mDB.commitTrans()
+                db.commitTrans()
               }
             } catch {
               case e: Exception =>
-                mDB.rollbackTrans()
+                db.rollbackTrans()
                 if (reader != null) {
                   try reader.close()
                   catch {
@@ -267,9 +265,9 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
   }
 
   def createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: Long, isPublicIn: Option[Boolean]): Entity = {
-    val entityId: Long = mDB.createEntity(line.trim, group.getClassId, isPublicIn)
-    mDB.addEntityToGroup(group.getId, entityId, Some(newSortingIndex), callerManagesTransactionsIn = true)
-    new Entity(mDB, entityId)
+    val entityId: Long = db.createEntity(line.trim, group.getClassId, isPublicIn)
+    db.addEntityToGroup(group.getId, entityId, Some(newSortingIndex), callerManagesTransactionsIn = true)
+    new Entity(db, entityId)
   }
 
   /* The parameter lastEntityIdAdded means the one to which a new subgroup will be added, such as in a series of entities
@@ -317,7 +315,7 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
           handleRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                             makeThemPublicIn)
         } else {
-          if (line.size > maxNameLength) throw new OmException("Line " + lineNumber + " is over " + maxNameLength + " characters " +
+          if (line.size > controller.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + controller.maxNameLength + " characters " +
                                                                " (has " + line.size + "): " + line)
           val indentationSpaceCount: Int = getFirstNonSpaceIndex(lineUntrimmed.getBytes, 0)
           if (indentationSpaceCount % spacesPerIndentLevel != 0) throw new OmException("# of spaces is off, on line " + lineNumber + ": '" + line + "'")
@@ -386,7 +384,7 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
             val newGroup: Group = lastEntityAdded.get.createGroupAndAddHASRelationToIt(lastEntityAdded.get.getName, mixedClassesAllowed,
                                                                                        observationDateIn, callerManagesTransactionsIn = true)._1
             // since a new grp, start at beginning of sorting indexes
-            val newSortingIndex = mDB.minIdValue
+            val newSortingIndex = db.minIdValue
             val newSubEntity: Entity = createAndAddEntityToGroup(line, newGroup, newSortingIndex, makeThemPublicIn)
             handleRestOfLines(r, Some(newSubEntity), newIndentationLevel, newGroup :: containerList, newSortingIndex :: lastSortingIndexes,
                               observationDateIn, mixedClassesAllowedDefaultIn, makeThemPublicIn)
@@ -399,7 +397,7 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
   def processTextAttributeContent(attrTypeName: String, firstLineContent: String, r: LineNumberReader, entityId: Long, beginningTagMarker: String,
                                   endTaMarker: String) {
     val attrTypeId: Long = {
-      val idsByName: Option[List[Long]] = mDB.findAllEntityIdsByName(attrTypeName.trim, caseSensitive = true)
+      val idsByName: Option[List[Long]] = db.findAllEntityIdsByName(attrTypeName.trim, caseSensitive = true)
       if (idsByName != None && idsByName.get.size == 1)
         idsByName.get.head
       else {
@@ -407,7 +405,7 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
         val prompt = "A name for the *type* of this text attribute was not provided; it would be the entire line content preceding the \"" +
                      beginningTagMarker + "\" " +
                      "(it has to match an existing entity, case-sensitively)"
-        val typeId = askForAttributeTypeId(prompt + ", so please choose one or ESC to abort this import operation:", Controller.TEXT_TYPE, None, None)
+        val typeId = controller.askForAttributeTypeId(prompt + ", so please choose one or ESC to abort this import operation:", Controller.TEXT_TYPE, None, None)
         if (typeId == None)
           throw new OmException(prompt + " or selected.")
         else
@@ -439,7 +437,7 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
       val builder = getRestOfLines(r, new mutable.StringBuilder)
       builder.toString()
     }
-    mDB.createTextAttribute(entityId, attrTypeId, text)
+    db.createTextAttribute(entityId, attrTypeId, text)
   }
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
@@ -460,16 +458,16 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
           } else containingEntity
         case containingRtg: RelationToGroup =>
           if (creatingNewStartingGroupFromTheFilenameIn) {
-            val containingGroup: Group = new Group(mDB, containingRtg.getGroupId)
+            val containingGroup: Group = new Group(db, containingRtg.getGroupId)
             val name = dataSourceFullPath
-            val newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, mDB.findUnusedSortingIndex(containingGroup.getId), makeThemPublicIn)
+            val newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, db.findUnusedSortingIndex(containingGroup.getId), makeThemPublicIn)
             val newGroup: Group = newEntity.createGroupAndAddHASRelationToIt(name, containingGroup.getMixedClassesAllowed, System.currentTimeMillis,
                                                                              callerManagesTransactionsIn = true)._1
             newGroup
           } else {
             assert(addingToExistingGroup)
             // importing the new entries to an existing group
-            new Group(mDB, containingRtg.getGroupId)
+            new Group(db, containingRtg.getGroupId)
           }
         case _ => throw new OmException("??")
       }
@@ -482,16 +480,16 @@ class ImportExport(override val ui: TextUI, dbIn_OVERRIDES_mDB_variable_WhichHas
       if (addingToExistingGroup && putEntriesAtEnd) {
         val containingGrp = containingEntry.asInstanceOf[Group]
         val nextSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
-        if (nextSortingIndex == mDB.minIdValue) {
+        if (nextSortingIndex == db.minIdValue) {
           // we wrapped from the biggest to lowest Long value
-          mDB.renumberGroupSortingIndexes(containingGrp.getId)
+          db.renumberGroupSortingIndexes(containingGrp.getId)
           val nextTriedNewSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
-          if (nextSortingIndex == mDB.minIdValue) {
+          if (nextSortingIndex == db.minIdValue) {
             throw new OmException("Huh? How did we get two wraparounds in a row?")
           }
           nextTriedNewSortingIndex
         } else nextSortingIndex
-      } else mDB.minIdValue
+      } else db.minIdValue
     }
 
     handleRestOfLines(r, None, 0, containingEntry :: Nil, startingSortingIndex :: Nil, dataSourceLastModifiedDate, mixedClassesAllowedDefaultIn,

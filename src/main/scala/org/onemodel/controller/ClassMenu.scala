@@ -14,9 +14,7 @@ import org.onemodel.TextUI
 import org.onemodel.model.{IdWrapper, EntityClass, Entity}
 import org.onemodel.database.PostgreSQLDatabase
 
-class ClassMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectionTHATWEDONTWANT: PostgreSQLDatabase) extends Controller(ui) {
-  override val mDB = dbInOVERRIDESmDBWhichHasANewDbConnectionTHATWEDONTWANT
-
+class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) {
   /** returns None if user wants out. */
   //@tailrec //see comment re this on EntityMenu
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
@@ -35,37 +33,37 @@ class ClassMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
       else {
         val answer = response.get
         if (answer == 3) {
-          askForAndWriteClassAndDefiningEntityName(Some(classIn.getId), Some(classIn.getName))
-          classMenu(new EntityClass(mDB, classIn.getId))
+          controller.askForAndWriteClassAndDefiningEntityName(Some(classIn.getId), Some(classIn.getName))
+          classMenu(new EntityClass(db, classIn.getId))
         }
         else if (answer == 4) {
-          val entitiesCount: Long = mDB.getEntitiesOnlyCount(Some(classIn.getId), limitByClass = true, Some(classIn.getDefiningEntityId))
+          val entitiesCount: Long = db.getEntitiesOnlyCount(Some(classIn.getId), limitByClass = true, Some(classIn.getDefiningEntityId))
           if (entitiesCount > 0) {
             ui.displayText("Can not delete class, because it is the class of " + entitiesCount + " entities.")
           } else {
             val name = classIn.getName
-            val definingEntityName: String = new Entity(mDB, classIn.getDefiningEntityId).getName
+            val definingEntityName: String = new Entity(db, classIn.getDefiningEntityId).getName
             val ans = ui.askYesNoQuestion("DELETE CLASS \"" + name + "\" AND its defining ENTITY \"" + definingEntityName + "\" with " +
-                                          entityPartsThatCanBeAffected + ".  **ARE YOU REALLY SURE?**")
+                                          controller.entityPartsThatCanBeAffected + ".  **ARE YOU REALLY SURE?**")
             if (ans != None && ans.get) {
               classIn.delete()
               ui.displayText("Deleted class \"" + name + "\"" + ".")
-              val selection: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Controller.ENTITY_CLASS_TYPE)
-              if (selection != None) classMenu(new EntityClass(mDB, selection.get.getId))
+              val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_CLASS_TYPE)
+              if (selection != None) classMenu(new EntityClass(db, selection.get.getId))
             } else {
               ui.displayText("Did not delete class.", waitForKeystroke = false)
             }
           }
           classMenu(classIn)
         } else if (answer == 5) {
-          new EntityMenu(ui,mDB).entityMenu(0, new Entity(mDB, classIn.getDefiningEntityId))
-          classMenu(new EntityClass(mDB, classIn.getId))
+          new EntityMenu(ui, db, controller).entityMenu(0, new Entity(db, classIn.getDefiningEntityId))
+          classMenu(new EntityClass(db, classIn.getId))
         } else if (answer == 6) {
-          val selection: Option[IdWrapper] = chooseOrCreateObject(None, None, Some(classIn.getDefiningEntityId), Controller.ENTITY_TYPE, 0,
+          val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, Some(classIn.getDefiningEntityId), Controller.ENTITY_TYPE, 0,
                                                                                Some(classIn.getId),
                                                                                limitByClassIn = true)
-          if (selection != None) new EntityMenu(ui,mDB).entityMenu(0, new Entity(mDB, selection.get.getId))
-          classMenu(new EntityClass(mDB, classIn.getId))
+          if (selection != None) new EntityMenu(ui, db, controller).entityMenu(0, new Entity(db, selection.get.getId))
+          classMenu(new EntityClass(db, classIn.getId))
         } else {
           //textui doesn't actually let the code get here, but:
           ui.displayText("invalid response")
@@ -75,7 +73,7 @@ class ClassMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
     }
     catch {
       case e: Exception =>
-        showException(e)
+        controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
         if (ans != None && ans.get) classMenu(classIn)
         else None

@@ -14,9 +14,7 @@ import org.onemodel._
 import org.onemodel.model.{IdWrapper, RelationType, EntityClass, Entity}
 import org.onemodel.database.PostgreSQLDatabase
 
-class MainMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectionTHATWEDONTWANT: PostgreSQLDatabase) extends Controller(ui) {
-  override val mDB = dbInOVERRIDESmDBWhichHasANewDbConnectionTHATWEDONTWANT
-
+class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller)  {
   /** See caller in start() for description of the 2nd parameter. */
   // Removed next line @tailrec because 1) it gets errors about "recursive call not in tail position" (which could be fixed by removing the last call to itself,
   // but for the next reason), and 2) it means the user can't press ESC to go "back" to previously viewed entities.
@@ -26,7 +24,7 @@ class MainMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnection
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
   def mainMenu(entityIn: Option[Entity] = None, goDirectlyToChoice: Option[Int] = None) {
     try {
-      val numEntities = mDB.getEntitiesOnlyCount()
+      val numEntities = db.getEntitiesOnlyCount()
       if (numEntities == 0 || entityIn == None) {
         val choices: List[String] = List[String]("Add new entity (such as yourself using your name, to start)",
                                                  "Search / list existing entities (except quantity units, attribute types, & relation types)")
@@ -35,16 +33,16 @@ class MainMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnection
           val answer = response.get
           // None means user hit ESC (or 0, though not shown) to get out
           answer match {
-            case 1 => showInEntityMenuThenMainMenu(askForInfoAndCreateEntity())
+            case 1 => controller.showInEntityMenuThenMainMenu(controller.askForInfoAndCreateEntity())
             case 2 =>
-              val selection: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
+              val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
               if (selection != None) {
-                showInEntityMenuThenMainMenu(Some(new Entity(mDB, selection.get.getId)))
+                controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get.getId)))
               }
             case _ => ui.displayText("unexpected: " + answer)
           }
         }
-      } else if (Entity.getEntityById(mDB, entityIn.get.getId) == None) {
+      } else if (Entity.getEntityById(db, entityIn.get.getId) == None) {
         ui.displayText("The entity to be displayed, id " + entityIn.get.getId + ": " + entityIn.get.getDisplayString + "\", is not present, " +
                        "probably because it was deleted.  Trying the prior one viewed.", waitForKeystroke = false)
         // then allow exit from this method so the caller will thus back up one entity and re-enter this menu.
@@ -54,11 +52,11 @@ class MainMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnection
 
         // First, get a fresh copy in case things changed since the one passed in as the parameter was read, like edits etc since it was last saved by,
         // or passed from the calling menuLoop (by this or another process):
-        val entity: Entity = new Entity(mDB, entityIn.get.getId)
+        val entity: Entity = new Entity(db, entityIn.get.getId)
 
         val leadingText: String = "Main OM menu:"
-        val choices: List[String] = List[String](menuText_createEntityOrAttrType,
-                                                 menuText_CreateRelationType,
+        val choices: List[String] = List[String](controller.menuText_createEntityOrAttrType,
+                                                 controller.menuText_CreateRelationType,
                                                  "----" /*spacer for better consistency of options with other menus, for memory & navigation speed*/ ,
                                                  "----" /*spacer for better consistency of options with other menus, for memory & navigation speed*/ ,
                                                  "Go to current entity (" + entity.getDisplayString + "; or its sole subgroup, if present)",
@@ -74,28 +72,28 @@ class MainMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnection
           val answer = response.get
           answer match {
             case 1 =>
-              showInEntityMenuThenMainMenu(askForInfoAndCreateEntity())
+              controller.showInEntityMenuThenMainMenu(controller.askForInfoAndCreateEntity())
             case 2 =>
-              showInEntityMenuThenMainMenu(askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE))
+              controller.showInEntityMenuThenMainMenu(controller.askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE))
             case 5 =>
-              val subEntitySelected: Option[Entity] = goToEntityOrItsSoleGroupsMenu(entity)._1
+              val subEntitySelected: Option[Entity] = controller.goToEntityOrItsSoleGroupsMenu(entity)._1
               if (subEntitySelected != None) mainMenu(subEntitySelected)
             case 6 =>
-              val selection: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
+              val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
               if (selection != None) {
-                showInEntityMenuThenMainMenu(Some(new Entity(mDB, selection.get.getId)))
+                controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get.getId)))
               }
             case 7 =>
-              val classId: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Controller.ENTITY_CLASS_TYPE)
+              val classId: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_CLASS_TYPE)
               // (compare this to showInEntityMenuThenMainMenu)
               if (classId != None) {
-                new ClassMenu(ui, mDB).classMenu(new EntityClass(mDB, classId.get.getId))
+                new ClassMenu(ui, db, controller).classMenu(new EntityClass(db, classId.get.getId))
                 mainMenu(Some(entity))
               }
             case 8 =>
-              val rtId: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Controller.RELATION_TYPE_TYPE)
+              val rtId: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.RELATION_TYPE_TYPE)
               if (rtId != None) {
-                showInEntityMenuThenMainMenu(Some(new RelationType(mDB, rtId.get.getId)))
+                controller.showInEntityMenuThenMainMenu(Some(new RelationType(db, rtId.get.getId)))
               }
             case _: Int =>
               ui.displayText("unexpected: " + answer)
@@ -107,7 +105,7 @@ class MainMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnection
     }
     catch {
       case e: Exception =>
-        showException(e)
+        controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
         if (ans != None && ans.get) mainMenu(entityIn, goDirectlyToChoice)
     }

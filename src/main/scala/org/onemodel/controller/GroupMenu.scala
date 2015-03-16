@@ -16,9 +16,7 @@ import org.onemodel._
 import org.onemodel.model._
 import org.onemodel.database.PostgreSQLDatabase
 
-class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectionTHATWEDONTWANT: PostgreSQLDatabase) extends Controller(ui) {
-  override val mDB = dbInOVERRIDESmDBWhichHasANewDbConnectionTHATWEDONTWANT
-
+class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
 
   /** Returns None if user wants out. The parameter callingMenusRtgIn exists only to preserve the value as may be used by quickGroupMenu, and passed
     * between it and here.
@@ -32,7 +30,7 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
       groupMenu_helper(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn)
     } catch {
       case e: Exception =>
-        showException(e)
+        controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
         if (ans != None && ans.get) groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn)
         else None
@@ -45,7 +43,7 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
   //
   def groupMenu_helper(displayStartingRowNumberIn: Long, relationToGroupIn: RelationToGroup, callingMenusRtgIn: Option[RelationToGroup] = None):
   Option[Entity] = {
-    val group = new Group(mDB, relationToGroupIn.getGroupId)
+    val group = new Group(db, relationToGroupIn.getGroupId)
     require(relationToGroupIn != null)
 
     val definingEntity = group.getClassDefiningEntity
@@ -56,18 +54,18 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
                                 "Edit group name",
                                 "Delete...",
                                 "Go to...",
-                                listNextItemsPrompt,
+                                controller.listNextItemsPrompt,
                                 "Filter (limit which are shown; unimplemented)",
                                 "(stub)" /*sort?*/ ,
                                 "Quick group menu")
-    val attrType = Some(new RelationType(mDB, relationToGroupIn.getAttrTypeId))
+    val attrType = Some(new RelationType(db, relationToGroupIn.getAttrTypeId))
     val leadingText: Array[String] = Array("ENTITY GROUP (regular menu: more complete, so slower for some things): " +
                                            relationToGroupIn.getDisplayString(0, None, attrType))
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.size, maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.size, controller.maxNameLength)
     val objectsToDisplay: java.util.ArrayList[Entity] = group.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems))
-    addRemainingCountToPrompt(choices, objectsToDisplay.size, group.groupSize, displayStartingRowNumberIn)
+    controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, group.groupSize, displayStartingRowNumberIn)
     val names: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
-      val numSubgroupsPrefix: String = getNumSubgroupsPrefix(entity.getId)
+      val numSubgroupsPrefix: String = controller.getNumSubgroupsPrefix(entity.getId)
       numSubgroupsPrefix + entity.getName + " " + entity.getPublicStatusString()
     }
     val numEntitiesInGroup: Long = group.groupSize
@@ -78,12 +76,12 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
     else {
       val answer = response.get
       if (answer == 1) {
-        addEntityToGroup(group)
+        controller.addEntityToGroup(group)
         groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
       } else if (answer == 2) {
         val importOrExport = ui.askWhich(None, Array("Import", "Export"), Array[String]())
         if (importOrExport != None) {
-          if (importOrExport.get == 1) new ImportExport(ui,mDB).importCollapsibleOutlineAsGroups(relationToGroupIn)
+          if (importOrExport.get == 1) new ImportExport(ui, db, controller).importCollapsibleOutlineAsGroups(relationToGroupIn)
           else if (importOrExport.get == 2) {
             ui.displayText("not yet implemented: try it from an entity rather than a group where it is supported, for now.")
             //exportToCollapsibleOutline(entityIn)
@@ -91,12 +89,12 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
         }
         groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
       } else if (answer == 3) {
-        val ans = editGroupName(group)
+        val ans = controller.editGroupName(group)
         if (ans == None) {
           groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
         } else {
           // reread the RTG to get the updated info:
-          groupMenu(displayStartingRowNumberIn, new RelationToGroup(mDB, relationToGroupIn.getParentId, relationToGroupIn.getAttrTypeId,
+          groupMenu(displayStartingRowNumberIn, new RelationToGroup(db, relationToGroupIn.getParentId, relationToGroupIn.getAttrTypeId,
                                                                     relationToGroupIn.getGroupId), callingMenusRtgIn = callingMenusRtgIn)
         }
       } else if (answer == 4) {
@@ -151,7 +149,7 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
           }
         }
       } else if (answer == 5 && answer <= choices.size) {
-        val containingEntities = mDB.getContainingEntities2(relationToGroupIn, 0)
+        val containingEntities = db.getContainingEntities2(relationToGroupIn, 0)
         val numContainingEntities = containingEntities.size
         // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
         val choices = Array("Go edit the relation to group that led us here :" + relationToGroupIn.getDisplayString(15, None, attrType),
@@ -175,26 +173,26 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
             val relationToGroupDH: RelationToGroupDataHolder = new RelationToGroupDataHolder(relationToGroupIn.getParentId, relationToGroupIn.getAttrTypeId,
                                                                                              relationToGroupIn.getGroupId, relationToGroupIn.getValidOnDate,
                                                                                              relationToGroupIn.getObservationDate)
-            askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupDH, Controller.RELATION_TO_GROUP_TYPE,
+            controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupDH, Controller.RELATION_TO_GROUP_TYPE,
                                                                     "CHOOSE TYPE OF [correct me: or edit existing?] Relation to Entity:",
-                                                                    askForRelToGroupInfo, updateRelationToGroup)
+                                                                    controller.askForRelToGroupInfo, updateRelationToGroup)
             //force a reread from the DB so it shows the right info on the repeated menu:
-            groupMenu(displayStartingRowNumberIn, new RelationToGroup(mDB, relationToGroupDH.entityId, relationToGroupDH.attrTypeId,
+            groupMenu(displayStartingRowNumberIn, new RelationToGroup(db, relationToGroupDH.entityId, relationToGroupDH.attrTypeId,
                                                                       relationToGroupDH.groupId), callingMenusRtgIn = callingMenusRtgIn)
           } else if (answer == 2 && answer <= choices.size) {
             val entity: Option[Entity] =
               if (numContainingEntities == 1) {
                 Some(containingEntities.get(0)._2)
               } else {
-                chooseAmongEntities(containingEntities)
+                controller.chooseAmongEntities(containingEntities)
               }
 
             if (entity != None)
-              new EntityMenu(ui, mDB).entityMenu(0, entity.get)
+              new EntityMenu(ui, db, controller).entityMenu(0, entity.get)
 
             groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
           } else if (answer == 3 && definingEntity != None && answer <= choices.size) {
-            new EntityMenu(ui, mDB).entityMenu(0, definingEntity.get)
+            new EntityMenu(ui, db, controller).entityMenu(0, definingEntity.get)
             groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
           } else {
             ui.displayText("invalid response")
@@ -217,7 +215,7 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
         ui.displayText("placeholder: nothing implemented here yet")
         groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
       } else if (answer == 9 && answer <= choices.size) {
-        new QuickGroupMenu(ui,mDB).quickGroupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+        new QuickGroupMenu(ui,db, controller).quickGroupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
       } else if (answer == 0) None
       else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
         // those in the condition are 1-based, not 0-based.
@@ -229,7 +227,7 @@ class GroupMenu(override val ui: TextUI, dbInOVERRIDESmDBWhichHasANewDbConnectio
           groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
         } else {
           val entry = objectsToDisplay.get(choicesIndex)
-          new EntityMenu(ui, mDB).entityMenu(0, entry.asInstanceOf[Entity], None, None, Some(group))
+          new EntityMenu(ui, db, controller).entityMenu(0, entry.asInstanceOf[Entity], None, None, Some(group))
           groupMenu(0, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
         }
       } else {
