@@ -1,6 +1,4 @@
-Some license information regarding third-party components is at the end
-of this file.
-
+Some license information regarding third-party components is at the end of this file.  
 ----------------------------------------------------
 OneModel: a program to store, manipulate, and share all useful knowledge.
 Copyright in each year of 2001-2004 and 2008-2015 inclusive, Luke A Call; all
@@ -8,18 +6,18 @@ rights reserved.  (Downloads and other information are available at
 http://www.onemodel.org or http://www.onemodel.biz .)
 
 The purpose of this software is to do the most possible good.  It is licensed
-to you under the GNU AGPL (details below), AND the following two requests:
+to you under the GNU AGPL (details below), *and* the following two requests:
 1) Begin the practice of complete honesty and the Golden Rule at all times, as
 a sincere life-long effort, before using or distributing this software in any
 way.  Preserve this message, and make these same requests to those to whom you
 redistribute this software.  Someday, everything will be known, and every
 individual will be accountable; God will audit.  (He will also help and guide
 you, if you ask humbly, sincerely, patiently, and obediently.)
-2) Do not redistribute this software in binary (or other ready-to-run)
-form, even within an organization, except as based on source code that is
-at least one year old, or to members of your immediate family or dependents
-living with you.
-
+2) Do not redistribute this software in binary (or other ready-to-run) form,
+even within an organization, except as based on source code at least one year
+old, or to members of your immediate family or dependents living with you.
+(Though unenforceable, this request is to help further the project--perhaps in
+return for the Free source code, year-old binaries, and more future improvements.)
 If you need other terms, see the file "CONTRIBUTING".
 
 This program is free software: you can redistribute it and/or modify it under

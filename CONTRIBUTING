@@ -14,7 +14,7 @@ For code contributions, web site improvements, etc:  Please include in the *firs
 
 
 ABOUT COPYRIGHT ASSIGNMENT:
-- The single biggest reason is to maintain the ability to make changes or manage the rights in the ways that make this project have the most benefit to mankind.  For viability, the project needs ability to make necessary adjustments, in case, for example, it becomes clearly necessary to move from the AGPL to an LGPL or BSD license, assign rights to a nonprofit (something I wish for but it's not yet top priority), dual licensing (what the FSF calls "selling exceptions") as a way to fund paid work, or whatever it takes to do the most good.
+- The single biggest reason is to maintain the ability to make changes or manage the rights in the ways that make this project have the most benefit to mankind.  For viability, the project needs ability to make necessary adjustments, in case, for example, it becomes clearly necessary to move from the AGPL to an LGPL or BSD license, distribute under multiple licenses (like plantuml does), assign rights to a nonprofit (something I wish for but it's not yet top priority), dual licensing (what the FSF calls "selling exceptions") as a way to help fund the project, possibly including paid work, or whatever it takes to do the most good.
 - It is easier to defend the copyright (e.g., to enforce the requirement that redistributors also distribute source code, per the AGPL) of a work if there is a single entity holding rights.  The FSF requests copyright assignment in GNU projects for at least that reason.
   (References:
     [something at fsf.org explaining their own requests for copyright assignment.]
