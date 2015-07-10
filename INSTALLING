@@ -12,10 +12,9 @@
 Compiling, Installing and Running OneModel
 ======================================================
 
-This document assumes you know how to become root (or administrator) on your system, edit files, and use a command prompt to change directories and type commands.  Also that you have downloaded and extracted, or git cloned, all the project files, in a known directory location (such as ~/onemodel).
+This document assumes you know how to become root (or administrator) on your system, edit files, and use a command prompt to change directories and type commands.  Also that you have downloaded and extracted, or git cloned, all the project files, in a known directory location (such as ~/onemodel). 
 
-If you run into problems and solve them, or can document this better than I have, please send a github pull request.
-
+For convenience on Windows, you can install cygwin (www.cygwin.com), then use cygwin to install postgresql and run the rest of the commands.  This hasn't been tested yet so please advise on what works & doesn't.
 
 Compiling
 ---------
@@ -34,42 +33,124 @@ Then in the directory where you have onemodel, run
 
 Installing
 ----------
-Before installing postgresql, decide whether you want data checksums (requires postgresql 9.3 or higher; as of this writing I have only tested with 9.1).  If you do, you will need to take care of that yourself up front (these instructions don't include that).  At:
+Before installing postgresql, decide whether you want data checksums (checksums requires postgresql 9.3 or higher; I haven't tested with checksums but they seem to provide a storage integrity feature).  If you do, you will need to take care of that yourself up front (these instructions don't include that).  At:
   https://wiki.postgresql.org/wiki/What%27s_new_in_PostgreSQL_9.3#Data_Checksums
 ...we learn: "It is now possible for PostgreSQL to checksum data pages and report corruption. This is a cluster-wide setting and cannot be applied to individual databases or objects. Also be aware that this facility may incur a noticeable performance penalty. This option must be enabled during initdb and cannot be changed (although there is a new GUC parameter 'ignore_checksum_failure' which will force PostgreSQL to continue processing a transaction even if corruption is detected)."
 
 
-Install postgresql 9.1 (www.postgresql.org).  For Debian GNU/Linux and its derivatives that usually means (as root) running "aptitude install postgresql-9.1".  Non-linux users: you will have to adapt these instructions to fit your situation until more specifics are added. For convenience on Windows, you can install cygwin (www.cygwin.com), then use cygwin to install postgresql and run the rest of the commands.
+Install postgresql (OM has been tested with 9.1, 9.3, and 9.4; see www.postgresql.org).  For Debian GNU/Linux and its derivatives that usually means (as root) running "aptitude install postgresql-contrib".  On OpenBSD that means running "pkg_add postgresql-contrib".  (The postgresql contrib module is for the "large objects" support, aka a module called "lo".)
 
-Also install "postgresql-contrib-9.1". This is for the "large objects" support, aka a module called "lo".
-
-Steps to be performed from a command prompt: 
+There are additional steps to be performed from a command prompt: 
 
 - Make sure you have java in the path so you can run 
     java
-  ...and see a bunch of output about usage.  Otherwise revisit the java installation instructions for putting it in your path.
+  ...and see a bunch of output about usage.  Otherwise see the java installation instructions for putting it in your path.
 
+
+
+INITIAL POSTGRES CONFIGURATION UNDER LINUX:
 - Become the root user (i.e., run "/bin/su -" and enter the root password), then edit the file
     /etc/postgresql/9.1/main/pg_hba.conf
   (or its equivalent on your system).  Add some configuration lines at the end, after where the file says "Put your actual configuration here", making sure there were no conflicting lines below them [should that say "ABOVE", not "below"?].  Replace <username> with the username you want to use to access your OneModel data (usually the same as your username on the computer; I don't know if spaces will work so omit them if your username has any):
   
-#This works for postgresql 9.1
 host    om_<username>   <username>    127.0.0.1/32    md5	
 local   om_<username>   <username>    md5
 host    om_testrunner   testrunner    127.0.0.1/32    password
 local   om_testrunner   testrunner    password
 
-  (Details for the interested:  There must be no conflicting lines below these, because when postgresql interprests the file there is no drop-through or default behavior, so the first matching line wins.  Also I commented out all other lines below "Put your actual configuration here" except the one that says
+  (Details for the interested:  There must be no conflicting lines above or below these, because when postgresql interprets the file there is no drop-through or default behavior, so the first matching line wins.  Also I commented out all other lines below "Put your actual configuration here" except the one that says
     local   all             postgres
-  ...but see the postgresql docs if you have specific configuration needs outside of what OM requires.  The "host" lines are necessary even if you are only using OM from your own computer, because of how jdbc makes connections.  
-    
+  ...but see the postgresql docs if you have specific configuration needs outside of what OM requires.  The "host" lines are necessary even if you are only using OM from your own computer, because of how jdbc makes connections.
+
 - Restart postgresql (as root: "/etc/init.d/postgresql restart").
 
 - Become the user postgres with this:
     su - postgres
-  (SUGGESTION: add windows instructions; or other administrative account, if needed according to your postgresql installation's documentation).
 
-- Choose a username and password.  If you use the same username as your system username, and leave a blank password, OM will log you in automatically.  If you choose a different username, or a strong password (which is a good idea sometimes), you will be prompted each time.  Note: You can change your password later on, after completing all below steps, then:  again become root; run the commands "su - postgres", "psql om_<yourusername>" (substituting your username for the "<...>", removing the <>'s), and "\password <newpassword>" similarly; then follow the prompts to enter the new password twice, then "exit" twice (as below) only if you have nothing else to do to postgresql at that time.
+
+
+INITIAL POSTGRES CONFIGURATION UNDER OPENBSD:
+(Corrections solicited as with everything here, but doing this with OpenBSD seemed more complicated.)
+As root:
+  chpass -s bash _postgresql  #Optional.
+  mkdir -p /var/log/postgresql
+  chown -R _postgresql:_postgresql /var/log/postgresql
+  /usr/bin/su - _postgresql
+  echo 'umask 0077' >> .profile
+  echo 'export PS1="**\u** @\h \d \t:\w#"' >> .profile  #Optional.
+  exit
+  /usr/bin/su - _postgresql
+  mkdir -p  /var/postgresql/9.4/main #BUT CHANGE THE '9.4' FOR your version of postgres!
+  echo "check permissions on those new directories: probably don't want group or world access.)";read
+  cd 9.4/main  #BUT CHANGE THE '9.4' FOR your version of postgres!
+  /usr/local/bin/initdb --pgdata /var/postgresql/9.4/main/ #BUT CHANGE THE '9.4' FOR your version of postgres!
+  cp /usr/local/share/postgresql/pg_hba.conf.sample pg_hba.conf
+  chmod +w pg_hba.conf
+  
+  Then edit the file pg_hba.conf and put these lines at the end, substituting your username for the 4 instances of <username>:
+local   all             _postgresql                                peer
+host    om_<username>	<username>    127.0.0.1/32    md5
+local   om_<username>	<username>	  md5
+host    om_testrunner   testrunner    127.0.0.1/32    password
+local   om_testrunner   testrunner      password
+
+  (I also cmted out the lines starting with things like:    @remove-line-for-nolocal@, AND another @ (so none left, until i understand that better: SHOULD READ THRU THE NOTES TO SEE IF STILL DOING IT RIGHT ALL THRU? WHAT ARE THE @ ONES FOR, WHICH VER STARTED THEM, AND ARE THEY USEFUL TO ME? AT LEAST NOTE SMTHG TO BE AWARE OF THEM SO DONT HAVE2LOOK IT UP IN FUTURE..?
+    ...so that only the ones I added from the above, were left.
+  Make sure those 5 are the only un-commented lines, or that you understand the others and what they do & whether you want that.
+ 
+  (Details for the interested:  There must be no conflicting lines above or below these, because when postgresql interprets the file there is no drop-through or default behavior, so the first matching line wins.  Also I commented out all other lines below "Put your actual configuration here" except the one that says
+    local   all             postgres
+  ...but see the postgresql docs if you have specific configuration needs outside of what OM requires.  The "host" lines are necessary even if you are only using OM from your own computer, because of how jdbc makes connections.
+
+  Still as the user _postgresql, use commands like this, perhaps in a script, to start postgresql:
+    pg_ctl start --pgdata /var/postgresql/9.4/main --log /var/log/postgresql/pg.log
+    sleep 1
+    ps auxww|grep postgres
+
+  (I didn't use the /etc/rc.d/postgres script to start postgres, because it got errors like "/etc/rc.d/rc.subr: Permission denied", or when run as root it also failed saying it should have been run as the _postgresql user.)
+
+  If & when needed, you can stop postgresql by running a command like this as root:
+    sudo -u _postgresql /usr/local/bin/pg_ctl status -D /var/postgresql/9.4/main
+ 
+this next chunk is OLD INFO: PROBABLY NOT RELEVANT:
+%%?: for bsd, mention the startup script I'm using now, pgup? pgdown? and other modified stuff here..., and:
+Seemed to have to do "chmod go+rx /usr/local/lib/postgresql .  OR?: to /usr/local/share/postgresql ?
+    and /usr/local/share/postgresql/timezonesets/
+  Thse are probably incomplete: I'm still used to debian that seemed it already had it all done; maybe going thru the pg tutorial/docs would fill gaps.
+  cd /usr/local/share/doc
+  chmod -R a+rX postgresql/
+  putting stuff under /usr/local/psql instead of breaking out by var, log, etc, because it seems easier to have them all owned and writable by the _postgres user this way, and the _postgres homedir is /var/postgres, similar to how debian has /var/lib/postgres.  But like debian for consistency in scripts etc, I also made /var/log/postgresql and /etc/postgresql-common (? if needed ltr?), and /etc/postgresql/<versionLike9.3>/main/ w/ files like pg_hba.conf.  Hm, looks like maybe not the etc part since pg_ctl cmd only has one -D / --data-dir / PGDATA options/var (all same thing 4 both conf & data?).
+
+  chown -R _postgresql:_postgresql /usr/local/share/postgresql/
+  use sysctl to fix the error about:
+        FATAL:  could not create semaphores: No space left on device
+        DETAIL:  Failed system call was semget(5432004, 17, 03600).
+        HINT:  This error does *not* mean that you have run out of disk space.  It occurs when either the system limit for the maximum number of semaphore sets (SEMMNI), or the system wide maximum number of semaphores (SEMMNS), would be exceeded.  You need to raise the respective kernel parameter.  Alternatively, reduce PostgreSQL's consumption of semaphores by reducing its max_connections parameter.
+        The PostgreSQL documentation contains more information about configuring your system for PostgreSQL.
+  ... %% (OR reduce the relevant max_connections # in (on mine) /var/postgresql/9.3/main/postgresql.conf  %%SO WHEN UPDATING/CLEANING THIS UP, BE4 REMOVING THIS NOTE/COMMITTING, ACTUALLY DO THIS: JUST REDUCED THE # FOR NOW):
+    about the semaphores error (include the error, this fixes it or talks about how):
+	-       kern.seminfo.semmni=60 
+	-       kern.seminfo.semmns=1024 
+	...so put in htere the links and what i do (w/o or w/ reboot too?):
+	http://www.postgresql.org/docs/9.3/static/kernel-resources.html
+	http://openbsd.7691.n7.nabble.com/Early-Look-PostgreSQL-9-3-beta-1-td228480.html
+    ...so what I did was:
+sysctl kern.seminfo.semmni=256
+sysctl kern.seminfo.semmns=1024
+sysctl kern.seminfo.semmnu=256
+sysctl kern.seminfo.semmsl=128
+sysctl kern.shminfo.shmmni=512
+sysctl kern.shminfo.shmseg=256
+...where prior values respectively were 10,60,128,30,128,60, and others in the doc looked "high" already (to my non-expert eyes).  %% BUT: what's dift on debian that i don't run into this probl?
+
+  
+
+
+CONTINUED POSTGRES CONFIGURATION FOR BOTH LINUX AND OPENBSD:
+- At this point you should still be logged in to a command-line as the postgres (or on BSD, _postgresql) user.
+
+- Choose a username and password.  If you use the same username as your system username, and leave a blank password, OM will log you in automatically.  If you choose a different username, or a strong password (which is a good idea sometimes), you will be prompted each time.  Note: You can change your password later on, after completing all below steps, then:  again become root; run the commands:
+    psql om_<yourusername>  #(substituting your username for the "<...>", removing the <>'s), and "\password <newpassword>" similarly; then follow the prompts to enter the new password twice
 
 - Create the database with this command (substituting your username for the "<...>", removing the <>'s):
     createdb om_<yourusername>
@@ -84,7 +165,7 @@ local   om_testrunner   testrunner    password
 
 - At the prompt, run this command (substituting your username & password for the "<...>"'s, removing the <>'s, but *do keep* the single-quotes (') and the semicolon ";"):
     create role <yourusername> with createdb login encrypted password '<putYourPasswordHere>';
-  ... but don't use any apostrophes, aka single-ticks or single-quotes, inside your provided password, because it should only be surrounded by them).   Note it is NOT "create role om_<yourusername>"; the om_ is just the databasename inside postgresql.
+  ... but don't use any apostrophes, aka single-ticks or single-quotes, inside your provided password, because it should only be surrounded by them).   Note it is NOT "create role om_<yourusername>"; having om_ at the beginning is just for when you refer to the databasename inside postgresql.
   
   (DEVELOPERS: during development or testing it might be convenient to use a blank password as described above under "Choose a username and password", to avoid typing a longer password repeatedly, until you use real data; it can be changed with postgresql commands as per that documentation, or you can set up a separate db/user/password combination for "real" data.)
 
@@ -94,7 +175,7 @@ local   om_testrunner   testrunner    password
 
 - Run this command (with the semicolon):
     create extension lo;
-  ...which is to enable large objects support (ie to allow putting documents or other files in the database).
+  ...which is to enable large objects support (ie to allow putting documents or other files in the database).  (This requires the "contrib" module installed above.)
 
 - Run 
     \q
@@ -155,7 +236,7 @@ Troubleshooting
 ---------------
 Make sure you did everything above.  Triple-check it, really.
 
-This happened once, only after a later postgresql version was installed without fully removing the old version first:  in postgresql.conf I had to change the port from 5433 to 5432.  It probably was set to 5433 on installation because I still had the config files on disk from the earlier installation, so it used the next available port.
+This happened once, only after a later postgresql version was installed without fully removing the old version first:  in postgresql.conf I had to change the port from 5433 to 5432 (on openbsd, that would mean first copying the file from the examples directory; see above for other such files copied for mor info).  It probably was set to 5433 on installation because I still had the config files on disk from the earlier installation, so it used the next available port.
 
 Try running 'mvn clean'.  Or starting from scratch with the instructions.
 
