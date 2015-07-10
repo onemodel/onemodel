@@ -111,42 +111,10 @@ local   om_testrunner   testrunner      password
 
   If & when needed, you can stop postgresql by running a command like this as root:
     sudo -u _postgresql /usr/local/bin/pg_ctl status -D /var/postgresql/9.4/main
- 
-this next chunk is OLD INFO: PROBABLY NOT RELEVANT:
-%%?: for bsd, mention the startup script I'm using now, pgup? pgdown? and other modified stuff here..., and:
-Seemed to have to do "chmod go+rx /usr/local/lib/postgresql .  OR?: to /usr/local/share/postgresql ?
-    and /usr/local/share/postgresql/timezonesets/
-  Thse are probably incomplete: I'm still used to debian that seemed it already had it all done; maybe going thru the pg tutorial/docs would fill gaps.
-  cd /usr/local/share/doc
-  chmod -R a+rX postgresql/
-  putting stuff under /usr/local/psql instead of breaking out by var, log, etc, because it seems easier to have them all owned and writable by the _postgres user this way, and the _postgres homedir is /var/postgres, similar to how debian has /var/lib/postgres.  But like debian for consistency in scripts etc, I also made /var/log/postgresql and /etc/postgresql-common (? if needed ltr?), and /etc/postgresql/<versionLike9.3>/main/ w/ files like pg_hba.conf.  Hm, looks like maybe not the etc part since pg_ctl cmd only has one -D / --data-dir / PGDATA options/var (all same thing 4 both conf & data?).
-
-  chown -R _postgresql:_postgresql /usr/local/share/postgresql/
-  use sysctl to fix the error about:
-        FATAL:  could not create semaphores: No space left on device
-        DETAIL:  Failed system call was semget(5432004, 17, 03600).
-        HINT:  This error does *not* mean that you have run out of disk space.  It occurs when either the system limit for the maximum number of semaphore sets (SEMMNI), or the system wide maximum number of semaphores (SEMMNS), would be exceeded.  You need to raise the respective kernel parameter.  Alternatively, reduce PostgreSQL's consumption of semaphores by reducing its max_connections parameter.
-        The PostgreSQL documentation contains more information about configuring your system for PostgreSQL.
-  ... %% (OR reduce the relevant max_connections # in (on mine) /var/postgresql/9.3/main/postgresql.conf  %%SO WHEN UPDATING/CLEANING THIS UP, BE4 REMOVING THIS NOTE/COMMITTING, ACTUALLY DO THIS: JUST REDUCED THE # FOR NOW):
-    about the semaphores error (include the error, this fixes it or talks about how):
-	-       kern.seminfo.semmni=60 
-	-       kern.seminfo.semmns=1024 
-	...so put in htere the links and what i do (w/o or w/ reboot too?):
-	http://www.postgresql.org/docs/9.3/static/kernel-resources.html
-	http://openbsd.7691.n7.nabble.com/Early-Look-PostgreSQL-9-3-beta-1-td228480.html
-    ...so what I did was:
-sysctl kern.seminfo.semmni=256
-sysctl kern.seminfo.semmns=1024
-sysctl kern.seminfo.semmnu=256
-sysctl kern.seminfo.semmsl=128
-sysctl kern.shminfo.shmmni=512
-sysctl kern.shminfo.shmseg=256
-...where prior values respectively were 10,60,128,30,128,60, and others in the doc looked "high" already (to my non-expert eyes).  %% BUT: what's dift on debian that i don't run into this probl?
-
-  
 
 
-CONTINUED POSTGRES CONFIGURATION FOR BOTH LINUX AND OPENBSD:
+
+CONTINUED POSTGRES CONFIGURATION FOR *BOTH* LINUX AND OPENBSD:
 - At this point you should still be logged in to a command-line as the postgres (or on BSD, _postgresql) user.
 
 - Choose a username and password.  If you use the same username as your system username, and leave a blank password, OM will log you in automatically.  If you choose a different username, or a strong password (which is a good idea sometimes), you will be prompted each time.  Note: You can change your password later on, after completing all below steps, then:  again become root; run the commands:
