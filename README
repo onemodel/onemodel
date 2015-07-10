@@ -8,6 +8,8 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 --------------------------------------------------------------------------------
 
+About copyright year ranges: when a range of years (e.g., "2011-2013") is used in a copyright statement in this project, it means that a change was made in each year of the range inclusively (e.g., the previous example means 2011, 2012, and 2013).  (The FSF's web site said if using ranges, to make the meaning explicit.)
+
 These files pertain to the OneModel (also known as "OM") project.
 
 See the web site http://www.onemodel.org for background, contact or support information.
@@ -42,3 +44,4 @@ What happens when everyone can know everything that matters?  (And what does it 
 
 More background info is at http://www.onemodel.org.
 
+(By the way, "one model" can mean "one model of knowledge for each person, organization, or use case", where desired, trending towards uniformity where suitable -- as opposed to many applications with their own data models.)
