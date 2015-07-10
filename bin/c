@@ -1,4 +1,6 @@
-#!/bin/bash -eux
+set -eux
+# next line replaced with the above first line, so it will work with ksh or where bash has a different path (eg BSD)
+##!/bin/bash -eux
 
 #    This file is part of OneModel, a program to manage knowledge.
 #    Copyright in each year of 2013-2014 inclusive, Luke A Call; all rights reserved.
