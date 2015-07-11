@@ -9,6 +9,7 @@
 */
 package org.onemodel
 
+import org.onemodel.controller.Controller
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model.Entity
 import org.scalatest.mock.MockitoSugar
@@ -44,7 +45,8 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     //// instantiation does DB setup (creates tables, default data, etc):
     mDB = new PostgreSQLDatabase("testrunner", "testrunner")
     mDB.createRelationType("a test relation type","","UNI")
-    mImportExport = new ImportExport(ui, mDB)
+    // a bad smell: shouldn't need a ui (& maybe not a controller?) to run tests of logic.  Noted in todos, to fix.
+    mImportExport = new ImportExport(ui, mDB, new Controller(ui))
 
     val entityId: Long = mDB.createEntity("test object")
     mEntity = new Entity(mDB, entityId)

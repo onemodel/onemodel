@@ -246,13 +246,20 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
               entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
             }
           } else if (answer == delFromContainingGroup_choiceNumber && containingGroupIn != None && answer <= choices.size) {
-            val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE?")
+            val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
+            val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion. It will still be found in " + (groupCount - 1) + " group(s).")
             if (ans != None && ans.get) {
               containingGroupIn.get.removeEntity(entityIn.getId)
-              entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn)
+
+              //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
+              //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn)
+              None
             } else {
               ui.displayText("Did not remove entity from that group.", waitForKeystroke = false)
-              entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+
+              //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
+              //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+              None
             }
           } else {
             ui.displayText("invalid response")

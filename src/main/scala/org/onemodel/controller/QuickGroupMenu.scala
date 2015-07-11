@@ -283,7 +283,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
                                 "Go to selected entity (not the subgroup)",
                                 "Find existing entry to add / list next items...",
                                 "Select target (entry move destination: gets a '+')",
-                                "Select entry to highlight (with '*'; choosing the letter instead goes to the subgroup if any, else to that entity)",
+                                "Select entry to highlight (with '*'; typing the letter instead goes to the subgroup if any, else to that entity)",
                                 "Other (slower actions, more complete menu)")
     val attrType = Some(new RelationType(db, relationToGroupIn.getAttrTypeId))
     val leadingText: Array[String] = Array("ENTITY GROUP (quick menu: acts on (w/ #'s) OR selects (w/ letters...) an entity): " +

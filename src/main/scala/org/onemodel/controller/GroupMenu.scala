@@ -127,10 +127,11 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                           "with *ALL* entities and their \"subgroups\" that they eventually " +
                                           "refer" +
                                           " to, recursively (actually, the recursion is not finished and will probably fail if you have nesting): *******ARE " +
-                                          "YOU " +
-                                          "REALLY SURE?******")
+                                          "YOU REALLY SURE?******")
             if (ans != None && ans.get) {
-              val ans = ui.askYesNoQuestion("Um, this seems unusual.  Really _really_ sure?  I certainly hope you make regular backups of the data AND TEST" +
+              val ans = ui.askYesNoQuestion("Um, this seems unusual; note that this will also delete archived (~invisible) entities with the group!.  " +
+                                           "Really _really_ sure?  " + 
+                                            "I certainly hope you make regular backups of the data AND TEST "  +
                                             " RESTORES.  (Note: the deletion does(n't yet do) recursion but doesn't yet properly handle groups that " +
                                             "loop--that eventually contain themselves.)  Proceed to delete it all?:")
               if (ans != None && ans.get) {

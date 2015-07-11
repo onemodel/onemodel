@@ -115,9 +115,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   }
 
   def start() {
-    // wait for keystroke so they do see the copyright each time.  Idea (is also tracked):  make it save their answer 'yes/i agree' or such in the DB,
-    // and don't make them press the keystroke again (timesaver)!
-    ui.displayText(mCopyright, waitForKeystroke = true, Some("If you do not agree to those terms: Press Ctrl-C or close the window to exit.\n" +
+    // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  make it save their answer 'yes/i agree' or such in the DB,
+    // and don't make them press the keystroke again (timesaver)!  See code at top of PostgreSQLDatabase that puts things in the db at startup: do similarly?
+    ui.displayText(mCopyright, waitForKeystroke = true, Some("IF YOU DO NOT AGREE TO THOSE TERMS: Press Ctrl-C or close the window to exit.\n" +
                                                              "If you agree to those terms: "))
     // Max id used as default here because it seems the least likely # to be used in the system hence the
     // most likely to cause an error as default by being missing, so the system can respond by prompting
@@ -150,7 +150,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                         defaultPasswordIn: Option[String] = None): PostgreSQLDatabase = {
 
     require(if (forceUserPassPromptIn) defaultUsernameIn == None && defaultPasswordIn == None else true)
-
+    
     // tries the system username, blank password, & if that doesn't work, prompts user.
     @tailrec def tryOtherLoginsOrPrompt(): PostgreSQLDatabase = {
       val db = {
@@ -665,7 +665,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         ui.displayText("Deleted entity \"" + name + "\"" + ".")
       } else {
         entityIn.archive()
-        ui.displayText("Archived entity \"" + name + "\"" + ".")
       }
       true
     }
@@ -1663,7 +1662,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
-  def handleException(e: Exception) { //elim this once other users are switched 2 next 1 %%
+  def handleException(e: Exception) {//elim this once other users are switched 2 next 1 [what did i mean by that? anything still2do, or elim cmt?]
     if (e.isInstanceOf[org.postgresql.util.PSQLException] || e.isInstanceOf[OmDatabaseException] || throwableToString(e).contains("ERROR: current transaction" +
                                                                                                                                   " is aborted, " +
                                                                                                                                   "commands ignored until end" +

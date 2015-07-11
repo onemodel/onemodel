@@ -1422,12 +1422,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getCountOfGroupsContainingEntity(inEntityId: Long): Long = {
-    extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where e.id=eig.entity_id and not e.archived " +
-                                  "and eig.entity_id=" + inEntityId)
+    extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where e.id=eig.entity_id and not e.archived" +
+                                  " and eig.entity_id=" + inEntityId)
   }
 
   def isEntityInGroup(inGroupId: Long, inEntityId: Long): Boolean = {
-    val num = extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup where group_id=" + inGroupId + " and entity_id=" + inEntityId)
+    val num = extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where eig.entity_id=e.id and (not e.archived)" +
+                                            " and group_id=" + inGroupId + " and entity_id=" + inEntityId)
     if (num > 1) throw new OmException("Entity " + inEntityId + " is in group " + inGroupId + " " + num + " times?? Should be 0 or 1.")
     num == 1
   }
