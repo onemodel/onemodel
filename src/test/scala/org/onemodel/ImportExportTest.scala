@@ -45,7 +45,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     //// instantiation does DB setup (creates tables, default data, etc):
     mDB = new PostgreSQLDatabase("testrunner", "testrunner")
     mDB.createRelationType("a test relation type","","UNI")
-    // a bad smell: shouldn't need a ui (& maybe not a controller?) to run tests of logic.  Noted in todos, to fix.
+    // a bad smell: shouldn't need a ui (& maybe not a controller?) to run tests of logic.  Noted in tasks to fix.
     mImportExport = new ImportExport(ui, mDB, new Controller(ui))
 
     val entityId: Long = mDB.createEntity("test object")
@@ -99,7 +99,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
     // make sure it actually imported something expected:
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt")
-    assert(ids.get.size > 0)
+    assert(ids.get.nonEmpty)
     var foundIt = false
     val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName)._1
     for (id <- ids.get) {

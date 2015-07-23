@@ -18,7 +18,7 @@ import org.onemodel.database.PostgreSQLDatabase
 class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
   /** returns None if user wants out. */
   //@tailrec //removed for now until the compiler can handle it with where the method calls itself.
-  //idea: make this limited like this somehow?:  private[org.onemodel] ... Same for all others like it?
+  //idea on scoping: make this limited like this somehow?:  private[org.onemodel] ... Same for all others like it?
   def entityMenu(startingAttributeIndexIn: Long, entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
                            relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Entity] = try {
     require(entityIn != null)
@@ -247,7 +247,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
             }
           } else if (answer == delFromContainingGroup_choiceNumber && containingGroupIn != None && answer <= choices.size) {
             val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
-            val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion. It will still be found in " + (groupCount - 1) + " group(s).")
+            val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion. It can still be found by searching, and in " + (groupCount - 1) + " group(s).")
             if (ans != None && ans.get) {
               containingGroupIn.get.removeEntity(entityIn.getId)
 

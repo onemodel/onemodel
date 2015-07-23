@@ -915,7 +915,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   /** Returns None if user wants out.  The parameter 'containingGroupIn' lets us omit entities that are already in a group,
     * i.e. omitting them from the list of entities (e.g. to add to the group), that this method returns.
     *
-    * Idea: the inAttrType parm: do like in java & make it some kind of enum for type-safety? What's the scala idiom for that?
+    * Idea: the inAttrType parm: do like in java & make it some kind of enum for type-safety? What's the scala idiom for that? (see also other
+    * mentions of inAttrType for others to fix as well.)
     */
   @tailrec final def chooseOrCreateObject(inLeadingText: Option[List[String]], inPreviousSelectionDesc: Option[String],
                                                     inPreviousSelectionId: Option[Long], inAttrType: String, startingDisplayRowIndexIn: Long = 0,
