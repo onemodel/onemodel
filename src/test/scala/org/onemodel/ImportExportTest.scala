@@ -9,6 +9,9 @@
 */
 package org.onemodel
 
+import java.io.{PrintWriter, File}
+import java.nio.file.{Files, Path}
+
 import org.onemodel.controller.Controller
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model.Entity
@@ -109,6 +112,35 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
       }
     }
     assert(foundIt)
+  }
+
+  "testExportHtml" should "work" in {
+    val name = "testExport"
+    System.out.println("starting " + name)
+
+    tryImporting("testImportFile4.txt")
+    val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer")
+    assert(ids.get.nonEmpty)
+    val entityId: Long = ids.get.head
+    val startingEntity: Entity = new Entity(mDB, entityId)
+
+    val exportedEntities = new scala.collection.mutable.TreeSet[Long]()
+    val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
+    val outputDirectory:Path = mImportExport.createOutputDir("omtest-" + prefix)
+    val (outputFile: File, outputWriter: PrintWriter) = mImportExport.createOutputFile(prefix, ImportExport.HTML_EXPORT_TYPE, Some(outputDirectory))
+    mImportExport.doTheExport(startingEntity, 0, 0, outputWriter, Some(outputDirectory), includeMetadataIn = false, ImportExport.HTML_EXPORT_TYPE, exportedEntities, 2,
+                              Some(true), Some(true), Some(true))
+
+    assert(outputFile.exists)
+    assert(outputDirectory.toFile.exists)
+    val newFiles: Array[String] = outputDirectory.toFile.list
+    val firstNewFileName = "e" + entityId + ".html"
+    val firstNewFile = new File(outputDirectory.toFile, firstNewFileName)
+    val firstNewFileContents: String = new String(Files.readAllBytes(firstNewFile.toPath))
+    assert(newFiles.contains(firstNewFileName), "unexpected filenames, like: " + newFiles(0))
+    assert(firstNewFileContents.contains("has: <a href=e-"), "unexpected file contents:  " + firstNewFileContents)
+    assert(firstNewFileContents.contains(".html>purpose</a>"), "unexpected file contents:  " + firstNewFileContents)
+    assert(newFiles.size > 5, "unexpected # of files: " + newFiles.size)
   }
 
 }

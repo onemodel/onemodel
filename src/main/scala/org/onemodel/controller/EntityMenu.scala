@@ -215,10 +215,11 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }
       if (answer == 2) {
-        val importOrExport = ui.askWhich(None, Array("Import", "Export"), Array[String]())
+        val importOrExport = ui.askWhich(None, Array("Import", "Export to a text file (outline)", " Export to html pages"), Array[String]())
         if (importOrExport != None) {
           if (importOrExport.get == 1) new ImportExport(ui, db, controller).importCollapsibleOutlineAsGroups(entityIn)
-          else if (importOrExport.get == 2) new ImportExport(ui, db, controller).exportToCollapsibleOutline(entityIn)
+          else if (importOrExport.get == 2) new ImportExport(ui, db, controller).exportToFile(entityIn, ImportExport.TEXT_EXPORT_TYPE)
+          else if (importOrExport.get == 3) new ImportExport(ui, db, controller).exportToFile(entityIn, ImportExport.HTML_EXPORT_TYPE)
         }
         entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }

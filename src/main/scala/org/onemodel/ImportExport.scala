@@ -10,6 +10,7 @@
 package org.onemodel
 
 import java.io._
+import java.nio.file.{Files, Path}
 
 import org.onemodel.controller.{Controller, EntityMenu, QuickGroupMenu}
 import org.onemodel.database.PostgreSQLDatabase
@@ -18,15 +19,20 @@ import org.onemodel.model._
 import scala.annotation.tailrec
 import scala.collection.mutable
 
+object ImportExport {
+  val TEXT_EXPORT_TYPE: String = "text"
+  val HTML_EXPORT_TYPE: String = "html"
+}
+
 class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Controller) {
-  // idea: see commend in EntityMenu about scoping.
-  def exportToCollapsibleOutline(entity: Entity) {
+  // idea: see comment in EntityMenu about scoping.
+  def exportToFile(entity: Entity, exportTypeIn: String) {
     val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels (0 = 'all'); ESC to cancel")), Some(controller.isNumeric), Some("0"))
-    if (ans != None) {
+    if (ans.isDefined) {
       val levelsToDescend: Int = ans.get.toInt
 
       val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
-      if (ans2 != None) {
+      if (ans2.isDefined) {
         val includeMetadata: Boolean = ans2.get
 
         //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
@@ -34,110 +40,23 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("y"))
         val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("y"))
 
-        if (includePublicData != None && includeNonPublicData != None && includeUnspecifiedData != None) {
+        if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined) {
           require(levelsToDescend >= 0)
           val spacesPerIndentLevel = 2
           val exportedEntities = new scala.collection.mutable.TreeSet[Long]()
 
-          def printSpaces(num: Int, out: PrintWriter) {
-            for (i <- 1 to num) {
-              out.print(" ")
-            }
-          }
-
-          //@tailrec  THIS IS NOT TO BE TAIL RECURSIVE UNTIL IT'S KNOWN HOW TO MAKE SOME CALLS BE SO, AND SOME *NOT* TAIL RECURSIVE (because some of them
-          //*do* need to return & finish their work, such as when iterating through the entities & subgroups)! (but test it: is it really a problem?)
-          def export(entityIn: Entity, levelsRemainingToDescendIn: Int, currentIndentationLevelsIn: Int, out: PrintWriter, includeMetadataIn: Boolean) {
-            // useful while debugging:
-            //out.flush()
-
-            if (exportedEntities.contains(entityIn.getId)) {
-              printSpaces(currentIndentationLevelsIn * spacesPerIndentLevel, out)
-              if (includeMetadataIn) out.print("(duplicate: EN --> " + entityIn.getId + ": ")
-              out.print(entityIn.getName)
-              if (includeMetadataIn) out.print(")")
-              out.println()
-            } else {
-              val entityPublicStatus: Option[Boolean] = entityIn.getPublic
-              val allowedToExport = (entityPublicStatus != None && entityPublicStatus.get && includePublicData.get) ||
-                                    (entityPublicStatus != None && !entityPublicStatus.get && includeNonPublicData.get) ||
-                                    (entityPublicStatus == None && includeUnspecifiedData.get)
-              if (allowedToExport) {
-                exportedEntities.add(entityIn.getId)
-
-                printSpaces(currentIndentationLevelsIn * spacesPerIndentLevel, out)
-                val entityName: String = entityIn.getName
-                if (includeMetadataIn) out.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString)
-                else out.println(entityName)
-
-                val attributeObjList: java.util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
-                for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) yield attribute match {
-                  case relation: RelationToEntity =>
-                    val relationType = new RelationType(db, relation.getAttrTypeId)
-                    val entity2 = new Entity(db, relation.getRelatedId2)
-                    if (includeMetadataIn) {
-                      printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevel, out)
-                      out.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
-                    }
-                    if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
-                      export(entity2, if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn + 1, out,
-                             includeMetadataIn)
-                    }
-                  case relation: RelationToGroup =>
-                    val relationType = new RelationType(db, relation.getAttrTypeId)
-                    val group = new Group(db, relation.getGroupId)
-                    val grpName = group.getName
-
-                    // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
-                    if (entityName != grpName) {
-                      printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevel, out)
-                      out.println("(group named: " + grpName + ")")
-                    }
-
-                    if (includeMetadataIn) {
-                      printSpaces(currentIndentationLevelsIn * spacesPerIndentLevel, out)
-                      // plus one more level of spaces to make it look better but still ~equivalently/exchangeably importable:
-                      printSpaces(spacesPerIndentLevel, out)
-                      out.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
-                    }
-                    if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
-                      for (entityInGroup: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-                        export(entityInGroup, if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn + 1, out,
-                               includeMetadataIn)
-                      }
-                    }
-                  case _ =>
-                    printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevel, out)
-                    if (includeMetadataIn) {
-                      out.println((attribute match {
-                        case ba: BooleanAttribute => "BA "
-                        case da: DateAttribute => "DA "
-                        case fa: FileAttribute => "FA "
-                        case qa: QuantityAttribute => "QA "
-                        case ta: TextAttribute => "TA "
-                      }) + /*attribute.getId +*/ ": " + attribute.getDisplayString(0, None, None))
-                    } else out.println(attribute.getDisplayString(0, None, None))
-                }
-              }
-            }
-          }
-
-          //idea (also in task list): change this to be a reliable filename (incl no backslashes? limit it to a whitelist of chars? a simple fn for that?
-          var fixedEntityName = entity.getName.replace(" ", "")
-          fixedEntityName = fixedEntityName.replace("/", "-")
-          //fixedEntityName = fixedEntityName.replace("\\","-")
-
-          val prefix: String = "onemodel-export_" + entity.getId + "_" + fixedEntityName + "-"
-          val outputFile = File.createTempFile(prefix, ".txt")
-          val output: PrintWriter = new PrintWriter(new BufferedWriter(new FileWriter(outputFile)))
+          val prefix: String = getExportFileNamePrefix(entity, exportTypeIn)
+          val outputDirectory:Path = createOutputDir(prefix)
+          val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, Some(outputDirectory))
           try {
-            export(entity, levelsToDescend, 0, output, includeMetadata)
-            // flushes before we report 'done' to the user:
-            output.close()
+            doTheExport(entity, levelsToDescend, 0, outputWriter, Some(outputDirectory), includeMetadata, exportTypeIn, exportedEntities, spacesPerIndentLevel,
+                   includePublicData, includeNonPublicData, includeUnspecifiedData)
+            // flush before we report 'done' to the user:
+            outputWriter.close()
             ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
           } finally {
-            if (output != null) {
-              try output.close()
+            if (outputWriter != null) {
+              try outputWriter.close()
               catch {
                 case e: Exception =>
                 // ignore
@@ -494,6 +413,205 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
 
     handleRestOfLines(r, None, 0, containingEntry :: Nil, startingSortingIndex :: Nil, dataSourceLastModifiedDate, mixedClassesAllowedDefaultIn,
                       makeThemPublicIn)
+  }
+
+  //@tailrec  THIS IS NOT TO BE TAIL RECURSIVE UNTIL IT'S KNOWN HOW TO MAKE SOME CALLS to it BE recursive, AND SOME *NOT* TAIL RECURSIVE (because some of them
+  //*do* need to return & finish their work, such as when iterating through the entities & subgroups)! (but test it: is it really a problem?)
+  // (Idea: See note at the top of Controller.chooseOrCreateObject re inAttrType about similarly making exportTypeIn an enum.)
+  /** If exporting html, this creates a new file for each entity; if exporting txt format, it all goes in a single file together (a
+    * collapsible outline).
+    * The parm outputFileIn is required for either txt or html, with the difference that with html it is a new file for each entity.
+    * Returns whether the entity in question was exported, so that the caller can know whether to include a link to that exported information (such as
+    * to an html page).
+    */
+  def doTheExport(entityIn: Entity, levelsRemainingToDescendIn: Int, currentIndentationLevelsIn: Int, outputFileIn: PrintWriter, outputDirectoryIn: Option[Path],
+                  includeMetadataIn: Boolean, exportTypeIn: String, exportedEntitiesIn: scala.collection.mutable.TreeSet[Long], spacesPerIndentLevelIn: Int,
+             includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean]): Boolean = {
+    // useful while debugging:
+    //out.flush()
+
+    if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+      require(outputDirectoryIn.isEmpty, "No html directory needed, but text file is needed, if exporting text format.")
+    } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+      require(outputDirectoryIn.isDefined, "For each entity there should be an output file & a directory, if exporting html.")
+    } else {
+      throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
+    }
+    if (includeMetadataIn) require(exportTypeIn == ImportExport.TEXT_EXPORT_TYPE, "Metadata is currently only set up to be print with text format output.")
+
+    if (exportedEntitiesIn.contains(entityIn.getId)) {
+      if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+        printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputFileIn)
+        if (includeMetadataIn) outputFileIn.print("(duplicate: EN --> " + entityIn.getId + ": ")
+        outputFileIn.print(entityIn.getName)
+        if (includeMetadataIn) outputFileIn.print(")")
+        outputFileIn.println()
+      }
+      true
+    } else {
+      val entityPublicStatus: Option[Boolean] = entityIn.getPublic
+      val allowedToExport = (entityPublicStatus.isDefined && entityPublicStatus.get && includePublicDataIn.get) ||
+                            (entityPublicStatus.isDefined && !entityPublicStatus.get && includeNonPublicDataIn.get) ||
+                            (entityPublicStatus.isEmpty && includeUnspecifiedDataIn.get)
+      if (allowedToExport) {
+        if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("<html><body>")
+
+        exportedEntitiesIn.add(entityIn.getId)
+
+        val entityName: String = entityIn.getName
+        if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+          printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputFileIn)
+          if (includeMetadataIn) outputFileIn.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString)
+          else outputFileIn.println(entityName)
+        } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+          outputFileIn.println("<h1>" + entityIn.getName + "</h1>")
+        }
+
+        val attributeObjList: java.util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
+        if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("<ul>")
+        for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) yield attribute match {
+          case relation: RelationToEntity =>
+            val relationType = new RelationType(db, relation.getAttrTypeId)
+            val entity2 = new Entity(db, relation.getRelatedId2)
+            if (includeMetadataIn) {
+              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputFileIn)
+              outputFileIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
+            }
+            if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
+              val exported:Boolean = doTheExport(entity2,
+                                                 if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn + 1,
+                                                 {
+                                                   if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+                                                     outputFileIn
+                                                   }
+                                                   else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+                                                     createOutputFile(getExportFileNamePrefix(entityIn, exportTypeIn), exportTypeIn, outputDirectoryIn)._2
+                                                   }
+                                                   else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
+                                                 },
+                                                 outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
+                                                 includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
+              if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+                // meaning that we just created an html file, so now let's create a link to it:
+                outputFileIn.print("<li>")
+                outputFileIn.print(relationType.getName + ": <a href=" + entity2.getId + ".html>" + entity2.getName + "</a>")
+                outputFileIn.println("</li>")
+              }
+            }
+          case relation: RelationToGroup =>
+            val relationType = new RelationType(db, relation.getAttrTypeId)
+            val group = new Group(db, relation.getGroupId)
+            val grpName = group.getName
+
+            // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
+            if (entityName != grpName) {
+                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputFileIn)
+                outputFileIn.println("(group named: " + grpName + ")")
+            }
+            if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("<ul>")
+
+            if (includeMetadataIn) {
+              printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputFileIn)
+              // plus one more level of spaces to make it look better but still ~equivalently/exchangeably importable:
+              printSpaces(spacesPerIndentLevelIn, outputFileIn)
+              outputFileIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
+            }
+            if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
+              for (entityInGroup: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
+                val exported: Boolean = doTheExport(entityInGroup,
+                                               if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn + 1, {
+                                                 if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE)
+                                                   outputFileIn
+                                                 else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE)
+                                                   createOutputFile(getExportFileNamePrefix(entityInGroup, exportTypeIn), exportTypeIn, outputDirectoryIn)._2
+                                                 else
+                                                   throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
+                                               },
+                                               outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
+                                               includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
+                if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+                  // meaning that we just created an html file, so now let's create a link to it:
+                  outputFileIn.print("<li>")
+                  outputFileIn.print(relationType.getName + ": <a href=e" + entityInGroup.getId + ".html>" + entityInGroup.getName + "</a>")
+                  outputFileIn.println("</li>")
+                }
+              }
+            }
+            if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("</ul>")
+          case _ =>
+            printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputFileIn)
+            if (includeMetadataIn) {
+              outputFileIn.println((attribute match {
+                case ba: BooleanAttribute => "BA "
+                case da: DateAttribute => "DA "
+                case fa: FileAttribute => "FA "
+                case qa: QuantityAttribute => "QA "
+                case ta: TextAttribute => "TA "
+              }) + /*attribute.getId +*/ ": " + attribute.getDisplayString(0, None, None))
+            } else outputFileIn.println(attribute.getDisplayString(0, None, None))
+        }
+        
+        if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("</ul>")
+
+        if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+          outputFileIn.println("</html></body>")
+          outputFileIn.close()
+        }
+      }
+      true
+    }
+  }
+
+  def printSpaces(num: Int, out: PrintWriter) {
+    for (i <- 1 to num) {
+      out.print(" ")
+    }
+  }
+
+  def getExportFileNamePrefix(entity: Entity, exportTypeIn: String): String = {
+    if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+      "e" + entity.getId.toString
+    } else {
+      //idea (also in task list): change this to be a reliable filename (incl no backslashes? limit it to a whitelist of chars? a simple fn for that?
+      var fixedEntityName = entity.getName.replace(" ", "")
+      fixedEntityName = fixedEntityName.replace("/", "-")
+      //fixedEntityName = fixedEntityName.replace("\\","-")
+      "onemodel-export_" + entity.getId + "_" + fixedEntityName + "-"
+    }
+  }
+
+  def createOutputDir(prefix: String): Path = {
+    // even though entityIds start with a '-', it's a problem if a filename does (eg, "ls" cmd thinks it is an option, not a name):
+    // (there's a similar line elsewhere)
+    require(!prefix.startsWith("-"))
+    // hyphen after the prefix is in case one wants to see where the id ends & the temporary/generated name begins, for understanding/diagnosing things:
+    Files.createTempDirectory(prefix + "-")
+  }
+
+  def createOutputFile(prefix:String, exportTypeIn: String, exportDirectory: Option[Path]): (File, PrintWriter) = {
+    // even though entityIds start with a '-', it's a problem if a filename does (eg, "ls" cmd thinks it is an option, not a name):
+    // (there's a similar line elsewhere)
+    require(!prefix.startsWith("-"))
+
+    // make sure we have a place to put all the html files, together:
+    if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) require(exportDirectory.isDefined && exportDirectory.get.toFile.isDirectory)
+
+    val extension: String = {
+      if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) ".txt"
+      else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) ".html"
+      else throw new OmException("unexpected exportTypeIn: " + exportTypeIn)
+    }
+
+    val outputFile: File =
+      if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE ) {
+        Files.createFile(new File(exportDirectory.get.toFile, prefix + extension).toPath).toFile
+      } else if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+        Files.createTempFile(exportDirectory.get, prefix, extension).toFile
+      }
+      else throw new OmException("unexpected exportTypeIn: " + exportTypeIn)
+
+    val output: PrintWriter = new PrintWriter(new BufferedWriter(new FileWriter(outputFile)))
+    (outputFile, output)
   }
 
 }
