@@ -26,7 +26,7 @@ object ImportExport {
 
 class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Controller) {
   // idea: see comment in EntityMenu about scoping.
-  def exportToFile(entity: Entity, exportTypeIn: String) {
+  def exportToFile(entity: Entity, exportTypeIn: String, copyrightYearAndNameIn: Option[String]) {
     val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels (0 = 'all'); ESC to cancel")), Some(controller.isNumeric), Some("0"))
     if (ans.isDefined) {
       val levelsToDescend: Int = ans.get.toInt
@@ -50,7 +50,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, Some(outputDirectory))
           try {
             doTheExport(entity, levelsToDescend, 0, outputWriter, Some(outputDirectory), includeMetadata, exportTypeIn, exportedEntities, spacesPerIndentLevel,
-                   includePublicData, includeNonPublicData, includeUnspecifiedData)
+                   includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
             // flush before we report 'done' to the user:
             outputWriter.close()
             ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
@@ -426,7 +426,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     */
   def doTheExport(entityIn: Entity, levelsRemainingToDescendIn: Int, currentIndentationLevelsIn: Int, outputFileIn: PrintWriter, outputDirectoryIn: Option[Path],
                   includeMetadataIn: Boolean, exportTypeIn: String, exportedEntitiesIn: scala.collection.mutable.TreeSet[Long], spacesPerIndentLevelIn: Int,
-             includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean]): Boolean = {
+                  includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
+                  copyrightYearAndNameIn: Option[String]): Boolean = {
     // useful while debugging:
     //out.flush()
 
@@ -490,11 +491,12 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                                    else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
                                                  },
                                                  outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                                 includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
+                                                 includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
               if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
                 // meaning that we just created an html file, so now let's create a link to it:
                 outputFileIn.print("<li>")
                 outputFileIn.print(relationType.getName + ": <a href=" + entity2.getId + ".html>" + entity2.getName + "</a>")
+                outputFileIn.print(" (" + getNumSubEntries(entity2) + ")")
                 outputFileIn.println("</li>")
               }
             }
@@ -517,6 +519,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               outputFileIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
             }
             if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
+
               for (entityInGroup: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
                 val exported: Boolean = doTheExport(entityInGroup,
                                                if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn + 1, {
@@ -528,11 +531,12 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                                    throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
                                                },
                                                outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                               includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
+                                               includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
                 if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
                   // meaning that we just created an html file, so now let's create a link to it:
                   outputFileIn.print("<li>")
                   outputFileIn.print(relationType.getName + ": <a href=e" + entityInGroup.getId + ".html>" + entityInGroup.getName + "</a>")
+                  outputFileIn.print(" (" + getNumSubEntries(entityInGroup) + ")")
                   outputFileIn.println("</li>")
                 }
               }
@@ -554,12 +558,26 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("</ul>")
 
         if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+          if (copyrightYearAndNameIn.isDefined) outputFileIn.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "; all rights reserved.</small></center>")
           outputFileIn.println("</html></body>")
           outputFileIn.close()
         }
       }
       true
     }
+  }
+
+  def getNumSubEntries(entityIn: Entity): Long = {
+    val numSubEntries = {
+      val numAttrs = db.getAttrCount(entityIn.getId)
+      if (numAttrs == 1) {
+        val (rtid, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(entityIn.getId)
+        if (groupId != None && !moreThanOneAvailable) {
+          db.getGroupEntryCount(groupId.get, Some(false))
+        } else numAttrs
+      } else numAttrs
+    }
+    numSubEntries
   }
 
   def printSpaces(num: Int, out: PrintWriter) {

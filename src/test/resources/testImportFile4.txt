@@ -1,4 +1,5 @@
-vsgeer
+vsgeer4
+  Make my copyright checker happy for this modified file:  Copyright 2015, Luke A Call; all rights reserved.
   purpose
   vision
   strategy
