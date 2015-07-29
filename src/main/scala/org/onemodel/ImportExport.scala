@@ -78,7 +78,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                                           " can be indicated by surrounding a body of text thus: <ta>text</ta> )," +
                                                           " then press Enter; ESC to cancel")),
                                                Some(controller.inputFileValid))
-    if (ans1 != None) {
+    if (ans1.isDefined) {
       val path = ans1.get
       val makeThemPublic: Option[Boolean] = ui.askYesNoQuestion("Do you want the entities imported to be marked as public?  Set it to the value the majority of " +
                                                       "imported data should have; you can then edit the individual exceptions afterward as needed.  " +
@@ -87,7 +87,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       val ans3 = ui.askYesNoQuestion("Keep the filename as the top level of the imported list? (Answering no will put the top level entries from inside" +
                                      " the " +
                                      "file, as entries directly under this entity or group.)")
-      if (ans3 != None) {
+      if (ans3.isDefined) {
         val creatingNewStartingGroupFromTheFilename: Boolean = ans3.get
         val addingToExistingGroup: Boolean = firstContainingEntryIn.isInstanceOf[RelationToGroup] && !creatingNewStartingGroupFromTheFilename
 
@@ -98,7 +98,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             Some(false)
         }
 
-        if (putEntriesAtEndOption != None) {
+        if (putEntriesAtEndOption.isDefined) {
           //@tailrec: would be nice to use, but jvm doesn't support it, or something.
           def tryIt() {
             var reader: Reader = null
@@ -125,7 +125,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 }
                 ui.askYesNoQuestion("Do you want to commit the changes as they were made?")
               }
-              if (keepAnswer == None || !keepAnswer.get) {
+              if (keepAnswer.isEmpty || !keepAnswer.get) {
                 db.rollbackTrans()
                 //idea: look into how long that time is (see above same cmt)
                 ui.displayText("Rolled back the import: no changes made (unless you waited too long and postgres committed it anyway...?).")
@@ -149,7 +149,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 }
                 ui.displayText(msg + TextUI.NEWLN + "Error while importing; no changes made. ")
                 val ans = ui.askYesNoQuestion("For some errors, you can go fix the file then come back here.  Retry now?", Some("y"))
-                if (ans != None && ans.get) {
+                if (ans.isDefined && ans.get) {
                   tryIt()
                 }
             } finally {
@@ -176,7 +176,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       // could count tab as 1, but not testing with that for now:
       throw new OmException("tab not supported")
     }
-    else if (index >= line.size || (line(index) != ' ')) {
+    else if (index >= line.length || (line(index) != ' ')) {
       index
     } else {
       getFirstNonSpaceIndex(line, index + 1)
@@ -204,7 +204,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     // (see cmts just above about where we start)
     require(containerList.size == lastIndentationLevel + 1)
     // always should at least have an entry for the entity or group from where the user initiated this import, the base of all the adding.
-    require(containerList.size > 0)
+    require(containerList.nonEmpty)
     // how do this type mgt better, like, in the signature? (also needed elsewhere):
     require(containerList.head.isInstanceOf[Entity] || containerList.head.isInstanceOf[Group])
 
@@ -234,8 +234,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           handleRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                             makeThemPublicIn)
         } else {
-          if (line.size > controller.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + controller.maxNameLength + " characters " +
-                                                               " (has " + line.size + "): " + line)
+          if (line.length > controller.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + controller.maxNameLength + " characters " +
+                                                               " (has " + line.length + "): " + line)
           val indentationSpaceCount: Int = getFirstNonSpaceIndex(lineUntrimmed.getBytes, 0)
           if (indentationSpaceCount % spacesPerIndentLevel != 0) throw new OmException("# of spaces is off, on line " + lineNumber + ": '" + line + "'")
           val newIndentationLevel = indentationSpaceCount / spacesPerIndentLevel
@@ -278,8 +278,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             // indented, so create a subgroup & add line there:
             require(newIndentationLevel >= 0)
             // (not None because it will be used now to create a subgroup; when we get here there should always be a value) :
-            if (lastEntityAdded == None) {
-              throw new OmException("There's an error.  Are you importing a file to a group, but the first line is indented?  If so try fixing that (un-indent, & fix the rest to match).  Otherwise, there's a bug in the program.");
+            if (lastEntityAdded.isEmpty) {
+              throw new OmException("There's an error.  Are you importing a file to a group, but the first line is indented?  If so try fixing that (un-indent, & fix the rest to match).  Otherwise, there's a bug in the program.")
             }
             val addedLevelsIn = newIndentationLevel - lastIndentationLevel
             if (addedLevelsIn != 1) throw new OmException("Unsupported format: line " + lineNumber + " is indented too far in, " +
@@ -317,7 +317,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                   endTaMarker: String) {
     val attrTypeId: Long = {
       val idsByName: Option[List[Long]] = db.findAllEntityIdsByName(attrTypeName.trim, caseSensitive = true)
-      if (idsByName != None && idsByName.get.size == 1)
+      if (idsByName.isDefined && idsByName.get.size == 1)
         idsByName.get.head
       else {
         // idea: alternatively, could use a generic one in this case?  Optionally?
@@ -325,7 +325,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                      beginningTagMarker + "\" " +
                      "(it has to match an existing entity, case-sensitively)"
         val typeId = controller.askForAttributeTypeId(prompt + ", so please choose one or ESC to abort this import operation:", Controller.TEXT_TYPE, None, None)
-        if (typeId == None)
+        if (typeId.isEmpty)
           throw new OmException(prompt + " or selected.")
         else
           typeId.get
@@ -340,11 +340,11 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         } else {
           if (line.toLowerCase.contains(endTaMarker.toLowerCase)) {
             val markerStartLocation = line.toLowerCase.indexOf(endTaMarker.toLowerCase)
-            val markerEndLocation = markerStartLocation + endTaMarker.size
+            val markerEndLocation = markerStartLocation + endTaMarker.length
             val lineNumber = r.getLineNumber
             def rtrim(s: String): String = s.replaceAll("\\s+$", "")
             val rtrimmedLine = rtrim(line)
-            if (rtrimmedLine.substring(markerEndLocation).size > 0) throw new OmException("\"Unsupported format at line " + lineNumber + ": A \"" + endTaMarker +
+            if (rtrimmedLine.substring(markerEndLocation).nonEmpty) throw new OmException("\"Unsupported format at line " + lineNumber + ": A \"" + endTaMarker +
                                                                                   "\" (end text attribute) marker must be the last text on a line.")
             sbIn.append(line.substring(0, markerStartLocation))
           } else {
@@ -571,8 +571,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     val numSubEntries = {
       val numAttrs = db.getAttrCount(entityIn.getId)
       if (numAttrs == 1) {
-        val (rtid, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(entityIn.getId)
-        if (groupId != None && !moreThanOneAvailable) {
+        val (_, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(entityIn.getId)
+        if (groupId.isDefined && !moreThanOneAvailable) {
           db.getGroupEntryCount(groupId.get, Some(false))
         } else numAttrs
       } else numAttrs

@@ -81,10 +81,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   val mCopyright = {
     var all = ""
-    var append = false;
-    var beforeAnyDashes = true;
+    var append = false
+    var beforeAnyDashes = true
     try {
-      for (line <- scala.io.Source.fromFile("LICENSE").getLines) {
+      for (line <- scala.io.Source.fromFile("LICENSE").getLines()) {
         //println(line)
         if ((!append) && line.startsWith("-----") && beforeAnyDashes) {
           append = true
@@ -110,7 +110,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
   def getDefaultEntity: (Option[Long], Option[Entity]) = {
     val defaultEntityId = findDefaultDisplayEntity
-    if (defaultEntityId == None) (None, None)
+    if (defaultEntityId.isEmpty) (None, None)
     else (defaultEntityId, Entity.getEntityById(db, defaultEntityId.get))
   }
 
@@ -122,7 +122,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     // Max id used as default here because it seems the least likely # to be used in the system hence the
     // most likely to cause an error as default by being missing, so the system can respond by prompting
     // the user in some other way for a use.
-    if (getDefaultEntity._1 == None) {
+    if (getDefaultEntity._1.isEmpty) {
       ui.displayText("Unable to find user's preference for first entity to display, or that entity is gone.  You probably will want to find or create an " +
                      "entity (such as with your own name to track information connected to you, contacts, possessions etc, " +
                      "or with the subject of study) then set that or some entity as your default, using its menu.")
@@ -149,7 +149,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   private def tryLogins(forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None,
                         defaultPasswordIn: Option[String] = None): PostgreSQLDatabase = {
 
-    require(if (forceUserPassPromptIn) defaultUsernameIn == None && defaultPasswordIn == None else true)
+    require(if (forceUserPassPromptIn) defaultUsernameIn.isEmpty && defaultPasswordIn.isEmpty else true)
     
     // tries the system username, blank password, & if that doesn't work, prompts user.
     @tailrec def tryOtherLoginsOrPrompt(): PostgreSQLDatabase = {
@@ -158,20 +158,20 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
         val systemUserName = System.getProperty("user.name")
         val dbWithSystemNameBlankPwd = login(systemUserName, "", showError = false)
-        if (None != dbWithSystemNameBlankPwd) dbWithSystemNameBlankPwd
+        if (dbWithSystemNameBlankPwd.isDefined) dbWithSystemNameBlankPwd
         else {
           val usrOpt = ui.askForString(Some(Array("Username")), None, Some(systemUserName))
-          if (None == usrOpt) System.exit(1)
+          if (usrOpt.isEmpty) System.exit(1)
           val dbConnectedWithBlankPwd = login(usrOpt.get, "", showError = false)
-          if (dbConnectedWithBlankPwd != None) dbConnectedWithBlankPwd
+          if (dbConnectedWithBlankPwd.isDefined) dbConnectedWithBlankPwd
           else {
             try {
               pwdOpt = ui.askForString(Some(Array("Password")), None, None, inIsPassword = true)
-              if (pwdOpt == None) System.exit(1)
+              if (pwdOpt.isEmpty) System.exit(1)
               val dbWithUserEnteredPwd = login(usrOpt.get, pwdOpt.get, showError = true)
               dbWithUserEnteredPwd
             } finally {
-              if (pwdOpt != None) {
+              if (pwdOpt.isDefined) {
                 pwdOpt = null
                 //garbage collect to keep the memory cleared of passwords. What's a better way? (gc isn't forced to do it all every time IIRC,
                 // so poke it--a guess)
@@ -183,7 +183,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           }
         }
       }
-      if (None == db) {
+      if (db.isEmpty) {
         ui.displayText("Login failed; retrying (^C to quit):", waitForKeystroke = false)
         tryOtherLoginsOrPrompt()
       }
@@ -193,20 +193,20 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     if (forceUserPassPromptIn) {
       @tailrec def loopPrompting: PostgreSQLDatabase = {
         val usrOpt = ui.askForString(Some(Array("Username")))
-        if (None == usrOpt) System.exit(1)
+        if (usrOpt.isEmpty) System.exit(1)
 
         val pwdOpt = ui.askForString(Some(Array("Password")), None, None, inIsPassword = true)
-        if (pwdOpt == None) System.exit(1)
+        if (pwdOpt.isEmpty) System.exit(1)
 
         val dbWithUserEnteredPwd: Option[PostgreSQLDatabase] = login(usrOpt.get, pwdOpt.get, showError = false)
-        if (dbWithUserEnteredPwd != None) dbWithUserEnteredPwd.get
+        if (dbWithUserEnteredPwd.isDefined) dbWithUserEnteredPwd.get
         else loopPrompting
       }
       loopPrompting
-    } else if (defaultUsernameIn != None && defaultPasswordIn != None) {
+    } else if (defaultUsernameIn.isDefined && defaultPasswordIn.isDefined) {
       // idea: perhaps this could be enhanced and tested to allow a username parameter, but prompt for a password, if/when need exists.
       val db = login(defaultUsernameIn.get, defaultPasswordIn.get, showError = true)
-      if (db == None) {
+      if (db.isEmpty) {
         ui.displayText("The program wasn't expected to get to this point in handling it (expected an exception to be thrown previously), " +
                        "but the login with provided credentials failed.")
         System.exit(1)
@@ -250,17 +250,17 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def askForInfoAndCreateEntity(inClassId: Option[Long] = None): Option[Entity] = {
     var newClass = false
     val classId: Option[Long] =
-      if (inClassId != None) inClassId
+      if (inClassId.isDefined) inClassId
       else {
         val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String]("CHOOSE ENTITY'S CLASS (entity template; ESC for None)")), None, None,
                                                                 Controller.ENTITY_CLASS_TYPE)
         newClass = true
-        if (idWrapper == None) None
+        if (idWrapper.isEmpty) None
         else Some(idWrapper.get.getId)
       }
     val ans: Option[Entity] = askForNameAndWriteEntity(Controller.ENTITY_TYPE, None, None, None, None, classId,
                                                        Some(if (newClass) "DEFINE THE ENTITY:" else ""))
-    if (ans != None) {
+    if (ans.isDefined) {
       val entity = ans.get
       // idea: (is also on fix list): this needs to be removed, after evaluating for other side effects, to fix the bug
       // where creating a new relationship, and creating the entity2 in the process, it puts the wrong info
@@ -274,7 +274,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   }
 
   def showInEntityMenuThenMainMenu(entityIn: Option[Entity]) {
-    if (entityIn != None) {
+    if (entityIn.isDefined) {
       //idea: is there a better way to do this, maybe have a single entityMenu for the class instead of new.. each time?
       new EntityMenu(ui, db, this).entityMenu(0, entityIn.get)
       // doing mainmenu right after entityMenu because that's where user would
@@ -291,9 +291,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                          previousNameIn: Option[String] = None, previousDirectionalityIn: Option[String] = None,
                                          previousNameInReverseIn: Option[String] = None, inClassId: Option[Long] = None,
                                          inLeadingText: Option[String] = None): Option[Entity] = {
-    if (inClassId != None) require(inType == Controller.ENTITY_TYPE)
-    val createNotUpdate: Boolean = existingIdIn == None
-    if (!createNotUpdate && inType == Controller.RELATION_TYPE_TYPE) require(previousDirectionalityIn != None)
+    if (inClassId.isDefined) require(inType == Controller.ENTITY_TYPE)
+    val createNotUpdate: Boolean = existingIdIn.isEmpty
+    if (!createNotUpdate && inType == Controller.RELATION_TYPE_TYPE) require(previousDirectionalityIn.isDefined)
     val maxNameLength = {
       if (inType == Controller.RELATION_TYPE_TYPE) model.RelationType.getNameLength(db)
       else if (inType == Controller.ENTITY_TYPE) model.Entity.nameLength(db)
@@ -312,19 +312,19 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val nameOpt = ui.askForString(Some(Array[String](inLeadingText.getOrElse(""),
                                                        "Enter " + inType + " name (up to " + maxNameLength + " characters" + example + "; ESC to cancel)")),
                                     None, defaultNameIn)
-      if (nameOpt == None) None
+      if (nameOpt.isEmpty) None
       else {
         val name = nameOpt.get.trim()
-        if (name.size <= 0) None
+        if (name.length <= 0) None
         else {
           var duplicate = false
           if (model.Entity.isDuplicate(db, name, existingIdIn)) {
             val answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, Some("n"))
-            if (answerOpt == None || (!answerOpt.get.equalsIgnoreCase("y"))) duplicate = true
+            if (answerOpt.isEmpty || (!answerOpt.get.equalsIgnoreCase("y"))) duplicate = true
           }
           // idea: this size check might be able to account better for the escaping that's done. Or just keep letting the exception handle it as is already
           // done in the caller of this.
-          if (name.size > maxNameLength) {
+          if (name.length > maxNameLength) {
             ui.displayText(potentialErrorMsg.format(tooLongMessage) + ".")
             askAndSave(Some(name))
           } else {
@@ -340,7 +340,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                 }
               } else if (inType == Controller.RELATION_TYPE_TYPE) {
                 val ans: Option[String] = askForRelationDirectionality(previousDirectionalityIn)
-                if (ans == None) None
+                if (ans.isEmpty) None
                 else {
                   val directionalityStr: String = ans.get.trim().toUpperCase
                   val nameInReverseDirectionStr = askForNameInReverseDirection(directionalityStr, maxNameLength, name, previousNameInReverseIn)
@@ -360,7 +360,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
 
     val result = tryAskingAndSaving(potentialErrorMsg, askAndSave, previousNameIn)
-    if (result == None) None
+    if (result.isEmpty) None
     else Some(new Entity(db, result.get._1))
   }
 
@@ -394,7 +394,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     * */
   def askForAndWriteClassAndDefiningEntityName(classIdIn: Option[Long] = None,
                                                          previousNameIn: Option[String] = None): Option[(Long, Long)] = {
-    val createNotUpdate: Boolean = classIdIn == None
+    val createNotUpdate: Boolean = classIdIn.isEmpty
     val nameLength = model.EntityClass.nameLength(db)
     val potentialErrorMsg = "Got an error: %s.  Please try a shorter (" + nameLength + " chars) entry.  Details: "
 
@@ -402,7 +402,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val nameOpt = ui.askForString(Some(Array("Enter class name (up to " + nameLength + " characters; will also be used for its defining entity name; ESC to" +
                                                " cancel): ")),
                                     None, defaultNameIn)
-      if (nameOpt == None) None
+      if (nameOpt.isEmpty) None
       else {
         val name = nameOpt.get.trim()
         if (name.length() <= 0) None
@@ -427,7 +427,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     var duplicateProblemSoSkip = false
     if (EntityClass.isDuplicate(db, name, previousIdIn)) {
       val answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, Some("n"))
-      if (answerOpt == None || (!answerOpt.get.equalsIgnoreCase("y"))) duplicateProblemSoSkip = true
+      if (answerOpt.isEmpty || (!answerOpt.get.equalsIgnoreCase("y"))) duplicateProblemSoSkip = true
     }
     duplicateProblemSoSkip
   }
@@ -441,14 +441,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       // see createTables (or UI prompts) for meanings...
       val msg = Array("Enter relation name when direction is reversed (i.e., 'is husband to' becomes 'is wife to', 'employs' becomes 'is employed by' " +
                       "by; up to " + nameLengthIn + " characters (ESC to cancel): ")
-      val nameInReverseOpt = {
-        val ans = ui.askForString(Some(msg), None, previousNameInReverseIn)
-        if (ans == None) None
+      val nameInReverse = {
+        val ans: Option[String] = ui.askForString(Some(msg), None, previousNameInReverseIn)
+        if (ans.isEmpty) return ""
         ans.get.trim() //see above comment about trim
       }
       val ans = ui.askWhich(Some(Array("Is this the correct name for the relationship in reverse direction?: ")), Array("Yes", "No"))
-      if (ans == None || ans.get == 2) askForNameInReverseDirection(directionalityStrIn, nameLengthIn, nameIn, previousNameInReverseIn)
-      else nameInReverseOpt
+      if (ans.isEmpty || ans.get == 2) askForNameInReverseDirection(directionalityStrIn, nameLengthIn, nameIn, previousNameInReverseIn)
+      else nameInReverse
     }
     else throw new Exception("unexpected value for directionality: " + directionalityStrIn)
   }
@@ -463,7 +463,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
 
     val directionality = ui.askForString(Some(msg), Some(criteria(_: String)), previousDirectionalityIn)
-    if (directionality == None) None
+    if (directionality.isEmpty) None
     else Some(directionality.get.toUpperCase)
   }
 
@@ -484,11 +484,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     @tailrec def askForInfoAndUpdateAttribute_helper(dhIn: T, attrType: String, promptForTypeId: String) {
       val ans: Option[T] = askForAttributeData[T](dhIn, promptForTypeId, attrType, Some(new Entity(db, dhIn.attrTypeId).getName), Some(inDH.attrTypeId),
                                                   getOtherInfoFromUser, inEditing = true)
-      if (ans != None) {
+      if (ans.isDefined) {
         val dhOut: T = ans.get
         val ans2: Option[Int] = promptWhetherTo1Add2Correct(attrType)
 
-        if (ans2 == None) Unit
+        if (ans2.isEmpty) Unit
         else if (ans2.get == 1) {
           updateTypedAttribute(dhOut)
         }
@@ -511,7 +511,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       firstChoices = firstChoices ++ Array[String]("Export the file")
     }
     val response = ui.askWhich(Some(leadingText), firstChoices)
-    if (response == None) None
+    if (response.isEmpty) None
     else {
       val answer: Int = response.get
       if (answer == 3) {
@@ -576,10 +576,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
       else if (answer == 4) {
         val ans = ui.askYesNoQuestion("DELETE this attribute: ARE YOU SURE?")
-        if (ans != None && ans.get) {
+        if (ans.isDefined && ans.get) {
           attributeIn.delete()
           // return None so it doesn't show again the menu of the object just deleted
-          None
+          return None
         } else {
           ui.displayText("Did not delete attribute.", waitForKeystroke = false)
         }
@@ -596,7 +596,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         try {
           // this file should be confirmed by the user as ok to write, even overwriting what is there.
           val file: Option[File] = ui.getExportDestinationFile(fa.getOriginalFilePath, fa.getMd5Hash)
-          if (file != None) {
+          if (file.isDefined) {
             fa.retrieveContent(file.get)
             ui.displayText("File saved at: " + file.get.getCanonicalPath)
           }
@@ -620,7 +620,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                                     getOtherInfoFromUser: (T, Boolean) => Option[T],
                                                                     addTypedAttribute: (T) => Option[Attribute]): Option[Attribute] = {
     val ans: Option[T] = askForAttributeData[T](inDH, promptForSelectingTypeId, attrType, None, None, getOtherInfoFromUser, inEditing = false)
-    if (ans != None) {
+    if (ans.isDefined) {
       val dhOut: T = ans.get
       addTypedAttribute(dhOut)
     } else None
@@ -652,14 +652,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       //require(descrArray.size == math.min(limit, groupCount))
 
       "This will ALSO remove it from " + (if (delNotArchive) "" else "visibility in ") + groupCount + " groups, " +
-      "including for example these " + descrArray.size + " relations " +
+      "including for example these " + descrArray.length + " relations " +
       " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + descriptions
     }
     // idea: WHEN CONSIDERING MODS TO THIS, ALSO CONSIDER THE Q'S ASKED AT CODE CMT WHERE DELETING A GROUP OF ENTITIES (SEE, for example "recursively").
     val ans = ui.askYesNoQuestion((if (delNotArchive) "DELETE" else "ARCHIVE") + " ENTITY \"" + name + "\" (and " + entityPartsThatCanBeAffected + ").  " +
                                   groupsPrompt +
                                   "**ARE YOU REALLY SURE?**")
-    if (ans != None && ans.get) {
+    if (ans.isDefined && ans.get) {
       if (delNotArchive) {
         entityIn.delete()
         ui.displayText("Deleted entity \"" + name + "\"" + ".")
@@ -697,16 +697,16 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       case entity: Entity =>
         val entityNameBeforeEdit: String = entityIn.getName
         val editedEntity: Option[Entity] = askForNameAndWriteEntity(Controller.ENTITY_TYPE, Some(entity.getId), Some(entity.getName), None, None, None)
-        if (editedEntity != None) {
+        if (editedEntity.isDefined) {
           val entityNameAfterEdit: String = editedEntity.get.getName
           if (entityNameBeforeEdit != entityNameAfterEdit) {
             val (_, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(editedEntity.get.getId)
-            if (groupId != None && !moreThanOneAvailable) {
+            if (groupId.isDefined && !moreThanOneAvailable) {
               // for efficiency, if it's obvious which subgroup's name to change at the same time, offer to do so
               val ans = ui.askYesNoQuestion("There's a single subgroup with the same old name; probably it and this entity were created at the same time, " +
                                             "for the subgroup.  Change" +
                                             " the subgroup's name at the same time to be identical?", Some("y"))
-              if (ans != None && ans.get) {
+              if (ans.isDefined && ans.get) {
                 val group = new Group(db, groupId.get)
                 group.update(nameIn = Some(entityNameAfterEdit), validOnDateInIGNORED4NOW = None, observationDateInIGNORED4NOW = None)
               }
@@ -728,7 +728,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       case entity: Entity =>
         val valueBeforeEdit: Option[Boolean] = entityIn.getPublic
         val valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("Enter yes/no value (or a space for 'unknown/unspecified'",
-                                                                  if (valueBeforeEdit == None) Some("") else if (valueBeforeEdit.get) Some("y") else Some("n"),
+                                                                  if (valueBeforeEdit.isEmpty) Some("") else if (valueBeforeEdit.get) Some("y") else Some("n"),
                                                                   allowBlankAnswer = true)
         if (valueAfterEdit != valueBeforeEdit) {
           db.updateEntityOnlyPublicStatus(entity.getId, valueAfterEdit)
@@ -752,7 +752,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                         "Archive this entity (remove from visibility but not permanent/total deletion)")
     val delLinkingRelation_choiceNumber: Int = 3
     var delFromContainingGroup_choiceNumber: Int = 3
-    if (relationIn != None) {
+    if (relationIn.isDefined) {
       // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options,
       // because
       // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
@@ -760,7 +760,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                            "and this Entity: \"" + entityIn.getName + "\""
       delFromContainingGroup_choiceNumber += 1
     }
-    if (containingGroupIn != None) {
+    if (containingGroupIn.isDefined) {
       choices = choices :+ "Delete the link between the group: \"" + containingGroupIn.get.getName + "\", and this Entity: \"" + entityIn.getName
     }
 
@@ -772,7 +772,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def promptWhetherTo1Add2Correct(inAttrTypeDesc: String): Option[Int] = {
     @tailrec def ask: Option[Int] = {
       val ans = ui.askWhich(None, Array("1-Save this " + inAttrTypeDesc + " attribute?", "2-Correct it?"))
-      if (ans == None) return None
+      if (ans.isEmpty) return None
       val answer = ans.get
       if (answer < 1 || answer > 2) {
         ui.displayText("invalid response")
@@ -787,11 +787,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                               inPreviousSelectionId: Option[Long], askForOtherInfo: (T, Boolean) => Option[T],
                                                               inEditing: Boolean): Option[T] = {
     val ans: Option[Long] = askForAttributeTypeId(prompt, attrType, inPreviousSelectionDesc, inPreviousSelectionId)
-    if (ans == None) None
+    if (ans.isEmpty) None
     else {
       inoutDH.attrTypeId = ans.get
       val ans2: Option[T] = askForOtherInfo(inoutDH, inEditing)
-      if (ans2 == None) None
+      if (ans2.isEmpty) None
       else {
         var userWantsToCancel = false
         // (the ide/intellij preferred to have it this way instead of 'if')
@@ -817,7 +817,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def askForAttributeTypeId(prompt: String, attrType: String, inPreviousSelectionDesc: Option[String],
                                       inPreviousSelectionId: Option[Long]): (Option[Long]) = {
     val attrTypeSelection = chooseOrCreateObject(Some(List(prompt)), inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[Long], attrType)
-    if (attrTypeSelection == None) {
+    if (attrTypeSelection.isEmpty) {
       ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystroke = false)
       None
     } else Some[Long](attrTypeSelection.get.getId)
@@ -834,7 +834,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                   idToOmitIn: Option[Long] = None, nameRegexIn: String): Option[IdWrapper] = {
     val leadingText = List[String]("SEARCH RESULTS: " + pickFromListPrompt)
     val choices: Array[String] = Array(listNextItemsPrompt)
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.size, maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, maxNameLength)
 
     val objectsToDisplay = attrTypeIn match {
       case Controller.ENTITY_TYPE =>
@@ -860,16 +860,16 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                                       case _ => throw new OmException("??")
                                                                     }
       val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, objectNames)
-      if (ans == None) None
+      if (ans.isEmpty) None
       else {
         val (answer, userChoseAlternate: Boolean) = ans.get
-        if (answer == 1 && answer <= choices.size) {
+        if (answer == 1 && answer <= choices.length) {
           // (For reason behind " && answer <= choices.size", see comment where it is used in entityMenu.)
           val nextStartingIndex: Long = startingDisplayRowIndexIn + objectsToDisplay.size
           findExistingObject(nextStartingIndex, attrTypeIn, idToOmitIn, nameRegexIn)
         } else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
           // those in the condition on the previous line are 1-based, not 0-based.
-          var index = answer - choices.length - 1
+          val index = answer - choices.length - 1
           val o = objectsToDisplay.get(index)
           if (userChoseAlternate) {
             attrTypeIn match {
@@ -923,7 +923,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                     inClassId: Option[Long] = None, limitByClassIn: Boolean = false,
                                                     containingGroupIn: Option[Long] = None,
                                                     markPreviousSelectionIn: Boolean = false): Option[IdWrapper] = {
-    if (inClassId != None) require(inAttrType == Controller.ENTITY_TYPE)
+    if (inClassId.isDefined) require(inAttrType == Controller.ENTITY_TYPE)
     val nonRelationAttrTypeNames = Array(Controller.TEXT_TYPE, Controller.QUANTITY_TYPE, Controller.DATE_TYPE, Controller.BOOLEAN_TYPE, Controller.FILE_TYPE)
     val mostAttrTypeNames = Array(Controller.ENTITY_TYPE, Controller.TEXT_TYPE, Controller.QUANTITY_TYPE, Controller.DATE_TYPE, Controller.BOOLEAN_TYPE,
                                   Controller.FILE_TYPE)
@@ -942,7 +942,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       var createRelationTypeChoiceNum = 1
       var createClassChoiceNum = 1
       var choiceList = Array(listNextItemsPrompt)
-      if (inPreviousSelectionDesc != None) {
+      if (inPreviousSelectionDesc.isDefined) {
         keepPreviousSelectionChoiceNum += 1
         createAttrTypeChoiceNum += 1
         searchForEntityChoiceNum += 1
@@ -985,7 +985,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         case _ => ""
       }
       var leadingText = inLeadingText.getOrElse(List[String](prefix + "Pick from menu, or an item by letter; Alt+<letter> to go to the item & later come back)"))
-      val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size + 3 /* up to: see more of leadingText below .*/ , choicesIn.size,
+      val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size + 3 /* up to: see more of leadingText below .*/ , choicesIn.length,
                                                                     maxNameLength)
       val objectsToDisplay = {
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x BELOW ! (at similar comment)
@@ -1051,52 +1051,52 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val (leadingText, objectsToDisplay, names) = getLeadTextAndObjectList(choices)
     val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, names)
 
-    if (ans == None) None
+    if (ans.isEmpty) None
     else {
       val answer = ans.get._1
       val userChoseAlternate = ans.get._2
-      if (answer == listNextItemsChoiceNum && answer <= choices.size) {
+      if (answer == listNextItemsChoiceNum && answer <= choices.length) {
         // (For reason behind " && answer <= choices.size", see comment where it is used in entityMenu.)
         val index: Long = getNextStartingObjectIndex(objectsToDisplay.size, nonRelationAttrTypeNames, relationAttrTypeNames)
         chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inAttrType, index, inClassId, limitByClassIn,
                              containingGroupIn, markPreviousSelectionIn)
       }
-      else if (answer == keepPreviousSelectionChoice && answer <= choices.size) {
+      else if (answer == keepPreviousSelectionChoice && answer <= choices.length) {
         // Such as if editing several fields on an attribute and doesn't want to change the first one.
         // Not using "get out" option for this because it would exit from a few levels at once and
         // then user wouldn't be able to proceed to other field edits.
         Some(new IdWrapper(inPreviousSelectionId.get))
       }
-      else if (answer == createAttrTypeChoice && answer <= choices.size) {
+      else if (answer == createAttrTypeChoice && answer <= choices.length) {
         val e: Option[Entity] = askForInfoAndCreateEntity(inClassId)
-        if (e == None) None
+        if (e.isEmpty) None
         else Some(new IdWrapper(e.get.getId))
       }
-      else if (answer == searchForEntityChoice && answer <= choices.size) {
+      else if (answer == searchForEntityChoice && answer <= choices.length) {
         val ans = ui.askForString(Some(Array(searchPrompt(Controller.ENTITY_TYPE))))
-        if (ans == None)
+        if (ans.isEmpty)
           None
         else {
           // Allow relation to self (eg, picking self as 2nd part of a RelationToEntity), so None in 2nd parm.
           val e: Option[IdWrapper] = findExistingObject(0, Controller.ENTITY_TYPE, None, ans.get)
-          if (e == None) None
+          if (e.isEmpty) None
           else Some(new IdWrapper(e.get.getId))
         }
       }
-      else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(inAttrType) && answer <= choices.size) {
+      else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(inAttrType) && answer <= choices.length) {
         val entity: Option[Entity] = askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE)
-        if (entity == None) None
+        if (entity.isEmpty) None
         else Some(new IdWrapper(entity.get.getId))
       }
-      else if (answer == createClassChoice && inAttrType == Controller.ENTITY_CLASS_TYPE && answer <= choices.size) {
+      else if (answer == createClassChoice && inAttrType == Controller.ENTITY_CLASS_TYPE && answer <= choices.length) {
         val result: Option[(Long, Long)] = askForAndWriteClassAndDefiningEntityName()
-        if (result == None) None
+        if (result.isEmpty) None
         else {
           val (classId, entityId) = result.get
           val ans = ui.askYesNoQuestion("Do you want to add attributes to the newly created defining entity for this class? (These will be used for the " +
                                         "prompts " +
                                         "and defaults when creating/editing entities in this class).", Some("y"))
-          if (ans != None && ans.get) {
+          if (ans.isDefined && ans.get) {
             new EntityMenu(ui, db, this).entityMenu(0, new Entity(db, entityId))
           }
           Some(new IdWrapper(classId))
@@ -1156,7 +1156,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val previousSelectionDesc = if (inEditing) Some(new Entity(db, inDH.unitId).getName) else None
     val previousSelectionId = if (inEditing) Some(inDH.unitId) else None
     val unitSelection = chooseOrCreateObject(Some(leadingText), previousSelectionDesc, previousSelectionId, Controller.QUANTITY_TYPE)
-    if (unitSelection == None) {
+    if (unitSelection.isEmpty) {
       ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystroke = false)
       None
     } else {
@@ -1164,7 +1164,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val leadingText = Array[String]("ENTER THE NUMBER FOR THE QUANTITY (i.e., 5, for 5 centimeters length)")
       val previousQuantity: String = outDH.number.toString
       val ans = ui.askForString(Some(leadingText), Some(isNumeric), Some(previousQuantity))
-      if (ans == None) None
+      if (ans.isEmpty) None
       else {
         val numStr = ans.get
         outDH.number = numStr.toFloat
@@ -1178,7 +1178,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val outDH = inDH.asInstanceOf[TextAttributeDataHolder]
     val defaultValue: Option[String] = if (inEditing) Some(inDH.text) else None
     val ans = ui.askForString(Some(Array("Type attribute value, then press Enter; ESC to cancel")), None, defaultValue)
-    if (ans == None) None
+    if (ans.isEmpty) None
     else {
       outDH.text = ans.get
       Some(outDH)
@@ -1193,11 +1193,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       !finishAndParseTheDate(date)._2
     }
     val ans = ui.askForString(Some(Array(genericDatePrompt)), Some(dateCriteria), defaultValue)
-    if (ans == None) None
+    if (ans.isEmpty) None
     else {
       val (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(ans.get)
       if (retry) throw new Exception("Programmer error: date indicated it was parseable, but the same function said afterward it couldn't be parsed.  Why?")
-      else if (newDate == None) throw new Exception("There is a bug: the program shouldn't have got to this point.")
+      else if (newDate.isEmpty) throw new Exception("There is a bug: the program shouldn't have got to this point.")
       else {
         outDH.date = newDate.get
         Some(outDH)
@@ -1209,7 +1209,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def askForBooleanAttributeValue(inDH: BooleanAttributeDataHolder, inEditing: Boolean): Option[BooleanAttributeDataHolder] = {
     val outDH = inDH.asInstanceOf[BooleanAttributeDataHolder]
     val ans = ui.askYesNoQuestion("Is the new true/false value true now?", if (inEditing && inDH.boolean) Some("y") else Some("n"))
-    if (ans == None) None
+    if (ans.isEmpty) None
     else {
       outDH.boolean = ans.get
       Some(outDH)
@@ -1229,7 +1229,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       // we don't want the original path to be editable after the fact, because that's a historical observation and there is no sense in changing it.
       path = ui.askForString(Some(Array("Enter file path (must exist and be readable), then press Enter; ESC to cancel")), Some(inputFileValid))
     }
-    if (!inEditing && path == None) None
+    if (!inEditing && path.isEmpty) None
     else {
       // if we can't fill in the path variables by now, there is a bug:
       if (!inEditing) outDH.originalFilePath = path.get
@@ -1237,7 +1237,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
       val defaultValue: Option[String] = if (inEditing) Some(inDH.description) else Some(FilenameUtils.getBaseName(path.get))
       val ans = ui.askForString(Some(Array("Type file description, then press Enter; ESC to cancel")), None, defaultValue)
-      if (ans == None) None
+      if (ans.isEmpty) None
       else {
         outDH.description = ans.get
         Some(outDH)
@@ -1251,13 +1251,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
     val groupSelection = chooseOrCreateGroup(Some(List("SELECT GROUP FOR THIS RELATION")), 0)
     val groupId: Option[Long] = {
-      if (groupSelection == None) {
+      if (groupSelection.isEmpty) {
         ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystroke = false)
         None
       } else Some[Long](groupSelection.get.getId)
     }
 
-    if (groupId == None) None
+    if (groupId.isEmpty) None
     else {
       outDH.groupId = groupId.get
       Some(outDH)
@@ -1282,7 +1282,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val choicesPreAdjustment: Array[String] = Array("List next items",
                                                     "Create new group (aka RelationToGroup)",
                                                     "Search for existing group...")
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choicesPreAdjustment.size, maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choicesPreAdjustment.length, maxNameLength)
     val objectsToDisplay = db.getGroups(startingDisplayRowIndexIn, Some(numDisplayableItems), containingGroupIn)
     if (objectsToDisplay.size == 0) {
       val txt: String = TextUI.NEWLN + TextUI.NEWLN + "(None of the needed groups have been created in this model, yet."
@@ -1295,35 +1295,35 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                                     case _ => throw new Exception("??")
                                                                   }
     val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, objectNames)
-    if (ans == None) None
+    if (ans.isEmpty) None
     else {
       val answer = ans.get._1
       val userChoseAlternate = ans.get._2
-      if (answer == 1 && answer <= choices.size) {
+      if (answer == 1 && answer <= choices.length) {
         // (For reason behind " && answer <= choices.size", see comment where it is used in entityMenu.)
         val nextStartingIndex: Long = getNextStartingObjectIndex(objectsToDisplay.size)
         chooseOrCreateGroup(inLeadingText, nextStartingIndex, containingGroupIn)
-      } else if (answer == 2 && answer <= choices.size) {
+      } else if (answer == 2 && answer <= choices.length) {
         val ans = ui.askForString(Some(Array(relationToGroupNamePrompt)))
-        if (ans == None || ans.get.trim.length() == 0) None
+        if (ans.isEmpty || ans.get.trim.length() == 0) None
         else {
           val name = ans.get
           val ans2 = ui.askYesNoQuestion("Should this group allow entities with mixed classes? (Usually not desirable: doing so means losing some " +
                                          "conveniences such as scripts and assisted data entry.)", Some("y"))
-          if (ans2 == None) None
+          if (ans2.isEmpty) None
           else {
             val mixedClassesAllowed = ans2.get
             val newGroupId = db.createGroup(name, mixedClassesAllowed)
             Some(new IdWrapper(newGroupId))
           }
         }
-      } else if (answer == 3 && answer <= choices.size) {
+      } else if (answer == 3 && answer <= choices.length) {
         val ans = ui.askForString(Some(Array(searchPrompt(Controller.GROUP_TYPE))))
-        if (ans == None) None
+        if (ans.isEmpty) None
         else {
           // Allow relation to self, so None in 2nd parm.
           val g: Option[IdWrapper] = findExistingObject(0, Controller.GROUP_TYPE, None, ans.get)
-          if (g == None) None
+          if (g.isEmpty) None
           else Some(new IdWrapper(g.get.getId))
         }
       } else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
@@ -1357,7 +1357,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val (id: Option[Long]) = askForAttributeTypeId("SELECT OTHER (RELATED) ENTITY FOR THIS RELATION", Controller.ENTITY_TYPE, previousSelectionDesc,
                                                    previousSelectionId)
     val outDH = inDH
-    if (id == None) None
+    if (id.isEmpty) None
     else {
       outDH.entityId2 = id.get
       Some(outDH)
@@ -1383,23 +1383,23 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
     // help user if they put in something like 2013-1-1 instead of 2013-01-01, so the parsed date isn't messed up. See test.
     // (The year could be other than 4 digits, so check for the actual location of the 1st hyphen):
-    val firstHyphenPosition = if (dateStr.indexOf('-') != -1) dateStr.indexOf('-') else dateStr.size
+    val firstHyphenPosition = if (dateStr.indexOf('-') != -1) dateStr.indexOf('-') else dateStr.length
     //but only if the string format looks somewhat expected; otherwise let later parsing handle it all.
     val filledInDateStr =
-      if (dateStr.size > firstHyphenPosition + 1 && dateStr.size < firstHyphenPosition + 6
+      if (dateStr.length > firstHyphenPosition + 1 && dateStr.length < firstHyphenPosition + 6
           && dateStr.indexOf('-') == firstHyphenPosition && dateStr.indexOf('-', firstHyphenPosition + 1) >= 0) {
         val secondHyphenPosition = dateStr.indexOf('-', firstHyphenPosition + 1)
         if (secondHyphenPosition == firstHyphenPosition + 2 || secondHyphenPosition == firstHyphenPosition + 3) {
-          if (dateStr.size == secondHyphenPosition + 2 || dateStr.size == secondHyphenPosition + 3) {
+          if (dateStr.length == secondHyphenPosition + 2 || dateStr.length == secondHyphenPosition + 3) {
             val year = dateStr.substring(0, firstHyphenPosition)
             val mo = dateStr.substring(firstHyphenPosition + 1, secondHyphenPosition)
             val dy = dateStr.substring(secondHyphenPosition + 1)
-            year + '-' + (if (mo.size == 1) "0" + mo else mo) + '-' + (if (dy.size == 1) "0" + dy else dy)
+            year + '-' + (if (mo.length == 1) "0" + mo else mo) + '-' + (if (dy.length == 1) "0" + dy else dy)
           }
           else dateStr
         }
         else dateStr
-      } else if (dateStr.size == firstHyphenPosition + 2) {
+      } else if (dateStr.length == firstHyphenPosition + 2) {
         // also handle format like 2013-1
         val year = dateStr.substring(0, firstHyphenPosition)
         val mo = dateStr.substring(firstHyphenPosition + 1)
@@ -1409,7 +1409,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
 
     // Fill in the date w/ "blank" information for whatever detail the user didn't provide:
-    val filledInDateStrWithoutYear = if (firstHyphenPosition < filledInDateStr.size) filledInDateStr.substring(firstHyphenPosition + 1) else ""
+    val filledInDateStrWithoutYear = if (firstHyphenPosition < filledInDateStr.length) filledInDateStr.substring(firstHyphenPosition + 1) else ""
     val year = filledInDateStr.substring(0, firstHyphenPosition)
     val blankDateWithoutYear = blankDate.substring(5)
     val dateStrWithZeros =
@@ -1470,7 +1470,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val ans = ui.askForString(Some(leadingText), None,
                                 inDefaultValue =
                                   if (dateTypeIn == VALID) {
-                                    if (inEditing && oldValidOnDateIn != None) {
+                                    if (inEditing && oldValidOnDateIn.isDefined) {
                                       if (oldValidOnDateIn.get == 0) Some("0")
                                       else Some(Controller.DATEFORMAT_WITH_ERA.format(new java.util.Date(oldValidOnDateIn.get)))
                                     }
@@ -1479,7 +1479,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                     if (inEditing) Some(Controller.DATEFORMAT_WITH_ERA.format(new java.util.Date(oldObservedDateIn))) else None
                                   } else throw new Exception("unexpected type: " + dateTypeIn)
                                )
-      if (ans == None) {
+      if (ans.isEmpty) {
         if (dateTypeIn == VALID) (None, true)
         else if (dateTypeIn == OBSERVED) {
           //getting out, but observed date not allowed to be None (see caller for details)
@@ -1517,10 +1517,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (userCancelled) (Some(0), 0, userCancelled)
         else {
           // (for why validOnDate is sometimes allowed to be None, but not observedDate: see val validOnPrompt.)
-          require(observedDate != None)
+          require(observedDate.isDefined)
           val ans = ui.askYesNoQuestion("Dates are: " + AttributeWithValidAndObservedDates.getDatesDescription(validOnDate,
                                                                                                                observedDate.get) + ": right?", Some("y"))
-          if (ans != None && ans.get) (validOnDate, observedDate.get, userCancelled)
+          if (ans.isDefined && ans.get) (validOnDate, observedDate.get, userCancelled)
           else askForBothDates()
         }
       }
@@ -1534,7 +1534,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity): Option[Entity] = {
     // here of course, previouslyHighlightedIndexInObjListIn and objIds.size were calculated prior to the deletion.
     if (deletedOrArchivedOneIn) {
-      val newObjListSize = objIdsIn.size - 1
+      val newObjListSize = objIdsIn.length - 1
       val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
       if (newIndexToHighlight >= 0) {
         if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) Some(objectsToDisplayIn.get(newIndexToHighlight))
@@ -1554,7 +1554,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                               containingGroupIn: Option[Group] = None): (Option[Entity], Option[Long], Boolean) = {
     val (rtid, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(userSelection.getId)
     val subEntitySelected: Option[Entity] = None
-    if (groupId != None && !moreThanOneAvailable) {
+    if (groupId.isDefined && !moreThanOneAvailable) {
       // In quick menu, for efficiency of some work like brainstorming, if it's obvious which subgroup to go to, just go there.
       // We DON'T want @tailrec on this method for this call, so that we can ESC back to the current menu & list! (so what balance/best? Maybe move this
       // to its own method, so it doesn't try to tail optimize it?)  See also the comment with 'tailrec', mentioning why to have it, above.
@@ -1582,7 +1582,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           (rtgCountOnEntity.asInstanceOf[Long], 0L)
         } else {
           val (_, gid: Option[Long], moreAvailable) = db.findRelationToAndGroup_OnEntity(entityId)
-          if (gid == None || moreAvailable) throw new OmException("Found " + (if (gid == None) 0 else ">1") + " but by the earlier checks, " +
+          if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
                                                                   "there should be exactly one group in entity " + entityId + " .")
           (rtgCountOnEntity, db.getGroupEntryCount(gid.get, Some(false)))
         }
@@ -1604,7 +1604,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def editGroupName(groupIn: Group): Option[String] = {
     // doesn't seem to make sense to ck for duplicate names here: the real identity depends on what it relates to, and dup names may be common.
     val ans = ui.askForString(Some(Array(relationToGroupNamePrompt)), None, Some(groupIn.getName))
-    if (ans == None || ans.get.trim.length() == 0) {
+    if (ans.isEmpty || ans.get.trim.length() == 0) {
       ui.displayText("Not updated.")
       None
     } else {
@@ -1620,7 +1620,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         val leadingText = List("ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):")
         val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Controller.ENTITY_TYPE,
                                                                 containingGroupIn = Some(groupIn.getId))
-        if (idWrapper != None) {
+        if (idWrapper.isDefined) {
           db.addEntityToGroup(groupIn.getId, idWrapper.get.getId)
           Some(idWrapper.get.getId)
         } else None
@@ -1629,7 +1629,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         val entityClassInUse = groupIn.getClassId
         val idWrapper: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE, 0, entityClassInUse, limitByClassIn = true,
                                                                 containingGroupIn = Some(groupIn.getId))
-        if (idWrapper == None) None
+        if (idWrapper.isEmpty) None
         else {
           val entityId = idWrapper.get.getId
           try {
@@ -1639,9 +1639,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           catch {
             case e: Exception =>
               if (e.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION)) {
-                val oldClass: String = if (entityClassInUse == None) "(none)" else new EntityClass(db, entityClassInUse.get).getDisplayString
+                val oldClass: String = if (entityClassInUse.isEmpty) "(none)" else new EntityClass(db, entityClassInUse.get).getDisplayString
                 val newClassId = new Entity(db, entityId).getClassId
-                val newClass: String = if (newClassId == None || entityClassInUse == None) "(none)"
+                val newClass: String = if (newClassId.isEmpty || entityClassInUse.isEmpty) "(none)"
                 else new EntityClass(db,
                                      entityClassInUse.get).getDisplayString
                 ui.displayText("Adding an entity with class '" + newClass + "' to a group that doesn't allow mixed classes, " +
@@ -1656,14 +1656,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val leadingText = List("ADD ENTITY TO A (mixed-class) GROUP")
       val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Controller.ENTITY_TYPE,
                                                               containingGroupIn = Some(groupIn.getId))
-      if (idWrapper != None) {
+      if (idWrapper.isDefined) {
         db.addEntityToGroup(groupIn.getId, idWrapper.get.getId)
         Some(idWrapper.get.getId)
       } else None
     }
   }
 
-  def handleException(e: Exception) {//elim this once other users are switched 2 next 1 [what did i mean by that? anything still2do, or elim cmt?]
+  def handleException(e: Exception) {//eliminate this once other users are switched 2 next 1 [what did i mean by that? anything still2do, or elim cmt?]
     if (e.isInstanceOf[org.postgresql.util.PSQLException] || e.isInstanceOf[OmDatabaseException] || throwableToString(e).contains("ERROR: current transaction" +
                                                                                                                                   " is aborted, " +
                                                                                                                                   "commands ignored until end" +
@@ -1673,7 +1673,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val ans = ui.askYesNoQuestion("An error occurred: \"" + e.getClass.getName + ": " + e.getMessage + "\".  If you can provide simple instructions to " +
                                   "reproduce it consistently, " +
                                   "maybe it can be fixed.  Do you want to see the detailed output?")
-    if (ans != None && ans.get) {
+    if (ans.isDefined && ans.get) {
       ui.displayText(throwableToString(e))
     }
   }
@@ -1687,7 +1687,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def chooseAmongEntities(containingEntities: util.ArrayList[(Long, Entity)]): Option[Entity] = {
     val leadingText = List[String]("Pick from menu, or an entity by letter")
     val choices: Array[String] = Array(listNextItemsPrompt)
-    val numDisplayableItems: Long = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.size, maxNameLength)
     //(see comments at similar location in EntityMenu, as of this writing on line 288)
     val containingEntitiesNamesWithRelTypes: Array[String] = containingEntities.toArray.map {
                                                                                               case relTypeIdAndEntity: (Long, Entity) =>
@@ -1705,10 +1704,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                                                               case _ => throw new OmException("??")
                                                                                             }
     val ans = ui.askWhich(Some(leadingText.toArray), choices, containingEntitiesNamesWithRelTypes)
-    if (ans == None) None
+    if (ans.isEmpty) None
     else {
       val answer = ans.get
-      if (answer == 1 && answer <= choices.size) {
+      if (answer == 1 && answer <= choices.length) {
         // see comment above
         ui.displayText("not yet implemented")
         None

@@ -13,7 +13,6 @@ import org.scalatest.{Status, FlatSpec}
 import org.scalatest.mock.MockitoSugar
 import java.io.File
 import org.onemodel.model._
-import scala.Some
 import org.scalatest.Args
 import org.onemodel.database.PostgreSQLDatabase
 
@@ -329,7 +328,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val boolAttributeId2: Long = mDB.createBooleanAttribute(pid1, atid1, testval2, validOnDate2, observationDate)
     val ba3: BooleanAttribute = new BooleanAttribute(mDB, boolAttributeId2)
     assert(ba3.getBoolean == testval2)
-    assert(ba3.getValidOnDate == None)
+    assert(ba3.getValidOnDate.isEmpty)
     mDB.deleteEntity(entityId)
     assert(mDB.getBooleanAttributeCount(entityId) == 0)
 
@@ -491,7 +490,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val relatedEntityId: Long = createTestRelationToEntity_WithOneEntity(entityId, relTypeId)
     val checkRelation = mDB.getRelationToEntityData(relTypeId, entityId, relatedEntityId)
     val checkValidOnDate = checkRelation(0)
-    assert(checkValidOnDate == None) // should get back None when created with None: see description for table's field in createTables method.
+    assert(checkValidOnDate.isEmpty) // should get back None when created with None: see description for table's field in createTables method.
 
     assert(mDB.getRelationToEntityCount(entityId) == 1)
 
@@ -530,11 +529,11 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
      ...(and then checks in the middle that entity2 has 1 containing group, before adding entity3/group3)
      ...and then checks that entity2 has 2 containing groups.
      */
-    val entityId1 = mDB.createEntity("test-getContainingGroupsIds-ntity1")
+    val entityId1 = mDB.createEntity("test-getContainingGroupsIds-entity1")
     val relTypeId: Long = mDB.createRelationType("test-getContainingGroupsIds-reltype1", "", RelationType.UNIDIRECTIONAL)
     val (groupId1, _) = createAndAddTestRelationToGroup_ToEntity(entityId1, relTypeId, "test-getContainingGroupsIds-group1")
     val group1 = new Group(mDB,groupId1)
-    val entityId2 = mDB.createEntity("test-getContainingGroupsIds-ntity2")
+    val entityId2 = mDB.createEntity("test-getContainingGroupsIds-entity2")
     group1.addEntity(entityId2)
     val (groupId2, _) = createAndAddTestRelationToGroup_ToEntity(entityId2, relTypeId, "test-getContainingGroupsIds-group1")
     val group2 = new Group(mDB, groupId2)
@@ -543,7 +542,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(containingGroups.size == 1)
     assert(containingGroups.head(0).get.asInstanceOf[Long] == groupId1)
 
-    val entityId3 = mDB.createEntity("test-getContainingGroupsIds-ntity3")
+    val entityId3 = mDB.createEntity("test-getContainingGroupsIds-entity3")
     val (groupId3, _) = createAndAddTestRelationToGroup_ToEntity(entityId3, relTypeId, "test-getContainingGroupsIds-group1")
     val group3 = new Group(mDB, groupId3)
     group3.addEntity(entityId2)
@@ -647,14 +646,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getGroupEntryCount(groupId) == 2)
     assert(mDB.getCountOfGroupsContainingEntity(entityId2) == 1)
     val descriptions = mDB.getRelationToGroupDescriptionsContaining(entityId2, Some(9999))
-    assert(descriptions.size == 1)
+    assert(descriptions.length == 1)
     assert(descriptions(0) == entityName + "->" + relToGroupName)
 
     //doesn't get an error:
     mDB.deleteEntity(entityId2)
 
     val descriptions2 = mDB.getRelationToGroupDescriptionsContaining(entityId2, Some(9999))
-    assert(descriptions2.size == 0)
+    assert(descriptions2.length == 0)
     assert(mDB.getCountOfGroupsContainingEntity(entityId2) == 0)
     assert(mDB.getEntitiesOnlyCount() == startingEntityCount + 2)
     assert(intercept[Exception] {
@@ -777,8 +776,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(qa.getUnitId == unitId)
     assert(qa.getNumber == number)
     assert(qa.getAttrTypeId == attrTypeId)
-    if (inValidOnDate == None) {
-      assert(qa.getValidOnDate == None)
+    if (inValidOnDate.isEmpty) {
+      assert(qa.getValidOnDate.isEmpty)
     } else {
       val inDate: Long = inValidOnDate.get
       val gotDate: Long = qa.getValidOnDate.get
@@ -801,8 +800,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(ta.getParentId == inParentId)
     assert(ta.getText == text)
     assert(ta.getAttrTypeId == attrTypeId)
-    if (inValidOnDate == None) {
-      assert(ta.getValidOnDate == None)
+    if (inValidOnDate.isEmpty) {
+      assert(ta.getValidOnDate.isEmpty)
     } else {
       assert(ta.getValidOnDate.get == inValidOnDate.get)
     }
@@ -895,14 +894,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   private def createTestRelationToEntity_WithOneEntity(inEntityId: Long, inRelTypeId: Long, inValidOnDate: Option[Long] = None): Long = {
     val relatedEntityId: Long = mDB.createEntity(RELATED_ENTITY_NAME)
-    val validOnDate: Option[Long] = if (inValidOnDate == None) None else inValidOnDate
+    val validOnDate: Option[Long] = if (inValidOnDate.isEmpty) None else inValidOnDate
     val observationDate: Long = System.currentTimeMillis
     mDB.createRelationToEntity(inRelTypeId, inEntityId, relatedEntityId, validOnDate, observationDate)
 
     // and verify it:
     val rel: RelationToEntity = new RelationToEntity(mDB, inRelTypeId, inEntityId, relatedEntityId)
-    if (inValidOnDate == None) {
-      assert(rel.getValidOnDate == None)
+    if (inValidOnDate.isEmpty) {
+      assert(rel.getValidOnDate.isEmpty)
     } else {
       val inDt: Long = inValidOnDate.get
       val gotDt: Long = rel.getValidOnDate.get
@@ -916,13 +915,13 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     */
   private def createAndAddTestRelationToGroup_ToEntity(inParentId: Long, inRelTypeId: Long, inGroupName: String = "something",
                                                        inValidOnDate: Option[Long] = None, allowMixedClassesIn: Boolean = true): (Long, RelationToGroup) = {
-    val validOnDate: Option[Long] = if (inValidOnDate == None) None else inValidOnDate
+    val validOnDate: Option[Long] = if (inValidOnDate.isEmpty) None else inValidOnDate
     val observationDate: Long = System.currentTimeMillis
     val (group:Group, rtg: RelationToGroup) = new Entity(mDB, inParentId).addGroupAndRelationToGroup(inRelTypeId, inGroupName, allowMixedClassesIn, validOnDate, observationDate)
 
     // and verify it:
-    if (inValidOnDate == None) {
-      assert(rtg.getValidOnDate == None)
+    if (inValidOnDate.isEmpty) {
+      assert(rtg.getValidOnDate.isEmpty)
     } else {
       val inDt: Long = inValidOnDate.get
       val gotDt: Long = rtg.getValidOnDate.get
@@ -972,7 +971,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     // (Should be some value, but the activity on the test DB wouldn't have got it to 0 for id's yet,so that one would be invalid. Could use the
     // other method to find an unused id, instead of 0.)
-    assert(groupIdOfClassTemplates != None && groupIdOfClassTemplates.get != 0)
+    assert(groupIdOfClassTemplates.isDefined && groupIdOfClassTemplates.get != 0)
     assert(new Group(mDB, groupIdOfClassTemplates.get).getMixedClassesAllowed)
 
     val personTemplateEntityId = mDB.findEntityOnlyIdsByName("person-template").get.head
@@ -1124,8 +1123,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val allEntitiesInClassCount1 = mDB.getEntitiesOnlyCount(Some(someClassId), limitByClass = true)
     val allEntitiesInClassCount2 = mDB.getEntitiesOnlyCount(Some(someClassId), limitByClass = true, None)
     assert(allEntitiesInClassCount1 == allEntitiesInClassCount2)
-    val definingClassid: Long = new EntityClass(mDB, someClassId).getDefiningEntityId
-    val allEntitiesInClassCountWoClass = mDB.getEntitiesOnlyCount(Some(someClassId), limitByClass = true, Some(definingClassid))
+    val definingClassId: Long = new EntityClass(mDB, someClassId).getDefiningEntityId
+    val allEntitiesInClassCountWoClass = mDB.getEntitiesOnlyCount(Some(someClassId), limitByClass = true, Some(definingClassId))
     assert(allEntitiesInClassCountWoClass == allEntitiesInClassCount1 - 1)
     assert(allEntitiesInClass.size == allEntitiesInClassCount1)
     assert(allEntitiesInClass.size < mDB.getEntitiesOnly(0, None, Some(someClassId), limitByClass = false).size)

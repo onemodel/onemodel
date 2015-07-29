@@ -43,8 +43,8 @@ object TextUI {
 class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream] = None) {
   //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
   val objectChooserMenuPrefixLength: Int = 2
-  val forceUsernamePasswordPrompt = if (args.size == 1) true else false
-  val (username, password): (Option[String], Option[String]) = if (args.size == 2) (Some(args(0)), Some(args(1))) else (None, None)
+  val forceUsernamePasswordPrompt = if (args.length == 1) true else false
+  val (username, password): (Option[String], Option[String]) = if (args.length == 2) (Some(args(0)), Some(args(1))) else (None, None)
 
   // (making some lazy vals instead of vars because it's considered generally cleaner to use vals, and lazy in case they are not
   // needed for unit tests)
@@ -81,7 +81,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     synchronized {
                    if (mCleanupStarted) null
                    else {
-                     val is: InputStream = if (inIn == None) System.in else inIn.get
+                     val is: InputStream = if (inIn.isEmpty) System.in else inIn.get
                      // the next line would be simpler if we added a method jline.ConsoleReader.setTerminal, or such: the
                      // rest of it is just copied from the simplest constructor in that file.
                      /*val os:OutputStream = new PrintWriter(new OutputStreamWriter(System.out,
@@ -145,7 +145,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     if (!input.isValidChar) {
       throw new Exception("Unexpected non-char value " + input + " from readCharacter().")
     }
-    var isAltKeyCombo: Boolean = false;
+    var isAltKeyCombo: Boolean = false
     if (input > 1000) {
       // this means that the user pressed an alt-key combination (i.e.: my kludge in my modified copy of jline2's
       // readCharacter(boolean checkForAltKeyCombo) has been invoked.
@@ -213,7 +213,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     var count = 0
     val lastLineOfPrompt: String = {
       var lastLineOfPrompt = ""
-      if (inLeadingText != None) {
+      if (inLeadingText.isDefined) {
         for (prompt <- inLeadingText.get) {
           count = count + 1
           if (count < inLeadingText.get.length) {
@@ -222,7 +222,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
           }
           else {
             //print(prompt)
-            //if (inDefaultValue != None && inDefaultValue.get.length() > 0) {
+            //if (inDefaultValue.isDefined && inDefaultValue.get.length() > 0) {
             //  print(" [defaults to " + inDefaultValue.get + "]")
             //}
             //println(": ")
@@ -235,10 +235,10 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     // idea: make this better by using features of or tweaking jline2? Or...? But at least make it easy to see when out of room!
     //val promptToShowStringSizeLimit = "(Max name length is  " + controller.maxNameLength
     val endPrompt = "(... which ends here: |)"
-    if (lastLineOfPrompt.size > 1 && lastLineOfPrompt.size + endPrompt.size - 1 <= controller.maxNameLength) {
+    if (lastLineOfPrompt.length > 1 && lastLineOfPrompt.length + endPrompt.length - 1 <= controller.maxNameLength) {
       val spaces: StringBuilder = new StringBuilder("")
       // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker
-      val padLength: Int = controller.maxNameLength - lastLineOfPrompt.size - endPrompt.size + 1
+      val padLength: Int = controller.maxNameLength - lastLineOfPrompt.length - endPrompt.length + 1
       for (x <- 0 until padLength) {
         spaces.append(" ")
       }
@@ -263,7 +263,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
     else {
       def checkCriteria(line: String): Option[String] = {
-        if (inCriteria == None || inCriteria.get(line)) {
+        if (inCriteria.isEmpty || inCriteria.get(line)) {
           Some(line)
         }
         else {
@@ -273,7 +273,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
         }
       }
 
-      if (line.length() == 0 && inDefaultValue != None) {
+      if (line.length() == 0 && inDefaultValue.isDefined) {
         // idea: we are taking the default value even if there are criteria and it fails: could be reconsidered.
         checkCriteria(inDefaultValue.get)
       }
@@ -296,7 +296,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   def maxColumnarChoicesToDisplayAfter(numOfLeadingTextLines: Int, numChoicesAboveColumns: Int, fieldWidth: Int): Int = {
     val maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLines, numChoicesAboveColumns) * columnsPossible(fieldWidth + objectChooserMenuPrefixLength)
     // the next 2 lines are in coordination with a 'require' statement in askWhich, so we don't fail it:
-    val maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.size
+    val maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length
     math.min(maxMoreChoicesBySpaceAvailable, maxMoreChoicesByMenuCharsAvailable)
   }
 
@@ -323,7 +323,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
                      highlightIndexIn: Option[Int] = None,
                      secondaryHighlightIndexIn: Option[Int] = None): Option[Int] = {
     val result = askWhichChoiceOrItsAlternate(leadingText, choices, moreChoices, includeEscChoice, trailingText, highlightIndexIn, secondaryHighlightIndexIn)
-    if (result == None) None
+    if (result.isEmpty) None
     else Some(result.get._1)
   }
 
@@ -343,21 +343,21 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     // I.e., 2nd part of menu ("moreChoices") always starts with a letter, not a #, but the 1st part can use numbers+letters as necessary.
     // This is for the user experience: it seems will be easier to remember how to get around one's own model if attributes always start with
     // 'a' and go from there.
-    require(choices.size > 0)
+    require(choices.length > 0)
 
     val maxChoiceLength = controller.maxNameLength
 
     val firstMenuChars: StringBuffer = {
       //up to: "123456789"
       val chars = new StringBuffer
-      for (number: Int <- 1 to 9) if (number <= choices.size) {
+      for (number: Int <- 1 to 9) if (number <= choices.length) {
         chars.append(number)
       }
       chars
     }
     val possibleMenuChars = firstMenuChars + TextUI.menuCharsList
     // make sure caller didn't send more than the # of things we can handle
-    require((choices.size + moreChoices.size) <= possibleMenuChars.size)
+    require((choices.length + moreChoices.length) <= possibleMenuChars.length)
 
     var alreadyFull = false
     var lineCounter: Int = 0
@@ -367,7 +367,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     def nextMenuChar(): String = {
       val next = lastMenuCharsIndex + 1
       lastMenuCharsIndex = next
-      if (next > possibleMenuChars.size) {
+      if (next > possibleMenuChars.length) {
         return "(ran out)"
       }
       allAllowedAnswers.append(possibleMenuChars.charAt(next))
@@ -381,7 +381,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       }
       else if ((!alreadyFull) && lineCounter > terminalHeight) {
         // (+ 1 above to leave room for the error message line, below)
-        val unshownCount: Int = choices.size + moreChoices.size - lineCounter - 1
+        val unshownCount: Int = choices.length + moreChoices.length - lineCounter - 1
         println("Unable to show remaining " + new StringBuffer(unshownCount) + " items in the available screen space(!?). Consider code change to pass the " +
                 "right number of them, relaunching w/ larger terminal, or grouping things?")
         alreadyFull = true
@@ -402,16 +402,17 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
 
     def showMoreChoices() {
-      if (moreChoices.size == 0) {
+      if (moreChoices.length == 0) {
+        // (intentional style violation, for readability):
         Unit
       }
       else {
         // this collection size might be much larger than needed (given multiple columns of display) but that's better than having more complex calculations.
-        val moreLines = new Array[StringBuffer](moreChoices.size)
-        for (i <- 0 until moreLines.size) {
+        val moreLines = new Array[StringBuffer](moreChoices.length)
+        for (i <- moreLines.indices) {
           moreLines(i) = new StringBuffer()
         }
-        val linesLeftHere = linesLeft(leadingText.size, choices.size)
+        val linesLeftHere = linesLeft(leadingText.size, choices.length)
         var lineCounter = -1
         // now build the lines out of columns be4 displaying them.
         var index = -1
@@ -428,7 +429,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
             if (highlightIndexIn.getOrElse(None) == index) Color.blue("*")
             else if (secondaryHighlightIndexIn.getOrElse(None) == index) Color.green("+")
             else " "
-          val padLength = maxChoiceLength - choice.size - objectChooserMenuPrefixLength - 1
+          val padLength = maxChoiceLength - choice.length - objectChooserMenuPrefixLength - 1
           moreLines(lineCounter).append(lineMarker + nextMenuChar() + "-" + choice)
           for (x <- 0 until padLength) {
             moreLines(lineCounter).append(" ")
@@ -453,7 +454,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
 
     displayVisualSeparator()
-    if (leadingText != None && leadingText.get.size > 0) {
+    if (leadingText.isDefined && leadingText.get.length > 0) {
       for (prompt <- leadingText.get) {
         lineCounter = lineCounter + 1
         println(prompt)
@@ -461,7 +462,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
     showChoices()
     showMoreChoices()
-    if (trailingText != None && trailingText.get.size > 0) println(trailingText.get)
+    if (trailingText.isDefined && trailingText.get.nonEmpty) println(trailingText.get)
 
     val allowedInputChars: Array[Char] = new Array(allAllowedAnswers.length + 2)
     allowedInputChars(0) = '0'
@@ -498,7 +499,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     val ans = askForString(Some(Array[String](promptIn + " (y/n)")),
                            if (allowBlankAnswer) Some(isValidYesNoOrBlankAnswer) else Some(isValidYesNoAnswer),
                            defaultValueIn)
-    if (ans == None) None
+    if (ans.isEmpty) None
     else if (allowBlankAnswer && ans.get.trim.isEmpty) None
     else if (ans.get.toLowerCase.startsWith("y")) Some(true)
     else Some(false)
@@ -520,7 +521,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
           }
         } else Some(true)
       }
-      if (yesExportTheFile == None || !yesExportTheFile.get) None
+      if (yesExportTheFile.isEmpty || !yesExportTheFile.get) None
       else {
         def newLocation(originalNameIn: String): Option[File] = {
           val oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn)
@@ -536,7 +537,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
         } else {
           val msgIfExists = if (!new File(originalPathIn).exists) "" else " (overwriting the current copy)"
           val ans = askYesNoQuestion("Put the file in the original location: \"" + originalPathIn + "\"" + msgIfExists + "?")
-          if (ans == None) None
+          if (ans.isEmpty) None
           else if (ans.get) Some(origPathFile)
           else newLocation(originalName)
         }

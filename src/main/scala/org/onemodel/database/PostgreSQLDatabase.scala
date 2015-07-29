@@ -506,7 +506,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
     val rows = dbQuery(sql, "Long")
 
-    if (rows.size == 0) None
+    if (rows.isEmpty) None
     else {
       var results: List[Long] = Nil
       for (row <- rows) {
@@ -522,7 +522,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // a performance issue then look at it?
     val rows = dbQuery("select id from entity where (not archived) and lower(name) = lower('" + inName + "') " + limitToEntitiesOnly(ENTITY_ONLY_SELECT_PART)
                        , "Long")
-    if (rows.size == 0) None
+    if (rows.isEmpty) None
     else {
       var results: List[Long] = Nil
       for (row <- rows) {
@@ -536,7 +536,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?
     val ids: Option[List[Long]] = findEntityOnlyIdsByName(PostgreSQLDatabase.systemEntityName)
     // will probably have to change the next line when things grow/change, and say, we're doing upgrades not always a new system:
-    require(ids == None)
+    require(ids.isEmpty)
 
     // public=false, guessing at best value, since the world wants your modeled info, not details about your system internals (which might be...unique & personal
     // somehow)?:
@@ -583,7 +583,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     commitTrans()
 
     val classGroupId = getSystemEntitysClassGroupId
-    if (classGroupId != None) {
+    if (classGroupId.isDefined) {
       addEntityToGroup(classGroupId.get, entityId)
     }
 
@@ -599,7 +599,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // idea: maybe this stuff would be less breakable by the user if we put this kind of info in some system table
     // instead of in this group. (See also method createDefaultData).  Or maybe it doesn't matter, since it's just a user convenience. Hmm.
     val classDefiningGroupId = findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classDefiningEntityGroupName))._2
-    if (classDefiningGroupId == None) {
+    if (classDefiningGroupId.isEmpty) {
       // no exception thrown here because really this group is a convenience for the user to see things, not a requirement. Maybe a user message would be best:
       System.err.println("Unable to find, from the entity " + PostgreSQLDatabase.systemEntityName + "(" + systemEntityId + "), " +
                          "any connection to its expected contained group " +
@@ -615,7 +615,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     try {
       val definingEntityId: Long = getClassData(inClassId)(1).get.asInstanceOf[Long]
       val classGroupId = getSystemEntitysClassGroupId
-      if (classGroupId != None) {
+      if (classGroupId.isDefined) {
         removeEntityFromGroup(classGroupId.get, definingEntityId, callerManagesTransactionIn = true)
       }
       updateEntityOnlyClass(definingEntityId, None, callerManagesTransactions = true)
@@ -634,7 +634,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     * to know there is only one or deal with the None.
     */
   def findRelationToAndGroup_OnEntity(inEntityId: Long, inGroupName: Option[String] = None): (Option[Long], Option[Long], Boolean) = {
-    val nameCondition = if (inGroupName != None) {
+    val nameCondition = if (inGroupName.isDefined) {
       val name = escapeQuotesEtc(inGroupName.get)
       "g.name='" + name + "'"
     } else
@@ -644,7 +644,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val rows = dbQuery("select rtg.rel_type_id, g.id from relationtogroup rtg, grupo g where rtg.group_id=g.id and rtg.entity_id=" + inEntityId + " and " +
                        nameCondition + " order by id limit 2", "Long,Long")
     // there could be none found, or more than one, but:
-    if (rows.size == 0)
+    if (rows.isEmpty)
       (None, None, false)
     else {
       val row = rows.head
@@ -661,7 +661,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val name = escapeQuotesEtc(inTypeName)
     val rows = dbQuery("select entity_id from entity e, relationtype rt where e.id=rt.entity_id and name='" + name + "' order by id limit 2", "Long")
     // there could be none found, or more than one, but
-    if (rows.size == 0) (None, false)
+    if (rows.isEmpty) (None, false)
     else {
       val row = rows.head
       val id: Option[Long] = Some(row(0).get.asInstanceOf[Long])
@@ -708,7 +708,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val id: Long = getNewKey("QuantityAttributeKeySequence")
     dbAction("insert into QuantityAttribute (id, parent_id, unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) " +
              "values (" + id + "," + inParentId + "," + inUnitId + "," + inNumber + "," + inAttrTypeId + "," +
-             (if (inValidOnDate == None) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
+             (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
     id
   }
 
@@ -723,14 +723,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def updateQuantityAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inUnitId: Long, inNumber: Float, inValidOnDate: Option[Long],
                               inObservationDate: Long) {
     dbAction("update QuantityAttribute set (unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) = (" + inUnitId + "," +
-             "" + inNumber + "," + inAttrTypeId + "," + (if (inValidOnDate == None) "NULL" else inValidOnDate.get) + "," +
+             "" + inNumber + "," + inAttrTypeId + "," + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," +
              "" + inObservationDate + ") where id=" + inId + " and  parent_id=" + inParentId)
   }
 
   def updateTextAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inText: String, inValidOnDate: Option[Long], inObservationDate: Long) {
     val text: String = escapeQuotesEtc(inText)
     dbAction("update TextAttribute set (textValue, attr_type_id, valid_on_date, observation_date) = ('" + text + "'," + inAttrTypeId + "," +
-             "" + (if (inValidOnDate == None) "NULL" else inValidOnDate.get) + "," + inObservationDate + ") where id=" + inId + " and  " +
+             "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ") where id=" + inId + " and  " +
              "parent_id=" + inParentId)
   }
 
@@ -741,7 +741,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def updateBooleanAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inBoolean: Boolean, inValidOnDate: Option[Long], inObservationDate: Long) {
     dbAction("update BooleanAttribute set (booleanValue, attr_type_id, valid_on_date, observation_date) = (" + inBoolean + "," + inAttrTypeId + "," +
-             "" + (if (inValidOnDate == None) "NULL" else inValidOnDate.get) + "," + inObservationDate + ") where id=" + inId + " and  " +
+             "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ") where id=" + inId + " and  " +
              "parent_id=" + inParentId)
   }
 
@@ -774,7 +774,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def updateEntityOnlyPublicStatus(inId: Long, value: Option[Boolean]) {
     dbAction("update Entity set (public) = (" +
-             (if (value == None) "NULL" else if (value.get) "true" else "false") +
+             (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
              ") where id=" + inId)
   }
 
@@ -795,7 +795,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def updateEntityOnlyClass(entityId: Long, classId: Option[Long], callerManagesTransactions: Boolean = false) {
     if (!callerManagesTransactions) beginTrans()
     dbAction("update Entity set (class_id) = (" +
-             (if (classId == None) "NULL" else classId.get) +
+             (if (classId.isEmpty) "NULL" else classId.get) +
              ") where id=" + entityId)
     val groupIds = dbQuery("select group_id from EntitiesInAGroup where entity_id=" + entityId, "Long")
     for (row <- groupIds) {
@@ -837,7 +837,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val id: Long = getNewKey("TextAttributeKeySequence")
     dbAction("insert into TextAttribute (id, parent_id, textvalue, attr_type_id, valid_on_date, observation_date) " +
              "values (" + id + "," + inParentId + ",'" + text + "'," + inAttrTypeId + "," +
-             "" + (if (inValidOnDate == None) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
+             "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
     id
   }
 
@@ -852,7 +852,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val id: Long = getNewKey("BooleanAttributeKeySequence")
     dbAction("insert into BooleanAttribute (id, parent_id, booleanvalue, attr_type_id, valid_on_date, observation_date) " +
              "values (" + id + "," + parentIdIn + ",'" + booleanIn + "'," + attrTypeIdIn + "," +
-             "" + (if (validOnDateIn == None) "NULL" else validOnDateIn.get) + "," + observationDateIn + ")")
+             "" + (if (validOnDateIn.isEmpty) "NULL" else validOnDateIn.get) + "," + observationDateIn + ")")
     id
   }
 
@@ -884,7 +884,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
       @tailrec
       def saveFileToDb() {
         numBytesRead = inputStreamIn.read(buffer)
-        if (numBytesRead == -1) return
+        // (intentional style violation, for readability):
+        if (numBytesRead == -1) Unit
         else {
           // just once by a test subclass is enough to mess w/ the md5sum.
           if (total == 0) damageBuffer(buffer)
@@ -927,13 +928,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def createRelationToEntity(inRelationTypeId: Long, inEntityId1: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
     dbAction("INSERT INTO RelationToEntity (rel_type_id, entity_id_1, entity_id_2, valid_on_date, observation_date) " +
              "VALUES (" + inRelationTypeId + "," + inEntityId1 + ", " + inEntityId2 + ", " +
-             "" + (if (inValidOnDate == None) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
+             "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
   }
 
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
   def updateRelationToEntity(inRelationTypeId: Long, inEntityId1: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
     dbAction("UPDATE RelationToEntity SET (rel_type_id, valid_on_date, observation_date)" +
-             " = (" + inRelationTypeId + "," + (if (inValidOnDate == None) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")" +
+             " = (" + inRelationTypeId + "," + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")" +
              " where rel_type_id=" + inRelationTypeId + " and entity_id_1=" + inEntityId1 + " and entity_id_2=" + inEntityId2)
   }
 
@@ -978,7 +979,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     dbAction("INSERT INTO RelationToGroup (entity_id, rel_type_id, group_id, valid_on_date, observation_date) " +
              "VALUES (" +
              inEntityId + "," + inRelationTypeId + "," + groupIdIn +
-             ", " + (if (inValidOnDate == None) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
+             ", " + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
   }
 
   def updateGroup(groupIdIn: Long, inName: String, allowMixedClassesInGroupIn: Boolean = false) {
@@ -992,7 +993,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     */
   def updateRelationToGroup(entityIdIn: Long, inRelationTypeId: Long, groupIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
     dbAction("UPDATE RelationToGroup SET (valid_on_date, observation_date)" +
-             " = (" + (if (inValidOnDate == None) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")" +
+             " = (" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")" +
              " where entity_id=" + entityIdIn + " and rel_type_id=" + inRelationTypeId + " and group_id=" + groupIdIn)
   }
 
@@ -1042,7 +1043,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
     // start from the beginning index, if it's the 1st record (otherwise later sorting/renumbering gets messed up if we start w/ the last #):
     val sortingIndex = {
-      val index = if (sortingIndexIn != None) sortingIndexIn.get
+      val index = if (sortingIndexIn.isDefined) sortingIndexIn.get
       else if (getGroupEntryCount(groupIdIn) == 0) minIdValue
       else maxIdValue
       if (sortingIndexInUse(groupIdIn, index))
@@ -1097,10 +1098,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val name: String = escapeQuotesEtc(inName)
     if (name == null || name.length == 0) throw new Exception("Name must have a value.")
     val id: Long = getNewKey("EntityKeySequence")
-    val sql: String = "INSERT INTO Entity (id, insertion_date, name, public" + (if (inClassId != None) ", class_id" else "") + ")" +
+    val sql: String = "INSERT INTO Entity (id, insertion_date, name, public" + (if (inClassId.isDefined) ", class_id" else "") + ")" +
                       " VALUES (" + id + "," + System.currentTimeMillis() + ",'" + name + "'," +
-                      (if (isPublicIn == None) "NULL" else isPublicIn.get) +
-                      (if (inClassId != None) "," + inClassId.get else "") + ")"
+                      (if (isPublicIn.isEmpty) "NULL" else isPublicIn.get) +
+                      (if (inClassId.isDefined) "," + inClassId.get else "") + ")"
     dbAction(sql)
     id
   }
@@ -1131,7 +1132,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       case e: Exception =>
         rollbackException = Some(e)
     }
-    if (rollbackException == None) t
+    if (rollbackException.isEmpty) t
     else new Exception("See the chained messages for BOTH the cause of rollback failure, AND for the original failure.").initCause(rollbackException.get
                                                                                                                                    .initCause(t))
   }
@@ -1223,7 +1224,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def getEntityCount: Long = extractRowCountFromCountQuery("SELECT count(1) from Entity where (not archived)")
 
   def getClassCount(inEntityId: Option[Long] = None): Long = {
-    val whereClause = if (inEntityId != None) " where defining_entity_id=" + inEntityId.get else ""
+    val whereClause = if (inEntityId.isDefined) " where defining_entity_id=" + inEntityId.get else ""
     extractRowCountFromCountQuery("SELECT count(1) from class" + whereClause)
   }
 
@@ -1273,7 +1274,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def classLimit(limitByClass: Boolean, inClassId: Option[Long]): String = {
     if (limitByClass) {
-      if (inClassId != None) {
+      if (inClassId.isDefined) {
         " and e.class_id=" + inClassId.get + " "
       } else {
         " and e.class_id is NULL "
@@ -1293,7 +1294,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                            classDefiningEntity: Option[Long] = None): Long = {
     extractRowCountFromCountQuery("SELECT count(1) from Entity e where (not archived) and true " +
                                   classLimit(limitByClass, inClassId) +
-                                  (if (limitByClass && classDefiningEntity != None) " and id != " + classDefiningEntity.get else "") +
+                                  (if (limitByClass && classDefiningEntity.isDefined) " and id != " + classDefiningEntity.get else "") +
                                   " and id in " +
                                   "(select id from entity " + limitToEntitiesOnly(ENTITY_ONLY_SELECT_PART) +
                                   ")")
@@ -1337,7 +1338,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   /** if 1st parm is None, gets all. */
   def getRelationToGroupCountByEntity(inEntityId: Option[Long]): Long = {
-    extractRowCountFromCountQuery("select count(1) from relationtogroup" + (if (inEntityId == None) "" else " where entity_id=" + inEntityId.get))
+    extractRowCountFromCountQuery("select count(1) from relationtogroup" + (if (inEntityId.isEmpty) "" else " where entity_id=" + inEntityId.get))
   }
 
   def getRelationToGroupCountByGroup(inGroupId: Long): Long = {
@@ -1356,7 +1357,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
       //finalResults.add(result(0).get.asInstanceOf[Long], new Entity(this, result(1).get.asInstanceOf[Long]))
       val rtg: RelationToGroup = new RelationToGroup(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long],
-                                                     if (result(3) == None) None else Some(result(3).get.asInstanceOf[Long]), result(4).get.asInstanceOf[Long])
+                                                     if (result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Long]), result(4).get.asInstanceOf[Long])
       finalResults.add(rtg)
     }
 
@@ -1371,7 +1372,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   /** Parameter includeArchivedEntities true/false means select only archived/non-archived entities; None there means BOTH archived and non-archived (all).
     */
   def getGroupEntryCount(groupIdIn: Long, includeArchivedEntities: Option[Boolean] = None): Long = {
-    val archivedSqlCondition: String = if (includeArchivedEntities == None) "true"
+    val archivedSqlCondition: String = if (includeArchivedEntities.isEmpty) "true"
     else if (includeArchivedEntities.get) "archived"
     else "(not archived)"
     extractRowCountFromCountQuery("select count(1) from entity e, EntitiesInAGroup eiag where e.id=eiag.entity_id and " + archivedSqlCondition + " and eiag" +
@@ -1411,9 +1412,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
       containingEntityIds += entityId
       containingEntityIds += ","
     }
-    if (containingEntityIds.size > 0) {
+    if (containingEntityIds.nonEmpty) {
       // remove the last comma
-      containingEntityIds = containingEntityIds.substring(0, containingEntityIds.size - 1)
+      containingEntityIds = containingEntityIds.substring(0, containingEntityIds.length - 1)
       val rtgRows: List[Array[Option[Any]]] = dbQuery("SELECT group_id from entitiesinagroup" +
                                                       " where entity_id in (" + containingEntityIds + ") order by group_id limit " +
                                                       checkIfShouldBeAllResults(inLimit), "Long")
@@ -1458,7 +1459,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       if (warnings != null || warnings2 != null) throw new Exception("Warnings from postgresql. Matters? Says: " + warnings + ", and " + warnings2)
       while (rs.next) {
         rowCounter += 1
-        val row: Array[Option[Any]] = new Array[Option[Any]](typesAsArray.size)
+        val row: Array[Option[Any]] = new Array[Option[Any]](typesAsArray.length)
         //1-based counter for db results, but array is 0-based, so will compensate w/ -1:
         var columnCounter = 0
         for (typeString: String <- typesAsArray) {
@@ -1572,7 +1573,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       d.update(bufferIn, startingIndexIn, numBytesIn)
     }
     val storedMd5Hash = actOnFileFromServer(fileAttributeIdIn, action)._2
-    // outputs same as command 'md5sum <file>':
+    // outputs same as command 'md5sum <file>'.  It is a style violation (advanced feature) but it's what I found when searching for how to do it.
     val md5hash: String = d.digest.map(0xFF &).map {"%02x".format(_)}.foldLeft("") {_ + _}
     if (md5hash == storedMd5Hash) (true, None)
     else {
@@ -1581,6 +1582,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** This is a no-op, called in actOnFileFromServer, that a test can customize to simulate a corrupted file on the server. */
+  // (intentional style violation, for readability)
   def damageBuffer(buffer: Array[Byte]): Unit = Unit
 
   /** Returns the file size (having confirmed it is the same as the # of bytes processed), and the md5hash that was stored with the document.
@@ -1593,7 +1595,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       val lobjManager: LargeObjectManager = mConn.asInstanceOf[org.postgresql.PGConnection].getLargeObjectAPI
       val oidOption: Option[Long] = dbQueryWrapperForOneRow("select contents_oid from FileAttributeContent where file_attribute_id=" + fileAttributeIdIn,
                                                             "Long")(0).asInstanceOf[Option[Long]]
-      if (oidOption == None) throw new Exception("No contents found for file attribute id " + fileAttributeIdIn)
+      if (oidOption.isEmpty) throw new Exception("No contents found for file attribute id " + fileAttributeIdIn)
       val oid: Long = oidOption.get
       obj = lobjManager.open(oid, LargeObjectManager.READ)
       val buffer = new Array[Byte](2048)
@@ -1602,7 +1604,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
       @tailrec
       def readFileFromDbAndActOnIt() {
         numBytesRead = obj.read(buffer, 0, buffer.length)
-        if (numBytesRead <= 0) return
+        // (intentional style violation, for readability):
+        if (numBytesRead <= 0) Unit
         else {
           // just once by a test subclass is enough to mess w/ the md5sum.
           if (total == 0) damageBuffer(buffer)
@@ -1614,7 +1617,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       }
       readFileFromDbAndActOnIt()
       val resultOption = dbQueryWrapperForOneRow("select size, md5hash from fileattribute where id=" + fileAttributeIdIn, "Long,String")
-      if (resultOption(0) == None) throw new Exception("No result from query for fileattribute for id " + fileAttributeIdIn + ".")
+      if (resultOption(0).isEmpty) throw new Exception("No result from query for fileattribute for id " + fileAttributeIdIn + ".")
       val (contentSize, md5hash) = (resultOption(0).get.asInstanceOf[Long], resultOption(1).get.asInstanceOf[String])
       if (total != contentSize) {
         throw new OmFileTransferException("Transferred " + total + " bytes instead of " + contentSize + "??")
@@ -1714,7 +1717,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getMatchingEntities(inStartingObjectIndex: Long, inMaxVals: Option[Long] = None, omitEntityIdIn: Option[Long],
                           nameRegexIn: String): java.util.ArrayList[Entity] = {
-    val omissionExpression: String = if (omitEntityIdIn == None) "true" else "(not id=" + omitEntityIdIn.get + ")"
+    val omissionExpression: String = if (omitEntityIdIn.isEmpty) "true" else "(not id=" + omitEntityIdIn.get + ")"
     val sql: String = s"select id, name, public, class_id from entity where not archived and name ~* '$nameRegexIn'" +
                       " and " + omissionExpression + " order by id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
     val earlyResults = dbQuery(sql, "Long,String,Boolean,Long")
@@ -1731,7 +1734,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getMatchingGroups(inStartingObjectIndex: Long, inMaxVals: Option[Long] = None, omitGroupIdIn: Option[Long],
                         nameRegexIn: String): java.util.ArrayList[Group] = {
-    val omissionExpression: String = if (omitGroupIdIn == None) "true" else "(not id=" + omitGroupIdIn.get + ")"
+    val omissionExpression: String = if (omitGroupIdIn.isEmpty) "true" else "(not id=" + omitGroupIdIn.get + ")"
     val sql: String = s"select id, name, insertion_date, allow_mixed_classes from grupo where name ~* '$nameRegexIn'" +
                       " and " + omissionExpression + " order by id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
     val earlyResults = dbQuery(sql, "Long,String,Long,Boolean")
@@ -1888,14 +1891,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
                       } else "") +
                       " where (not archived) and true " +
                       classLimit(limitByClass, inClassId) +
-                      (if (limitByClass && classDefiningEntity != None) " and id != " + classDefiningEntity.get else "") +
+                      (if (limitByClass && classDefiningEntity.isDefined) " and id != " + classDefiningEntity.get else "") +
                       (if (inTableName.compareToIgnoreCase("RelationType") == 0) {
                         // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
                         // for which a RelationType row also exists.
                         " and e.id = r.entity_id "
                       } else "") +
                       (if (inTableName.compareToIgnoreCase("EntityOnly") == 0) limitToEntitiesOnly(ENTITY_SELECT_PART) else "") +
-                      (if (groupToOmitIdIn != None) " except (" + ENTITY_SELECT_PART + " from entity e, " +
+                      (if (groupToOmitIdIn.isDefined) " except (" + ENTITY_SELECT_PART + " from entity e, " +
                                                     "EntitiesInAGroup eiag where e.id=eiag.entity_id and " +
                                                     "group_id=" + groupToOmitIdIn.get + ")"
                       else "") +
@@ -1956,7 +1959,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     finalResults
   }
 
-  private def checkIfShouldBeAllResults(inMaxVals: Option[Long]): String = if (inMaxVals == None) "ALL" else inMaxVals.get.toString
+  private def checkIfShouldBeAllResults(inMaxVals: Option[Long]): String = if (inMaxVals.isEmpty) "ALL" else inMaxVals.get.toString
 
   def getGroupEntriesData(groupIdIn: Long, limitIn: Option[Long] = None): List[Array[Option[Any]]] = {
     val results = dbQuery(// LIKE THE OTHER 2 BELOW SIMILAR METHODS:
@@ -1991,7 +1994,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                           " order by sorting_index " + (if (forwardNotBackIn) "ASC" else "DESC") +
                           " limit 1",
                           "Long")
-    if (results.size == 0) {
+    if (results.isEmpty) {
       None
     } else {
       if (results.size > 1) throw new OmDatabaseException("Probably the caller didn't expect this to get >1 results...Is that even meaningful?")
@@ -2034,7 +2037,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getEntityName(inID: Long): Option[String] = {
     val name: Option[Any] = getEntityData(inID)(0)
-    if (name == None) None
+    if (name.isEmpty) None
     else name.asInstanceOf[Option[String]]
   }
 
@@ -2044,7 +2047,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getClassName(inID: Long): Option[String] = {
     val name: Option[Any] = getClassData(inID)(0)
-    if (name == None) None
+    if (name.isEmpty) None
     else name.asInstanceOf[Option[String]]
   }
 
@@ -2124,17 +2127,17 @@ class PostgreSQLDatabase(username: String, var password: String) {
               if (tableName == "QuantityAttribute") {
                 retval.add(new QuantityAttribute(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long],
                                                  result(3).get.asInstanceOf[Long], result(4).get.asInstanceOf[Float],
-                                                 if (result(5) == None) None else Some(result(5).get.asInstanceOf[Long]), result(6).get.asInstanceOf[Long]))
+                                                 if (result(5).isEmpty) None else Some(result(5).get.asInstanceOf[Long]), result(6).get.asInstanceOf[Long]))
               } else if (tableName == "TextAttribute") {
                 retval.add(new TextAttribute(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long],
-                                             result(3).get.asInstanceOf[String], if (result(4) == None) None else Some(result(4).get.asInstanceOf[Long]),
+                                             result(3).get.asInstanceOf[String], if (result(4).isEmpty) None else Some(result(4).get.asInstanceOf[Long]),
                                              result(5).get.asInstanceOf[Long]))
               } else if (tableName == "DateAttribute") {
                 retval.add(new DateAttribute(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long],
                                              result(3).get.asInstanceOf[Long]))
               } else if (tableName == "BooleanAttribute") {
                 retval.add(new BooleanAttribute(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long],
-                                                result(3).get.asInstanceOf[Boolean], if (result(4) == None) None else Some(result(4).get.asInstanceOf[Long]),
+                                                result(3).get.asInstanceOf[Boolean], if (result(4).isEmpty) None else Some(result(4).get.asInstanceOf[Long]),
                                                 result(5).get.asInstanceOf[Long]))
               } else if (tableName == "FileAttribute") {
                 retval.add(new FileAttribute(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long],
@@ -2143,10 +2146,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                              result(9).get.asInstanceOf[Boolean], result(10).get.asInstanceOf[Long], result(11).get.asInstanceOf[String]))
               } else if (tableName == "RelationToEntity") {
                 retval.add(new RelationToEntity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long],
-                                                if (result(3) == None) None else Some(result(3).get.asInstanceOf[Long]), result(4).get.asInstanceOf[Long]))
+                                                if (result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Long]), result(4).get.asInstanceOf[Long]))
               } else if (tableName == "RelationToGroup") {
                 retval.add(new RelationToGroup(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long],
-                                               if (result(3) == None) None else Some(result(3).get.asInstanceOf[Long]),
+                                               if (result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Long]),
                                                result(4).get.asInstanceOf[Long]))
               } else throw new Exception("invalid table type?: '" + tableName + "'")
             }
@@ -2173,11 +2176,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val valueToCheck: String = escapeQuotesEtc(possibleDuplicateIn)
 
     val exception: String =
-      if (inSelfIdToIgnore == None) ""
+      if (inSelfIdToIgnore.isEmpty) ""
       else "and not " + keyColumnToIgnoreOn + "=" + inSelfIdToIgnore.get.toString
 
     doesThisExist("SELECT count(" + keyColumnToIgnoreOn + ") from " + table + " where " +
-                  (if (extraCondition != None && extraCondition.get.size > 0) extraCondition.get else "true") +
+                  (if (extraCondition.isDefined && extraCondition.get.nonEmpty) extraCondition.get else "true") +
                   " and lower(" + columnToCheckForDupValues + ")=lower('" + valueToCheck + "') " + exception,
                   failIfMoreThanOneIn = false)
   }
