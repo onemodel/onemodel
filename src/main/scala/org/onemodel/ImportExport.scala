@@ -68,6 +68,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     }
   }
 
+  val uriLineExample: String = "'nameForTheLink <uri>http://somelink.org/index.html</uri>'"
+
   /**
    * 1st parameter must be either an Entity or a RelationToGroup (what is the right way to do that, in the signature?).
    */
@@ -75,7 +77,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     require(firstContainingEntryIn.isInstanceOf[Entity] || firstContainingEntryIn.isInstanceOf[RelationToGroup])
     val ans1: Option[String] = ui.askForString(Some(Array("Enter file path (must exist, be readable, AND a text file with lines spaced in the form of a" +
                                                           " collapsible outline where each level change is marked by 1 tab or 2 spaces; textAttribute content" +
-                                                          " can be indicated by surrounding a body of text thus: <ta>text</ta> )," +
+                                                          " can be indicated by surrounding a body of text thus, without quotes: '<ta>text</ta>';" +
+                                                          " a URI similarly with a line " + uriLineExample + ")," +
                                                           " then press Enter; ESC to cancel")),
                                                Some(controller.inputFileValid))
     if (ans1.isDefined) {
@@ -198,7 +201,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
      The parameter lastIndentationlevel should be set to zero, from the original caller, and indent from there w/ the recursion.
   */
   @tailrec
-  private def handleRestOfLines(r: LineNumberReader, lastEntityAdded: Option[Entity], lastIndentationLevel: Int, containerList: List[AnyRef],
+  private def processRestOfLines(r: LineNumberReader, lastEntityAdded: Option[Entity], lastIndentationLevel: Int, containerList: List[AnyRef],
                                 lastSortingIndexes: List[Long], observationDateIn: Long, mixedClassesAllowedDefaultIn: Boolean,
                                 makeThemPublicIn: Option[Boolean]) {
     // (see cmts just above about where we start)
@@ -216,22 +219,26 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       // these indicate beg/end of TextAttribute content; CODE ASSUMES THEY ARE LOWER-CASE!, so making that explicit, to be sure in case we change them later.
       val beginTaMarker = "<ta>".toLowerCase
       val endTaMarker = "</ta>".toLowerCase
+      val beginUriMarker = "<uri>".toLowerCase
+      val endUriMarker = "</uri>".toLowerCase
 
       if (lineUntrimmed.toLowerCase.contains(beginTaMarker)) {
         // we have a section of text marked for importing into a single TextAttribute:
-        val lineContentBeforeMarker = lineUntrimmed.substring(0, lineUntrimmed.toLowerCase.indexOf(beginTaMarker)).trim
-        val restOfLine = lineUntrimmed.substring(lineUntrimmed.toLowerCase.indexOf(beginTaMarker) + beginTaMarker.length).trim
-        if (restOfLine.toLowerCase.contains(endTaMarker)) throw new OmException("\"Unsupported format at line " + lineNumber + ": beginning and ending " +
-                                                                                "markers must not be on the same line.")
-        processTextAttributeContent(lineContentBeforeMarker, restOfLine, r, lastEntityAdded.get.getId, beginTaMarker, endTaMarker)
-        handleRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
+        importTextAttributeContent(lineUntrimmed, r, lastEntityAdded.get.getId, beginTaMarker, endTaMarker)
+        processRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
+                          makeThemPublicIn)
+      } else if (lineUntrimmed.toLowerCase.contains(beginUriMarker)) {
+        // we have a section of text marked for importing into a web link:
+        importUriContent(lineUntrimmed, beginUriMarker, endUriMarker, lineNumber, lastEntityAdded.get, observationDateIn,
+                          makeThemPublicIn, callerManagesTransactionsIn = true)
+        processRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                           makeThemPublicIn)
       } else {
         val line: String = lineUntrimmed.trim
 
         if (line == "." || line.isEmpty) {
           // nothing to do: that kind of line was just to create whitespace in my outline. So simply go to the next line:
-          handleRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
+          processRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                             makeThemPublicIn)
         } else {
           if (line.length > controller.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + controller.maxNameLength + " characters " +
@@ -253,7 +260,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               }
             }
 
-            handleRestOfLines(r, Some(newEntity), lastIndentationLevel, containerList, newSortingIndex :: lastSortingIndexes.tail, observationDateIn,
+            processRestOfLines(r, Some(newEntity), lastIndentationLevel, containerList, newSortingIndex :: lastSortingIndexes.tail, observationDateIn,
                               mixedClassesAllowedDefaultIn, makeThemPublicIn)
           } else if (newIndentationLevel < lastIndentationLevel) {
             require(lastIndentationLevel >= 0)
@@ -272,7 +279,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 case _ => throw new OmException("??")
               }
             }
-            handleRestOfLines(r, Some(newEntity), newIndentationLevel, newContainerList, newSortingIndex :: newSortingIndexList.tail, observationDateIn,
+            processRestOfLines(r, Some(newEntity), newIndentationLevel, newContainerList, newSortingIndex :: newSortingIndexList.tail, observationDateIn,
                               mixedClassesAllowedDefaultIn, makeThemPublicIn)
           } else if (newIndentationLevel > lastIndentationLevel) {
             // indented, so create a subgroup & add line there:
@@ -305,7 +312,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             // since a new grp, start at beginning of sorting indexes
             val newSortingIndex = db.minIdValue
             val newSubEntity: Entity = createAndAddEntityToGroup(line, newGroup, newSortingIndex, makeThemPublicIn)
-            handleRestOfLines(r, Some(newSubEntity), newIndentationLevel, newGroup :: containerList, newSortingIndex :: lastSortingIndexes,
+            processRestOfLines(r, Some(newSubEntity), newIndentationLevel, newGroup :: containerList, newSortingIndex :: lastSortingIndexes,
                               observationDateIn, mixedClassesAllowedDefaultIn, makeThemPublicIn)
           } else throw new OmException("Shouldn't get here!?: " + lastIndentationLevel + ", " + newIndentationLevel)
         }
@@ -313,10 +320,13 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     }
   }
 
-  def processTextAttributeContent(attrTypeName: String, firstLineContent: String, r: LineNumberReader, entityId: Long, beginningTagMarker: String,
-                                  endTaMarker: String) {
+  def importTextAttributeContent(lineUntrimmedIn: String, r: LineNumberReader, entityId: Long, beginningTagMarker: String, endTaMarker: String) {
+    val lineContentBeforeMarker = lineUntrimmedIn.substring(0, lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarker)).trim
+    val restOfLine = lineUntrimmedIn.substring(lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarker) + beginningTagMarker.length).trim
+    if (restOfLine.toLowerCase.contains(endTaMarker)) throw new OmException("\"Unsupported format at line " + r.getLineNumber + ": beginning and ending " +
+                                                                            "markers must NOT be on the same line.")
     val attrTypeId: Long = {
-      val idsByName: Option[List[Long]] = db.findAllEntityIdsByName(attrTypeName.trim, caseSensitive = true)
+      val idsByName: Option[List[Long]] = db.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true)
       if (idsByName.isDefined && idsByName.get.size == 1)
         idsByName.get.head
       else {
@@ -331,7 +341,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           typeId.get
       }
     }
-    val text: String = firstLineContent.trim + TextUI.NEWLN + {
+    val text: String = restOfLine.trim + TextUI.NEWLN + {
       def getRestOfLines(rIn: LineNumberReader, sbIn: mutable.StringBuilder): mutable.StringBuilder = {
         // Don't trim, because we want to preserve formatting/whitespace here, including blank lines (always? -- yes, editably.).
         val line = rIn.readLine()
@@ -357,6 +367,35 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       builder.toString()
     }
     db.createTextAttribute(entityId, attrTypeId, text)
+  }
+
+  def importUriContent(lineUntrimmedIn: String, beginningTagMarkerIn: String, endMarkerIn: String, lineNumberIn: Int,
+                        lastEntityAddedIn: Entity, observationDateIn: Long, makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean) {
+    //NOTE/idea also in tasks: this all fits better in the class and action *tables*, with this code being stored there
+    // also, which implies that the class doesn't need to be created because...it's already there.
+
+    if (! lineUntrimmedIn.toLowerCase.contains(endMarkerIn)) throw new OmException("\"Unsupported format at line " + lineNumberIn + ": beginning and ending " +
+                                                                                   "markers MUST be on the same line.")
+    val lineContentBeforeMarker = lineUntrimmedIn.substring(0, lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarkerIn)).trim
+    val lineContentFromBeginMarker = lineUntrimmedIn.substring(lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarkerIn)).trim
+    val uriStartLocation: Int = lineContentFromBeginMarker.toLowerCase.indexOf(beginningTagMarkerIn.toLowerCase) + beginningTagMarkerIn.length
+    val uriEndLocation: Int = lineContentFromBeginMarker.toLowerCase.indexOf(endMarkerIn.toLowerCase)
+    if (lineContentFromBeginMarker.substring(uriEndLocation + endMarkerIn.length).trim.nonEmpty) throw new OmException("\"Unsupported format at line " + lineNumberIn + ": A \"" +
+                                                                                                      endMarkerIn + "\" (end URI attribute) marker must be the" +
+                                                                                                      " last text on its line.")
+    val name = lineContentBeforeMarker.trim
+    val uri = lineContentFromBeginMarker.substring(uriStartLocation, uriEndLocation).trim
+    if (name.isEmpty || uri.isEmpty) throw new OmException("\"Unsupported format at line " + lineNumberIn +
+                                                           ": A URI line must be in the format (without quotes): " + uriLineExample)
+    // (see note above on this being better in the class and action *tables*, but here for now until those features are ready)
+    var uriClass: Option[Long]  = db.findFIRSTClassIdByName("URI", caseSensitive = true)
+    if (uriClass.isEmpty) {
+      val (classId, _) = db.createClassAndItsDefiningEntity("URI")
+      uriClass = Some(classId)
+    }
+    val newEntity: Entity = lastEntityAddedIn.createEntityAndAddHASRelationToIt(name, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)._1
+    db.updateEntityOnlyClass(newEntity.getId, Some(uriClass.get.head), callerManagesTransactionsIn)
+    newEntity.addTextAttribute(uriClass.get.head, uri, None, observationDateIn)
   }
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
@@ -411,7 +450,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       } else db.minIdValue
     }
 
-    handleRestOfLines(r, None, 0, containingEntry :: Nil, startingSortingIndex :: Nil, dataSourceLastModifiedDate, mixedClassesAllowedDefaultIn,
+    processRestOfLines(r, None, 0, containingEntry :: Nil, startingSortingIndex :: Nil, dataSourceLastModifiedDate, mixedClassesAllowedDefaultIn,
                       makeThemPublicIn)
   }
 
@@ -430,6 +469,15 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                   copyrightYearAndNameIn: Option[String]): Boolean = {
     // useful while debugging:
     //out.flush()
+
+    def printHtmlLink(preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None): Unit = {
+      outputFileIn.print("<li>")
+      outputFileIn.print(preLabel + "<a href=\"" + uri + "\">" + linkDisplayText + "</a>" + " " + suffix.getOrElse(""))
+      outputFileIn.println("</li>")
+    }
+
+    // see note about this usage, in method importUriContent.
+    val uriClassId: Option[Long] = db.findFIRSTClassIdByName("URI", caseSensitive = true)
 
     if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
       require(outputDirectoryIn.isEmpty, "No html directory needed, but text file is needed, if exporting text format.")
@@ -474,30 +522,49 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           case relation: RelationToEntity =>
             val relationType = new RelationType(db, relation.getAttrTypeId)
             val entity2 = new Entity(db, relation.getRelatedId2)
-            if (includeMetadataIn) {
-              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputFileIn)
-              outputFileIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
+            if (uriClassId.isDefined && exportTypeIn == ImportExport.HTML_EXPORT_TYPE && entity2.getClassId == uriClassId) {
+              // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
+              // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
+              def findUriAttribute(): Option[TextAttribute] = {
+                val (attributesOnEntity2: java.util.ArrayList[Attribute], _) = db.getSortedAttributes(entity2.getId, 0, 0)
+                for (attr2: Attribute <- attributesOnEntity2.toArray(Array[Attribute]())) {
+                  if (attr2.getAttrTypeId == uriClassId.get && attr2.isInstanceOf[TextAttribute]) {
+                    return Some(attr2.asInstanceOf[TextAttribute])
+                  }
+                }
+                None
+              }
+              val uriAttribute: Option[TextAttribute] = findUriAttribute()
+              if (uriAttribute.isEmpty) {
+                throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassId.get + ") for entity " + entity2.getId)
+              }
+              printHtmlLink("", uriAttribute.get.getText, entity2.getName)
             }
-            if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
-              val exported:Boolean = doTheExport(entity2,
-                                                 if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn + 1,
-                                                 {
-                                                   if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-                                                     outputFileIn
-                                                   }
-                                                   else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-                                                     createOutputFile(getExportFileNamePrefix(entityIn, exportTypeIn), exportTypeIn, outputDirectoryIn)._2
-                                                   }
-                                                   else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
-                                                 },
-                                                 outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                                 includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
-              if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-                // meaning that we just created an html file, so now let's create a link to it:
-                outputFileIn.print("<li>")
-                outputFileIn.print(relationType.getName + ": <a href=" + entity2.getId + ".html>" + entity2.getName + "</a>")
-                outputFileIn.print(" (" + getNumSubEntries(entity2) + ")")
-                outputFileIn.println("</li>")
+            else {
+              if (includeMetadataIn) {
+                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputFileIn)
+                outputFileIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
+              }
+              if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
+                val fileNamePrefix: String = getExportFileNamePrefix(entity2, exportTypeIn)
+                val exported: Boolean = doTheExport(entity2,
+                                                    if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1,
+                                                    currentIndentationLevelsIn + 1, {
+                                                      if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+                                                        outputFileIn
+                                                      }
+                                                      else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+                                                        createOutputFile(fileNamePrefix, exportTypeIn, outputDirectoryIn)._2
+                                                      }
+                                                      else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
+                                                    },
+                                                    outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
+                                                    includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+                  // meaning that we just created an html file, so now let's create a link to it:
+                  // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+                  printHtmlLink(relationType.getName + ": ", fileNamePrefix + ".html", entity2.getName, Some("(" + getNumSubEntries(entity2) + ")"))
+                }
               }
             }
           case relation: RelationToGroup =>
@@ -519,14 +586,14 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               outputFileIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
             }
             if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
-
-              for (entityInGroup: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-                val exported: Boolean = doTheExport(entityInGroup,
+              for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
+                val fileNamePrefix: String = getExportFileNamePrefix(entityInGrp, exportTypeIn)
+                val exported: Boolean = doTheExport(entityInGrp,
                                                if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn + 1, {
                                                  if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE)
                                                    outputFileIn
                                                  else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE)
-                                                   createOutputFile(getExportFileNamePrefix(entityInGroup, exportTypeIn), exportTypeIn, outputDirectoryIn)._2
+                                                   createOutputFile(getExportFileNamePrefix(entityInGrp, exportTypeIn), exportTypeIn, outputDirectoryIn)._2
                                                  else
                                                    throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
                                                },
@@ -534,10 +601,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                                includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
                 if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
                   // meaning that we just created an html file, so now let's create a link to it:
-                  outputFileIn.print("<li>")
-                  outputFileIn.print(relationType.getName + ": <a href=e" + entityInGroup.getId + ".html>" + entityInGroup.getName + "</a>")
-                  outputFileIn.print(" (" + getNumSubEntries(entityInGroup) + ")")
-                  outputFileIn.println("</li>")
+                  // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+                  printHtmlLink(relationType.getName + ": ", fileNamePrefix + ".html", entityInGrp.getName, Some("(" + getNumSubEntries(entityInGrp) + ")"))
                 }
               }
             }
@@ -588,6 +653,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
 
   def getExportFileNamePrefix(entity: Entity, exportTypeIn: String): String = {
     if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+      // (The 'e' is for "entity"; for explanation see cmts in methods createOutputDir and createOutputFile.)
       "e" + entity.getId.toString
     } else {
       //idea (also in task list): change this to be a reliable filename (incl no backslashes? limit it to a whitelist of chars? a simple fn for that?

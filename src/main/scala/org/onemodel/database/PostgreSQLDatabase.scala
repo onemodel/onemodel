@@ -516,6 +516,29 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
   }
 
+  // See comment in ImportExport.processUriContent method which uses it, about where the code should really go. Not sure if that idea includes this
+  // method or not.
+  def findFIRSTClassIdByName(inName: String, caseSensitive: Boolean = false): Option[Long] = {
+    // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
+    // a performance issue then look at it?
+    val nameClause = {
+      if (caseSensitive) "name = '" + inName + "'"
+      else "lower(name) = lower('" + inName + "'" + ")"
+    }
+    val sql = "select id from class where " + nameClause + " order by id limit 1"
+    val rows = dbQuery(sql, "Long")
+
+    if (rows.isEmpty) None
+    else {
+      var results: List[Long] = Nil
+      for (row <- rows) {
+        results = row(0).get.asInstanceOf[Long] :: results
+      }
+      if (results.size > 1) throw new OmDatabaseException("Expected 1 row (wanted just the first one), found " + results.size + " rows.")
+      Some(results.head)
+    }
+  }
+
   /** Case-insensitive. */
   def findEntityOnlyIdsByName(inName: String): Option[List[Long]] = {
     // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for

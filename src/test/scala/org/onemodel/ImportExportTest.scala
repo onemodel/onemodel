@@ -18,6 +18,8 @@ import org.onemodel.model.Entity
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Args, FlatSpec, Status}
 
+import scala.collection.mutable
+
 /**
  * IT IS IMPORTANT THAT SUCH TESTS USE THE SAME DB variable INSIDE ANY ELEMENTS PASSED IN TO THE TEST METHOD, AS IN THE CONTROLLER SUBCLASS THAT IS BEING
  * TESTED!!, OTHERWISE YOU GET TWO DB CONNECTIONS, AND THEY CAN'T SEE EACH OTHERS' DATA BECAUSE IT'S INSIDE A TRANSACTION, AND IT'S A MESS.
@@ -71,6 +73,29 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
                               putEntriesAtEnd = true, mixedClassesAllowedDefaultIn = true, testing = true, makeThemPublicIn = Some(false))
   }
 
+  def tryExporting(ids: Option[List[Long]]): (String, Array[String]) = {
+    assert(ids.get.nonEmpty)
+    val entityId: Long = ids.get.head
+    val startingEntity: Entity = new Entity(mDB, entityId)
+
+    val exportedEntities = new mutable.TreeSet[Long]()
+    val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
+    val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
+    val (outputFile: File, outputWriter: PrintWriter) = mImportExport.createOutputFile(prefix, ImportExport.HTML_EXPORT_TYPE, Some(outputDirectory))
+    mImportExport.doTheExport(startingEntity, 0, 0, outputWriter, Some(outputDirectory), includeMetadataIn = false, ImportExport.HTML_EXPORT_TYPE,
+                              exportedEntities, 2,
+                              Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
+
+    assert(outputFile.exists)
+    assert(outputDirectory.toFile.exists)
+    val newFiles: Array[String] = outputDirectory.toFile.list
+    val firstNewFileName = "e" + entityId + ".html"
+    val firstNewFile = new File(outputDirectory.toFile, firstNewFileName)
+    val firstNewFileContents: String = new Predef.String(Files.readAllBytes(firstNewFile.toPath))
+    assert(newFiles.contains(firstNewFileName), "unexpected filenames, like: " + newFiles(0))
+    (firstNewFileContents, newFiles)
+  }
+
   "testImportBasic" should "work without throwing an Exception" in {
     val name = "testImportBasic"
     System.out.println("starting " + name)
@@ -115,35 +140,27 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   }
 
   "testExportHtml" should "work" in {
-    val name = "testExport"
-    System.out.println("starting " + name)
+    System.out.println("starting testExportHtml")
 
     tryImporting("testImportFile4.txt")
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer4")
-    assert(ids.get.nonEmpty)
-    val entityId: Long = ids.get.head
-    val startingEntity: Entity = new Entity(mDB, entityId)
+    val (firstNewFileContents: String, newFiles: Array[String]) = tryExporting(ids)
 
-    val exportedEntities = new scala.collection.mutable.TreeSet[Long]()
-    val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
-    val outputDirectory:Path = mImportExport.createOutputDir("omtest-" + prefix)
-    val (outputFile: File, outputWriter: PrintWriter) = mImportExport.createOutputFile(prefix, ImportExport.HTML_EXPORT_TYPE, Some(outputDirectory))
-    mImportExport.doTheExport(startingEntity, 0, 0, outputWriter, Some(outputDirectory), includeMetadataIn = false, ImportExport.HTML_EXPORT_TYPE, exportedEntities, 2,
-                              Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
-
-    assert(outputFile.exists)
-    assert(outputDirectory.toFile.exists)
-    val newFiles: Array[String] = outputDirectory.toFile.list
-    val firstNewFileName = "e" + entityId + ".html"
-    val firstNewFile = new File(outputDirectory.toFile, firstNewFileName)
-    val firstNewFileContents: String = new String(Files.readAllBytes(firstNewFile.toPath))
-    assert(newFiles.contains(firstNewFileName), "unexpected filenames, like: " + newFiles(0))
-    assert(firstNewFileContents.contains("has: <a href=e-"), "unexpected file contents:  " + firstNewFileContents)
-    assert(firstNewFileContents.contains(".html>purpose</a> (0)"), "unexpected file contents:  " + firstNewFileContents)
-    assert(firstNewFileContents.contains(".html>empowerment</a> (2)"), "unexpected file contents:  " + firstNewFileContents)
+    assert(firstNewFileContents.contains("has: <a href=\"e-"), "unexpected file contents:  " + firstNewFileContents)
+    assert(firstNewFileContents.contains(".html\">purpose</a> (0)"), "unexpected file contents:  " + firstNewFileContents)
+    assert(firstNewFileContents.contains(".html\">empowerment</a> (2)"), "unexpected file contents:  " + firstNewFileContents)
     assert(firstNewFileContents.contains("Copyright"), "unexpected file contents: no copyright?")
     assert(firstNewFileContents.contains("all rights reserved"), "unexpected file contents: no 'all rights reserved'?")
     assert(newFiles.length > 5, "unexpected # of files: " + newFiles.length)
+  }
+
+  "testImportAndExportOfUri" should "work" in {
+    System.out.println("starting testImportAndExportUri")
+
+    tryImporting("testImportFile5.txt")
+    val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("import-file-5")
+    val firstNewFileContents: String = tryExporting(ids)._1
+    assert(firstNewFileContents.contains("<a href=\"http://www.onemodel.org/downloads/testfile.txt\">test file download</a>"), "unexpected file contents:  " + firstNewFileContents)
   }
 
 }
