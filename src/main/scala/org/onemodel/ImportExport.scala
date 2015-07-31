@@ -83,9 +83,9 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                                Some(controller.inputFileValid))
     if (ans1.isDefined) {
       val path = ans1.get
-      val makeThemPublic: Option[Boolean] = ui.askYesNoQuestion("Do you want the entities imported to be marked as public?  Set it to the value the majority of " +
-                                                      "imported data should have; you can then edit the individual exceptions afterward as needed.  " +
-                                                      "Enter y for public, n for nonpublic, or a space for 'unknown/unspecified', aka decide later.",
+      val makeThemPublic: Option[Boolean] = ui.askYesNoQuestion("Do you want the entities imported to be marked as public?  Set it to the value the " +
+                                                      "majority of imported data should have; you can then edit the individual exceptions afterward as " +
+                                                      "needed.  Enter y for public, n for nonpublic, or a space for 'unknown/unspecified', aka decide later.",
                                                       Some(""), allowBlankAnswer = true)
       val ans3 = ui.askYesNoQuestion("Keep the filename as the top level of the imported list? (Answering no will put the top level entries from inside" +
                                      " the " +
@@ -117,7 +117,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               val keepAnswer: Option[Boolean] = {
                 //idea: look into how long that time is (see below same cmt):
                 val msg: String = "Group imported, but browse around to see if you want to keep it, " +
-                                  "then ESC back here to commit the changes....  (If you wait beyond some amount of time(?), it seems that postgres will commit " +
+                                  "then ESC back here to commit the changes....  (If you wait beyond some amount of time(?), " +
+                                  "it seems that postgres will commit " +
                                   "the change whether you want it or not, even if the message at that time says 'rolled back...')"
                 ui.displayText(msg)
                 firstContainingEntryIn match {
@@ -286,7 +287,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             require(newIndentationLevel >= 0)
             // (not None because it will be used now to create a subgroup; when we get here there should always be a value) :
             if (lastEntityAdded.isEmpty) {
-              throw new OmException("There's an error.  Are you importing a file to a group, but the first line is indented?  If so try fixing that (un-indent, & fix the rest to match).  Otherwise, there's a bug in the program.")
+              throw new OmException("There's an error.  Are you importing a file to a group, but the first line is indented?  If so try fixing that " +
+                                    "(un-indent, & fix the rest to match).  Otherwise, there's a bug in the program.")
             }
             val addedLevelsIn = newIndentationLevel - lastIndentationLevel
             if (addedLevelsIn != 1) throw new OmException("Unsupported format: line " + lineNumber + " is indented too far in, " +
@@ -354,7 +356,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             val lineNumber = r.getLineNumber
             def rtrim(s: String): String = s.replaceAll("\\s+$", "")
             val rtrimmedLine = rtrim(line)
-            if (rtrimmedLine.substring(markerEndLocation).nonEmpty) throw new OmException("\"Unsupported format at line " + lineNumber + ": A \"" + endTaMarker +
+            if (rtrimmedLine.substring(markerEndLocation).nonEmpty) throw new OmException("\"Unsupported format at line " + lineNumber +
+                                                                                  ": A \"" + endTaMarker +
                                                                                   "\" (end text attribute) marker must be the last text on a line.")
             sbIn.append(line.substring(0, markerStartLocation))
           } else {
@@ -380,9 +383,10 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     val lineContentFromBeginMarker = lineUntrimmedIn.substring(lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarkerIn)).trim
     val uriStartLocation: Int = lineContentFromBeginMarker.toLowerCase.indexOf(beginningTagMarkerIn.toLowerCase) + beginningTagMarkerIn.length
     val uriEndLocation: Int = lineContentFromBeginMarker.toLowerCase.indexOf(endMarkerIn.toLowerCase)
-    if (lineContentFromBeginMarker.substring(uriEndLocation + endMarkerIn.length).trim.nonEmpty) throw new OmException("\"Unsupported format at line " + lineNumberIn + ": A \"" +
-                                                                                                      endMarkerIn + "\" (end URI attribute) marker must be the" +
-                                                                                                      " last text on its line.")
+    if (lineContentFromBeginMarker.substring(uriEndLocation + endMarkerIn.length).trim.nonEmpty) {
+      throw new OmException("\"Unsupported format at line " + lineNumberIn + ": A \"" + endMarkerIn + "\" (end URI attribute) marker " +
+                            "must be the" + " last text on its line.")
+    }
     val name = lineContentBeforeMarker.trim
     val uri = lineContentFromBeginMarker.substring(uriStartLocation, uriEndLocation).trim
     if (name.isEmpty || uri.isEmpty) throw new OmException("\"Unsupported format at line " + lineNumberIn +
@@ -393,9 +397,10 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       val (classId, _) = db.createClassAndItsDefiningEntity("URI")
       uriClass = Some(classId)
     }
-    val newEntity: Entity = lastEntityAddedIn.createEntityAndAddHASRelationToIt(name, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)._1
-    db.updateEntityOnlyClass(newEntity.getId, Some(uriClass.get.head), callerManagesTransactionsIn)
-    newEntity.addTextAttribute(uriClass.get.head, uri, None, observationDateIn)
+    val newEntity: Entity = lastEntityAddedIn.createEntityAndAddHASRelationToIt(name, observationDateIn, makeThemPublicIn,
+                                                                                callerManagesTransactionsIn = true)._1
+    db.updateEntityOnlyClass(newEntity.getId, Some(uriClass.get), callerManagesTransactionsIn)
+    newEntity.addTextAttribute(uriClass.get, uri, None, observationDateIn)
   }
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
@@ -463,7 +468,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     * Returns whether the entity in question was exported, so that the caller can know whether to include a link to that exported information (such as
     * to an html page).
     */
-  def doTheExport(entityIn: Entity, levelsRemainingToDescendIn: Int, currentIndentationLevelsIn: Int, outputFileIn: PrintWriter, outputDirectoryIn: Option[Path],
+  def doTheExport(entityIn: Entity, levelsRemainingToDescendIn: Int, currentIndentationLevelsIn: Int, outputFileIn: PrintWriter,
+                  outputDirectoryIn: Option[Path],
                   includeMetadataIn: Boolean, exportTypeIn: String, exportedEntitiesIn: scala.collection.mutable.TreeSet[Long], spacesPerIndentLevelIn: Int,
                   includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
                   copyrightYearAndNameIn: Option[String]): Boolean = {
@@ -623,7 +629,9 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("</ul>")
 
         if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-          if (copyrightYearAndNameIn.isDefined) outputFileIn.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "; all rights reserved.</small></center>")
+          if (copyrightYearAndNameIn.isDefined) {
+            outputFileIn.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "; all rights reserved.</small></center>")
+          }
           outputFileIn.println("</html></body>")
           outputFileIn.close()
         }
