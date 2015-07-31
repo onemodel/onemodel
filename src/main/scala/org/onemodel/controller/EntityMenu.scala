@@ -215,7 +215,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }
       if (answer == 2) {
-        val importOrExport = ui.askWhich(None, Array("Import", "Export to a text file (outline)", " Export to html pages"), Array[String]())
+        val importOrExport = ui.askWhich(None, Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
         if (importOrExport.isDefined) {
           if (importOrExport.get == 1) new ImportExport(ui, db, controller).importCollapsibleOutlineAsGroups(entityIn)
           else if (importOrExport.get == 2) new ImportExport(ui, db, controller).exportToFile(entityIn, ImportExport.TEXT_EXPORT_TYPE, None)
@@ -440,7 +440,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         controller.mPrefs.putLong("first_display_entity", entityIn.getId)
         entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }
-      else if (answer == 8 && answer <= choices.length && !entityIn.isInstanceOf[RelationType]) {
+      else if (answer == 8 && answer <= choices.size && !entityIn.isInstanceOf[RelationType]) {
         val editedEntity: Option[Entity] = controller.editEntityPublicStatus(entityIn)
         entityMenu(startingAttributeIndexIn, editedEntity.get, relationSourceEntityIn, relationIn, containingGroupIn)
       }

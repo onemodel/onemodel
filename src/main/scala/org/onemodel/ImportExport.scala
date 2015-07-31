@@ -47,21 +47,27 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
 
           val prefix: String = getExportFileNamePrefix(entity, exportTypeIn)
           val outputDirectory:Path = createOutputDir(prefix)
-          val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, Some(outputDirectory))
-          try {
-            doTheExport(entity, levelsToDescend, 0, outputWriter, Some(outputDirectory), includeMetadata, exportTypeIn, exportedEntities, spacesPerIndentLevel,
-                   includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
-            // flush before we report 'done' to the user:
-            outputWriter.close()
-            ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
-          } finally {
-            if (outputWriter != null) {
-              try outputWriter.close()
-              catch {
-                case e: Exception =>
-                // ignore
+          if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+            val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, Some(outputDirectory))
+            try {
+              doTheExport(entity, levelsToDescend, 0, Some(outputWriter), Some(outputDirectory), includeMetadata, exportTypeIn, exportedEntities,
+                          spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
+              // flush before we report 'done' to the user:
+              outputWriter.close()
+              ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
+            } finally {
+              if (outputWriter != null) {
+                try outputWriter.close()
+                catch {
+                  case e: Exception =>
+                  // ignore
+                }
               }
             }
+          } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+            doTheExport(entity, levelsToDescend, 0, None, Some(outputDirectory), includeMetadata, exportTypeIn, exportedEntities,
+                        spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
+            ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
           }
         }
       }
@@ -464,11 +470,12 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   // (Idea: See note at the top of Controller.chooseOrCreateObject re inAttrType about similarly making exportTypeIn an enum.)
   /** If exporting html, this creates a new file for each entity; if exporting txt format, it all goes in a single file together (a
     * collapsible outline).
-    * The parm outputFileIn is required for either txt or html, with the difference that with html it is a new file for each entity.
+    * The parm outputWriterOptionIn is required for either txt (created once at the beginning) or html ( a new file for each entity: we wait to create each
+    * .html file until we are ready to write to it; otherwise it was creating duplicates by doing the file creation before the duplicate check.
     * Returns whether the entity in question was exported, so that the caller can know whether to include a link to that exported information (such as
     * to an html page).
     */
-  def doTheExport(entityIn: Entity, levelsRemainingToDescendIn: Int, currentIndentationLevelsIn: Int, outputFileIn: PrintWriter,
+  def doTheExport(entityIn: Entity, levelsRemainingToDescendIn: Int, currentIndentationLevelsIn: Int, outputWriterOptionIn: Option[PrintWriter],
                   outputDirectoryIn: Option[Path],
                   includeMetadataIn: Boolean, exportTypeIn: String, exportedEntitiesIn: scala.collection.mutable.TreeSet[Long], spacesPerIndentLevelIn: Int,
                   includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
@@ -476,31 +483,28 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     // useful while debugging:
     //out.flush()
 
-    def printHtmlLink(preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None): Unit = {
-      outputFileIn.print("<li>")
-      outputFileIn.print(preLabel + "<a href=\"" + uri + "\">" + linkDisplayText + "</a>" + " " + suffix.getOrElse(""))
-      outputFileIn.println("</li>")
-    }
-
     // see note about this usage, in method importUriContent.
     val uriClassId: Option[Long] = db.findFIRSTClassIdByName("URI", caseSensitive = true)
 
     if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
       require(outputDirectoryIn.isEmpty, "No html directory needed, but text file is needed, if exporting text format.")
+      require(outputWriterOptionIn.isDefined, "Text output requires a valid output file definition, up front.")
     } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
       require(outputDirectoryIn.isDefined, "For each entity there should be an output file & a directory, if exporting html.")
+      require(outputWriterOptionIn.isEmpty, "Html output requires NO valid output file definition, up front; we will create it as we go, for each entity.")
     } else {
       throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
     }
+
     if (includeMetadataIn) require(exportTypeIn == ImportExport.TEXT_EXPORT_TYPE, "Metadata is currently only set up to be print with text format output.")
 
     if (exportedEntitiesIn.contains(entityIn.getId)) {
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-        printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputFileIn)
-        if (includeMetadataIn) outputFileIn.print("(duplicate: EN --> " + entityIn.getId + ": ")
-        outputFileIn.print(entityIn.getName)
-        if (includeMetadataIn) outputFileIn.print(")")
-        outputFileIn.println()
+        printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputWriterOptionIn.get)
+        if (includeMetadataIn) outputWriterOptionIn.get.print("(duplicate: EN --> " + entityIn.getId + ": ")
+        outputWriterOptionIn.get.print(entityIn.getName)
+        if (includeMetadataIn) outputWriterOptionIn.get.print(")")
+        outputWriterOptionIn.get.println()
       }
       true
     } else {
@@ -509,135 +513,158 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                             (entityPublicStatus.isDefined && !entityPublicStatus.get && includeNonPublicDataIn.get) ||
                             (entityPublicStatus.isEmpty && includeUnspecifiedDataIn.get)
       if (allowedToExport) {
-        if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("<html><body>")
-
-        exportedEntitiesIn.add(entityIn.getId)
-
-        val entityName: String = entityIn.getName
-        if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-          printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputFileIn)
-          if (includeMetadataIn) outputFileIn.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString)
-          else outputFileIn.println(entityName)
-        } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-          outputFileIn.println("<h1>" + entityIn.getName + "</h1>")
+        val entitysFileNamePrefix: String = getExportFileNamePrefix(entityIn, exportTypeIn)
+        val printWriter = {
+          if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) outputWriterOptionIn.get
+          else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) createOutputFile(entitysFileNamePrefix, exportTypeIn, outputDirectoryIn)._2
+          else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
         }
+        try {
+          // record, so we don't create duplicate files, etc:
+          exportedEntitiesIn.add(entityIn.getId)
 
-        val attributeObjList: java.util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
-        if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("<ul>")
-        for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) yield attribute match {
-          case relation: RelationToEntity =>
-            val relationType = new RelationType(db, relation.getAttrTypeId)
-            val entity2 = new Entity(db, relation.getRelatedId2)
-            if (uriClassId.isDefined && exportTypeIn == ImportExport.HTML_EXPORT_TYPE && entity2.getClassId == uriClassId) {
-              // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
-              // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
-              def findUriAttribute(): Option[TextAttribute] = {
-                val (attributesOnEntity2: java.util.ArrayList[Attribute], _) = db.getSortedAttributes(entity2.getId, 0, 0)
-                for (attr2: Attribute <- attributesOnEntity2.toArray(Array[Attribute]())) {
-                  if (attr2.getAttrTypeId == uriClassId.get && attr2.isInstanceOf[TextAttribute]) {
-                    return Some(attr2.asInstanceOf[TextAttribute])
+          if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) printWriter.println("<html><body>")
+
+          val entityName: String = entityIn.getName
+          if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+            printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriter)
+            if (includeMetadataIn) printWriter.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString)
+            else printWriter.println(entityName)
+          } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+            printWriter.println("<h1>" + entityIn.getName + "</h1>")
+          }
+
+          val attributeObjList: java.util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
+          if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) printWriter.println("<ul>")
+          for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) yield attribute match {
+            case relation: RelationToEntity =>
+              val relationType = new RelationType(db, relation.getAttrTypeId)
+              val entity2 = new Entity(db, relation.getRelatedId2)
+              if (uriClassId.isDefined && exportTypeIn == ImportExport.HTML_EXPORT_TYPE && entity2.getClassId == uriClassId) {
+                // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
+                // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
+                def findUriAttribute(): Option[TextAttribute] = {
+                  val (attributesOnEntity2: java.util.ArrayList[Attribute], _) = db.getSortedAttributes(entity2.getId, 0, 0)
+                  for (attr2: Attribute <- attributesOnEntity2.toArray(Array[Attribute]())) {
+                    if (attr2.getAttrTypeId == uriClassId.get && attr2.isInstanceOf[TextAttribute]) {
+                      return Some(attr2.asInstanceOf[TextAttribute])
+                    }
+                  }
+                  None
+                }
+                val uriAttribute: Option[TextAttribute] = findUriAttribute()
+                if (uriAttribute.isEmpty) {
+                  throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassId.get + ") for entity " + entity2.getId)
+                }
+                printHtmlLink(printWriter, "", uriAttribute.get.getText, entity2.getName)
+              }
+              else {
+                if (includeMetadataIn) {
+                  printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriter)
+                  printWriter.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
+                }
+                if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
+                  val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, exportTypeIn)
+                  val exported: Boolean = doTheExport(entity2,
+                                                      if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1,
+                                                      currentIndentationLevelsIn + 1, {
+                                                        if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) Some(printWriter)
+                                                        else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) None
+                                                        else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
+                                                      },
+                                                      outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
+                                                      includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                  if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+                    // meaning that we just created an html file, so now let's create a link to it:
+                    // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+                    printHtmlLink(printWriter, relationType.getName + ": ", relatedEntitysFileNamePrefix + ".html", entity2.getName, Some("(" +
+                                                                                                                                          getNumSubEntries
+                                                                                                                                          (entity2) + ")"))
                   }
                 }
-                None
               }
-              val uriAttribute: Option[TextAttribute] = findUriAttribute()
-              if (uriAttribute.isEmpty) {
-                throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassId.get + ") for entity " + entity2.getId)
+            case relation: RelationToGroup =>
+              val relationType = new RelationType(db, relation.getAttrTypeId)
+              val group = new Group(db, relation.getGroupId)
+              val grpName = group.getName
+
+              // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
+              if (entityName != grpName) {
+                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriter)
+                printWriter.println("(group named: " + grpName + ")")
               }
-              printHtmlLink("", uriAttribute.get.getText, entity2.getName)
-            }
-            else {
+              if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) printWriter.println("<ul>")
+
               if (includeMetadataIn) {
-                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputFileIn)
-                outputFileIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
+                printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriter)
+                // plus one more level of spaces to make it look better but still ~equivalently/exchangeably importable:
+                printSpaces(spacesPerIndentLevelIn, printWriter)
+                printWriter.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
               }
               if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
-                val fileNamePrefix: String = getExportFileNamePrefix(entity2, exportTypeIn)
-                val exported: Boolean = doTheExport(entity2,
-                                                    if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1,
-                                                    currentIndentationLevelsIn + 1, {
-                                                      if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-                                                        outputFileIn
-                                                      }
-                                                      else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-                                                        createOutputFile(fileNamePrefix, exportTypeIn, outputDirectoryIn)._2
-                                                      }
-                                                      else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
-                                                    },
-                                                    outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                                    includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
-                if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-                  // meaning that we just created an html file, so now let's create a link to it:
-                  // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-                  printHtmlLink(relationType.getName + ": ", fileNamePrefix + ".html", entity2.getName, Some("(" + getNumSubEntries(entity2) + ")"))
+                for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
+                  val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, exportTypeIn)
+                  val exported: Boolean = doTheExport(entityInGrp,
+                                                      if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn +
+                                                                                                                                  1, {
+                                                        if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) Some(printWriter)
+                                                        else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) None
+                                                        else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
+                                                      },
+                                                      outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
+                                                      includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                  if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+                    // meaning that we just created an html file, so now let's create a link to it:
+                    // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+                    printHtmlLink(printWriter, relationType.getName + ": ", relatedGroupsEntitysFileNamePrefix + ".html", entityInGrp.getName, Some("(" +
+                                                                                                                                                    getNumSubEntries(entityInGrp) + ")"))
+                  }
                 }
               }
-            }
-          case relation: RelationToGroup =>
-            val relationType = new RelationType(db, relation.getAttrTypeId)
-            val group = new Group(db, relation.getGroupId)
-            val grpName = group.getName
-
-            // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
-            if (entityName != grpName) {
-                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputFileIn)
-                outputFileIn.println("(group named: " + grpName + ")")
-            }
-            if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("<ul>")
-
-            if (includeMetadataIn) {
-              printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputFileIn)
-              // plus one more level of spaces to make it look better but still ~equivalently/exchangeably importable:
-              printSpaces(spacesPerIndentLevelIn, outputFileIn)
-              outputFileIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
-            }
-            if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
-              for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-                val fileNamePrefix: String = getExportFileNamePrefix(entityInGrp, exportTypeIn)
-                val exported: Boolean = doTheExport(entityInGrp,
-                                               if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn + 1, {
-                                                 if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE)
-                                                   outputFileIn
-                                                 else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE)
-                                                   createOutputFile(getExportFileNamePrefix(entityInGrp, exportTypeIn), exportTypeIn, outputDirectoryIn)._2
-                                                 else
-                                                   throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
-                                               },
-                                               outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                               includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
-                if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-                  // meaning that we just created an html file, so now let's create a link to it:
-                  // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-                  printHtmlLink(relationType.getName + ": ", fileNamePrefix + ".html", entityInGrp.getName, Some("(" + getNumSubEntries(entityInGrp) + ")"))
-                }
-              }
-            }
-            if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("</ul>")
-          case _ =>
-            printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputFileIn)
-            if (includeMetadataIn) {
-              outputFileIn.println((attribute match {
-                case ba: BooleanAttribute => "BA "
-                case da: DateAttribute => "DA "
-                case fa: FileAttribute => "FA "
-                case qa: QuantityAttribute => "QA "
-                case ta: TextAttribute => "TA "
-              }) + /*attribute.getId +*/ ": " + attribute.getDisplayString(0, None, None))
-            } else outputFileIn.println(attribute.getDisplayString(0, None, None))
-        }
-        
-        if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) outputFileIn.println("</ul>")
-
-        if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-          if (copyrightYearAndNameIn.isDefined) {
-            outputFileIn.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "; all rights reserved.</small></center>")
+              if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) printWriter.println("</ul>")
+            case _ =>
+              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriter)
+              if (includeMetadataIn) {
+                printWriter.println((attribute match {
+                  case ba: BooleanAttribute => "BA "
+                  case da: DateAttribute => "DA "
+                  case fa: FileAttribute => "FA "
+                  case qa: QuantityAttribute => "QA "
+                  case ta: TextAttribute => "TA "
+                }) + /*attribute.getId +*/ ": " + attribute.getDisplayString(0, None, None))
+              } else printWriter.println(attribute.getDisplayString(0, None, None))
           }
-          outputFileIn.println("</html></body>")
-          outputFileIn.close()
+
+          if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) printWriter.println("</ul>")
+
+          if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+            if (copyrightYearAndNameIn.isDefined) {
+              printWriter.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "; all rights reserved.</small></center>")
+            }
+            printWriter.println("</html></body>")
+            printWriter.close()
+          }
+        } finally {
+          if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+            // close each html file as we go along.
+            if (printWriter != null) {
+              try printWriter.close()
+              catch {
+                case e: Exception =>
+                // ignore
+              }
+            }
+          }
         }
       }
       true
     }
+  }
+
+  def printHtmlLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None): Unit = {
+    printWriterIn.print("<li>")
+    printWriterIn.print(preLabel + "<a href=\"" + uri + "\">" + linkDisplayText + "</a>" + " " + suffix.getOrElse(""))
+    printWriterIn.println("</li>")
   }
 
   def getNumSubEntries(entityIn: Entity): Long = {
