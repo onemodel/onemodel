@@ -223,7 +223,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
             // idea (in task list):  have the date default to the entity creation date, then later add/replace that (w/ range or what for ranges?)
             // with the last edit date, when that feature exists.
             val copyrightYearAndName = ui.askForString(Some(Array("Enter copyright year and holder's name, i.e., the \"2015, John Doe\" part " +
-                                                                  "of \"Copyright 2015, John Doe\"; all rights reserved.")))
+                                                                  "of \"Copyright 2015, John Doe; all rights reserved.\"")))
             new ImportExport(ui, db, controller).exportToFile(entityIn, ImportExport.HTML_EXPORT_TYPE, copyrightYearAndName)
           }
         }

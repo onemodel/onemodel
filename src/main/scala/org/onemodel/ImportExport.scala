@@ -27,9 +27,9 @@ object ImportExport {
 class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Controller) {
   // idea: see comment in EntityMenu about scoping.
   def exportToFile(entity: Entity, exportTypeIn: String, copyrightYearAndNameIn: Option[String]) {
-    val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels (0 = 'all'); ESC to cancel")), Some(controller.isNumeric), Some("0"))
+    val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels to export (including this one; 0 = 'all'); ESC to cancel")), Some(controller.isNumeric), Some("0"))
     if (ans.isDefined) {
-      val levelsToDescend: Int = ans.get.toInt
+      val levelsToExport: Int = ans.get.toInt
 
       val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
       if (ans2.isDefined) {
@@ -41,7 +41,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("y"))
 
         if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined) {
-          require(levelsToDescend >= 0)
+          require(levelsToExport >= 0)
           val spacesPerIndentLevel = 2
           val exportedEntities = new scala.collection.mutable.TreeSet[Long]()
 
@@ -50,7 +50,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
             val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, Some(outputDirectory))
             try {
-              doTheExport(entity, levelsToDescend, 0, Some(outputWriter), Some(outputDirectory), includeMetadata, exportTypeIn, exportedEntities,
+              doTheExport(entity, levelsToExport == 0, levelsToExport, 0, Some(outputWriter), Some(outputDirectory), includeMetadata,
+                          exportTypeIn, exportedEntities,
                           spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
               // flush before we report 'done' to the user:
               outputWriter.close()
@@ -65,7 +66,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               }
             }
           } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-            doTheExport(entity, levelsToDescend, 0, None, Some(outputDirectory), includeMetadata, exportTypeIn, exportedEntities,
+            doTheExport(entity, levelsToExport == 0, levelsToExport, 0, None, Some(outputDirectory), includeMetadata,
+                        exportTypeIn, exportedEntities,
                         spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
             ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
           }
@@ -470,12 +472,16 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   // (Idea: See note at the top of Controller.chooseOrCreateObject re inAttrType about similarly making exportTypeIn an enum.)
   /** If exporting html, this creates a new file for each entity; if exporting txt format, it all goes in a single file together (a
     * collapsible outline).
+    *
     * The parm outputWriterOptionIn is required for either txt (created once at the beginning) or html ( a new file for each entity: we wait to create each
     * .html file until we are ready to write to it; otherwise it was creating duplicates by doing the file creation before the duplicate check.
+    *
+    * If levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
+    *
     * Returns whether the entity in question was exported, so that the caller can know whether to include a link to that exported information (such as
     * to an html page).
     */
-  def doTheExport(entityIn: Entity, levelsRemainingToDescendIn: Int, currentIndentationLevelsIn: Int, outputWriterOptionIn: Option[PrintWriter],
+  def doTheExport(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int, outputWriterOptionIn: Option[PrintWriter],
                   outputDirectoryIn: Option[Path],
                   includeMetadataIn: Boolean, exportTypeIn: String, exportedEntitiesIn: scala.collection.mutable.TreeSet[Long], spacesPerIndentLevelIn: Int,
                   includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
@@ -496,7 +502,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
     }
 
-    if (includeMetadataIn) require(exportTypeIn == ImportExport.TEXT_EXPORT_TYPE, "Metadata is currently only set up to be print with text format output.")
+    if (includeMetadataIn)  require(exportTypeIn == ImportExport.TEXT_EXPORT_TYPE, "Metadata is currently only set up to be print with text format output.")
 
     if (exportedEntitiesIn.contains(entityIn.getId)) {
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
@@ -512,7 +518,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       val allowedToExport = (entityPublicStatus.isDefined && entityPublicStatus.get && includePublicDataIn.get) ||
                             (entityPublicStatus.isDefined && !entityPublicStatus.get && includeNonPublicDataIn.get) ||
                             (entityPublicStatus.isEmpty && includeUnspecifiedDataIn.get)
-      if (allowedToExport) {
+      if (allowedToExport && (levelsToExportIsInfiniteIn || levelsRemainingToExportIn > 0)) {
         val entitysFileNamePrefix: String = getExportFileNamePrefix(entityIn, exportTypeIn)
         val printWriter = {
           if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) outputWriterOptionIn.get
@@ -563,24 +569,22 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                   printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriter)
                   printWriter.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
                 }
-                if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
-                  val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, exportTypeIn)
-                  val exported: Boolean = doTheExport(entity2,
-                                                      if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1,
-                                                      currentIndentationLevelsIn + 1, {
-                                                        if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) Some(printWriter)
-                                                        else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) None
-                                                        else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
-                                                      },
-                                                      outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                                      includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
-                  if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-                    // meaning that we just created an html file, so now let's create a link to it:
-                    // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-                    printHtmlLink(printWriter, relationType.getName + ": ", relatedEntitysFileNamePrefix + ".html", entity2.getName, Some("(" +
-                                                                                                                                          getNumSubEntries
-                                                                                                                                          (entity2) + ")"))
-                  }
+                val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, exportTypeIn)
+                val exported: Boolean = doTheExport(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                                                    currentIndentationLevelsIn + 1, 
+                                                    {
+                                                      if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) Some(printWriter)
+                                                      else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) None
+                                                      else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
+                                                    },
+                                                    outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
+                                                    includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+                  // meaning that we just created an html file, so now let's create a link to it:
+                  // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+                  printHtmlLink(printWriter, relationType.getName + ": ", relatedEntitysFileNamePrefix + ".html", entity2.getName, Some("(" +
+                                                                                                                                        getNumSubEntries
+                                                                                                                                        (entity2) + ")"))
                 }
               }
             case relation: RelationToGroup =>
@@ -601,24 +605,22 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 printSpaces(spacesPerIndentLevelIn, printWriter)
                 printWriter.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
               }
-              if (levelsRemainingToDescendIn == 0 || levelsRemainingToDescendIn > 1) {
-                for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-                  val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, exportTypeIn)
-                  val exported: Boolean = doTheExport(entityInGrp,
-                                                      if (levelsRemainingToDescendIn == 0) 0 else levelsRemainingToDescendIn - 1, currentIndentationLevelsIn +
-                                                                                                                                  1, {
-                                                        if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) Some(printWriter)
-                                                        else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) None
-                                                        else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
-                                                      },
-                                                      outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                                      includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
-                  if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-                    // meaning that we just created an html file, so now let's create a link to it:
-                    // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-                    printHtmlLink(printWriter, relationType.getName + ": ", relatedGroupsEntitysFileNamePrefix + ".html", entityInGrp.getName, Some("(" +
-                                                                                                                                                    getNumSubEntries(entityInGrp) + ")"))
-                  }
+              for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
+                val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, exportTypeIn)
+                val exported: Boolean = doTheExport(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                                                    currentIndentationLevelsIn + 1,
+                                                    {
+                                                      if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) Some(printWriter)
+                                                      else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) None
+                                                      else throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
+                                                    },
+                                                    outputDirectoryIn, includeMetadataIn, exportTypeIn, exportedEntitiesIn, spacesPerIndentLevelIn,
+                                                    includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                if (exported && exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+                  // meaning that we just created an html file, so now let's create a link to it:
+                  // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+                  printHtmlLink(printWriter, relationType.getName + ": ", relatedGroupsEntitysFileNamePrefix + ".html", entityInGrp.getName, Some("(" +
+                                                                                                                                                  getNumSubEntries(entityInGrp) + ")"))
                 }
               }
               if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) printWriter.println("</ul>")

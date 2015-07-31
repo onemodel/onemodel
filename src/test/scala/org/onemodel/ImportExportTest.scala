@@ -81,7 +81,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val exportedEntities = new mutable.TreeSet[Long]()
     val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
     val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
-    mImportExport.doTheExport(startingEntity, 0, 0, None, Some(outputDirectory), includeMetadataIn = false, ImportExport.HTML_EXPORT_TYPE,
+    mImportExport.doTheExport(startingEntity, true, 0, 0, None, Some(outputDirectory), includeMetadataIn = false, ImportExport.HTML_EXPORT_TYPE,
                               exportedEntities, 2,
                               Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
 
