@@ -598,8 +598,9 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     val allowedToExport: Boolean = isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
     if (allowedToExport && (levelsToExportIsInfiniteIn || levelsRemainingToExportIn > 0)) {
       val attributeObjList: util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
-      for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) yield attribute match {
-        case relation: RelationToEntity =>
+      for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) {
+        if (attribute.isInstanceOf[RelationToEntity]) {
+          val relation = attribute.asInstanceOf[RelationToEntity]
           val relationType = new RelationType(db, relation.getAttrTypeId)
           val entity2 = new Entity(db, relation.getRelatedId2)
           if (uriClassIdIn.isEmpty ||entity2.getClassId != uriClassIdIn) {
@@ -609,13 +610,15 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                                      outputDirectoryIn, exportedEntitiesIn, uriClassIdIn,
                                                      includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
           }
-        case relation: RelationToGroup =>
+        } else if (attribute.isInstanceOf[RelationToGroup]) {
+          val relation = attribute.asInstanceOf[RelationToGroup]
           val group = new Group(db, relation.getGroupId)
           for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
             exportHtml(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
-                                                     outputDirectoryIn, exportedEntitiesIn, uriClassIdIn,
-                                                     includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                       outputDirectoryIn, exportedEntitiesIn, uriClassIdIn,
+                       includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
           }
+        }
       }
     }
   }
