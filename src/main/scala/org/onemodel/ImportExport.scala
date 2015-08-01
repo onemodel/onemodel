@@ -26,57 +26,6 @@ object ImportExport {
 }
 
 class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Controller) {
-  // idea: see comment in EntityMenu about scoping.
-  def export(entity: Entity, exportTypeIn: String, copyrightYearAndNameIn: Option[String]) {
-    val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels to export (including this one; 0 = 'all'); ESC to cancel")), Some(controller.isNumeric), Some("0"))
-    if (ans.isDefined) {
-      val levelsToExport: Int = ans.get.toInt
-
-      val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
-      if (ans2.isDefined) {
-        val includeMetadata: Boolean = ans2.get
-
-        //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
-        val includePublicData: Option[Boolean] = ui.askYesNoQuestion("Include public data?", Some("y"))
-        val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("y"))
-        val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("y"))
-
-        if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined) {
-          require(levelsToExport >= 0)
-          val spacesPerIndentLevel = 2
-          val exportedEntities = new scala.collection.mutable.TreeSet[Long]()
-
-          val prefix: String = getExportFileNamePrefix(entity, exportTypeIn)
-          val outputDirectory:Path = createOutputDir(prefix)
-          if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-            val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, Some(outputDirectory))
-            try {
-              exportToSingleTxtFile(entity, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntities,
-                          spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
-              // flush before we report 'done' to the user:
-              outputWriter.close()
-              ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
-            } finally {
-              if (outputWriter != null) {
-                try outputWriter.close()
-                catch {
-                  case e: Exception =>
-                  // ignore
-                }
-              }
-            }
-          } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-            exportToHtmlFiles(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntities,
-                        includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
-            ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
-          } else {
-            throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
-          }
-        }
-      }
-    }
-  }
-
   val uriLineExample: String = "'nameForTheLink <uri>http://somelink.org/index.html</uri>'"
 
   /**
@@ -211,7 +160,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
      The parameter lastIndentationlevel should be set to zero, from the original caller, and indent from there w/ the recursion.
   */
   @tailrec
-  private def processRestOfLines(r: LineNumberReader, lastEntityAdded: Option[Entity], lastIndentationLevel: Int, containerList: List[AnyRef],
+  private def importRestOfLines(r: LineNumberReader, lastEntityAdded: Option[Entity], lastIndentationLevel: Int, containerList: List[AnyRef],
                                 lastSortingIndexes: List[Long], observationDateIn: Long, mixedClassesAllowedDefaultIn: Boolean,
                                 makeThemPublicIn: Option[Boolean]) {
     // (see cmts just above about where we start)
@@ -235,20 +184,20 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       if (lineUntrimmed.toLowerCase.contains(beginTaMarker)) {
         // we have a section of text marked for importing into a single TextAttribute:
         importTextAttributeContent(lineUntrimmed, r, lastEntityAdded.get.getId, beginTaMarker, endTaMarker)
-        processRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
+        importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                           makeThemPublicIn)
       } else if (lineUntrimmed.toLowerCase.contains(beginUriMarker)) {
         // we have a section of text marked for importing into a web link:
         importUriContent(lineUntrimmed, beginUriMarker, endUriMarker, lineNumber, lastEntityAdded.get, observationDateIn,
                           makeThemPublicIn, callerManagesTransactionsIn = true)
-        processRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
+        importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                           makeThemPublicIn)
       } else {
         val line: String = lineUntrimmed.trim
 
         if (line == "." || line.isEmpty) {
           // nothing to do: that kind of line was just to create whitespace in my outline. So simply go to the next line:
-          processRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
+          importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                             makeThemPublicIn)
         } else {
           if (line.length > controller.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + controller.maxNameLength + " characters " +
@@ -270,7 +219,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               }
             }
 
-            processRestOfLines(r, Some(newEntity), lastIndentationLevel, containerList, newSortingIndex :: lastSortingIndexes.tail, observationDateIn,
+            importRestOfLines(r, Some(newEntity), lastIndentationLevel, containerList, newSortingIndex :: lastSortingIndexes.tail, observationDateIn,
                               mixedClassesAllowedDefaultIn, makeThemPublicIn)
           } else if (newIndentationLevel < lastIndentationLevel) {
             require(lastIndentationLevel >= 0)
@@ -289,7 +238,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 case _ => throw new OmException("??")
               }
             }
-            processRestOfLines(r, Some(newEntity), newIndentationLevel, newContainerList, newSortingIndex :: newSortingIndexList.tail, observationDateIn,
+            importRestOfLines(r, Some(newEntity), newIndentationLevel, newContainerList, newSortingIndex :: newSortingIndexList.tail, observationDateIn,
                               mixedClassesAllowedDefaultIn, makeThemPublicIn)
           } else if (newIndentationLevel > lastIndentationLevel) {
             // indented, so create a subgroup & add line there:
@@ -323,7 +272,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             // since a new grp, start at beginning of sorting indexes
             val newSortingIndex = db.minIdValue
             val newSubEntity: Entity = createAndAddEntityToGroup(line, newGroup, newSortingIndex, makeThemPublicIn)
-            processRestOfLines(r, Some(newSubEntity), newIndentationLevel, newGroup :: containerList, newSortingIndex :: lastSortingIndexes,
+            importRestOfLines(r, Some(newSubEntity), newIndentationLevel, newGroup :: containerList, newSortingIndex :: lastSortingIndexes,
                               observationDateIn, mixedClassesAllowedDefaultIn, makeThemPublicIn)
           } else throw new OmException("Shouldn't get here!?: " + lastIndentationLevel + ", " + newIndentationLevel)
         }
@@ -464,8 +413,59 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       } else db.minIdValue
     }
 
-    processRestOfLines(r, None, 0, containingEntry :: Nil, startingSortingIndex :: Nil, dataSourceLastModifiedDate, mixedClassesAllowedDefaultIn,
+    importRestOfLines(r, None, 0, containingEntry :: Nil, startingSortingIndex :: Nil, dataSourceLastModifiedDate, mixedClassesAllowedDefaultIn,
                       makeThemPublicIn)
+  }
+
+  // idea: see comment in EntityMenu about scoping.
+  def export(entity: Entity, exportTypeIn: String, copyrightYearAndNameIn: Option[String]) {
+    val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels to export (including this one; 0 = 'all'); ESC to cancel")), Some(controller.isNumeric), Some("0"))
+    if (ans.isDefined) {
+      val levelsToExport: Int = ans.get.toInt
+
+      val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
+      if (ans2.isDefined) {
+        val includeMetadata: Boolean = ans2.get
+
+        //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
+        val includePublicData: Option[Boolean] = ui.askYesNoQuestion("Include public data?", Some("y"))
+        val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("y"))
+        val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("y"))
+
+        if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined) {
+          require(levelsToExport >= 0)
+          val spacesPerIndentLevel = 2
+          val exportedEntities = new scala.collection.mutable.TreeSet[Long]()
+
+          val prefix: String = getExportFileNamePrefix(entity, exportTypeIn)
+          val outputDirectory:Path = createOutputDir(prefix)
+          if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+            val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, Some(outputDirectory))
+            try {
+              exportToSingleTxtFile(entity, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntities,
+                                    spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
+              // flush before we report 'done' to the user:
+              outputWriter.close()
+              ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
+            } finally {
+              if (outputWriter != null) {
+                try outputWriter.close()
+                catch {
+                  case e: Exception =>
+                  // ignore
+                }
+              }
+            }
+          } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+            exportToHtmlFiles(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntities,
+                              includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
+            ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
+          } else {
+            throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
+          }
+        }
+      }
+    }
   }
 
   /** This creates a new file for each entity.
@@ -586,19 +586,14 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   //@tailrec  THIS IS NOT TO BE TAIL RECURSIVE UNTIL IT'S KNOWN HOW TO MAKE SOME CALLS to it BE recursive, AND SOME *NOT* TAIL RECURSIVE (because some of them
   //*do* need to return & finish their work, such as when iterating through the entities & subgroups)! (but test it: is it really a problem?)
   // (Idea: See note at the top of Controller.chooseOrCreateObject re inAttrType about similarly making exportTypeIn an enum.)
-  /** If exporting html, this creates a new file for each entity; if exporting txt format, it all goes in a single file together (a
-    * collapsible outline).
-    *
-    * The parm outputWriterOptionIn is required for either txt (created once at the beginning) or html ( a new file for each entity: we wait to create each
-    * .html file until we are ready to write to it; otherwise it was creating duplicates by doing the file creation before the duplicate check.
-    *
+  /**
     * If levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
     *
     * Returns whether the entity in question was exported, so that the caller can know whether to include a link to that exported information (such as
-    * to an html page).
+    * to an html page: %%?).
     */
   def exportToSingleTxtFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int, 
-                            outputWriterIn: PrintWriter,
+                            printWriterIn: PrintWriter,
                             includeMetadataIn: Boolean, exportedEntitiesIn: scala.collection.mutable.TreeSet[Long], spacesPerIndentLevelIn: Int,
                             includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
                             copyrightYearAndNameIn: Option[String]): Boolean = {
@@ -606,11 +601,11 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     //out.flush()
 
     if (exportedEntitiesIn.contains(entityIn.getId)) {
-      printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputWriterIn)
-      if (includeMetadataIn) outputWriterIn.print("(duplicate: EN --> " + entityIn.getId + ": ")
-      outputWriterIn.print(entityIn.getName)
-      if (includeMetadataIn) outputWriterIn.print(")")
-      outputWriterIn.println()
+      printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
+      if (includeMetadataIn) printWriterIn.print("(duplicate: EN --> " + entityIn.getId + ": ")
+      printWriterIn.print(entityIn.getName)
+      if (includeMetadataIn) printWriterIn.print(")")
+      printWriterIn.println()
       true
     } else {
       val allowedToExport: Boolean = isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
@@ -621,10 +616,10 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         exportedEntitiesIn.add(entityIn.getId)
 
         val entityName: String = entityIn.getName
-        printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputWriterIn)
+        printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
 
-        if (includeMetadataIn) outputWriterIn.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString)
-        else outputWriterIn.println(entityName)
+        if (includeMetadataIn) printWriterIn.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString)
+        else printWriterIn.println(entityName)
 
         val attributeObjList: util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
         for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) yield attribute match {
@@ -632,12 +627,12 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             val relationType = new RelationType(db, relation.getAttrTypeId)
             val entity2 = new Entity(db, relation.getRelatedId2)
             if (includeMetadataIn) {
-              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputWriterIn)
-              outputWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
+              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+              printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
             }
             val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.TEXT_EXPORT_TYPE)
             val exported: Boolean = exportToSingleTxtFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
-                                                          currentIndentationLevelsIn + 1, outputWriterIn,
+                                                          currentIndentationLevelsIn + 1, printWriterIn,
                                                           includeMetadataIn, exportedEntitiesIn, spacesPerIndentLevelIn,
                                                 includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
           case relation: RelationToGroup =>
@@ -646,33 +641,33 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             val grpName = group.getName
             // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
             if (entityName != grpName) {
-              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputWriterIn)
-              outputWriterIn.println("(group named: " + grpName + ")")
+              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+              printWriterIn.println("(group named: " + grpName + ")")
             }
             if (includeMetadataIn) {
-              printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, outputWriterIn)
+              printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
               // plus one more level of spaces to make it look better but still ~equivalently/exchangeably importable:
-              printSpaces(spacesPerIndentLevelIn, outputWriterIn)
-              outputWriterIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
+              printSpaces(spacesPerIndentLevelIn, printWriterIn)
+              printWriterIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
             }
             for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
               val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.TEXT_EXPORT_TYPE)
               val exported: Boolean = exportToSingleTxtFile(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
-                                                            currentIndentationLevelsIn + 1, outputWriterIn,
+                                                            currentIndentationLevelsIn + 1, printWriterIn,
                                                             includeMetadataIn, exportedEntitiesIn, spacesPerIndentLevelIn,
                                                   includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
             }
           case _ =>
-            printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, outputWriterIn)
+            printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
             if (includeMetadataIn) {
-              outputWriterIn.println((attribute match {
+              printWriterIn.println((attribute match {
                 case ba: BooleanAttribute => "BA "
                 case da: DateAttribute => "DA "
                 case fa: FileAttribute => "FA "
                 case qa: QuantityAttribute => "QA "
                 case ta: TextAttribute => "TA "
               }) + /*attribute.getId +*/ ": " + attribute.getDisplayString(0, None, None))
-            } else outputWriterIn.println(attribute.getDisplayString(0, None, None))
+            } else printWriterIn.println(attribute.getDisplayString(0, None, None))
         }
       }
       true
