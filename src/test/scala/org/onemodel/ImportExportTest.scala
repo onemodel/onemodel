@@ -81,7 +81,8 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val exportedEntities = new mutable.TreeSet[Long]()
     val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
     val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
-    mImportExport.exportToHtmlFiles(startingEntity, true, 0, outputDirectory, exportedEntities,
+    val uriClassId: Option[Long] = mDB.findFIRSTClassIdByName("URI", caseSensitive = true)
+    mImportExport.exportHtml(startingEntity, true, 0, outputDirectory, exportedEntities, uriClassId,
                                     Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
 
     assert(outputDirectory.toFile.exists)
@@ -152,7 +153,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   }
 
   "testImportAndExportOfUri" should "work" in {
-    System.out.println("starting testImportAndExportUri")
+    System.out.println("starting testImportAndExportOfUri")
 
     tryImporting("testImportFile5.txt")
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("import-file-5")
