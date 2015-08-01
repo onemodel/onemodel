@@ -9,7 +9,7 @@
 */
 package org.onemodel
 
-import java.io.{PrintWriter, File}
+import java.io.File
 import java.nio.file.{Files, Path}
 
 import org.onemodel.controller.Controller
@@ -81,9 +81,8 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val exportedEntities = new mutable.TreeSet[Long]()
     val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
     val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
-    mImportExport.doTheExport(startingEntity, true, 0, 0, None, Some(outputDirectory), includeMetadataIn = false, ImportExport.HTML_EXPORT_TYPE,
-                              exportedEntities, 2,
-                              Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
+    mImportExport.exportToHtmlFiles(startingEntity, true, 0, outputDirectory, exportedEntities, 
+                                    Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
 
     assert(outputDirectory.toFile.exists)
     val newFiles: Array[String] = outputDirectory.toFile.list
