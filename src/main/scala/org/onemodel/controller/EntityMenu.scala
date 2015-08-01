@@ -26,7 +26,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     val classDefiningEntityId: Option[Long] = entityIn.getClassDefiningEntityId
 
     def getLeadingText(leadingTextIn: Array[String], attributeObjListIn: java.util.ArrayList[Attribute]): Array[String] = {
-      leadingTextIn(0) = "**CURRENT ENTITY:" + entityIn.getDisplayString
+      leadingTextIn(0) = "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString
       if (relationIn.isDefined) {
         leadingTextIn(0) += ": found via relation: " + relationSourceEntityIn.get.getName + " " +
                             relationIn.get.getDisplayString(0, Some(new Entity(db, relationIn.get.getRelatedId2)),
@@ -189,7 +189,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
       val entityIsAlreadyTheDefault: Boolean = defaultEntity.isDefined && defaultEntity.get == entityIn.getId
       if (! entityIsAlreadyTheDefault) {
         choices = choices :+ ((if (defaultEntity.isEmpty) "****TRY ME---> " else "") +
-                              "Set current entity (" + entityIn.getDisplayString + ") as default (first to come up when launching this program.)")
+                              "Set current entity (" + entityIn.getId + ": " + entityIn.getDisplayString + ") as default (first to come up when launching this program.)")
       } else choices = choices :+ "(stub)"
       choices = choices :+ "Edit public/nonpublic status"
       (choices, entityIsAlreadyTheDefault)
