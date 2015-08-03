@@ -571,7 +571,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           }
           printWriter.println("</ul>")
         case _ =>
-          printWriter.println(htmlEncode(attribute.getDisplayString(0, None, None)))
+          printWriter.println("<li>" + htmlEncode(attribute.getDisplayString(0, None, None)) + "</li>")
       }
       printWriter.println("</ul>")
       if (copyrightYearAndNameIn.isDefined) {
