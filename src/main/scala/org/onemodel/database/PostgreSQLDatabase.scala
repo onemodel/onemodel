@@ -1904,8 +1904,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                  inClassId: Option[Long] = None, limitByClass: Boolean = false,
                                  classDefiningEntity: Option[Long] = None, groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Entity] = {
     val ENTITY_SELECT_PART: String = "SELECT e.id, e.name, e.public, e.class_id"
-    val sql: String = ENTITY_SELECT_PART + (if (inTableName.compareToIgnoreCase("RelationType") == 0) ", r.name_in_reverse_direction, r.directionality "
-    else "") +
+    val sql: String = ENTITY_SELECT_PART +
+                      (if (inTableName.compareToIgnoreCase("RelationType") == 0) ", r.name_in_reverse_direction, r.directionality " else "") +
                       " from Entity e " +
                       (if (inTableName.compareToIgnoreCase("RelationType") == 0) {
                         // for RelationTypes, hit both tables since one "inherits", but limit it to those rows

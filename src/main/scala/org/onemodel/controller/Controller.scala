@@ -935,29 +935,33 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
     // attempt to keep these straight even though the size of the list, hence their option #'s on the menu,
     // is conditional:
-    def getChoiceList: (Array[String], Int, Int, Int, Int, Int) = {
+    def getChoiceList: (Array[String], Int, Int, Int, Int, Int, Int) = {
       var keepPreviousSelectionChoiceNum = 1
       var createAttrTypeChoiceNum = 1
-      var searchForEntityChoiceNum = 1
+      var searchForEntityByNameChoiceNum = 1
+      var searchForEntityByIdChoiceNum = 1
       var createRelationTypeChoiceNum = 1
       var createClassChoiceNum = 1
       var choiceList = Array(listNextItemsPrompt)
       if (inPreviousSelectionDesc.isDefined) {
+        choiceList = choiceList :+ "Keep previous selection (" + inPreviousSelectionDesc.get + ")."
         keepPreviousSelectionChoiceNum += 1
         createAttrTypeChoiceNum += 1
-        searchForEntityChoiceNum += 1
+        searchForEntityByNameChoiceNum += 1
+        searchForEntityByIdChoiceNum += 1
         createRelationTypeChoiceNum += 1
         createClassChoiceNum += 1
-        choiceList = choiceList :+ "Keep previous selection (" + inPreviousSelectionDesc.get + ")."
       }
       //idea: use match instead of if: can it do || ?
       if (mostAttrTypeNames.contains(inAttrType)) {
-        createAttrTypeChoiceNum += 1
         choiceList = choiceList :+ menuText_createEntityOrAttrType
-        choiceList = choiceList :+ "Search for existing entity..."
-        searchForEntityChoiceNum += 2
-        createRelationTypeChoiceNum += 2
-        createClassChoiceNum += 2
+        createAttrTypeChoiceNum += 1
+        choiceList = choiceList :+ "Search for existing entity by name..."
+        searchForEntityByNameChoiceNum += 2
+        choiceList = choiceList :+ "Search for existing entity by id..."
+        searchForEntityByIdChoiceNum += 3
+        createRelationTypeChoiceNum += 3
+        createClassChoiceNum += 3
       } else if (relationAttrTypeNames.contains(inAttrType)) {
         choiceList = choiceList :+ menuText_CreateRelationType
         createRelationTypeChoiceNum += 1
@@ -967,7 +971,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         createClassChoiceNum += 1
       } else throw new Exception("invalid inAttrType: " + inAttrType)
 
-      (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityChoiceNum, createRelationTypeChoiceNum, createClassChoiceNum)
+      (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityByNameChoiceNum, searchForEntityByIdChoiceNum, createRelationTypeChoiceNum, createClassChoiceNum)
     }
 
     def getLeadTextAndObjectList(choicesIn: Array[String]): (List[String], java.util.ArrayList[_ >: RelationType with EntityClass <: Object], Array[String]) = {
@@ -1045,8 +1049,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       index
     }
 
-    val (choices, keepPreviousSelectionChoice, createAttrTypeChoice, searchForEntityChoice, createRelationTypeChoice, createClassChoice): (Array[String],
-      Int, Int, Int, Int, Int) = getChoiceList
+    val (choices, keepPreviousSelectionChoice, createAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, createRelationTypeChoice, createClassChoice): (Array[String],
+      Int, Int, Int, Int, Int, Int) = getChoiceList
 
     val (leadingText, objectsToDisplay, names) = getLeadTextAndObjectList(choices)
     val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, names)
@@ -1072,15 +1076,36 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (e.isEmpty) None
         else Some(new IdWrapper(e.get.getId))
       }
-      else if (answer == searchForEntityChoice && answer <= choices.length) {
+      else if (answer == searchForEntityByNameChoice && answer <= choices.length) {
         val ans = ui.askForString(Some(Array(searchPrompt(Controller.ENTITY_TYPE))))
         if (ans.isEmpty)
           None
         else {
-          // Allow relation to self (eg, picking self as 2nd part of a RelationToEntity), so None in 2nd parm.
+          // Allow relation to self (eg, picking self as 2nd part of a RelationToEntity), so None in 3nd parm.
           val e: Option[IdWrapper] = findExistingObject(0, Controller.ENTITY_TYPE, None, ans.get)
           if (e.isEmpty) None
           else Some(new IdWrapper(e.get.getId))
+        }
+      }
+      else if (answer == searchForEntityByIdChoice && answer <= choices.length) {
+        val ans = ui.askForString(Some(Array(searchPrompt(Controller.ENTITY_TYPE))))
+        if (ans.isEmpty)
+          None
+        else {
+          // it's a long:
+          val idString: String = ans.get
+          if (! isNumeric(idString)) {
+            ui.displayText("Invalid ID format.  An entity ID is a numeric value of many digits, between " + db.minIdValue + " and " + db.maxIdValue)
+            None
+          } else {
+            // (BTW, do allow relation to self, e.g., picking self as 2nd part of a RelationToEntity.)
+            if (db.entityKeyExists(idString.toLong)) {
+              Some(new IdWrapper(idString.toLong))
+            } else {
+              ui.displayText("The entity ID " + ans.get + " was not found in the database.")
+              None
+            }
+          }
         }
       }
       else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(inAttrType) && answer <= choices.length) {
@@ -1554,7 +1579,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                               containingGroupIn: Option[Group] = None): (Option[Entity], Option[Long], Boolean) = {
     val (rtid, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(userSelection.getId)
     val subEntitySelected: Option[Entity] = None
-    if (groupId.isDefined && !moreThanOneAvailable) {
+    if (groupId.isDefined && !moreThanOneAvailable && db.getAttrCount(userSelection.getId) == 1) {
       // In quick menu, for efficiency of some work like brainstorming, if it's obvious which subgroup to go to, just go there.
       // We DON'T want @tailrec on this method for this call, so that we can ESC back to the current menu & list! (so what balance/best? Maybe move this
       // to its own method, so it doesn't try to tail optimize it?)  See also the comment with 'tailrec', mentioning why to have it, above.
