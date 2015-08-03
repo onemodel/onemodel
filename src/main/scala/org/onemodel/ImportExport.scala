@@ -478,7 +478,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                  copyrightYearAndName: Option[String]) {
     exportToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntities, uriClassId,
                      includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndName)
-    exportItsChildrenToHtmlFiles(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntities, uriClassId,
+    exportItsChildrenToHtmlFiles(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntities, uriClassId,
                                  includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndName)
   }
 
@@ -532,12 +532,12 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 if (uriAttribute.isEmpty) {
                   throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassIdIn.get + ") for entity " + entity2.getId)
                 }
-                printHtmlLink(printWriter, "", uriAttribute.get.getText, entity2.getName)
+                printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, entity2.getName)
               }
               else {
                 val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.HTML_EXPORT_TYPE)
                 // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-                printHtmlLink(printWriter, relationType.getName + ": ", relatedEntitysFileNamePrefix + ".html", entity2.getName,
+                printHtmlListItemWithLink(printWriter, relationType.getName + ": ", relatedEntitysFileNamePrefix + ".html", entity2.getName,
                               Some("(" + getNumSubEntries(entity2) + ")"))
               }
             case relation: RelationToGroup =>
@@ -545,15 +545,13 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               val group = new Group(db, relation.getGroupId)
               val grpName = group.getName
               // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
-              if (entityName != grpName) {
-                printWriter.println("(group named: " + grpName + ")")
-              }
+              printWriter.println("<li>Group named: " + grpName + "</li>")
               printWriter.println("<ul>")
 
               for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
                 val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.HTML_EXPORT_TYPE)
                 // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-                printHtmlLink(printWriter, relationType.getName + ": ", relatedGroupsEntitysFileNamePrefix + ".html",
+                printHtmlListItemWithLink(printWriter, relationType.getName + ": ", relatedGroupsEntitysFileNamePrefix + ".html",
                               entityInGrp.getName, Some("(" + getNumSubEntries(entityInGrp) + ")"))
               }
               printWriter.println("</ul>")
@@ -562,7 +560,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           }
           printWriter.println("</ul>")
           if (copyrightYearAndNameIn.isDefined) {
-            printWriter.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "; all rights reserved.</small></center>")
+            printWriter.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "</small></center>")
           }
           printWriter.println("</html></body>")
           printWriter.close()
@@ -718,7 +716,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     allowedToExport
   }
 
-  def printHtmlLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None): Unit = {
+  def printHtmlListItemWithLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None): Unit = {
     printWriterIn.print("<li>")
     printWriterIn.print(preLabel + "<a href=\"" + uri + "\">" + linkDisplayText + "</a>" + " " + suffix.getOrElse(""))
     printWriterIn.println("</li>")
