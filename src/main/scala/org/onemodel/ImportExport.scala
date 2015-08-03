@@ -477,7 +477,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                  uriClassId: Option[Long],
                  includePublicData: Option[Boolean], includeNonPublicData: Option[Boolean], includeUnspecifiedData: Option[Boolean],
                  copyrightYearAndName: Option[String]) {
-    exportToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntities, uriClassId,
+    exportEntityToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntities, uriClassId,
                      includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndName)
     exportItsChildrenToHtmlFiles(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntities, entitiesAlreadyProcessedInThisRefChain,
                                  uriClassId,
@@ -489,19 +489,19 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     * If levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
     *
     */
-  def exportToHtmlFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
+  def exportEntityToHtmlFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
                   outputDirectoryIn: Path, exportedEntitiesIn: mutable.TreeSet[Long], uriClassIdIn: Option[Long],
                   includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
                   copyrightYearAndNameIn: Option[String]) {
     // useful while debugging:
     //out.flush()
 
-    if (exportedEntitiesIn.contains(entityIn.getId)) {
-      // no need to recreate this entity's html file, so return
+    if (! isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                           levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
       return
     }
-    val allowedToExport: Boolean = isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
-    if (! (allowedToExport && (levelsToExportIsInfiniteIn || levelsRemainingToExportIn > 0))) {
+    if (exportedEntitiesIn.contains(entityIn.getId)) {
+      // no need to recreate this entity's html file, so return
       return
     }
 
@@ -540,10 +540,15 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, entity2.getName)
           }
           else {
-            val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.HTML_EXPORT_TYPE)
-            // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-            printHtmlListItemWithLink(printWriter, relationType.getName + ": ", relatedEntitysFileNamePrefix + ".html", entity2.getName,
-                          Some("(" + getNumSubEntries(entity2) + ")"))
+            // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
+            // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
+            if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                  levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+              val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.HTML_EXPORT_TYPE)
+              // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+              printHtmlListItemWithLink(printWriter, relationType.getName + ": ", relatedEntitysFileNamePrefix + ".html", entity2.getName,
+                                        Some("(" + getNumSubEntries(entity2) + ")"))
+            }
           }
         case relation: RelationToGroup =>
           val relationType = new RelationType(db, relation.getAttrTypeId)
@@ -554,10 +559,15 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           printWriter.println("<ul>")
 
           for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-            val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.HTML_EXPORT_TYPE)
-            // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-            printHtmlListItemWithLink(printWriter, relationType.getName + ": ", relatedGroupsEntitysFileNamePrefix + ".html",
-                          entityInGrp.getName, Some("(" + getNumSubEntries(entityInGrp) + ")"))
+            // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
+            // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
+            if (isAllowedToExport(entityInGrp, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                  levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+              val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.HTML_EXPORT_TYPE)
+              // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+              printHtmlListItemWithLink(printWriter, relationType.getName + ": ", relatedGroupsEntitysFileNamePrefix + ".html", entityInGrp.getName,
+                                        Some("(" + getNumSubEntries(entityInGrp) + ")"))
+            }
           }
           printWriter.println("</ul>")
         case _ =>
@@ -598,12 +608,10 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                    entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[Long], uriClassIdIn: Option[Long],
                                    includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
                                    copyrightYearAndNameIn: Option[String]) {
-    val allowedToExport: Boolean = isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
-    if (! (allowedToExport && (levelsToExportIsInfiniteIn || levelsRemainingToExportIn > 0))) {
-      // no need to recreate this entity's html file, so return
+    if (! isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                            levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
       return
     }
-
     if (entitiesAlreadyProcessedInThisRefChainIn.contains(entityIn.getId)) {
       return
     }
@@ -658,8 +666,9 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       if (includeMetadataIn) printWriterIn.print(")")
       printWriterIn.println()
     } else {
-      val allowedToExport: Boolean = isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
-      if (allowedToExport && (levelsToExportIsInfiniteIn || levelsRemainingToExportIn > 0)) {
+      val allowedToExport: Boolean = isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                                       levelsToExportIsInfiniteIn, levelsRemainingToExportIn)
+      if (allowedToExport) {
         val entitysFileNamePrefix: String = getExportFileNamePrefix(entityIn, ImportExport.TEXT_EXPORT_TYPE)
 
         // record, so we don't create duplicate files, etc:
@@ -723,13 +732,14 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     }
   }
 
-  def isAllowedToExport(entityIn: Entity, includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn:
-  Option[Boolean]): Boolean = {
+  def isAllowedToExport(entityIn: Entity, includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean],
+                        includeUnspecifiedDataIn: Option[Boolean], levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int): Boolean = {
     val entityPublicStatus: Option[Boolean] = entityIn.getPublic
-    val allowedToExport = (entityPublicStatus.isDefined && entityPublicStatus.get && includePublicDataIn.get) ||
+    val publicEnoughToExport = (entityPublicStatus.isDefined && entityPublicStatus.get && includePublicDataIn.get) ||
                           (entityPublicStatus.isDefined && !entityPublicStatus.get && includeNonPublicDataIn.get) ||
                           (entityPublicStatus.isEmpty && includeUnspecifiedDataIn.get)
-    allowedToExport
+
+    publicEnoughToExport && (levelsToExportIsInfiniteIn || levelsRemainingToExportIn > 0)
   }
 
   def printHtmlListItemWithLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None): Unit = {
