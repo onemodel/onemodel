@@ -513,7 +513,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
 
       printWriter.println("<html><body>")
       val entityName: String = entityIn.getName
-      printWriter.println("<h1>" + entityIn.getName + "</h1>")
+      printWriter.println("<h1>" + htmlEncode(entityIn.getName) + "</h1>")
 
       val attributeObjList: util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
       printWriter.println("<ul>")
@@ -555,7 +555,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           val group = new Group(db, relation.getGroupId)
           val grpName = group.getName
           // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
-          printWriter.println("<li>Group named: " + grpName + "</li>")
+          printWriter.println("<li>Group named: " + htmlEncode(grpName) + "</li>")
           printWriter.println("<ul>")
 
           for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
@@ -571,11 +571,11 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           }
           printWriter.println("</ul>")
         case _ =>
-          printWriter.println(attribute.getDisplayString(0, None, None))
+          printWriter.println(htmlEncode(attribute.getDisplayString(0, None, None)))
       }
       printWriter.println("</ul>")
       if (copyrightYearAndNameIn.isDefined) {
-        printWriter.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "</small></center>")
+        printWriter.println("<center><small>Copyright " + htmlEncode(copyrightYearAndNameIn.get) + "</small></center>")
       }
       printWriter.println("</html></body>")
       printWriter.close()
@@ -643,6 +643,16 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     // remove the entityId we've just processed, in order to allow traversing through it again later on a different ref chain if needed.  See
     // comments on this method, above, for more explanation.
     entitiesAlreadyProcessedInThisRefChainIn.remove(entityIn.getId)
+  }
+
+  /** Very basic for now. Noted in task list to do more, under i18n and under "do a better job of encoding"
+    */
+  def htmlEncode(in: String): String = {
+    var out = in.replace("&", "&amp;")
+    out = out.replace(">", "&gt;")
+    out = out.replace("<", "&lt;")
+    out = out.replace("\"", "&quot;")
+    out
   }
 
   //@tailrec  THIS IS NOT TO BE TAIL RECURSIVE UNTIL IT'S KNOWN HOW TO MAKE SOME CALLS to it BE recursive, AND SOME *NOT* TAIL RECURSIVE (because some of them
@@ -744,7 +754,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
 
   def printHtmlListItemWithLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None): Unit = {
     printWriterIn.print("<li>")
-    printWriterIn.print(preLabel + "<a href=\"" + uri + "\">" + linkDisplayText + "</a>" + " " + suffix.getOrElse(""))
+    printWriterIn.print(htmlEncode(preLabel) + "<a href=\"" + uri + "\">" + htmlEncode(linkDisplayText) + "</a>" + " " + htmlEncode(suffix.getOrElse("")))
     printWriterIn.println("</li>")
   }
 
