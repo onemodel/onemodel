@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2014-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -47,6 +47,7 @@ object FileAttribute {
     //so then in scala REPL (interpreter) you set "val d..." as above, "d.update(ba)", and the below:
     // outputs same as command 'md5sum <file>':
     val md5sum: String = {
+      // (the '&' use is an 'advanced feature' style violation but it's the way i found to do it ...)
       d.digest.map(0xFF &).map {"%02x".format(_)}.foldLeft("") {_ + _}
     }
     md5sum
@@ -70,7 +71,7 @@ object FileAttribute {
       else ""
     }
     //for hidden files to stay that way unless the size is too small:
-    if (baseName == FileAttribute.filenameFiller && fullExtension.size >= 3) (fullExtension, "")
+    if (baseName == FileAttribute.filenameFiller && fullExtension.length >= 3) (fullExtension, "")
     else (baseName, fullExtension)
   }
 
@@ -107,10 +108,11 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
     assignCommonVars(inParentId, inAttrTypeId)
   }
 
-  def getDisplayString(inLengthLimit: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None): String = {
+  def getDisplayString(inLengthLimit: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None, simplify: Boolean = false): String = {
     val typeName: String = mDB.getEntityName(getAttrTypeId).get
-    var result: String = getDescription + " (" + typeName + "); " + getFileSizeDescription + " " + getPermissionsDescription + " from " +
-                         getOriginalFilePath + ", " + getDatesDescription + "; md5 " + getMd5Hash + "."
+    var result: String = getDescription + " (" + typeName + "); " + getFileSizeDescription
+    if (! simplify) result = result + " " + getPermissionsDescription + " from " +
+                             getOriginalFilePath + ", " + getDatesDescription + "; md5 " + getMd5Hash + "."
     if (inLengthLimit != 0) {
       if (result.length > inLengthLimit) {
         result = result.substring(0, inLengthLimit - 3) + "..."
@@ -159,8 +161,8 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateFileAttribute(getId, getParentId,
-                            if (inAttrTypeId == None) getAttrTypeId else inAttrTypeId.get,
-                            if (inDescription == None) getDescription else inDescription.get)
+                            if (inAttrTypeId.isEmpty) getAttrTypeId else inAttrTypeId.get,
+                            if (inDescription.isEmpty) getDescription else inDescription.get)
   }
 
   ///** Using Options for the parameters so caller can pass in only those desired (named), and other members will stay the same.
@@ -260,6 +262,7 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
       // (as does mDB.verifyFileAttributeContent).
 
       // this is a hook so tests can verify that we do fail if the file isn't intact
+      // (huh? This next line does nothing. Noted in tasks to see what is meant & make it do that. or at least more clear.)
       if (damageFileForTesting != null) damageFileForTesting
 
       val downloadedFilesHash = FileAttribute.md5Hash(fileIn)

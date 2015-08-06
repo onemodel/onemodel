@@ -82,7 +82,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
     val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
     val uriClassId: Option[Long] = mDB.findFIRSTClassIdByName("URI", caseSensitive = true)
-    mImportExport.exportHtml(startingEntity, true, 0, outputDirectory, exportedEntities, mutable.TreeSet[Long](), uriClassId,
+    mImportExport.exportHtml(startingEntity, levelsToExportIsInfinite = true, 0, outputDirectory, exportedEntities, mutable.TreeSet[Long](), uriClassId,
                                     Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
 
     assert(outputDirectory.toFile.exists)
@@ -144,7 +144,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer4")
     val (firstNewFileContents: String, newFiles: Array[String]) = tryExporting(ids)
 
-    assert(firstNewFileContents.contains("has: <a href=\"e-"), "unexpected file contents:  " + firstNewFileContents)
+    assert(firstNewFileContents.contains("<a href=\"e-"), "unexpected file contents:  " + firstNewFileContents)
     assert(firstNewFileContents.contains(".html\">purpose</a> (0)"), "unexpected file contents:  " + firstNewFileContents)
     assert(firstNewFileContents.contains(".html\">empowerment</a> (2)"), "unexpected file contents:  " + firstNewFileContents)
     assert(firstNewFileContents.contains("Copyright"), "unexpected file contents: no copyright?")

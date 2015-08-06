@@ -512,7 +512,6 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       exportedEntitiesIn.add(entityIn.getId)
 
       printWriter.println("<html><body>")
-      val entityName: String = entityIn.getName
       printWriter.println("<h1>" + htmlEncode(entityIn.getName) + "</h1>")
 
       val attributeObjList: util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
@@ -521,57 +520,64 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         case relation: RelationToEntity =>
           val relationType = new RelationType(db, relation.getAttrTypeId)
           val entity2 = new Entity(db, relation.getRelatedId2)
-          if (uriClassIdIn.isDefined && entity2.getClassId == uriClassIdIn) {
-            // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
-            // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
-            def findUriAttribute(): Option[TextAttribute] = {
-              val (attributesOnEntity2: util.ArrayList[Attribute], _) = db.getSortedAttributes(entity2.getId, 0, 0)
-              for (attr2: Attribute <- attributesOnEntity2.toArray(Array[Attribute]())) {
-                if (attr2.getAttrTypeId == uriClassIdIn.get && attr2.isInstanceOf[TextAttribute]) {
-                  return Some(attr2.asInstanceOf[TextAttribute])
+          if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+            if (uriClassIdIn.isDefined && entity2.getClassId == uriClassIdIn) {
+              // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
+              // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
+              def findUriAttribute(): Option[TextAttribute] = {
+                val (attributesOnEntity2: util.ArrayList[Attribute], _) = db.getSortedAttributes(entity2.getId, 0, 0)
+                for (attr2: Attribute <- attributesOnEntity2.toArray(Array[Attribute]())) {
+                  if (attr2.getAttrTypeId == uriClassIdIn.get && attr2.isInstanceOf[TextAttribute]) {
+                    return Some(attr2.asInstanceOf[TextAttribute])
+                  }
                 }
+                None
               }
-              None
-            }
-            val uriAttribute: Option[TextAttribute] = findUriAttribute()
-            if (uriAttribute.isEmpty) {
-              throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassIdIn.get + ") for entity " + entity2.getId)
-            }
-            printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, entity2.getName)
-          }
-          else {
-            // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
-            // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
-            if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                  levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+              val uriAttribute: Option[TextAttribute] = findUriAttribute()
+              if (uriAttribute.isEmpty) {
+                throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassIdIn.get + ") for entity " + entity2.getId)
+              }
+              printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, entity2.getName)
+            } else {
+              // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
+              // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
               val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.HTML_EXPORT_TYPE)
-              // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-              printHtmlListItemWithLink(printWriter, relationType.getName + ": ", relatedEntitysFileNamePrefix + ".html", entity2.getName,
+              printHtmlListItemWithLink(printWriter,
+                                        if (relationType.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationType.getName + ": ",
+                                        relatedEntitysFileNamePrefix + ".html",
+                                        entity2.getName,
                                         Some("(" + getNumSubEntries(entity2) + ")"))
             }
           }
         case relation: RelationToGroup =>
           val relationType = new RelationType(db, relation.getAttrTypeId)
           val group = new Group(db, relation.getGroupId)
-          val grpName = group.getName
           // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
-          printWriter.println("<li>Group named: " + htmlEncode(grpName) + "</li>")
+          printWriter.println("<li>" + htmlEncode(relation.getDisplayString(0, None, Some(relationType), simplify = true)) + "</li>")
           printWriter.println("<ul>")
 
-          for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-            // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
-            // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
-            if (isAllowedToExport(entityInGrp, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                  levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
-              val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.HTML_EXPORT_TYPE)
-              // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-              printHtmlListItemWithLink(printWriter, relationType.getName + ": ", relatedGroupsEntitysFileNamePrefix + ".html", entityInGrp.getName,
-                                        Some("(" + getNumSubEntries(entityInGrp) + ")"))
+          // this 'if' check is duplicate with the call just below to isAllowedToExport, but can quickly save the time looping through them all,
+          // checking entities, if there's no need:
+          if (levelsToExportIsInfiniteIn || levelsRemainingToExportIn - 1 > 0) {
+            for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
+              // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
+              // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
+              if (isAllowedToExport(entityInGrp, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                    levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+                val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.HTML_EXPORT_TYPE)
+                // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+                printHtmlListItemWithLink(printWriter,
+                                          if (relationType.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationType.getName + ": ",
+                                          relatedGroupsEntitysFileNamePrefix + ".html",
+                                          entityInGrp.getName,
+                                          Some("(" + getNumSubEntries(entityInGrp) + ")"))
+              }
             }
           }
           printWriter.println("</ul>")
         case _ =>
-          printWriter.println("<li>" + htmlEncode(attribute.getDisplayString(0, None, None)) + "</li>")
+          printWriter.println("<li>" + htmlEncode(attribute.getDisplayString(0, None, None, simplify = true)) + "</li>")
       }
       printWriter.println("</ul>")
       if (copyrightYearAndNameIn.isDefined) {
@@ -621,11 +627,9 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) {
       if (attribute.isInstanceOf[RelationToEntity]) {
         val relation = attribute.asInstanceOf[RelationToEntity]
-        val relationType = new RelationType(db, relation.getAttrTypeId)
         val entity2 = new Entity(db, relation.getRelatedId2)
         if (uriClassIdIn.isEmpty ||entity2.getClassId != uriClassIdIn) {
           // that means it's not a URI but an actual traversable thing to follow when exporting children:
-          val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.HTML_EXPORT_TYPE)
           exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                                                    outputDirectoryIn, exportedEntitiesIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn,
                                                    includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
@@ -679,8 +683,6 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       val allowedToExport: Boolean = isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                                                        levelsToExportIsInfiniteIn, levelsRemainingToExportIn)
       if (allowedToExport) {
-        val entitysFileNamePrefix: String = getExportFileNamePrefix(entityIn, ImportExport.TEXT_EXPORT_TYPE)
-
         // record, so we don't create duplicate files, etc:
         exportedEntitiesIn.add(entityIn.getId)
 
@@ -699,7 +701,6 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
               printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
             }
-            val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.TEXT_EXPORT_TYPE)
             exportToSingleTxtFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                                                           currentIndentationLevelsIn + 1, printWriterIn,
                                                           includeMetadataIn, exportedEntitiesIn, spacesPerIndentLevelIn,
@@ -711,7 +712,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
             if (entityName != grpName) {
               printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
-              printWriterIn.println("(group named: " + grpName + ")")
+              printWriterIn.println("(" + relationType.getName + " group named: " + grpName + ")")
             }
             if (includeMetadataIn) {
               printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
@@ -720,7 +721,6 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               printWriterIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
             }
             for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-              val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.TEXT_EXPORT_TYPE)
               exportToSingleTxtFile(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                                                             currentIndentationLevelsIn + 1, printWriterIn,
                                                             includeMetadataIn, exportedEntitiesIn, spacesPerIndentLevelIn,

@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -38,24 +38,26 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mEntityId:Long, mRelTypeId: Long,
 
   def getGroupId: Long = mGroupId
 
-  def getDisplayString(inLengthLimit: Int, unused: Option[Entity], inAttrType: Option[RelationType]): String = {
-    require(inAttrType != None)
-    require(inAttrType.get.getId == this.getAttrTypeId)
+  def getDisplayString(inLengthLimit: Int, unused: Option[Entity], relTypeIn: Option[RelationType], simplify: Boolean = false): String = {
+    require(relTypeIn.isDefined)
+    require(relTypeIn.get.getId == this.getAttrTypeId)
     val numEntries = mDB.getGroupEntryCount(getGroupId, Some(false))
     val group = new Group(mDB, mGroupId)
-    var result: String = inAttrType.get.getName + " group/" + numEntries + ": "
-    result += Color.blue(group.getName)
+    val rtName = relTypeIn.get.getName
+    var result: String = if (simplify && rtName == PostgreSQLDatabase.theHASrelationTypeName) "" else rtName
+    result = result + " group/" + numEntries + ": "
+    result += (if (simplify) group.getName else Color.blue(group.getName))
     result += ", class: "
     val className =
       if (group.getMixedClassesAllowed)
         "(mixed)"
       else {
         val classNameOption = group.getClassName
-        if (classNameOption == None) "None"
+        if (classNameOption.isEmpty) "None"
         else classNameOption.get
       }
     result += className
-    result += "; " + getDatesDescription
+    if (! simplify) result += "; " + getDatesDescription
     if (inLengthLimit != 0) {
       if (result.length > inLengthLimit) {
         result = result.substring(0, inLengthLimit - 3) + "..."
@@ -74,8 +76,8 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mEntityId:Long, mRelTypeId: Long,
   def update(validOnDateIn:Option[Long], observationDateIn:Option[Long]) {
     mDB.updateRelationToGroup(mEntityId, mRelTypeId, mGroupId,
                               //pass validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
-                              if (validOnDateIn == None) getValidOnDate else validOnDateIn,
-                              if (observationDateIn == None) getObservationDate else observationDateIn.get)
+                              if (validOnDateIn.isEmpty) getValidOnDate else validOnDateIn,
+                              if (observationDateIn.isEmpty) getObservationDate else observationDateIn.get)
   }
 
   /** Removes this object from the system. */

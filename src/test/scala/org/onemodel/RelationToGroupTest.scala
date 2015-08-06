@@ -35,7 +35,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     val grpName: String = "somename"
     // arbitrary, in milliseconds:
     val date = 304
-    val relationTypeName: String = "has"
+    val relationTypeName: String = PostgreSQLDatabase.theHASrelationTypeName
     when(mockDB.groupKeyExists(groupId)).thenReturn(true)
     when(mockRelationType.getName).thenReturn(relationTypeName)
     when(mockRelationType.getId).thenReturn(relTypeId)

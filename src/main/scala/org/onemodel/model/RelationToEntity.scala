@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-14 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, and 2013-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -60,8 +60,8 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mRelTypeId: Long, mEntityId1: Lo
    * The 2nd parameter, inRelatedEntity, is not the entity from whose perspective the result will be returned, e.g.,
    * 'x contains y' or 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
    */
-  def getDisplayString(inLengthLimit: Int, inRelatedEntity: Option[Entity], inRT: Option[RelationType]): String = {
-    require(inRelatedEntity != None && inRT != None)
+  def getDisplayString(inLengthLimit: Int, inRelatedEntity: Option[Entity], inRT: Option[RelationType], simplify: Boolean = false): String = {
+    require(inRelatedEntity.isDefined && inRT.isDefined)
     if (inRT.get.getId != this.getAttrTypeId) {
       throw new Exception("inRT parameter should be the same as the relationType on this relation.")
     }
@@ -70,8 +70,13 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mRelTypeId: Long, mEntityId1: Lo
       else if (inRelatedEntity.get.getId == mEntityId1) inRT.get.getNameInReverseDirection
       else throw new Exception("Unrelated parent entity parameter?: '" + inRelatedEntity.get.getId + "', '" + inRelatedEntity.get.getName + "'")
 
-    var result: String = rtName + ": " + Color.blue(inRelatedEntity.get.getName)
-    result += "; " + getDatesDescription
+    var result: String = if (simplify) {
+      if (rtName == PostgreSQLDatabase.theHASrelationTypeName) inRelatedEntity.get.getName
+      else rtName + ": " + inRelatedEntity.get.getName
+    } else {
+      rtName + ": " + Color.blue(inRelatedEntity.get.getName) + "; " + getDatesDescription
+    }
+
     if (inLengthLimit != 0) {
       if (result.length > inLengthLimit) {
         result = result.substring(0, inLengthLimit - 3) + "..."
@@ -92,11 +97,11 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mRelTypeId: Long, mEntityId1: Lo
   }
 
   def update(attrTypeIdIn: Option[Long] = None, validOnDateIn:Option[Long], observationDateIn:Option[Long]) {
-    mDB.updateRelationToEntity(if (attrTypeIdIn == None) getAttrTypeId else attrTypeIdIn.get,
+    mDB.updateRelationToEntity(if (attrTypeIdIn.isEmpty) getAttrTypeId else attrTypeIdIn.get,
                                mEntityId1, mEntityId2,
                                //pass validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
-                               if (validOnDateIn == None) getValidOnDate else validOnDateIn,
-                               if (observationDateIn == None) getObservationDate else observationDateIn.get)
+                               if (validOnDateIn.isEmpty) getValidOnDate else validOnDateIn,
+                               if (observationDateIn.isEmpty) getObservationDate else observationDateIn.get)
   }
 
   /** Removes this object from the system. */

@@ -440,7 +440,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         controller.mPrefs.putLong("first_display_entity", entityIn.getId)
         entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }
-      else if (answer == 8 && answer <= choices.size && !entityIn.isInstanceOf[RelationType]) {
+      else if (answer == 8 && answer <= choices.length && !entityIn.isInstanceOf[RelationType]) {
         val editedEntity: Option[Entity] = controller.editEntityPublicStatus(entityIn)
         entityMenu(startingAttributeIndexIn, editedEntity.get, relationSourceEntityIn, relationIn, containingGroupIn)
       }
