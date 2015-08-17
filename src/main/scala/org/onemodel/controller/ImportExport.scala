@@ -7,15 +7,15 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel
+package org.onemodel.controller
 
 import java.io._
 import java.nio.file.{Files, Path}
 import java.util
 
-import org.onemodel.controller.{Controller, EntityMenu, QuickGroupMenu}
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model._
+import org.onemodel.{OmException, TextUI}
 
 import scala.annotation.tailrec
 import scala.collection.mutable

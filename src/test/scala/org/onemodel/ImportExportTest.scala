@@ -12,7 +12,7 @@ package org.onemodel
 import java.io.File
 import java.nio.file.{Files, Path}
 
-import org.onemodel.controller.Controller
+import org.onemodel.controller.{ImportExport, Controller}
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model.Entity
 import org.scalatest.mock.MockitoSugar
