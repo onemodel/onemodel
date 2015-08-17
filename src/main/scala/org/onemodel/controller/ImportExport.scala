@@ -438,12 +438,11 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           val exportedEntities = new mutable.TreeSet[Long]()
 
           val prefix: String = getExportFileNamePrefix(entity, exportTypeIn)
-          val outputDirectory:Path = createOutputDir(prefix)
           if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-            val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, Some(outputDirectory))
+            val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, None)
             try {
               exportToSingleTxtFile(entity, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntities,
-                                    spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
+                                    spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData)
               // flush before we report 'done' to the user:
               outputWriter.close()
               ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
@@ -457,7 +456,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               }
             }
           } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-            // see note about this usage, in method importUriContent.
+            val outputDirectory:Path = createOutputDir(prefix)
+            // see note about this usage, in method importUriContent:
             val uriClassId: Option[Long] = db.findFIRSTClassIdByName("URI", caseSensitive = true)
 
             exportHtml(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntities, mutable.TreeSet[Long](), uriClassId,
@@ -668,8 +668,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   def exportToSingleTxtFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int, 
                             printWriterIn: PrintWriter,
                             includeMetadataIn: Boolean, exportedEntitiesIn: mutable.TreeSet[Long], spacesPerIndentLevelIn: Int,
-                            includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
-                            copyrightYearAndNameIn: Option[String]) {
+                            includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean]) {
     // useful while debugging:
     //out.flush()
 
@@ -704,7 +703,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             exportToSingleTxtFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                                                           currentIndentationLevelsIn + 1, printWriterIn,
                                                           includeMetadataIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                                includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                                                includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
           case relation: RelationToGroup =>
             val relationType = new RelationType(db, relation.getAttrTypeId)
             val group = new Group(db, relation.getGroupId)
@@ -724,7 +723,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               exportToSingleTxtFile(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                                                             currentIndentationLevelsIn + 1, printWriterIn,
                                                             includeMetadataIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                                  includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                                                  includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
             }
           case _ =>
             printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
@@ -816,7 +815,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE ) {
         Files.createFile(new File(exportDirectory.get.toFile, prefix + extension).toPath).toFile
       } else if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-        Files.createTempFile(exportDirectory.get, prefix, extension).toFile
+        Files.createTempFile(prefix, extension).toFile
       }
       else throw new OmException("unexpected exportTypeIn: " + exportTypeIn)
 

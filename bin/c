@@ -36,7 +36,7 @@ if [[ "$DO_EXTRA_BUILD" == "true" ]]; then
   if which mvn-script-start; then 
     . mvn-script-start  # local convenience: if present could e.g. "set +e"
   fi
-  CMD="mvn clean package -DskipTests=true"
+  CMD="nice mvn clean package -DskipTests=true"
   if which mvn-script-finish; then 
     $CMD
     # see above cmt; for ex: "RESULT=$?; set -e; if [[ $RESULT -ne 0 ]]; then beep; echo $RESULT; exit $RESULT; fi":
@@ -69,10 +69,10 @@ if [[ "$RUN_TESTS" == "true" ]]; then
     . mvn-script-start  # see cmt at earlier use
   fi
   if which mvn-script-finish; then 
-    mvn package
+    nice mvn package
     . mvn-script-finish  # see cmt at earlier use
   else
-    mvn package
+    nice mvn package
   fi
 fi
 

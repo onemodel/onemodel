@@ -9,8 +9,8 @@
 */
 package org.onemodel
 
-import java.io.File
-import java.nio.file.{Files, Path}
+import java.io.{PrintWriter, File}
+import java.nio.file.{StandardCopyOption, CopyOption, Files, Path}
 
 import org.onemodel.controller.{ImportExport, Controller}
 import org.onemodel.database.PostgreSQLDatabase
@@ -61,7 +61,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 
-  private def tryImporting(filename: String) {
+  private def tryImporting(filename: String): File = {
     val stream = this.getClass.getClassLoader.getResourceAsStream(filename)
     val reader: java.io.Reader = new java.io.InputStreamReader(stream)
     // manual testing alternative to the above 2 lines, such as for use w/ interactive scala (REPL):
@@ -71,13 +71,18 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
     mImportExport.doTheImport(reader, "name", 0L, mEntity, creatingNewStartingGroupFromTheFilenameIn = false, addingToExistingGroup = false,
                               putEntriesAtEnd = true, mixedClassesAllowedDefaultIn = true, testing = true, makeThemPublicIn = Some(false))
+
+    // write it out for later comparison:
+    val stream2 = this.getClass.getClassLoader.getResourceAsStream(filename)
+    val tmpCopy: Path = Files.createTempFile(null, null)
+    Files.copy(stream2, tmpCopy, StandardCopyOption.REPLACE_EXISTING)
+    tmpCopy.toFile
   }
 
-  def tryExporting(ids: Option[List[Long]]): (String, Array[String]) = {
+  def tryExportingHtml(ids: Option[List[Long]]): (String, Array[String]) = {
     assert(ids.get.nonEmpty)
     val entityId: Long = ids.get.head
     val startingEntity: Entity = new Entity(mDB, entityId)
-
     val exportedEntities = new mutable.TreeSet[Long]()
     val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
     val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
@@ -94,10 +99,31 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     (firstNewFileContents, newFiles)
   }
 
-  "testImportBasic" should "work without throwing an Exception" in {
-    val name = "testImportBasic"
-    System.out.println("starting " + name)
-    tryImporting("testImportFile1.txt")
+
+  def tryExportingTxt(ids: Option[List[Long]]): (String, File) = {
+    assert(ids.get.nonEmpty)
+    val entityId: Long = ids.get.head
+    val startingEntity: Entity = new Entity(mDB, entityId)
+    val exportedEntities = new mutable.TreeSet[Long]()
+    val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.TEXT_EXPORT_TYPE)
+    val (outputFile: File, outputWriter: PrintWriter) = mImportExport.createOutputFile(prefix, ImportExport.TEXT_EXPORT_TYPE, None)
+    mImportExport.exportToSingleTxtFile(startingEntity, levelsToExportIsInfiniteIn = true, 0, 0, outputWriter, includeMetadataIn = false, exportedEntities, 2,
+                                        Some(true), Some(true), Some(true))
+    assert(outputFile.exists)
+    outputWriter.close()
+    val firstNewFileContents: String = new Predef.String(Files.readAllBytes(outputFile.toPath))
+    (firstNewFileContents, outputFile)
+  }
+
+  "testImportAndExportOfSimpleTxt" should "work" in {
+    val importFile: File = tryImporting("testImportFile0.txt")
+    val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer")
+
+    val (fileContents: String, outputFile: File) = tryExportingTxt(ids)
+
+    assert(fileContents.contains("vsgeer"), "unexpected file contents:  " + fileContents)
+    assert(fileContents.contains("record/report/review"), "unexpected file contents:  " + fileContents)
+    assert(outputFile.length == importFile.length)
   }
 
   "testImportBadTaFormat1" should "demonstrate throwing an exception" in {
@@ -138,11 +164,9 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   }
 
   "testExportHtml" should "work" in {
-    System.out.println("starting testExportHtml")
-
     tryImporting("testImportFile4.txt")
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer4")
-    val (firstNewFileContents: String, newFiles: Array[String]) = tryExporting(ids)
+    val (firstNewFileContents: String, newFiles: Array[String]) = tryExportingHtml(ids)
 
     assert(firstNewFileContents.contains("<a href=\"e-"), "unexpected file contents:  " + firstNewFileContents)
     assert(firstNewFileContents.contains(".html\">purpose</a> (0)"), "unexpected file contents:  " + firstNewFileContents)
@@ -153,11 +177,9 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   }
 
   "testImportAndExportOfUri" should "work" in {
-    System.out.println("starting testImportAndExportOfUri")
-
     tryImporting("testImportFile5.txt")
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("import-file-5")
-    val firstNewFileContents: String = tryExporting(ids)._1
+    val firstNewFileContents: String = tryExportingHtml(ids)._1
     assert(firstNewFileContents.contains("<a href=\"http://www.onemodel.org/downloads/testfile.txt\">test file download</a>"), "unexpected file contents:  " + firstNewFileContents)
   }
 
