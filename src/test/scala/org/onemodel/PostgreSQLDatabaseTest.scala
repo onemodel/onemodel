@@ -9,6 +9,7 @@
 */
 package org.onemodel
 
+import org.onemodel.controller.{Controller, ImportExport}
 import org.scalatest.{Status, FlatSpec}
 import org.scalatest.mock.MockitoSugar
 import java.io.File
@@ -1199,6 +1200,28 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     createTestFileAttributeAndOneEntity(new Entity(mDB, entityId), "desc", 2, verifyIn = false)
     assert(mDB.getEntitiesOnlyCount() == c2)
 
+  }
+
+  "getJournal" should "show activity during a date range" in {
+    val startDataSetupTime = System.currentTimeMillis()
+    val entityId: Long = mDB.createEntity("test object")
+    val entity: Entity = new Entity(mDB, entityId)
+    // (next line should be fixed: see cmt at similar usage in ImportExportTest.scala:)
+    val importExport = new ImportExport(null, mDB, new Controller(null))
+    val importFile: File = importExport.tryImporting_FOR_TESTS("testImportFile0.txt", entity)
+    val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db")
+    val (fileContents: String, outputFile: File) = importExport.tryExportingTxt_FOR_TESTS(ids, mDB)
+    // (next 3 lines are redundant w/ a similar test in ImportExportTest, but are here to make sure the data
+    // is as expected before proceeding with the actual purpose of this test:)
+    assert(fileContents.contains("vsgeer"), "unexpected file contents:  " + fileContents)
+    assert(fileContents.contains("record/report/review"), "unexpected file contents:  " + fileContents)
+    assert(outputFile.length == importFile.length)
+
+    mDB.archiveEntity(entityId)
+    val endDataSetupTime = System.currentTimeMillis()
+
+    val results: Array[(Long, String, Long)] = mDB.findJournalEntries(startDataSetupTime, endDataSetupTime)
+    assert(results.length > 0)
   }
 
 }

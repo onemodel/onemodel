@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2015 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala, and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
@@ -830,7 +830,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     *
     * Idea: re attrTypeIn parm, enum/improvement: see comment re inAttrType at beginning of chooseOrCreateObject.
     */
-  @tailrec final def findExistingObject(startingDisplayRowIndexIn: Long = 0, attrTypeIn: String,
+  @tailrec final def findExistingObjectByName(startingDisplayRowIndexIn: Long = 0, attrTypeIn: String,
                                                   idToOmitIn: Option[Long] = None, nameRegexIn: String): Option[IdWrapper] = {
     val leadingText = List[String]("SEARCH RESULTS: " + pickFromListPrompt)
     val choices: Array[String] = Array(listNextItemsPrompt)
@@ -847,7 +847,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     if (objectsToDisplay.size == 0) {
       ui.displayText("End of list, or none found; starting over from the beginning...")
       if (startingDisplayRowIndexIn == 0) None
-      else findExistingObject(0, attrTypeIn, idToOmitIn, nameRegexIn)
+      else findExistingObjectByName(0, attrTypeIn, idToOmitIn, nameRegexIn)
     } else {
       val objectNames: Array[String] = objectsToDisplay.toArray.map {
                                                                       case entity: Entity =>
@@ -866,7 +866,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (answer == 1 && answer <= choices.length) {
           // (For reason behind " && answer <= choices.size", see comment where it is used in entityMenu.)
           val nextStartingIndex: Long = startingDisplayRowIndexIn + objectsToDisplay.size
-          findExistingObject(nextStartingIndex, attrTypeIn, idToOmitIn, nameRegexIn)
+          findExistingObjectByName(nextStartingIndex, attrTypeIn, idToOmitIn, nameRegexIn)
         } else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
           // those in the condition on the previous line are 1-based, not 0-based.
           val index = answer - choices.length - 1
@@ -884,7 +884,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               case _ =>
                 throw new OmException("??")
             }
-            findExistingObject(startingDisplayRowIndexIn, attrTypeIn, idToOmitIn, nameRegexIn)
+            findExistingObjectByName(startingDisplayRowIndexIn, attrTypeIn, idToOmitIn, nameRegexIn)
           } else {
             // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
             attrTypeIn match {
@@ -900,7 +900,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         }
         else {
           ui.displayText("unknown response")
-          findExistingObject(startingDisplayRowIndexIn, attrTypeIn, idToOmitIn, nameRegexIn)
+          findExistingObjectByName(startingDisplayRowIndexIn, attrTypeIn, idToOmitIn, nameRegexIn)
         }
       }
     }
@@ -935,11 +935,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
     // attempt to keep these straight even though the size of the list, hence their option #'s on the menu,
     // is conditional:
-    def getChoiceList: (Array[String], Int, Int, Int, Int, Int, Int) = {
+    def getChoiceList: (Array[String], Int, Int, Int, Int, Int, Int, Int) = {
       var keepPreviousSelectionChoiceNum = 1
       var createAttrTypeChoiceNum = 1
       var searchForEntityByNameChoiceNum = 1
       var searchForEntityByIdChoiceNum = 1
+      var showJournalChoiceNum = 1
       var createRelationTypeChoiceNum = 1
       var createClassChoiceNum = 1
       var choiceList = Array(listNextItemsPrompt)
@@ -949,6 +950,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         createAttrTypeChoiceNum += 1
         searchForEntityByNameChoiceNum += 1
         searchForEntityByIdChoiceNum += 1
+        showJournalChoiceNum += 1
         createRelationTypeChoiceNum += 1
         createClassChoiceNum += 1
       }
@@ -960,8 +962,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         searchForEntityByNameChoiceNum += 2
         choiceList = choiceList :+ "Search for existing entity by id..."
         searchForEntityByIdChoiceNum += 3
-        createRelationTypeChoiceNum += 3
-        createClassChoiceNum += 3
+        choiceList = choiceList :+ "Show journal (changed entities) by date range..."
+        showJournalChoiceNum += 4
+        createRelationTypeChoiceNum += 4
+        createClassChoiceNum += 4
       } else if (relationAttrTypeNames.contains(inAttrType)) {
         choiceList = choiceList :+ menuText_CreateRelationType
         createRelationTypeChoiceNum += 1
@@ -971,7 +975,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         createClassChoiceNum += 1
       } else throw new Exception("invalid inAttrType: " + inAttrType)
 
-      (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityByNameChoiceNum, searchForEntityByIdChoiceNum, createRelationTypeChoiceNum, createClassChoiceNum)
+      (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityByNameChoiceNum, searchForEntityByIdChoiceNum, showJournalChoiceNum, createRelationTypeChoiceNum, createClassChoiceNum)
     }
 
     def getLeadTextAndObjectList(choicesIn: Array[String]): (List[String], java.util.ArrayList[_ >: RelationType with EntityClass <: Object], Array[String]) = {
@@ -1049,8 +1053,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       index
     }
 
-    val (choices, keepPreviousSelectionChoice, createAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, createRelationTypeChoice, createClassChoice): (Array[String],
-      Int, Int, Int, Int, Int, Int) = getChoiceList
+    val (choices, keepPreviousSelectionChoice, createAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, createRelationTypeChoice, createClassChoice): (Array[String],
+      Int, Int, Int, Int, Int, Int, Int) = getChoiceList
 
     val (leadingText, objectsToDisplay, names) = getLeadTextAndObjectList(choices)
     val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, names)
@@ -1082,10 +1086,45 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           None
         else {
           // Allow relation to self (eg, picking self as 2nd part of a RelationToEntity), so None in 3nd parm.
-          val e: Option[IdWrapper] = findExistingObject(0, Controller.ENTITY_TYPE, None, ans.get)
+          val e: Option[IdWrapper] = findExistingObjectByName(0, Controller.ENTITY_TYPE, None, ans.get)
           if (e.isEmpty) None
           else Some(new IdWrapper(e.get.getId))
         }
+      }
+      else if (answer == showJournalChoice && answer <= choices.length) {
+        // THIS IS CRUDE RIGHT NOW AND DOESN'T ABSTRACT TEXT SCREEN OUTPUT INTO THE UI CLASS very neatly perhaps, BUT IS HELPFUL ANYWAY:
+        // ideas:
+          // move the lines for this little section, into a separate method, near findExistingObjectByName
+          // do something similar (refactoring findExistingObjectByName?) to show the results in a list, but make clear on *each line* what kind of result it is.
+          // where going to each letter w/ Alt key does the same: goes 2 that entity so one can see its context, etc.
+          // change the "None" returned to be the selected entity, like the little section above does.
+          // could keep this text output as an option?
+        val beginDate: Option[Long] = askForDate_generic(Some("BEGINNING date in the time range: " + genericDatePrompt),
+                                                         blankMeansNowIn = false)
+        if (beginDate.isEmpty) None
+        else {
+          val endDate: Option[Long] = askForDate_generic(Some("ENDING date in the time range: " + genericDatePrompt),
+                                                         blankMeansNowIn = true)
+          if (endDate.isEmpty) None
+          else {
+            var dayCurrentlyShowing: String = ""
+            val results: Array[(Long, String, Long)] = db.findJournalEntries(beginDate.get, endDate.get)
+            for (result <- results) {
+              val date = new java.text.SimpleDateFormat("yyyy-MM-dd").format(result._1)
+              if (dayCurrentlyShowing != date) {
+                ui.out.println("\n\nFor: " + date + "------------------")
+                dayCurrentlyShowing = date
+              }
+              val time: String = new java.text.SimpleDateFormat("HH:mm:ss").format(result._1)
+              ui.out.println(time + " " + result._3 + ": " + result._2)
+            }
+            ui.out.println("\n(For other ~'journal' info, could see also email, code commits, or entries made on a" +
+                               " different day in a 'journal' section of OM, for the day in question.)")
+            ui.displayText("Scroll back to see more info if needed.  Press any key to continue...")
+            None
+          }
+        }
+
       }
       else if (answer == searchForEntityByIdChoice && answer <= choices.length) {
         val ans = ui.askForString(Some(Array(searchPrompt(Controller.ENTITY_TYPE))))
@@ -1210,7 +1249,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
-  /** Returns None if user wants to cancel. */
+  /** Returns None if user wants to cancel.
+    * Idea: consider combining somehow with method askForDate_generic or note here why not, perhaps.
+    */
   def askForDateAttributeValue(inDH: DateAttributeDataHolder, inEditing: Boolean): Option[DateAttributeDataHolder] = {
     val outDH = inDH.asInstanceOf[DateAttributeDataHolder]
     val defaultValue: Option[String] = if (!inEditing) None else Some(Controller.DATEFORMAT.format(new java.util.Date(inDH.date)))
@@ -1347,7 +1388,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (ans.isEmpty) None
         else {
           // Allow relation to self, so None in 2nd parm.
-          val g: Option[IdWrapper] = findExistingObject(0, Controller.GROUP_TYPE, None, ans.get)
+          val g: Option[IdWrapper] = findExistingObjectByName(0, Controller.GROUP_TYPE, None, ans.get)
           if (g.isEmpty) None
           else Some(new IdWrapper(g.get.getId))
         }
@@ -1463,6 +1504,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
     //idea: make this more generic, passing in prompt strings &c, so it's more cleanly useful for DateAttribute instances. Or not: lacks shared code.
     //idea: separate these into 2 methods, 1 for each time (not much common material of significance).
+    // BETTER IDEA: fix the date stuff in the DB first as noted in tasks, so that this part makes more sense (the 0 for all time, etc), and then
+    // when at it, recombine the askForDate_Generic method w/ these or so it's all cleaned up.
     /** Helper method made so it can be recursive, it returns the date (w/ meanings as with displayText below, and as in PostgreSQLDatabase.createTables),
       * and true if the user wants to cancel/get out). */
     @tailrec def askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean): (Option[Long], Boolean) = {
@@ -1749,4 +1792,19 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
+  /** Cloned from askForDate; see its comments in the code.
+    * Idea: consider combining somehow with method askForDateAttributeValue.
+    * @return None if user wants out.
+    */
+  @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, blankMeansNowIn: Boolean = true): Option[Long] = {
+    val leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt))
+    val ans = ui.askForString(Some(leadingText))
+    if (ans.isEmpty) None
+    else {
+      val dateStr = ans.get.trim
+      val (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, blankMeansNowIn)
+      if (retry) askForDate_generic(promptTextIn, blankMeansNowIn)
+      else newDate
+    }
+  }
 }

@@ -161,11 +161,11 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
 
   /** Allows customizing the output stream, for tests.
     */
-  private def println() {
+  def println() {
     out.println()
   }
 
-  private def println(s: String) {
+  def println(s: String) {
     out.println(s)
   }
 

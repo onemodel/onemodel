@@ -1,4 +1,4 @@
-vsgeer
+vsgeer-testing-getJournal-in-db
   purpose
   vision
   strategy

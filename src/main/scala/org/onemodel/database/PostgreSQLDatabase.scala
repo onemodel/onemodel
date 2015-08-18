@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2015 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -1443,6 +1443,24 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                                       checkIfShouldBeAllResults(inLimit), "Long")
       rtgRows
     } else Nil
+  }
+
+  /** Intended to show something like an activity log. Could be used for someone to show their personal journal or for other reporting.
+   */
+  def findJournalEntries(startTimeIn: Long, endTimeIn: Long, inLimitIn: Option[Long] = None): Array[(Long, String, Long)] = {
+    val rows: List[Array[Option[Any]]] = dbQuery("select insertion_date, 'Added: ' || name, id from entity where insertion_date >= " + startTimeIn +
+                                                        " and insertion_date <= " + endTimeIn +
+                                                 " UNION " +
+                                                 "select archived_date, 'Archived: ' || name, id from entity where archived and archived_date >= " + startTimeIn +
+                                                        " and archived_date <= " + endTimeIn +
+                                                 " order by 1 limit " + checkIfShouldBeAllResults(inLimitIn), "Long,String,Long")
+    val results = new Array[(Long, String, Long)](rows.size)
+    var n = 0
+    for (row <- rows) {
+      results(n) = (row(0).get.asInstanceOf[Long], row(1).get.asInstanceOf[String], row(2).get.asInstanceOf[Long])
+      n += 1
+    }
+    results
   }
 
   def getCountOfGroupsContainingEntity(inEntityId: Long): Long = {

@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2014-2015 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -10,7 +10,7 @@
 package org.onemodel.controller
 
 import java.io._
-import java.nio.file.{Files, Path}
+import java.nio.file.{StandardCopyOption, Files, Path}
 import java.util
 
 import org.onemodel.database.PostgreSQLDatabase
@@ -821,6 +821,43 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
 
     val output: PrintWriter = new PrintWriter(new BufferedWriter(new FileWriter(outputFile)))
     (outputFile, output)
+  }
+
+  // these methods are in this class so it can be found by both PostgreSQLDatabaseTest and ImportExportTest (not sure why it couldn't be found
+  // by PostgreSQLDatabaseTest when it was in ImportExportTest).
+  def tryImporting_FOR_TESTS(filenameIn: String, entityIn: Entity): File = {
+    //PROBLEM: these 2 lines make it so it's hard to test in the IDE without first building a .jar since it finds the file in the jar. How fix?
+    val stream = this.getClass.getClassLoader.getResourceAsStream(filenameIn)
+    val reader: java.io.Reader = new java.io.InputStreamReader(stream)
+
+    // manual testing alternative to the above 2 lines, such as for use w/ interactive scala (REPL):
+    //val path = "PUT-Full-path-to-some-text-file-here"
+    //val fileToImport = new File(path)
+    //val reader = new FileReader(fileToImport)
+
+    doTheImport(reader, "name", 0L, entityIn, creatingNewStartingGroupFromTheFilenameIn = false, addingToExistingGroup = false,
+                putEntriesAtEnd = true, mixedClassesAllowedDefaultIn = true, testing = true, makeThemPublicIn = Some(false))
+
+    // write it out for later comparison:
+    val stream2 = this.getClass.getClassLoader.getResourceAsStream(filenameIn)
+    val tmpCopy: Path = Files.createTempFile(null, null)
+    Files.copy(stream2, tmpCopy, StandardCopyOption.REPLACE_EXISTING)
+    tmpCopy.toFile
+  }
+  // (see cmt on tryImporting method)
+  def tryExportingTxt_FOR_TESTS(ids: Option[List[Long]], dbIn: PostgreSQLDatabase): (String, File) = {
+    assert(ids.get.nonEmpty)
+    val entityId: Long = ids.get.head
+    val startingEntity: Entity = new Entity(dbIn, entityId)
+    val exportedEntities = new mutable.TreeSet[Long]()
+    val prefix: String = getExportFileNamePrefix(startingEntity, ImportExport.TEXT_EXPORT_TYPE)
+    val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, ImportExport.TEXT_EXPORT_TYPE, None)
+    exportToSingleTxtFile(startingEntity, levelsToExportIsInfiniteIn = true, 0, 0, outputWriter, includeMetadataIn = false, exportedEntities, 2,
+                                        Some(true), Some(true), Some(true))
+    assert(outputFile.exists)
+    outputWriter.close()
+    val firstNewFileContents: String = new Predef.String(Files.readAllBytes(outputFile.toPath))
+    (firstNewFileContents, outputFile)
   }
 
 }
