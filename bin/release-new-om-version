@@ -1,16 +1,19 @@
-#!/bin/bash -eux
+set -eux
+#was: #!/bin/bash -eux
 
 # Created this because it wasn't working to pass the scm parameters on the command-line as properties, and I preferred that over
 # having scm info in the pom, since the local path will vary by developer.  Unless that takes a relative path...hm.  Improve?
+
+# this does what I want in fewer steps than if using the mvn release plugin.
 
 CHECK_FOR="ERROR"  #|WARNING"
 function maven() {
   # mvn apparently always returns 0 (success) if it was able to execute the goal, without errors 
   # in its effort to execute the goal, but ignores whether the goal itself had errors!  I prefer 
   # it to exit nonzero (indicate failure to calling scripts) if the goal failed, so it's reliably scriptable:
-  LOG=$(mktemp --tmpdir MVN_RUN_XXXXX)
+  LOG=$(mktemp -t MVN_RUN_XXXXXXX)
   #echo "cmd is: mvn $*"
-  mvn $* 2>&1 | tee $LOG
+  nice mvn $* 2>&1 | tee $LOG
   # (don't "fail" only due to the grep line or similar code from calling a scripted mvn cmd that may be doing the same kind
   # of check....)
   if grep -E "$CHECK_FOR" $LOG|grep -v grep|grep -v CHECK_FOR; then
@@ -21,25 +24,45 @@ function maven() {
   #rm $LOG
 }
 
+# could automate this part better, but it's not worth a lot as the release version and next version might not always
+# be programatically predictable (different major.minor.bugfix # changes than the one expected, etc.). At least
+# we can check it and revert conveniently etc:
 echo "OLD VERSION IS..."
 grep version pom.xml|grep SNAPSHOT
 read -a RELEASE_VERSION -p "Enter the release version: "
 maven versions:set -DnewVersion=$RELEASE_VERSION
+cat LICENSE| sed -e "s/${RELEASE_VERSION}-SNAPSHOT/$RELEASE_VERSION/" > LICENSE.new
+mv LICENSE.new LICENSE
+echo
+echo
+echo "VERSION for the *release* NOW SHOWS IN STARTUP AS:"
+head LICENSE |grep "OneModel.*a program to"
+echo "Does the file LICENSE have the *release* version (just the 1 line near the top, grepped just above), correctly?  ^C or edit it manually if not, Enter to continue."; read
 
 # but ignore some warnings on this one for now
 CHECK_FOR="ERROR"
-mvn clean install
-git add pom.xml
+maven clean install
+git add pom.xml LICENSE
 git commit -m "Release version $RELEASE_VERSION"
 
-read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (omitting '-SNAPSHOT'): "
+read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (omitting '-SNAPSHOT'): " 
+NEW_SNAPSHOT_VERSION=${NEW_SNAPSHOT_VERSION}-SNAPSHOT
 CHECK_FOR="ERROR|WARNING"
 maven versions:set -DnewVersion=$NEW_SNAPSHOT_VERSION
 git add pom.xml
+
+cat LICENSE| sed -e "s/$RELEASE_VERSION/$NEW_SNAPSHOT_VERSION/" > LICENSE.new
+mv LICENSE.new LICENSE
+echo
+echo
+echo "VERSION NOW SHOWS IN STARTUP AS:"
+head LICENSE |grep "OneModel.*a program to"
+echo "Does the file LICENSE have the new *snapshot* version (just the 1 line near the top), correctly?  ^C if not, Enter to continue."; read
+git add LICENSE
 git commit -m "Begin new version: $NEW_SNAPSHOT_VERSION"
 
 # but ignore some warnings on this one for now
 CHECK_FOR="ERROR"
-mvn clean
+maven clean
 c
 
