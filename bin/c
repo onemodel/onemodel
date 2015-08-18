@@ -16,13 +16,18 @@ set -eux
 # search pom.xml for 'aspect' for why there are two calls to mvn package here, if aspects changed.
 
 # do the long way if we have aspectj changes:
+if [[ $(uname -a|grep -i openbsd|wc -l) -eq 1 ]]; then
+  STAT_CMD="stat -f %m"
+else  
+  STAT_CMD="stat -c %Y"
+fi
 JAR_DATE=0
 DO_EXTRA_BUILD=false
-if ls target/onemodel-cli-*jar; then
-  JAR_DATE=$(stat  -c "%y" target/onemodel-cli-*jar|xargs -n 1 -I{} date --date={} +%s)
+if ls target/onemodel-*jar; then
+  JAR_DATE=$($STAT_CMD target/onemodel-*jar)
 
   # (idea: should replace this loop w/ just a find cmd?)
-  for ASPECT_FILE_DATE in $(find . -name "*.aj"|xargs -n 1 stat -c "%y"|xargs -I{} date --date={} +%s);  do
+  for ASPECT_FILE_DATE in $(find . -name "*.aj"|xargs -n 1 $STAT_CMD);  do
     if [[ $ASPECT_FILE_DATE -gt $JAR_DATE ]]; then
       # means we need to do the extra work for aspect changes to be picked up:
       DO_EXTRA_BUILD=true
@@ -52,7 +57,7 @@ if [[ $JAR_DATE -ne 0 ]]; then
   echo
   echo
   LATEST_FILE_DATE=0
-  for SECONDS in $(find src|xargs -n 1 stat -c "%y"|xargs -n 1 -I{} date --date={} +%s); do
+  for SECONDS in $(find src|xargs -n 1 $STAT_CMD); do
     if [[ $LATEST_FILE_DATE -lt $SECONDS ]]; then 
       LATEST_FILE_DATE=$SECONDS
     fi
