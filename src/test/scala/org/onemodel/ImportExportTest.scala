@@ -121,10 +121,10 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt")
     assert(ids.get.nonEmpty)
     var foundIt = false
-    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName)._1
+    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
     for (id <- ids.get) {
       // (could have used mDB.getContainingEntities1 here perhaps)
-      if (mDB.relationToEntityKeyExists(relationTypeId.get, mEntity.getId, id)) {
+      if (mDB.relationToEntityKeyExists(relationTypeId, mEntity.getId, id)) {
         foundIt = true
       }
     }

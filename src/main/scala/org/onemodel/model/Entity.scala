@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, and 2010-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, and 2010-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -243,9 +243,8 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
                                        callerManagesTransactionsIn: Boolean = false): (Group, RelationToGroup) = {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName)._1
-    if (relationTypeId == None) throw new OmException("No '" + PostgreSQLDatabase.theHASrelationTypeName + "' relationship type in the system?")
-    val (group, rtg) = addGroupAndRelationToGroup(relationTypeId.get, newGroupNameIn, mixedClassesAllowedIn, None, observationDateIn,
+    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+    val (group, rtg) = addGroupAndRelationToGroup(relationTypeId, newGroupNameIn, mixedClassesAllowedIn, None, observationDateIn,
                                                   callerManagesTransactionsIn)
     (group, rtg)
   }
@@ -267,9 +266,8 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
                                         callerManagesTransactionsIn: Boolean = false): (Entity, RelationToEntity) = {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName)._1
-    if (relationTypeId == None) throw new OmException("No '" + PostgreSQLDatabase.theHASrelationTypeName + "' relationship type in the system?")
-    val (entity, rte) = addEntityAndRelationToEntity(relationTypeId.get, newEntityNameIn, None, observationDateIn, isPublicIn,
+    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+    val (entity, rte) = addEntityAndRelationToEntity(relationTypeId, newEntityNameIn, None, observationDateIn, isPublicIn,
                                                      callerManagesTransactionsIn)
     (entity, rte)
   }

@@ -9,13 +9,13 @@
 */
 package org.onemodel
 
-import org.onemodel.controller.{Controller, ImportExport}
-import org.scalatest.{Status, FlatSpec}
-import org.scalatest.mock.MockitoSugar
 import java.io.File
-import org.onemodel.model._
-import org.scalatest.Args
+
+import org.onemodel.controller.{Controller, ImportExport}
 import org.onemodel.database.PostgreSQLDatabase
+import org.onemodel.model._
+import org.scalatest.mock.MockitoSugar
+import org.scalatest.{Args, FlatSpec, Status}
 
 object PostgreSQLDatabaseTest {
   def tearDownTestDB() {
@@ -965,9 +965,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   "createDefaultData, findEntityOnlyIdsByName, createClassDefiningEntity, and findRelationToGroup_OnEntity" should "have worked right in earlier db setup and" +
                                                                                                                    " now" in {
-    val ids: Option[List[Long]] = mDB.findEntityOnlyIdsByName(PostgreSQLDatabase.systemEntityName)
-    require(ids.get.size == 1)
-    val systemEntityId = ids.get.head
+    val systemEntityId = mDB.getSystemEntityId
     val groupIdOfClassTemplates = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classDefiningEntityGroupName))._2
 
     // (Should be some value, but the activity on the test DB wouldn't have got it to 0 for id's yet,so that one would be invalid. Could use the
@@ -986,6 +984,10 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     }
     assert(found)
 
+    val editorCmd = mDB.getTextEditorCommand
+    val os: String = System.getProperty("os.name")
+    if (os.toLowerCase.contains("win")) assert(editorCmd.contains("notepad"))
+    else assert(editorCmd == "vi")
   }
 
   "isDuplicateEntity" should "work" in {
@@ -1088,9 +1090,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(!mDB.areMixedClassesAllowed(groupId))
 
 
-    val ids: Option[List[Long]] = mDB.findEntityOnlyIdsByName(PostgreSQLDatabase.systemEntityName)
-    require(ids.get.size == 1)
-    val systemEntityId = ids.get.head
+    val systemEntityId = mDB.getSystemEntityId
     // idea: (noted at other use of this method)
     val classGroupId = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classDefiningEntityGroupName))._2
     assert(mDB.areMixedClassesAllowed(classGroupId.get))
@@ -1222,6 +1222,13 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     val results: Array[(Long, String, Long)] = mDB.findJournalEntries(startDataSetupTime, endDataSetupTime)
     assert(results.length > 0)
+  }
+
+  "getTextAttributeByNameForEntity" should "fail when no rows found" in {
+    intercept[OmDatabaseException] {
+                                     val systemEntityId = mDB.getSystemEntityId
+                                     mDB.getTextAttributeByTypeId(systemEntityId, 1L, Some(1))
+                                   }
   }
 
 }

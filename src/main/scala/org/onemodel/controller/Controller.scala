@@ -11,6 +11,7 @@
 package org.onemodel.controller
 
 import java.io._
+import java.nio.file.{Path, Files}
 import java.util
 
 import org.apache.commons.io.FilenameUtils
@@ -503,8 +504,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   final def attributeEditMenu(attributeIn: Attribute): Option[Entity] = {
     val leadingText: Array[String] = Array("Attribute: " + attributeIn.getDisplayString(0, None, None))
     var firstChoices = Array("(stub, to make others consistent)",
-                             "(stub)",
-                             "Edit",
+                             if (attributeIn.isInstanceOf[TextAttribute]) "Edit (as multiline value)" else "(stub)",
+                             "Edit the attribute type, value (single line), and valid/observed dates",
                              "Delete",
                              "Go to entity representing the type: " + new Entity(db, attributeIn.getAttrTypeId).getName)
     if (attributeIn.isInstanceOf[FileAttribute]) {
@@ -514,7 +515,31 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     if (response.isEmpty) None
     else {
       val answer: Int = response.get
-      if (answer == 3) {
+      if (answer == 2 && attributeIn.isInstanceOf[TextAttribute]) {
+        val ta = attributeIn.asInstanceOf[TextAttribute]
+        //idea: allow user to change the edit command setting (ie which editor to use) from here?
+
+        //idea: allow user to prevent this message in future. Could be by using ui.askYesNoQuestion instead, adding to the  prompt "(ask this again?)", with
+        // 'y' as default, and storing the answer in the db.systemEntityName somewhere perhaps.
+        //PUT THIS BACK (& review/test it) after taking the time to read the Process package's classes or something like
+        // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
+//        val command: String = db.getTextEditorCommand
+//        ui.displayText("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for existing " +
+//                       "entities, choose the first one (called " + PostgreSQLDatabase.systemEntityName + "), choose " +
+//                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
+//                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
+//                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
+
+        val path: Path = Files.createTempFile("om-edit-", ".txt")
+        Files.write(path, ta.getText.getBytes)
+        ui.displayText("Until we improve this, you can now go edit the attribute content in this temporary file, & save it:\n" +
+                       path.toFile.getCanonicalPath + "\n...then come back here when ready to import that text.")
+        val newContent: String = new String(Files.readAllBytes(path))
+        ta.update(ta.getAttrTypeId, newContent, ta.getValidOnDate, ta.getObservationDate)
+        path.toFile.delete()
+        //then force a reread from the DB so it shows the right info on the repeated menu:
+        attributeEditMenu(new TextAttribute(db, attributeIn.getId))
+      } else if (answer == 3) {
         attributeIn match {
           case quantityAttribute: QuantityAttribute =>
             def updateQuantityAttribute(dhInOut: QuantityAttributeDataHolder) {
@@ -1241,7 +1266,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def askForTextAttributeText(inDH: TextAttributeDataHolder, inEditing: Boolean): Option[TextAttributeDataHolder] = {
     val outDH = inDH.asInstanceOf[TextAttributeDataHolder]
     val defaultValue: Option[String] = if (inEditing) Some(inDH.text) else None
-    val ans = ui.askForString(Some(Array("Type attribute value, then press Enter; ESC to cancel")), None, defaultValue)
+    val ans = ui.askForString(Some(Array("Type attribute value, then press Enter; ESC to cancel.  (If you need to add or edit multiple lines, just " +
+                                         "put in a single line or letter for now (or leave the multiple lines if already in place), then you can edit " +
+                                         "it afterward to add the full text.  But consider if a 'file' attribute " +
+                                         "or some other way of modeling the info " +
+                                         "would be better at representing what it really *is*.  Legitimate use cases for a text attribute might include a " +
+                                         "quote or a stack trace.)")), None, defaultValue)
     if (ans.isEmpty) None
     else {
       outDH.text = ans.get
@@ -1511,7 +1541,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     @tailrec def askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean): (Option[Long], Boolean) = {
       val leadingText: Array[String] =
         if (dateTypeIn == VALID) {
-          Array("Please enter the date when this was first VALID (true) (like this, w/ at least the year: \"2013-01-31 23:59:59:999 MST\"; zeros are " +
+          Array("\nPlease enter the date when this was first VALID (true) (like this, w/ at least the year: \"2013-01-31 23:59:59:999 MST\"; zeros are " +
                 "allowed in all but the yyyy-mm-dd):  (Or for \"all time\", enter just 0.  Or for unknown/unspecified leave blank.  Or for current date/time " +
                 "enter \"now\".  ESC to exit this.  For dates far in the past you can prefix them with \"BC \" (or \"AD \", but either way omit a space " +
                 "before the year), like BC3400-01-31 23:59:59:999 GMT, entered at least up through the year, up to ~292000000 years AD or BC.  " +
@@ -1533,7 +1563,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // don't mean anything, thus the long values in that range don't mean anything so can be disregarded (is that how it really works in java??), (or if
           // so we could inform users when such a date is present, that it's bogus and to use 1 instead)?
         } else if (dateTypeIn == OBSERVED) {
-          Array("WHEN OBSERVED?: " + genericDatePrompt + " (\"All time\" and \"unknown\" not" + " allowed here.) ")
+          Array("\nWHEN OBSERVED?: " + genericDatePrompt + " (\"All time\" and \"unknown\" not" + " allowed here.) ")
         } else throw new Exception("unexpected type: " + dateTypeIn)
       val ans = ui.askForString(Some(leadingText), None,
                                 inDefaultValue =

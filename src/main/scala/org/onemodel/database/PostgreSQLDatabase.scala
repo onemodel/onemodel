@@ -27,11 +27,17 @@ import scala.annotation.tailrec
 /** Some methods are here on the object, so that PostgreSQLDatabaseTest can call destroyTables on test data.
   */
 object PostgreSQLDatabase {
+  // should these be more consistently upper-case? What is the scala style for constants?
   val dbNamePrefix = "om_"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
+  // so named to make it unlikely to collide by name with anything else:
   val systemEntityName = ".system-use-only"
   val classDefiningEntityGroupName = "class-defining entities"
   val theHASrelationTypeName = "has"
+  val theIsHadByReverseName = "is had by"
+  val EDITOR_INFO_ENTITY_NAME = "editorInfo"
+  val TEXT_EDITOR_INFO_ENTITY_NAME = "textEditorInfo"
+  val TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME = "textEditorCommand"
 
   def destroyTables(inDbNameWithoutPrefix: String, username: String, password: String) {
     Class.forName("org.postgresql.Driver")
@@ -564,19 +570,32 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // public=false, guessing at best value, since the world wants your modeled info, not details about your system internals (which might be...unique & personal
     // somehow)?:
     val systemEntityId = createEntity(PostgreSQLDatabase.systemEntityName, isPublicIn = Some(false))
-    // public=true, since can't think of why not:
-    val existenceEntityId = createEntity("existence", isPublicIn = Some(true))
 
+    val existenceEntityId = createEntity("existence", isPublicIn = Some(false))
     //idea: as probably mentioned elsewhere, this "BI" (and other strings?) should be replaced with a constant somewhere (or enum?)!
-    val relTypeId = createRelationType(PostgreSQLDatabase.theHASrelationTypeName, "is had by", "BI")
+    val hasRelTypeId = createRelationType(PostgreSQLDatabase.theHASrelationTypeName, PostgreSQLDatabase.theIsHadByReverseName, "BI")
+    createRelationToEntity(hasRelTypeId, systemEntityId, existenceEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
 
-    createRelationToEntity(relTypeId, systemEntityId, existenceEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    val editorInfoEntityId = createEntity(PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME, isPublicIn = Some(false))
+    createRelationToEntity(hasRelTypeId, systemEntityId, editorInfoEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    val textEditorInfoEntityId = createEntity(PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME, isPublicIn = Some(false))
+    createRelationToEntity(hasRelTypeId, editorInfoEntityId, textEditorInfoEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    val textEditorCommandAttributeTypeId = createEntity(PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME, isPublicIn = Some(false))
+    createRelationToEntity(hasRelTypeId, textEditorInfoEntityId, textEditorCommandAttributeTypeId, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    val editorCommand: String = {
+      val osName = System.getProperty("os.name").toLowerCase
+      // does this actually work?  Remove this comment when tested on windows.
+      if (osName.contains("win")) "notepad"
+      else "vi"
+    }
+    createTextAttribute(textEditorInfoEntityId, textEditorCommandAttributeTypeId, editorCommand, Some(System.currentTimeMillis()))
+
 
     // the intent of this group is user convenience: the app shouldn't rely on this group to find classDefiningEntities, but use the relevant table.
     // idea: REALLY, this should probably be replaced with a query to the class table: so, when queries as menu options are part of the OM
     // features, put them all there instead.
     // It is set to allowMixedClassesInGroup just because no current known reason not to, will be interesting to see what comes of it.
-    createGroupAndRelationToGroup(systemEntityId, relTypeId, PostgreSQLDatabase.classDefiningEntityGroupName, allowMixedClassesInGroupIn = true,
+    createGroupAndRelationToGroup(systemEntityId, hasRelTypeId, PostgreSQLDatabase.classDefiningEntityGroupName, allowMixedClassesInGroupIn = true,
                                   Some(System.currentTimeMillis()), System.currentTimeMillis(), callerManagesTransactionsIn = false)
 
     // NOTICE: code should not rely on this name, but on data in the tables.
@@ -615,15 +634,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   /** Returns the id of a specific group under the system entity.  This group is the one that contains class-defining entities. */
   def getSystemEntitysClassGroupId: Option[Long] = {
-    val ids: Option[List[Long]] = findEntityOnlyIdsByName(PostgreSQLDatabase.systemEntityName)
-    require(ids.get.size == 1)
-    val systemEntityId = ids.get.head
+    val systemEntityId: Long = getSystemEntityId
 
     // idea: maybe this stuff would be less breakable by the user if we put this kind of info in some system table
     // instead of in this group. (See also method createDefaultData).  Or maybe it doesn't matter, since it's just a user convenience. Hmm.
     val classDefiningGroupId = findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classDefiningEntityGroupName))._2
     if (classDefiningGroupId.isEmpty) {
       // no exception thrown here because really this group is a convenience for the user to see things, not a requirement. Maybe a user message would be best:
+      // Idea:: BAD SMELL! The UI should do all UI communication, no?
       System.err.println("Unable to find, from the entity " + PostgreSQLDatabase.systemEntityName + "(" + systemEntityId + "), " +
                          "any connection to its expected contained group " +
                          PostgreSQLDatabase.classDefiningEntityGroupName + ".  If it was deleted, it could be replaced if you want the convenience of finding" +
@@ -680,17 +698,22 @@ class PostgreSQLDatabase(username: String, var password: String) {
   /** Returns at most 1 id, and a boolean indicating if more were available.  If 0 rows are found, returns (None,false), so this expects the caller
     * to know there is only one or deal with the None.
     */
-  def findRelationType(inTypeName: String): (Option[Long], Boolean) = {
+  def findRelationType(inTypeName: String, expectedRows: Option[Int] = Some(1)): Array[Long] = {
     val name = escapeQuotesEtc(inTypeName)
     val rows = dbQuery("select entity_id from entity e, relationtype rt where e.id=rt.entity_id and name='" + name + "' order by id limit 2", "Long")
-    // there could be none found, or more than one, but
-    if (rows.isEmpty) (None, false)
-    else {
-      val row = rows.head
-      val id: Option[Long] = Some(row(0).get.asInstanceOf[Long])
-      val foundMoreThanOne: Boolean = rows.size > 1
-      (id, foundMoreThanOne)
+    if (expectedRows.isDefined) {
+      val count = rows.size
+      if (count != expectedRows.get) throw new OmDatabaseException("Found " + count + " rows instead of expected " + expectedRows)
     }
+    // there could be none found, or more than one, but
+    val finalResult = new Array[Long](rows.size)
+    var index = 0
+    for (row <- rows) {
+      val id: Option[Long] = Some(row(0).get.asInstanceOf[Long])
+      finalResult(index) = id.get
+      index += 1
+    }
+    finalResult
   }
 
   /** Indicates whether the database setup has been done. */
@@ -1242,6 +1265,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // like *attribute and relation don't have a parent 'attribute' table?  But see comments
     // in createTables where this one is created.
     deleteObjects("Entity", "where id=" + inID)
+  }
+
+  def getSystemEntityId: Long = {
+    val ids: Option[List[Long]] = findEntityOnlyIdsByName(PostgreSQLDatabase.systemEntityName)
+    require(ids.get.size == 1)
+    ids.get.head
   }
 
   def getEntityCount: Long = extractRowCountFromCountQuery("SELECT count(1) from Entity where (not archived)")
@@ -2090,6 +2119,66 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val name: Option[Any] = getClassData(inID)(0)
     if (name.isEmpty) None
     else name.asInstanceOf[Option[String]]
+  }
+
+  def getTextEditorCommand: String = {
+    val systemEntityId = getSystemEntityId
+    val hasRelationTypeId: Long = findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+    val editorInfoSystemEntity: Entity = getEntitiesFromRelationsToEntity(systemEntityId, PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME,
+                                                                          Some(hasRelationTypeId), Some(1))(0)
+    val textEditorInfoSystemEntity: Entity = getEntitiesFromRelationsToEntity(editorInfoSystemEntity.getId,
+                                                                              PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME, Some(hasRelationTypeId),
+                                                                              Some(1))(0)
+    val textEditorCommandNameAttrType: Entity = getEntitiesFromRelationsToEntity(textEditorInfoSystemEntity.getId,
+                                                                         PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME, Some(hasRelationTypeId),
+                                                                         Some(1))(0)
+    val ta: TextAttribute = getTextAttributeByTypeId(textEditorInfoSystemEntity.getId, textEditorCommandNameAttrType.getId, Some(1))(0)
+    ta.getText
+  }
+  
+  def getEntitiesFromRelationsToEntity(parentEntityIdIn: Long, nameIn: String, relTypeIdIn: Option[Long] = None,
+                                     expectedRows: Option[Int] = None): Array[Entity] = {
+    // (not getting all the attributes in this case, and doing another query to the entity table (less efficient), to save programming
+    // time for the case that the entity table changes, we don't have to carefully update all the columns selected here & the mappings.  This is a more
+    // likely change than for the TextAttribute table, below.
+    val queryResults: List[Array[Option[Any]]] = dbQuery("select id from entity where name='" + nameIn + "' and id in " +
+                                                     "(select entity_id_2 from relationToEntity where entity_id_1=" + parentEntityIdIn +
+                                                    (if (relTypeIdIn.isDefined) " and rel_type_id=" + relTypeIdIn.get + " " else "") + ")",
+                                                    "Long")
+    if (expectedRows.isDefined) {
+      val count = queryResults.size
+      if (count != expectedRows.get) throw new OmDatabaseException("Found " + count + " rows instead of expected " + expectedRows.get)
+    }
+    val finalResult = new Array[Entity](queryResults.size)
+    var index = 0
+    for (r <- queryResults) {
+      val id: Long = r(0).get.asInstanceOf[Long]
+      finalResult(index) = new Entity(this, id)
+      index += 1
+    }
+    finalResult
+  }
+
+  def getTextAttributeByTypeId(parentEntityIdIn: Long, typeIdIn: Long, expectedRows: Option[Int] = None): Array[TextAttribute] = {
+    val queryResults: List[Array[Option[Any]]] = dbQuery("select id, textValue, attr_type_id, valid_on_date, observation_date from textattribute where parent_id="
+                                                    + parentEntityIdIn + " and attr_type_id="+typeIdIn,
+                                                    "Long,String,Long,Long,Long")
+    if (expectedRows.isDefined) {
+      val count = queryResults.size
+      if (count != expectedRows.get) throw new OmDatabaseException("Found " + count + " rows instead of expected " + expectedRows.get)
+    }
+    val finalResult = new Array[TextAttribute](queryResults.size)
+    var index = 0
+    for (r <- queryResults) {
+      val textAttributeId: Long = r(0).get.asInstanceOf[Long]
+      val textValue: String = r(1).get.asInstanceOf[String]
+      val attrTypeId: Long = r(2).get.asInstanceOf[Long]
+      val validOnDate: Option[Long] = if (r(3).isEmpty) None else Some(r(3).get.asInstanceOf[Long])
+      val observationDate: Long = r(4).get.asInstanceOf[Long]
+      finalResult(index) = new TextAttribute(this, textAttributeId, parentEntityIdIn, attrTypeId, textValue, validOnDate, observationDate)
+      index += 1
+    }
+    finalResult
   }
 
   /** returns the Attributes, and a Long indicating the total # that could be returned with infinite display space (total existing).
