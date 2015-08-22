@@ -37,7 +37,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     val entityIsAlreadyTheDefault: Boolean = defaultEntity.isDefined && defaultEntity.get == entityIn.getId
     if (! entityIsAlreadyTheDefault) {
       choices = choices :+ ((if (defaultEntity.isEmpty) "****TRY ME---> " else "") +
-                            "Set current entity (" + entityIn.getId + ": " + entityIn.getDisplayString + ") as default (first to come up when launching this program.)")
+                            "Set current entity as default (first to come up when launching this program.)")
     } else choices = choices :+ "(stub)"
     choices = choices :+ "Edit public/nonpublic status"
     (choices, entityIsAlreadyTheDefault)
