@@ -25,16 +25,19 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
   //@tailrec
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
   def quickGroupMenu(startingDisplayRowIndexIn: Long, relationToGroupIn: RelationToGroup, highlightedEntityIn: Option[Entity] = None,
-                     targetForMovesIn: Option[Entity] = None, callingMenusRtgIn: Option[RelationToGroup] = None): Option[Entity] = {
+                     targetForMovesIn: Option[Entity] = None, callingMenusRtgIn: Option[RelationToGroup] = None,
+                     containingEntityIn: Option[Entity] = None): Option[Entity] = {
     val group = new Group(db, relationToGroupIn.getGroupId)
 
     try {
-      quickGroupMenu_doTheWork(group, startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn, callingMenusRtgIn)
+      quickGroupMenu_doTheWork(group, startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn, callingMenusRtgIn,
+                               containingEntityIn)
     } catch {
       case e: Exception =>
         controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
-        if (ans.isDefined && ans.get) quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn, callingMenusRtgIn)
+        if (ans.isDefined && ans.get) quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn, callingMenusRtgIn,
+                                                     containingEntityIn)
         else None
     }
 
@@ -178,7 +181,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
   def moveSelectedEntry(groupIn: Group, startingDisplayRowIndexIn: Long, relationToGroupIn: RelationToGroup, targetForMovesIn: Option[Entity],
                         highlightedIndexInObjListIn: Int, moveTargetIndexInObjList: Option[Int], highlightedEntry: Entity,
                         highlightedObjId: Long, objIds: Array[Long], objectsToDisplay: java.util.ArrayList[Entity],
-                        callingMenusRtgIn: Option[RelationToGroup] = None): Option[Entity] = {
+                        callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity] = None): Option[Entity] = {
     val choices = Array[String](// these are ordered for convenience in doing them w/ the left hand: by frequency of use, and what seems easiest to remember
                                 // for common operations with the 4 fingers sitting on the '1234' keys.  Using LH more in this because my RH gets tired more,
                                 // and it seems like often people have their RH on the mouse.
@@ -195,31 +198,32 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
                                )
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn),
                                secondaryHighlightIndexIn = moveTargetIndexInObjList)
-    if (response.isEmpty) quickGroupMenu(highlightedIndexInObjListIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+    if (response.isEmpty) quickGroupMenu(highlightedIndexInObjListIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn,
+                                         containingEntityIn)
     else {
       val answer = response.get
       if (answer == 1) {
         val displayStartingRowNumber: Long = placeEntryInPosition(groupIn, 5, forwardNotBackIn = false, startingDisplayRowIndexIn, highlightedObjId,
                                                                   highlightedIndexInObjListIn, highlightedObjId, objectsToDisplay.size)
-        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 2) {
         val displayStartingRowNumber: Long = placeEntryInPosition(groupIn, 1, forwardNotBackIn = false, startingDisplayRowIndexIn, highlightedObjId,
                                                                   highlightedIndexInObjListIn, highlightedObjId, objectsToDisplay.size)
-        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 3) {
         val displayStartingRowNumber: Long = placeEntryInPosition(groupIn, 1, forwardNotBackIn = true, startingDisplayRowIndexIn, highlightedObjId,
                                                                   highlightedIndexInObjListIn, highlightedObjId, objectsToDisplay.size)
-        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 4) {
         val displayStartingRowNumber: Long = placeEntryInPosition(groupIn, 5, forwardNotBackIn = true, startingDisplayRowIndexIn, highlightedObjId,
                                                                   highlightedIndexInObjListIn, highlightedObjId, objectsToDisplay.size)
-        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 5 && targetForMovesIn.isDefined) {
         val targetRtgCount: Long = db.getRelationToGroupCountByEntity(Some(targetForMovesIn.get.getId))
         if (moveTargetIndexInObjList.isEmpty || targetRtgCount > 1) {
           // IDEA: could guess & move it in even if >1 subgroup present, by seeing which subgroup has the same class, if only 1 like that? Or if same-named?
           ui.displayText("Target must be selected (shows '+'), and must have exactly one subgroup (a single '>'), or none.")
-          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         } else {
           // if there is 1 (obvious) destination, or no RTG on the selected entity (1 can be created), then move it there
           val (_, targetGroupId) = createNewOrFindOneGroupOnEntity(groupIn, targetRtgCount, targetForMovesIn.get)
@@ -227,7 +231,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
           db.moveEntityToNewGroup(targetGroupId, groupIn.getId, highlightedObjId, db.getSortingIndex(groupIn.getId, highlightedObjId))
           val entityToHighlight: Option[Entity] = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOneIn = true,
                                                                            highlightedIndexInObjListIn, highlightedEntry)
-          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn)
+          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         }
       } else if (answer == 6) {
         // if there is 1 (provided or obvious) destination), then move it there
@@ -250,30 +254,32 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
             }
           }
         }
-        if (targetGroupId.isEmpty) quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+        if (targetGroupId.isEmpty) quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn,
+                                                  containingEntityIn)
         else {
           db.moveEntityToNewGroup(targetGroupId.get, groupIn.getId, highlightedObjId, db.getSortingIndex(groupIn.getId,
                                                                                                            highlightedObjId))
           val entityToHighlight: Option[Entity] = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOneIn = true,
                                                                            highlightedIndexInObjListIn, highlightedEntry)
-          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn)
+          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         }
       } else if (answer == 7) {
         val displayStartingRowNumber: Long = placeEntryInPosition(groupIn, 20, forwardNotBackIn = false, startingDisplayRowIndexIn, highlightedObjId,
                                                                   highlightedIndexInObjListIn, highlightedObjId, objectsToDisplay.size)
-        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 8) {
         val displayStartingRowNumber: Long = placeEntryInPosition(groupIn, 20, forwardNotBackIn = true, startingDisplayRowIndexIn, highlightedObjId,
                                                                   highlightedIndexInObjListIn, highlightedObjId, objectsToDisplay.size)
-        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+        quickGroupMenu(displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else {
-        quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+        quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       }
     }
   }
 
   def quickGroupMenu_doTheWork(groupIn: Group, startingDisplayRowIndexIn: Long, relationToGroupIn: RelationToGroup, highlightedEntityIn: Option[Entity] = None,
-                               targetForMovesIn: Option[Entity] = None, callingMenusRtgIn: Option[RelationToGroup] = None): Option[Entity] = {
+                               targetForMovesIn: Option[Entity] = None, callingMenusRtgIn: Option[RelationToGroup] = None,
+                               containingEntityIn: Option[Entity] = None): Option[Entity] = {
     require(groupIn != null)
     val choices = Array[String]("Create new entry",
                                 "Move selection (*) up/down, in, out...",
@@ -306,9 +312,9 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
         val answer = response.get
         if (answer == 1) {
           controller.addEntityToGroup(groupIn)
-          quickGroupMenu(0, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+          quickGroupMenu(0, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn, containingEntityIn = containingEntityIn)
         } else if (answer == 2 && answer <= choices.length) {
-          new GroupMenu(ui, db, controller).groupMenu(startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+          new GroupMenu(ui, db, controller).groupMenu(startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 0) None
         else {
           // expected to be unreachable based on askWhich behavior (doesn't allow answers beyond the list of choices available), but for the compiler:
@@ -316,8 +322,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
         }
       }
     } else {
-      // Some of this stuff is a kludge:  I'm tired and need to get something usable more than I need elegance now. Idea: improve it,
-      // especially the types used here & in related code.
+      // Idea: improve wherever needed, to remove bad smells, especially the types used here & in related code.
       // Be sure the code is OK even if the highlightedEntityIn isn't really in the list due to caller logic error, etc.
       val (highlightedIndexInObjList: Int, highlightedObjId: Long, highlightedEntry: Entity, moveTargetIndexInObjList: Option[Int],
       targetForMoves: Option[Entity]) = {
@@ -381,16 +386,16 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
             else
               (highlightedEntityIn, startingDisplayRowIndexIn)
           }
-          quickGroupMenu(displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn = callingMenusRtgIn)
+          quickGroupMenu(displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 2) {
           moveSelectedEntry(groupIn, startingDisplayRowIndexIn, relationToGroupIn, targetForMoves, highlightedIndexInObjList, moveTargetIndexInObjList,
                             highlightedEntry, highlightedObjId, objIds, objectsToDisplay)
         } else if (answer == 3) {
           val editedEntity: Option[Entity] = controller.editEntityName(highlightedEntry)
           if (editedEntity.isEmpty)
-            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn)
+            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
           else {
-            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, editedEntity, targetForMoves, callingMenusRtgIn)
+            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, editedEntity, targetForMoves, callingMenusRtgIn, containingEntityIn)
           }
         } else if (answer == 4) {
           //feature idea: askWhich(create it INSIDE or UNDER selected entity "(creating a subgroup on entity if needed)")
@@ -398,7 +403,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
           if (targetRtgCount > 1) {
             // IDEA: (see idea at similar logic above where entry is moved into a targeted group, about guessing which one)
             ui.displayText("For this operation, the selection must have exactly one subgroup (a single '>'), or none.")
-            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn)
+            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
           } else {
             val (relTypeId: Long, targetGroupId: Long) = createNewOrFindOneGroupOnEntity(groupIn, targetRtgCount, highlightedEntry)
             // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
@@ -411,7 +416,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
               val newRtg: RelationToGroup = new RelationToGroup(db, highlightedEntry.getId, relTypeId, targetGroupId)
               quickGroupMenu(0, newRtg, None, None)
             }
-            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn)
+            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
           }
         } else if (answer == 5) {
           new EntityMenu(ui, db, controller).entityMenu(0, highlightedEntry, None, None, Some(groupIn))
@@ -419,7 +424,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
           val deletedOrArchivedOne: Boolean = !db.isEntityInGroup(groupIn.getId, highlightedEntry.getId)
           val entityToHighlightNext: Option[Entity] = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOne, highlightedIndexInObjList,
                                                                                highlightedEntry)
-          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlightNext, targetForMoves, callingMenusRtgIn = callingMenusRtgIn)
+          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlightNext, targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 6) {
           val choices = Array[String]("List next items...", "Search for *existing* entry, to insert after the selected one...")
           val response = ui.askWhich(None, choices, new Array[String](0))
@@ -453,7 +458,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
               }
             }
           }
-          quickGroupMenu(displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn = callingMenusRtgIn)
+          quickGroupMenu(displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 7) {
           val choices = Array[String]("Unselect current move target (if present; not necessary really)")
           // says 'same screenful' because it's easier to assume that the returned index refers to the currently available
@@ -486,7 +491,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
             }
           //  and do same on selected, make sure that's not same as secondary (target): if so fail & don't select  (OR: just pass None so other one is
           // un-selected!)
-          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, selectedTargetEntity, callingMenusRtgIn = callingMenusRtgIn)
+          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, selectedTargetEntity, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 8) {
           // lets user select a new entity or group for further operations like moving, deleting.
           // (we have to have at least one choice or ui.askWhich fails...a require() call there.)
@@ -516,13 +521,13 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
                 }
               }
             }
-          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, selectedTargetEntity, callingMenusRtgIn = callingMenusRtgIn)
+          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, selectedTargetEntity, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 9 && answer <= choices.length) {
-          new GroupMenu(ui, db, controller).groupMenu(startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+          new GroupMenu(ui, db, controller).groupMenu(startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else if (false /*can this be changed so that if they hit Enter it makes it to here ?*/ ) {
           // do something with enter: do a quick text edit & update the dates. Or quickAddEntry ?
           ui.displayText("not yet implemented")
-          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn = callingMenusRtgIn)
+          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 0) None
         else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
           // those in the condition are 1-based, not 0-based.
@@ -531,7 +536,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
           // user typed a letter to select an attribute (now 0-based)
           if (choicesIndex >= objectsToDisplay.size()) {
             ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
-            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn = callingMenusRtgIn)
+            quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
           } else {
             val userSelection: Entity = objectsToDisplay.get(choicesIndex)
 
@@ -547,14 +552,14 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
             }
 
             if (choicesIndex == moveTargetIndexInObjList.getOrElse(None)) {
-              quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(userSelection), None, callingMenusRtgIn = callingMenusRtgIn)
+              quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(userSelection), None, callingMenusRtgIn, containingEntityIn)
             } else {
-              quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(userSelection), targetForMoves, callingMenusRtgIn = callingMenusRtgIn)
+              quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(userSelection), targetForMoves, callingMenusRtgIn, containingEntityIn)
             }
           }
         } else {
           ui.displayText("invalid selection")
-          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn)
+          quickGroupMenu(startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
         }
       }
     }

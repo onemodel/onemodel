@@ -775,14 +775,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val leadingText = Some(Array("Choose a deletion or archiving option:"))
     var choices = Array("Delete this entity",
                         "Archive this entity (remove from visibility but not permanent/total deletion)")
-    val delLinkingRelation_choiceNumber: Int = 3
+    val delEntityLink_choiceNumber: Int = 3
     var delFromContainingGroup_choiceNumber: Int = 3
     if (relationIn.isDefined) {
       // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options,
       // because
       // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
-      choices = choices :+ "Delete the linking relation between the linker: \"" + relationSourceEntityIn.get.getName + "\", " +
-                           "and this Entity: \"" + entityIn.getName + "\""
+      choices = choices :+ "Delete the link between the linking (or containing) entity: \"" + relationSourceEntityIn.get.getName + "\", " +
+                           "and this one: \"" + entityIn.getName + "\""
       delFromContainingGroup_choiceNumber += 1
     }
     if (containingGroupIn.isDefined) {
@@ -790,7 +790,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
 
     val delOrArchiveAnswer: Option[(Int)] = ui.askWhich(leadingText, choices, Array[String]())
-    (delOrArchiveAnswer, delLinkingRelation_choiceNumber, delFromContainingGroup_choiceNumber)
+    (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber)
   }
 
   /** Returns None if user just wants out. */

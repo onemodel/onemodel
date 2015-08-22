@@ -11,8 +11,8 @@
 package org.onemodel.controller
 
 import org.onemodel._
-import org.onemodel.model._
 import org.onemodel.database.PostgreSQLDatabase
+import org.onemodel.model._
 
 class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
 
@@ -23,24 +23,26 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
   //@tailrec
   // idea: There's some better scala idiom for this control logic around recursion and exception handling (& there's similar code in all "*Menu" classes):
   final def groupMenu(displayStartingRowNumberIn: Long, relationToGroupIn: RelationToGroup,
-                      callingMenusRtgIn: Option[RelationToGroup] = None): Option[Entity] = {
+                      callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity] = None): Option[Entity] = {
     try {
-      groupMenu_helper(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn)
+      groupMenu_helper(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     } catch {
       case e: Exception =>
         controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
-        if (ans.isDefined && ans.get) groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn)
+        if (ans.isDefined && ans.get) groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         else None
     }
   }
 
   // put @tailrec back when tail recursion works better on the JVM & don't get that err "...not in tail position" (unless we want to have all the calls
   // preserved, so that each previously seen individual menu is displayed when ESCaping back out of the stack of calls?).
+  // BUT: does it still work when this recursive method calls other methods who then call this method? (I.e., can we avoid 'long method' smell, or does
+  // any code wanting to be inside the tail recursion and make tail recursive calls, have to be directly inside the method?)
   //@tailrec
   //
-  def groupMenu_helper(displayStartingRowNumberIn: Long, relationToGroupIn: RelationToGroup, callingMenusRtgIn: Option[RelationToGroup] = None):
-  Option[Entity] = {
+  def groupMenu_helper(displayStartingRowNumberIn: Long, relationToGroupIn: RelationToGroup, callingMenusRtgIn: Option[RelationToGroup] = None,
+                       containingEntityIn: Option[Entity] = None): Option[Entity] = {
     val group = new Group(db, relationToGroupIn.getGroupId)
     require(relationToGroupIn != null)
 
@@ -75,7 +77,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
       val answer = response.get
       if (answer == 1) {
         controller.addEntityToGroup(group)
-        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 2) {
         val importOrExport = ui.askWhich(None, Array("Import", "Export"), Array[String]())
         if (importOrExport.isDefined) {
@@ -85,24 +87,30 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
             //exportToCollapsibleOutline(entityIn)
           }
         }
-        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 3) {
         val ans = controller.editGroupName(group)
         if (ans.isEmpty) {
-          groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+          groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else {
           // reread the RTG to get the updated info:
-          groupMenu(displayStartingRowNumberIn, new RelationToGroup(db, relationToGroupIn.getParentId, relationToGroupIn.getAttrTypeId,
-                                                                    relationToGroupIn.getGroupId), callingMenusRtgIn = callingMenusRtgIn)
+          groupMenu(displayStartingRowNumberIn,
+                    new RelationToGroup(db, relationToGroupIn.getParentId, relationToGroupIn.getAttrTypeId, relationToGroupIn.getGroupId),
+                    callingMenusRtgIn,
+                    containingEntityIn)
         }
       } else if (answer == 4) {
-        val response = ui.askWhich(None, Array("Delete group definition & remove from all relationships where it is found",
-                                               "Delete group definition & remove from all relationships where it is found, AND delete all entities in it?"),
-                                   Array[String]())
-        if (response.isEmpty) groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+        var choices: Array[String] = Array("Delete group definition & remove from all relationships where it is found",
+                                           "Delete group definition & remove from all relationships where it is found, AND delete all entities in it?")
+        if (containingEntityIn.isDefined) {
+          choices = choices :+ "Delete the link between the containing entity \"" + containingEntityIn.get.getName + "\", and this group?: " +
+                     relationToGroupIn.getDisplayString(0, None, attrType)
+        }
+        val response = ui.askWhich(None, choices, Array[String]())
+        if (response.isEmpty) groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         else {
-          val answer = response.get
-          if (answer == 1) {
+          val ans = response.get
+          if (ans == 1) {
             val ans = ui.askYesNoQuestion("DELETE this group definition AND remove from all entities that link to it (but not entities it contains): **ARE " +
                                           "YOU REALLY SURE?**")
             if (ans.isDefined && ans.get) {
@@ -112,9 +120,9 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
               None
             } else {
               ui.displayText("Did not delete group definition.", waitForKeystroke = false)
-              groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+              groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             }
-          } else if (answer == 2) {
+          } else if (ans == 2) {
             // if calculating the total to be deleted for this prompt or anything else recursive, we have to deal with looping data & not duplicate it in
             // counting.
             // IDEA:  ******ALSO WHEN UPDATING THIS TO BE RECURSIVE, OR CONSIDERING SUCH, CONSIDER ALSO HOW TO ADDRESS ARCHIVED ENTITIES: SUCH AS IF ALL QUERIES
@@ -140,11 +148,16 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
               } else None
             } else {
               ui.displayText("Did not delete group.", waitForKeystroke = false)
-              groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+              groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             }
+          } else if (ans == 3) {
+            if (removingGroupReferenceFromEntity_Menu(relationToGroupIn, containingEntityIn.get))
+              None
+            else
+              groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
           } else {
             ui.displayText("invalid response")
-            groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+            groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
           }
         }
       } else if (answer == 5 && answer <= choices.length) {
@@ -163,8 +176,8 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
         val response = ui.askWhich(None, choices, Array[String]())
         if (response.isEmpty) None
         else {
-          val answer = response.get
-          if (answer == 1) {
+          val ans = response.get
+          if (ans == 1) {
             def updateRelationToGroup(dhInOut: RelationToGroupDataHolder) {
               //idea: does this make sense, to only update the dates when we prompt for everything on initial add? change(or note2later) update everything?
               relationToGroupIn.update(dhInOut.validOnDate, Some(dhInOut.observationDate))
@@ -177,8 +190,8 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                                                     controller.askForRelToGroupInfo, updateRelationToGroup)
             //force a reread from the DB so it shows the right info on the repeated menu:
             groupMenu(displayStartingRowNumberIn, new RelationToGroup(db, relationToGroupDH.entityId, relationToGroupDH.attrTypeId,
-                                                                      relationToGroupDH.groupId), callingMenusRtgIn = callingMenusRtgIn)
-          } else if (answer == 2 && answer <= choices.length) {
+                                                                      relationToGroupDH.groupId), callingMenusRtgIn, containingEntityIn)
+          } else if (ans == 2 && ans <= choices.length) {
             val entity: Option[Entity] =
               if (numContainingEntities == 1) {
                 Some(containingEntities.get(0)._2)
@@ -189,13 +202,13 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
             if (entity.isDefined)
               new EntityMenu(ui, db, controller).entityMenu(0, entity.get)
 
-            groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
-          } else if (answer == 3 && definingEntity.isDefined && answer <= choices.length) {
+            groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+          } else if (ans == 3 && definingEntity.isDefined && ans <= choices.length) {
             new EntityMenu(ui, db, controller).entityMenu(0, definingEntity.get)
-            groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+            groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
           } else {
             ui.displayText("invalid response")
-            groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+            groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
           }
         }
       } else if (answer == 6) {
@@ -206,15 +219,16 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
             0 // start over
           } else currentPosition
         }
-        groupMenu(displayRowsStartingWithCounter, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+        groupMenu(displayRowsStartingWithCounter, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 7) {
         ui.displayText("not yet implemented")
-        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 8) {
         ui.displayText("placeholder: nothing implemented here yet")
-        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 9 && answer <= choices.length) {
-        new QuickGroupMenu(ui,db, controller).quickGroupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+        new QuickGroupMenu(ui,db, controller).quickGroupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn,
+                                                             containingEntityIn = containingEntityIn)
       } else if (answer == 0) None
       else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
         // those in the condition are 1-based, not 0-based.
@@ -223,16 +237,39 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
         // user typed a letter to select an attribute (now 0-based)
         if (choicesIndex >= objectsToDisplay.size()) {
           ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
-          groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+          groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else {
           val entry = objectsToDisplay.get(choicesIndex)
           new EntityMenu(ui, db, controller).entityMenu(0, entry.asInstanceOf[Entity], None, None, Some(group))
-          groupMenu(0, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+          groupMenu(0, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         }
       } else {
         ui.displayText("invalid response")
-        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn)
+        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       }
+    }
+  }
+
+  /**
+   * @return If it was deleted.
+   */
+  def removingGroupReferenceFromEntity_Menu(relationToGroupIn: RelationToGroup, containingEntityIn: Entity): Boolean = {
+    val (nonArchivedCount, archivedCount) = db.getCountOfEntitiesContainingGroup(relationToGroupIn.getGroupId)
+    val ans = ui.askYesNoQuestion("REMOVE this group from being an attribute of the entity \'" + containingEntityIn.getName + "\": ARE YOU SURE? (This isn't " +
+                                  "a deletion. It can still be found by searching, and is still associated directly with " + (nonArchivedCount - 1) + " other" +
+                                  " entity(ies) (and " + archivedCount + " archived entities).")
+    if (ans.isDefined && ans.get) {
+      relationToGroupIn.delete()
+      true
+
+      //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
+      //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn)
+    } else {
+      ui.displayText("Did not remove group from the entity.", waitForKeystroke = false)
+      false
+
+      //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
+      //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
     }
   }
 

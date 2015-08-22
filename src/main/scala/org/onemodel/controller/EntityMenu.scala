@@ -87,7 +87,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
         entityMenu(startingAttributeIndexIn, if (editedEntity.isDefined) editedEntity.get else entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       } else if (answer == 4) {
-        val (delOrArchiveAnswer, delLinkingRelation_choiceNumber, delFromContainingGroup_choiceNumber) =
+        val (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber) =
           controller.askWhetherDeleteOrArchiveEtc(entityIn, relationIn, relationSourceEntityIn, containingGroupIn)
 
         if (delOrArchiveAnswer.isDefined) {
@@ -96,7 +96,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
             val thisEntityWasDeletedOrArchived = controller.deleteOrArchiveEntity(entityIn, answer == 1)
             if (thisEntityWasDeletedOrArchived) None
             else entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-          } else if (answer == delLinkingRelation_choiceNumber && relationIn.isDefined && answer <= choices.length) {
+          } else if (answer == delEntityLink_choiceNumber && relationIn.isDefined && answer <= choices.length) {
             val ans = ui.askYesNoQuestion("DELETE the relation: ARE YOU SURE?")
             if (ans.isDefined && ans.get) {
               relationIn.get.delete()
@@ -106,7 +106,10 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
               entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
             }
           } else if (answer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && answer <= choices.length) {
-            removingEntityReferenceFromGroup_Menu(entityIn, containingGroupIn)
+            if (removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn))
+              None
+            else
+              entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
           } else {
             ui.displayText("invalid response")
             entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
@@ -318,22 +321,24 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     }
   }
 
-  def removingEntityReferenceFromGroup_Menu(entityIn: Entity, containingGroupIn: Option[Group]): None.type = {
+  def removeEntityReferenceFromGroup_Menu(entityIn: Entity, containingGroupIn: Option[Group]): Boolean = {
     val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
+    val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(entityIn.getId)
     val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion. It can still be found by searching, and in " + 
-                                  (groupCount - 1) + " group(s).")
+                                  (groupCount - 1) + " group(s), and associated directly with " +
+                                  entityCountNonArchived + " other entity(ies) (and " + entityCountArchived + " archived entities)..")
     if (ans.isDefined && ans.get) {
       containingGroupIn.get.removeEntity(entityIn.getId)
+      true
 
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
       //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn)
-      None
     } else {
       ui.displayText("Did not remove entity from that group.", waitForKeystroke = false)
+      false
 
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
       //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-      None
     }
   }
 
@@ -430,7 +435,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
                                                                                                         "reason to keep asking for these dates?)",
                                                                                                         controller.askForRelToGroupInfo, addRelationToGroup)
         if (result.isEmpty) entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-        else new GroupMenu(ui, db, controller).groupMenu(0, result.get.asInstanceOf[RelationToGroup])
+        else new GroupMenu(ui, db, controller).groupMenu(0, result.get.asInstanceOf[RelationToGroup], None, Some(entityIn))
       } else if (whichKindAnswer == 7) {
         def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
           Some(entityIn.addFileAttribute(dhIn.attrTypeId, dhIn.description, new java.io.File(dhIn.originalFilePath)))
@@ -476,7 +481,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         case qa: QuantityAttribute => controller.attributeEditMenu(qa)
         case ta: TextAttribute => controller.attributeEditMenu(ta)
         case relToEntity: RelationToEntity => entityMenu(0, new Entity(db, relToEntity.getRelatedId2), Some(entityIn), Some(relToEntity))
-        case relToGroup: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, relToGroup)
+        case relToGroup: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, relToGroup, containingEntityIn = Some(entityIn))
         case da: DateAttribute => controller.attributeEditMenu(da)
         case ba: BooleanAttribute => controller.attributeEditMenu(ba)
         case fa: FileAttribute => controller.attributeEditMenu(fa)

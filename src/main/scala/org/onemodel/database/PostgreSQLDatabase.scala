@@ -1492,9 +1492,36 @@ class PostgreSQLDatabase(username: String, var password: String) {
     results
   }
 
-  def getCountOfGroupsContainingEntity(inEntityId: Long): Long = {
-    extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where e.id=eig.entity_id and not e.archived" +
-                                  " and eig.entity_id=" + inEntityId)
+  def getCountOfGroupsContainingEntity(entityIdIn: Long): Long = {
+    extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where e.id=eig.entity_id" +
+                                  " and eig.entity_id=" + entityIdIn)
+  }
+
+  /**
+   * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this group.
+   */
+  def getCountOfEntitiesContainingGroup(groupIdIn: Long): (Long, Long) = {
+    val nonArchived = extractRowCountFromCountQuery("select count(1) from relationtogroup rtg, entity e where e.id=rtg.entity_id and not e.archived" +
+                                  " and rtg.group_id=" + groupIdIn)
+    val archived = extractRowCountFromCountQuery("select count(1) from relationtogroup rtg, entity e where e.id=rtg.entity_id and e.archived" +
+                                  " and rtg.group_id=" + groupIdIn)
+    (nonArchived, archived)
+  }
+
+  /**
+   * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this entity (IN *EITHER* DIRECTION).
+   */
+  def getCountOfEntitiesContainingEntity(entityIdIn: Long): (Long, Long) = {
+    val nonArchived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_1 and not e.archived" +
+                                  " and e.id=" + entityIdIn)
+    val nonArchived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and not e.archived" +
+                                  " and e.id=" + entityIdIn)
+    val archived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_1 and e.archived" +
+                                  " and e.id=" + entityIdIn)
+    val archived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and e.archived" +
+                                  " and e.id=" + entityIdIn)
+
+    (nonArchived1 + nonArchived2, archived1 + archived2)
   }
 
   def isEntityInGroup(inGroupId: Long, inEntityId: Long): Boolean = {
@@ -1826,7 +1853,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // 2: helpfully returned; & in UI?)
     getContainingEntities_helper(sql)
   }
-
+  
   def getContainingEntities_helper(sqlIn: String): java.util.ArrayList[(Long, Entity)] = {
     val earlyResults = dbQuery(sqlIn, "Long,Long")
     val finalResults = new java.util.ArrayList[(Long, Entity)]
