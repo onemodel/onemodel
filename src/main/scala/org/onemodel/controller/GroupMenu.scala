@@ -109,56 +109,8 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
         val response = ui.askWhich(None, choices, Array[String]())
         if (response.isEmpty) groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         else {
-          val ans = response.get
-          if (ans == 1) {
-            val ans = ui.askYesNoQuestion("DELETE this group definition AND remove from all entities that link to it (but not entities it contains): **ARE " +
-                                          "YOU REALLY SURE?**")
-            if (ans.isDefined && ans.get) {
-              val desc: String = relationToGroupIn.getDisplayString(0, None, attrType)
-              relationToGroupIn.deleteGroupAndRelationsToIt()
-              ui.displayText("Deleted group definition: \"" + desc + "\"" + ".")
-              None
-            } else {
-              ui.displayText("Did not delete group definition.", waitForKeystroke = false)
-              groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
-            }
-          } else if (ans == 2) {
-            // if calculating the total to be deleted for this prompt or anything else recursive, we have to deal with looping data & not duplicate it in
-            // counting.
-            // IDEA:  ******ALSO WHEN UPDATING THIS TO BE RECURSIVE, OR CONSIDERING SUCH, CONSIDER ALSO HOW TO ADDRESS ARCHIVED ENTITIES: SUCH AS IF ALL QUERIES
-            // USED IN THIS WILL ALSO CK FOR ARCHIVED ENTITIES, AND ANYTHING ELSE?  And show the # of archived entities to the user or suggest that they view
-            // those
-            // also be4 deleting everything?
-            val ans = ui.askYesNoQuestion("DELETE this group definition from *all* relationships where it is found, *AND* its entities, " +
-                                          "with *ALL* entities and their \"subgroups\" that they eventually " +
-                                          "refer" +
-                                          " to, recursively (actually, the recursion is not finished and will probably fail if you have nesting): *******ARE " +
-                                          "YOU REALLY SURE?******")
-            if (ans.isDefined && ans.get) {
-              val ans = ui.askYesNoQuestion("Um, this seems unusual; note that this will also delete archived (~invisible) entities with the group!.  " +
-                                           "Really _really_ sure?  " + 
-                                            "I certainly hope you make regular backups of the data AND TEST "  +
-                                            " RESTORES.  (Note: the deletion does(n't yet do) recursion but doesn't yet properly handle groups that " +
-                                            "loop--that eventually contain themselves.)  Proceed to delete it all?:")
-              if (ans.isDefined && ans.get) {
-                val name: String = relationToGroupIn.getDisplayString(0, None, attrType)
-                group.deleteWithEntities()
-                ui.displayText("Deleted relation to group\"" + name + "\", along with the " + numEntitiesInGroup + " entities: " + ".")
-                None
-              } else None
-            } else {
-              ui.displayText("Did not delete group.", waitForKeystroke = false)
-              groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
-            }
-          } else if (ans == 3) {
-            if (removingGroupReferenceFromEntity_Menu(relationToGroupIn, containingEntityIn.get))
-              None
-            else
-              groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
-          } else {
-            ui.displayText("invalid response")
-            groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
-          }
+          confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn, group, attrType,
+                                        numEntitiesInGroup, response)
         }
       } else if (answer == 5 && answer <= choices.length) {
         val containingEntities = db.getEntitiesContainingGroup(relationToGroupIn.getGroupId, 0)
@@ -247,6 +199,61 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
         ui.displayText("invalid response")
         groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       }
+    }
+  }
+
+  def confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn: Long, relationToGroupIn: RelationToGroup, callingMenusRtgIn: Option[RelationToGroup],
+                                    containingEntityIn: Option[Entity], group: Group, attrType: Some[RelationType], numEntitiesInGroup: Long, response:
+                                    Option[Int]): Option[Entity] = {
+    val ans = response.get
+    if (ans == 1) {
+      val ans = ui.askYesNoQuestion("DELETE this group definition AND remove from all entities that link to it (but not entities it contains): **ARE " +
+                                    "YOU REALLY SURE?**")
+      if (ans.isDefined && ans.get) {
+        val desc: String = relationToGroupIn.getDisplayString(0, None, attrType)
+        relationToGroupIn.deleteGroupAndRelationsToIt()
+        ui.displayText("Deleted group definition: \"" + desc + "\"" + ".")
+        None
+      } else {
+        ui.displayText("Did not delete group definition.", waitForKeystroke = false)
+        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+      }
+    } else if (ans == 2) {
+      // if calculating the total to be deleted for this prompt or anything else recursive, we have to deal with looping data & not duplicate it in
+      // counting.
+      // IDEA:  ******ALSO WHEN UPDATING THIS TO BE RECURSIVE, OR CONSIDERING SUCH, CONSIDER ALSO HOW TO ADDRESS ARCHIVED ENTITIES: SUCH AS IF ALL QUERIES
+      // USED IN THIS WILL ALSO CK FOR ARCHIVED ENTITIES, AND ANYTHING ELSE?  And show the # of archived entities to the user or suggest that they view
+      // those
+      // also be4 deleting everything?
+      val ans = ui.askYesNoQuestion("DELETE this group definition from *all* relationships where it is found, *AND* its entities, " +
+                                    "with *ALL* entities and their \"subgroups\" that they eventually " +
+                                    "refer" +
+                                    " to, recursively (actually, the recursion is not finished and will probably fail if you have nesting): *******ARE " +
+                                    "YOU REALLY SURE?******")
+      if (ans.isDefined && ans.get) {
+        val ans = ui.askYesNoQuestion("Um, this seems unusual; note that this will also delete archived (~invisible) entities with the group!.  " +
+                                      "Really _really_ sure?  " +
+                                      "I certainly hope you make regular backups of the data AND TEST " +
+                                      " RESTORES.  (Note: the deletion does(n't yet do) recursion but doesn't yet properly handle groups that " +
+                                      "loop--that eventually contain themselves.)  Proceed to delete it all?:")
+        if (ans.isDefined && ans.get) {
+          val name: String = relationToGroupIn.getDisplayString(0, None, attrType)
+          group.deleteWithEntities()
+          ui.displayText("Deleted relation to group\"" + name + "\", along with the " + numEntitiesInGroup + " entities: " + ".")
+          None
+        } else None
+      } else {
+        ui.displayText("Did not delete group.", waitForKeystroke = false)
+        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+      }
+    } else if (ans == 3) {
+      if (removingGroupReferenceFromEntity_Menu(relationToGroupIn, containingEntityIn.get))
+        None
+      else
+        groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+    } else {
+      ui.displayText("invalid response")
+      groupMenu(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     }
   }
 
