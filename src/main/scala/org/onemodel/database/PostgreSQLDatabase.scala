@@ -1497,33 +1497,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                   " and eig.entity_id=" + entityIdIn)
   }
 
-  /**
-   * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this group.
-   */
-  def getCountOfEntitiesContainingGroup(groupIdIn: Long): (Long, Long) = {
-    val nonArchived = extractRowCountFromCountQuery("select count(1) from relationtogroup rtg, entity e where e.id=rtg.entity_id and not e.archived" +
-                                  " and rtg.group_id=" + groupIdIn)
-    val archived = extractRowCountFromCountQuery("select count(1) from relationtogroup rtg, entity e where e.id=rtg.entity_id and e.archived" +
-                                  " and rtg.group_id=" + groupIdIn)
-    (nonArchived, archived)
-  }
-
-  /**
-   * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this entity (IN *EITHER* DIRECTION).
-   */
-  def getCountOfEntitiesContainingEntity(entityIdIn: Long): (Long, Long) = {
-    val nonArchived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_1 and not e.archived" +
-                                  " and e.id=" + entityIdIn)
-    val nonArchived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and not e.archived" +
-                                  " and e.id=" + entityIdIn)
-    val archived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_1 and e.archived" +
-                                  " and e.id=" + entityIdIn)
-    val archived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and e.archived" +
-                                  " and e.id=" + entityIdIn)
-
-    (nonArchived1 + nonArchived2, archived1 + archived2)
-  }
-
   def isEntityInGroup(inGroupId: Long, inEntityId: Long): Boolean = {
     val num = extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where eig.entity_id=e.id and (not e.archived)" +
                                             " and group_id=" + inGroupId + " and entity_id=" + inEntityId)
@@ -1846,14 +1819,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
     finalResults
   }
 
-  def getContainingEntities1(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
-    val sql: String = "select rel_type_id, entity_id_1 from relationtoentity where entity_id_2=" + entityIn.getId + " order by entity_id_1 limit " +
-                      checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
-    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
-    // 2: helpfully returned; & in UI?)
-    getContainingEntities_helper(sql)
-  }
-  
   def getContainingEntities_helper(sqlIn: String): java.util.ArrayList[(Long, Entity)] = {
     val earlyResults = dbQuery(sqlIn, "Long,Long")
     val finalResults = new java.util.ArrayList[(Long, Entity)]
@@ -1868,6 +1833,52 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
     require(finalResults.size == earlyResults.size)
     finalResults
+  }
+
+  def getContainingEntities1(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
+    val sql: String = "select rel_type_id, entity_id_1 from relationtoentity where entity_id_2=" + entityIn.getId + " order by entity_id_1 limit " +
+                      checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
+    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
+    // 2: helpfully returned; & in UI?)
+    getContainingEntities_helper(sql)
+  }
+
+  // (why does compiler not like both of these to have same name, given the different parameter types?)
+  def getContainingEntities2(relationToGroupIn: RelationToGroup, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
+    val sql: String = "select rel_type_id, entity_id from relationtogroup where entity_id=" + relationToGroupIn.getParentId +
+                      " and group_id=" + relationToGroupIn.getGroupId +
+                      " order by entity_id, rel_type_id limit " +
+                      checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
+    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
+    // 2: helpfully returned; & in UI?)
+    getContainingEntities_helper(sql)
+  }
+
+  /**
+   * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this entity (IN *EITHER* DIRECTION).
+   */
+  def getCountOfEntitiesContainingEntity(entityIdIn: Long): (Long, Long) = {
+    val nonArchived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_1 and not e.archived" +
+                                                     " and e.id=" + entityIdIn)
+    val nonArchived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and not e.archived" +
+                                                     " and e.id=" + entityIdIn)
+    val archived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_1 and e.archived" +
+                                                  " and e.id=" + entityIdIn)
+    val archived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and e.archived" +
+                                                  " and e.id=" + entityIdIn)
+
+    (nonArchived1 + nonArchived2, archived1 + archived2)
+  }
+
+  /**
+   * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this group.
+   */
+  def getCountOfEntitiesContainingGroup(groupIdIn: Long): (Long, Long) = {
+    val nonArchived = extractRowCountFromCountQuery("select count(1) from relationtogroup rtg, entity e where e.id=rtg.entity_id and not e.archived" +
+                                                    " and rtg.group_id=" + groupIdIn)
+    val archived = extractRowCountFromCountQuery("select count(1) from relationtogroup rtg, entity e where e.id=rtg.entity_id and e.archived" +
+                                                 " and rtg.group_id=" + groupIdIn)
+    (nonArchived, archived)
   }
 
   def getContainingRelationToGroups(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup] = {
@@ -1951,17 +1962,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
       for (rtg <- rtgs.toArray) containingRelationToGroups.add(rtg.asInstanceOf[RelationToGroup])
     }
     containingRelationToGroups
-  }
-
-  // (why does compiler not like both of these to have same name, given the different parameter types?)
-  def getContainingEntities2(relationToGroupIn: RelationToGroup, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
-    val sql: String = "select rel_type_id, entity_id from relationtogroup where entity_id=" + relationToGroupIn.getParentId +
-                      " and group_id=" + relationToGroupIn.getGroupId +
-                      " order by entity_id, rel_type_id limit " +
-                      checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
-    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
-    // 2: helpfully returned; & in UI?)
-    getContainingEntities_helper(sql)
   }
 
   //idea: consider: do we want this? if so finish,revu,test:
