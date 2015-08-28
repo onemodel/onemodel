@@ -177,24 +177,26 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, containingRtgDescriptions)
     if (ans.isEmpty) None
     else {
-      val (answer, userChoseAlternate: Boolean) = ans.get
+      val (answer, userPressedAltKey: Boolean) = ans.get
       // those in the condition on the previous line are 1-based, not 0-based.
       val index = answer - choices.length - 1
       if (answer == 1 && answer <= choices.length) {
         // see comment above
         ui.displayText("not yet implemented")
         None
-      } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && !userChoseAlternate) {
+      } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && !userPressedAltKey) {
+        // This displays (or allows to choose) the entity that contains the group, rather than the chosen group itself.  Probably did it that way originally
+        // because I thought it made more sense to show a group in context than by itself.
         val containingRelationToGroup = containingRelationToGroups.get(index)
-        val containingEntities = db.getContainingEntities2(containingRelationToGroup, 0)
+        val containingEntities = db.getEntitiesContainingGroup(containingRelationToGroup.getGroupId, 0)
         val numContainingEntities = containingEntities.size
         if (numContainingEntities == 1) {
-          val containingEntity = containingEntities.get(0)._2
+          val containingEntity: Entity = containingEntities.get(0)._2
           entityMenu(0, containingEntity, None, None, Some(new Group(db, containingRelationToGroup.getGroupId)))
         } else {
           controller.chooseAmongEntities(containingEntities)
         }
-      } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && userChoseAlternate) {
+      } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && userPressedAltKey) {
         // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
         val entityId: Long = containingRelationToGroups.get(index).getParentId
         val groupId: Long = containingRelationToGroups.get(index).getGroupId
@@ -216,7 +218,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     val goToRelation_choiceNumber: Int = 3
     val goToRelationType_choiceNumber: Int = 4
     var goToClassDefiningEntity_choiceNumber: Int = 3
-    val numContainingEntities = db.getContainingEntities1(entityIn, 0).size
+    val numContainingEntities = db.getEntitiesContainingEntity(entityIn, 0).size
     // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
     val numContainingGroups = db.getCountOfGroupsContainingEntity(entityIn.getId)
     var containingGroup: Option[Group] = None
@@ -254,7 +256,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         // can specify dif't values on each call, for the startingIndexIn parm of getRelatingEntities.  I.e., could make it look more like
         // searchForExistingObject or such ? IF needed.  But to be needed means the user is putting the same object related by multiple
         // entities: enough to fill > 1 screen when listed.
-        val containingEntities: util.ArrayList[(Long, Entity)] = db.getContainingEntities1(entityIn, 0, Some(numDisplayableItems))
+        val containingEntities: util.ArrayList[(Long, Entity)] = db.getEntitiesContainingEntity(entityIn, 0, Some(numDisplayableItems))
         val containingEntitiesNames: Array[String] = containingEntities.toArray.map {
                                                                                       case relTypeIdAndEntity: (Long, Entity) =>
                                                                                         val entity: Entity = relTypeIdAndEntity._2

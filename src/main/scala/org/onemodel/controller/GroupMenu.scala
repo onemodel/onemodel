@@ -161,7 +161,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
           }
         }
       } else if (answer == 5 && answer <= choices.length) {
-        val containingEntities = db.getContainingEntities2(relationToGroupIn, 0)
+        val containingEntities = db.getEntitiesContainingGroup(relationToGroupIn.getGroupId, 0)
         val numContainingEntities = containingEntities.size
         // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
         val choices = Array("Go edit the relation to group that led us here :" + relationToGroupIn.getDisplayString(15, None, attrType),

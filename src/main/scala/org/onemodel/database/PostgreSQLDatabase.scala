@@ -1835,22 +1835,25 @@ class PostgreSQLDatabase(username: String, var password: String) {
     finalResults
   }
 
-  def getContainingEntities1(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
+  def getEntitiesContainingEntity(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
     val sql: String = "select rel_type_id, entity_id_1 from relationtoentity where entity_id_2=" + entityIn.getId + " order by entity_id_1 limit " +
                       checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
     //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
     // 2: helpfully returned; & in UI?)
+    //And, perhaps changed to account for whether something is archived.
+    // See getCountOfEntitiesContainingEntity for example.
     getContainingEntities_helper(sql)
   }
 
   // (why does compiler not like both of these to have same name, given the different parameter types?)
-  def getContainingEntities2(relationToGroupIn: RelationToGroup, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
-    val sql: String = "select rel_type_id, entity_id from relationtogroup where entity_id=" + relationToGroupIn.getParentId +
-                      " and group_id=" + relationToGroupIn.getGroupId +
+  def getEntitiesContainingGroup(groupIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
+    val sql: String = "select rel_type_id, entity_id from relationtogroup where group_id=" + groupIdIn +
                       " order by entity_id, rel_type_id limit " +
                       checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
     //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
     // 2: helpfully returned; & in UI?)
+    //And, perhaps changed to account for whether something is archived.
+    // See getCountOfEntitiesContainingGroup for example.
     getContainingEntities_helper(sql)
   }
 
