@@ -1124,8 +1124,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // where going to each letter w/ Alt key does the same: goes 2 that entity so one can see its context, etc.
           // change the "None" returned to be the selected entity, like the little section above does.
           // could keep this text output as an option?
-        val beginDate: Option[Long] = askForDate_generic(Some("BEGINNING date in the time range: " + genericDatePrompt),
-                                                         blankMeansNowIn = false)
+        val beginDate: Option[Long] = askForDate_generic(Some("BEGINNING date in the time range (here, blank means \"starting today\"): " + genericDatePrompt),
+                                                         blankMeansNowIn = false, blankMeansTodayIn = true)
         if (beginDate.isEmpty) None
         else {
           val endDate: Option[Long] = askForDate_generic(Some("ENDING date in the time range: " + genericDatePrompt),
@@ -1826,15 +1826,23 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     * Idea: consider combining somehow with method askForDateAttributeValue.
     * @return None if user wants out.
     */
-  @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, blankMeansNowIn: Boolean = true): Option[Long] = {
+  @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, blankMeansNowIn: Boolean = true,
+                                        blankMeansTodayIn: Boolean = false): Option[Long] = {
+    if (blankMeansNowIn) require(!blankMeansTodayIn)
+    if (blankMeansTodayIn) require(!blankMeansNowIn)
+
     val leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt))
     val ans = ui.askForString(Some(leadingText))
     if (ans.isEmpty) None
     else {
-      val dateStr = ans.get.trim
+      var dateStr = ans.get.trim
+
+      if (blankMeansTodayIn && dateStr.isEmpty) dateStr = new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date(System.currentTimeMillis()))
+
       val (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, blankMeansNowIn)
       if (retry) askForDate_generic(promptTextIn, blankMeansNowIn)
       else newDate
     }
   }
+
 }
