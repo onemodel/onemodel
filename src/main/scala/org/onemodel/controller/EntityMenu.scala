@@ -448,7 +448,9 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         if (result.isDefined) {
           val ans = ui.askYesNoQuestion("Document successfully added. Do you want to DELETE the local copy (at " + result.get.getOriginalFilePath + " ?")
           if (ans.isDefined && ans.get) {
-            new File(result.get.getOriginalFilePath).delete()
+            if (! new File(result.get.getOriginalFilePath).delete()) {
+              ui.displayText("Unable to delete file at that location; reason unknown.  You could check the permissions.")
+            }
           }
         }
       } else {
