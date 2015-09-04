@@ -539,7 +539,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val (groupId2, _) = createAndAddTestRelationToGroup_ToEntity(entityId2, relTypeId, "test-getContainingGroupsIds-group1")
     val group2 = new Group(mDB, groupId2)
 
-    val containingGroups:List[Array[Option[Any]]] = mDB.getContainingGroupsIds(group2.getId)
+    val containingGroups:List[Array[Option[Any]]] = mDB.getGroupsContainingEntitysGroupsIds(group2.getId)
     assert(containingGroups.size == 1)
     assert(containingGroups.head(0).get.asInstanceOf[Long] == groupId1)
 
@@ -548,7 +548,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val group3 = new Group(mDB, groupId3)
     group3.addEntity(entityId2)
 
-    val containingGroups2:List[Array[Option[Any]]] = mDB.getContainingGroupsIds(group2.getId)
+    val containingGroups2:List[Array[Option[Any]]] = mDB.getGroupsContainingEntitysGroupsIds(group2.getId)
     assert(containingGroups2.size == 2)
     assert(containingGroups2.head(0).get.asInstanceOf[Long] == groupId1)
     assert(containingGroups2.tail.head(0).get.asInstanceOf[Long] == groupId3)

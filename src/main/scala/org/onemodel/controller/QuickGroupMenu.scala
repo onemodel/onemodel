@@ -240,7 +240,7 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
             Some(callingMenusRtgIn.get.getGroupId)
           } else {
             // none provided, so see if it's guessable
-            val containingGroups: List[Array[Option[Any]]] = db.getContainingGroupsIds(groupIn.getId)
+            val containingGroups: List[Array[Option[Any]]] = db.getGroupsContainingEntitysGroupsIds(groupIn.getId)
             if (containingGroups.isEmpty) {
               ui.displayText("Unable to find any containing groups, for the group \"" + groupIn.getName + "\" (ie, nowhere \"up\" found, to move it to).")
               None

@@ -1452,8 +1452,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** For a given group, find all the RelationToGroup's that contain entities that contain the provided group id.
+    * What is really the best name for this method (concise but clear on what it does)?
     */
-  def getContainingGroupsIds(groupIdIn: Long, inLimit: Option[Long] = Some(5)): List[Array[Option[Any]]] = {
+  def getGroupsContainingEntitysGroupsIds(groupIdIn: Long, inLimit: Option[Long] = Some(5)): List[Array[Option[Any]]] = {
     //get every entity that contains a rtg that contains this group:
     val containingEntityIdList: List[Array[Option[Any]]] = dbQuery("SELECT entity_id from relationtogroup where group_id=" + groupIdIn +
                                                                    " order by entity_id limit " + checkIfShouldBeAllResults(inLimit), "Long")
@@ -1493,8 +1494,19 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getCountOfGroupsContainingEntity(entityIdIn: Long): Long = {
+    //%%why does this do a join? should next method do a join?
     extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where e.id=eig.entity_id" +
                                   " and eig.entity_id=" + entityIdIn)
+  }
+
+  def getContainingGroupsIds(entityIdIn: Long): List[Long] = {
+    val groupIds: List[Array[Option[Any]]] = dbQuery("select group_id from EntitiesInAGroup where entity_id=" + entityIdIn,
+            "Long")
+    var results: List[Long] = Nil
+    for (row <- groupIds) {
+      results = row(0).get.asInstanceOf[Long] :: results
+    }
+    results
   }
 
   def isEntityInGroup(inGroupId: Long, inEntityId: Long): Boolean = {

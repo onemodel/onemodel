@@ -12,9 +12,10 @@ package org.onemodel.controller
 
 import java.io.File
 import java.util
+
 import org.onemodel._
-import org.onemodel.model._
 import org.onemodel.database.PostgreSQLDatabase
+import org.onemodel.model._
 
 class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
@@ -224,12 +225,22 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     var containingGroup: Option[Group] = None
     var containingRtg: Option[RelationToGroup] = None
     if (numContainingGroups == 1) {
-      containingRtg = Some(db.getContainingRelationToGroups(entityIn, 0, Some(1)).get(0))
-      containingGroup = Some(new Group(db, containingRtg.get.getGroupId))
+      val containingRtgList: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn, 0, Some(1))
+      if (containingRtgList.size < 1) {
+        ui.displayText("There is a group containing the entity (" + entityIn.getName + "), but apparently no entity has a relation to that group (it's an " +
+                       "orphan).   You can probably look at it by adding the group to some entity (searching), and delete if not needed.")
+        val containingGroupsIds: List[Long] = db.getContainingGroupsIds(entityIn.getId)
+        // (Next line is just confirming the consistency of logic that got us here: see 'if' just above.)
+        require(containingGroupsIds.size == 1)
+        containingGroup = Some(new Group(db, containingGroupsIds.head))
+      } else {
+        containingRtg = Some(containingRtgList.get(0))
+        containingGroup = Some(new Group(db, containingRtg.get.getGroupId))
+      }
     }
 
     var choices = Array[String]("See entities that directly relate to this entity ( " + numContainingEntities + ")",
-                                if (numContainingGroups == 1) {
+                                if (numContainingGroups == 1 && containingRtg.isDefined) {
                                   "Go to group containing this entity: " + containingGroup.get.getName
                                 } else {
                                   "See groups containing this entity (" + numContainingGroups + ")"
@@ -282,7 +293,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
           entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
         }
       } else if (goWhereAnswer == seeContainingGroups_choiceNumber && goWhereAnswer <= choices.length) {
-        if (numContainingGroups == 1) {
+        if (numContainingGroups == 1 && containingRtg.isDefined) {
           new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, containingRtg.get)
         } else {
           viewContainingGroups(entityIn)
