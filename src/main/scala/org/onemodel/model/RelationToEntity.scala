@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, and 2013-2015 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -60,7 +60,7 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mRelTypeId: Long, mEntityId1: Lo
    * The 2nd parameter, inRelatedEntity, is not the entity from whose perspective the result will be returned, e.g.,
    * 'x contains y' or 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
    */
-  def getDisplayString(inLengthLimit: Int, inRelatedEntity: Option[Entity], inRT: Option[RelationType], simplify: Boolean = false): String = {
+  def getDisplayString(lengthLimitIn: Int, inRelatedEntity: Option[Entity], inRT: Option[RelationType], simplify: Boolean = false): String = {
     require(inRelatedEntity.isDefined && inRT.isDefined)
     if (inRT.get.getId != this.getAttrTypeId) {
       throw new Exception("inRT parameter should be the same as the relationType on this relation.")
@@ -76,14 +76,7 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mRelTypeId: Long, mEntityId1: Lo
     } else {
       rtName + ": " + Color.blue(inRelatedEntity.get.getName) + "; " + getDatesDescription
     }
-
-    if (inLengthLimit != 0) {
-      if (result.length > inLengthLimit) {
-        result = result.substring(0, inLengthLimit - 3) + "..."
-      }
-    }
-
-    result
+    Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
   protected def readDataFromDB() {

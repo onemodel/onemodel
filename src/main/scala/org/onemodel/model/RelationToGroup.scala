@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2015 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -38,32 +38,13 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mEntityId:Long, mRelTypeId: Long,
 
   def getGroupId: Long = mGroupId
 
-  def getDisplayString(inLengthLimit: Int, unused: Option[Entity], relTypeIn: Option[RelationType], simplify: Boolean = false): String = {
-    require(relTypeIn.isDefined)
-    require(relTypeIn.get.getId == this.getAttrTypeId)
-    val numEntries = mDB.getGroupEntryCount(getGroupId, Some(false))
+  def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, ignoredParameter: Option[RelationType] = None, simplify: Boolean = false): String = {
     val group = new Group(mDB, mGroupId)
-    val rtName = relTypeIn.get.getName
-    var result: String = if (simplify && rtName == PostgreSQLDatabase.theHASrelationTypeName) "" else rtName
-    result = result + " group/" + numEntries + ": "
-    result += (if (simplify) group.getName else Color.blue(group.getName))
-    result += ", class: "
-    val className =
-      if (group.getMixedClassesAllowed)
-        "(mixed)"
-      else {
-        val classNameOption = group.getClassName
-        if (classNameOption.isEmpty) "None"
-        else classNameOption.get
-      }
-    result += className
+    val rtName = new RelationType(mDB, this.getAttrTypeId).getName
+    var result: String = if (simplify && rtName == PostgreSQLDatabase.theHASrelationTypeName) "" else rtName + " "
+    result += group.getDisplayString(0)
     if (! simplify) result += "; " + getDatesDescription
-    if (inLengthLimit != 0) {
-      if (result.length > inLengthLimit) {
-        result = result.substring(0, inLengthLimit - 3) + "..."
-      }
-    }
-    result
+    Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
   protected def readDataFromDB() {

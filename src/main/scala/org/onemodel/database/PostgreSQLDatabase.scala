@@ -1494,9 +1494,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getCountOfGroupsContainingEntity(entityIdIn: Long): Long = {
-    //%%why does this do a join? should next method do a join?
-    extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where e.id=eig.entity_id" +
-                                  " and eig.entity_id=" + entityIdIn)
+    extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup where entity_id=" + entityIdIn)
   }
 
   def getContainingGroupsIds(entityIdIn: Long): List[Long] = {

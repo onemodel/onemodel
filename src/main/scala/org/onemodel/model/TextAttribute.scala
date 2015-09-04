@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2015 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -41,16 +41,11 @@ class TextAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWithVal
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
     */
-  def getDisplayString(inLengthLimit: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
+  def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     val typeName: String = mDB.getEntityName(getAttrTypeId).get
     var result: String = typeName + ": \"" + getText + "\""
     if (! simplify) result += "; " + getDatesDescription
-    if (inLengthLimit != 0) {
-      if (result.length > inLengthLimit) {
-        result = result.substring(0, inLengthLimit - 3) + "..."
-      }
-    }
-    result
+    Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
   def getText: String = {

@@ -1,3 +1,4 @@
+
 /*  This file is part of OneModel, a program to manage knowledge.
     Copyright in each year of 2014-2015 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
@@ -32,7 +33,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
    * 1st parameter must be either an Entity or a RelationToGroup (what is the right way to do that, in the signature?).
    */
   def importCollapsibleOutlineAsGroups(firstContainingEntryIn: AnyRef) {
-    require(firstContainingEntryIn.isInstanceOf[Entity] || firstContainingEntryIn.isInstanceOf[RelationToGroup])
+    require(firstContainingEntryIn.isInstanceOf[Entity] || firstContainingEntryIn.isInstanceOf[Group])
     val ans1: Option[String] = ui.askForString(Some(Array("Enter file path (must exist, be readable, AND a text file with lines spaced in the form of a" +
                                                           " collapsible outline where each level change is marked by 1 tab or 2 spaces; textAttribute content" +
                                                           " can be indicated by surrounding a body of text thus, without quotes: '<ta>text</ta>';" +
@@ -50,7 +51,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                      "file, as entries directly under this entity or group.)")
       if (ans3.isDefined) {
         val creatingNewStartingGroupFromTheFilename: Boolean = ans3.get
-        val addingToExistingGroup: Boolean = firstContainingEntryIn.isInstanceOf[RelationToGroup] && !creatingNewStartingGroupFromTheFilename
+        val addingToExistingGroup: Boolean = firstContainingEntryIn.isInstanceOf[Group] && !creatingNewStartingGroupFromTheFilename
 
         val putEntriesAtEndOption: Option[Boolean] = {
           if (addingToExistingGroup) {
@@ -81,8 +82,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 ui.displayText(msg)
                 firstContainingEntryIn match {
                   case entity: Entity => new EntityMenu(ui, db, controller).entityMenu(0, entity)
-                  case rtg: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, firstContainingEntryIn
-                                                                                             .asInstanceOf[RelationToGroup])
+                  case group: Group => new QuickGroupMenu(ui, db, controller).quickGroupMenu(firstContainingEntryIn.asInstanceOf[Group], 0)
                   case _ => throw new OmException("??")
                 }
                 ui.askYesNoQuestion("Do you want to commit the changes as they were made?")
@@ -377,9 +377,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                                                                  System.currentTimeMillis, callerManagesTransactionsIn = true)._1
             group
           } else containingEntity
-        case containingRtg: RelationToGroup =>
+        case containingGroup: Group =>
           if (creatingNewStartingGroupFromTheFilenameIn) {
-            val containingGroup: Group = new Group(db, containingRtg.getGroupId)
             val name = dataSourceFullPath
             val newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, db.findUnusedSortingIndex(containingGroup.getId), makeThemPublicIn)
             val newGroup: Group = newEntity.createGroupAndAddHASRelationToIt(name, containingGroup.getMixedClassesAllowed, System.currentTimeMillis,
@@ -388,7 +387,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           } else {
             assert(addingToExistingGroup)
             // importing the new entries to an existing group
-            new Group(db, containingRtg.getGroupId)
+            new Group(db, containingGroup.getId)
           }
         case _ => throw new OmException("??")
       }

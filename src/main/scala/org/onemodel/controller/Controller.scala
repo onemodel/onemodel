@@ -11,7 +11,7 @@
 package org.onemodel.controller
 
 import java.io._
-import java.nio.file.{Path, Files}
+import java.nio.file.{Files, Path}
 import java.util
 
 import org.apache.commons.io.FilenameUtils
@@ -44,6 +44,11 @@ object Controller {
   val RELATION_TO_GROUP_TYPE: String = "relation to group"
   val GROUP_TYPE: String = "group"
   val ENTITY_CLASS_TYPE: String = "class"
+
+  val ORPHANED_GROUP_MESSAGE: String = "There is no entity with a containing relation to the group (orphaned).  You might search for it" +
+                                       " (by adding it as an attribute to some entity)," +
+                                       " & see if it should be deleted, kept with an entity, or left out there floating." +
+                                       "  (While this is not an expected usage, it is allowed and does not imply data corruption.)"
 }
 
 /** Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
@@ -904,8 +909,15 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               case Controller.GROUP_TYPE =>
                 // for now, picking the first RTG found for this group, until it's clear which of its RTGs to use.
                 // (see also the other locations w/ similar comment!)
+                // (There is probably no point in showing this GroupMenu with RTG info, since which RTG to use was picked arbitrarily, except if
+                // that added info is a convenience, or if it helps the user clean up orphaned data sometimes.)
                 val someRelationToGroups: java.util.ArrayList[RelationToGroup] = db.getRelationToGroupsByGroup(o.asInstanceOf[Group].getId, 0, Some(1))
-                new GroupMenu(ui, db, this).groupMenu(0, someRelationToGroups.get(0))
+                if (someRelationToGroups.size < 1) {
+                  ui.displayText(Controller.ORPHANED_GROUP_MESSAGE)
+                  new GroupMenu(ui, db, this).groupMenu(o.asInstanceOf[Group], 0, None)
+                } else {
+                  new GroupMenu(ui, db, this).groupMenu(o.asInstanceOf[Group], 0, Some(someRelationToGroups.get(0)))
+                }
               case _ =>
                 throw new OmException("??")
             }
@@ -1152,25 +1164,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
       }
       else if (answer == searchForEntityByIdChoice && answer <= choices.length) {
-        val ans = ui.askForString(Some(Array(searchPrompt(Controller.ENTITY_TYPE))))
-        if (ans.isEmpty)
-          None
-        else {
-          // it's a long:
-          val idString: String = ans.get
-          if (! isNumeric(idString)) {
-            ui.displayText("Invalid ID format.  An entity ID is a numeric value of many digits, between " + db.minIdValue + " and " + db.maxIdValue)
-            None
-          } else {
-            // (BTW, do allow relation to self, e.g., picking self as 2nd part of a RelationToEntity.)
-            if (db.entityKeyExists(idString.toLong)) {
-              Some(new IdWrapper(idString.toLong))
-            } else {
-              ui.displayText("The entity ID " + ans.get + " was not found in the database.")
-              None
-            }
-          }
-        }
+        searchById(Controller.ENTITY_TYPE)
       }
       else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(inAttrType) && answer <= choices.length) {
         val entity: Option[Entity] = askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE)
@@ -1221,6 +1215,30 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         ui.displayText("unknown response")
         chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inAttrType, startingDisplayRowIndexIn, inClassId,
                              limitByClassIn, containingGroupIn, markPreviousSelectionIn)
+      }
+    }
+  }
+
+  def searchById(typeNameIn: String): Option[IdWrapper] = {
+    require(typeNameIn == Controller.ENTITY_TYPE || typeNameIn == Controller.GROUP_TYPE)
+    val ans = ui.askForString(Some(Array("Enter the " + typeNameIn + " ID to search for:")))
+    if (ans.isEmpty)
+      None
+    else {
+      // it's a long:
+      val idString: String = ans.get
+      if (!isNumeric(idString)) {
+        ui.displayText("Invalid ID format.  An ID is a numeric value between " + db.minIdValue + " and " + db.maxIdValue)
+        None
+      } else {
+        // (BTW, do allow relation to self, e.g., picking self as 2nd part of a RelationToEntity.)
+        if ((typeNameIn == Controller.ENTITY_TYPE && db.entityKeyExists(idString.toLong)) ||
+            (typeNameIn == Controller.GROUP_TYPE && db.groupKeyExists(idString.toLong))) {
+          Some(new IdWrapper(idString.toLong))
+        } else {
+          ui.displayText("The " + typeNameIn + " ID " + ans.get + " was not found in the database.")
+          None
+        }
       }
     }
   }
@@ -1364,8 +1382,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     * i.e. omitting them from the list of entities (e.g. to add to the group), that this method returns.
     */
   @tailrec final def chooseOrCreateGroup(inLeadingText: Option[List[String]], startingDisplayRowIndexIn: Long = 0,
-                                                   containingGroupIn: Option[Long] = None /*ie group to omit from pick list*/
-                                                    ): Option[IdWrapper] = {
+                                                   containingGroupIn: Option[Long] = None /*ie group to omit from pick list*/): Option[IdWrapper] = {
     val totalExisting: Long = db.getGroupCount
     def getNextStartingObjectIndex(currentListLength: Long): Long = {
       val x = startingDisplayRowIndexIn + currentListLength
@@ -1377,7 +1394,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     var leadingText = inLeadingText.getOrElse(List[String](pickFromListPrompt))
     val choicesPreAdjustment: Array[String] = Array("List next items",
                                                     "Create new group (aka RelationToGroup)",
-                                                    "Search for existing group...")
+                                                    "Search for existing group by name...",
+                                                    "Search for existing group by id...")
     val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choicesPreAdjustment.length, maxNameLength)
     val objectsToDisplay = db.getGroups(startingDisplayRowIndexIn, Some(numDisplayableItems), containingGroupIn)
     if (objectsToDisplay.size == 0) {
@@ -1422,6 +1440,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           if (g.isEmpty) None
           else Some(new IdWrapper(g.get.getId))
         }
+      } else if (answer == 4 && answer <= choices.length) {
+        searchById(Controller.GROUP_TYPE)
       } else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
         // those in that^ condition are 1-based, not 0-based.
         val index = answer - choices.length - 1
@@ -1430,7 +1450,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // for now, picking the first RTG found for this group, until it's clear which of its RTGs to use.
           // (see also the other locations w/ similar comment!)
           val someRelationToGroups: java.util.ArrayList[RelationToGroup] = db.getRelationToGroupsByGroup(o.asInstanceOf[Group].getId, 0, Some(1))
-          new GroupMenu(ui, db, this).groupMenu(0, someRelationToGroups.get(0))
+          new GroupMenu(ui, db, this).groupMenu(new Group(db, someRelationToGroups.get(0).getGroupId), 0, Some(someRelationToGroups.get(0)))
           chooseOrCreateGroup(inLeadingText, startingDisplayRowIndexIn, containingGroupIn)
         } else {
           // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
@@ -1650,13 +1670,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,
                                               containingGroupIn: Option[Group] = None): (Option[Entity], Option[Long], Boolean) = {
-    val (rtid, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(userSelection.getId)
+    val (rtid: Option[Long], groupId: Option[Long], moreThanOneAvailable: Boolean) = db.findRelationToAndGroup_OnEntity(userSelection.getId)
     val subEntitySelected: Option[Entity] = None
     if (groupId.isDefined && !moreThanOneAvailable && db.getAttrCount(userSelection.getId) == 1) {
       // In quick menu, for efficiency of some work like brainstorming, if it's obvious which subgroup to go to, just go there.
       // We DON'T want @tailrec on this method for this call, so that we can ESC back to the current menu & list! (so what balance/best? Maybe move this
       // to its own method, so it doesn't try to tail optimize it?)  See also the comment with 'tailrec', mentioning why to have it, above.
-      new QuickGroupMenu(ui, db, this).quickGroupMenu(0, new RelationToGroup(db, userSelection.getId, rtid.get, groupId.get), callingMenusRtgIn = relationToGroupIn)
+      new QuickGroupMenu(ui, db, this).quickGroupMenu(new Group(db, groupId.get), 0, Some(new RelationToGroup(db, userSelection.getId, rtid.get, groupId.get)),
+                                                      callingMenusRtgIn = relationToGroupIn)
     } else {
       new EntityMenu(ui, db, this).entityMenu(0, userSelection, None, None, containingGroupIn)
       // deal with entityMenu possibly having deleted the entity:

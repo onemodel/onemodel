@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2015 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
@@ -202,7 +202,8 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         val entityId: Long = containingRelationToGroups.get(index).getParentId
         val groupId: Long = containingRelationToGroups.get(index).getGroupId
         val relTypeId: Long = containingRelationToGroups.get(index).getAttrTypeId
-        new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, new RelationToGroup(db, entityId, relTypeId, groupId), Some(entityIn))
+        new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, groupId), 0, Some(new RelationToGroup(db, entityId, relTypeId, groupId)),
+                                                              Some(entityIn))
       } else {
         ui.displayText("unknown response")
         None
@@ -225,22 +226,21 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     var containingGroup: Option[Group] = None
     var containingRtg: Option[RelationToGroup] = None
     if (numContainingGroups == 1) {
+      val containingGroupsIds: List[Long] = db.getContainingGroupsIds(entityIn.getId)
+      // (Next line is just confirming the consistency of logic that got us here: see 'if' just above.)
+      require(containingGroupsIds.size == 1)
+      containingGroup = Some(new Group(db, containingGroupsIds.head))
+
       val containingRtgList: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn, 0, Some(1))
       if (containingRtgList.size < 1) {
-        ui.displayText("There is a group containing the entity (" + entityIn.getName + "), but apparently no entity has a relation to that group (it's an " +
-                       "orphan).   You can probably look at it by adding the group to some entity (searching), and delete if not needed.")
-        val containingGroupsIds: List[Long] = db.getContainingGroupsIds(entityIn.getId)
-        // (Next line is just confirming the consistency of logic that got us here: see 'if' just above.)
-        require(containingGroupsIds.size == 1)
-        containingGroup = Some(new Group(db, containingGroupsIds.head))
+        ui.displayText("There is a group containing the entity (" + entityIn.getName + "), but:  " + Controller.ORPHANED_GROUP_MESSAGE)
       } else {
         containingRtg = Some(containingRtgList.get(0))
-        containingGroup = Some(new Group(db, containingRtg.get.getGroupId))
       }
     }
 
     var choices = Array[String]("See entities that directly relate to this entity ( " + numContainingEntities + ")",
-                                if (numContainingGroups == 1 && containingRtg.isDefined) {
+                                if (numContainingGroups == 1) {
                                   "Go to group containing this entity: " + containingGroup.get.getName
                                 } else {
                                   "See groups containing this entity (" + numContainingGroups + ")"
@@ -293,8 +293,9 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
           entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
         }
       } else if (goWhereAnswer == seeContainingGroups_choiceNumber && goWhereAnswer <= choices.length) {
-        if (numContainingGroups == 1 && containingRtg.isDefined) {
-          new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, containingRtg.get)
+        if (numContainingGroups == 1) {
+          require(containingGroup.isDefined)
+          new QuickGroupMenu(ui, db, controller).quickGroupMenu(containingGroup.get, 0, containingRtg)
         } else {
           viewContainingGroups(entityIn)
         }
@@ -448,7 +449,10 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
                                                                                                         "reason to keep asking for these dates?)",
                                                                                                         controller.askForRelToGroupInfo, addRelationToGroup)
         if (result.isEmpty) entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-        else new GroupMenu(ui, db, controller).groupMenu(0, result.get.asInstanceOf[RelationToGroup], None, Some(entityIn))
+        else {
+          val newRtg = result.get.asInstanceOf[RelationToGroup]
+          new GroupMenu(ui, db, controller).groupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, Some(entityIn))
+        }
       } else if (whichKindAnswer == 7) {
         def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
           Some(entityIn.addFileAttribute(dhIn.attrTypeId, dhIn.description, new java.io.File(dhIn.originalFilePath)))
@@ -496,7 +500,8 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         case qa: QuantityAttribute => controller.attributeEditMenu(qa)
         case ta: TextAttribute => controller.attributeEditMenu(ta)
         case relToEntity: RelationToEntity => entityMenu(0, new Entity(db, relToEntity.getRelatedId2), Some(entityIn), Some(relToEntity))
-        case relToGroup: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(0, relToGroup, containingEntityIn = Some(entityIn))
+        case relToGroup: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup),
+                                                                                                  containingEntityIn = Some(entityIn))
         case da: DateAttribute => controller.attributeEditMenu(da)
         case ba: BooleanAttribute => controller.attributeEditMenu(ba)
         case fa: FileAttribute => controller.attributeEditMenu(fa)

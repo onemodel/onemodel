@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, and 2013-2015 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -30,6 +30,12 @@ object Attribute {
     //res100: Long = -62130672000000
     if (d > -62130672000000L) DATEFORMAT.format(d)
     else DATEFORMAT_WITH_ERA.format(d)
+  }
+
+  def limitDescriptionLength(input: String, lengthLimitIn: Int): String = {
+    if (lengthLimitIn != 0 && input.length > lengthLimitIn) {
+      input.substring(0, lengthLimitIn - 3) + "..."
+    } else input
   }
 
 }

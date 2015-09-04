@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2014-2015 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -15,7 +15,7 @@
 */
 package org.onemodel.model
 
-import org.onemodel.OmException
+import org.onemodel.{Color, OmException}
 import org.onemodel.database.PostgreSQLDatabase
 
 /** See comments on similar methods in RelationToEntity. */
@@ -44,14 +44,12 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
   def update(attrTypeIdIn: Option[Long] = None, nameIn: Option[String] = None, allowMixedClassesInGroupIn: Option[Boolean] = None,
              validOnDateInIGNORED4NOW: Option[Long], observationDateInIGNORED4NOW: Option[Long]) {
     mDB.updateGroup(mId,
-                    if (nameIn == None)
-                      getName
-                    else
-                      nameIn.get,
-                    if (allowMixedClassesInGroupIn == None)
-                      getMixedClassesAllowed
-                    else
-                      allowMixedClassesInGroupIn.get)
+
+                    if (nameIn.isEmpty) getName
+                    else nameIn.get,
+
+                    if (allowMixedClassesInGroupIn.isEmpty) getMixedClassesAllowed
+                    else allowMixedClassesInGroupIn.get)
   }
 
   /** Removes this object from the system. */
@@ -64,6 +62,23 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
 
   // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability, or vals not vars)?
   def groupSize: Long = mDB.getGroupEntryCount(mId)
+
+  def getDisplayString(lengthLimitIn: Int, simplifyIn: Boolean = false): String = {
+    val numEntries = mDB.getGroupEntryCount(getId, Some(false))
+    var result: String =  "group " + mId + " of " + numEntries + ": "
+    result += (if (simplifyIn) getName else Color.blue(getName))
+    result += ", class: "
+    val className =
+      if (getMixedClassesAllowed)
+        "(mixed)"
+      else {
+        val classNameOption = getClassName
+        if (classNameOption.isEmpty) "None"
+        else classNameOption.get
+      }
+    result += className
+    Attribute.limitDescriptionLength(result, lengthLimitIn)
+  }
 
   def getGroupEntries(startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[Entity] = {
     mDB.getGroupEntryObjects(mId, startingIndexIn, maxValsIn)
@@ -95,12 +110,12 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
       None
     else {
       val classId: Option[Long] = getClassId
-      if (classId == None && groupSize == 0) {
+      if (classId.isEmpty && groupSize == 0) {
         // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
         Some("(unspecified)")
       }
       // means the group requires uniform classes, but the enforced uniform class is None:
-      else if (classId == None)
+      else if (classId.isEmpty)
              Some("(specified as None)")
       else {
         val exampleEntitysClass = new EntityClass(mDB, classId.get)
@@ -134,7 +149,7 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
           }
         }
         val entity: Option[Entity] = findAnEntity(0)
-        if (entity != None)
+        if (entity.isDefined)
           entity.get.getClassId
         else
           None
@@ -144,7 +159,7 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
 
   def getClassDefiningEntity: (Option[Entity]) = {
     val classId: Option[Long] = getClassId
-    if (getMixedClassesAllowed || classId == None)
+    if (getMixedClassesAllowed || classId.isEmpty)
       None
     else {
       val definingEntityId = new EntityClass(mDB, classId.get).getDefiningEntityId
