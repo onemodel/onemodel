@@ -27,10 +27,8 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
   def quickGroupMenu(groupIn: Group, startingDisplayRowIndexIn: Long, relationToGroupIn: Option[RelationToGroup] = None,
                      highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None, callingMenusRtgIn: Option[RelationToGroup] = None,
                      containingEntityIn: Option[Entity] = None): Option[Entity] = {
-    val group = new Group(db, groupIn.getId)
-
     try {
-      quickGroupMenu_doTheWork(group, startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn, callingMenusRtgIn,
+      quickGroupMenu_doTheWork(groupIn, startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn, callingMenusRtgIn,
                                containingEntityIn)
     } catch {
       case e: Exception =>
@@ -548,16 +546,19 @@ class QuickGroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller:
             val deletedOrArchivedOne: Boolean = !db.isEntityInGroup(groupIn.getId, userSelection.getId)
             var entityToHighlightNext: Option[Entity] = Some(userSelection)
             if (groupId.isDefined && !moreThanOneGroupAvailable) {
-              entityToHighlightNext = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOne, highlightedIndexInObjList, highlightedEntry)
               //idea: do something w/ this? Like, if the userSelection was deleted, then use this in its place in parms to qGM just below? or what was it for
               // originally?  Or, del this var around here?
+              entityToHighlightNext = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOne, highlightedIndexInObjList, highlightedEntry)
             }
 
-            if (choicesIndex == moveTargetIndexInObjList.getOrElse(None)) {
-              quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(userSelection), None, callingMenusRtgIn, containingEntityIn)
-            } else {
-              quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(userSelection), targetForMoves, callingMenusRtgIn, containingEntityIn)
-            }
+            //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
+            if (db.groupKeyExists(groupIn.getId)) {
+              if (choicesIndex == moveTargetIndexInObjList.getOrElse(None)) {
+                quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(userSelection), None, callingMenusRtgIn, containingEntityIn)
+              } else {
+                quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(userSelection), targetForMoves, callingMenusRtgIn, containingEntityIn)
+              }
+            } else None
           }
         } else {
           ui.displayText("invalid selection")

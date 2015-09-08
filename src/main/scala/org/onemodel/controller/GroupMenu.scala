@@ -148,10 +148,14 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
             if (entity.isDefined)
               new EntityMenu(ui, db, controller).entityMenu(0, entity.get)
 
-            groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+            //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
+            if (db.groupKeyExists(groupIn.getId)) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+            else None
           } else if (ans == 3 && definingEntity.isDefined && ans <= choices.length) {
             new EntityMenu(ui, db, controller).entityMenu(0, definingEntity.get)
-            groupMenu(groupIn,displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+            //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
+            if (db.groupKeyExists(groupIn.getId)) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+            else None
           } else {
             ui.displayText("invalid response")
             groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)

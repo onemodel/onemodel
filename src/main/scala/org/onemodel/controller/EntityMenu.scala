@@ -212,7 +212,8 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
   }
 
   def goToRelatedPlaces(startingAttributeIndexIn: Long, entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
-                        relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None, classDefiningEntityId: Option[Long]): Option[Entity] = {
+                        relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None,
+                        classDefiningEntityId: Option[Long]): Option[Entity] = {
     //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
     val leadingText = Some(Array("Go to..."))
     val seeContainingEntities_choiceNumber: Int = 1
@@ -254,7 +255,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     if (classDefiningEntityId.isDefined) {
       choices = choices ++ Array[String]("Go to class-defining entity")
     }
-
+    var relationToEntity: Option[RelationToEntity] = relationIn
 
     val response = ui.askWhich(leadingText, choices, Array[String]())
     if (response.isDefined) {
@@ -290,7 +291,6 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
           } else {
             ui.displayText("unknown response")
           }
-          entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
         }
       } else if (goWhereAnswer == seeContainingGroups_choiceNumber && goWhereAnswer <= choices.length) {
         if (numContainingGroups == 1) {
@@ -299,7 +299,6 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         } else {
           viewContainingGroups(entityIn)
         }
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       } else if (goWhereAnswer == goToRelation_choiceNumber && relationIn.isDefined && goWhereAnswer <= choices.length) {
         def dummyMethod(inDH: RelationToEntityDataHolder, inEditing: Boolean): Option[RelationToEntityDataHolder] = {
           Some(inDH)
@@ -313,26 +312,21 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
                                                                                             relationIn.get.getRelatedId2)
         controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, Controller.RELATION_TO_ENTITY_TYPE,
                                                                             "CHOOSE TYPE OF Relation to Entity:", dummyMethod, updateRelationToEntity)
-        // force a reread from the DB so it shows the right info on the repeated menu:
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, Some(new RelationToEntity(db, relationIn.get.getAttrTypeId,
-                                                                                                         relationIn.get.getRelatedId1,
-                                                                                                         relationIn.get.getRelatedId2)),
-                   containingGroupIn)
+        // force a reread from the DB so it shows the right info on the repeated menu (below):
+        relationToEntity = Some(new RelationToEntity(db, relationIn.get.getAttrTypeId, relationIn.get.getRelatedId1, relationIn.get.getRelatedId2))
       }
       else if (goWhereAnswer == goToRelationType_choiceNumber && relationIn.isDefined && goWhereAnswer <= choices.length) {
         entityMenu(0, new Entity(db, relationIn.get.getAttrTypeId))
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }
       else if (goWhereAnswer == goToClassDefiningEntity_choiceNumber && classDefiningEntityId.isDefined && goWhereAnswer <= choices.length) {
         entityMenu(0, new Entity(db, classDefiningEntityId.get))
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       } else {
         ui.displayText("invalid response")
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
       }
-    } else {
-      entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
     }
+    //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
+    if (db.entityKeyExists(entityIn.getId)) entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationToEntity, containingGroupIn)
+    else None
   }
 
   def removeEntityReferenceFromGroup_Menu(entityIn: Entity, containingGroupIn: Option[Group]): Boolean = {
