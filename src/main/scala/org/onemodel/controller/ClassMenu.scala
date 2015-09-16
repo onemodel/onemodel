@@ -29,7 +29,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
                                   "Go to defining entity",
                                   "Search (List all entities in this class)")
       val response = ui.askWhich(Some(leadingText), choices)
-      if (response == None) None
+      if (response.isEmpty) None
       else {
         val answer = response.get
         if (answer == 3) {
@@ -45,24 +45,24 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
             val definingEntityName: String = new Entity(db, classIn.getDefiningEntityId).getName
             val ans = ui.askYesNoQuestion("DELETE CLASS \"" + name + "\" AND its defining ENTITY \"" + definingEntityName + "\" with " +
                                           controller.entityPartsThatCanBeAffected + ".  **ARE YOU REALLY SURE?**")
-            if (ans != None && ans.get) {
+            if (ans.isDefined && ans.get) {
               classIn.delete()
               ui.displayText("Deleted class \"" + name + "\"" + ".")
               val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_CLASS_TYPE)
-              if (selection != None) classMenu(new EntityClass(db, selection.get.getId))
+              if (selection.isDefined) classMenu(new EntityClass(db, selection.get.getId))
             } else {
               ui.displayText("Did not delete class.", waitForKeystroke = false)
             }
           }
           classMenu(classIn)
         } else if (answer == 5) {
-          new EntityMenu(ui, db, controller).entityMenu(0, new Entity(db, classIn.getDefiningEntityId))
+          new EntityMenu(ui, db, controller).entityMenu(new Entity(db, classIn.getDefiningEntityId))
           classMenu(new EntityClass(db, classIn.getId))
         } else if (answer == 6) {
           val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, Some(classIn.getDefiningEntityId), Controller.ENTITY_TYPE, 0,
                                                                                Some(classIn.getId),
                                                                                limitByClassIn = true)
-          if (selection != None) new EntityMenu(ui, db, controller).entityMenu(0, new Entity(db, selection.get.getId))
+          if (selection.isDefined) new EntityMenu(ui, db, controller).entityMenu(new Entity(db, selection.get.getId))
           classMenu(new EntityClass(db, classIn.getId))
         } else {
           //textui doesn't actually let the code get here, but:
@@ -75,7 +75,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
       case e: Exception =>
         controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
-        if (ans != None && ans.get) classMenu(classIn)
+        if (ans.isDefined && ans.get) classMenu(classIn)
         else None
     }
   }

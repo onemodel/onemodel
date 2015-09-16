@@ -25,17 +25,15 @@ import org.onemodel.database.PostgreSQLDatabase
  * create a new object. Assumes caller just read it from the DB and the info is accurate (i.e., this may only ever need to be called by
  * a PostgreSQLDatabase instance?).
  *
- * Passes 0 as 2nd parameter to AttributeWithValidAndObservedDates, because it's a value that in this case really doesn't make sense for this type.
- * Idea: is that a bad smell? shouldn't inherit, then?
  */
-class RelationToEntity(mDB: PostgreSQLDatabase, mRelTypeId: Long, mEntityId1: Long, mEntityId2: Long) extends AttributeWithValidAndObservedDates(mDB, 0) {
-  if (mDB.relationToEntityKeyExists(mRelTypeId, mEntityId1, mEntityId2)) {
+class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEntityId1: Long, mEntityId2: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+  if (mDB.relationToEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mEntityId2)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:
     mAttrTypeId = mRelTypeId
   } else {
     // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code. (should be a constant then, huh? same elsewhere. It's on the list.)
-    throw new Exception("Key rel_type_id=" + mRelTypeId + " and entity_id_1=" + mEntityId1 + " and entity_id_2=" + mEntityId2 + " does not exist in " +
-                        "database.")
+    throw new Exception("Key id=" + mId + ", with multi-column key composed of:  rel_type_id=" + mRelTypeId + " and entity_id_1=" + mEntityId1 +
+                        " and entity_id_2=" + mEntityId2 + " do not exist in database.")
   }
 
   /**
@@ -43,14 +41,13 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mRelTypeId: Long, mEntityId1: Lo
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(mDB: PostgreSQLDatabase, inRelTypeId: Long, inEntityId1: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
-    this(mDB, inRelTypeId, inEntityId1, inEntityId2)
+  def this(mDB: PostgreSQLDatabase, idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long) {
+    this(mDB, idIn, relTypeIdIn, entityId1In, entityId2In)
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
-    assignCommonVars(inEntityId1, inRelTypeId, inValidOnDate, inObservationDate)
+    assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn)
   }
 
-  override def getId: Long = throw new UnsupportedOperationException("getId() operation not applicable to Relation class.")
   override def getParentId: Long = throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
   def getRelatedId1: Long = mEntityId1
   def getRelatedId2: Long = mEntityId2
@@ -70,7 +67,7 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mRelTypeId: Long, mEntityId1: Lo
       else if (inRelatedEntity.get.getId == mEntityId1) inRT.get.getNameInReverseDirection
       else throw new Exception("Unrelated parent entity parameter?: '" + inRelatedEntity.get.getId + "', '" + inRelatedEntity.get.getName + "'")
 
-    var result: String = if (simplify) {
+    val result: String = if (simplify) {
       if (rtName == PostgreSQLDatabase.theHASrelationTypeName) inRelatedEntity.get.getName
       else rtName + ": " + inRelatedEntity.get.getName
     } else {
@@ -85,8 +82,8 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mRelTypeId: Long, mEntityId1: Lo
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
     super.assignCommonVars(mEntityId1, mAttrTypeId,
-                           relationData(0).asInstanceOf[Option[Long]],
-                           relationData(1).get.asInstanceOf[Long])
+                           relationData(1).asInstanceOf[Option[Long]],
+                           relationData(2).get.asInstanceOf[Long])
   }
 
   def update(attrTypeIdIn: Option[Long] = None, validOnDateIn:Option[Long], observationDateIn:Option[Long]) {

@@ -61,11 +61,11 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
   def deleteWithEntities() = mDB.deleteGroupRelationsToItAndItsEntries(mId)
 
   // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability, or vals not vars)?
-  def groupSize: Long = mDB.getGroupEntryCount(mId)
+  def getSize: Long = mDB.getGroupEntryCount(mId)
 
   def getDisplayString(lengthLimitIn: Int, simplifyIn: Boolean = false): String = {
     val numEntries = mDB.getGroupEntryCount(getId, Some(false))
-    var result: String =  "group " + mId + " of " + numEntries + ": "
+    var result: String =  "grp " + mId + " /" + numEntries + ": "
     result += (if (simplifyIn) getName else Color.blue(getName))
     result += ", class: "
     val className =
@@ -110,7 +110,7 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
       None
     else {
       val classId: Option[Long] = getClassId
-      if (classId.isEmpty && groupSize == 0) {
+      if (classId.isEmpty && getSize == 0) {
         // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
         Some("(unspecified)")
       }

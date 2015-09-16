@@ -63,7 +63,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   // get default entity ID from user preferences; try to use i:
   val mPrefs = java.util.prefs.Preferences.userNodeForPackage(this.getClass)
   // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
-  val menuText_createEntityOrAttrType: String = "Add new entity (or new quantity, true/false, date, text or file type to use as an attribute)"
+  val menuText_createEntityOrAttrType: String = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)"
   val menuText_CreateRelationType: String = "Add new relation type (" + mRelTypeExamples + ")"
 
   // date stuff
@@ -282,7 +282,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def showInEntityMenuThenMainMenu(entityIn: Option[Entity]) {
     if (entityIn.isDefined) {
       //idea: is there a better way to do this, maybe have a single entityMenu for the class instead of new.. each time?
-      new EntityMenu(ui, db, this).entityMenu(0, entityIn.get)
+      new EntityMenu(ui, db, this).entityMenu(entityIn.get)
       // doing mainmenu right after entityMenu because that's where user would
       // naturally go after they exit the entityMenu.
       new MainMenu(ui, db, this).mainMenu(entityIn)
@@ -616,13 +616,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         attributeEditMenu(attributeIn)
       }
       else if (answer == 5) {
-        new EntityMenu(ui, db, this).entityMenu(0, new Entity(db, attributeIn.getAttrTypeId))
+        new EntityMenu(ui, db, this).entityMenu(new Entity(db, attributeIn.getAttrTypeId))
         attributeEditMenu(attributeIn)
       }
       else if (answer == 6) {
         if (!attributeIn.isInstanceOf[FileAttribute]) throw new Exception("Menu shouldn't have allowed us to get here w/ a type other than FA (" +
                                                                           attributeIn.getClass.getName + ").")
-        val fa = attributeIn.asInstanceOf[FileAttribute]
+        val fa: FileAttribute = attributeIn.asInstanceOf[FileAttribute]
         try {
           // this file should be confirmed by the user as ok to write, even overwriting what is there.
           val file: Option[File] = ui.getExportDestinationFile(fa.getOriginalFilePath, fa.getMd5Hash)
@@ -730,7 +730,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (editedEntity.isDefined) {
           val entityNameAfterEdit: String = editedEntity.get.getName
           if (entityNameBeforeEdit != entityNameAfterEdit) {
-            val (_, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(editedEntity.get.getId)
+            val (_, _, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(editedEntity.get.getId)
             if (groupId.isDefined && !moreThanOneAvailable) {
               // for efficiency, if it's obvious which subgroup's name to change at the same time, offer to do so
               val ans = ui.askYesNoQuestion("There's a single subgroup with the same old name; probably it and this entity were created at the same time, " +
@@ -905,7 +905,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             attrTypeIn match {
               // idea: replace this condition by use of a trait (the type of o, which has getId), or being smarter with scala's type system. attrTypeIn match {
               case Controller.ENTITY_TYPE =>
-                new EntityMenu(ui, db, this).entityMenu(0, o.asInstanceOf[Entity])
+                new EntityMenu(ui, db, this).entityMenu(o.asInstanceOf[Entity])
               case Controller.GROUP_TYPE =>
                 // for now, picking the first RTG found for this group, until it's clear which of its RTGs to use.
                 // (see also the other locations w/ similar comment!)
@@ -1180,7 +1180,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                         "prompts " +
                                         "and defaults when creating/editing entities in this class).", Some("y"))
           if (ans.isDefined && ans.get) {
-            new EntityMenu(ui, db, this).entityMenu(0, new Entity(db, entityId))
+            new EntityMenu(ui, db, this).entityMenu(new Entity(db, entityId))
           }
           Some(new IdWrapper(classId))
         }
@@ -1197,7 +1197,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           inAttrType match {
             // idea: replace this condition by use of a trait (the type of o, which has getId), or being smarter with scala's type system. attrTypeIn match {
             case Controller.ENTITY_TYPE =>
-              new EntityMenu(ui, db, this).entityMenu(0, o.asInstanceOf[Entity])
+              new EntityMenu(ui, db, this).entityMenu(o.asInstanceOf[Entity])
             case _ =>
               // (choosing a group doesn't call this, it calls chooseOrCreateGroup)
               throw new OmException("not yet implemented")
@@ -1322,7 +1322,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   /** Returns None if user wants to cancel. */
   def askForBooleanAttributeValue(inDH: BooleanAttributeDataHolder, inEditing: Boolean): Option[BooleanAttributeDataHolder] = {
     val outDH = inDH.asInstanceOf[BooleanAttributeDataHolder]
-    val ans = ui.askYesNoQuestion("Is the new true/false value true now?", if (inEditing && inDH.boolean) Some("y") else Some("n"))
+    val ans = ui.askYesNoQuestion("Set the new value to true now? ('y' if so, 'n' for false)", if (inEditing && inDH.boolean) Some("y") else Some("n"))
     if (ans.isEmpty) None
     else {
       outDH.boolean = ans.get
@@ -1670,25 +1670,27 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,
                                               containingGroupIn: Option[Group] = None): (Option[Entity], Option[Long], Boolean) = {
-    val (rtid: Option[Long], groupId: Option[Long], moreThanOneAvailable: Boolean) = db.findRelationToAndGroup_OnEntity(userSelection.getId)
+    val (rtgid, rtid, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(userSelection.getId)
     val subEntitySelected: Option[Entity] = None
     if (groupId.isDefined && !moreThanOneAvailable && db.getAttrCount(userSelection.getId) == 1) {
       // In quick menu, for efficiency of some work like brainstorming, if it's obvious which subgroup to go to, just go there.
       // We DON'T want @tailrec on this method for this call, so that we can ESC back to the current menu & list! (so what balance/best? Maybe move this
       // to its own method, so it doesn't try to tail optimize it?)  See also the comment with 'tailrec', mentioning why to have it, above.
-      new QuickGroupMenu(ui, db, this).quickGroupMenu(new Group(db, groupId.get), 0, Some(new RelationToGroup(db, userSelection.getId, rtid.get, groupId.get)),
+      new QuickGroupMenu(ui, db, this).quickGroupMenu(new Group(db, groupId.get), 0, Some(new RelationToGroup(db, rtgid.get, userSelection.getId, rtid.get, groupId.get)),
                                                       callingMenusRtgIn = relationToGroupIn)
     } else {
-      new EntityMenu(ui, db, this).entityMenu(0, userSelection, None, None, containingGroupIn)
+      new EntityMenu(ui, db, this).entityMenu(userSelection, 0, None, None, None, containingGroupIn)
       // deal with entityMenu possibly having deleted the entity:
     }
     (subEntitySelected, groupId, moreThanOneAvailable)
   }
 
-  /** Shows ">" in front of a group if it contains exactly one subgroup which has at least one entry; shows ">>" if contains multiple subgroups,
-    * and "" if contains no subgroups or the one subgroup is empty.
+  /** Shows ">" in front of a group if it contains exactly one attribute or a subgroup which has at least one entry; shows ">>" if contains multiple subgroups
+    * or attributes, and "" if contains no subgroups or the one subgroup is empty.
     */
   def getNumSubgroupsPrefix(entityId: Long): String = {
+    // attrCount counts groups also, so account for the overlap in the below.
+    val attrCount = db.getAttrCount(entityId)
     val (groupsCount: Long, singleGroupEntryCount: Long) = {
       val rtgCountOnEntity: Long = db.getRelationToGroupCountByEntity(Some(entityId))
       if (rtgCountOnEntity == 0) {
@@ -1700,7 +1702,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // about a tuple mismatch?, even tho it is already a Long:)
           (rtgCountOnEntity.asInstanceOf[Long], 0L)
         } else {
-          val (_, gid: Option[Long], moreAvailable) = db.findRelationToAndGroup_OnEntity(entityId)
+          val (_, _, gid: Option[Long], moreAvailable) = db.findRelationToAndGroup_OnEntity(entityId)
           if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
                                                                   "there should be exactly one group in entity " + entityId + " .")
           (rtgCountOnEntity, db.getGroupEntryCount(gid.get, Some(false)))
@@ -1708,9 +1710,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
     }
     val subgroupsCountPrefix: String =
-      if (groupsCount == 0 || (groupsCount == 1 && singleGroupEntryCount == 0)) {
+      if (attrCount == 0 || (groupsCount == 1 && singleGroupEntryCount == 0)) {
         ""
-      } else if (groupsCount == 1 && singleGroupEntryCount > 0) {
+      } else if ((attrCount == 1 && groupsCount == 0) || (groupsCount == 1 && singleGroupEntryCount > 0)) {
         ">"
       } else {
         ">>"
@@ -1734,7 +1736,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def addEntityToGroup(groupIn: Group): Option[Long] = {
     if (!groupIn.getMixedClassesAllowed) {
-      if (groupIn.groupSize == 0) {
+      if (groupIn.getSize == 0) {
         // adding 1st entity to this group, so:
         val leadingText = List("ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):")
         val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Controller.ENTITY_TYPE,

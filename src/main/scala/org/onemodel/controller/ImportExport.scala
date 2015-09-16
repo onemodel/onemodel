@@ -12,7 +12,6 @@ package org.onemodel.controller
 
 import java.io._
 import java.nio.file.{StandardCopyOption, Files, Path}
-import java.util
 
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model._
@@ -26,6 +25,10 @@ object ImportExport {
   val HTML_EXPORT_TYPE: String = "html"
 }
 
+/**
+ * When adding features to this class, any eventual db call that creates a transaction needs to have the info 'callerManagesTransactionsIn = true' eventually
+ * passed into it, from here, otherwise the rollback feature will fail.
+ */
 class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Controller) {
   val uriLineExample: String = "'nameForTheLink <uri>http://somelink.org/index.html</uri>'"
 
@@ -81,7 +84,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                   "the change whether you want it or not, even if the message at that time says 'rolled back...')"
                 ui.displayText(msg)
                 firstContainingEntryIn match {
-                  case entity: Entity => new EntityMenu(ui, db, controller).entityMenu(0, entity)
+                  case entity: Entity => new EntityMenu(ui, db, controller).entityMenu(entity)
                   case group: Group => new QuickGroupMenu(ui, db, controller).quickGroupMenu(firstContainingEntryIn.asInstanceOf[Group], 0)
                   case _ => throw new OmException("??")
                 }
@@ -327,7 +330,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       val builder = getRestOfLines(r, new mutable.StringBuilder)
       builder.toString()
     }
-    db.createTextAttribute(entityId, attrTypeId, text)
+    db.createTextAttribute(entityId, attrTypeId, text, callerManagesTransactionsIn = true)
   }
 
   def importUriContent(lineUntrimmedIn: String, beginningTagMarkerIn: String, endMarkerIn: String, lineNumberIn: Int,
@@ -358,7 +361,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     val newEntity: Entity = lastEntityAddedIn.createEntityAndAddHASRelationToIt(name, observationDateIn, makeThemPublicIn,
                                                                                 callerManagesTransactionsIn = true)._1
     db.updateEntityOnlyClass(newEntity.getId, Some(uriClass.get), callerManagesTransactionsIn)
-    newEntity.addTextAttribute(uriClass.get, uri, None, observationDateIn)
+    newEntity.addTextAttribute(uriClass.get, uri, None, observationDateIn, callerManagesTransactionsIn = true)
   }
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
@@ -380,7 +383,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         case containingGroup: Group =>
           if (creatingNewStartingGroupFromTheFilenameIn) {
             val name = dataSourceFullPath
-            val newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, db.findUnusedSortingIndex(containingGroup.getId), makeThemPublicIn)
+            val newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, db.findUnusedGroupSortingIndex(containingGroup.getId), makeThemPublicIn)
             val newGroup: Group = newEntity.createGroupAndAddHASRelationToIt(name, containingGroup.getMixedClassesAllowed, System.currentTimeMillis,
                                                                              callerManagesTransactionsIn = true)._1
             newGroup
@@ -402,7 +405,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val nextSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
         if (nextSortingIndex == db.minIdValue) {
           // we wrapped from the biggest to lowest Long value
-          db.renumberGroupSortingIndexes(containingGrp.getId)
+          db.renumberGroupSortingIndexes(containingGrp.getId, callerManagesTransactionsIn = true)
           val nextTriedNewSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
           if (nextSortingIndex == db.minIdValue) {
             throw new OmException("Huh? How did we get two wraparounds in a row?")
@@ -513,70 +516,76 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       printWriter.println("<html><body>")
       printWriter.println("<h1>" + htmlEncode(entityIn.getName) + "</h1>")
 
-      val attributeObjList: util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
+      val attrTuples: Array[(Long, Attribute)] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
       printWriter.println("<ul>")
-      for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) yield attribute match {
-        case relation: RelationToEntity =>
-          val relationType = new RelationType(db, relation.getAttrTypeId)
-          val entity2 = new Entity(db, relation.getRelatedId2)
-          if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
-            if (uriClassIdIn.isDefined && entity2.getClassId == uriClassIdIn) {
-              // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
-              // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
-              def findUriAttribute(): Option[TextAttribute] = {
-                val (attributesOnEntity2: util.ArrayList[Attribute], _) = db.getSortedAttributes(entity2.getId, 0, 0)
-                for (attr2: Attribute <- attributesOnEntity2.toArray(Array[Attribute]())) {
-                  if (attr2.getAttrTypeId == uriClassIdIn.get && attr2.isInstanceOf[TextAttribute]) {
-                    return Some(attr2.asInstanceOf[TextAttribute])
+      for (attrTuple <- attrTuples) {
+        val attribute:Attribute = attrTuple._2
+        attribute match {
+          case relation: RelationToEntity =>
+            val relationType = new RelationType(db, relation.getAttrTypeId)
+            val entity2 = new Entity(db, relation.getRelatedId2)
+            if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                  levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+              if (uriClassIdIn.isDefined && entity2.getClassId == uriClassIdIn) {
+                // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
+                // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
+                def findUriAttribute(): Option[TextAttribute] = {
+                  val attributesOnEntity2: Array[(Long, Attribute)] = db.getSortedAttributes(entity2.getId, 0, 0)._1
+                  for (attrTuple <- attributesOnEntity2) {
+                    val attr2: Attribute = attrTuple._2
+                    if (attr2.getAttrTypeId == uriClassIdIn.get && attr2.isInstanceOf[TextAttribute]) {
+                      return Some(attr2.asInstanceOf[TextAttribute])
+                    }
                   }
+                  None
                 }
-                None
-              }
-              val uriAttribute: Option[TextAttribute] = findUriAttribute()
-              if (uriAttribute.isEmpty) {
-                throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassIdIn.get + ") for entity " + entity2.getId)
-              }
-              printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, entity2.getName)
-            } else {
-              // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
-              // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
-              val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.HTML_EXPORT_TYPE)
-              printHtmlListItemWithLink(printWriter,
-                                        if (relationType.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationType.getName + ": ",
-                                        relatedEntitysFileNamePrefix + ".html",
-                                        entity2.getName,
-                                        Some("(" + getNumSubEntries(entity2) + ")"))
-            }
-          }
-        case relation: RelationToGroup =>
-          val relationType = new RelationType(db, relation.getAttrTypeId)
-          val group = new Group(db, relation.getGroupId)
-          // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
-          printWriter.println("<li>" + htmlEncode(relation.getDisplayString(0, None, Some(relationType), simplify = true)) + "</li>")
-          printWriter.println("<ul>")
-
-          // this 'if' check is duplicate with the call just below to isAllowedToExport, but can quickly save the time looping through them all,
-          // checking entities, if there's no need:
-          if (levelsToExportIsInfiniteIn || levelsRemainingToExportIn - 1 > 0) {
-            for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-              // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
-              // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
-              if (isAllowedToExport(entityInGrp, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                    levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
-                val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.HTML_EXPORT_TYPE)
-                // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+                val uriAttribute: Option[TextAttribute] = findUriAttribute()
+                if (uriAttribute.isEmpty) {
+                  throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassIdIn.get + ") for entity " + entity2.getId)
+                }
+                printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, entity2.getName)
+              } else {
+                // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
+                // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
+                val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.HTML_EXPORT_TYPE)
                 printHtmlListItemWithLink(printWriter,
                                           if (relationType.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationType.getName + ": ",
-                                          relatedGroupsEntitysFileNamePrefix + ".html",
-                                          entityInGrp.getName,
-                                          Some("(" + getNumSubEntries(entityInGrp) + ")"))
+                                          relatedEntitysFileNamePrefix + ".html",
+                                          entity2.getName,
+                                          Some("(" + getNumSubEntries(entity2) + ")"))
               }
             }
-          }
-          printWriter.println("</ul>")
-        case _ =>
-          printWriter.println("<li>" + htmlEncode(attribute.getDisplayString(0, None, None, simplify = true)) + "</li>")
+          case relation: RelationToGroup =>
+            val relationType = new RelationType(db, relation.getAttrTypeId)
+            val group = new Group(db, relation.getGroupId)
+            // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
+            printWriter.println("<li>" + htmlEncode(relation.getDisplayString(0, None, Some(relationType), simplify = true)) + "</li>")
+            printWriter.println("<ul>")
+
+            // this 'if' check is duplicate with the call just below to isAllowedToExport, but can quickly save the time looping through them all,
+            // checking entities, if there's no need:
+            if (levelsToExportIsInfiniteIn || levelsRemainingToExportIn - 1 > 0) {
+              for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
+                // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
+                // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
+                if (isAllowedToExport(entityInGrp, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                      levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+                  val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.HTML_EXPORT_TYPE)
+                  // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
+                  printHtmlListItemWithLink(printWriter,
+                                            if (relationType.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationType.getName + ": ",
+                                            relatedGroupsEntitysFileNamePrefix + ".html",
+                                            entityInGrp.getName,
+                                            Some("(" + getNumSubEntries(entityInGrp) + ")"))
+                }
+              }
+            }
+            printWriter.println("</ul>")
+          case attr: Attribute =>
+            printWriter.println("<li>" + htmlEncode(attr.getDisplayString(0, None, None, simplify = true)) + "</li>")
+          case unexpected =>
+            throw new OmException("How did we get here?: " + unexpected)
+        }
       }
       printWriter.println("</ul>")
       if (copyrightYearAndNameIn.isDefined) {
@@ -622,25 +631,27 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     }
 
     entitiesAlreadyProcessedInThisRefChainIn.add(entityIn.getId)
-    val attributeObjList: util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
-    for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) {
-      if (attribute.isInstanceOf[RelationToEntity]) {
-        val relation = attribute.asInstanceOf[RelationToEntity]
-        val entity2 = new Entity(db, relation.getRelatedId2)
-        if (uriClassIdIn.isEmpty ||entity2.getClassId != uriClassIdIn) {
-          // that means it's not a URI but an actual traversable thing to follow when exporting children:
-          exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
-                                                   outputDirectoryIn, exportedEntitiesIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn,
-                                                   includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
-        }
-      } else if (attribute.isInstanceOf[RelationToGroup]) {
-        val relation = attribute.asInstanceOf[RelationToGroup]
-        val group = new Group(db, relation.getGroupId)
-        for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-          exportHtml(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
-                     outputDirectoryIn, exportedEntitiesIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn,
-                     includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
-        }
+    val attrTuples: Array[(Long, Attribute)] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
+    for (attributeTuple <- attrTuples) {
+      val attribute: Attribute = attributeTuple._2
+      attribute match {
+        case relation: RelationToEntity =>
+          val entity2 = new Entity(db, relation.getRelatedId2)
+          if (uriClassIdIn.isEmpty || entity2.getClassId != uriClassIdIn) {
+            // that means it's not a URI but an actual traversable thing to follow when exporting children:
+            exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                       outputDirectoryIn, exportedEntitiesIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn,
+                       includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+          }
+        case relation: RelationToGroup =>
+          val group = new Group(db, relation.getGroupId)
+          for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
+            exportHtml(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                       outputDirectoryIn, exportedEntitiesIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn,
+                       includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+          }
+        case _ =>
+          // nothing intended here
       }
     }
     // remove the entityId we've just processed, in order to allow traversing through it again later on a different ref chain if needed.  See
@@ -690,51 +701,54 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         if (includeMetadataIn) printWriterIn.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString)
         else printWriterIn.println(entityName)
 
-        val attributeObjList: util.ArrayList[Attribute] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
-        for (attribute: Attribute <- attributeObjList.toArray(Array[Attribute]())) yield attribute match {
-          case relation: RelationToEntity =>
-            val relationType = new RelationType(db, relation.getAttrTypeId)
-            val entity2 = new Entity(db, relation.getRelatedId2)
-            if (includeMetadataIn) {
-              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
-              printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
-            }
-            exportToSingleTxtFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
-                                                          currentIndentationLevelsIn + 1, printWriterIn,
-                                                          includeMetadataIn, exportedEntitiesIn, spacesPerIndentLevelIn,
-                                                includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
-          case relation: RelationToGroup =>
-            val relationType = new RelationType(db, relation.getAttrTypeId)
-            val group = new Group(db, relation.getGroupId)
-            val grpName = group.getName
-            // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
-            if (entityName != grpName) {
-              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
-              printWriterIn.println("(" + relationType.getName + " group named: " + grpName + ")")
-            }
-            if (includeMetadataIn) {
-              printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
-              // plus one more level of spaces to make it look better but still ~equivalently/exchangeably importable:
-              printSpaces(spacesPerIndentLevelIn, printWriterIn)
-              printWriterIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
-            }
-            for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-              exportToSingleTxtFile(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+        val attrTuples: Array[(Long, Attribute)] = db.getSortedAttributes(entityIn.getId, 0, 0)._1
+        for (attributeTuple <- attrTuples) {
+          val attribute:Attribute = attributeTuple._2
+          attribute match {
+            case relation: RelationToEntity =>
+              val relationType = new RelationType(db, relation.getAttrTypeId)
+              val entity2 = new Entity(db, relation.getRelatedId2)
+              if (includeMetadataIn) {
+                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+                printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
+              }
+              exportToSingleTxtFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                                                             currentIndentationLevelsIn + 1, printWriterIn,
                                                             includeMetadataIn, exportedEntitiesIn, spacesPerIndentLevelIn,
                                                   includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
-            }
-          case _ =>
-            printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
-            if (includeMetadataIn) {
-              printWriterIn.println((attribute match {
-                case ba: BooleanAttribute => "BA "
-                case da: DateAttribute => "DA "
-                case fa: FileAttribute => "FA "
-                case qa: QuantityAttribute => "QA "
-                case ta: TextAttribute => "TA "
-              }) + /*attribute.getId +*/ ": " + attribute.getDisplayString(0, None, None))
-            } else printWriterIn.println(attribute.getDisplayString(0, None, None))
+            case relation: RelationToGroup =>
+              val relationType = new RelationType(db, relation.getAttrTypeId)
+              val group = new Group(db, relation.getGroupId)
+              val grpName = group.getName
+              // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
+              if (entityName != grpName) {
+                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+                printWriterIn.println("(" + relationType.getName + " group named: " + grpName + ")")
+              }
+              if (includeMetadataIn) {
+                printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
+                // plus one more level of spaces to make it look better but still ~equivalently/exchangeably importable:
+                printSpaces(spacesPerIndentLevelIn, printWriterIn)
+                printWriterIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
+              }
+              for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
+                exportToSingleTxtFile(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                                                              currentIndentationLevelsIn + 1, printWriterIn,
+                                                              includeMetadataIn, exportedEntitiesIn, spacesPerIndentLevelIn,
+                                                    includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
+              }
+            case _ =>
+              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+              if (includeMetadataIn) {
+                printWriterIn.println((attribute match {
+                  case ba: BooleanAttribute => "BA "
+                  case da: DateAttribute => "DA "
+                  case fa: FileAttribute => "FA "
+                  case qa: QuantityAttribute => "QA "
+                  case ta: TextAttribute => "TA "
+                }) + /*attribute.getId +*/ ": " + attribute.getDisplayString(0, None, None))
+              } else printWriterIn.println(attribute.getDisplayString(0, None, None))
+          }
         }
       }
     }
@@ -760,7 +774,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     val numSubEntries = {
       val numAttrs = db.getAttrCount(entityIn.getId)
       if (numAttrs == 1) {
-        val (_, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(entityIn.getId)
+        val (_, _, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(entityIn.getId)
         if (groupId.isDefined && !moreThanOneAvailable) {
           db.getGroupEntryCount(groupId.get, Some(false))
         } else numAttrs

@@ -17,16 +17,16 @@ import org.onemodel._
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model._
 
-class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
+class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, val controller: Controller) extends SortableEntriesMenu(ui, db) {
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
-  def getChoices(entityIn: Entity, relationSourceEntityIn: Option[Entity] = None, relationIn: Option[RelationToEntity] = None): (Array[String], Boolean) = {
+  def getChoices(entityIn: Entity, numAttrsIn: Long, relationSourceEntityIn: Option[Entity] = None, relationIn: Option[RelationToEntity] = None): (Array[String], Boolean) = {
     // (idea: might be a little silly to do it this way, once this # gets very big?:)
     var choices = Array[String]("Add attribute (quantity, true/false, date, text, external file, relation to entity or group: " + controller.mRelTypeExamples + ")...",
-                                "Import/Export...",
-                                "Edit name",
-                                "Delete or Archive...",
-                                "Go to...",
-                                controller.listNextItemsPrompt)
+                                if (numAttrsIn > 1) "Move selection (*) up/down" else "(stub)",
+                                "Edit *this entity's* name (not a selected attribute's name: go into the attribute to do that)",
+                                "Delete or Archive this entity...",
+                                "Go to other related entities or groups...",
+                                if (numAttrsIn > 0) controller.listNextItemsPrompt else "(stub)")
     if (relationIn.isDefined) {
       // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options, because
       // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
@@ -40,53 +40,84 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
       choices = choices :+ ((if (defaultEntity.isEmpty) "****TRY ME---> " else "") +
                             "Set current entity as default (first to come up when launching this program.)")
     } else choices = choices :+ "(stub)"
-    choices = choices :+ "Edit public/nonpublic status"
+    choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; typing the letter instead goes to that attribute's menu)" else "(stub)")
+    choices = choices :+ "Other entity operations..."
     (choices, entityIsAlreadyTheDefault)
   }
 
-  /** returns None if user wants out. */
+  /** The parameter attributeRowsStartingIndexIn means: of all the sorted attributes of entityIn, which one is to be displayed first (since we can only display
+    * so many at a time with finite screen size).
+   * Returns None if user wants out.
+   * */
   //@tailrec //removed for now until the compiler can handle it with where the method calls itself.
   //idea on scoping: make this limited like this somehow?:  private[org.onemodel] ... Same for all others like it?
-  def entityMenu(startingAttributeIndexIn: Long, entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
-                           relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Entity] = try {
+  def entityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, highlightedAttributeIn: Option[Attribute] = None,
+                 relationSourceEntityIn: Option[Entity] = None,
+                 relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Entity] = try {
     require(entityIn != null)
     val numAttrsInEntity: Long = entityIn.getAttrCount
     val classDefiningEntityId: Option[Long] = entityIn.getClassDefiningEntityId
     val leadingText: Array[String] = new Array[String](2)
-    val (choices: Array[String], entityIsAlreadyTheDefault: Boolean) = getChoices(entityIn, relationSourceEntityIn, relationIn)
-    val numDisplayableAttributes = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, controller.maxNameLength)
-    val (attributeObjList: java.util.ArrayList[Attribute], totalRowsAvailable) =
-      db.getSortedAttributes(entityIn.getId, startingAttributeIndexIn, numDisplayableAttributes)
-    val choicesModified = controller.addRemainingCountToPrompt(choices, attributeObjList.size, totalRowsAvailable, startingAttributeIndexIn)
-    val leadingTextModified = getLeadingText(leadingText, attributeObjList, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-    val attributeDisplayStrings: Array[String] = getItemDisplayStrings(attributeObjList)
+    val numAttrs = db.getAttrCount(entityIn.getId)
+    val (choices: Array[String], entityIsAlreadyTheDefault: Boolean) = getChoices(entityIn, numAttrs, relationSourceEntityIn, relationIn)
+    val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, controller.maxNameLength)
+    val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
+      db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes)
+    if (numAttrs > 0 || attributeTuples.length > 0) require(numAttrs > 0 && attributeTuples.length > 0)
+    require(totalAttrsAvailable == numAttrs)
+    val choicesModified = controller.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
+    val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+    val attributeDisplayStrings: Array[String] = getItemDisplayStrings(attributeTuples)
 
-    val response = ui.askWhich(Some(leadingTextModified), choicesModified, attributeDisplayStrings)
+    val highlightedEntry: Option[Attribute] = if (attributeTuples.length == 0) None else Some(highlightedAttributeIn.getOrElse(attributeTuples(0)._2))
+    // The variable highlightedIndexInObjList means: of the sorted attributes selected *for display* (potentially fewer than all existing attributes),
+    // this is the zero-based index of the one that is marked for possible moving around in the sorted order (in the UI, marked as selected).
+    def getHighlightedIndexInAttrList: Option[Int] = {
+      if (highlightedEntry.isEmpty) None
+      else {
+        val highlightedObjFormId: Int = highlightedEntry.get.getFormId
+        val highlightedObjId: Long = highlightedEntry.get.getId
+        var index = -1
+        for (attributeTuple <- attributeTuples) {
+          index += 1
+          val attribute = attributeTuple._2
+          if (attribute.getFormId == highlightedObjFormId && attribute.getId == highlightedObjId) {
+            return Some(index)
+          }
+        }
+        // if we got to this point, it could simply have been deleted or something (probably), so just return something safe:
+        None
+//        older idea commented below:
+        // idea: instead of doing this, could simply replace the value of highlightedEntry with the first one from those returned? Could that cause
+        // any confusion or mask another problem?
+//        throw new OmException("Unexpected state: attribute for highlighting (" + highlightedObjFormId + "/" + highlightedObjId + ": " +
+//                              highlightedEntry.get.getDisplayString(20, None, None, simplify = true) +
+//                              ") not found in list returned from getSortedAttributes.  (The original highlightedAttributeIn parameter was: " +
+//                              (if (highlightedAttributeIn.isEmpty) "None"
+//                              else highlightedAttributeIn.get.getFormId + "/" +
+//                                   highlightedAttributeIn.get.getId +
+//                                   highlightedAttributeIn.get.getDisplayString(20, None, None, simplify = true)) +
+//                              ".)")
+      }
+    }
+    val highlightedIndexInObjList: Option[Int] = getHighlightedIndexInAttrList
+
+
+    val response = ui.askWhich(Some(leadingTextModified), choicesModified, attributeDisplayStrings, highlightIndexIn = getHighlightedIndexInAttrList)
     if (response.isEmpty) None
     else {
       val answer = response.get
       if (answer == 1) {
-        addAttribute(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-      }
-      if (answer == 2) {
-        val importOrExport = ui.askWhich(None, Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
-        if (importOrExport.isDefined) {
-          if (importOrExport.get == 1) new ImportExport(ui, db, controller).importCollapsibleOutlineAsGroups(entityIn)
-          else if (importOrExport.get == 2) new ImportExport(ui, db, controller).export(entityIn, ImportExport.TEXT_EXPORT_TYPE, None)
-          else if (importOrExport.get == 3) {
-            // idea (in task list):  have the date default to the entity creation date, then later add/replace that (w/ range or what for ranges?)
-            // with the last edit date, when that feature exists.
-            val copyrightYearAndName = ui.askForString(Some(Array("Enter copyright year(s) and holder's name, i.e., the \"2015 John Doe\" part " +
-                                                                  "of \"Copyright 2015 John Doe\"")))
-            new ImportExport(ui, db, controller).export(entityIn, ImportExport.HTML_EXPORT_TYPE, copyrightYearAndName)
-          }
-        }
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-      }
-      else if (answer == 3) {
+        addAttribute(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+        entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+      } else if (answer == 2 && highlightedEntry.isDefined && highlightedIndexInObjList.isDefined && numAttrs > 1) {
+        val newStartingDisplayIndex = moveSelectedEntry(entityIn, attributeRowsStartingIndexIn, totalAttrsAvailable, highlightedIndexInObjList.get,
+                          highlightedEntry.get, numDisplayableAttributes, relationSourceEntityIn, relationIn, containingGroupIn)
+        entityMenu(entityIn, newStartingDisplayIndex, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+      } else if (answer == 3) {
         val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
-        entityMenu(startingAttributeIndexIn, if (editedEntity.isDefined) editedEntity.get else entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+        entityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn,
+                   attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
       } else if (answer == 4) {
         val (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber) =
           controller.askWhetherDeleteOrArchiveEtc(entityIn, relationIn, relationSourceEntityIn, containingGroupIn)
@@ -96,7 +127,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
           if (answer == 1 || answer == 2) {
             val thisEntityWasDeletedOrArchived = controller.deleteOrArchiveEntity(entityIn, answer == 1)
             if (thisEntityWasDeletedOrArchived) None
-            else entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+            else entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
           } else if (answer == delEntityLink_choiceNumber && relationIn.isDefined && answer <= choices.length) {
             val ans = ui.askYesNoQuestion("DELETE the relation: ARE YOU SURE?")
             if (ans.isDefined && ans.get) {
@@ -104,55 +135,115 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
               None
             } else {
               ui.displayText("Did not delete relation.", waitForKeystroke = false)
-              entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+              entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
             }
           } else if (answer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && answer <= choices.length) {
             if (removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn))
               None
             else
-              entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+              entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
           } else {
             ui.displayText("invalid response")
-            entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+            entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
           }
         } else {
-          entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+          entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
         }
       } else if (answer == 5) {
-        goToRelatedPlaces(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn, classDefiningEntityId)
-      }
-      else if (answer == 6) {
-        val startingIndex: Long = listNextAttributes(attributeObjList, numAttrsInEntity, numAttrsInEntity)
-        entityMenu(startingIndex, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-      }
-      else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
+        goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn, classDefiningEntityId)
+      } else if (answer == 6 && numAttrs > 0) {
+        val startingIndex: Int = getNextStartingRowsIndex(attributeTuples.length, attributeRowsStartingIndexIn, numAttrsInEntity)
+        entityMenu(entityIn, startingIndex, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+      } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
         // updates user preferences such that this obj will be the one displayed by default in future.
         controller.mPrefs.putLong("first_display_entity", entityIn.getId)
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-      }
-      else if (answer == 8 && answer <= choices.length && !entityIn.isInstanceOf[RelationType]) {
-        val editedEntity: Option[Entity] = controller.editEntityPublicStatus(entityIn)
-        entityMenu(startingAttributeIndexIn, editedEntity.get, relationSourceEntityIn, relationIn, containingGroupIn)
-      }
-      else if (answer > choices.length && answer <= (choices.length + attributeObjList.size)) {
+        entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+      } else if (answer == 8 && answer <= choices.length && highlightedEntry.isDefined && highlightedIndexInObjList.isDefined) {
+        // lets user select an attribute for further operations like moving, deleting.
+        // (we have to have at least one choice or ui.askWhich fails...a require() call there.)
+        // NOTE: this code is similar (not identical) in EntityMenu as in QuickGroupMenu: if one changes, the other might also need maintenance.
+        val choices = Array[String]("keep existing (same as ESC)")
+        // says 'same screenful' because (see similar cmt elsewhere).
+        val leadingText: Array[String] = Array("CHOOSE an attribute to highlight (*)")
+        controller.addRemainingCountToPrompt(choices, attributeTuples.length, db.getAttrCount(entityIn.getId), attributeRowsStartingIndexIn)
+        val response = ui.askWhich(Some(leadingText), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList)
+        val entryToHighlight: Option[Attribute] = {
+          if (response.isEmpty || response.get == 1) highlightedEntry
+          else {
+            // those in the condition are 1-based, not 0-based.
+            // user typed a letter to select an attribute (now 0-based):
+            val choicesIndex = response.get - choices.length - 1
+            Some(attributeTuples(choicesIndex)._2)
+          }
+        }
+        entityMenu(entityIn, attributeRowsStartingIndexIn, entryToHighlight, relationSourceEntityIn, relationIn, containingGroupIn)
+      } else if (answer == 9 && answer <= choices.length) {
+        new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn)
+        // reread from db to refresh data for display, like public/non-public status:
+        entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+      } else if (answer > choices.length && answer <= (choices.length + attributeTuples.length)) {
+        // those in the condition are 1-based, not 0-based.
+        // lets user go to an entity or group quickly (1 stroke)
+        val choicesIndex = answer - choices.length - 1
         // checking also for " && answer <= choices.length" because otherwise choosing 'a' returns 8 but if those optional menu choices were not added in,
         // then it is found among the first "choice" answers, instead of being adjusted later ("val attributeChoicesIndex = answer - choices.length - 1")
         // to find it among the "moreChoices" as it should be: would be thrown off by the optional choice numbering.
-        goToSelectedAttribute(answer, choicesModified, attributeObjList, entityIn)
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+        goToSelectedAttribute(answer, choicesIndex, attributeTuples, entityIn)
+        entityMenu(entityIn, attributeRowsStartingIndexIn, Some(attributeTuples(choicesIndex)._2), relationSourceEntityIn, relationIn, containingGroupIn)
       } else {
         ui.displayText("invalid response")
-        entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+        entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
       }
     }
-
-  }
-  catch {
+  } catch {
     case e: Exception =>
       controller.handleException(e)
       val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
-      if (ans.isDefined && ans.get) entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+      if (ans.isDefined && ans.get) entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedAttributeIn, relationSourceEntityIn, relationIn, containingGroupIn)
       else None
+  }
+
+  def moveSelectedEntry(entityIn: Entity, startingDisplayRowIndexIn: Int, totalAttrsAvailable: Int,
+                        highlightedIndexInObjListIn: Int, highlightedAttributeIn: Attribute, numObjectsToDisplayIn: Int,
+                        relationSourceEntityIn: Option[Entity] = None, relationIn: Option[RelationToEntity] = None,
+                        containingGroupIn: Option[Group] = None): Int = {
+    val choices = Array[String](// (see comments at similar location in same-named method of QuickGroupMenu.)
+                                "Move up 5", "Move up 1", "Move down 1", "Move down 5",
+                                "(stub)", "(stub)",
+                                "Move up 25", "Move down 25")
+    val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn))
+    if (response.isEmpty) startingDisplayRowIndexIn
+    else {
+      val answer = response.get
+      var numRowsToMove = 0
+      var forwardNotBack = false
+      if (answer == 1) {
+        numRowsToMove = 5
+      } else if (answer == 2) {
+        numRowsToMove = 1
+      } else if (answer == 3) {
+        numRowsToMove = 1
+        forwardNotBack = true
+      } else if (answer == 4) {
+        numRowsToMove = 5
+        forwardNotBack = true
+      } else if (answer == 7) {
+        numRowsToMove = 20
+      } else if (answer == 8) {
+        numRowsToMove = 20
+        forwardNotBack = true
+      }
+      if ((answer >= 1 && answer <= 4) || (answer >= 7 && answer <= 8)) {
+        val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.getId, totalAttrsAvailable, numRowsToMove, forwardNotBackIn = forwardNotBack,
+                                                                 startingDisplayRowIndexIn, highlightedAttributeIn.getId,
+                                                                 highlightedIndexInObjListIn, highlightedAttributeIn.getId, numObjectsToDisplayIn,
+                                                                 highlightedAttributeIn.getFormId, highlightedAttributeIn.getFormId)
+        displayStartingRowNumber
+      }
+      else {
+        startingDisplayRowIndexIn
+      }
+    }
   }
 
   def viewContainingGroups(entityIn: Entity): Option[Entity] = {
@@ -193,16 +284,17 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         val numContainingEntities = containingEntities.size
         if (numContainingEntities == 1) {
           val containingEntity: Entity = containingEntities.get(0)._2
-          entityMenu(0, containingEntity, None, None, Some(new Group(db, containingRelationToGroup.getGroupId)))
+          entityMenu(containingEntity, 0, None, None, None, Some(new Group(db, containingRelationToGroup.getGroupId)))
         } else {
           controller.chooseAmongEntities(containingEntities)
         }
       } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && userPressedAltKey) {
         // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
+        val id: Long = containingRelationToGroups.get(index).getId
         val entityId: Long = containingRelationToGroups.get(index).getParentId
         val groupId: Long = containingRelationToGroups.get(index).getGroupId
         val relTypeId: Long = containingRelationToGroups.get(index).getAttrTypeId
-        new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, groupId), 0, Some(new RelationToGroup(db, entityId, relTypeId, groupId)),
+        new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, groupId), 0, Some(new RelationToGroup(db, id, entityId, relTypeId, groupId)),
                                                               Some(entityIn))
       } else {
         ui.displayText("unknown response")
@@ -211,7 +303,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     }
   }
 
-  def goToRelatedPlaces(startingAttributeIndexIn: Long, entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
+  def goToRelatedPlaces(startingAttributeRowsIndexIn: Int, entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
                         relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None,
                         classDefiningEntityId: Option[Long]): Option[Entity] = {
     //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
@@ -276,7 +368,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
                                                                                       case _ => throw new OmException("??")
                                                                                     }
         val ans = ui.askWhich(Some(leadingText.toArray), choices, containingEntitiesNames)
-        if (ans.isEmpty) None
+        if (ans.isEmpty) return None
         else {
           val answer = ans.get
           if (answer == 1 && answer <= choices.length) {
@@ -287,7 +379,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
             val index = answer - choices.length - 1
             // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
             val entity: Entity = containingEntities.get(index)._2
-            entityMenu(0, entity)
+            entityMenu(entity, 0, None)
           } else {
             ui.displayText("unknown response")
           }
@@ -313,19 +405,20 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
         controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, Controller.RELATION_TO_ENTITY_TYPE,
                                                                             "CHOOSE TYPE OF Relation to Entity:", dummyMethod, updateRelationToEntity)
         // force a reread from the DB so it shows the right info on the repeated menu (below):
-        relationToEntity = Some(new RelationToEntity(db, relationIn.get.getAttrTypeId, relationIn.get.getRelatedId1, relationIn.get.getRelatedId2))
+        relationToEntity = Some(new RelationToEntity(db, relationIn.get.getId, relationIn.get.getAttrTypeId, relationIn.get.getRelatedId1,
+                                                     relationIn.get.getRelatedId2))
       }
       else if (goWhereAnswer == goToRelationType_choiceNumber && relationIn.isDefined && goWhereAnswer <= choices.length) {
-        entityMenu(0, new Entity(db, relationIn.get.getAttrTypeId))
+        entityMenu(new Entity(db, relationIn.get.getAttrTypeId), 0, None)
       }
       else if (goWhereAnswer == goToClassDefiningEntity_choiceNumber && classDefiningEntityId.isDefined && goWhereAnswer <= choices.length) {
-        entityMenu(0, new Entity(db, classDefiningEntityId.get))
+        entityMenu(new Entity(db, classDefiningEntityId.get), 0, None)
       } else {
         ui.displayText("invalid response")
       }
     }
     //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
-    if (db.entityKeyExists(entityIn.getId)) entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationToEntity, containingGroupIn)
+    if (db.entityKeyExists(entityIn.getId)) entityMenu(entityIn, startingAttributeRowsIndexIn, None, relationSourceEntityIn, relationToEntity, containingGroupIn)
     else None
   }
 
@@ -350,7 +443,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     }
   }
 
-  def getLeadingText(leadingTextIn: Array[String], attributeObjListIn: java.util.ArrayList[Attribute],
+  def getLeadingText(leadingTextIn: Array[String], numAttributes: Int,
                      entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
                      relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Array[String] = {
     leadingTextIn(0) = "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString
@@ -362,25 +455,30 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     if (containingGroupIn.isDefined) {
       leadingTextIn(0) += ": found via group: " + containingGroupIn.get.getName
     }
-    leadingTextIn(1) = if (attributeObjListIn.size == 0) "No attributes have been assigned to this object, yet."
+    leadingTextIn(1) = if (numAttributes == 0) "No attributes have been assigned to this object, yet."
     else "Attribute list menu: (or choose attribute by letter)"
     leadingTextIn
   }
 
-  def getItemDisplayStrings(attributeObjListIn: java.util.ArrayList[Attribute]) = {
-    val attributeNames: Array[String] = for (attribute: Attribute <- attributeObjListIn.toArray(Array[Attribute]())) yield attribute match {
-      case relation: RelationToEntity =>
-        val relationType = new RelationType(db, relation.getAttrTypeId)
-        attribute.getDisplayString(controller.maxNameLength, Some(new Entity(db, relation.getRelatedId2)), Some(relationType))
-      case relation: RelationToGroup =>
-        val relationType = new RelationType(db, relation.getAttrTypeId)
-        attribute.getDisplayString(controller.maxNameLength, None, Some(relationType))
-      case _ => attribute.getDisplayString(controller.maxNameLength, None, None)
+  def getItemDisplayStrings(attributeTuples: Array[(Long, Attribute)]) = {
+    val attributeNames: Array[String] =
+      for (attributeTuple <- attributeTuples) yield {
+        val attribute = attributeTuple._2
+        attribute match {
+        case relation: RelationToEntity =>
+          val relationType = new RelationType(db, relation.getAttrTypeId)
+          attribute.getDisplayString(controller.maxNameLength, Some(new Entity(db, relation.getRelatedId2)), Some(relationType))
+        case relation: RelationToGroup =>
+          val relationType = new RelationType(db, relation.getAttrTypeId)
+          attribute.getDisplayString(controller.maxNameLength, None, Some(relationType))
+        case _ =>
+          attribute.getDisplayString(controller.maxNameLength, None, None)
+      }
     }
     attributeNames
   }
 
-  def addAttribute(startingAttributeIndexIn: Long, entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
+  def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, highlightedAttributeIn: Option[Attribute], relationSourceEntityIn: Option[Entity] = None,
                    relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None) {
     val whichKindOfAttribute =
       ui.askWhich(Some(Array("Choose which kind of attribute to add:")),
@@ -432,8 +530,8 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
                                                                          controller.askForRelationEntityIdNumber2, addRelationToEntity)
       } else if (whichKindAnswer == 6) {
         def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
-          entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
-          Some(new RelationToGroup(db, dhIn.entityId, dhIn.attrTypeId, dhIn.groupId))
+          val rtgId: Long = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
+          Some(new RelationToGroup(db, rtgId, dhIn.entityId, dhIn.attrTypeId, dhIn.groupId))
         }
         val result: Option[Attribute] = controller.askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, 0, 0, None,
                                                                                                                                       System.currentTimeMillis()),
@@ -442,7 +540,7 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
                                                                                                         "." + TextUI.NEWLN + "(Does anyone see a specific " +
                                                                                                         "reason to keep asking for these dates?)",
                                                                                                         controller.askForRelToGroupInfo, addRelationToGroup)
-        if (result.isEmpty) entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+        if (result.isEmpty) entityMenu(entityIn, startingAttributeIndexIn, highlightedAttributeIn, relationSourceEntityIn, relationIn, containingGroupIn)
         else {
           val newRtg = result.get.asInstanceOf[RelationToGroup]
           new GroupMenu(ui, db, controller).groupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, Some(entityIn))
@@ -468,10 +566,9 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     }
   }
 
-  def listNextAttributes(attributeObjList: java.util.ArrayList[Attribute],
-                         startingAttributeIndexIn: Long, numAttrsInEntity: Long): Long = {
+  def getNextStartingRowsIndex(numAttrsToDisplay: Int, startingAttributeRowsIndexIn: Int, numAttrsInEntity: Long): Int = {
     val startingIndex = {
-      val currentPosition = startingAttributeIndexIn + attributeObjList.size
+      val currentPosition = startingAttributeRowsIndexIn + numAttrsToDisplay
       if (currentPosition >= numAttrsInEntity) {
         ui.displayText("End of attribute list found; restarting from the beginning.")
         0 // start over
@@ -481,19 +578,17 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     startingIndex
   }
 
-  def goToSelectedAttribute(answer: Int, choicesIn: Array[String], attributeObjListIn: java.util.ArrayList[Attribute], entityIn: Entity) {
-    // attributeChoicesIndexIn is 1-based, not 0-based.
-    val attributeChoicesIndex = answer - choicesIn.length - 1
+  def goToSelectedAttribute(answer: Int, choiceIndex: Int, attributeTuples: Array[(Long, Attribute)], entityIn: Entity) {
     // user typed a letter to select an attribute (now 0-based)
-    if (attributeChoicesIndex >= attributeObjListIn.size()) {
+    if (choiceIndex >= attributeTuples.length) {
       ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
     } else {
-      val o: Attribute = attributeObjListIn.get(attributeChoicesIndex)
+      val o: Attribute = attributeTuples(choiceIndex)._2
       o match {
         //idea: there's probably also some more scala-like cleaner syntax 4 this, as elsewhere:
         case qa: QuantityAttribute => controller.attributeEditMenu(qa)
         case ta: TextAttribute => controller.attributeEditMenu(ta)
-        case relToEntity: RelationToEntity => entityMenu(0, new Entity(db, relToEntity.getRelatedId2), Some(entityIn), Some(relToEntity))
+        case relToEntity: RelationToEntity => entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, Some(entityIn), Some(relToEntity))
         case relToGroup: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup),
                                                                                                   containingEntityIn = Some(entityIn))
         case da: DateAttribute => controller.attributeEditMenu(da)
@@ -504,4 +599,24 @@ class EntityMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Con
     }
   }
 
+  protected def getAdjacentEntriesSortingIndexes(entityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
+                                   forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
+    db.getAdjacentAttributesSortingIndexes(entityIdIn, movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
+  }
+
+  protected def getNearestEntrysSortingIndex(entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+    db.getNearestAttributeEntrysSortingIndex(entityIdIn, startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
+  }
+
+  protected def renumberSortingIndexes(entityIdIn: Long): Unit = {
+    db.renumberAttributeSortingIndexes(entityIdIn)
+  }
+
+  protected def updateSortedEntry(entityIdIn: Long, movingAttributeFormIdIn: Int, movingAttributeIdIn: Long, sortingIndexIn: Long): Unit = {
+    db.updateAttributeSorting(entityIdIn, movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
+  }
+
+  protected def getSortingIndex(entityIdIn: Long, attributeFormIdIn: Int, attributeIdIn: Long): Long = {
+    db.getEntityAttributeSortingIndex(entityIdIn, attributeFormIdIn, attributeIdIn)
+  }
 }

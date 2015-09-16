@@ -60,6 +60,10 @@ abstract class Attribute(mDB: PostgreSQLDatabase, mId: Long) {
     mId
   }
 
+  def getFormId: Int = {
+    PostgreSQLDatabase.getAttributeFormId(this.getClass.getSimpleName)
+  }
+
   protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long) {
     mParentId = parentIdIn
     mAttrTypeId = attrTypeIdIn

@@ -101,7 +101,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     assert(t.getId == id)
     assert(t.getBoolean)
     assert(t.getParentId == mEntity.getId)
-    assert(t.getValidOnDate == None)
+    assert(t.getValidOnDate.isEmpty)
     assert(t.getObservationDate > (startTime - 1) && t.getObservationDate < (System.currentTimeMillis() + 1))
   }
 
@@ -164,9 +164,9 @@ class EntityTest extends FlatSpec with MockitoSugar {
     when(mockDB.entityKeyExists(id)).thenReturn(true)
     when(mockDB.getClassName(classId)).thenReturn(Some("class1Name"))
     when(mockDB.getEntityData(id)).thenReturn(Array[Option[Any]](Some("entity1Name"), Some(classId)))
-    val entity = new Entity(mockDB, id)
-    val ds = entity.getDisplayString
-    // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
+    // idea (is in tracked tasks): put next 3 lines back after color refactoring is done (& places w/ similar comment elsewhere)
+    //val entity = new Entity(mockDB, id)
+    //val ds = entity.getDisplayString
     //assert(ds == "entity1Name (class: class1Name)")
 
     val id2 = 2L
@@ -176,9 +176,9 @@ class EntityTest extends FlatSpec with MockitoSugar {
     when(mockDB2.entityKeyExists(id2)).thenReturn(true)
     when(mockDB2.getEntityData(id2)).thenReturn(Array[Option[Any]](Some(name2), None))
     when(mockDB2.getClassName(classId2)).thenReturn(None)
-    val entity2 = new Entity(mockDB2, id2, name2, Some(false), Some(classId2))
-    val ds2 = entity2.getDisplayString
-    // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
+    // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
+    //val entity2 = new Entity(mockDB2, id2, name2, Some(false), Some(classId2))
+    //val ds2 = entity2.getDisplayString
     //assert(ds2 == name2)
 
     when(mockDB2.getClassName(classId2)).thenReturn(Some("class2Name"))
@@ -196,7 +196,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     val definingEntityId = 3L
     when(mockDB.entityKeyExists(id)).thenReturn(true)
     val e = new Entity(mockDB, id, "entityname", Some(true))
-    assert(e.getClassDefiningEntityId == None)
+    assert(e.getClassDefiningEntityId.isEmpty)
 
     val e2 = new Entity(mockDB, id, "entityname", Some(false), Option(classId))
     when(mockDB.classKeyExists(classId)).thenReturn(true)

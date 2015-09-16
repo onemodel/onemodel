@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2015 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -22,13 +22,14 @@ class RelationToEntityTest extends FlatSpec with MockitoSugar {
     val mockEntity1 = mock[Entity]
     val mockEntity2 = mock[Entity]
 
-    val entity1Id: Long = 101
-    val entity2Id: Long = 102
+    val rteId: Long = 101
+    val entity1Id: Long = 102
+    val entity2Id: Long = 103
     val relTypeId: Long = 401
     //arbitrary, in milliseconds:
     val date = 304
-    val entity1Name = "husbandsName"
-    val entity2Name = "wifesName"
+    val entity1Name = "husbandName"
+    val entity2Name = "wifeName"
     when(mockEntity2.getId).thenReturn(entity2Id)
     val relationTypeName: String = "is husband to"
     when(mockRelationType.getName).thenReturn(relationTypeName)
@@ -36,15 +37,15 @@ class RelationToEntityTest extends FlatSpec with MockitoSugar {
     when(mockEntity1.getId).thenReturn(entity1Id)
     when(mockEntity1.getName).thenReturn(entity1Name)
     when(mockEntity2.getName).thenReturn(entity2Name)
-    when(mockDB.relationToEntityKeyExists(relTypeId, entity1Id, entity2Id)).thenReturn(true)
+    when(mockDB.relationToEntityKeysExistAndMatch(rteId, relTypeId, entity1Id, entity2Id)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    val relation = new RelationToEntity(mockDB, relTypeId, entity1Id, entity2Id, None, date)
+    val relation = new RelationToEntity(mockDB, rteId, relTypeId, entity1Id, entity2Id, None, date)
     val smallLimit = 15
-    var displayed1: String = relation.getDisplayString(smallLimit, Some(mockEntity2), Some(mockRelationType))
+    val displayed1: String = relation.getDisplayString(smallLimit, Some(mockEntity2), Some(mockRelationType))
     val observedDateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST"
     val wholeThing: String = relationTypeName + ": " + entity2Name + "; valid unsp'd, obsv'd "+observedDateOutput
-    var expected = wholeThing.substring(0, smallLimit - 3) + "..."
+    val expected = wholeThing.substring(0, smallLimit - 3) + "..."
     assert(displayed1 == expected)
 
     // the next part passes in intellij 12, but not from the cli as "mvn test". Maybe due to some ignorance

@@ -382,7 +382,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       else if ((!alreadyFull) && lineCounter > terminalHeight) {
         // (+ 1 above to leave room for the error message line, below)
         val unshownCount: Int = choices.length + moreChoices.length - lineCounter - 1
-        println("Unable to show remaining " + new StringBuffer(unshownCount) + " items in the available screen space(!?). Consider code change to pass the " +
+        println("Unable to show remaining " + unshownCount + " items in the available screen space(!?). Consider code change to pass the " +
                 "right number of them, relaunching w/ larger terminal, or grouping things?")
         alreadyFull = true
         alreadyFull

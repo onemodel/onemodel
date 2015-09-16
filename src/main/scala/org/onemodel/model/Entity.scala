@@ -92,11 +92,11 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   def getPublicStatusString(blankIfUnset: Boolean = true): String = {
     if (!mAlreadyReadData) readDataFromDB()
 
-    if (mPublic != None && mPublic.get) {
+    if (mPublic.isDefined && mPublic.get) {
       Entity.PRIVACY_PUBLIC
-    } else if (mPublic != None && !mPublic.get) {
+    } else if (mPublic.isDefined && !mPublic.get) {
       Entity.PRIVACY_NON_PUBLIC
-    } else if (mPublic == None) {
+    } else if (mPublic.isEmpty) {
       if (blankIfUnset) "" else Entity.PRIVACY_UNSET
     } else throw
       new OmException("how did we get here?")
@@ -109,7 +109,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
 
   def getClassDefiningEntityId: Option[Long] = {
     val classId = getClassId
-    if (classId == None) None
+    if (classId.isEmpty) None
     else {
       val definingEntityId: Option[Long] = mDB.getClassData(mClassId.get)(1).asInstanceOf[Option[Long]]
       definingEntityId
@@ -134,8 +134,8 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     var displayString: String = getPublicStatusString()
     displayString += Color.blue(getName)
     val definerInfo = if (mDB.getClassCount(Some(mId)) > 0) "defining entity (template) for " else ""
-    val className: Option[String] = if (getClassId != None) mDB.getClassName(getClassId.get) else None
-    displayString += (if (className != None) " (" + definerInfo + "class: " + className.get + ")" else "")
+    val className: Option[String] = if (getClassId.isDefined) mDB.getClassName(getClassId.get) else None
+    displayString += (if (className.isDefined) " (" + definerInfo + "class: " + className.get + ")" else "")
     displayString
   }
 
@@ -191,8 +191,9 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   /** See addQuantityAttribute(...) methods for comments. */
   def addTextAttribute(inAttrTypeId: Long, inText: String): TextAttribute = addTextAttribute(inAttrTypeId, inText, None, System.currentTimeMillis)
 
-  def addTextAttribute(inAttrTypeId: Long, inText: String, inValidOnDate: Option[Long], inObservationDate: Long): TextAttribute = {
-    val id = mDB.createTextAttribute(mId, inAttrTypeId, inText, inValidOnDate, inObservationDate)
+  def addTextAttribute(inAttrTypeId: Long, inText: String, inValidOnDate: Option[Long], inObservationDate: Long,
+                       callerManagesTransactionsIn: Boolean = false): TextAttribute = {
+    val id = mDB.createTextAttribute(mId, inAttrTypeId, inText, inValidOnDate, inObservationDate, callerManagesTransactionsIn)
     new TextAttribute(mDB, id)
   }
 
@@ -232,8 +233,8 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   }
 
   def addRelationToEntity(inAttrTypeId: Long, inEntityId1: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long): RelationToEntity = {
-    mDB.createRelationToEntity(inAttrTypeId, inEntityId1, inEntityId2, inValidOnDate, inObservationDate)
-    new RelationToEntity(mDB, inAttrTypeId, inEntityId1, inEntityId2)
+    val rteId = mDB.createRelationToEntity(inAttrTypeId, inEntityId1, inEntityId2, inValidOnDate, inObservationDate)
+    new RelationToEntity(mDB, rteId, inAttrTypeId, inEntityId1, inEntityId2)
   }
 
   /** Creates then adds a particular kind of rtg to this entity.
@@ -252,10 +253,10 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   /** Like others, returns the new things' IDs. */
   def addGroupAndRelationToGroup(relTypeIdIn: Long, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false, validOnDateIn: Option[Long],
                                  inObservationDate: Long, callerManagesTransactionsIn: Boolean = false): (Group, RelationToGroup) = {
-    val groupId: Long = mDB.createGroupAndRelationToGroup(getId, relTypeIdIn, newGroupNameIn, allowMixedClassesInGroupIn, validOnDateIn, inObservationDate,
-                                                          callerManagesTransactionsIn)
+    val (groupId: Long, rtgId: Long) = mDB.createGroupAndRelationToGroup(getId, relTypeIdIn, newGroupNameIn, allowMixedClassesInGroupIn, validOnDateIn,
+                                                                         inObservationDate, callerManagesTransactionsIn)
     val group = new Group(mDB, groupId)
-    val rtg = new RelationToGroup(mDB, getId, relTypeIdIn, groupId)
+    val rtg = new RelationToGroup(mDB, rtgId, getId, relTypeIdIn, groupId)
     (group, rtg)
   }
 
@@ -275,13 +276,17 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   /** Like others, returns the new things' IDs. */
   def addEntityAndRelationToEntity(relTypeIdIn: Long, newEntityNameIn: String, validOnDateIn: Option[Long], inObservationDate: Long,
                                    isPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean = false): (Entity, RelationToEntity) = {
-    val entityId = mDB.createEntityAndRelationToEntity(getId, relTypeIdIn, newEntityNameIn, isPublicIn, validOnDateIn, inObservationDate, callerManagesTransactionsIn)
+    val (entityId, rteId) = mDB.createEntityAndRelationToEntity(getId, relTypeIdIn, newEntityNameIn, isPublicIn, validOnDateIn, inObservationDate,
+                                                                callerManagesTransactionsIn)
     val entity = new Entity(mDB, entityId)
-    val rtg = new RelationToEntity(mDB, relTypeIdIn, mId, entityId)
-    (entity, rtg)
+    val rte = new RelationToEntity(mDB, rteId, relTypeIdIn, mId, entityId)
+    (entity, rte)
   }
 
-  def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long, validOnDateIn: Option[Long], inObservationDate: Long) {
+  /**
+    * @return the new group's id.
+    */
+  def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long, validOnDateIn: Option[Long], inObservationDate: Long): Long = {
     mDB.createRelationToGroup(getId, relTypeIdIn, groupIdIn, validOnDateIn, inObservationDate)
   }
 

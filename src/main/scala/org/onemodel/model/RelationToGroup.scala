@@ -15,26 +15,23 @@
 */
 package org.onemodel.model
 
-import org.onemodel.Color
 import org.onemodel.database.PostgreSQLDatabase
 
 /** See comments on similar methods in RelationToEntity. */
-class RelationToGroup(mDB: PostgreSQLDatabase, mEntityId:Long, mRelTypeId: Long, mGroupId:Long) extends AttributeWithValidAndObservedDates(mDB, 0) {
-  if (mDB.relationToGroupKeyExists(mEntityId, mRelTypeId, mGroupId)) {
+class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTypeId: Long, mGroupId:Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+  if (mDB.relationToGroupKeysExistAndMatch(mId, mEntityId, mRelTypeId, mGroupId)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:
     mAttrTypeId = mRelTypeId
   } else {
     // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code. (should be a constant then, huh? same elsewhere. It's on the list.)
-    throw new Exception("Key " + mEntityId + "/" + mRelTypeId + "/" + mGroupId + " does not exist in database.")
+    throw new Exception("Keys id=" + mId + ", with multi-column key composed of:  " + mEntityId + "/" + mRelTypeId + "/" + mGroupId + " do not exist in database.")
   }
 
   /** See comment about these 2 dates in PostgreSQLDatabase.createTables() */
-  def this(mDB: PostgreSQLDatabase, entityIdIn: Long, relTypeIdIn: Long, groupIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
-    this(mDB, entityIdIn, relTypeIdIn, groupIdIn)
+  def this(mDB: PostgreSQLDatabase, idIn: Long, entityIdIn: Long, relTypeIdIn: Long, groupIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
+    this(mDB, idIn, entityIdIn, relTypeIdIn, groupIdIn)
     assignCommonVars(entityIdIn, relTypeIdIn, inValidOnDate, inObservationDate)
   }
-
-  override def getId: Long = throw new UnsupportedOperationException("getId() operation not applicable to RelationToGroup class.")
 
   def getGroupId: Long = mGroupId
 
@@ -49,9 +46,9 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mEntityId:Long, mRelTypeId: Long,
 
   protected def readDataFromDB() {
     val relationData: Array[Option[Any]] = mDB.getRelationToGroupData(mEntityId, mRelTypeId, mGroupId)
-    super.assignCommonVars(relationData(0).get.asInstanceOf[Long], relationData(1).get.asInstanceOf[Long],
-                           relationData(3).asInstanceOf[Option[Long]],
-                           relationData(4).get.asInstanceOf[Long])
+    super.assignCommonVars(mEntityId, mRelTypeId,
+                           relationData(4).asInstanceOf[Option[Long]],
+                           relationData(5).get.asInstanceOf[Long])
   }
 
   def update(validOnDateIn:Option[Long], observationDateIn:Option[Long]) {

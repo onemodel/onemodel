@@ -83,6 +83,24 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   }
 
 
+  // This is because it's easy to break this UI feature of rolling back after an import that doesn't look desired, by adding
+  // transaction logic in the db layer somewhere that the ImportExport code uses, and not realizing it. Another option would be
+  // to have a callerManagesTransactions parameter *everywhere*?: ick.
+  // Better yet, is there a way to tell in code if anything called between two lines tries to start or commit a transaction? (ie, "I want to control this, none else.")
+  // Maybe this should really be in a db test class since db logic is what it's actually checking.
+  "testImport" should "not persist if rollback attempted" in {
+    mDB.beginTrans()
+    mImportExport.tryImporting_FOR_TESTS("testImportFile0.txt", mEntity)
+    mDB.rollbackTrans()
+    assert(mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db").isEmpty)
+
+    //check it again with data that has a text attribute, since it adds an operation to the import, and any such could have a transaction issue
+    mDB.beginTrans()
+    mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
+    mDB.rollbackTrans()
+    assert(mDB.findAllEntityIdsByName("vsgeer4").isEmpty)
+  }
+
   "testImportAndExportOfSimpleTxt" should "work" in {
     val importFile: File = mImportExport.tryImporting_FOR_TESTS("testImportFile0.txt", mEntity)
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db")
@@ -122,9 +140,9 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     assert(ids.get.nonEmpty)
     var foundIt = false
     val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
-    for (id <- ids.get) {
+    for (entityId <- ids.get) {
       // (could have used mDB.getContainingEntities1 here perhaps)
-      if (mDB.relationToEntityKeyExists(relationTypeId, mEntity.getId, id)) {
+      if (mDB.relationToEntityExists(relationTypeId, mEntity.getId, entityId)) {
         foundIt = true
       }
     }

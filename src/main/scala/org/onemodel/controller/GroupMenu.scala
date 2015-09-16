@@ -22,7 +22,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
   // see comment on helper method about tailrec
   //@tailrec
   // idea: There's some better scala idiom for this control logic around recursion and exception handling (& there's similar code in all "*Menu" classes):
-  final def groupMenu(groupIn: Group, displayStartingRowNumberIn: Long, relationToGroupIn: Option[RelationToGroup],
+  final def groupMenu(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
                       callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity] = None): Option[Entity] = {
     try {
       groupMenu_helper(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
@@ -41,7 +41,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
   // any code wanting to be inside the tail recursion and make tail recursive calls, have to be directly inside the method?)
   //@tailrec
   //
-  def groupMenu_helper(groupIn: Group, displayStartingRowNumberIn: Long, relationToGroupIn: Option[RelationToGroup],
+  def groupMenu_helper(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
                        callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity] = None): Option[Entity] = {
     require(relationToGroupIn != null)
 
@@ -61,12 +61,12 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
     val leadingText: Array[String] = Array("ENTITY GROUP (regular menu: more complete, so slower for some things): " + displayDescription)
     val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, controller.maxNameLength)
     val objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems))
-    controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.groupSize, displayStartingRowNumberIn)
+    controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize, displayStartingRowNumberIn)
     val names: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       val numSubgroupsPrefix: String = controller.getNumSubgroupsPrefix(entity.getId)
       numSubgroupsPrefix + entity.getName + " " + entity.getPublicStatusString()
     }
-    val numEntitiesInGroup: Long = groupIn.groupSize
+    val numEntitiesInGroup: Long = groupIn.getSize
 
 
     val response = ui.askWhich(Some(leadingText), choices, names)
@@ -94,7 +94,8 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
           // reread the RTG to get the updated info:
           groupMenu(groupIn, displayStartingRowNumberIn,
                     if (relationToGroupIn.isDefined) {
-                      Some(new RelationToGroup(db, relationToGroupIn.get.getParentId, relationToGroupIn.get.getAttrTypeId, relationToGroupIn.get.getGroupId))
+                      Some(new RelationToGroup(db, relationToGroupIn.get.getId, relationToGroupIn.get.getParentId, relationToGroupIn.get.getAttrTypeId,
+                                               relationToGroupIn.get.getGroupId))
                     } else None,
                     callingMenusRtgIn,
                     containingEntityIn)
@@ -135,7 +136,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                                                     controller.askForRelToGroupInfo, updateRelationToGroup)
             //force a reread from the DB so it shows the right info on the repeated menu:
             groupMenu(groupIn, displayStartingRowNumberIn,
-                      Some(new RelationToGroup(db, relationToGroupDH.entityId, relationToGroupDH.attrTypeId, relationToGroupDH.groupId)),
+                      Some(new RelationToGroup(db, relationToGroupIn.get.getId, relationToGroupDH.entityId, relationToGroupDH.attrTypeId, relationToGroupDH.groupId)),
                       callingMenusRtgIn, containingEntityIn)
           } else if (ans == 2 && ans <= choices.length) {
             val entity: Option[Entity] =
@@ -146,13 +147,13 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
               }
 
             if (entity.isDefined)
-              new EntityMenu(ui, db, controller).entityMenu(0, entity.get)
+              new EntityMenu(ui, db, controller).entityMenu(entity.get)
 
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
             if (db.groupKeyExists(groupIn.getId)) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             else None
           } else if (ans == 3 && definingEntity.isDefined && ans <= choices.length) {
-            new EntityMenu(ui, db, controller).entityMenu(0, definingEntity.get)
+            new EntityMenu(ui, db, controller).entityMenu(definingEntity.get)
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
             if (db.groupKeyExists(groupIn.getId)) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             else None
@@ -162,7 +163,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
           }
         }
       } else if (answer == 6) {
-        val displayRowsStartingWithCounter: Long = {
+        val displayRowsStartingWithCounter: Int = {
           val currentPosition = displayStartingRowNumberIn + objectsToDisplay.size
           if (currentPosition >= numEntitiesInGroup) {
             ui.displayText("End of attribute list found; restarting from the beginning.")
@@ -190,7 +191,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
           groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else {
           val entry = objectsToDisplay.get(choicesIndex)
-          new EntityMenu(ui, db, controller).entityMenu(0, entry.asInstanceOf[Entity], None, None, Some(groupIn))
+          new EntityMenu(ui, db, controller).entityMenu(entry.asInstanceOf[Entity], 0, None, None, None, Some(groupIn))
           groupMenu(groupIn, 0, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         }
       } else {
@@ -200,7 +201,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
     }
   }
 
-  def confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn: Long, relationToGroupIn: Option[RelationToGroup], callingMenusRtgIn: Option[RelationToGroup],
+  def confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup], callingMenusRtgIn: Option[RelationToGroup],
                                     containingEntityIn: Option[Entity], groupIn: Group, groupDescrIn: String, numEntitiesInGroupIn: Long,
                                     response: Option[Int]): Option[Entity] = {
     var choices: Array[String] = Array("Delete group definition & remove from all relationships where it is found",
