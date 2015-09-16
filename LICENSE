@@ -1,22 +1,21 @@
 Some license information regarding third-party components is at the end of this file.  
 ----------------------------------------------------
-OneModel 0.0.5-SNAPSHOT: a program to store, manipulate, and share all useful knowledge.
+OneModel 0.0.5-SNAPSHOT: a program to record, manipulate, & share any knowledge.
 Copyright in each year of 2001-2004 and 2008-2015 inclusive, Luke A. Call; all
-rights reserved.  (Downloads and other information are available at
+rights reserved.  (Downloads & other information are available at
 http://www.onemodel.org or http://www.onemodel.biz .)
 
-The purpose of this software is to do the most possible good.  It is licensed
-to you under the GNU AGPL (details below), *AND* these requests:
-1) Practice complete honesty & the Golden Rule to all people, as a sincere
-life-long effort, before using or sharing this software in any way.  Preserve
-these requests to any to whom you redistribute this software.  Someday all will
-be accountable: God will audit our choices (and help and guide, if you ask 
-humbly, sincerely, patiently, and obediently--it's not too late).
+The purpose of this software is to do the most possible good.
+It is licensed to you under the GNU AGPL (below), AND these requests:
+1) Practice honesty & the Golden Rule to all people at all times, as a sincere
+life-long effort, before using or sharing this software in any way, & preserve
+these requests when redistributing it.  God will audit us all--and help & guide
+you, if you ask humbly, sincerely, patiently, & obediently: it's not too late.
 2) Do not redistribute this software in binary (or other ready-to-run) form,
 even within an organization, except as based on source code at least one year
 old, or to members of your immediate family or dependents.  (Unenforceable, 
 this is to help the project, in return for Free code, free and paid downloads, 
-planned improvements, etc.)        For other terms, see the file "CONTRIBUTING".
+planned improvements, etc.)   *For different terms, see the file "CONTRIBUTING".
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of of the GNU Affero General Public License ("GNU AGPL") as published
