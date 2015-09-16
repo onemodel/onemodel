@@ -31,6 +31,10 @@ if [[ $# -gt 0 && $1 == 'd' ]]; then
   DEBUG="-agentlib:jdwp=transport=dt_socket,server=y,suspend=$SUSPEND,address=5005"
 fi
 
+#prevent the system from locking up while creating huge java.core file 
+#when java crashes (like if there's a debug port conflict during development):
+#ulimit -c 1
+#
 java $DEBUG -Djline.keybindings="$THIS_SCRIPT_DIR/../jlinebindings.properties" -jar target/onemodel-*.jar 
 
 # Idea: put in a trap so ^C or ^Z gets handled right on those signals? (search 'man bash' for "times  Print the accumulated user and system times for the shell and for processes run from the shell",
