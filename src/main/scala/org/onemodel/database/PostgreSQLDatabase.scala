@@ -2051,15 +2051,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def getMatchingEntities(inStartingObjectIndex: Long, inMaxVals: Option[Long] = None, omitEntityIdIn: Option[Long],
                           nameRegexIn: String): java.util.ArrayList[Entity] = {
     val omissionExpression: String = if (omitEntityIdIn.isEmpty) "true" else "(not id=" + omitEntityIdIn.get + ")"
-    val sql: String = s"select id, name, public, class_id from entity where not archived and name ~* '$nameRegexIn'" +
+    val sql: String = s"select id, name, class_id, insertion_date, public from entity where not archived and name ~* '$nameRegexIn'" +
                       " and " + omissionExpression + " order by id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
-    val earlyResults = dbQuery(sql, "Long,String,Boolean,Long")
+    val earlyResults = dbQuery(sql, "Long,String,Long,Long,Boolean")
     val finalResults = new java.util.ArrayList[Entity]
     // idea: (see getEntitiesGeneric for idea, see if applies here)
     for (result <- earlyResults) {
       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-      finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Boolean]],
-                                  result(3).asInstanceOf[Option[Long]]))
+      finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
+                                  result(3).get.asInstanceOf[Long], result(4).asInstanceOf[Option[Boolean]]))
     }
     require(finalResults.size == earlyResults.size)
     finalResults
@@ -2233,7 +2233,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   private def getEntitiesGeneric(inStartingObjectIndex: Long, inMaxVals: Option[Long], inTableName: String,
                                  inClassId: Option[Long] = None, limitByClass: Boolean = false,
                                  classDefiningEntity: Option[Long] = None, groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Entity] = {
-    val ENTITY_SELECT_PART: String = "SELECT e.id, e.name, e.public, e.class_id"
+    val ENTITY_SELECT_PART: String = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public"
     val sql: String = ENTITY_SELECT_PART +
                       (if (inTableName.compareToIgnoreCase("RelationType") == 0) ", r.name_in_reverse_direction, r.directionality " else "") +
                       " from Entity e " +
@@ -2257,19 +2257,19 @@ class PostgreSQLDatabase(username: String, var password: String) {
                       else "") +
                       " order by id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
     val earlyResults = dbQuery(sql,
-                               if (inTableName.compareToIgnoreCase("RelationType") == 0) "Long,String,Boolean,Long,String,String"
-                               else "Long,String,Boolean,Long")
+                               if (inTableName.compareToIgnoreCase("RelationType") == 0) "Long,String,Long,Long,Boolean,String,String"
+                               else "Long,String,Long,Long,Boolean")
     val finalResults = new java.util.ArrayList[Entity]
     // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
     // dependencies; is a cleaner design.)
     for (result <- earlyResults) {
       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
       if (inTableName.compareToIgnoreCase("RelationType") == 0) {
-        finalResults.add(new RelationType(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(4).get.asInstanceOf[String],
-                                          result(5).get.asInstanceOf[String]))
+        finalResults.add(new RelationType(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(5).get.asInstanceOf[String],
+                                          result(6).get.asInstanceOf[String]))
       } else {
-        finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Boolean]],
-                                    result(3).asInstanceOf[Option[Long]]))
+        finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
+                                    result(3).get.asInstanceOf[Long], result(4).asInstanceOf[Option[Boolean]]))
       }
     }
 
@@ -2417,7 +2417,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getEntityData(inID: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("SELECT name, class_id, public from Entity where (not archived) and id=" + inID, "String,Long,Boolean")
+    dbQueryWrapperForOneRow("SELECT name, class_id, insertion_date, public from Entity where (not archived) and id=" + inID, "String,Long,Long,Boolean")
   }
 
   def getEntityName(inID: Long): Option[String] = {

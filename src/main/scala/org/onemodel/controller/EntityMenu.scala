@@ -455,6 +455,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     if (containingGroupIn.isDefined) {
       leadingTextIn(0) += ": found via group: " + containingGroupIn.get.getName
     }
+    leadingTextIn(0) += ": created " + entityIn.getCreationDateFormatted
     leadingTextIn(1) = if (numAttributes == 0) "No attributes have been assigned to this object, yet."
     else "Attribute list menu: (or choose attribute by letter)"
     leadingTextIn

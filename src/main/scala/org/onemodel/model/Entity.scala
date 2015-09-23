@@ -18,6 +18,7 @@ package org.onemodel.model
 import java.io.{FileInputStream, PrintWriter, StringWriter}
 
 import org.onemodel._
+import org.onemodel.controller.Controller
 import org.onemodel.database.PostgreSQLDatabase
 
 object Entity {
@@ -65,12 +66,13 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, nameIn: String, publicIn: Option[Boolean], classIdIn: Option[Long] = None) {
+  def this(mDB: PostgreSQLDatabase, mId: Long, nameIn: String, classIdIn: Option[Long] = None, insertionDateIn: Long, publicIn: Option[Boolean]) {
     this(mDB, mId)
     mName = nameIn
     mClassId = classIdIn
-    mAlreadyReadData = true
+    mInsertionDate = insertionDateIn
     mPublic = publicIn
+    mAlreadyReadData = true
   }
 
   /** Allows createEntity to return an instance without duplicating the database check that it Entity(long, PostgreSQLDatabase) does. */
@@ -82,6 +84,29 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   def getName: String = {
     if (!mAlreadyReadData) readDataFromDB()
     mName
+  }
+
+  def getClassId: Option[Long] = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mClassId
+  }
+
+  def getClassDefiningEntityId: Option[Long] = {
+    val classId = getClassId
+    if (classId.isEmpty) None
+    else {
+      val definingEntityId: Option[Long] = mDB.getClassData(mClassId.get)(1).asInstanceOf[Option[Long]]
+      definingEntityId
+    }
+  }
+
+  def getCreationDate: Long = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mInsertionDate
+  }
+
+  def getCreationDateFormatted: String = {
+    Controller.DATEFORMAT.format(new java.util.Date(getCreationDate))
   }
 
   def getPublic: Option[Boolean] = {
@@ -102,25 +127,12 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
       new OmException("how did we get here?")
   }
 
-  def getClassId: Option[Long] = {
-    if (!mAlreadyReadData) readDataFromDB()
-    mClassId
-  }
-
-  def getClassDefiningEntityId: Option[Long] = {
-    val classId = getClassId
-    if (classId.isEmpty) None
-    else {
-      val definingEntityId: Option[Long] = mDB.getClassData(mClassId.get)(1).asInstanceOf[Option[Long]]
-      definingEntityId
-    }
-  }
-
   protected def readDataFromDB() {
     val entityData = mDB.getEntityData(mId)
     mName = entityData(0).get.asInstanceOf[String]
     mClassId = entityData(1).asInstanceOf[Option[Long]]
-    mPublic = entityData(2).asInstanceOf[Option[Boolean]]
+    mInsertionDate = entityData(2).get.asInstanceOf[Long]
+    mPublic = entityData(3).asInstanceOf[Option[Boolean]]
     mAlreadyReadData = true
   }
 
@@ -293,5 +305,6 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   var mAlreadyReadData: Boolean = false
   var mName: String = null
   var mClassId: Option[Long] = None
+  var mInsertionDate: Long = -1
   var mPublic: Option[Boolean] = None
 }

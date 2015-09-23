@@ -22,7 +22,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     val testName = "thisisaname"
     val mockDB = mock[PostgreSQLDatabase]
     when(mockDB.entityKeyExists(id)).thenReturn(true)
-    val entity = new Entity(mockDB, id, testName, Some(true))
+    val entity = new Entity(mockDB, id, testName, Some(1L), 2L, Some(true))
     val testRelTypeName = PostgreSQLDatabase.theHASrelationTypeName
     val testNameReversed = "is had"
     val testDir = "BI"
