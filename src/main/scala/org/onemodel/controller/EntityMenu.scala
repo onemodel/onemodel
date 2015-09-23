@@ -587,13 +587,13 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       o match {
         //idea: there's probably also some more scala-like cleaner syntax 4 this, as elsewhere:
         case qa: QuantityAttribute => controller.attributeEditMenu(qa)
+        case da: DateAttribute => controller.attributeEditMenu(da)
+        case ba: BooleanAttribute => controller.attributeEditMenu(ba)
+        case fa: FileAttribute => controller.attributeEditMenu(fa)
         case ta: TextAttribute => controller.attributeEditMenu(ta)
         case relToEntity: RelationToEntity => entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, Some(entityIn), Some(relToEntity))
         case relToGroup: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup),
                                                                                                   containingEntityIn = Some(entityIn))
-        case da: DateAttribute => controller.attributeEditMenu(da)
-        case ba: BooleanAttribute => controller.attributeEditMenu(ba)
-        case fa: FileAttribute => controller.attributeEditMenu(fa)
         case _ => throw new Exception("Unexpected choice has class " + o.getClass.getName + "--what should we do here?")
       }
     }

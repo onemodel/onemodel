@@ -51,13 +51,7 @@ object PostgreSQLDatabase {
     // Doing these individually so that if one fails (not previously existing, such as testing or a new installation), the others can proceed (drop method
     // ignores that exception).
 
-    drop("table", "TextAttribute", connIn)
     drop("table", "QuantityAttribute", connIn)
-    drop("table", "RelationToEntity", connIn)
-    drop("table", "action", connIn)
-    drop("table", "EntitiesInAGroup", connIn)
-    drop("table", "RelationToGroup", connIn)
-    drop("table", "grupo", connIn)
     drop("table", "DateAttribute", connIn)
     drop("table", "BooleanAttribute", connIn)
     // The next line is to invoke the trigger that will clean out Large Objects (FileAttributeContent...) from the table pg_largeobject.
@@ -74,6 +68,12 @@ object PostgreSQLDatabase {
     }
     drop("table", "FileAttributeContent", connIn)
     drop("table", "FileAttribute", connIn)
+    drop("table", "TextAttribute", connIn)
+    drop("table", "RelationToEntity", connIn)
+    drop("table", "EntitiesInAGroup", connIn)
+    drop("table", "RelationToGroup", connIn)
+    drop("table", "action", connIn)
+    drop("table", "grupo", connIn)
     drop("table", "RelationType", connIn)
     drop("table", "AttributeSorting", connIn)
     drop("table", "Entity", connIn)
@@ -363,28 +363,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ") ")
       dbAction("create index quantity_parent_id on QuantityAttribute (parent_id)")
 
-      dbAction("create sequence TextAttributeKeySequence minvalue " + minIdValue)
-      // the parent_id is the key for the entity on which this text info is recorded; for other meanings see comments on
-      // Entity.addQuantityAttribute(...).
-      // id must be "unique not null" in ANY database used, because it is the primary key.
-      dbAction("create table TextAttribute (" +
-               // see comment for this column under "create table RelationToEntity", below:
-               "form_id smallint DEFAULT " + PostgreSQLDatabase.getAttributeFormId("TextAttribute") +
-               "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId("TextAttribute") + "), " +
-               "id bigint DEFAULT nextval('TextAttributeKeySequence') PRIMARY KEY, " +
-               "parent_id bigint NOT NULL, " +
-               "textValue text NOT NULL, " +
-               //eg, serial number (which would be an entity)
-               "attr_type_id bigint not null, " +
-               // see "create table RelationToEntity" for comments about dates' meanings.
-               "valid_on_date bigint, " +
-               "observation_date bigint not null, " +
-               "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
-               "CONSTRAINT valid_parent_id FOREIGN KEY (parent_id) REFERENCES entity (id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_ta_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
-               ") ")
-      dbAction("create index text_parent_id on TextAttribute (parent_id)")
-
       dbAction("create sequence DateAttributeKeySequence minvalue " + minIdValue)
       dbAction("create table DateAttribute (" +
                // see comment for this column under "create table RelationToEntity", below:
@@ -465,6 +443,27 @@ class PostgreSQLDatabase(username: String, var password: String) {
       dbAction("CREATE TRIGGER om_contents_oid_cleanup BEFORE UPDATE OR DELETE ON fileattributecontent " +
                "FOR EACH ROW EXECUTE PROCEDURE lo_manage(contents_oid)")
 
+      dbAction("create sequence TextAttributeKeySequence minvalue " + minIdValue)
+      // the parent_id is the key for the entity on which this text info is recorded; for other meanings see comments on
+      // Entity.addQuantityAttribute(...).
+      // id must be "unique not null" in ANY database used, because it is the primary key.
+      dbAction("create table TextAttribute (" +
+               // see comment for this column under "create table RelationToEntity", below:
+               "form_id smallint DEFAULT " + PostgreSQLDatabase.getAttributeFormId("TextAttribute") +
+               "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId("TextAttribute") + "), " +
+               "id bigint DEFAULT nextval('TextAttributeKeySequence') PRIMARY KEY, " +
+               "parent_id bigint NOT NULL, " +
+               "textValue text NOT NULL, " +
+               //eg, serial number (which would be an entity)
+               "attr_type_id bigint not null, " +
+               // see "create table RelationToEntity" for comments about dates' meanings.
+               "valid_on_date bigint, " +
+               "observation_date bigint not null, " +
+               "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
+               "CONSTRAINT valid_parent_id FOREIGN KEY (parent_id) REFERENCES entity (id) ON DELETE CASCADE, " +
+               "CONSTRAINT valid_ta_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
+               ") ")
+      dbAction("create index text_parent_id on TextAttribute (parent_id)")
 
       dbAction("create sequence RelationToEntityKeySequence minvalue " + minIdValue)
       //Example: a relationship between a state and various counties might be set up like this:
@@ -504,17 +503,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ") ")
       dbAction("create index entity_id_1 on RelationToEntity (entity_id_1)")
       dbAction("create index entity_id_2 on RelationToEntity (entity_id_2)")
-
-
-      dbAction("create sequence ActionKeySequence minvalue " + minIdValue)
-      dbAction("create table Action (" +
-               "id bigint DEFAULT nextval('ActionKeySequence') PRIMARY KEY, " +
-               "class_id bigint NOT NULL, " +
-               "name varchar(" + entityNameLength + ") NOT NULL, " +
-               "action varchar(" + entityNameLength + ") NOT NULL, " +
-               "CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES Class (id) ON DELETE CASCADE " +
-               ") ")
-      dbAction("create index action_class_id on Action (class_id)")
 
       // Would rename this sequence to match the table it's used in now, but the cmd "alter sequence relationtogroupkeysequence rename to groupkeysequence;"
       // doesn't rename the name inside the sequence, and keeping the old name is easier for now than deciding whether to do something about that (more info
@@ -584,6 +572,16 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ") ")
       dbAction("create index EntitiesInAGroup_id on EntitiesInAGroup (entity_id)")
       dbAction("create index EntitiesInAGroup_sorted on EntitiesInAGroup (group_id, entity_id, sorting_index)")
+
+      dbAction("create sequence ActionKeySequence minvalue " + minIdValue)
+      dbAction("create table Action (" +
+               "id bigint DEFAULT nextval('ActionKeySequence') PRIMARY KEY, " +
+               "class_id bigint NOT NULL, " +
+               "name varchar(" + entityNameLength + ") NOT NULL, " +
+               "action varchar(" + entityNameLength + ") NOT NULL, " +
+               "CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES Class (id) ON DELETE CASCADE " +
+               ") ")
+      dbAction("create index action_class_id on Action (class_id)")
 
       commitTrans()
     } catch {
