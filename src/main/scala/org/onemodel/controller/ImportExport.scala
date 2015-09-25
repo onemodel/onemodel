@@ -11,7 +11,7 @@
 package org.onemodel.controller
 
 import java.io._
-import java.nio.file.{StandardCopyOption, Files, Path}
+import java.nio.file.{Files, Path, StandardCopyOption}
 
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model._
@@ -353,15 +353,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     if (name.isEmpty || uri.isEmpty) throw new OmException("\"Unsupported format at line " + lineNumberIn +
                                                            ": A URI line must be in the format (without quotes): " + uriLineExample)
     // (see note above on this being better in the class and action *tables*, but here for now until those features are ready)
-    var uriClass: Option[Long]  = db.findFIRSTClassIdByName("URI", caseSensitive = true)
-    if (uriClass.isEmpty) {
-      val (classId, _) = db.createClassAndItsDefiningEntity("URI")
-      uriClass = Some(classId)
-    }
-    val newEntity: Entity = lastEntityAddedIn.createEntityAndAddHASRelationToIt(name, observationDateIn, makeThemPublicIn,
-                                                                                callerManagesTransactionsIn = true)._1
-    db.updateEntityOnlyClass(newEntity.getId, Some(uriClass.get), callerManagesTransactionsIn)
-    newEntity.addTextAttribute(uriClass.get, uri, None, observationDateIn, callerManagesTransactionsIn = true)
+    db.addUriEntityWithUriAttribute(lastEntityAddedIn, name, uri, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)
   }
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
@@ -421,54 +413,52 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
 
   // idea: see comment in EntityMenu about scoping.
   def export(entity: Entity, exportTypeIn: String, copyrightYearAndNameIn: Option[String]) {
-    val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels to export (including this one; 0 = 'all'); ESC to cancel")), Some(controller.isNumeric), Some("0"))
-    if (ans.isDefined) {
-      val levelsToExport: Int = ans.get.toInt
+    val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels to export (including this one; 0 = 'all'); ESC to cancel")),
+                                              Some(controller.isNumeric), Some("0"))
+    if (ans.isEmpty) return
+    val levelsToExport: Int = ans.get.toInt
+    val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
+    if (ans2.isEmpty) return
+    val includeMetadata: Boolean = ans2.get
+    //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
+    val includePublicData: Option[Boolean] = ui.askYesNoQuestion("Include public data?", Some("y"))
+    val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("y"))
+    val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("y"))
 
-      val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
-      if (ans2.isDefined) {
-        val includeMetadata: Boolean = ans2.get
+    if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined) {
+      require(levelsToExport >= 0)
+      val spacesPerIndentLevel = 2
+      val exportedEntities = new mutable.TreeSet[Long]()
 
-        //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
-        val includePublicData: Option[Boolean] = ui.askYesNoQuestion("Include public data?", Some("y"))
-        val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("y"))
-        val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("y"))
-
-        if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined) {
-          require(levelsToExport >= 0)
-          val spacesPerIndentLevel = 2
-          val exportedEntities = new mutable.TreeSet[Long]()
-
-          val prefix: String = getExportFileNamePrefix(entity, exportTypeIn)
-          if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-            val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, None)
-            try {
-              exportToSingleTxtFile(entity, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntities,
-                                    spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData)
-              // flush before we report 'done' to the user:
-              outputWriter.close()
-              ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
-            } finally {
-              if (outputWriter != null) {
-                try outputWriter.close()
-                catch {
-                  case e: Exception =>
-                  // ignore
-                }
-              }
+      val prefix: String = getExportFileNamePrefix(entity, exportTypeIn)
+      if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+        val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, None)
+        try {
+          exportToSingleTxtFile(entity, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntities,
+                                spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData)
+          // flush before we report 'done' to the user:
+          outputWriter.close()
+          ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
+        } finally {
+          if (outputWriter != null) {
+            try outputWriter.close()
+            catch {
+              case e: Exception =>
+              // ignore
             }
-          } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
-            val outputDirectory:Path = createOutputDir(prefix)
-            // see note about this usage, in method importUriContent:
-            val uriClassId: Option[Long] = db.findFIRSTClassIdByName("URI", caseSensitive = true)
-
-            exportHtml(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntities, mutable.TreeSet[Long](), uriClassId,
-                             includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
-            ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
-          } else {
-            throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
           }
         }
+      } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
+        val outputDirectory:Path = createOutputDir(prefix)
+        // see note about this usage, in method importUriContent:
+        val uriClassId: Long = db.getOrCreateClassAndDefiningEntityIds("URI", callerManagesTransactionsIn = true)._1
+        val quoteClassId = db.getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn = true)._1
+
+        exportHtml(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntities, mutable.TreeSet[Long](), uriClassId, quoteClassId,
+                         includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
+        ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
+      } else {
+        throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
       }
     }
   }
@@ -476,13 +466,13 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   // This exists for the reasons commented in exportItsChildrenToHtmlFiles, and so that not all callers have to explicitly call both (ie, duplication of code).
   def exportHtml(entity: Entity, levelsToExportIsInfinite: Boolean, levelsToExport: Int,
                  outputDirectory: Path, exportedEntities: mutable.TreeSet[Long], entitiesAlreadyProcessedInThisRefChain: mutable.TreeSet[Long],
-                 uriClassId: Option[Long],
+                 uriClassId: Long, quoteClassId: Long,
                  includePublicData: Option[Boolean], includeNonPublicData: Option[Boolean], includeUnspecifiedData: Option[Boolean],
                  copyrightYearAndName: Option[String]) {
-    exportEntityToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntities, uriClassId,
+    exportEntityToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntities, uriClassId, quoteClassId,
                      includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndName)
     exportItsChildrenToHtmlFiles(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntities, entitiesAlreadyProcessedInThisRefChain,
-                                 uriClassId,
+                                 uriClassId, quoteClassId,
                                  includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndName)
   }
 
@@ -492,7 +482,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     *
     */
   def exportEntityToHtmlFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
-                  outputDirectoryIn: Path, exportedEntitiesIn: mutable.TreeSet[Long], uriClassIdIn: Option[Long],
+                  outputDirectoryIn: Path, exportedEntitiesIn: mutable.TreeSet[Long], uriClassIdIn: Long, quoteClassIdIn: Long,
                   includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
                   copyrightYearAndNameIn: Option[String]) {
     // useful while debugging:
@@ -526,33 +516,12 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             val entity2 = new Entity(db, relation.getRelatedId2)
             if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                                   levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
-              if (uriClassIdIn.isDefined && entity2.getClassId == uriClassIdIn) {
-                // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
-                // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
-                def findUriAttribute(): Option[TextAttribute] = {
-                  val attributesOnEntity2: Array[(Long, Attribute)] = db.getSortedAttributes(entity2.getId, 0, 0)._1
-                  for (attrTuple <- attributesOnEntity2) {
-                    val attr2: Attribute = attrTuple._2
-                    if (attr2.getAttrTypeId == uriClassIdIn.get && attr2.isInstanceOf[TextAttribute]) {
-                      return Some(attr2.asInstanceOf[TextAttribute])
-                    }
-                  }
-                  None
-                }
-                val uriAttribute: Option[TextAttribute] = findUriAttribute()
-                if (uriAttribute.isEmpty) {
-                  throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassIdIn.get + ") for entity " + entity2.getId)
-                }
-                printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, entity2.getName)
+              if (entity2.getClassId.isDefined && entity2.getClassId.get == uriClassIdIn) {
+                printListItemForUriEntity(uriClassIdIn, quoteClassIdIn, printWriter, entity2)
               } else {
                 // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
                 // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
-                val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity2, ImportExport.HTML_EXPORT_TYPE)
-                printHtmlListItemWithLink(printWriter,
-                                          if (relationType.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationType.getName + ": ",
-                                          relatedEntitysFileNamePrefix + ".html",
-                                          entity2.getName,
-                                          Some("(" + getNumSubEntries(entity2) + ")"))
+                printListItemForEntity(printWriter, relationType, entity2)
               }
             }
           case relation: RelationToGroup =>
@@ -570,13 +539,11 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
                 if (isAllowedToExport(entityInGrp, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                                       levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
-                  val relatedGroupsEntitysFileNamePrefix: String = getExportFileNamePrefix(entityInGrp, ImportExport.HTML_EXPORT_TYPE)
-                  // (Create this link, even if the # of subentries is 0, because there might be other useful info on the page (sometime).)
-                  printHtmlListItemWithLink(printWriter,
-                                            if (relationType.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationType.getName + ": ",
-                                            relatedGroupsEntitysFileNamePrefix + ".html",
-                                            entityInGrp.getName,
-                                            Some("(" + getNumSubEntries(entityInGrp) + ")"))
+                  if (entityInGrp.getClassId.isDefined && entityInGrp.getClassId.get == uriClassIdIn) {
+                    printListItemForUriEntity(uriClassIdIn, quoteClassIdIn, printWriter, entityInGrp)
+                  } else{
+                    printListItemForEntity(printWriter, relationType, entityInGrp)
+                  }
                 }
               }
             }
@@ -589,7 +556,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       }
       printWriter.println("</ul>")
       if (copyrightYearAndNameIn.isDefined) {
-        printWriter.println("<center><small>Copyright " + htmlEncode(copyrightYearAndNameIn.get) + "</small></center>")
+        // (intentionally not doing "htmlEncode(copyrightYearAndNameIn.get)", so that some ~footer-like links can be included in it.
+        printWriter.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "</small></center>")
       }
       printWriter.println("</html></body>")
       printWriter.close()
@@ -602,6 +570,56 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           // ignore
         }
       }
+    }
+  }
+
+  def printListItemForUriEntity(uriClassIdIn: Long, quoteClassIdIn: Long, printWriter: PrintWriter, entity2: Entity): Unit = {
+    // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
+    // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
+    def findUriAttribute(): Option[TextAttribute] = {
+      val attributesOnEntity2: Array[(Long, Attribute)] = db.getSortedAttributes(entity2.getId, 0, 0)._1
+      val uriClassDefiningEntityId: Long = new EntityClass(db, uriClassIdIn).getDefiningEntityId
+      for (attrTuple <- attributesOnEntity2) {
+        val attr2: Attribute = attrTuple._2
+        if (attr2.getAttrTypeId == uriClassDefiningEntityId && attr2.isInstanceOf[TextAttribute]) {
+          return Some(attr2.asInstanceOf[TextAttribute])
+        }
+      }
+      None
+    }
+    def findQuoteText(): Option[String] = {
+      val attributesOnEntity2: Array[(Long, Attribute)] = db.getSortedAttributes(entity2.getId, 0, 0)._1
+      val quoteClassDefiningEntityId: Long = new EntityClass(db, quoteClassIdIn).getDefiningEntityId
+      for (attrTuple <- attributesOnEntity2) {
+        val attr2: Attribute = attrTuple._2
+        if (attr2.getAttrTypeId == quoteClassDefiningEntityId && attr2.isInstanceOf[TextAttribute]) {
+          return Some(attr2.asInstanceOf[TextAttribute].getText)
+        }
+      }
+      None
+    }
+    val uriAttribute: Option[TextAttribute] = findUriAttribute()
+    if (uriAttribute.isEmpty) {
+      throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassIdIn + ") for entity " + entity2.getId)
+    }
+    // this one can be None and it's no surprise:
+    val quoteText: Option[String] = findQuoteText()
+    printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, entity2.getName, None, quoteText)
+  }
+
+  def printListItemForEntity(printWriterIn: PrintWriter, relationTypeIn: RelationType, entityIn: Entity): Unit = {
+    val numSubEntries = getNumSubEntries(entityIn)
+    if (numSubEntries > 0) {
+      val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entityIn, ImportExport.HTML_EXPORT_TYPE)
+      printHtmlListItemWithLink(printWriterIn,
+                                if (relationTypeIn.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationTypeIn.getName + ": ",
+                                relatedEntitysFileNamePrefix + ".html",
+                                entityIn.getName,
+                                Some("(" + numSubEntries + ")"))
+    } else {
+      val line = (if (relationTypeIn.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationTypeIn.getName + ": ") +
+                 entityIn.getName
+      printWriterIn.println("<li>" + htmlEncode(line) + "</li>")
     }
   }
 
@@ -619,7 +637,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     */
   def exportItsChildrenToHtmlFiles(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
                                    outputDirectoryIn: Path, exportedEntitiesIn: mutable.TreeSet[Long],
-                                   entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[Long], uriClassIdIn: Option[Long],
+                                   entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[Long], uriClassIdIn: Long, quoteClassId: Long,
                                    includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
                                    copyrightYearAndNameIn: Option[String]) {
     if (! isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
@@ -637,17 +655,17 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       attribute match {
         case relation: RelationToEntity =>
           val entity2 = new Entity(db, relation.getRelatedId2)
-          if (uriClassIdIn.isEmpty || entity2.getClassId != uriClassIdIn) {
+          if (entity2.getClassId.isEmpty || entity2.getClassId.get != uriClassIdIn) {
             // that means it's not a URI but an actual traversable thing to follow when exporting children:
             exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
-                       outputDirectoryIn, exportedEntitiesIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn,
+                       outputDirectoryIn, exportedEntitiesIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
                        includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
           }
         case relation: RelationToGroup =>
           val group = new Group(db, relation.getGroupId)
           for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
             exportHtml(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
-                       outputDirectoryIn, exportedEntitiesIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn,
+                       outputDirectoryIn, exportedEntitiesIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
                        includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
           }
         case _ =>
@@ -764,9 +782,11 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     publicEnoughToExport && (levelsToExportIsInfiniteIn || levelsRemainingToExportIn > 0)
   }
 
-  def printHtmlListItemWithLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None): Unit = {
+  def printHtmlListItemWithLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None,
+                                textOnNextLineButSameHtmlListItem: Option[String] = None): Unit = {
     printWriterIn.print("<li>")
     printWriterIn.print(htmlEncode(preLabel) + "<a href=\"" + uri + "\">" + htmlEncode(linkDisplayText) + "</a>" + " " + htmlEncode(suffix.getOrElse("")))
+    if (textOnNextLineButSameHtmlListItem.isDefined) printWriterIn.print("<br><pre>\"" + htmlEncode(textOnNextLineButSameHtmlListItem.get) + "\"</pre>")
     printWriterIn.println("</li>")
   }
 

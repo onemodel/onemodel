@@ -69,9 +69,10 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val exportedEntities = new mutable.TreeSet[Long]()
     val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
     val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
-    val uriClassId: Option[Long] = mDB.findFIRSTClassIdByName("URI", caseSensitive = true)
+    val uriClassId: Long = mDB.getOrCreateClassAndDefiningEntityIds("URI", callerManagesTransactionsIn = true)._1
+    val quoteClassId = mDB.getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn = true)._1
     mImportExport.exportHtml(startingEntity, levelsToExportIsInfinite = true, 0, outputDirectory, exportedEntities, mutable.TreeSet[Long](), uriClassId,
-                                    Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
+                             quoteClassId, Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
 
     assert(outputDirectory.toFile.exists)
     val newFiles: Array[String] = outputDirectory.toFile.list
@@ -154,11 +155,11 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer4")
     val (firstNewFileContents: String, newFiles: Array[String]) = tryExportingHtml(ids)
 
-    assert(firstNewFileContents.contains("<a href=\"e-"), "unexpected file contents:  " + firstNewFileContents)
-    assert(firstNewFileContents.contains(".html\">purpose</a> (0)"), "unexpected file contents:  " + firstNewFileContents)
-    assert(firstNewFileContents.contains(".html\">empowerment</a> (2)"), "unexpected file contents:  " + firstNewFileContents)
+    assert(firstNewFileContents.contains("<a href=\"e-"), "unexpected file contents: no href?:  " + firstNewFileContents)
+    assert(firstNewFileContents.contains("purpose"), "unexpected file contents: no 'purpose'?:  " + firstNewFileContents)
+    assert(firstNewFileContents.contains(".html\">empowerment</a> (2)"), "unexpected file contents: no 'empowerment'?:  " + firstNewFileContents)
     assert(firstNewFileContents.contains("Copyright"), "unexpected file contents: no copyright?")
-    assert(firstNewFileContents.contains("all rights reserved"), "unexpected file contents: no 'all rights reserved'?")
+    assert(firstNewFileContents.contains("all rights reserved"), "unexpected file contents: no 'all rights reserved' from the input file?")
     assert(newFiles.length > 5, "unexpected # of files: " + newFiles.length)
   }
 

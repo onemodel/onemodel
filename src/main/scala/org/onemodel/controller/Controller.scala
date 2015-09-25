@@ -49,6 +49,15 @@ object Controller {
                                        " (by adding it as an attribute to some entity)," +
                                        " & see if it should be deleted, kept with an entity, or left out there floating." +
                                        "  (While this is not an expected usage, it is allowed and does not imply data corruption.)"
+
+  def getClipboardContent: String = {
+    val clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
+    val contents: String = clipboard.getContents(null).getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor).toString
+    contents.trim
+    //(example of placing data on the clipboard, for future reference:)
+    //val selection = new java.awt.datatransfer.StringSelection("someString")
+    //clipboard.setContents(selection, null)
+  }
 }
 
 /** Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
@@ -156,7 +165,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                         defaultPasswordIn: Option[String] = None): PostgreSQLDatabase = {
 
     require(if (forceUserPassPromptIn) defaultUsernameIn.isEmpty && defaultPasswordIn.isEmpty else true)
-    
+
     // tries the system username, blank password, & if that doesn't work, prompts user.
     @tailrec def tryOtherLoginsOrPrompt(): PostgreSQLDatabase = {
       val db = {
@@ -258,7 +267,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val classId: Option[Long] =
       if (inClassId.isDefined) inClassId
       else {
-        val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String]("CHOOSE ENTITY'S CLASS (entity template; ESC for None)")), None, None,
+        val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String]("CHOOSE ENTITY'S CLASS (ESC if you don't know or care about this.  This is a way to associate code or default attributes with groups of entities.  Help me word this better, but:  for example, in the case of an attribute of an entity, it must have a type, which is also an entity; so, a Vehicle Identification Number (VIN) entity represents the *concept* of a VIN, a text attribute on a vehicle entity holds the content of the VIN in a string of characters, and the \"type entity\" (VIN concept entity) can have a class which holds code used to parse VIN strings for additional internal meaning; or, it could serve as a template holding standard fields for entities in the VIN class (such as if the VIN itself were written in a multi-field entity rather than in a single text attribute).  The class-defining entity of the VIN class could be the same entity as the type entity for the an attribute, as far as I can see now.  ***Use this feature only if it helps you, otherwise press ESC for None.*** )")), None, None,
                                                                 Controller.ENTITY_CLASS_TYPE)
         newClass = true
         if (idWrapper.isEmpty) None
@@ -614,12 +623,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           ui.displayText("Did not delete attribute.", waitForKeystroke = false)
         }
         attributeEditMenu(attributeIn)
-      }
-      else if (answer == 5) {
+      } else if (answer == 5) {
         new EntityMenu(ui, db, this).entityMenu(new Entity(db, attributeIn.getAttrTypeId))
         attributeEditMenu(attributeIn)
-      }
-      else if (answer == 6) {
+      } else if (answer == 6) {
         if (!attributeIn.isInstanceOf[FileAttribute]) throw new Exception("Menu shouldn't have allowed us to get here w/ a type other than FA (" +
                                                                           attributeIn.getClass.getName + ").")
         val fa: FileAttribute = attributeIn.asInstanceOf[FileAttribute]
@@ -1784,22 +1791,20 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
-  def handleException(e: Exception) {//eliminate this once other users are switched 2 next 1 [what did i mean by that? anything still2do, or elim cmt?]
-    if (e.isInstanceOf[org.postgresql.util.PSQLException] || e.isInstanceOf[OmDatabaseException] || throwableToString(e).contains("ERROR: current transaction" +
-                                                                                                                                  " is aborted, " +
-                                                                                                                                  "commands ignored until end" +
-                                                                                                                                  " of transaction block")) {
+  def handleException(e: Throwable) {//eliminate this once other users are switched 2 next 1 [what did i mean by that? anything still2do, or elim cmt?]
+    if (e.isInstanceOf[org.postgresql.util.PSQLException] || e.isInstanceOf[OmDatabaseException] ||
+        throwableToString(e).contains("ERROR: current transaction is aborted, commands ignored until end of transaction block"))
+    {
       db.rollbackTrans()
     }
     val ans = ui.askYesNoQuestion("An error occurred: \"" + e.getClass.getName + ": " + e.getMessage + "\".  If you can provide simple instructions to " +
-                                  "reproduce it consistently, " +
-                                  "maybe it can be fixed.  Do you want to see the detailed output?")
+                                  "reproduce it consistently, maybe it can be fixed.  Do you want to see the detailed output?")
     if (ans.isDefined && ans.get) {
       ui.displayText(throwableToString(e))
     }
   }
 
-  def throwableToString(e: Exception): String = {
+  def throwableToString(e: Throwable): String = {
     val stringWriter = new StringWriter()
     e.printStackTrace(new PrintWriter(stringWriter))
     stringWriter.toString

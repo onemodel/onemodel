@@ -43,7 +43,10 @@ class TextAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWithVal
     */
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     val typeName: String = mDB.getEntityName(getAttrTypeId).get
-    var result: String = typeName + ": \"" + getText + "\""
+    var result: String = {
+      if (simplify && (typeName == "paragraph" || typeName == "quote")) getText
+      else typeName + ": \"" + getText + "\""
+    }
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }

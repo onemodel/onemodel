@@ -1037,7 +1037,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(!EntityClass.isDuplicate(mDB, name.toLowerCase, Some(classId)))
     mDB.updateClassName(classId, name)
 
-    mDB.updateEntityOnlyClass(entityId, None)
+    mDB.updateEntitysClass(entityId, None)
     mDB.deleteClassAndItsDefiningEntity(classId)
     assert(!EntityClass.isDuplicate(mDB, name, Some(classId)))
     assert(!EntityClass.isDuplicate(mDB, name))
@@ -1073,14 +1073,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
                                   group.addEntity(entityId2)
                                 }.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
     // should succeed (same class now):
-    mDB.updateEntityOnlyClass(entityId2, Some(classId))
+    mDB.updateEntitysClass(entityId2, Some(classId))
     group.addEntity(entityId2)
     // ...and for convenience while here, make sure we can't make mixed classes with changing the *entity* either:
     assert(intercept[Exception] {
-                                  mDB.updateEntityOnlyClass(entityId2, Some(classId2))
+                                  mDB.updateEntitysClass(entityId2, Some(classId2))
                                 }.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
     assert(intercept[Exception] {
-                                  mDB.updateEntityOnlyClass(entityId2, None)
+                                  mDB.updateEntitysClass(entityId2, None)
                                 }.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
 
     //should fail due to mismatched classId (NULL):

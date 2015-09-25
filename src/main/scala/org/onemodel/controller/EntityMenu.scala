@@ -85,19 +85,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             return Some(index)
           }
         }
-        // if we got to this point, it could simply have been deleted or something (probably), so just return something safe:
+        // if we got to this point, it could simply have been deleted or something (probably), so just return something safe (instead of throwing an
+        // exception, as in a previous commit):
         None
-//        older idea commented below:
-        // idea: instead of doing this, could simply replace the value of highlightedEntry with the first one from those returned? Could that cause
-        // any confusion or mask another problem?
-//        throw new OmException("Unexpected state: attribute for highlighting (" + highlightedObjFormId + "/" + highlightedObjId + ": " +
-//                              highlightedEntry.get.getDisplayString(20, None, None, simplify = true) +
-//                              ") not found in list returned from getSortedAttributes.  (The original highlightedAttributeIn parameter was: " +
-//                              (if (highlightedAttributeIn.isEmpty) "None"
-//                              else highlightedAttributeIn.get.getFormId + "/" +
-//                                   highlightedAttributeIn.get.getId +
-//                                   highlightedAttributeIn.get.getDisplayString(20, None, None, simplify = true)) +
-//                              ".)")
       }
     }
     val highlightedIndexInObjList: Option[Int] = getHighlightedIndexInAttrList
@@ -196,7 +186,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       }
     }
   } catch {
-    case e: Exception =>
+    case e: Throwable =>
+      // catching Throwable instead of Exception here, because sometimes depending on how I'm running X etc I might get the InternalError
+      // "Can't connect to X11 window server ...", and it's better to recover from that than to abort the app (ie, when eventually calling
+      // Controller.getClipboardContent)..
       controller.handleException(e)
       val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
       if (ans.isDefined && ans.get) entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedAttributeIn, relationSourceEntityIn, relationIn, containingGroupIn)
@@ -493,7 +486,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                         "external file (BUT CONSIDER FIRST ADDING AN ENTITY SPECIFICALLY FOR THE DOCUMENT SO IT CAN HAVE A DATE, OTHER ATTRS ETC.; " +
                         "AND ADDING THE DOCUMENT TO THAT ENTITY, SO IT CAN ALSO BE ASSOCIATED WITH OTHER ENTITIES EASILY!; also, " +
                         "given the concept behind OM, it's probably best" +
-                        " to use this only for historical artifacts, or when you really can't fully model the data right now")
+                        " to use this only for historical artifacts, or when you really can't fully model the data right now",
+
+                        "external web page (or other URI, to refer to external information and optionally quote it)")
                  )
     if (whichKindOfAttribute.isDefined) {
       val whichKindAnswer = whichKindOfAttribute.get
@@ -556,11 +551,52 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         if (result.isDefined) {
           val ans = ui.askYesNoQuestion("Document successfully added. Do you want to DELETE the local copy (at " + result.get.getOriginalFilePath + " ?")
           if (ans.isDefined && ans.get) {
-            if (! new File(result.get.getOriginalFilePath).delete()) {
+            if (!new File(result.get.getOriginalFilePath).delete()) {
               ui.displayText("Unable to delete file at that location; reason unknown.  You could check the permissions.")
             }
           }
         }
+      } else if (whichKindAnswer == 8) {
+        val newEntityName: Option[String] = ui.askForString(Some(Array{"Enter a name (or description) for this web page or other URI"}))
+        if (newEntityName.isEmpty || newEntityName.get.isEmpty) return
+
+        val ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (normal) or the" +
+                                                  " clipboard (faster sometimes)?")), Array("keyboard", "clipboard"))
+        if (ans1.isEmpty) return
+        val keyboardOrClipboard1 = ans1.get
+        val uri: String = if (keyboardOrClipboard1 == 1) {
+          val text = ui.askForString(Some(Array("Enter the URI:")))
+          if (text.isEmpty || text.get.isEmpty) return else text.get
+        } else {
+          val uriReady = ui.askYesNoQuestion("Put the url on the system clipboard, then Enter to continue (or hit ESC or answer 'n' to get out)", Some("y"))
+          if (uriReady.isEmpty || !uriReady.get) return
+          Controller.getClipboardContent
+        }
+
+        val ans2 = ui.askWhich(Some(Array[String]("Do you want to enter a quote from it, via the keyboard (normal) or the" +
+                                                  " clipboard (faster sometimes, especially if it's multiline)? Or, ESC to not enter a quote.")),
+                               Array("keyboard", "clipboard"))
+        val quote:Option[String] = if (ans2.isEmpty) {
+          None
+        } else {
+          val keyboardOrClipboard2 = ans2.get
+          if (keyboardOrClipboard2 == 1) {
+            val text = ui.askForString(Some(Array("Enter the quote")))
+            if (text.isEmpty || text.get.isEmpty) return else text
+          } else {
+            ui.askYesNoQuestion("Put a quote on the system clipboard, then Enter to continue (or ESC or answer 'n' to get out)", Some("y"))
+            Some(Controller.getClipboardContent)
+          }
+        }
+        val quoteInfo = if (quote.isEmpty) "" else "For this text: \n  " + quote.get + "\n...and, "
+
+        val proceedAnswer = ui.askYesNoQuestion(quoteInfo + "...for this name & URI:\n  " + newEntityName.get + "\n  " + uri + "" +
+                                                "\n...: do you want to save them?", Some("y"))
+        if (proceedAnswer.isEmpty || !proceedAnswer.get) return
+
+        val newEntity: Entity = db.addUriEntityWithUriAttribute(entityIn, newEntityName.get, uri, System.currentTimeMillis(),
+                                                                entityIn.getPublic, callerManagesTransactionsIn = false, quote)
+        entityMenu(newEntity, relationSourceEntityIn = Some(entityIn))
       } else {
         ui.displayText("invalid response")
       }

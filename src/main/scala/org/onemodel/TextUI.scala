@@ -273,9 +273,8 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
         }
       }
 
-      if (line.length() == 0 && inDefaultValue.isDefined) {
-        // idea: we are taking the default value even if there are criteria and it fails: could be reconsidered.
-        checkCriteria(inDefaultValue.get)
+      if (line.length() == 0) {
+        None
       }
       else {
         checkCriteria(line)

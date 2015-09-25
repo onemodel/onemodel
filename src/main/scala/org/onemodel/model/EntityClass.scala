@@ -16,7 +16,6 @@
 package org.onemodel.model
 
 import java.io.{PrintWriter, StringWriter}
-import scala.Predef._
 import org.onemodel.database.PostgreSQLDatabase
 
 object EntityClass {
@@ -25,7 +24,8 @@ object EntityClass {
   def isDuplicate(inDB: PostgreSQLDatabase, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateClass(inName, inSelfIdToIgnore)
 }
 
-class EntityClass(mDB: PostgreSQLDatabase, mId: Long) {
+class
+EntityClass(mDB: PostgreSQLDatabase, mId: Long) {
   if (!mDB.classKeyExists(mId)) {
     // DON'T CHANGE this msg unless you also change the trap for it in TextUI.java.
     throw new Exception("Key " + mId + " does not exist in database.")

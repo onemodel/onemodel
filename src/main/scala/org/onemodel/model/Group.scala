@@ -65,19 +65,25 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
 
   def getDisplayString(lengthLimitIn: Int, simplifyIn: Boolean = false): String = {
     val numEntries = mDB.getGroupEntryCount(getId, Some(false))
-    var result: String =  "grp " + mId + " /" + numEntries + ": "
-    result += (if (simplifyIn) getName else Color.blue(getName))
-    result += ", class: "
-    val className =
-      if (getMixedClassesAllowed)
-        "(mixed)"
-      else {
-        val classNameOption = getClassName
-        if (classNameOption.isEmpty) "None"
-        else classNameOption.get
-      }
-    result += className
-    Attribute.limitDescriptionLength(result, lengthLimitIn)
+    var result: String =  ""
+    result += {
+      if (simplifyIn) getName
+      else "grp " + mId + " /" + numEntries + ": " + Color.blue(getName)
+    }
+    if (!simplifyIn) {
+      result += ", class: "
+      val className =
+        if (getMixedClassesAllowed)
+          "(mixed)"
+        else {
+          val classNameOption = getClassName
+          if (classNameOption.isEmpty) "None"
+          else classNameOption.get
+        }
+      result += className
+    }
+    if (simplifyIn) result
+    else Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
   def getGroupEntries(startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[Entity] = {

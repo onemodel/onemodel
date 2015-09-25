@@ -130,7 +130,7 @@ object PostgreSQLDatabase {
     //    update entity set (name) = (E'len\'gth4') where id=-9223372036854775807;
     */
     // we don't have to do much: see the odd string that works ok, searching for "!@#$%" etc in PostgreSQLDatabaseTest.
-    result = result.replaceAll("'", "''")
+    result = result.replaceAll("'", "\39")
     // there is probably a different/better/right way to do this, possibly using the psql functions quote_literal or quote_null,
     // or maybe using "escape" string constants (a postgresql extension to the sql standard). But it needs some thought, and maybe
     // this will work for now, unless someone needs to access the DB in another form. Kludgy, yes. It's on the fix list.
@@ -142,6 +142,7 @@ object PostgreSQLDatabase {
     // don't have to do the single-ticks ("'") because the db does that automatically when returning data (see PostgreSQLDatabaseTest).
 
     var result: String = s
+    result = result.replaceAll("\39", "'")
     result = result.replaceAll("\59", ";")
     result
   }
@@ -272,6 +273,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       dbAction("create sequence ClassKeySequence minvalue " + minIdValue)
 
       // the name here doesn't have to be the same name as in the related Entity record, (since it's not a key, and it might not make sense to match).
+      // For additional comments on usage, see the Controller.askForInfoAndCreateEntity method.
       dbAction("create table Class (" +
                "id bigint DEFAULT nextval('ClassKeySequence') PRIMARY KEY, " +
                "name varchar(" + classNameLength + ") NOT NULL, " +
@@ -743,7 +745,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       if (classGroupId.isDefined) {
         removeEntityFromGroup(classGroupId.get, definingEntityId, callerManagesTransactionsIn = true)
       }
-      updateEntityOnlyClass(definingEntityId, None, callerManagesTransactions = true)
+      updateEntitysClass(definingEntityId, None, callerManagesTransactions = true)
       deleteObjectById("class", inClassId, callerManagesTransactions = true)
       deleteObjectById("entity", definingEntityId, callerManagesTransactions = true)
     } catch {
@@ -835,8 +837,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def createQuantityAttribute(inParentId: Long, inAttrTypeId: Long, inUnitId: Long, inNumber: Float, inValidOnDate: Option[Long],
                               inObservationDate: Long, callerManagesTransactionsIn: Boolean = false): /*id*/ Long = {
     if (!callerManagesTransactionsIn) beginTrans()
-    val id: Long = getNewKey("QuantityAttributeKeySequence")
+    var id: Long = 0L
     try {
+      id = getNewKey("QuantityAttributeKeySequence")
       addAttributeSortingRow(inParentId, PostgreSQLDatabase.getAttributeFormId("QuantityAttribute"), id)
       dbAction("insert into QuantityAttribute (id, parent_id, unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) " +
                "values (" + id + "," + inParentId + "," + inUnitId + "," + inNumber + "," + inAttrTypeId + "," +
@@ -937,7 +940,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     dbAction("update class set (name) = ('" + name + "') where id=" + inId)
   }
 
-  def updateEntityOnlyClass(entityId: Long, classId: Option[Long], callerManagesTransactions: Boolean = false) {
+  def updateEntitysClass(entityId: Long, classId: Option[Long], callerManagesTransactions: Boolean = false) {
     if (!callerManagesTransactions) beginTrans()
     dbAction("update Entity set (class_id) = (" +
              (if (classId.isEmpty) "NULL" else classId.get) +
@@ -2833,4 +2836,56 @@ class PostgreSQLDatabase(username: String, var password: String) {
     findIdWhichIsNotKeyOfAnyEntity_helper(startingId, 0)
   }
 
+  // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
+  def addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: Long,
+                                   makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
+                                   quoteIn: Option[String] = None): Entity = {
+    if (quoteIn.isDefined) require(!quoteIn.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
+    if (!callerManagesTransactionsIn) beginTrans()
+    try {
+      // **idea: BAD SMELL: should this method be moved out of the db class, since it depends on higher-layer components, like EntityClass and
+      // those in the same package? It was in Controller, but moved here
+      // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
+
+      val (uriClassId: Long, uriClassDefiningEntityId: Long) = getOrCreateClassAndDefiningEntityIds("URI", callerManagesTransactionsIn)
+      val (_, quotationClassDefiningEntityId: Long) = getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn)
+      val newEntity: Entity = containingEntityIn.createEntityAndAddHASRelationToIt(newEntityNameIn, observationDateIn, makeThemPublicIn,
+                                                                                   callerManagesTransactionsIn)._1
+      updateEntitysClass(newEntity.getId, Some(uriClassId), callerManagesTransactionsIn)
+      newEntity.addTextAttribute(uriClassDefiningEntityId, uriIn, None, observationDateIn, callerManagesTransactionsIn)
+      if (quoteIn.isDefined) {
+        newEntity.addTextAttribute(quotationClassDefiningEntityId, quoteIn.get, None, observationDateIn, callerManagesTransactionsIn)
+      }
+      if (!callerManagesTransactionsIn) commitTrans()
+      newEntity
+    } catch {
+      case e: Exception =>
+        if (!callerManagesTransactionsIn) rollbackTrans()
+        throw e
+    }
+  }
+
+  def getOrCreateClassAndDefiningEntityIds(classNameIn: String, callerManagesTransactionsIn: Boolean): (Long, Long) = {
+    //(see note above re 'bad smell' in method addUriEntityWithUriAttribute.)
+    if (!callerManagesTransactionsIn) beginTrans()
+    try {
+      val (classId, entityId) = {
+        val foundId = findFIRSTClassIdByName(classNameIn, caseSensitive = true)
+        if (foundId.isDefined) {
+          val entityId: Long = new EntityClass(this, foundId.get).getDefiningEntityId
+          (foundId.get, entityId)
+        } else {
+          val (classId: Long, entityId: Long) = createClassAndItsDefiningEntity(classNameIn)
+          (classId, entityId)
+        }
+      }
+      if (!callerManagesTransactionsIn) commitTrans()
+      (classId, entityId)
+    }
+    catch {
+      case e: Exception =>
+        if (!callerManagesTransactionsIn) rollbackTrans()
+        throw e
+    }
+  }
 }

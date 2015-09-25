@@ -39,7 +39,7 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTy
     val group = new Group(mDB, mGroupId)
     val rtName = new RelationType(mDB, this.getAttrTypeId).getName
     var result: String = if (simplify && rtName == PostgreSQLDatabase.theHASrelationTypeName) "" else rtName + " "
-    result += group.getDisplayString(0)
+    result += group.getDisplayString(0, simplify)
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }

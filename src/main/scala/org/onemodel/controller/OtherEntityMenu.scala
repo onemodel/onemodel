@@ -9,9 +9,9 @@
 */
 package org.onemodel.controller
 
+import org.onemodel.TextUI
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model._
-import org.onemodel.TextUI
 
 /** This is simply to hold less-used operations so the main EntityMenu can be the most-used stuff.
   */
@@ -42,8 +42,11 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               // idea (in task list):  have the date default to the entity creation date, then later add/replace that (w/ range or what for ranges?)
               // with the last edit date, when that feature exists.
               val copyrightYearAndName = ui.askForString(Some(Array("Enter copyright year(s) and holder's name, i.e., the \"2015 John Doe\" part " +
-                                                                    "of \"Copyright 2015 John Doe\"")))
-              new ImportExport(ui, db, controller).export(entityIn, ImportExport.HTML_EXPORT_TYPE, copyrightYearAndName)
+                                                                    "of \"Copyright 2015 John Doe\" (This accepts HTML so can be used for a " +
+                                                                    "page footer, for example.)")))
+              if (copyrightYearAndName.isDefined) {
+                new ImportExport(ui, db, controller).export(entityIn, ImportExport.HTML_EXPORT_TYPE, copyrightYearAndName)
+              }
             }
           }
           otherEntityMenu(entityIn)
