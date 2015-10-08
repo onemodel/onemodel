@@ -1204,6 +1204,17 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   }
 
+  "getMatchingEntities" should "work" in {
+    val entityId1 = mDB.createEntity("test: org.onemodel.PSQLDbTest.getMatchingEntities1--abc")
+    val entityId2 = mDB.createEntity("test: org.onemodel.PSQLDbTest.getMatchingEntities2")
+    val textAttributeId1: Long = mDB.createTextAttribute(entityId1, entityId2, "defg", None, 0)
+    val entities1 = mDB.getMatchingEntities(0, None, None, "abc")
+    assert(entities1.size == 1)
+    val textAttributeId2: Long = mDB.createTextAttribute(entityId2, entityId1, "abc", None, 0)
+    val entities2 = mDB.getMatchingEntities(0, None, None, "abc")
+    assert(entities2.size == 2)
+  }
+
   //idea: should this be moved to ImportExportTest? why did i put it here originally?
   "getJournal" should "show activity during a date range" in {
     val startDataSetupTime = System.currentTimeMillis()

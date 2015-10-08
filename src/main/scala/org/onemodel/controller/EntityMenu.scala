@@ -584,7 +584,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             val text = ui.askForString(Some(Array("Enter the quote")))
             if (text.isEmpty || text.get.isEmpty) return else text
           } else {
-            ui.askYesNoQuestion("Put a quote on the system clipboard, then Enter to continue (or ESC or answer 'n' to get out)", Some("y"))
+            val clip = ui.askYesNoQuestion("Put a quote on the system clipboard, then Enter to continue (or ESC or answer 'n' to get out)", Some("y"))
+            if (clip.isEmpty || !clip.get) return
             Some(Controller.getClipboardContent)
           }
         }

@@ -200,7 +200,8 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     controller.start()
   }
 
-  /* Returns the string entered (None if the user just wants out of this question or whatever).
+  /* Returns the string entered (None if the user just wants out of this question or whatever, OR the default value in that case if one is provided. Is that
+     true, or does it  always currently return just an empty string? Looks so. See internal comments for possibly fixing that.)
    * The parameter "criteria"'s Option is a function which takes a String (which will be the user input), which it checks for validity.
    * If the entry didn't meet the criteria, it repeats the question until it does or user gets out w/ ESC.
    * A simple way to let the user know why it didn't meet the criteria is to put them in the leading text.
@@ -273,8 +274,14 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
         }
       }
 
-      if (line.length() == 0) {
-        None
+      if (line.length() == 0 && inDefaultValue.isDefined) {
+        // idea: we are currently taking the default value even if there are criteria and it fails: That could be reconsidered.
+        // If this is changed, places calling it that rely on its  behavior should be re-evaluated (ie, what is the behavior & how should callers use that?
+        // Especially for Controller.askForAttributeValidAndObservedDates, which currently, unfortunately, relies on this mis-behavior, and change the method
+        // comment describing its contract TO CORRECTLY DESCRIBE THE MEANING & OPERATION!
+        // Maybe the callers should control it via whether there is a default value, & change the cmt of this method, or, they should act based on whether the
+        // returned info is blank.  Does this mean also that we should add tests for the text UI, now?
+        checkCriteria(inDefaultValue.get)
       }
       else {
         checkCriteria(line)

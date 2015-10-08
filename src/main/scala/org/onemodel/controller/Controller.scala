@@ -517,9 +517,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   @tailrec
   final def attributeEditMenu(attributeIn: Attribute): Option[Entity] = {
     val leadingText: Array[String] = Array("Attribute: " + attributeIn.getDisplayString(0, None, None))
-    var firstChoices = Array("(stub, to make others consistent)",
+    var firstChoices = Array("Edit the attribute type, content (single line), and valid/observed dates",
                              if (attributeIn.isInstanceOf[TextAttribute]) "Edit (as multiline value)" else "(stub)",
-                             "Edit the attribute type, value (single line), and valid/observed dates",
+                             "Edit the attribute content (single line)",
                              "Delete",
                              "Go to entity representing the type: " + new Entity(db, attributeIn.getAttrTypeId).getName)
     if (attributeIn.isInstanceOf[FileAttribute]) {
@@ -529,31 +529,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     if (response.isEmpty) None
     else {
       val answer: Int = response.get
-      if (answer == 2 && attributeIn.isInstanceOf[TextAttribute]) {
-        val ta = attributeIn.asInstanceOf[TextAttribute]
-        //idea: allow user to change the edit command setting (ie which editor to use) from here?
-
-        //idea: allow user to prevent this message in future. Could be by using ui.askYesNoQuestion instead, adding to the  prompt "(ask this again?)", with
-        // 'y' as default, and storing the answer in the db.systemEntityName somewhere perhaps.
-        //PUT THIS BACK (& review/test it) after taking the time to read the Process package's classes or something like
-        // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
-//        val command: String = db.getTextEditorCommand
-//        ui.displayText("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for existing " +
-//                       "entities, choose the first one (called " + PostgreSQLDatabase.systemEntityName + "), choose " +
-//                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
-//                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
-//                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
-
-        val path: Path = Files.createTempFile("om-edit-", ".txt")
-        Files.write(path, ta.getText.getBytes)
-        ui.displayText("Until we improve this, you can now go edit the attribute content in this temporary file, & save it:\n" +
-                       path.toFile.getCanonicalPath + "\n...then come back here when ready to import that text.")
-        val newContent: String = new String(Files.readAllBytes(path))
-        ta.update(ta.getAttrTypeId, newContent, ta.getValidOnDate, ta.getObservationDate)
-        path.toFile.delete()
-        //then force a reread from the DB so it shows the right info on the repeated menu:
-        attributeEditMenu(new TextAttribute(db, attributeIn.getId))
-      } else if (answer == 3) {
+      if (answer == 1) {
         attributeIn match {
           case quantityAttribute: QuantityAttribute =>
             def updateQuantityAttribute(dhInOut: QuantityAttributeDataHolder) {
@@ -612,8 +588,66 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             attributeEditMenu(new FileAttribute(db, attributeIn.getId))
           case _ => throw new Exception("Unexpected type: " + attributeIn.getClass.getName)
         }
-      }
-      else if (answer == 4) {
+      } else if (answer == 2 && attributeIn.isInstanceOf[TextAttribute]) {
+        val ta = attributeIn.asInstanceOf[TextAttribute]
+        //idea: allow user to change the edit command setting (ie which editor to use) from here?
+
+        //idea: allow user to prevent this message in future. Could be by using ui.askYesNoQuestion instead, adding to the  prompt "(ask this again?)", with
+        // 'y' as default, and storing the answer in the db.systemEntityName somewhere perhaps.
+        //PUT THIS BACK (& review/test it) after taking the time to read the Process package's classes or something like
+        // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
+//        val command: String = db.getTextEditorCommand
+//        ui.displayText("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for existing " +
+//                       "entities, choose the first one (called " + PostgreSQLDatabase.systemEntityName + "), choose " +
+//                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
+//                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
+//                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
+
+        val path: Path = Files.createTempFile("om-edit-", ".txt")
+        Files.write(path, ta.getText.getBytes)
+        ui.displayText("Until we improve this, you can now go edit the attribute content in this temporary file, & save it:\n" +
+                       path.toFile.getCanonicalPath + "\n...then come back here when ready to import that text.")
+        val newContent: String = new String(Files.readAllBytes(path))
+        ta.update(ta.getAttrTypeId, newContent, ta.getValidOnDate, ta.getObservationDate)
+        path.toFile.delete()
+        //then force a reread from the DB so it shows the right info on the repeated menu:
+        attributeEditMenu(new TextAttribute(db, attributeIn.getId))
+      } else if (answer == 3 && (attributeIn.isInstanceOf[QuantityAttribute] || attributeIn.isInstanceOf[TextAttribute] ||
+                                 attributeIn.isInstanceOf[DateAttribute] || attributeIn.isInstanceOf[BooleanAttribute])) {
+        attributeIn match {
+          case quantityAttribute: QuantityAttribute =>
+            val num: Option[Float] = askForQuantityAttributeNumber(quantityAttribute.getNumber)
+            if (num.isDefined) {
+              quantityAttribute.update(quantityAttribute.getAttrTypeId, quantityAttribute.getUnitId,
+                                       num.get,
+                                       quantityAttribute.getValidOnDate, quantityAttribute.getObservationDate)
+            }
+            //force a reread from the DB so it shows the right info on the repeated menu:
+            attributeEditMenu(new QuantityAttribute(db, attributeIn.getId))
+          case textAttribute: TextAttribute =>
+            val textAttributeDH: TextAttributeDataHolder = new TextAttributeDataHolder(textAttribute.getAttrTypeId, textAttribute.getValidOnDate,
+                                                                                       textAttribute.getObservationDate, textAttribute.getText)
+            val outDH: Option[TextAttributeDataHolder] = askForTextAttributeText(textAttributeDH, inEditing = true)
+            if (outDH.isDefined) textAttribute.update(outDH.get.attrTypeId, outDH.get.text, outDH.get.validOnDate, outDH.get.observationDate)
+            //force a reread from the DB so it shows the right info on the repeated menu:
+            attributeEditMenu(new TextAttribute(db, attributeIn.getId))
+          case dateAttribute: DateAttribute =>
+            val dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.getAttrTypeId, dateAttribute.getDate)
+            val outDH: Option[DateAttributeDataHolder] = askForDateAttributeValue(dateAttributeDH, inEditing = true)
+            if (outDH.isDefined) dateAttribute.update(outDH.get.attrTypeId, outDH.get.date)
+            //force a reread from the DB so it shows the right info on the repeated menu:
+            attributeEditMenu(new DateAttribute(db, attributeIn.getId))
+          case booleanAttribute: BooleanAttribute =>
+            val booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.getAttrTypeId, booleanAttribute.getValidOnDate,
+                                                                                                booleanAttribute.getObservationDate,
+                                                                                                booleanAttribute.getBoolean)
+            val outDH: Option[BooleanAttributeDataHolder] = askForBooleanAttributeValue(booleanAttributeDH, inEditing = true)
+            if (outDH.isDefined) booleanAttribute.update(outDH.get.attrTypeId, outDH.get.boolean, outDH.get.validOnDate, outDH.get.observationDate)
+            //force a reread from the DB so it shows the right info on the repeated menu:
+            attributeEditMenu(new BooleanAttribute(db, attributeIn.getId))
+          case _ => throw new Exception("Unexpected type: " + attributeIn.getClass.getName)
+        }
+      } else if (answer == 4) {
         val ans = ui.askYesNoQuestion("DELETE this attribute: ARE YOU SURE?")
         if (ans.isDefined && ans.get) {
           attributeIn.delete()
@@ -867,24 +901,24 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     *
     * Idea: re attrTypeIn parm, enum/improvement: see comment re inAttrType at beginning of chooseOrCreateObject.
     */
-  @tailrec final def findExistingObjectByName(startingDisplayRowIndexIn: Long = 0, attrTypeIn: String,
-                                                  idToOmitIn: Option[Long] = None, nameRegexIn: String): Option[IdWrapper] = {
+  @tailrec final def findExistingObjectByText(startingDisplayRowIndexIn: Long = 0, attrTypeIn: String,
+                                                  idToOmitIn: Option[Long] = None, regexIn: String): Option[IdWrapper] = {
     val leadingText = List[String]("SEARCH RESULTS: " + pickFromListPrompt)
     val choices: Array[String] = Array(listNextItemsPrompt)
     val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, maxNameLength)
 
     val objectsToDisplay = attrTypeIn match {
       case Controller.ENTITY_TYPE =>
-        db.getMatchingEntities(startingDisplayRowIndexIn, Some(numDisplayableItems), idToOmitIn, nameRegexIn)
+        db.getMatchingEntities(startingDisplayRowIndexIn, Some(numDisplayableItems), idToOmitIn, regexIn)
       case Controller.GROUP_TYPE =>
-        db.getMatchingGroups(startingDisplayRowIndexIn, Some(numDisplayableItems), idToOmitIn, nameRegexIn)
+        db.getMatchingGroups(startingDisplayRowIndexIn, Some(numDisplayableItems), idToOmitIn, regexIn)
       case _ =>
         throw new OmException("??")
     }
     if (objectsToDisplay.size == 0) {
       ui.displayText("End of list, or none found; starting over from the beginning...")
       if (startingDisplayRowIndexIn == 0) None
-      else findExistingObjectByName(0, attrTypeIn, idToOmitIn, nameRegexIn)
+      else findExistingObjectByText(0, attrTypeIn, idToOmitIn, regexIn)
     } else {
       val objectNames: Array[String] = objectsToDisplay.toArray.map {
                                                                       case entity: Entity =>
@@ -903,7 +937,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (answer == 1 && answer <= choices.length) {
           // (For reason behind " && answer <= choices.size", see comment where it is used in entityMenu.)
           val nextStartingIndex: Long = startingDisplayRowIndexIn + objectsToDisplay.size
-          findExistingObjectByName(nextStartingIndex, attrTypeIn, idToOmitIn, nameRegexIn)
+          findExistingObjectByText(nextStartingIndex, attrTypeIn, idToOmitIn, regexIn)
         } else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
           // those in the condition on the previous line are 1-based, not 0-based.
           val index = answer - choices.length - 1
@@ -928,7 +962,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               case _ =>
                 throw new OmException("??")
             }
-            findExistingObjectByName(startingDisplayRowIndexIn, attrTypeIn, idToOmitIn, nameRegexIn)
+            findExistingObjectByText(startingDisplayRowIndexIn, attrTypeIn, idToOmitIn, regexIn)
           } else {
             // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
             attrTypeIn match {
@@ -944,7 +978,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         }
         else {
           ui.displayText("unknown response")
-          findExistingObjectByName(startingDisplayRowIndexIn, attrTypeIn, idToOmitIn, nameRegexIn)
+          findExistingObjectByText(startingDisplayRowIndexIn, attrTypeIn, idToOmitIn, regexIn)
         }
       }
     }
@@ -1002,7 +1036,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       if (mostAttrTypeNames.contains(inAttrType)) {
         choiceList = choiceList :+ menuText_createEntityOrAttrType
         createAttrTypeChoiceNum += 1
-        choiceList = choiceList :+ "Search for existing entity by name..."
+        choiceList = choiceList :+ "Search for existing entity by name and text attribute content..."
         searchForEntityByNameChoiceNum += 2
         choiceList = choiceList :+ "Search for existing entity by id..."
         searchForEntityByIdChoiceNum += 3
@@ -1130,7 +1164,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           None
         else {
           // Allow relation to self (eg, picking self as 2nd part of a RelationToEntity), so None in 3nd parm.
-          val e: Option[IdWrapper] = findExistingObjectByName(0, Controller.ENTITY_TYPE, None, ans.get)
+          val e: Option[IdWrapper] = findExistingObjectByText(0, Controller.ENTITY_TYPE, None, ans.get)
           if (e.isEmpty) None
           else Some(new IdWrapper(e.get.getId))
         }
@@ -1275,16 +1309,20 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       None
     } else {
       outDH.unitId = unitSelection.get.getId
-      val leadingText = Array[String]("ENTER THE NUMBER FOR THE QUANTITY (i.e., 5, for 5 centimeters length)")
-      val previousQuantity: String = outDH.number.toString
-      val ans = ui.askForString(Some(leadingText), Some(isNumeric), Some(previousQuantity))
+      val ans: Option[Float] = askForQuantityAttributeNumber(outDH.number)
       if (ans.isEmpty) None
       else {
-        val numStr = ans.get
-        outDH.number = numStr.toFloat
+        outDH.number = ans.get
         Some(outDH)
       }
     }
+  }
+
+  def askForQuantityAttributeNumber(previousQuantity: Float): Option[Float] = {
+    val leadingText = Array[String]("ENTER THE NUMBER FOR THE QUANTITY (i.e., 5, for 5 centimeters length)")
+    val ans = ui.askForString(Some(leadingText), Some(isNumeric), Some(previousQuantity.toString))
+    if (ans.isEmpty) None
+    else Some(ans.get.toFloat)
   }
 
   /** Returns None if user wants to cancel. */
@@ -1443,7 +1481,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (ans.isEmpty) None
         else {
           // Allow relation to self, so None in 2nd parm.
-          val g: Option[IdWrapper] = findExistingObjectByName(0, Controller.GROUP_TYPE, None, ans.get)
+          val g: Option[IdWrapper] = findExistingObjectByText(0, Controller.GROUP_TYPE, None, ans.get)
           if (g.isEmpty) None
           else Some(new IdWrapper(g.get.getId))
         }

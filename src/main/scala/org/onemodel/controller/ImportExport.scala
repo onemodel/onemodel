@@ -422,8 +422,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     val includeMetadata: Boolean = ans2.get
     //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
     val includePublicData: Option[Boolean] = ui.askYesNoQuestion("Include public data?", Some("y"))
-    val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("y"))
-    val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("y"))
+    val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("n"))
+    val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("n"))
 
     if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined) {
       require(levelsToExport >= 0)

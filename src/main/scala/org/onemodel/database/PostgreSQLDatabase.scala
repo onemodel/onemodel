@@ -2052,10 +2052,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getMatchingEntities(inStartingObjectIndex: Long, inMaxVals: Option[Long] = None, omitEntityIdIn: Option[Long],
-                          nameRegexIn: String): java.util.ArrayList[Entity] = {
+                          regexIn: String): java.util.ArrayList[Entity] = {
     val omissionExpression: String = if (omitEntityIdIn.isEmpty) "true" else "(not id=" + omitEntityIdIn.get + ")"
-    val sql: String = s"select id, name, class_id, insertion_date, public from entity where not archived and name ~* '$nameRegexIn'" +
-                      " and " + omissionExpression + " order by id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
+    val sql: String = "select id, name, class_id, insertion_date, public from entity where not archived and " + omissionExpression +
+                      " and name ~* '" + regexIn + "'" +
+                      " UNION " +
+                      "select id, name, class_id, insertion_date, public from entity where not archived and " + omissionExpression +
+                      " and id in (select parent_id from textattribute where textValue ~* '" + regexIn + "')" +
+                      " ORDER BY" +
+                      " id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
     val earlyResults = dbQuery(sql, "Long,String,Long,Long,Boolean")
     val finalResults = new java.util.ArrayList[Entity]
     // idea: (see getEntitiesGeneric for idea, see if applies here)
