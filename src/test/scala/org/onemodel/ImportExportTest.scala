@@ -72,7 +72,8 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val uriClassId: Long = mDB.getOrCreateClassAndDefiningEntityIds("URI", callerManagesTransactionsIn = true)._1
     val quoteClassId = mDB.getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn = true)._1
     mImportExport.exportHtml(startingEntity, levelsToExportIsInfinite = true, 0, outputDirectory, exportedEntities, mutable.TreeSet[Long](), uriClassId,
-                             quoteClassId, Some(true), Some(true), Some(true), Some("2015 thisisatestpersonname"))
+                             quoteClassId, includePublicData = true, includeNonPublicData = true, includeUnspecifiedData = true,
+                             Some("2015 thisisatestpersonname"))
 
     assert(outputDirectory.toFile.exists)
     val newFiles: Array[String] = outputDirectory.toFile.list

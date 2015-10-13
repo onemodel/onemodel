@@ -425,7 +425,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("n"))
     val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("n"))
 
-    if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined) {
+    if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined &&
+        (includePublicData.get || includePublicData.get || includeUnspecifiedData.get)) {
       require(levelsToExport >= 0)
       val spacesPerIndentLevel = 2
       val exportedEntities = new mutable.TreeSet[Long]()
@@ -435,7 +436,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, None)
         try {
           exportToSingleTxtFile(entity, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntities,
-                                spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData)
+                                spacesPerIndentLevel, includePublicData.get, includeNonPublicData.get, includeUnspecifiedData.get)
           // flush before we report 'done' to the user:
           outputWriter.close()
           ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
@@ -455,7 +456,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val quoteClassId = db.getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn = true)._1
 
         exportHtml(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntities, mutable.TreeSet[Long](), uriClassId, quoteClassId,
-                         includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndNameIn)
+                         includePublicData.get, includeNonPublicData.get, includeUnspecifiedData.get, copyrightYearAndNameIn)
         ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
       } else {
         throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
@@ -467,7 +468,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   def exportHtml(entity: Entity, levelsToExportIsInfinite: Boolean, levelsToExport: Int,
                  outputDirectory: Path, exportedEntities: mutable.TreeSet[Long], entitiesAlreadyProcessedInThisRefChain: mutable.TreeSet[Long],
                  uriClassId: Long, quoteClassId: Long,
-                 includePublicData: Option[Boolean], includeNonPublicData: Option[Boolean], includeUnspecifiedData: Option[Boolean],
+                 includePublicData: Boolean, includeNonPublicData: Boolean, includeUnspecifiedData: Boolean,
                  copyrightYearAndName: Option[String]) {
     exportEntityToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntities, uriClassId, quoteClassId,
                      includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndName)
@@ -483,7 +484,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     */
   def exportEntityToHtmlFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
                   outputDirectoryIn: Path, exportedEntitiesIn: mutable.TreeSet[Long], uriClassIdIn: Long, quoteClassIdIn: Long,
-                  includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
+                  includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
                   copyrightYearAndNameIn: Option[String]) {
     // useful while debugging:
     //out.flush()
@@ -638,7 +639,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   def exportItsChildrenToHtmlFiles(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
                                    outputDirectoryIn: Path, exportedEntitiesIn: mutable.TreeSet[Long],
                                    entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[Long], uriClassIdIn: Long, quoteClassId: Long,
-                                   includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean],
+                                   includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
                                    copyrightYearAndNameIn: Option[String]) {
     if (! isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                             levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
@@ -696,7 +697,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   def exportToSingleTxtFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int, 
                             printWriterIn: PrintWriter,
                             includeMetadataIn: Boolean, exportedEntitiesIn: mutable.TreeSet[Long], spacesPerIndentLevelIn: Int,
-                            includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean], includeUnspecifiedDataIn: Option[Boolean]) {
+                            includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean) {
     // useful while debugging:
     //out.flush()
 
@@ -772,12 +773,12 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     }
   }
 
-  def isAllowedToExport(entityIn: Entity, includePublicDataIn: Option[Boolean], includeNonPublicDataIn: Option[Boolean],
-                        includeUnspecifiedDataIn: Option[Boolean], levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int): Boolean = {
+  def isAllowedToExport(entityIn: Entity, includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean,
+                        includeUnspecifiedDataIn: Boolean, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int): Boolean = {
     val entityPublicStatus: Option[Boolean] = entityIn.getPublic
-    val publicEnoughToExport = (entityPublicStatus.isDefined && entityPublicStatus.get && includePublicDataIn.get) ||
-                          (entityPublicStatus.isDefined && !entityPublicStatus.get && includeNonPublicDataIn.get) ||
-                          (entityPublicStatus.isEmpty && includeUnspecifiedDataIn.get)
+    val publicEnoughToExport = (entityPublicStatus.isDefined && entityPublicStatus.get && includePublicDataIn) ||
+                          (entityPublicStatus.isDefined && !entityPublicStatus.get && includeNonPublicDataIn) ||
+                          (entityPublicStatus.isEmpty && includeUnspecifiedDataIn)
 
     publicEnoughToExport && (levelsToExportIsInfiniteIn || levelsRemainingToExportIn > 0)
   }
@@ -886,7 +887,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     val prefix: String = getExportFileNamePrefix(startingEntity, ImportExport.TEXT_EXPORT_TYPE)
     val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, ImportExport.TEXT_EXPORT_TYPE, None)
     exportToSingleTxtFile(startingEntity, levelsToExportIsInfiniteIn = true, 0, 0, outputWriter, includeMetadataIn = false, exportedEntities, 2,
-                                        Some(true), Some(true), Some(true))
+                                        includePublicDataIn = true, includeNonPublicDataIn = true, includeUnspecifiedDataIn = true)
     assert(outputFile.exists)
     outputWriter.close()
     val firstNewFileContents: String = new Predef.String(Files.readAllBytes(outputFile.toPath))
