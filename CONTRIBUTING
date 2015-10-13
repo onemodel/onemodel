@@ -16,7 +16,7 @@ guardian permission).  The reasoning for this is found below, under
 summary could be:  "I give this to Luke for use in the project,
 having full rights to do so; this also applies to all future
 contributions, and is simple to revoke", but paste in the full text
-between the lines and fill in your name.
+between the lines and fill in your name, in this "OM contributor statement":
     --------------------------------------------------------------------
     I, ______, being of legal age, certify, and take full responsibility for this certification, that I am authorized, without restriction
     of employer agreement or any other kind, to assign all rights to this work (also known as "contribution"), and I do assign
@@ -42,17 +42,19 @@ between the lines and fill in your name.
     --------------------------------------------------------------------
 
 
-OTHER WAYS TO HELP WITH THIS PROJECT: - bug reports with the simplest
-viable and CLEAR instructions for reproducing the bug from the
-latest code.  (Some bugs are already known, so there's little need
-to re-report those.) - web site suggestions or improvements (see
-http://www.github.com/onemodel/onemodel-website which might be
-outdated) - supporting other users on project mailing lists etc,
-or helping someone you know.  - other suggestions, constructive
-feedback - create good data and share it, such as around best
-practices on all subjects, integrated with maturity models (step-by-step
-learning/growth plans) for all areas of life, share ideas & discussion
-in that direction, or improve & extend the work of others.  - money
+OTHER WAYS TO HELP WITH THIS PROJECT:
+- bug reports with the simplest
+  viable and CLEAR instructions for reproducing the bug from the
+  latest code.  (Some bugs are already known, so there's little need
+  to re-report those.)
+- supporting other users on project mailing lists etc,
+  or helping someone you know.
+- other suggestions, constructive feedback
+- create good data and share it, such as around best
+  practices on all subjects, integrated with maturity models (step-by-step
+  learning/growth plans) for all areas of life, share ideas & discussion
+  in that direction, or improve & extend the work of others.
+- money
 
 
 KEEP IN MIND: 
@@ -60,7 +62,8 @@ KEEP IN MIND:
   project status; there is much to do.  In the future I hope to use
   OM itself to share plans, bug reports, etc.
 - Other information about this project is at:
-    http://www.onemodel.org http://www.github.com/onemodel/onemodel
+    http://www.onemodel.org
+    http://www.github.com/onemodel/onemodel
     http://www.github.com/onemodel/onemodel-website
 - I am / we are grateful for your participation!  It is very
   gratifying if this project is helpful.
@@ -78,18 +81,16 @@ KEEP IN MIND:
 - Not hearing back is not an insult, it's just that people are sometimes busy with
   competing priorities.  If it's important, you could wait a few weeks and try
   again, perhaps with improvements.
-- It's usually best to mimic the
-  code style, etc, that is already in place.  And let's keep the scala
-  code at a level that is generally easy to read (guessable) for a
+- It's usually best to mimic the code style, etc, that is already in place.  And let's
+  keep the scala code at a level that is generally easy to read (guessable) for a
   java programmer, or make it that way if it isn't so now.
 - Let's have fewer build warnings rather than more.  
 - Test well.  Consider the audience.  Be diligent at not introducing new bugs.
   Consider testing more than one facet of the program, in more than one way.
   Write automated tests; make sure to test all lines changed or
   impacted; use the changes personally for a while.
-- There is
-  currently a way to configure aspectj inside OM to provide very much
-  debugging output, if that helps; it's comparable to what "set -x"
+- There is currently a way to configure aspectj inside OM to provide very much
+  debugging output, if that helps; it's roughly analogous to what "set -x"
   does in shell scripts.  See the comments in
   src/main/java/org/onemodel/MethodTracing.aj.
 - Please forgive faults of others, and let's all keep trying to be good and
