@@ -549,6 +549,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               }
             }
             printWriter.println("</ul>")
+          case textAttr: TextAttribute =>
+            printWriter.println("<li><pre>" + htmlEncode(textAttr.getDisplayString(0, None, None, simplify = true)) + "</pre></li>")
           case attr: Attribute =>
             printWriter.println("<li>" + htmlEncode(attr.getDisplayString(0, None, None, simplify = true)) + "</li>")
           case unexpected =>
