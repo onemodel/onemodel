@@ -495,17 +495,17 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val whichKindOfAttribute =
       ui.askWhich(Some(Array("Choose which kind of attribute to add:")),
                   Array("quantity attribute (example: a numeric value like \"length\"",
-                        "true/false value",
-                        "date",
                         "text attribute (rare: usually prefer relations; but for example: a serial number, which is not subject to arithmetic)",
-                        "Relation to entity (i.e., \"is near\" a microphone)",
-                        "Relation to group (i.e., \"has\" a list/group)",
+                        "date",
+                        "true/false value",
 
                         "external file (BUT CONSIDER FIRST ADDING AN ENTITY SPECIFICALLY FOR THE DOCUMENT SO IT CAN HAVE A DATE, OTHER ATTRS ETC.; " +
                         "AND ADDING THE DOCUMENT TO THAT ENTITY, SO IT CAN ALSO BE ASSOCIATED WITH OTHER ENTITIES EASILY!; also, " +
                         "given the concept behind OM, it's probably best" +
                         " to use this only for historical artifacts, or when you really can't fully model the data right now",
 
+                        "Relation to entity (i.e., \"is near\" a microphone)",
+                        "Relation to group (i.e., \"has\" a list/group)",
                         "external web page (or other URI, to refer to external information and optionally quote it)")
                  )
     if (whichKindOfAttribute.isDefined) {
@@ -518,11 +518,13 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                                           controller.quantityDescription,
                                                                           controller.askForQuantityAttributeNumberAndUnit, addQuantityAttribute)
       } else if (whichKindAnswer == 2) {
-        def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
-          Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean))
+        def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
+          Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, dhIn.validOnDate, dhIn.observationDate))
         }
-        controller.askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(0, Some(0), 0, false), Controller.BOOLEAN_TYPE,
-                                                                         "SELECT TYPE OF TRUE/FALSE VALUE: ", controller.askForBooleanAttributeValue, addBooleanAttribute)
+        controller.askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(0, Some(0), 0, ""), Controller.TEXT_TYPE,
+                                                                      "SELECT TYPE OF " + controller.textDescription + ": ", controller
+                                                                                                                             .askForTextAttributeText,
+                                                                      addTextAttribute)
       } else if (whichKindAnswer == 3) {
         def addDateAttribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
           Some(entityIn.addDateAttribute(dhIn.attrTypeId, dhIn.date))
@@ -530,36 +532,13 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         controller.askForInfoAndAddAttribute[DateAttributeDataHolder](new DateAttributeDataHolder(0, 0), Controller.DATE_TYPE,
                                                                       "SELECT TYPE OF DATE: ", controller.askForDateAttributeValue, addDateAttribute)
       } else if (whichKindAnswer == 4) {
-        def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
-          Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, dhIn.validOnDate, dhIn.observationDate))
+        def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
+          Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean))
         }
-        controller.askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(0, Some(0), 0, ""), Controller.TEXT_TYPE,
-                                                                      "SELECT TYPE OF " + controller.textDescription + ": ", controller.askForTextAttributeText, addTextAttribute)
+        controller.askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(0, Some(0), 0, false), Controller.BOOLEAN_TYPE,
+                                                                         "SELECT TYPE OF TRUE/FALSE VALUE: ", controller.askForBooleanAttributeValue,
+                                                                         addBooleanAttribute)
       } else if (whichKindAnswer == 5) {
-        def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[RelationToEntity] = {
-          Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId1, dhIn.entityId2, dhIn.validOnDate, dhIn.observationDate))
-        }
-        controller.askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(0, None, 0, entityIn.getId, 0), Controller.RELATION_TYPE_TYPE,
-                                                                         "CREATE OR SELECT RELATION TYPE: (" + controller.mRelTypeExamples + ")",
-                                                                         controller.askForRelationEntityIdNumber2, addRelationToEntity)
-      } else if (whichKindAnswer == 6) {
-        def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
-          val rtgId: Long = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
-          Some(new RelationToGroup(db, rtgId, dhIn.entityId, dhIn.attrTypeId, dhIn.groupId))
-        }
-        val result: Option[Attribute] = controller.askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, 0, 0, None,
-                                                                                                                                      System.currentTimeMillis()),
-                                                                                                        Controller.RELATION_TYPE_TYPE,
-                                                                                                        "CREATE OR SELECT RELATION TYPE: (" + controller.mRelTypeExamples + ")" +
-                                                                                                        "." + TextUI.NEWLN + "(Does anyone see a specific " +
-                                                                                                        "reason to keep asking for these dates?)",
-                                                                                                        controller.askForRelToGroupInfo, addRelationToGroup)
-        if (result.isEmpty) entityMenu(entityIn, startingAttributeIndexIn, highlightedAttributeIn, relationSourceEntityIn, relationIn, containingGroupIn)
-        else {
-          val newRtg = result.get.asInstanceOf[RelationToGroup]
-          new GroupMenu(ui, db, controller).groupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, Some(entityIn))
-        }
-      } else if (whichKindAnswer == 7) {
         def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
           Some(entityIn.addFileAttribute(dhIn.attrTypeId, dhIn.description, new java.io.File(dhIn.originalFilePath)))
         }
@@ -573,6 +552,33 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
               ui.displayText("Unable to delete file at that location; reason unknown.  You could check the permissions.")
             }
           }
+        }
+      } else if (whichKindAnswer == 6) {
+        def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[RelationToEntity] = {
+          Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId1, dhIn.entityId2, dhIn.validOnDate, dhIn.observationDate))
+        }
+        controller.askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(0, None, 0, entityIn.getId, 0), Controller.RELATION_TYPE_TYPE,
+                                                                         "CREATE OR SELECT RELATION TYPE: (" + controller.mRelTypeExamples + ")",
+                                                                         controller.askForRelationEntityIdNumber2, addRelationToEntity)
+      } else if (whichKindAnswer == 7) {
+        def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
+          val rtgId: Long = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
+          Some(new RelationToGroup(db, rtgId, dhIn.entityId, dhIn.attrTypeId, dhIn.groupId))
+        }
+        val result: Option[Attribute] = controller.askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, 0, 0,
+                                                                                                                                      None,
+                                                                                                                                      System
+                                                                                                                                      .currentTimeMillis()),
+                                                                                                        Controller.RELATION_TYPE_TYPE,
+                                                                                                        "CREATE OR SELECT RELATION TYPE: (" + controller
+                                                                                                                                              .mRelTypeExamples + ")" +
+                                                                                                        "." + TextUI.NEWLN + "(Does anyone see a specific " +
+                                                                                                        "reason to keep asking for these dates?)",
+                                                                                                        controller.askForRelToGroupInfo, addRelationToGroup)
+        if (result.isEmpty) entityMenu(entityIn, startingAttributeIndexIn, highlightedAttributeIn, relationSourceEntityIn, relationIn, containingGroupIn)
+        else {
+          val newRtg = result.get.asInstanceOf[RelationToGroup]
+          new GroupMenu(ui, db, controller).groupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, Some(entityIn))
         }
       } else if (whichKindAnswer == 8) {
         val newEntityName: Option[String] = ui.askForString(Some(Array{"Enter a name (or description) for this web page or other URI"}))

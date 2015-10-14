@@ -29,7 +29,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
   protected def placeEntryInPosition(containingObjectIdIn: Long, groupSizeOrNumAttributesIn: Long, numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: Boolean,
                            startingDisplayRowIndexIn: Int, movingObjIdIn: Long, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Long,
                            numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Int): Int = {
-    //val movingFromPosition_sortingIndex = mDB.getEntityInAGroupData(groupIn.getId, objectIdAtThatIndex)(0).get.asInstanceOf[Long]
+
     val movingFromPosition_sortingIndex = getSortingIndex(containingObjectIdIn, objectAtThatIndexFormIdIn, objectAtThatIndexIdIn)
 
     val (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long]) =
