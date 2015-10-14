@@ -19,11 +19,15 @@ import org.onemodel.model._
 
 class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, val controller: Controller) extends SortableEntriesMenu(ui, db) {
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
-  def getChoices(entityIn: Entity, numAttrsIn: Long, relationSourceEntityIn: Option[Entity] = None, relationIn: Option[RelationToEntity] = None): (Array[String], Boolean) = {
+  def getChoices(entityIn: Entity, numAttrsIn: Long, relationSourceEntityIn: Option[Entity] = None,
+                 relationIn: Option[RelationToEntity] = None): (Array[String], Boolean) = {
     // (idea: might be a little silly to do it this way, once this # gets very big?:)
     var choices = Array[String]("Add attribute (quantity, true/false, date, text, external file, relation to entity or group: " + controller.mRelTypeExamples + ")...",
                                 if (numAttrsIn > 1) "Move selection (*) up/down" else "(stub)",
-                                "Edit *this entity's* name (not a selected attribute's name: go into the attribute to do that)",
+
+                                "[app will fill this one in just a bit later, at \"choices (2) = \" below.  KEEP IN THIS RELATIVE POSITION OR CHANGE THE" +
+                                " CODE NEAR THE TOP OF entityMenu THAT CHECKS FOR A VALUE IN highlightedAttributeIn]",
+
                                 "Delete or Archive this entity...",
                                 "Go to other related entities or groups...",
                                 if (numAttrsIn > 0) controller.listNextItemsPrompt else "(stub)")
@@ -70,6 +74,14 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val attributeDisplayStrings: Array[String] = getItemDisplayStrings(attributeTuples)
 
     val highlightedEntry: Option[Attribute] = if (attributeTuples.length == 0) None else Some(highlightedAttributeIn.getOrElse(attributeTuples(0)._2))
+    choices(2) =
+      // MAKE SURE this condition always matches the one in the edit handler below:
+      if (highlightedEntry.isDefined && controller.canEditAttributeOnSingleLine(highlightedEntry.get)) {
+        "Edit the selected attribute's content (single line; go into the attribute's menu for more options)"
+      } else "Edit entity name"
+
+
+
     // The variable highlightedIndexInObjList means: of the sorted attributes selected *for display* (potentially fewer than all existing attributes),
     // this is the zero-based index of the one that is marked for possible moving around in the sorted order (in the UI, marked as selected).
     def getHighlightedIndexInAttrList: Option[Int] = {
@@ -105,9 +117,15 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                           highlightedEntry.get, numDisplayableAttributes, relationSourceEntityIn, relationIn, containingGroupIn)
         entityMenu(entityIn, newStartingDisplayIndex, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
       } else if (answer == 3) {
-        val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
-        entityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn,
-                   attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+        // MAKE SURE this next condition always matches the one in "choices(2) = ..." above
+        if (highlightedEntry.isDefined && controller.canEditAttributeOnSingleLine(highlightedEntry.get)) {
+          controller.editAttributeOnSingleLine(highlightedEntry.get)
+          entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+        } else {
+          val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
+          entityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn,
+                     attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+        }
       } else if (answer == 4) {
         val (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber) =
           controller.askWhetherDeleteOrArchiveEtc(entityIn, relationIn, relationSourceEntityIn, containingGroupIn)

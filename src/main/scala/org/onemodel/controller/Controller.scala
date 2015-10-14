@@ -515,7 +515,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   }
 
   @tailrec
-  final def attributeEditMenu(attributeIn: Attribute): Option[Entity] = {
+  final def attributeEditMenu(attributeIn: Attribute) {
     val leadingText: Array[String] = Array("Attribute: " + attributeIn.getDisplayString(0, None, None))
     var firstChoices = Array("Edit the attribute type, content (single line), and valid/observed dates",
                              if (attributeIn.isInstanceOf[TextAttribute]) "Edit (as multiline value)" else "(stub)",
@@ -612,47 +612,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         path.toFile.delete()
         //then force a reread from the DB so it shows the right info on the repeated menu:
         attributeEditMenu(new TextAttribute(db, attributeIn.getId))
-      } else if (answer == 3 && (attributeIn.isInstanceOf[QuantityAttribute] || attributeIn.isInstanceOf[TextAttribute] ||
-                                 attributeIn.isInstanceOf[DateAttribute] || attributeIn.isInstanceOf[BooleanAttribute])) {
-        attributeIn match {
-          case quantityAttribute: QuantityAttribute =>
-            val num: Option[Float] = askForQuantityAttributeNumber(quantityAttribute.getNumber)
-            if (num.isDefined) {
-              quantityAttribute.update(quantityAttribute.getAttrTypeId, quantityAttribute.getUnitId,
-                                       num.get,
-                                       quantityAttribute.getValidOnDate, quantityAttribute.getObservationDate)
-            }
-            //force a reread from the DB so it shows the right info on the repeated menu:
-            attributeEditMenu(new QuantityAttribute(db, attributeIn.getId))
-          case textAttribute: TextAttribute =>
-            val textAttributeDH: TextAttributeDataHolder = new TextAttributeDataHolder(textAttribute.getAttrTypeId, textAttribute.getValidOnDate,
-                                                                                       textAttribute.getObservationDate, textAttribute.getText)
-            val outDH: Option[TextAttributeDataHolder] = askForTextAttributeText(textAttributeDH, inEditing = true)
-            if (outDH.isDefined) textAttribute.update(outDH.get.attrTypeId, outDH.get.text, outDH.get.validOnDate, outDH.get.observationDate)
-            //force a reread from the DB so it shows the right info on the repeated menu:
-            attributeEditMenu(new TextAttribute(db, attributeIn.getId))
-          case dateAttribute: DateAttribute =>
-            val dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.getAttrTypeId, dateAttribute.getDate)
-            val outDH: Option[DateAttributeDataHolder] = askForDateAttributeValue(dateAttributeDH, inEditing = true)
-            if (outDH.isDefined) dateAttribute.update(outDH.get.attrTypeId, outDH.get.date)
-            //force a reread from the DB so it shows the right info on the repeated menu:
-            attributeEditMenu(new DateAttribute(db, attributeIn.getId))
-          case booleanAttribute: BooleanAttribute =>
-            val booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.getAttrTypeId, booleanAttribute.getValidOnDate,
-                                                                                                booleanAttribute.getObservationDate,
-                                                                                                booleanAttribute.getBoolean)
-            val outDH: Option[BooleanAttributeDataHolder] = askForBooleanAttributeValue(booleanAttributeDH, inEditing = true)
-            if (outDH.isDefined) booleanAttribute.update(outDH.get.attrTypeId, outDH.get.boolean, outDH.get.validOnDate, outDH.get.observationDate)
-            //force a reread from the DB so it shows the right info on the repeated menu:
-            attributeEditMenu(new BooleanAttribute(db, attributeIn.getId))
-          case _ => throw new Exception("Unexpected type: " + attributeIn.getClass.getName)
-        }
+      } else if (answer == 3 && canEditAttributeOnSingleLine(attributeIn)) {
+        editAttributeOnSingleLine(attributeIn)
       } else if (answer == 4) {
         val ans = ui.askYesNoQuestion("DELETE this attribute: ARE YOU SURE?")
         if (ans.isDefined && ans.get) {
           attributeIn.delete()
-          // return None so it doesn't show again the menu of the object just deleted
-          return None
         } else {
           ui.displayText("Did not delete attribute.", waitForKeystroke = false)
         }
@@ -684,6 +649,44 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
+
+  def editAttributeOnSingleLine(attributeIn: Attribute) {
+    require(canEditAttributeOnSingleLine(attributeIn))
+
+    attributeIn match {
+      case quantityAttribute: QuantityAttribute =>
+        val num: Option[Float] = askForQuantityAttributeNumber(quantityAttribute.getNumber)
+        if (num.isDefined) {
+          quantityAttribute.update(quantityAttribute.getAttrTypeId, quantityAttribute.getUnitId,
+                                   num.get,
+                                   quantityAttribute.getValidOnDate, quantityAttribute.getObservationDate)
+        }
+      case textAttribute: TextAttribute =>
+        val textAttributeDH: TextAttributeDataHolder = new TextAttributeDataHolder(textAttribute.getAttrTypeId, textAttribute.getValidOnDate,
+                                                                                   textAttribute.getObservationDate, textAttribute.getText)
+        val outDH: Option[TextAttributeDataHolder] = askForTextAttributeText(textAttributeDH, inEditing = true)
+        if (outDH.isDefined) textAttribute.update(outDH.get.attrTypeId, outDH.get.text, outDH.get.validOnDate, outDH.get.observationDate)
+      case dateAttribute: DateAttribute =>
+        val dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.getAttrTypeId, dateAttribute.getDate)
+        val outDH: Option[DateAttributeDataHolder] = askForDateAttributeValue(dateAttributeDH, inEditing = true)
+        if (outDH.isDefined) dateAttribute.update(outDH.get.attrTypeId, outDH.get.date)
+      case booleanAttribute: BooleanAttribute =>
+        val booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.getAttrTypeId, booleanAttribute.getValidOnDate,
+                                                                                            booleanAttribute.getObservationDate,
+                                                                                            booleanAttribute.getBoolean)
+        val outDH: Option[BooleanAttributeDataHolder] = askForBooleanAttributeValue(booleanAttributeDH, inEditing = true)
+        if (outDH.isDefined) booleanAttribute.update(outDH.get.attrTypeId, outDH.get.boolean, outDH.get.validOnDate, outDH.get.observationDate)
+      case rte: RelationToEntity =>
+        editEntityName(new Entity(db, rte.getRelatedId2))
+      case rtg: RelationToGroup =>
+        editGroupName(new Group(db, rtg.getGroupId))
+      case _ => throw new scala.Exception("Unexpected type: " + attributeIn.getClass.getName)
+    }
+  }
+
+  def canEditAttributeOnSingleLine(attributeIn: Attribute): Boolean = {
+    ! attributeIn.isInstanceOf[FileAttribute]
+  }
 
   def getReplacementFilename(originalFilePathIn: String): (String, String) = FileAttribute.getReplacementFilename(originalFilePathIn)
 

@@ -22,7 +22,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       require(entityIn != null)
       val leadingText = Array[String]{"**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString}
       val choices = Array[String]("Edit public/nonpublic status",
-                                  "Import/Export...")
+                                  "Import/Export...",
+                                  "Edit entity name")
       val response = ui.askWhich(Some(leadingText), choices)
       if (response.isEmpty) None
       else {
@@ -32,8 +33,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           controller.editEntityPublicStatus(entityIn)
           // reread from db to refresh data for display, like public/non-public status:
           otherEntityMenu(new Entity(db, entityIn.getId))
-        }
-        else if (answer == 2) {
+        } else if (answer == 2) {
           val importOrExportAnswer = ui.askWhich(None, Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
           if (importOrExportAnswer.isDefined) {
             if (importOrExportAnswer.get == 1) new ImportExport(ui, db, controller).importCollapsibleOutlineAsGroups(entityIn)
@@ -50,6 +50,9 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             }
           }
           otherEntityMenu(entityIn)
+        } else if (answer == 3) {
+          val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
+          otherEntityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn)
         } else {
           ui.displayText("invalid response")
           otherEntityMenu(entityIn)
