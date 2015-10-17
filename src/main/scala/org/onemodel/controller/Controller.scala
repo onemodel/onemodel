@@ -719,7 +719,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         counter += 1
         descriptions += counter + ") " + s + delimiter
       }
-      descriptions = descriptions.substring(0, descriptions.length - delimiter.length) + ".  "
+      descriptions = descriptions.substring(0, math.max(0, descriptions.length - delimiter.length)) + ".  "
 
       //removed next line because it doesn't make sense (& fails): there could be, for example, a single group that contains an
       //entity, but many entities that have a relation to that group:

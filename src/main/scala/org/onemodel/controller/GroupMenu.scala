@@ -244,6 +244,8 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                         " RESTORES.  (Note: the deletion does(n't yet do) recursion but doesn't yet properly handle groups that " +
                                         "loop--that eventually contain themselves.)  Proceed to delete it all?:")
           if (ans.isDefined && ans.get) {
+            //idea: could put a ck here to see if entities are members of some other group also, and give user a helpful message instead of just
+            //hitting the constraint & throwing exception when the deletion is attempted.
             groupIn.deleteWithEntities()
             ui.displayText("Deleted relation to group\"" + groupDescrIn + "\", along with the " + numEntitiesInGroupIn + " entities: " + ".")
             None

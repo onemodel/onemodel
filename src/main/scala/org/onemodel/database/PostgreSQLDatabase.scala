@@ -1446,7 +1446,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
         val deletions2 = 0
         //and finally:
-        deleteObjects("RelationToGroup", "where group_id=" + inGroupId, callerManagesTransactions = true)
+        // (passing -1 for rows expected, because there either could be some, or none if the group is not contained in any entity.)
+        deleteObjects("RelationToGroup", "where group_id=" + inGroupId, -1, callerManagesTransactions = true)
         deleteObjects("grupo", "where id=" + inGroupId, 1, callerManagesTransactions = true)
         (deletions1, deletions2)
       }
@@ -2771,8 +2772,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
       if (rowsExpected >= 0 && rowsDeleted != rowsExpected) {
         // Roll back, as we definitely don't want to delete an unexpected # of rows.
         // Do it ***EVEN THOUGH callerManagesTransaction IS true***: seems cleaner/safer this way.
-        throw rollbackWithCatch(new Exception("Delete command would have removed " + rowsDeleted + "rows, but " +
-                                              rowsExpected + " were expected! Did not perform delete."))
+        throw rollbackWithCatch(new Exception("Delete command would have removed " + rowsDeleted + " rows, but " +
+                                              rowsExpected + " were expected! Did not perform delete.  SQL is: \"" + sql + "\""))
       } else {
         if (!callerManagesTransactions) commitTrans()
         rowsDeleted
