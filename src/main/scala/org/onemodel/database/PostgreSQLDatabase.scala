@@ -1209,43 +1209,44 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
   }
 
+  val UNUSED_GROUP_ERR1 = "No available index found which is not already used. How would so many be used?"
+  val UNUSED_GROUP_ERR2 = "Very unexpected, but could it be that you are running out of available sorting indexes!?" +
+                          " Have someone check, before you need to create, for example, a thousand more entities."
+
   // SEE ALSO METHOD findUnusedAttributeSortingIndex **AND DO MAINTENANCE IN BOTH PLACES**
   // idea: this needs a test, and/or combining with findIdWhichIsNotKeyOfAnyEntity.
   // **ABOUT THE SORTINGINDEX:  SEE the related comment on method addAttributeSortingRow.
-  def findUnusedGroupSortingIndex(groupIdIn: Long): Long = {
+  def findUnusedGroupSortingIndex(groupIdIn: Long, startingWithIn: Option[Long] = None): Long = {
     //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
     //only one iteration, ever.  (See similar comments elsewhere.)
     @tailrec def findUnusedSortingIndex_helper(gId: Long, workingIndex: Long, counter: Long): Long = {
       if (groupEntrySortingIndexInUse(gId, workingIndex)) {
         if (workingIndex == maxIdValue) {
           // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
-          throw new Exception("No available index found which is not already used for this group & entity. How would so many be used?")
+          throw new Exception(UNUSED_GROUP_ERR1)
         }
         // idea: see comment at similar location in findIdWhichIsNotKeyOfAnyEntity
-        if (counter > 1000) throw new Exception("Very unexpected, but could it be that you are running out of available sorting indexes for a single group!!?" +
-                                                " Have someone check, before you need to create, for example, a thousand more entities.")
+        if (counter > 1000) throw new Exception(UNUSED_GROUP_ERR2)
         findUnusedSortingIndex_helper(gId, workingIndex - 1, counter + 1)
       } else workingIndex
     }
 
-    findUnusedSortingIndex_helper(groupIdIn, maxIdValue - 1, 0)
+    findUnusedSortingIndex_helper(groupIdIn, startingWithIn.getOrElse(maxIdValue - 1), 0)
   }
 
   // SEE COMMENTS IN findUnusedGroupSortingIndex **AND DO MAINTENANCE IN BOTH PLACES
   // **ABOUT THE SORTINGINDEX:  SEE the related comment on method addAttributeSortingRow.
-  def findUnusedAttributeSortingIndex(entityIdIn: Long): Long = {
+  def findUnusedAttributeSortingIndex(entityIdIn: Long, startingWithIn: Option[Long] = None): Long = {
     @tailrec def findUnusedSortingIndex_helper(eId: Long, workingIndex: Long, counter: Long): Long = {
       if (attributeSortingIndexInUse(eId, workingIndex)) {
         if (workingIndex == maxIdValue) {
-          throw new Exception("No available index found which is not already used for this entity & attribute. How would so many be used?")
+          throw new Exception(UNUSED_GROUP_ERR1)
         }
-        if (counter > 1000) throw new Exception("Very unexpected, but could it be that you are running out of available attribute sorting indexes for a " +
-                                                "single entity!!?" +
-                                                " Have someone check, before you need to create, for example, a thousand more entities.")
+        if (counter > 1000) throw new Exception(UNUSED_GROUP_ERR2)
         findUnusedSortingIndex_helper(eId, workingIndex - 1, counter + 1)
       } else workingIndex
     }
-    findUnusedSortingIndex_helper(entityIdIn, maxIdValue - 1, 0)
+    findUnusedSortingIndex_helper(entityIdIn, startingWithIn.getOrElse(maxIdValue - 1), 0)
   }
 
   /** I.e., insert an entity into a group of entities. Using a default value for the sorting_index because user can set it if/as desired;
@@ -1259,8 +1260,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // start from the beginning index, if it's the 1st record (otherwise later sorting/renumbering gets messed up if we start w/ the last #):
     val sortingIndex = {
       val index = if (sortingIndexIn.isDefined) sortingIndexIn.get
-      else if (getGroupEntryCount(groupIdIn) == 0) minIdValue
-      else maxIdValue
+      // start with an increment off the min or max, so that later there is room to sort something before or after it, manually:
+      else if (getGroupEntryCount(groupIdIn) == 0) minIdValue + 9999
+      else maxIdValue - 9999
 
       if (groupEntrySortingIndexInUse(groupIdIn, index))
         findUnusedGroupSortingIndex(groupIdIn)
@@ -1290,8 +1292,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // Should probably be called from inside a transaction (which isn't managed in this method, since all its current callers do it.)
     val sortingIndex = {
       val index = if (sortingIndexIn.isDefined) sortingIndexIn.get
-      else if (getAttrCount(entityIdIn) == 0) minIdValue
-      else maxIdValue
+      // start with an increment off the min or max, so that later there is room to sort something before or after it, manually:
+      else if (getAttrCount(entityIdIn) == 0) minIdValue + 9999
+      else maxIdValue - 9999
       if (attributeSortingIndexInUse(entityIdIn, index))
         findUnusedAttributeSortingIndex(entityIdIn)
       else
@@ -1505,9 +1508,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
     //*** ANY MAINTENANCE DONE HERE SHOULD MATCH THE OTHER "renumber*" METHOD! ***  idea: merge them
     val groupSize: Long = getGroupEntryCount(groupIdIn)
     if (groupSize != 0) {
-      val numberOfSegments = groupSize + 1
+      val numberOfSegments = groupSize + 2
       val increment = maxIdValue / numberOfSegments * 2
-      var next: Long = minIdValue
+      // start with an increment so that later there is room to sort something prior to it, manually:
+      var next: Long = minIdValue + increment
       if (!callerManagesTransactionsIn) beginTrans()
       try {
         for (groupEntry <- getGroupEntriesData(groupIdIn)) {
@@ -1546,9 +1550,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // SEE ALSO THE COMMENTS FOUND THERE.
     val numberOfAttributes: Long = getAttrCount(entityIdIn)
     if (numberOfAttributes != 0) {
-      val numberOfSegments = numberOfAttributes + 1
+      val numberOfSegments = numberOfAttributes + 2
       val increment = maxIdValue / numberOfSegments * 2
-      var next: Long = minIdValue
+      // start with an increment so that later there is room to sort something prior to it, manually:
+      var next: Long = minIdValue + increment
       if (!callerManagesTransactionsIn) beginTrans()
       try {
         for (attributeEntry <- getEntityAttributeSortingData(entityIdIn)) {
@@ -2331,7 +2336,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val results = dbQuery(// LIKE THE OTHER 3 BELOW SIMILAR METHODS:
                           // Need to make sure it gets the desired rows, rather than just some, so the order etc matters at each step, probably.
                           // idea: needs automated tests (in task list also).
-                          "select eiag.entity_id, eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id and (not e.archived)" +
+                          "select eiag.entity_id, eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id" +
                           " and eiag.group_id=" + groupIdIn +
                           " order by eiag.sorting_index, eiag.entity_id limit " + checkIfShouldBeAllResults(limitIn),
                           "Long,Long")
@@ -2349,8 +2354,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
   /** As of 2014-8-4, this is only called when calculating a new sorting_index, but if it were used for something else ever, one might consider whether
     * to (optionally!) add back the code removed today which ignores archived entries.  We can't ignore them for getting a new sorting_index: bug.
     */
-  def getAdjacentGroupEntriesSortingIndexes(groupIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long] = None, forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
-    // see comments in getGroupEntriesData
+  def getAdjacentGroupEntriesSortingIndexes(groupIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long] = None,
+                                            forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
+    // see comments in getGroupEntriesData.
+    // Doing "not e.archived", because the caller is probably trying to move entries up/down in the UI, and if we count archived entries,
+    // we could move relative to invisible entries only, and not make a visible move,
     val results = dbQuery("select eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id and (not e.archived)" +
                           " and eiag.group_id=" + groupIdIn + " and eiag.sorting_index " + (if (forwardNotBackIn) ">" else "<") + sortingIndexIn +
                           " order by eiag.sorting_index " + (if (forwardNotBackIn) "ASC" else "DESC") + ", eiag.entity_id " +
@@ -2845,7 +2853,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
   def addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: Long,
                                    makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
-                                   quoteIn: Option[String] = None): Entity = {
+                                   quoteIn: Option[String] = None): (Entity, RelationToEntity) = {
     if (quoteIn.isDefined) require(!quoteIn.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
     if (!callerManagesTransactionsIn) beginTrans()
     try {
@@ -2855,15 +2863,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
       val (uriClassId: Long, uriClassDefiningEntityId: Long) = getOrCreateClassAndDefiningEntityIds("URI", callerManagesTransactionsIn)
       val (_, quotationClassDefiningEntityId: Long) = getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn)
-      val newEntity: Entity = containingEntityIn.createEntityAndAddHASRelationToIt(newEntityNameIn, observationDateIn, makeThemPublicIn,
-                                                                                   callerManagesTransactionsIn)._1
+      val (newEntity: Entity, newRTE: RelationToEntity) = containingEntityIn.createEntityAndAddHASRelationToIt(newEntityNameIn, observationDateIn,
+                                                                                                               makeThemPublicIn, callerManagesTransactionsIn)
       updateEntitysClass(newEntity.getId, Some(uriClassId), callerManagesTransactionsIn)
       newEntity.addTextAttribute(uriClassDefiningEntityId, uriIn, None, observationDateIn, callerManagesTransactionsIn)
       if (quoteIn.isDefined) {
         newEntity.addTextAttribute(quotationClassDefiningEntityId, quoteIn.get, None, observationDateIn, callerManagesTransactionsIn)
       }
       if (!callerManagesTransactionsIn) commitTrans()
-      newEntity
+      (newEntity, newRTE)
     } catch {
       case e: Exception =>
         if (!callerManagesTransactionsIn) rollbackTrans()

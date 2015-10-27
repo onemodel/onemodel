@@ -110,8 +110,15 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     else {
       val answer = response.get
       if (answer == 1) {
-        addAttribute(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
-        entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+        val newAttribute: Option[Attribute] = addAttribute(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn,
+                                                           relationIn, containingGroupIn)
+        if (newAttribute.isDefined && highlightedEntry.isDefined) {
+          placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBackIn = true,
+                                                                   attributeRowsStartingIndexIn, newAttribute.get.getId, highlightedIndexInObjList.get,
+                                                                   highlightedEntry.get.getId, numDisplayableAttributes, newAttribute.get.getFormId,
+                                                                   highlightedEntry.get.getFormId)
+        }
+        entityMenu(entityIn, attributeRowsStartingIndexIn, newAttribute, relationSourceEntityIn, relationIn, containingGroupIn)
       } else if (answer == 2 && highlightedEntry.isDefined && highlightedIndexInObjList.isDefined && numAttrs > 1) {
         val newStartingDisplayIndex = moveSelectedEntry(entityIn, attributeRowsStartingIndexIn, totalAttrsAvailable, highlightedIndexInObjList.get,
                           highlightedEntry.get, numDisplayableAttributes, relationSourceEntityIn, relationIn, containingGroupIn)
@@ -491,7 +498,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
   }
 
   def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, highlightedAttributeIn: Option[Attribute], relationSourceEntityIn: Option[Entity] = None,
-                   relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None) {
+                   relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Attribute] = {
     val whichKindOfAttribute =
       ui.askWhich(Some(Array("Choose which kind of attribute to add:")),
                   Array("quantity attribute (example: a numeric value like \"length\"",
@@ -553,11 +560,12 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             }
           }
         }
+        result
       } else if (whichKindAnswer == 6) {
         def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[RelationToEntity] = {
           Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId1, dhIn.entityId2, dhIn.validOnDate, dhIn.observationDate))
         }
-        controller.askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(0, None, 0, entityIn.getId, 0), Controller.RELATION_TYPE_TYPE,
+        controller.askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(0, None, 0, entityIn.getId, 0), Controller .RELATION_TYPE_TYPE,
                                                                          "CREATE OR SELECT RELATION TYPE: (" + controller.mRelTypeExamples + ")",
                                                                          controller.askForRelationEntityIdNumber2, addRelationToEntity)
       } else if (whichKindAnswer == 7) {
@@ -575,25 +583,28 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                                                                         "." + TextUI.NEWLN + "(Does anyone see a specific " +
                                                                                                         "reason to keep asking for these dates?)",
                                                                                                         controller.askForRelToGroupInfo, addRelationToGroup)
-        if (result.isEmpty) entityMenu(entityIn, startingAttributeIndexIn, highlightedAttributeIn, relationSourceEntityIn, relationIn, containingGroupIn)
-        else {
+        if (result.isEmpty) {
+          entityMenu(entityIn, startingAttributeIndexIn, highlightedAttributeIn, relationSourceEntityIn, relationIn, containingGroupIn)
+          None
+        } else {
           val newRtg = result.get.asInstanceOf[RelationToGroup]
           new GroupMenu(ui, db, controller).groupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, Some(entityIn))
+          result
         }
       } else if (whichKindAnswer == 8) {
         val newEntityName: Option[String] = ui.askForString(Some(Array{"Enter a name (or description) for this web page or other URI"}))
-        if (newEntityName.isEmpty || newEntityName.get.isEmpty) return
+        if (newEntityName.isEmpty || newEntityName.get.isEmpty) return None
 
         val ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (normal) or the" +
                                                   " clipboard (faster sometimes)?")), Array("keyboard", "clipboard"))
-        if (ans1.isEmpty) return
+        if (ans1.isEmpty) return None
         val keyboardOrClipboard1 = ans1.get
         val uri: String = if (keyboardOrClipboard1 == 1) {
           val text = ui.askForString(Some(Array("Enter the URI:")))
-          if (text.isEmpty || text.get.isEmpty) return else text.get
+          if (text.isEmpty || text.get.isEmpty) return None else text.get
         } else {
           val uriReady = ui.askYesNoQuestion("Put the url on the system clipboard, then Enter to continue (or hit ESC or answer 'n' to get out)", Some("y"))
-          if (uriReady.isEmpty || !uriReady.get) return
+          if (uriReady.isEmpty || !uriReady.get) return None
           Controller.getClipboardContent
         }
 
@@ -606,10 +617,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           val keyboardOrClipboard2 = ans2.get
           if (keyboardOrClipboard2 == 1) {
             val text = ui.askForString(Some(Array("Enter the quote")))
-            if (text.isEmpty || text.get.isEmpty) return else text
+            if (text.isEmpty || text.get.isEmpty) return None else text
           } else {
             val clip = ui.askYesNoQuestion("Put a quote on the system clipboard, then Enter to continue (or answer 'n' to get out)", Some("y"))
-            if (clip.isEmpty || !clip.get) return
+            if (clip.isEmpty || !clip.get) return None
             Some(Controller.getClipboardContent)
           }
         }
@@ -617,15 +628,17 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
         val proceedAnswer = ui.askYesNoQuestion(quoteInfo + "...for this name & URI:\n  " + newEntityName.get + "\n  " + uri + "" +
                                                 "\n...: do you want to save them?", Some("y"))
-        if (proceedAnswer.isEmpty || !proceedAnswer.get) return
+        if (proceedAnswer.isEmpty || !proceedAnswer.get) return None
 
-        val newEntity: Entity = db.addUriEntityWithUriAttribute(entityIn, newEntityName.get, uri, System.currentTimeMillis(),
+        val (newEntity: Entity, newRTE: RelationToEntity) = db.addUriEntityWithUriAttribute(entityIn, newEntityName.get, uri, System.currentTimeMillis(),
                                                                 entityIn.getPublic, callerManagesTransactionsIn = false, quote)
         entityMenu(newEntity, relationSourceEntityIn = Some(entityIn))
+        Some(newRTE)
       } else {
         ui.displayText("invalid response")
+        None
       }
-    }
+    } else None
   }
 
   def getNextStartingRowsIndex(numAttrsToDisplay: Int, startingAttributeRowsIndexIn: Int, numAttrsInEntity: Long): Int = {
@@ -681,4 +694,13 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
   protected def getSortingIndex(entityIdIn: Long, attributeFormIdIn: Int, attributeIdIn: Long): Long = {
     db.getEntityAttributeSortingIndex(entityIdIn, attributeFormIdIn, attributeIdIn)
   }
+
+  protected def indexIsInUse(entityIdIn: Long, sortingIndexIn: Long): Boolean = {
+    db.attributeSortingIndexInUse(entityIdIn, sortingIndexIn)
+  }
+
+  protected def findUnusedSortingIndex(entityIdIn: Long, startingWithIn: Long): Long = {
+    db.findUnusedAttributeSortingIndex(entityIdIn, Some(startingWithIn))
+  }
+
 }

@@ -80,8 +80,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                 "Move (*) to calling menu (up one)",
                                 "Move up 25",
                                 "Move down 25"
-                                // idea: make an option #9 here which is a "quick archive"? (for removing completed tasks: maybe only after showing archived things works
-                                // well)
+                                // idea: make an option #9 here which is a "quick archive"? (for removing completed tasks: maybe only after showing
+                                // archived things works well)
                                )
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn),
                                secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -279,8 +279,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                                                                    highlightedIndexInObjList, highlightedObjId, objectsToDisplay.size, -1, -1)
               (Some(new Entity(db, newEntityId)), displayStartingRowNumber)
             }
-            else
-              (highlightedEntityIn, startingDisplayRowIndexIn)
+            else (highlightedEntityIn, startingDisplayRowIndexIn)
           }
           quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 2) {
@@ -478,6 +477,14 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
 
   protected def getSortingIndex(groupIdIn: Long, ignoredParameter: Int, entityIdIn: Long): Long = {
     db.getGroupSortingIndex(groupIdIn, entityIdIn)
+  }
+
+  protected def indexIsInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean = {
+    db.groupEntrySortingIndexInUse(groupIdIn, sortingIndexIn)
+  }
+
+  protected def findUnusedSortingIndex(groupIdIn: Long, startingWithIn: Long): Long = {
+    db.findUnusedGroupSortingIndex(groupIdIn, Some(startingWithIn))
   }
 
 }

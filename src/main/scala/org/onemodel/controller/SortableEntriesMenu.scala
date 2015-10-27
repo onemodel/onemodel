@@ -10,7 +10,7 @@
 package org.onemodel.controller
 
 import org.onemodel.database.PostgreSQLDatabase
-import org.onemodel.{TextUI, OmException}
+import org.onemodel.{OmException, TextUI}
 
 abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
 
@@ -42,7 +42,8 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
     } else {
       val (newSortingIndex: Long, trouble: Boolean) = {
         var (newSortingIndex: Long, trouble: Boolean, newStartingRowNum: Int) = {
-          getNewSortingIndex(groupSizeOrNumAttributesIn, startingDisplayRowIndexIn, nearNewNeighborSortingIndex, farNewNeighborSortingIndex, forwardNotBackIn,
+          getNewSortingIndex(containingObjectIdIn, groupSizeOrNumAttributesIn, startingDisplayRowIndexIn, nearNewNeighborSortingIndex,
+                             farNewNeighborSortingIndex, forwardNotBackIn,
                              byHowManyEntriesActuallyMoving, movingFromPosition_sortingIndex, moveFromIndexInObjListIn, numDisplayLinesIn)
         }
         displayStartingRowNumber = newStartingRowNum
@@ -55,9 +56,11 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
           val (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option[Long], farNewNeighborSortingIndex2: Option[Long]) =
             findNewNeighbors(containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex2)
           // (for some reason, can't reassign the results directly to the vars like this "(newSortingIndex, trouble, newStartingRowNum) = ..."?
-          val (a: Long, b: Boolean, c: Int) = getNewSortingIndex(groupSizeOrNumAttributesIn, startingDisplayRowIndexIn, nearNewNeighborSortingIndex2,
-                                             farNewNeighborSortingIndex2, forwardNotBackIn,
-                                             byHowManyEntriesMoving2, movingFromPosition_sortingIndex2, moveFromIndexInObjListIn, numDisplayLinesIn)
+          val (a: Long, b: Boolean, c: Int) = getNewSortingIndex(containingObjectIdIn, groupSizeOrNumAttributesIn, startingDisplayRowIndexIn,
+                                                                 nearNewNeighborSortingIndex2,
+                                                                 farNewNeighborSortingIndex2, forwardNotBackIn,
+                                                                 byHowManyEntriesMoving2, movingFromPosition_sortingIndex2, moveFromIndexInObjListIn,
+                                                                 numDisplayLinesIn)
           newSortingIndex = a
           trouble = b
           newStartingRowNum = c
@@ -79,13 +82,30 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
 
   protected def getSortingIndex(containingObjectIdIn: Long, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: Long): Long
 
-  protected def getNewSortingIndex(groupSizeOrNumAttributesIn: Long, startingDisplayRowIndexIn: Int, nearNewNeighborSortingIndex: Option[Long],
-                         farNewNeighborSortingIndex: Option[Long], forwardNotBack: Boolean,
-                         byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: Long, moveFromIndexInObjListIn: Int,
-                         numDisplayLines: Int): (Long, Boolean, Int) = {
+  protected def getNewSortingIndex(containingObjectIdIn: Long, groupSizeOrNumAttributesIn: Long, startingDisplayRowIndexIn: Int,
+                                   nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long], forwardNotBack: Boolean,
+                                   byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: Long, moveFromIndexInObjListIn: Int,
+                                   numDisplayLines: Int): (Long, Boolean, Int) = {
     if (nearNewNeighborSortingIndex.isEmpty) {
       throw new OmException("never should have got here: should have been the logic of ~nowhere to go so doing nothing")
     }
+
+    def ensureNonDuplicate(groupOrEntityIdIn: Long, newIndexIn: Long): Option[Long] = {
+      // At this point we might have as newIndexIn, the dup of an archived entity's sorting index, since archived entities are ignored the in
+      // logic that calculated our *NewNeighborSortingIndex variable
+      // values.  If so, find another candidate (feels like a kludge and knowledge scattered across code, but not sure of a better algorithm right now).
+      if (indexIsInUse(groupOrEntityIdIn, newIndexIn)) {
+        try {
+            Some(findUnusedSortingIndex(containingObjectIdIn, newIndexIn))
+        } catch {
+          case e: Exception =>
+            if (e.getMessage == db.UNUSED_GROUP_ERR1 || e.getMessage == db.UNUSED_GROUP_ERR2) None
+            else throw e
+        }
+      } else
+        Some(newIndexIn)
+    }
+
 
     val (newIndex: Long, trouble: Boolean) = {
       if (farNewNeighborSortingIndex.isEmpty) {
@@ -95,14 +115,19 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
           //     scala> -3074457345618258604L + ((9223372036854775807L - -3074457345618258604L) / 2)
           //     res2: Long = -6148914691236517206
           val newIndex = (nearNewNeighborSortingIndex.get + ((db.maxIdValue.asInstanceOf[Float] - nearNewNeighborSortingIndex.get) / 2)).asInstanceOf[Long]
+          val nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex)
           // leaving it to communicate intent, but won't be '>' because a Long would just wrap, so...
-          val trouble: Boolean = newIndex > db.maxIdValue || newIndex <= movingFromPosition_sortingIndex || newIndex <= nearNewNeighborSortingIndex.get
-          (newIndex, trouble)
+          val trouble: Boolean = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get > db.maxIdValue ||
+                                 nonDuplicatedNewIndex.get <= movingFromPosition_sortingIndex || nonDuplicatedNewIndex.get <= nearNewNeighborSortingIndex.get
+          (nonDuplicatedNewIndex.getOrElse(0L), trouble)
         } else {
+          // Leaving it to communicate intent, but won't be '<' because a Long would just wrap, so...
           val newIndex = nearNewNeighborSortingIndex.get - math.abs((math.abs(db.minIdValue) - math.abs(nearNewNeighborSortingIndex.get)) / 2)
-          // leaving it to communicate intent, but won't be '<' because a Long would just wrap, so...
-          val trouble: Boolean = newIndex < db.minIdValue || newIndex >= movingFromPosition_sortingIndex || newIndex >= nearNewNeighborSortingIndex.get
-          (newIndex, trouble)
+          val nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex)
+          val trouble: Boolean = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get < db.minIdValue ||
+                                 nonDuplicatedNewIndex.get >= movingFromPosition_sortingIndex ||
+                                 nonDuplicatedNewIndex.get >= nearNewNeighborSortingIndex.get
+          (nonDuplicatedNewIndex.getOrElse(0L), trouble)
         }
       } else {
         val halfDistance: Long = math.abs(farNewNeighborSortingIndex.get - nearNewNeighborSortingIndex.get) / 2
@@ -111,12 +136,17 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
                                if (forwardNotBack) nearNewNeighborSortingIndex.get.asInstanceOf[Float] + halfDistance
                                else nearNewNeighborSortingIndex.get - halfDistance
                              }.asInstanceOf[Long]
+        val nonDuplicatedNewIndex = ensureNonDuplicate(containingObjectIdIn, newIndex)
         // leaving this comment to communicate intent, but won't be '<' or '>' because a Long would just wrap, so...
         val trouble: Boolean =
           if (forwardNotBack) {
-            newIndex <= movingFromPosition_sortingIndex || newIndex >= farNewNeighborSortingIndex.get || newIndex <= nearNewNeighborSortingIndex.get
-          } else newIndex >= movingFromPosition_sortingIndex || newIndex <= farNewNeighborSortingIndex.get || newIndex >= nearNewNeighborSortingIndex.get
-        (newIndex, trouble)
+            nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get <= movingFromPosition_sortingIndex ||
+            nonDuplicatedNewIndex.get >= farNewNeighborSortingIndex.get || nonDuplicatedNewIndex.get <= nearNewNeighborSortingIndex.get
+          } else {
+            nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get >= movingFromPosition_sortingIndex ||
+            nonDuplicatedNewIndex.get <= farNewNeighborSortingIndex.get || nonDuplicatedNewIndex.get >= nearNewNeighborSortingIndex.get
+          }
+        (nonDuplicatedNewIndex.getOrElse(0L), trouble)
       }
     }
 
@@ -202,5 +232,9 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
   protected def renumberSortingIndexes(containingObjectIdIn: Long)
 
   protected def updateSortedEntry(containingObjectIdIn: Long, movingObjsAttributeFormIdIn: Int, movingObjIdIn: Long, sortingIndexIn: Long)
+
+  protected def indexIsInUse(groupOrEntityIdIn: Long, sortingIndexIn: Long): Boolean
+
+  protected def findUnusedSortingIndex(groupOrEntityIdIn: Long, startingWithIn: Long): Long
 
 }
