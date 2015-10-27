@@ -16,6 +16,10 @@ This document assumes you know how to become root (or administrator) on your sys
 
 For convenience on Windows, you can install cygwin (www.cygwin.com), then use cygwin to install postgresql and run the rest of the commands.  This hasn't been tested yet so please advise on what works & doesn't.
 
+Downloading
+-----------
+You can get the .jar from here if you don't want to compile it:  www.onemodel.org .
+
 Compiling
 ---------
 Compiling before installing is optional, but developers should have java & maven.
