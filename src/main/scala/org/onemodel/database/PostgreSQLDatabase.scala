@@ -327,9 +327,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
                // for some reason there are more later:
                ", CONSTRAINT valid_attribute_form_id CHECK (attribute_form_id >= 1 AND attribute_form_id <= 100)" +
 
-               // Idea: (I didn't see a quick way in postgresql 9.4 to enforce that the attribute_id value is found in *one of the* 7 attribute tables' id column,
-               // short of perhaps creating a separate table mapping attribute IDs with form_ids to this table), and tying them all together. Overkill for now?
-               // Or: maybe the way to do it is with a trigger having a CASE statement for which of the tables to check against.
+               // ~Constraint: each time an attribute (or rte/rtg) is deleted, this row should be deleted too, enforced (or it had sorting problems, for one).
+               // I didn't see a quick way in postgresql 9.4 to enforce that the attribute_id value is found in *one of the* 7 attribute tables' id column,
+               // short of perhaps creating a separate table mapping attribute IDs with form_ids to this table), and tying them all together.  Triggers
+               // would work, BUT see the logic/comment inside method deleteObjects, near "if (tableLower.contains("attribute")", which does it.
 
                // make it so the sorting_index must also be unique for each entity (otherwise we have sorting problems):
                ", constraint noDupSortingIndexes2 unique (entity_id, sorting_index)" +
@@ -339,7 +340,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       dbAction("create index AttributeSorting_sorted on AttributeSorting (entity_id, sorting_index)")
 
       dbAction("create sequence QuantityAttributeKeySequence minvalue " + minIdValue)
-      // the parent_id is the key for the entity on which this quantity info is recorded; for other meanings see comments on
+      // the entity_id is the key for the entity on which this quantity info is recorded; for other meanings see comments on
       // Entity.addQuantityAttribute(...).
       // id must be "unique not null" in ANY database used, because it is the primary key.
       // FOR COLUMN MEANINGS, SEE ALSO THE COMMENTS IN CREATEQUANTITYATTRIBUTE.
@@ -348,7 +349,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "form_id smallint DEFAULT " + PostgreSQLDatabase.getAttributeFormId("QuantityAttribute") +
                "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId("QuantityAttribute") + "), " +
                "id bigint DEFAULT nextval('QuantityAttributeKeySequence') PRIMARY KEY, " +
-               "parent_id bigint NOT NULL, " +
+               "entity_id bigint NOT NULL, " +
                //refers to a unit (an entity), like "meters":
                "unit_id bigint NOT NULL, " +
                // eg, 50.0:
@@ -360,13 +361,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "observation_date bigint not null, " +
                "CONSTRAINT valid_unit_id FOREIGN KEY (unit_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
-               "CONSTRAINT valid_parent_id FOREIGN KEY (parent_id) REFERENCES entity (id) ON DELETE CASCADE, " +
+               "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_qa_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
                ") ")
-      dbAction("create index quantity_parent_id on QuantityAttribute (parent_id)")
+      dbAction("create index quantity_parent_id on QuantityAttribute (entity_id)")
 
       dbAction("create sequence TextAttributeKeySequence minvalue " + minIdValue)
-      // the parent_id is the key for the entity on which this text info is recorded; for other meanings see comments on
+      // the entity_id is the key for the entity on which this text info is recorded; for other meanings see comments on
       // Entity.addQuantityAttribute(...).
       // id must be "unique not null" in ANY database used, because it is the primary key.
       dbAction("create table TextAttribute (" +
@@ -374,7 +375,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "form_id smallint DEFAULT " + PostgreSQLDatabase.getAttributeFormId("TextAttribute") +
                "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId("TextAttribute") + "), " +
                "id bigint DEFAULT nextval('TextAttributeKeySequence') PRIMARY KEY, " +
-               "parent_id bigint NOT NULL, " +
+               "entity_id bigint NOT NULL, " +
                "textValue text NOT NULL, " +
                //eg, serial number (which would be an entity)
                "attr_type_id bigint not null, " +
@@ -382,10 +383,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "valid_on_date bigint, " +
                "observation_date bigint not null, " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
-               "CONSTRAINT valid_parent_id FOREIGN KEY (parent_id) REFERENCES entity (id) ON DELETE CASCADE, " +
+               "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_ta_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
                ") ")
-      dbAction("create index text_parent_id on TextAttribute (parent_id)")
+      dbAction("create index text_parent_id on TextAttribute (entity_id)")
 
       dbAction("create sequence DateAttributeKeySequence minvalue " + minIdValue)
       dbAction("create table DateAttribute (" +
@@ -393,15 +394,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "form_id smallint DEFAULT " + PostgreSQLDatabase.getAttributeFormId("DateAttribute") +
                "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId("DateAttribute") + "), " +
                "id bigint DEFAULT nextval('DateAttributeKeySequence') PRIMARY KEY, " +
-               "parent_id bigint NOT NULL, " +
+               "entity_id bigint NOT NULL, " +
                //eg, due on, done on, should start on, started on on... (which would be an entity)
                "attr_type_id bigint not null, " +
                "date bigint not null, " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
-               "CONSTRAINT valid_parent_id FOREIGN KEY (parent_id) REFERENCES entity (id) ON DELETE CASCADE, " +
+               "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_da_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
                ") ")
-      dbAction("create index date_parent_id on DateAttribute (parent_id)")
+      dbAction("create index date_parent_id on DateAttribute (entity_id)")
 
       dbAction("create sequence BooleanAttributeKeySequence minvalue " + minIdValue)
       dbAction("create table BooleanAttribute (" +
@@ -409,7 +410,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "form_id smallint DEFAULT " + PostgreSQLDatabase.getAttributeFormId("BooleanAttribute") +
                "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId("BooleanAttribute") + "), " +
                "id bigint DEFAULT nextval('BooleanAttributeKeySequence') PRIMARY KEY, " +
-               "parent_id bigint NOT NULL, " +
+               "entity_id bigint NOT NULL, " +
                // allowing nulls because a template might not have value, and a task might not have a "done/not" setting yet (if unknown)?
                "booleanValue boolean, " +
                //eg, isDone (which would be an entity)
@@ -418,10 +419,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "valid_on_date bigint, " +
                "observation_date bigint not null, " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
-               "CONSTRAINT valid_parent_id FOREIGN KEY (parent_id) REFERENCES entity (id) ON DELETE CASCADE, " +
+               "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_ba_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
                ") ")
-      dbAction("create index boolean_parent_id on BooleanAttribute (parent_id)")
+      dbAction("create index boolean_parent_id on BooleanAttribute (entity_id)")
 
       dbAction("create sequence FileAttributeKeySequence minvalue " + minIdValue)
       dbAction("create table FileAttribute (" +
@@ -429,7 +430,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "form_id smallint DEFAULT " + PostgreSQLDatabase.getAttributeFormId("FileAttribute") +
                "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId("FileAttribute") + "), " +
                "id bigint DEFAULT nextval('FileAttributeKeySequence') PRIMARY KEY, " +
-               "parent_id bigint NOT NULL, " +
+               "entity_id bigint NOT NULL, " +
                //eg, refers to a type like txt: i.e., could be like mime types, extensions, or mac fork info, etc (which would be an entity in any case).
                "attr_type_id bigint NOT NULL, " +
                "description text NOT NULL, " +
@@ -445,10 +446,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
                // this is the md5 hash in hex (just to see if doc has become corrupted; not intended for security/encryption)
                "md5hash char(32) NOT NULL, " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
-               "CONSTRAINT valid_parent_id FOREIGN KEY (parent_id) REFERENCES entity (id) ON DELETE CASCADE, " +
+               "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_fa_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
                ") ")
-      dbAction("create index file_parent_id on FileAttribute (parent_id)")
+      dbAction("create index file_parent_id on FileAttribute (entity_id)")
       // about oids and large objects, blobs: here are some reference links (but consider also which version of postgresql is running):
       //  https://duckduckgo.com/?q=postgresql+large+binary+streams
       //  http://www.postgresql.org/docs/9.1/interactive/largeobjects.html
@@ -472,7 +473,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // The state and each county are Entities. A RelationType (which is an Entity with some
       // additional columns) is bi- directional and indicates some kind of containment relationship, for example between
       // state & counties. In the RelationToEntity table there would be a row whose rel_type_id points to the described RelationType,
-      // whose entity_id_1 points to the state Entity, and whose entity_id_2 points to a given county Entity. There would be
+      // whose entity_id points to the state Entity, and whose entity_id_2 points to a given county Entity. There would be
       // additional rows for each county, varying only in the value in entity_id_2.
       // And example of something non(?)directional would be where the relationship is identical no matter which way you go, like
       // two human acquaintances). The relationship between a state and county is not the same in reverse. Haven't got a good
@@ -489,7 +490,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                //for lookup in RelationType table, eg "has":
                "rel_type_id bigint NOT NULL, " +
                // what is related (see RelationConnection for "related to what" (related_to_entity_id):
-               "entity_id_1 bigint NOT NULL, " +
+               "entity_id bigint NOT NULL, " +
                // entity_id in RelAttr table is related to what other entity(ies):
                "entity_id_2 bigint NOT NULL, " +
                //valid on date can be null (means no info), or 0 (means 'for all time', not 1970 or whatever that was. At least make it a 1 in that case),
@@ -497,13 +498,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "valid_on_date bigint, " +
                //whenever first observed
                "observation_date bigint not null, " +
-               "PRIMARY KEY (rel_type_id, entity_id_1, entity_id_2), " +
+               "PRIMARY KEY (rel_type_id, entity_id, entity_id_2), " +
                "CONSTRAINT valid_rel_type_id FOREIGN KEY (rel_type_id) REFERENCES RelationType (entity_id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_related_to_entity_id_1 FOREIGN KEY (entity_id_1) REFERENCES entity (id) ON DELETE CASCADE, " +
+               "CONSTRAINT valid_related_to_entity_id_1 FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_related_to_entity_id_2 FOREIGN KEY (entity_id_2) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_reltoent_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
                ") ")
-      dbAction("create index entity_id_1 on RelationToEntity (entity_id_1)")
+      dbAction("create index entity_id_1 on RelationToEntity (entity_id)")
       dbAction("create index entity_id_2 on RelationToEntity (entity_id_2)")
 
       // Would rename this sequence to match the table it's used in now, but the cmd "alter sequence relationtogroupkeysequence rename to groupkeysequence;"
@@ -530,7 +531,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                //this can be treated like a primary key (with the advantages of being artificial) but the real one is a bit farther down. This one has the
                //slight or irrelevant disadvantage that it artificially limits the # of rows in this table, but it's still a big #.
                "id bigint DEFAULT nextval('RelationToGroupKeySequence2') UNIQUE NOT NULL, " +
-               // the entity id of the entity whose attribute (subgroup, RTG) this is:
+               // the entity id of the containing entity whose attribute (subgroup, RTG) this is:
                "entity_id bigint NOT NULL, " +
                "rel_type_id bigint NOT NULL, " +
                "group_id bigint NOT NULL, " +
@@ -841,7 +842,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     try {
       id = getNewKey("QuantityAttributeKeySequence")
       addAttributeSortingRow(inParentId, PostgreSQLDatabase.getAttributeFormId("QuantityAttribute"), id)
-      dbAction("insert into QuantityAttribute (id, parent_id, unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) " +
+      dbAction("insert into QuantityAttribute (id, entity_id, unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) " +
                "values (" + id + "," + inParentId + "," + inUnitId + "," + inNumber + "," + inAttrTypeId + "," +
                (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
     }
@@ -866,25 +867,25 @@ class PostgreSQLDatabase(username: String, var password: String) {
                               inObservationDate: Long) {
     dbAction("update QuantityAttribute set (unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) = (" + inUnitId + "," +
              "" + inNumber + "," + inAttrTypeId + "," + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," +
-             "" + inObservationDate + ") where id=" + inId + " and  parent_id=" + inParentId)
+             "" + inObservationDate + ") where id=" + inId + " and  entity_id=" + inParentId)
   }
 
   def updateTextAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inText: String, inValidOnDate: Option[Long], inObservationDate: Long) {
     val text: String = escapeQuotesEtc(inText)
     dbAction("update TextAttribute set (textValue, attr_type_id, valid_on_date, observation_date) = ('" + text + "'," + inAttrTypeId + "," +
              "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ") where id=" + inId + " and  " +
-             "parent_id=" + inParentId)
+             "entity_id=" + inParentId)
   }
 
   def updateDateAttribute(inId: Long, inParentId: Long, inDate: Long, inAttrTypeId: Long) {
     dbAction("update DateAttribute set (date, attr_type_id) = (" + inDate + "," + inAttrTypeId + ") where id=" + inId + " and  " +
-             "parent_id=" + inParentId)
+             "entity_id=" + inParentId)
   }
 
   def updateBooleanAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inBoolean: Boolean, inValidOnDate: Option[Long], inObservationDate: Long) {
     dbAction("update BooleanAttribute set (booleanValue, attr_type_id, valid_on_date, observation_date) = (" + inBoolean + "," + inAttrTypeId + "," +
              "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ") where id=" + inId + " and  " +
-             "parent_id=" + inParentId)
+             "entity_id=" + inParentId)
   }
 
   // We don't update the dates, path, size, hash because we set those based on the file's own timestamp, path current date,
@@ -894,7 +895,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   // read into OM.
   def updateFileAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inDescription: String) {
     dbAction("update FileAttribute set (description, attr_type_id) = ('" + inDescription + "'," + inAttrTypeId + ")" +
-             " where id=" + inId + " and parent_id=" + inParentId)
+             " where id=" + inId + " and entity_id=" + inParentId)
   }
 
   // first take on this: might have a use for it later.  It's tested, and didn't delete, but none known now. Remove?
@@ -906,7 +907,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
              " " + readableIn + "," + writableIn + "," + executableIn + "," +
              " " + sizeIn + "," +
              " '" + md5hashIn + "')" +
-             " where id=" + inId + " and parent_id=" + inParentId)
+             " where id=" + inId + " and entity_id=" + inParentId)
   }
 
   def updateEntityOnlyName(inId: Long, nameIn: String) {
@@ -985,7 +986,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     if (!callerManagesTransactionsIn) beginTrans()
     try {
       addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("TextAttribute"), id)
-      dbAction("insert into TextAttribute (id, parent_id, textvalue, attr_type_id, valid_on_date, observation_date) " +
+      dbAction("insert into TextAttribute (id, entity_id, textvalue, attr_type_id, valid_on_date, observation_date) " +
                "values (" + id + "," + parentIdIn + ",'" + text + "'," + attrTypeIdIn + "," +
                "" + (if (validOnDateIn.isEmpty) "NULL" else validOnDateIn.get) + "," + observationDateIn + ")")
     }
@@ -1003,7 +1004,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     beginTrans()
     try {
       addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("DateAttribute"), id)
-      dbAction("insert into DateAttribute (id, parent_id, attr_type_id, date) " +
+      dbAction("insert into DateAttribute (id, entity_id, attr_type_id, date) " +
                "values (" + id + "," + parentIdIn + ",'" + attrTypeIdIn + "'," + dateIn + ")")
     }
     catch {
@@ -1018,7 +1019,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     beginTrans()
     try {
       addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("BooleanAttribute"), id)
-      dbAction("insert into BooleanAttribute (id, parent_id, booleanvalue, attr_type_id, valid_on_date, observation_date) " +
+      dbAction("insert into BooleanAttribute (id, entity_id, booleanvalue, attr_type_id, valid_on_date, observation_date) " +
                "values (" + id + "," + parentIdIn + ",'" + booleanIn + "'," + attrTypeIdIn + "," +
                "" + (if (validOnDateIn.isEmpty) "NULL" else validOnDateIn.get) + "," + observationDateIn + ")")
     }
@@ -1043,7 +1044,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       id = getNewKey("FileAttributeKeySequence")
       beginTrans()
       addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("FileAttribute"), id)
-      dbAction("insert into FileAttribute (id, parent_id, attr_type_id, description, original_file_date, stored_date, original_file_path, readable, writable," +
+      dbAction("insert into FileAttribute (id, entity_id, attr_type_id, description, original_file_date, stored_date, original_file_path, readable, writable," +
                " executable, size, md5hash)" +
                " values (" + id + "," + parentIdIn + "," + attrTypeIdIn + ",'" + description + "'," + originalFileDateIn + "," + storedDateIn + "," +
                " '" + originalFilePath + "', " + readableIn + ", " + writableIn + ", " + executableIn + ", " + sizeIn + ",'" + md5hash + "')")
@@ -1103,7 +1104,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     if (!callerManagesTransactionsIn) beginTrans()
     try {
       addAttributeSortingRow(inEntityId1, PostgreSQLDatabase.getAttributeFormId("relationtoentity"), id)
-      dbAction("INSERT INTO RelationToEntity (id, rel_type_id, entity_id_1, entity_id_2, valid_on_date, observation_date) " +
+      dbAction("INSERT INTO RelationToEntity (id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date) " +
                "VALUES (" + id + "," + inRelationTypeId + "," + inEntityId1 + ", " + inEntityId2 + ", " +
                "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
     }
@@ -1120,7 +1121,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def updateRelationToEntity(inRelationTypeId: Long, inEntityId1: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
     dbAction("UPDATE RelationToEntity SET (rel_type_id, valid_on_date, observation_date)" +
              " = (" + inRelationTypeId + "," + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")" +
-             " where rel_type_id=" + inRelationTypeId + " and entity_id_1=" + inEntityId1 + " and entity_id_2=" + inEntityId2)
+             " where rel_type_id=" + inRelationTypeId + " and entity_id=" + inEntityId1 + " and entity_id_2=" + inEntityId2)
   }
 
   def createGroup(inName: String, allowMixedClassesInGroupIn: Boolean = false): Long = {
@@ -1402,7 +1403,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def deleteFileAttribute(inID: Long) = deleteObjectById("FileAttribute", inID)
 
   def deleteRelationToEntity(inRelTypeId: Long, inEntityId1: Long, inEntityId2: Long) {
-    deleteObjects("RelationToEntity", "where rel_type_id=" + inRelTypeId + " and entity_id_1=" + inEntityId1 + " and entity_id_2=" + inEntityId2)
+    deleteObjects("RelationToEntity", "where rel_type_id=" + inRelTypeId + " and entity_id=" + inEntityId1 + " and entity_id_2=" + inEntityId2)
   }
 
   def deleteRelationToGroup(entityIdIn: Long, relTypeIdIn: Long, groupIdIn: Long) {
@@ -1617,27 +1618,27 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getQuantityAttributeCount(inEntityId: Long): Long = {
-    extractRowCountFromCountQuery("select count(1) from QuantityAttribute where parent_id=" + inEntityId)
+    extractRowCountFromCountQuery("select count(1) from QuantityAttribute where entity_id=" + inEntityId)
   }
 
   def getTextAttributeCount(inEntityId: Long): Long = {
-    extractRowCountFromCountQuery("select count(1) from TextAttribute where parent_id=" + inEntityId)
+    extractRowCountFromCountQuery("select count(1) from TextAttribute where entity_id=" + inEntityId)
   }
 
   def getDateAttributeCount(inEntityId: Long): Long = {
-    extractRowCountFromCountQuery("select count(1) from DateAttribute where parent_id=" + inEntityId)
+    extractRowCountFromCountQuery("select count(1) from DateAttribute where entity_id=" + inEntityId)
   }
 
   def getBooleanAttributeCount(inEntityId: Long): Long = {
-    extractRowCountFromCountQuery("select count(1) from BooleanAttribute where parent_id=" + inEntityId)
+    extractRowCountFromCountQuery("select count(1) from BooleanAttribute where entity_id=" + inEntityId)
   }
 
   def getFileAttributeCount(inEntityId: Long): Long = {
-    extractRowCountFromCountQuery("select count(1) from FileAttribute where parent_id=" + inEntityId)
+    extractRowCountFromCountQuery("select count(1) from FileAttribute where entity_id=" + inEntityId)
   }
 
   def getRelationToEntityCount(inEntityId: Long): Long = {
-    extractRowCountFromCountQuery("select count(1) from RelationToEntity where entity_id_1=" + inEntityId)
+    extractRowCountFromCountQuery("select count(1) from RelationToEntity where entity_id=" + inEntityId)
   }
 
   /** if 1st parm is None, gets all. */
@@ -1830,13 +1831,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getQuantityAttributeData(inQuantityId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select parent_id, unit_id, quantity_number, attr_type_id, valid_on_date, observation_date from QuantityAttribute " + "where id="
+    dbQueryWrapperForOneRow("select entity_id, unit_id, quantity_number, attr_type_id, valid_on_date, observation_date from QuantityAttribute " + "where id="
                             + inQuantityId,
                             "Long,Long,Float,Long,Long,Long")
   }
 
   def getRelationToEntityData(inRelTypeId: Long, inEntityId1: Long, inEntityId2: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select id, valid_on_date, observation_date from RelationToEntity where rel_type_id=" + inRelTypeId + " and entity_id_1=" +
+    dbQueryWrapperForOneRow("select id, valid_on_date, observation_date from RelationToEntity where rel_type_id=" + inRelTypeId + " and entity_id=" +
                             inEntityId1 + " " + "and entity_id_2=" + inEntityId2,
                             "Long,Long,Long")
   }
@@ -1861,22 +1862,22 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   // idea: combine all the methods that look like this (s.b. easier now, in scala, than java)
   def getTextAttributeData(inTextId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select parent_id, textValue, attr_type_id, valid_on_date, observation_date from TextAttribute where id=" + inTextId,
+    dbQueryWrapperForOneRow("select entity_id, textValue, attr_type_id, valid_on_date, observation_date from TextAttribute where id=" + inTextId,
                             "Long,String,Long,Long,Long")
   }
 
   def getDateAttributeData(inDateId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select parent_id, date, attr_type_id from DateAttribute where id=" + inDateId,
+    dbQueryWrapperForOneRow("select entity_id, date, attr_type_id from DateAttribute where id=" + inDateId,
                             "Long,Long,Long")
   }
 
   def getBooleanAttributeData(inBooleanId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select parent_id, booleanValue, attr_type_id, valid_on_date, observation_date from BooleanAttribute where id=" + inBooleanId,
+    dbQueryWrapperForOneRow("select entity_id, booleanValue, attr_type_id, valid_on_date, observation_date from BooleanAttribute where id=" + inBooleanId,
                             "Long,Boolean,Long,Long,Long")
   }
 
   def getFileAttributeData(inFileId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select parent_id, description, attr_type_id, original_file_date, stored_date, original_file_path, readable, writable, " +
+    dbQueryWrapperForOneRow("select entity_id, description, attr_type_id, original_file_date, stored_date, original_file_path, readable, writable, " +
                             "executable, size, md5hash " +
                             " from FileAttribute where id=" + inFileId,
                             "Long,String,Long,Long,Long,String,Boolean,Boolean,Boolean,Long,String")
@@ -2001,12 +2002,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def relationTypeKeyExists(inId: Long): Boolean = doesThisExist("SELECT count(1) from RelationType where entity_id=" + inId)
 
   def relationToEntityKeysExistAndMatch(idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Boolean = {
-    doesThisExist("SELECT count(1) from RelationToEntity where id=" + idIn + " and rel_type_id=" + relTypeIdIn + " and entity_id_1=" + entityId1In +
+    doesThisExist("SELECT count(1) from RelationToEntity where id=" + idIn + " and rel_type_id=" + relTypeIdIn + " and entity_id=" + entityId1In +
                   " and entity_id_2=" + entityId2In)
   }
 
   def relationToEntityExists(relTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Boolean = {
-    doesThisExist("SELECT count(1) from RelationToEntity where rel_type_id=" + relTypeIdIn + " and entity_id_1=" + entityId1In +
+    doesThisExist("SELECT count(1) from RelationToEntity where rel_type_id=" + relTypeIdIn + " and entity_id=" + entityId1In +
                   " and entity_id_2=" + entityId2In)
   }
 
@@ -2064,7 +2065,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                       " and name ~* '" + regexIn + "'" +
                       " UNION " +
                       "select id, name, class_id, insertion_date, public from entity where not archived and " + omissionExpression +
-                      " and id in (select parent_id from textattribute where textValue ~* '" + regexIn + "')" +
+                      " and id in (select entity_id from textattribute where textValue ~* '" + regexIn + "')" +
                       " ORDER BY" +
                       " id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
     val earlyResults = dbQuery(sql, "Long,String,Long,Long,Boolean")
@@ -2113,10 +2114,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getEntitiesContainingEntity(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
-    val sql: String = "select rel_type_id, entity_id_1 from relationtoentity where entity_id_2=" + entityIn.getId + " order by entity_id_1 limit " +
+    val sql: String = "select rel_type_id, entity_id from relationtoentity where entity_id_2=" + entityIn.getId + " order by entity_id limit " +
                       checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
-    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
-    // 2: helpfully returned; & in UI?)
+    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id or
+    // entity_id_2: helpfully returned; & in UI?)
     //And, perhaps changed to account for whether something is archived.
     // See getCountOfEntitiesContainingEntity for example.
     getContainingEntities_helper(sql)
@@ -2126,8 +2127,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val sql: String = "select rel_type_id, entity_id from relationtogroup where group_id=" + groupIdIn +
                       " order by entity_id, rel_type_id limit " +
                       checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
-    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id_1 or
-    // 2: helpfully returned; & in UI?)
+    //note: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id or
+    // entity_id_2: helpfully returned; & in UI?)
     //And, perhaps changed to account for whether something is archived.
     // See getCountOfEntitiesContainingGroup for example.
     getContainingEntities_helper(sql)
@@ -2137,11 +2138,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
    * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this entity (IN *EITHER* DIRECTION).
    */
   def getCountOfEntitiesContainingEntity(entityIdIn: Long): (Long, Long) = {
-    val nonArchived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_1 and not e.archived" +
+    val nonArchived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id and not e.archived" +
                                                      " and e.id=" + entityIdIn)
     val nonArchived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and not e.archived" +
                                                      " and e.id=" + entityIdIn)
-    val archived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_1 and e.archived" +
+    val archived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id and e.archived" +
                                                   " and e.id=" + entityIdIn)
     val archived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and e.archived" +
                                                   " and e.id=" + entityIdIn)
@@ -2474,7 +2475,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // time for the case that the entity table changes, we don't have to carefully update all the columns selected here & the mappings.  This is a more
     // likely change than for the TextAttribute table, below.
     val queryResults: List[Array[Option[Any]]] = dbQuery("select id from entity where name='" + nameIn + "' and id in " +
-                                                     "(select entity_id_2 from relationToEntity where entity_id_1=" + parentEntityIdIn +
+                                                     "(select entity_id_2 from relationToEntity where entity_id=" + parentEntityIdIn +
                                                     (if (relTypeIdIn.isDefined) " and rel_type_id=" + relTypeIdIn.get + " " else "") + ")",
                                                     "Long")
     if (expectedRows.isDefined) {
@@ -2492,7 +2493,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getTextAttributeByTypeId(parentEntityIdIn: Long, typeIdIn: Long, expectedRows: Option[Int] = None): Array[TextAttribute] = {
-    val queryResults: List[Array[Option[Any]]] = dbQuery("select id, textValue, attr_type_id, valid_on_date, observation_date from textattribute where parent_id="
+    val queryResults: List[Array[Option[Any]]] = dbQuery("select id, textValue, attr_type_id, valid_on_date, observation_date from textattribute where entity_id="
                                                     + parentEntityIdIn + " and attr_type_id="+typeIdIn,
                                                     "Long,String,Long,Long,Long")
     if (expectedRows.isDefined) {
@@ -2531,15 +2532,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // and when to stop.
     val tables: Array[String] = Array("QuantityAttribute", "BooleanAttribute", "DateAttribute", "TextAttribute", "FileAttribute", "RelationToEntity",
                                       "RelationToGroup")
-    val columnsSelectedByTable: Array[String] = Array("id,parent_id,attr_type_id,unit_id,quantity_number,valid_on_date,observation_date",
-                                                      "id,parent_id,attr_type_id,booleanValue,valid_on_date,observation_date",
-                                                      "id,parent_id,attr_type_id,date",
-                                                      "id,parent_id,attr_type_id,textValue,valid_on_date,observation_date",
+    val columnsSelectedByTable: Array[String] = Array("id,entity_id,attr_type_id,unit_id,quantity_number,valid_on_date,observation_date",
+                                                      "id,entity_id,attr_type_id,booleanValue,valid_on_date,observation_date",
+                                                      "id,entity_id,attr_type_id,date",
+                                                      "id,entity_id,attr_type_id,textValue,valid_on_date,observation_date",
 
-                                                      "id,parent_id,attr_type_id,description,original_file_date,stored_date,original_file_path,readable," +
+                                                      "id,entity_id,attr_type_id,description,original_file_date,stored_date,original_file_path,readable," +
                                                       "writable,executable,size,md5hash",
 
-                                                      "id,rel_type_id,entity_id_1,entity_id_2,valid_on_date,observation_date",
+                                                      "id,rel_type_id,entity_id,entity_id_2,valid_on_date,observation_date",
                                                       "id,entity_id,rel_type_id,group_id,valid_on_date,observation_date")
     val typesByTable: Array[String] = Array("Long,Long,Long,Long,Long,Float,Long,Long",
                                             "Long,Long,Long,Long,Boolean,Long,Long",
@@ -2548,14 +2549,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                             "Long,Long,Long,Long,String,Long,Long,String,Boolean,Boolean,Boolean,Long,String",
                                             "Long,Long,Long,Long,Long,Long,Long",
                                             "Long,Long,Long,Long,Long,Long,Long")
-    val whereClausesByTable: Array[String] = Array(tables(0) + ".parent_id=" + inEntityId,
-                                                   tables(1) + ".parent_id=" + inEntityId,
-                                                   tables(2) + ".parent_id=" + inEntityId,
-                                                   tables(3) + ".parent_id=" + inEntityId,
-                                                   tables(4) + ".parent_id=" + inEntityId,
-                                                   tables(5) + ".entity_id_1=" + inEntityId,
+    val whereClausesByTable: Array[String] = Array(tables(0) + ".entity_id=" + inEntityId, tables(1) + ".entity_id=" + inEntityId,
+                                                   tables(2) + ".entity_id=" + inEntityId, tables(3) + ".entity_id=" + inEntityId,
+                                                   tables(4) + ".entity_id=" + inEntityId, tables(5) + ".entity_id=" + inEntityId,
                                                    tables(6) + ".entity_id=" + inEntityId)
-    val orderByClausesByTable: Array[String] = Array("id", "id", "id", "id", "id", "entity_id_1", "group_id")
+    val orderByClausesByTable: Array[String] = Array("id", "id", "id", "id", "id", "entity_id", "group_id")
 
     // *******************************************
     //****** NOTE **********: some logic here for counting & looping has been commented out because it is not yet updated to work with the sorting of
@@ -2767,20 +2765,41 @@ class PostgreSQLDatabase(username: String, var password: String) {
     else rowcnt >= 1
   }
 
-  /** Cloned to deleteObjects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
+  /** Cloned to archiveObjects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
     * Unless the parameter rowsExpected==-1, it will allow any # of rows to be deleted; otherwise if the # of rows is wrong it will abort tran & fail.
     */
-  private def deleteObjects(tableNameIn: String, inWhereClause: String, rowsExpected: Long = 1, callerManagesTransactions: Boolean = false): Long = {
+  private def deleteObjects(tableNameIn: String, whereClauseIn: String, rowsExpected: Long = 1, callerManagesTransactions: Boolean = false): Long = {
     //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
     //idea: learn to eliminate this var (and others in this file) in a scala-like way
-    val sql = "DELETE FROM " + tableNameIn + " " + inWhereClause
+    val sql = "DELETE FROM " + tableNameIn + " " + whereClauseIn
     if (!callerManagesTransactions) beginTrans()
     try {
+      val tableLower = tableNameIn.toLowerCase
+      var sortingRowsDeleted: Long = 0
+      var keys: List[Array[Option[Any]]] = List[Array[Option[Any]]]()
+      if (tableLower.endsWith("attribute") || tableLower == "relationtoentity" || tableLower == "relationtogroup") {
+        // *Before* deleting the attribute, get key info from it that allows deleting any attributesorting records tied to it.
+        // (I seriously considered using a trigger here, but this should be more readily portable to new databases.  See comments above
+        // at "create table AttributeSorting".)
+        keys = dbQuery("select entity_id, form_id, id from " + tableNameIn + " " + whereClauseIn, "Long,Long,Long")
+      }
       val rowsDeleted = dbAction(sql, callerChecksRowCountEtc = true)
+      for (row <- keys) {
+        // (deleting the rows after the attribute, because otherwise the deletion fails on a constraint)
+        val eid = row(0).get.asInstanceOf[Long]
+        val afid = row(1).get.asInstanceOf[Long]
+        val aid = row(2).get.asInstanceOf[Long]
+        sortingRowsDeleted += dbAction("delete from attributesorting where entity_id=" + eid + " and attribute_form_id=" + afid + " and attribute_id=" + aid,
+                                       callerChecksRowCountEtc = true)
+      }
+      if (sortingRowsDeleted > rowsDeleted) {
+        throw rollbackWithCatch(new OmDatabaseException("There should be at least as many attributes as sorting rows for them (since "
+                                                        + "an attribute can only be on a single entity, not in more than one place)."))
+      }
       if (rowsExpected >= 0 && rowsDeleted != rowsExpected) {
         // Roll back, as we definitely don't want to delete an unexpected # of rows.
         // Do it ***EVEN THOUGH callerManagesTransaction IS true***: seems cleaner/safer this way.
-        throw rollbackWithCatch(new Exception("Delete command would have removed " + rowsDeleted + " rows, but " +
+        throw rollbackWithCatch(new OmDatabaseException("Delete command would have removed " + rowsDeleted + " rows, but " +
                                               rowsExpected + " were expected! Did not perform delete.  SQL is: \"" + sql + "\""))
       } else {
         if (!callerManagesTransactions) commitTrans()

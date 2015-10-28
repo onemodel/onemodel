@@ -32,7 +32,7 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
     mAttrTypeId = mRelTypeId
   } else {
     // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code. (should be a constant then, huh? same elsewhere. It's on the list.)
-    throw new Exception("Key id=" + mId + ", with multi-column key composed of:  rel_type_id=" + mRelTypeId + " and entity_id_1=" + mEntityId1 +
+    throw new Exception("Key id=" + mId + ", with multi-column key composed of:  rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
                         " and entity_id_2=" + mEntityId2 + " do not exist in database.")
   }
 
