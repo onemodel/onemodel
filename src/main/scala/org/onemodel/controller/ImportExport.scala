@@ -50,8 +50,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                                       "needed.  Enter y for public, n for nonpublic, or a space for 'unknown/unspecified', aka decide later.",
                                                       Some(""), allowBlankAnswer = true)
       val ans3 = ui.askYesNoQuestion("Keep the filename as the top level of the imported list? (Answering no will put the top level entries from inside" +
-                                     " the " +
-                                     "file, as entries directly under this entity or group.)")
+                                     " the file, as entries directly under this entity or group; answering yes will create an entity for the file," +
+                                     " and in it a group for the entries.)")
       if (ans3.isDefined) {
         val creatingNewStartingGroupFromTheFilename: Boolean = ans3.get
         val addingToExistingGroup: Boolean = firstContainingEntryIn.isInstanceOf[Group] && !creatingNewStartingGroupFromTheFilename
@@ -768,7 +768,9 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                   case qa: QuantityAttribute => "QA "
                   case ta: TextAttribute => "TA "
                 }) + /*attribute.getId +*/ ": " + attribute.getDisplayString(0, None, None))
-              } else printWriterIn.println(attribute.getDisplayString(0, None, None))
+              } else {
+                printWriterIn.println(attribute.getDisplayString(0, None, None, simplify = true))
+              }
           }
         }
       }

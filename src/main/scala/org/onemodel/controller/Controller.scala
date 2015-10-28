@@ -777,7 +777,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             val (_, _, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(editedEntity.get.getId)
             if (groupId.isDefined && !moreThanOneAvailable) {
               // for efficiency, if it's obvious which subgroup's name to change at the same time, offer to do so
-              val ans = ui.askYesNoQuestion("There's a single subgroup with the same old name; probably it and this entity were created at the same time, " +
+              val ans = ui.askYesNoQuestion("There's a single subgroup; probably it and this entity were created at the same time, " +
                                             "for the subgroup.  Change" +
                                             " the subgroup's name at the same time to be identical?", Some("y"))
               if (ans.isDefined && ans.get) {
