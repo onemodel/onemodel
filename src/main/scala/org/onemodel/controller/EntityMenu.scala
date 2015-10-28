@@ -114,7 +114,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                            relationIn, containingGroupIn)
         if (newAttribute.isDefined && highlightedEntry.isDefined) {
           placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBackIn = true,
-                                                                   attributeRowsStartingIndexIn, newAttribute.get.getId, highlightedIndexInObjList.get,
+                                                                   attributeRowsStartingIndexIn, newAttribute.get.getId,
+                                                                   highlightedIndexInObjList.getOrElse(0),
                                                                    highlightedEntry.get.getId, numDisplayableAttributes, newAttribute.get.getFormId,
                                                                    highlightedEntry.get.getFormId)
         }
