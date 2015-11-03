@@ -620,8 +620,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           attributeIn.delete()
         } else {
           ui.displayText("Did not delete attribute.", waitForKeystroke = false)
+          attributeEditMenu(attributeIn)
         }
-        attributeEditMenu(attributeIn)
       } else if (answer == 5) {
         new EntityMenu(ui, db, this).entityMenu(new Entity(db, attributeIn.getAttrTypeId))
         attributeEditMenu(attributeIn)

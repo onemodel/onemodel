@@ -174,7 +174,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         // updates user preferences such that this obj will be the one displayed by default in future.
         controller.mPrefs.putLong("first_display_entity", entityIn.getId)
         entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
-      } else if (answer == 8 && answer <= choices.length && highlightedEntry.isDefined && highlightedIndexInObjList.isDefined) {
+      } else if (answer == 8 && answer <= choices.length && numAttrs > 0) {
         // lets user select an attribute for further operations like moving, deleting.
         // (we have to have at least one choice or ui.askWhich fails...a require() call there.)
         // NOTE: this code is similar (not identical) in EntityMenu as in QuickGroupMenu: if one changes, the other might also need maintenance.
