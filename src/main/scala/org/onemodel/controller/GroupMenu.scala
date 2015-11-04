@@ -58,12 +58,14 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                 "(stub)" /*sort?*/ ,
                                 "Quick group menu")
     val displayDescription = if (relationToGroupIn.isDefined) relationToGroupIn.get.getDisplayString(0) else groupIn.getDisplayString(0)
-    val leadingText: Array[String] = Array("ENTITY GROUP (regular menu: more complete, so slower for some things): " + displayDescription)
+    // (idea: maybe this use of color on next line could be removed, if people don't rely on the color change.  I originally added it as a visual
+    // cue to aid my transition to using entities more & groups less. Same thing is done in QuickGroupMenu.)
+    val leadingText: Array[String] = Array(Color.yellow("ENTITY GROUP ") + "(regular menu: more complete, so slower for some things): " + displayDescription)
     val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, controller.maxNameLength)
     val objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems))
     controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize, displayStartingRowNumberIn)
     val names: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
-      val numSubgroupsPrefix: String = controller.getNumSubgroupsPrefix(entity.getId)
+      val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity.getId)
       numSubgroupsPrefix + entity.getName + " " + entity.getPublicStatusString()
     }
     val numEntitiesInGroup: Long = groupIn.getSize

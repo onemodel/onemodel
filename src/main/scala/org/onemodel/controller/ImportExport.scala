@@ -801,7 +801,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       if (numAttrs == 1) {
         val (_, _, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(entityIn.getId)
         if (groupId.isDefined && !moreThanOneAvailable) {
-          db.getGroupEntryCount(groupId.get, Some(false))
+          db.getGroupSize(groupId.get, Some(false))
         } else numAttrs
       } else numAttrs
     }

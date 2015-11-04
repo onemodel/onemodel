@@ -1099,13 +1099,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
   def createRelationToEntity(inRelationTypeId: Long, inEntityId1: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long,
-                             callerManagesTransactionsIn: Boolean = false): Long = {
-    val id: Long = getNewKey("RelationToEntityKeySequence")
+                             callerManagesTransactionsIn: Boolean = false): RelationToEntity = {
+    val rteId: Long = getNewKey("RelationToEntityKeySequence")
     if (!callerManagesTransactionsIn) beginTrans()
     try {
-      addAttributeSortingRow(inEntityId1, PostgreSQLDatabase.getAttributeFormId("relationtoentity"), id)
+      addAttributeSortingRow(inEntityId1, PostgreSQLDatabase.getAttributeFormId("relationtoentity"), rteId)
       dbAction("INSERT INTO RelationToEntity (id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date) " +
-               "VALUES (" + id + "," + inRelationTypeId + "," + inEntityId1 + ", " + inEntityId2 + ", " +
+               "VALUES (" + rteId + "," + inRelationTypeId + "," + inEntityId1 + ", " + inEntityId2 + ", " +
                "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
     }
     catch {
@@ -1114,7 +1114,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
         throw e
     }
     if (!callerManagesTransactionsIn) commitTrans()
-    id
+    new RelationToEntity(this, rteId, inRelationTypeId, inEntityId1, inEntityId2)
   }
 
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
@@ -1153,9 +1153,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val name: String = escapeQuotesEtc(newEntityNameIn)
     if (!callerManagesTransactionsIn) beginTrans()
     val newEntityId: Long = createEntity(name, isPublicIn = isPublicIn)
-    val newRteId: Long = createRelationToEntity(inRelationTypeId, inEntityId, newEntityId, inValidOnDate, inObservationDate, callerManagesTransactionsIn)
+    val newRte: RelationToEntity = createRelationToEntity(inRelationTypeId, inEntityId, newEntityId, inValidOnDate, inObservationDate, callerManagesTransactionsIn)
     if (!callerManagesTransactionsIn) commitTrans()
-    (newEntityId, newRteId)
+    (newEntityId, newRte.getId)
   }
 
   /** I.e., make it so the entity has a group in it, which can contain entities.
@@ -1262,7 +1262,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val sortingIndex = {
       val index = if (sortingIndexIn.isDefined) sortingIndexIn.get
       // start with an increment off the min or max, so that later there is room to sort something before or after it, manually:
-      else if (getGroupEntryCount(groupIdIn) == 0) minIdValue + 9999
+      else if (getGroupSize(groupIdIn) == 0) minIdValue + 9999
       else maxIdValue - 9999
 
       if (groupEntrySortingIndexInUse(groupIdIn, index))
@@ -1413,7 +1413,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def deleteGroupAndRelationsToIt(inId: Long) {
     beginTrans()
     try {
-      val entityCount: Long = getGroupEntryCount(inId)
+      val entityCount: Long = getGroupSize(inId)
       deleteObjects("EntitiesInAGroup", "where group_id=" + inId, entityCount, callerManagesTransactions = true)
       val numGroups = getRelationToGroupCountByGroup(inId)
       deleteObjects("RelationToGroup", "where group_id=" + inId, numGroups, callerManagesTransactions = true)
@@ -1434,7 +1434,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def deleteGroupRelationsToItAndItsEntries(groupidIn: Long) {
     beginTrans()
     try {
-      val entityCount = getGroupEntryCount(groupidIn)
+      val entityCount = getGroupSize(groupidIn)
 
       def deleteRelationToGroupAndALL_recursively(inGroupId: Long): (Long, Long) = {
         val entityIds: List[Array[Option[Any]]] = dbQuery("select entity_id from entitiesinagroup where group_id=" + inGroupId, "Long")
@@ -1507,7 +1507,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def renumberGroupSortingIndexes(groupIdIn: Long, callerManagesTransactionsIn: Boolean = false) {
     //*** ANY MAINTENANCE DONE HERE SHOULD MATCH THE OTHER "renumber*" METHOD! ***  idea: merge them
-    val groupSize: Long = getGroupEntryCount(groupIdIn)
+    val groupSize: Long = getGroupSize(groupIdIn)
     if (groupSize != 0) {
       val numberOfSegments = groupSize + 2
       val increment = maxIdValue / numberOfSegments * 2
@@ -1673,9 +1673,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
     extractRowCountFromCountQuery("select count(1) from grupo")
   }
 
-  /** Parameter includeArchivedEntities true/false means select only archived/non-archived entities; None there means BOTH archived and non-archived (all).
-    */
-  def getGroupEntryCount(groupIdIn: Long, includeArchivedEntities: Option[Boolean] = None): Long = {
+  /**
+   * @param groupIdIn groupId
+   * @param includeArchivedEntities true/false means select only archived/non-archived entities; None there means BOTH archived and non-archived (all).
+   */
+  def getGroupSize(groupIdIn: Long, includeArchivedEntities: Option[Boolean] = None): Long = {
     val archivedSqlCondition: String = if (includeArchivedEntities.isEmpty) "true"
     else if (includeArchivedEntities.get) "archived"
     else "(not archived)"
@@ -2780,7 +2782,18 @@ class PostgreSQLDatabase(username: String, var password: String) {
       if (tableLower.endsWith("attribute") || tableLower == "relationtoentity" || tableLower == "relationtogroup") {
         // *Before* deleting the attribute, get key info from it that allows deleting any attributesorting records tied to it.
         // (I seriously considered using a trigger here, but this should be more readily portable to new databases.  See comments above
-        // at "create table AttributeSorting".)
+        // at "create table AttributeSorting". BUT: now that I remember the other ways that some things are auto-deleted, there is a task
+        // noted for future to really use a trigger instead. Leaving this here just as interim workaround: the sql that can be used to see or delete
+        // leftover records, until the trigger is in place & tested, is like this:
+          /* select * [or delete]  from attributesorting where text(attribute_form_id)||text(attribute_id) not in
+             (select text(form_id) || text(id) from textattribute
+             UNION select text(form_id) || text(id) from quantityattribute
+             UNION select text(form_id) || text(id) from dateattribute
+             UNION select text(form_id) || text(id) from booleanattribute
+             UNION select text(form_id) || text(id) from fileattribute
+             UNION select text(form_id) || text(id) from relationtoentity attribute
+             UNION select text(form_id) || text(id) from relationtogroup)
+          */
         keys = dbQuery("select entity_id, form_id, id from " + tableNameIn + " " + whereClauseIn, "Long,Long,Long")
       }
       val rowsDeleted = dbAction(sql, callerChecksRowCountEtc = true)

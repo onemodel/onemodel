@@ -27,10 +27,22 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
     * therefore the attribute already in that position, and the  one added at that position are different.
     */
   protected def placeEntryInPosition(containingObjectIdIn: Long, groupSizeOrNumAttributesIn: Long, numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: Boolean,
-                           startingDisplayRowIndexIn: Int, movingObjIdIn: Long, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Long,
-                           numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Int): Int = {
+                           startingDisplayRowIndexIn: Int, movingObjIdIn: Long, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option[Long],
+                           numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]): Int = {
 
-    val movingFromPosition_sortingIndex = getSortingIndex(containingObjectIdIn, objectAtThatIndexFormIdIn, objectAtThatIndexIdIn)
+    require(if (objectAtThatIndexIdIn.isDefined || objectAtThatIndexFormIdIn.isDefined) {
+                objectAtThatIndexIdIn.isDefined && objectAtThatIndexFormIdIn.isDefined
+            } else true )
+
+    val movingFromPosition_sortingIndex: Long = {
+      if (objectAtThatIndexIdIn.isDefined) {
+        getSortingIndex(containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
+      } else {
+        // could happen if it's the first entry (first attribute) in an entity, or if the caller (due to whatever reason including possibly a bug) did not
+        // know what objectAtThatIndexIdIn value to use, so passed None: attempting to be resilient to that here.
+        db.minIdValue + 990
+      }
+    }
 
     val (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long]) =
       findNewNeighbors(containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex)
@@ -50,9 +62,16 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
         if (trouble) {
           renumberSortingIndexes(containingObjectIdIn)
 
-          // Get the sortingIndex of the one it was right after, increment (since just renumbered; or not?), then use that as the "old position" moving from.
-          // (This is because the old movingFromPosition_sortingIndex value is now invalid, since we just renumbered above.)
-          val movingFromPosition_sortingIndex2: Long = getSortingIndex(containingObjectIdIn, objectAtThatIndexFormIdIn, objectAtThatIndexIdIn)
+          // Get the sortingIndex of the entry right before the one being placed, increment (since just renumbered; or not?), then use that as the "old
+          // position" moving from.  (Getting a new value because the old movingFromPosition_sortingIndex value is now invalid, since we just renumbered above.)
+          val movingFromPosition_sortingIndex2: Long = {
+            if (objectAtThatIndexIdIn.isDefined) {
+              getSortingIndex(containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
+            } else {
+              // (reason for next line is in related comments above at "val movingFromPosition_sortingIndex: Long =".)
+              db.minIdValue + 990
+            }
+          }
           val (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option[Long], farNewNeighborSortingIndex2: Option[Long]) =
             findNewNeighbors(containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex2)
           // (for some reason, can't reassign the results directly to the vars like this "(newSortingIndex, trouble, newStartingRowNum) = ..."?
@@ -158,7 +177,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
           //(was: "(numDisplayLines / 4)", but center it better in the screen):
           val y: Int = startingDisplayRowIndexIn + numDisplayLines + byHowManyEntriesMoving - (numDisplayLines / 2)
           val min: Int = math.min(x,y).asInstanceOf[Int]
-          min
+          math.max(0, min)
         } else startingDisplayRowIndexIn
       } else {
         if ((moveFromIndexInObjListIn - byHowManyEntriesMoving) < 0) {

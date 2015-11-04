@@ -39,7 +39,6 @@ class TextAttributeDataHolder(attrTypeIdIn: Long,
 class RelationToEntityDataHolder(relTypeIdIn: Long,
                          validOnDateIn: Option[Long],
                          observationDateIn: Long,
-                         var entityId1: Long,
                          var entityId2: Long)
     extends AttributeDataHolderWithVODates(relTypeIdIn, validOnDateIn, observationDateIn)
 

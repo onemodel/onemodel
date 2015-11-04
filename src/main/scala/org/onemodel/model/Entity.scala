@@ -244,9 +244,9 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     }
   }
 
-  def addRelationToEntity(inAttrTypeId: Long, inEntityId1: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long): RelationToEntity = {
-    val rteId = mDB.createRelationToEntity(inAttrTypeId, inEntityId1, inEntityId2, inValidOnDate, inObservationDate)
-    new RelationToEntity(mDB, rteId, inAttrTypeId, inEntityId1, inEntityId2)
+  def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long): RelationToEntity = {
+    val rteId = mDB.createRelationToEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate).getId
+    new RelationToEntity(mDB, rteId, inAttrTypeId, getId, inEntityId2)
   }
 
   /** Creates then adds a particular kind of rtg to this entity.
@@ -270,6 +270,15 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     val group = new Group(mDB, groupId)
     val rtg = new RelationToGroup(mDB, rtgId, getId, relTypeIdIn, groupId)
     (group, rtg)
+  }
+
+  /**
+   * @return the id of the new RTE
+   */
+  def addHASRelationToEntity(entityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): RelationToEntity = {
+    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+    val newRte = mDB.createRelationToEntity(relationTypeId, getId, entityIdIn, validOnDateIn, observationDateIn)
+    newRte
   }
 
   /** Creates new entity then adds it a particular kind of rte to this entity.

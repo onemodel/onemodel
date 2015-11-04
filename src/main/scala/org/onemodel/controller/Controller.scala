@@ -64,7 +64,7 @@ object Controller {
   * scalatest docs 4 ideas, & maybe use expect?), delaying side effects more, shorter methods, other better scala style, etc.
   */
 class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None, defaultPasswordIn: Option[String] = None) {
-  val mRelTypeExamples = "i.e., ownership of or \"has\" another entity, family ties, etc"
+  val mRelTypeExamples = "i.e., ownership of or \"has\" another entity, family tie, &c"
 
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
   val db: PostgreSQLDatabase = tryLogins(forceUserPassPromptIn, defaultUsernameIn, defaultPasswordIn)
@@ -312,14 +312,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val maxNameLength = {
       if (inType == Controller.RELATION_TYPE_TYPE) model.RelationType.getNameLength(db)
       else if (inType == Controller.ENTITY_TYPE) model.Entity.nameLength(db)
-      else throw new Exception("invalid inType: " + inType)
+      else throw new scala.Exception("invalid inType: " + inType)
     }
     val example = {
       if (inType == Controller.RELATION_TYPE_TYPE) " (use 3rd-person verb like \"owns\"--might make output like sentences more consistent later on)"
       else ""
     }
-
-    val potentialErrorMsg = "Got an error: %s.  Please try a shorter (" + maxNameLength + " chars) entry.  Details: "
 
     /** 2nd Long in return value is ignored in this particular case.
       */
@@ -340,7 +338,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // idea: this size check might be able to account better for the escaping that's done. Or just keep letting the exception handle it as is already
           // done in the caller of this.
           if (name.length > maxNameLength) {
-            ui.displayText(potentialErrorMsg.format(tooLongMessage) + ".")
+            ui.displayText(stringTooLongErrorMessage(maxNameLength).format(tooLongMessage) + ".")
             askAndSave(Some(name))
           } else {
             if (duplicate) None
@@ -367,14 +365,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                     Some(existingIdIn.get, 0L)
                   }
                 }
-              } else throw new Exception("unexpected value: " + inType)
+              } else throw new scala.Exception("unexpected value: " + inType)
             }
           }
         }
       }
     }
 
-    val result = tryAskingAndSaving(potentialErrorMsg, askAndSave, previousNameIn)
+    val result = tryAskingAndSaving(stringTooLongErrorMessage(maxNameLength), askAndSave, previousNameIn)
     if (result.isEmpty) None
     else Some(new Entity(db, result.get._1))
   }
@@ -411,8 +409,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                          previousNameIn: Option[String] = None): Option[(Long, Long)] = {
     val createNotUpdate: Boolean = classIdIn.isEmpty
     val nameLength = model.EntityClass.nameLength(db)
-    val potentialErrorMsg = "Got an error: %s.  Please try a shorter (" + nameLength + " chars) entry.  Details: "
-
     def askAndSave(defaultNameIn: Option[String]): Option[(Long, Long)] = {
       val nameOpt = ui.askForString(Some(Array("Enter class name (up to " + nameLength + " characters; will also be used for its defining entity name; ESC to" +
                                                " cancel): ")),
@@ -434,9 +430,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
     }
 
-    tryAskingAndSaving(potentialErrorMsg, askAndSave)
+    tryAskingAndSaving(stringTooLongErrorMessage(nameLength), askAndSave)
   }
 
+
+  def stringTooLongErrorMessage(nameLength: Int): String = {
+    // for details, see method PostgreSQLDatabase.escapeQuotesEtc.
+    "Got an error: %s.  Please try a shorter (" + nameLength + " chars) entry.  (Could be due to escaped, i.e. expanded, characters like \"'\" or \";\".  Details: "
+  }
 
   def duplicationProblem(name: String, previousIdIn: Option[Long], createNotUpdate: Boolean): Boolean = {
     var duplicateProblemSoSkip = false
@@ -925,10 +926,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     } else {
       val objectNames: Array[String] = objectsToDisplay.toArray.map {
                                                                       case entity: Entity =>
-                                                                        val numSubgroupsPrefix: String = getNumSubgroupsPrefix(entity.getId)
+                                                                        val numSubgroupsPrefix: String = getEntityContentSizePrefix(entity.getId)
                                                                         numSubgroupsPrefix + entity.getName
                                                                       case group: Group =>
-                                                                        val numSubgroupsPrefix: String = getNumSubgroupsPrefix(group.getId)
+                                                                        val numSubgroupsPrefix: String = getGroupContentSizePrefix(group.getId)
                                                                         numSubgroupsPrefix + group.getName
                                                                       case x: Any => throw new Exception("unexpected class: " + x.getClass.getName)
                                                                       case _ => throw new OmException("??")
@@ -1162,15 +1163,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         else Some(new IdWrapper(e.get.getId))
       }
       else if (answer == searchForEntityByNameChoice && answer <= choices.length) {
-        val ans = ui.askForString(Some(Array(searchPrompt(Controller.ENTITY_TYPE))))
-        if (ans.isEmpty)
-          None
-        else {
-          // Allow relation to self (eg, picking self as 2nd part of a RelationToEntity), so None in 3nd parm.
-          val e: Option[IdWrapper] = findExistingObjectByText(0, Controller.ENTITY_TYPE, None, ans.get)
-          if (e.isEmpty) None
-          else Some(new IdWrapper(e.get.getId))
-        }
+        askForNameAndSearchForEntity
       }
       else if (answer == showJournalChoice && answer <= choices.length) {
         // THIS IS CRUDE RIGHT NOW AND DOESN'T ABSTRACT TEXT SCREEN OUTPUT INTO THE UI CLASS very neatly perhaps, BUT IS HELPFUL ANYWAY:
@@ -1260,6 +1253,18 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inAttrType, startingDisplayRowIndexIn, inClassId,
                              limitByClassIn, containingGroupIn, markPreviousSelectionIn)
       }
+    }
+  }
+
+  def askForNameAndSearchForEntity: Option[IdWrapper] = {
+    val ans = ui.askForString(Some(Array(searchPrompt(Controller.ENTITY_TYPE))))
+    if (ans.isEmpty)
+      None
+    else {
+      // Allow relation to self (eg, picking self as 2nd part of a RelationToEntity), so None in 3nd parm.
+      val e: Option[IdWrapper] = findExistingObjectByText(0, Controller.ENTITY_TYPE, None, ans.get)
+      if (e.isEmpty) None
+      else Some(new IdWrapper(e.get.getId))
     }
   }
 
@@ -1733,10 +1738,18 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     (subEntitySelected, groupId, moreThanOneAvailable)
   }
 
-  /** Shows ">" in front of a group if it contains exactly one attribute or a subgroup which has at least one entry; shows ">>" if contains multiple subgroups
-    * or attributes, and "" if contains no subgroups or the one subgroup is empty.
+  /** see comments for getContentSizePrefix. */
+  def getGroupContentSizePrefix(groupId: Long): String = {
+    val grpSize = db.getGroupSize(groupId, Some(false))
+    if (grpSize == 0) ""
+    else ">"
+  }
+
+  /** Shows ">" in front of an entity or group if it contains exactly one attribute or a subgroup which has at least one entry; shows ">>" if contains 
+    * multiple subgroups or attributes, and "" if contains no subgroups or the one subgroup is empty.
+    * Idea: this might better be handled in the textui class instead, and the same for all the other color stuff.
     */
-  def getNumSubgroupsPrefix(entityId: Long): String = {
+  def getEntityContentSizePrefix(entityId: Long): String = {
     // attrCount counts groups also, so account for the overlap in the below.
     val attrCount = db.getAttrCount(entityId)
     val (groupsCount: Long, singleGroupEntryCount: Long) = {
@@ -1753,7 +1766,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           val (_, _, gid: Option[Long], moreAvailable) = db.findRelationToAndGroup_OnEntity(entityId)
           if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
                                                                   "there should be exactly one group in entity " + entityId + " .")
-          (rtgCountOnEntity, db.getGroupEntryCount(gid.get, Some(false)))
+          (rtgCountOnEntity, db.getGroupSize(gid.get, Some(false)))
         }
       }
     }
@@ -1804,8 +1817,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           try {
             db.addEntityToGroup(groupIn.getId, entityId)
             Some(entityId)
-          }
-          catch {
+          } catch {
             case e: Exception =>
               if (e.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION)) {
                 val oldClass: String = if (entityClassInUse.isEmpty) "(none)" else new EntityClass(db, entityClassInUse.get).getDisplayString
@@ -1911,6 +1923,27 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, blankMeansNowIn)
       if (retry) askForDate_generic(promptTextIn, blankMeansNowIn)
       else newDate
+    }
+  }
+
+  def removeEntityReferenceFromGroup_Menu(entityIn: Entity, containingGroupIn: Option[Group]): Boolean = {
+    val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
+    val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(entityIn.getId)
+    val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion. It can still be found by searching, and in " +
+                                  (groupCount - 1) + " group(s), and associated directly with " +
+                                  entityCountNonArchived + " other entity(ies) (and " + entityCountArchived + " archived entities)..")
+    if (ans.isDefined && ans.get) {
+      containingGroupIn.get.removeEntity(entityIn.getId)
+      true
+
+      //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
+      //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn)
+    } else {
+      ui.displayText("Did not remove entity from that group.", waitForKeystroke = false)
+      false
+
+      //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
+      //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
     }
   }
 

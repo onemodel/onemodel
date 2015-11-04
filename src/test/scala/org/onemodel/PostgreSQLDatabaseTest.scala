@@ -640,13 +640,13 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val group:Group = new Group(mDB, groupId)
     group.addEntity(mDB.createEntity(entityName + 1))
     assert(mDB.getEntitiesOnlyCount() == startingEntityCount + 2)
-    assert(mDB.getGroupEntryCount(groupId) == 1)
+    assert(mDB.getGroupSize(groupId) == 1)
 
     val entityId2 = mDB.createEntity(entityName + 2)
     assert(mDB.getEntitiesOnlyCount() == startingEntityCount + 3)
     assert(mDB.getCountOfGroupsContainingEntity(entityId2) == 0)
     group.addEntity(entityId2)
-    assert(mDB.getGroupEntryCount(groupId) == 2)
+    assert(mDB.getGroupSize(groupId) == 2)
     assert(mDB.getCountOfGroupsContainingEntity(entityId2) == 1)
     val descriptions = mDB.getRelationToGroupDescriptionsContaining(entityId2, Some(9999))
     assert(descriptions.length == 1)
@@ -663,7 +663,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
                                   new Entity(mDB, entityId2)
                                 }.getMessage.contains("does not exist"))
 
-    assert(mDB.getGroupEntryCount(groupId) == 1)
+    assert(mDB.getGroupSize(groupId) == 1)
 
     val list = mDB.getGroupEntryObjects(groupId, 0)
     assert(list.size == 1)
@@ -899,7 +899,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val relatedEntityId: Long = mDB.createEntity(RELATED_ENTITY_NAME)
     val validOnDate: Option[Long] = if (inValidOnDate.isEmpty) None else inValidOnDate
     val observationDate: Long = System.currentTimeMillis
-    val id = mDB.createRelationToEntity(inRelTypeId, inEntityId, relatedEntityId, validOnDate, observationDate)
+    val id = mDB.createRelationToEntity(inRelTypeId, inEntityId, relatedEntityId, validOnDate, observationDate).getId
 
     // and verify it:
     val rel: RelationToEntity = new RelationToEntity(mDB, id, inRelTypeId, inEntityId, relatedEntityId)
@@ -1097,23 +1097,23 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val classGroupId = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classDefiningEntityGroupName))._3
     assert(mDB.areMixedClassesAllowed(classGroupId.get))
 
-    val groupSizeBeforeRemoval = mDB.getGroupEntryCount(groupId)
+    val groupSizeBeforeRemoval = mDB.getGroupSize(groupId)
 
-    assert(mDB.getGroupEntryCount(groupId, Some(true)) == 0)
-    assert(mDB.getGroupEntryCount(groupId, Some(false)) == groupSizeBeforeRemoval)
-    assert(mDB.getGroupEntryCount(groupId, None) == groupSizeBeforeRemoval)
+    assert(mDB.getGroupSize(groupId, Some(true)) == 0)
+    assert(mDB.getGroupSize(groupId, Some(false)) == groupSizeBeforeRemoval)
+    assert(mDB.getGroupSize(groupId, None) == groupSizeBeforeRemoval)
     mDB.archiveEntity(entityId2)
-    assert(mDB.getGroupEntryCount(groupId, Some(true)) == 1)
-    assert(mDB.getGroupEntryCount(groupId, Some(false)) == groupSizeBeforeRemoval - 1)
-    assert(mDB.getGroupEntryCount(groupId, None) == groupSizeBeforeRemoval)
+    assert(mDB.getGroupSize(groupId, Some(true)) == 1)
+    assert(mDB.getGroupSize(groupId, Some(false)) == groupSizeBeforeRemoval - 1)
+    assert(mDB.getGroupSize(groupId, None) == groupSizeBeforeRemoval)
 
     mDB.removeEntityFromGroup(groupId, entityId2)
-    val groupSizeAfterRemoval = mDB.getGroupEntryCount(groupId)
+    val groupSizeAfterRemoval = mDB.getGroupSize(groupId)
     assert(groupSizeAfterRemoval < groupSizeBeforeRemoval)
 
-    assert(mDB.getGroupEntryCount(groupId, Some(true)) == 0)
-    assert(mDB.getGroupEntryCount(groupId, Some(false)) == groupSizeBeforeRemoval - 1)
-    assert(mDB.getGroupEntryCount(groupId, None) == groupSizeBeforeRemoval - 1)
+    assert(mDB.getGroupSize(groupId, Some(true)) == 0)
+    assert(mDB.getGroupSize(groupId, Some(false)) == groupSizeBeforeRemoval - 1)
+    assert(mDB.getGroupSize(groupId, None) == groupSizeBeforeRemoval - 1)
   }
 
   "getEntitiesOnly and ...Count" should "allow limiting results by classId and/or group containment" in {
