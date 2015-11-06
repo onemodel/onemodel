@@ -27,7 +27,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       val choices = Array[String]("Edit public/nonpublic status",
                                   "Import/Export...",
                                   "Edit entity name",
-                                  "Delete or Archive this entity...",
+                                  "Delete or Archive this entity (or link)...",
                                   "Go to other related entities or groups...")
       val response = ui.askWhich(Some(leadingText), choices)
       if (response.isEmpty) None

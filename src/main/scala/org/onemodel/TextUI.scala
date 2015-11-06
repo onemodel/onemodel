@@ -453,8 +453,9 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
           }
         }
         if (linesTooLong) {
-          println("(Some lines were longer than the terminal width and have been truncated.  That could mean that either your terminal width is less than  "
-                  + controller.maxNameLength + " characters, or that there is a bug in the display logic.)")
+          // This could mean that either the terminal width is less than " + controller.maxNameLength + " characters, or
+          // that there is a bug in the display logic:
+          println("(Some lines were longer than the terminal width and have been truncated.)")
         }
       }
     }

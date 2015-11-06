@@ -2437,7 +2437,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getEntityData(inID: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("SELECT name, class_id, insertion_date, public from Entity where (not archived) and id=" + inID, "String,Long,Long,Boolean")
+    dbQueryWrapperForOneRow("SELECT name, class_id, insertion_date, public from Entity where id=" + inID, "String,Long,Long,Boolean")
   }
 
   def getEntityName(inID: Long): Option[String] = {
