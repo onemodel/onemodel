@@ -1610,7 +1610,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def getAttrCount(entityIdIn: Long): Long = {
     getQuantityAttributeCount(entityIdIn) +
     getTextAttributeCount(entityIdIn) +
-    getRelationToEntityCount(entityIdIn) +
+    getRelationToEntityCount(entityIdIn, includeArchivedEntities = false) +
     getRelationToGroupCountByEntity(Some(entityIdIn)) +
     getDateAttributeCount(entityIdIn) +
     getBooleanAttributeCount(entityIdIn) +
@@ -1637,8 +1637,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
     extractRowCountFromCountQuery("select count(1) from FileAttribute where entity_id=" + inEntityId)
   }
 
-  def getRelationToEntityCount(inEntityId: Long): Long = {
-    extractRowCountFromCountQuery("select count(1) from RelationToEntity where entity_id=" + inEntityId)
+  def getRelationToEntityCount(inEntityId: Long, includeArchivedEntities: Boolean = true): Long = {
+    var sql = "select count(1) from RelationToEntity rte, entity e where rte.entity_id=" + inEntityId + " and rte.entity_id_2=e.id "
+    if (! includeArchivedEntities) sql += " and (not e.archived)"
+    extractRowCountFromCountQuery(sql)
   }
 
   /** if 1st parm is None, gets all. */
@@ -2603,8 +2605,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
                             "   JOIN entity ON entity.id=" + key +
                             " where (not entity.archived) and " + whereClausesByTable(tableListIndex)
           if (tableName.toLowerCase == "relationtoentity") {
-            sql += " and not exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2 and relationtoentity.entity_id_2=rte2" +
-                   ".entity_id_2 and e2.archived)"
+            sql += " and not exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
+                   " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.archived)"
           }
           sql += " order by " + tableName + "." + orderByClausesByTable(tableListIndex)
           val results = dbQuery(sql, typesByTable(tableListIndex))

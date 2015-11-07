@@ -63,13 +63,12 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val numAttrsInEntity: Long = entityIn.getAttrCount
     val classDefiningEntityId: Option[Long] = entityIn.getClassDefiningEntityId
     val leadingText: Array[String] = new Array[String](2)
-    val numAttrs = db.getAttrCount(entityIn.getId)
-    val (choices: Array[String], entityIsAlreadyTheDefault: Boolean) = getChoices(entityIn, numAttrs, relationSourceEntityIn, relationIn)
+    val (choices: Array[String], entityIsAlreadyTheDefault: Boolean) = getChoices(entityIn, numAttrsInEntity, relationSourceEntityIn, relationIn)
     val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, controller.maxNameLength)
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
       db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes)
-    if (numAttrs > 0 || attributeTuples.length > 0) require(numAttrs > 0 && attributeTuples.length > 0)
-    require(totalAttrsAvailable == numAttrs)
+    if (numAttrsInEntity > 0 || attributeTuples.length > 0) require(numAttrsInEntity > 0 && attributeTuples.length > 0)
+    require(totalAttrsAvailable == numAttrsInEntity)
     val choicesModified = controller.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
     val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
     val attributeDisplayStrings: Array[String] = getItemDisplayStrings(attributeTuples)
@@ -129,7 +128,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           else (highlightedEntry, attributeRowsStartingIndexIn)
         }
         entityMenu(entityIn, displayStartingRowNumber, newAttributeToHighlight, relationSourceEntityIn, relationIn, containingGroupIn)
-      } else if (answer == 2 && highlightedEntry.isDefined && highlightedIndexInObjList.isDefined && numAttrs > 1) {
+      } else if (answer == 2 && highlightedEntry.isDefined && highlightedIndexInObjList.isDefined && numAttrsInEntity > 1) {
         val newStartingDisplayIndex = moveSelectedEntry(entityIn, attributeRowsStartingIndexIn, totalAttrsAvailable, highlightedIndexInObjList.get,
                                                         highlightedEntry.get, numDisplayableAttributes, relationSourceEntityIn, relationIn, containingGroupIn)
         entityMenu(entityIn, newStartingDisplayIndex, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
@@ -164,14 +163,14 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           ui.displayText("nothing selected")
         }
         entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
-      } else if (answer == 6 && numAttrs > 0) {
+      } else if (answer == 6 && numAttrsInEntity > 0) {
         val startingIndex: Int = getNextStartingRowsIndex(attributeTuples.length, attributeRowsStartingIndexIn, numAttrsInEntity)
         entityMenu(entityIn, startingIndex, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
       } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
         // updates user preferences such that this obj will be the one displayed by default in future.
         controller.mPrefs.putLong("first_display_entity", entityIn.getId)
         entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
-      } else if (answer == 8 && answer <= choices.length && numAttrs > 0) {
+      } else if (answer == 8 && answer <= choices.length && numAttrsInEntity > 0) {
         // lets user select an attribute for further operations like moving, deleting.
         // (we have to have at least one choice or ui.askWhich fails...a require() call there.)
         // NOTE: this code is similar (not identical) in EntityMenu as in QuickGroupMenu: if one changes, the other might also need maintenance.
