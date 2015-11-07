@@ -179,7 +179,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
     val choices = Array[String]("Create new entry quickly",
                                 "Move selection (*) up/down, in, out...",
                                 "Edit the selected entry's name",
-                                "Create new entry (detailed menu)...",
+                                "Create new entry...",
                                 "Go to selected entity (not the subgroup)",
                                 "List next items...",
                                 "Select target (entry move destination: gets a '+')",
@@ -299,7 +299,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           //(the first is the same as if user goes to the selection & presses '1', but is here so there can
           // be a similar #2 for consistency/memorability with the EntityMenu.)
           val choices = Array[String]("Create new entry INSIDE selected entry",
-                                      "Add existing entry with search [BY NAME OR ALL?]: uses \"has\" relation")
+                                      "Add entry (uses \"has\" relation; allows search for existing)")
           val response = ui.askWhich(None, choices, new Array[String](0))
           if (response.isDefined) {
             val addEntryAnswer = response.get
@@ -349,8 +349,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                 quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
               }
             } else if (addEntryAnswer == 2) {
-              val entityChosen: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE, 0, groupIn.getClassId,
-                                                                                    !groupIn.getMixedClassesAllowed, Some(groupIn.getId))
+              val entityChosen: Option[IdWrapper] = controller.askForNameAndSearchForEntity
               if (entityChosen.isDefined) {
                 val entityChosenId: Long = entityChosen.get.getId
                 db.addEntityToGroup(groupIn.getId, entityChosenId)
