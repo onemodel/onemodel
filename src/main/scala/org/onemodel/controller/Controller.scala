@@ -1150,22 +1150,18 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         val index: Long = getNextStartingObjectIndex(objectsToDisplay.size, nonRelationAttrTypeNames, relationAttrTypeNames)
         chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inAttrType, index, inClassId, limitByClassIn,
                              containingGroupIn, markPreviousSelectionIn)
-      }
-      else if (answer == keepPreviousSelectionChoice && answer <= choices.length) {
+      } else if (answer == keepPreviousSelectionChoice && answer <= choices.length) {
         // Such as if editing several fields on an attribute and doesn't want to change the first one.
         // Not using "get out" option for this because it would exit from a few levels at once and
         // then user wouldn't be able to proceed to other field edits.
         Some(new IdWrapper(inPreviousSelectionId.get))
-      }
-      else if (answer == createAttrTypeChoice && answer <= choices.length) {
+      } else if (answer == createAttrTypeChoice && answer <= choices.length) {
         val e: Option[Entity] = askForInfoAndCreateEntity(inClassId)
         if (e.isEmpty) None
         else Some(new IdWrapper(e.get.getId))
-      }
-      else if (answer == searchForEntityByNameChoice && answer <= choices.length) {
+      } else if (answer == searchForEntityByNameChoice && answer <= choices.length) {
         askForNameAndSearchForEntity
-      }
-      else if (answer == showJournalChoice && answer <= choices.length) {
+      } else if (answer == showJournalChoice && answer <= choices.length) {
         // THIS IS CRUDE RIGHT NOW AND DOESN'T ABSTRACT TEXT SCREEN OUTPUT INTO THE UI CLASS very neatly perhaps, BUT IS HELPFUL ANYWAY:
         // ideas:
           // move the lines for this little section, into a separate method, near findExistingObjectByName
@@ -1199,16 +1195,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           }
         }
 
-      }
-      else if (answer == searchForEntityByIdChoice && answer <= choices.length) {
+      } else if (answer == searchForEntityByIdChoice && answer <= choices.length) {
         searchById(Controller.ENTITY_TYPE)
-      }
-      else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(inAttrType) && answer <= choices.length) {
+      } else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(inAttrType) && answer <= choices.length) {
         val entity: Option[Entity] = askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE)
         if (entity.isEmpty) None
         else Some(new IdWrapper(entity.get.getId))
-      }
-      else if (answer == createClassChoice && inAttrType == Controller.ENTITY_CLASS_TYPE && answer <= choices.length) {
+      } else if (answer == createClassChoice && inAttrType == Controller.ENTITY_CLASS_TYPE && answer <= choices.length) {
         val result: Option[(Long, Long)] = askForAndWriteClassAndDefiningEntityName()
         if (result.isEmpty) None
         else {
@@ -1221,8 +1214,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           }
           Some(new IdWrapper(classId))
         }
-      }
-      else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
+      } else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
         // those in the condition on the previous line are 1-based, not 0-based.
         val index = answer - choices.length - 1
         // user typed a letter to select.. (now 0-based)
@@ -1247,8 +1239,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           else if (inAttrType == Controller.ENTITY_CLASS_TYPE) Some(o.asInstanceOf[EntityClass].getIdWrapper)
           else throw new Exception("invalid inAttrType: " + inAttrType)
         }
-      }
-      else {
+      } else {
         ui.displayText("unknown response")
         chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inAttrType, startingDisplayRowIndexIn, inClassId,
                              limitByClassIn, containingGroupIn, markPreviousSelectionIn)
