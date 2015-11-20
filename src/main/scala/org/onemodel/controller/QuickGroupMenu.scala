@@ -299,7 +299,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           //(the first is the same as if user goes to the selection & presses '1', but is here so there can
           // be a similar #2 for consistency/memorability with the EntityMenu.)
           val choices = Array[String]("Create new entry INSIDE selected entry",
-                                      "Add entry (uses \"has\" relation; allows search for existing)")
+                                      "Add entry from existing (quick search by name; uses \"has\" relation)")
           val response = ui.askWhich(None, choices, new Array[String](0))
           if (response.isDefined) {
             val addEntryAnswer = response.get

@@ -617,8 +617,10 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       printHtmlListItemWithLink(printWriterIn,
                                 if (relationTypeIn.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationTypeIn.getName + ": ",
                                 relatedEntitysFileNamePrefix + ".html",
-                                entityIn.getName,
-                                Some("(" + numSubEntries + ")"))
+                                entityIn.getName)
+                                //removing next line until it matches better with what user can actually see: currently includes non-public stuff, so the #
+                                //might confuse a reader, or at least doesn't set fulfillable expectations on how much content there is.
+//                                Some("(" + numSubEntries + ")"))
     } else {
       val line = (if (relationTypeIn.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationTypeIn.getName + ": ") +
                  entityIn.getName
