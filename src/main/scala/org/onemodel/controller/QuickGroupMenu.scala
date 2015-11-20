@@ -342,6 +342,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                   if (newEntity.isDefined) {
                     val newEntityId: Long = newEntity.get.getId
                     val newRte: RelationToEntity = highlightedEntry.addHASRelationToEntity(newEntityId, None, System.currentTimeMillis())
+                    new EntityMenu(ui, db, controller).entityMenu(newEntity.get, 0, None, Some(highlightedEntry), Some(newRte))
                   }
                   quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, newEntity, targetForMoves, callingMenusRtgIn, containingEntityIn)
                 }

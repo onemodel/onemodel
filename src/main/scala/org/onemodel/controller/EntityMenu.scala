@@ -299,7 +299,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           val relationType = new RelationType(db, relation.getAttrTypeId)
           val desc = attribute.getDisplayString(controller.maxNameLength, None, Some(relationType), simplify = true)
           val prefix = controller.getGroupContentSizePrefix(relation.getGroupId)
-          prefix + desc
+          prefix + "group: " + desc
         case _ =>
           attribute.getDisplayString(controller.maxNameLength, None, None)
       }

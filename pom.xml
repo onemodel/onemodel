@@ -215,7 +215,7 @@
         </executions>
       </plugin>
       <plugin>
-        <!-- more info: http://www.mojohaus.org/exec-maven-plugin -->
+        <!-- more info:  http://www.mojohaus.org/exec-maven-plugin -->
         <groupId>org.codehouse.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>1.4.0</version>

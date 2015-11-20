@@ -158,7 +158,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
     assert(firstNewFileContents.contains("<a href=\"e-"), "unexpected file contents: no href?:  " + firstNewFileContents)
     assert(firstNewFileContents.contains("purpose"), "unexpected file contents: no 'purpose'?:  " + firstNewFileContents)
-    assert(firstNewFileContents.contains(".html\">empowerment</a> (2)"), "unexpected file contents: no 'empowerment'?:  " + firstNewFileContents)
+    assert(firstNewFileContents.contains(".html\">empowerment</a>"), "unexpected file contents: no 'empowerment'?:  " + firstNewFileContents)
     assert(firstNewFileContents.contains("Copyright"), "unexpected file contents: no copyright?")
     assert(firstNewFileContents.contains("all rights reserved"), "unexpected file contents: no 'all rights reserved' from the input file?")
     assert(newFiles.length > 5, "unexpected # of files: " + newFiles.length)
