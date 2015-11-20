@@ -26,6 +26,11 @@
     <!-- encoding as per http://blog.vinodsingh.com/2009/04/encoding-warning-with-maven-210.html  -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <scala.version>2.10.3</scala.version>
+    <mainTextUIClass>org.onemodel.TextUI</mainTextUIClass>
+    <!-- why is next line needed for exec plugin to work from cli as just "mvn exec:java"? I had tried
+         a plugin configuration section with "<mainClass>${mainTextUIClass}</mainClass>", or with "exec.mainClass",
+         but it didn't seem to work and this does. -->
+    <exec.mainClass>${mainTextUIClass}</exec.mainClass>
   </properties>
   <build>
     <resources>
@@ -95,7 +100,7 @@
             <configuration>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>org.onemodel.TextUI</mainClass>
+                  <mainClass>${mainTextUIClass}</mainClass>
                 </transformer>
               </transformers>
             </configuration>
@@ -208,6 +213,12 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <!-- more info: http://www.mojohaus.org/exec-maven-plugin -->
+        <groupId>org.codehouse.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.4.0</version>
       </plugin>
     </plugins>
   </build>
