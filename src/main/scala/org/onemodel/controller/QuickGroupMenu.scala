@@ -282,7 +282,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                                                        highlightedIndexInObjList, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
               (Some(new Entity(db, newEntityId)), displayStartingRowNumber)
             }
-            else (highlightedEntityIn, startingDisplayRowIndexIn)
+            else (Some(highlightedEntry), startingDisplayRowIndexIn)
           }
           quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 2) {
@@ -351,15 +351,17 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
               }
             } else if (addEntryAnswer == 2) {
               val entityChosen: Option[IdWrapper] = controller.askForNameAndSearchForEntity
-              if (entityChosen.isDefined) {
-                val entityChosenId: Long = entityChosen.get.getId
-                db.addEntityToGroup(groupIn.getId, entityChosenId)
-                val newDisplayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 0, forwardNotBackIn = true,
-                                                                            startingDisplayRowIndexIn, entityChosenId, highlightedIndexInObjList,
-                                                                            Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
-                (Some(new Entity(db, entityChosenId)), newDisplayStartingRowNumber)
+              val (entryToHighlight:Option[Entity], displayStartingRowNumber: Int) = {
+                if (entityChosen.isDefined) {
+                  val entityChosenId: Long = entityChosen.get.getId
+                  db.addEntityToGroup(groupIn.getId, entityChosenId)
+                  val newDisplayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 0, forwardNotBackIn = true,
+                                                                              startingDisplayRowIndexIn, entityChosenId, highlightedIndexInObjList,
+                                                                              Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
+                  (Some(new Entity(db, entityChosenId)), newDisplayStartingRowNumber)
+                } else (Some(highlightedEntry), startingDisplayRowIndexIn)
               }
-              quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
+              quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn, containingEntityIn)
             } else {
               ui.displayText("unexpected selection")
               quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)

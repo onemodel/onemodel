@@ -436,7 +436,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def stringTooLongErrorMessage(nameLength: Int): String = {
     // for details, see method PostgreSQLDatabase.escapeQuotesEtc.
-    "Got an error: %s.  Please try a shorter (" + nameLength + " chars) entry.  (Could be due to escaped, i.e. expanded, characters like \"'\" or \";\".  Details: "
+    "Got an error.  Please try a shorter (" + nameLength + " chars) entry.  " +
+    "(Could be due to escaped, i.e. expanded, characters like \"'\" or \";\".  Details: %s"
   }
 
   def duplicationProblem(name: String, previousIdIn: Option[Long], createNotUpdate: Boolean): Boolean = {
@@ -732,8 +733,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
     // idea: WHEN CONSIDERING MODS TO THIS, ALSO CONSIDER THE Q'S ASKED AT CODE CMT WHERE DELETING A GROUP OF ENTITIES (SEE, for example "recursively").
     val ans = ui.askYesNoQuestion((if (delNotArchive) "DELETE" else "ARCHIVE") + " ENTITY \"" + name + "\" (and " + entityPartsThatCanBeAffected + ").  " +
-                                  groupsPrompt +
-                                  "**ARE YOU REALLY SURE?**")
+                                  groupsPrompt + "**ARE YOU REALLY SURE?**",
+                                  if (delNotArchive) Some("n") else Some(""))
     if (ans.isDefined && ans.get) {
       if (delNotArchive) {
         entityIn.delete()
