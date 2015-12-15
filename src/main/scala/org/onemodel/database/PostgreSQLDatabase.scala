@@ -1507,25 +1507,28 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def renumberGroupSortingIndexes(groupIdIn: Long, callerManagesTransactionsIn: Boolean = false) {
     //*** ANY MAINTENANCE DONE HERE SHOULD MATCH THE OTHER "renumber*" METHOD! ***  idea: merge them
+    // AND: see comments in the other one.
     val groupSize: Long = getGroupSize(groupIdIn)
     if (groupSize != 0) {
       val numberOfSegments = groupSize + 2
-      val increment = maxIdValue / numberOfSegments * 2
+      val increment: Long = (maxIdValue.asInstanceOf[Float] / numberOfSegments * 2).asInstanceOf[Long]
       // start with an increment so that later there is room to sort something prior to it, manually:
-      var next: Long = minIdValue + increment
+      var next: Long = (minIdValue + increment).asInstanceOf[Long]
+      var previous: Long = minIdValue
       if (!callerManagesTransactionsIn) beginTrans()
       try {
         for (groupEntry <- getGroupEntriesData(groupIdIn)) {
-          next += increment
           while (groupEntrySortingIndexInUse(groupIdIn, next)) {
             // Renumbering might choose already-used numbers, because it always uses the same algorithm.  This causes a constraint violation (unique index), so
             // get around that with a (hopefully quick & simple) increment to get the next unused one.  If they're all used...that's a surprise.
             // Idea: also fix this bug in the case where it's near the end & the last #s are used: wrap around? when give err after too many loops: count?
             next += 1
           }
-          require(next < maxIdValue)
+          require(next < maxIdValue && next > previous)
           val id: Long = groupEntry(0).get.asInstanceOf[Long]
           updateEntityInAGroup(groupIdIn, id, next)
+          previous = next
+          next += increment
         }
       }
       catch {
@@ -1551,21 +1554,28 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // SEE ALSO THE COMMENTS FOUND THERE.
     val numberOfAttributes: Long = getAttrCount(entityIdIn)
     if (numberOfAttributes != 0) {
+      // (like a number line so + 1, + 1 more (so + 2) in case we use up some room on the line due to "attributeSortingIndexInUse" (below))
       val numberOfSegments = numberOfAttributes + 2
-      val increment = maxIdValue / numberOfSegments * 2
-      // start with an increment so that later there is room to sort something prior to it, manually:
-      var next: Long = minIdValue + increment
+      // ( * 2 on next line, because the minIdValue is negative so there is a larger range to split up, but
+      // doing so without exceeding the value of a Long during the calculation.)
+      val increment: Long = (maxIdValue.asInstanceOf[Float] / numberOfSegments * 2).asInstanceOf[Long]
+      // (start with an increment so that later there is room to sort something prior to it, manually)
+      var next: Long = (minIdValue + increment).asInstanceOf[Long]
+      var previous: Long = minIdValue
       if (!callerManagesTransactionsIn) beginTrans()
       try {
-        for (attributeEntry <- getEntityAttributeSortingData(entityIdIn)) {
-          next += increment
+        val data = getEntityAttributeSortingData(entityIdIn)
+        for (attributeEntry <- data) {
           while (attributeSortingIndexInUse(entityIdIn, next)) {
             next += 1
           }
-          require(next < maxIdValue)
+          // (make sure a bug didn't cause wraparound w/in the possible the Long values)
+          require(next < maxIdValue && next > previous)
           val formId: Long = attributeEntry(0).get.asInstanceOf[Int]
           val attributeId: Long = attributeEntry(1).get.asInstanceOf[Long]
           updateAttributeSorting(entityIdIn, formId, attributeId, next)
+          previous = next
+          next += increment
         }
       }
       catch {
