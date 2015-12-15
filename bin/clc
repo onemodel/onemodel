@@ -15,4 +15,4 @@
 mvn clean
 . mvn-script-finish
 
-bin/c
+bin/ca

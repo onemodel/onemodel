@@ -81,8 +81,10 @@ if [[ "$RUN_TESTS" == "true" ]]; then
   fi
 fi
 
-if [[ $# -gt 0 && $1=="d" ]]; then
+if [[ $# -gt 0 && $1 == 'd' ]]; then
   om d
+elif [[ $# -gt 0 && $1 == "skipapplaunch" ]]; then
+  : #do nothing
 else
   om
 fi
