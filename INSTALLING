@@ -128,11 +128,6 @@ local   om_testrunner   testrunner      password
 CONTINUED POSTGRES CONFIGURATION FOR *BOTH* LINUX AND OPENBSD:
 - At this point you should still be logged in to a command-line as the postgres (or on BSD, _postgresql) user.
 
-
-%%TEST THE NEXT CMT AND SEE IF CAN EDIT TO SAY IT already doesn't let other users connect to your own account, from the system: true? or do i need2note2fix that 4 myself now? 
-%%ALSO, test to see if it works to prompt w/ a dift username or password etc! And note2make more friendly if pg not running or something whatever it was that caused it to put username in that prompt at startup, but never advanced beyond it no matter how many times Enter was pressed?
-
-
 - Choose a username and password.  If you use the same username as your system username, and leave a blank password ('', when setting the password below), OM will log you in automatically. In many cases this might be most convenient, especially if your operating system already requires a password to log in under your own username.  If you choose a different username, or a strong password (which is a good idea sometimes), you will be prompted each time.  
 (Note: If needed, you can change your password later on, after completing all below steps, then again become root and run this command, substituting your username for the "<...>", removing the <>'s)
     psql om_<yourusername>  
