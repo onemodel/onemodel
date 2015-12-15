@@ -71,7 +71,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               if (thisEntityWasDeletedOrArchived) None
               else Some(entityIn)
             } else if (answer == delEntityLink_choiceNumber && relationIn.isDefined && answer <= choices.length) {
-              val ans = ui.askYesNoQuestion("DELETE the relation: ARE YOU SURE?")
+              val ans = ui.askYesNoQuestion("DELETE the relation: ARE YOU SURE?", Some(""))
               if (ans.isDefined && ans.get) {
                 relationIn.get.delete()
                 None

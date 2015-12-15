@@ -1923,7 +1923,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(entityIn.getId)
     val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion. It can still be found by searching, and in " +
                                   (groupCount - 1) + " group(s), and associated directly with " +
-                                  entityCountNonArchived + " other entity(ies) (and " + entityCountArchived + " archived entities)..")
+                                  entityCountNonArchived + " other entity(ies) (and " + entityCountArchived + " archived entities)..", Some(""))
     if (ans.isDefined && ans.get) {
       containingGroupIn.get.removeEntity(entityIn.getId)
       true

@@ -275,7 +275,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
     val (nonArchivedCount, archivedCount) = db.getCountOfEntitiesContainingGroup(relationToGroupIn.getGroupId)
     val ans = ui.askYesNoQuestion("REMOVE this group from being an attribute of the entity \'" + containingEntityIn.getName + "\": ARE YOU SURE? (This isn't " +
                                   "a deletion. It can still be found by searching, and is still associated directly with " + (nonArchivedCount - 1) + " other" +
-                                  " entity(ies) (and " + archivedCount + " archived entities).")
+                                  " entity(ies) (and " + archivedCount + " archived entities).", Some(""))
     if (ans.isDefined && ans.get) {
       relationToGroupIn.delete()
       true
