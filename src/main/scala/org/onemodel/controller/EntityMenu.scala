@@ -500,7 +500,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
   }
 
   protected def renumberSortingIndexes(entityIdIn: Long): Unit = {
-    db.renumberAttributeSortingIndexes(entityIdIn)
+    db.renumberSortingIndexes(entityIdIn)
   }
 
   protected def updateSortedEntry(entityIdIn: Long, movingAttributeFormIdIn: Int, movingAttributeIdIn: Long, sortingIndexIn: Long): Unit = {

@@ -499,7 +499,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
   }
 
   protected def renumberSortingIndexes(groupIdIn: Long): Unit = {
-    db.renumberGroupSortingIndexes(groupIdIn)
+    db.renumberSortingIndexes(groupIdIn, isEntityAttrsNotGroupEntries = false)
   }
 
   protected def updateSortedEntry(groupIdIn: Long, ignoredParameter: Int, movingEntityIdIn: Long, sortingIndexIn: Long): Unit = {

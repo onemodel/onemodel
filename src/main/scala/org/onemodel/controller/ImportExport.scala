@@ -397,7 +397,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val nextSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
         if (nextSortingIndex == db.minIdValue) {
           // we wrapped from the biggest to lowest Long value
-          db.renumberGroupSortingIndexes(containingGrp.getId, callerManagesTransactionsIn = true)
+          db.renumberSortingIndexes(containingGrp.getId, callerManagesTransactionsIn = true, isEntityAttrsNotGroupEntries = false)
           val nextTriedNewSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
           if (nextSortingIndex == db.minIdValue) {
             throw new OmException("Huh? How did we get two wraparounds in a row?")
