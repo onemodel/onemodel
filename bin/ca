@@ -81,6 +81,8 @@ if [[ "$RUN_TESTS" == "true" ]]; then
   fi
 fi
 
-if [[ $# == 0 ]]; then
+if [[ $# -gt 0 && $1=="d" ]]; then
   om d
+else
+  om
 fi
