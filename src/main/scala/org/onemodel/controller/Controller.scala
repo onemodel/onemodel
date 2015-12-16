@@ -1748,28 +1748,22 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val rtgCountOnEntity: Long = db.getRelationToGroupCountByEntity(Some(entityId))
       if (rtgCountOnEntity == 0) {
         (0L, 0L)
-      }
-      else {
-        if (rtgCountOnEntity > 1) {
-          // (For some reason, not having the 'asInstanceOf[Long]' here results in a stack trace on the variable assignment out of this block, with something
-          // about a tuple mismatch?, even tho it is already a Long:)
-          (rtgCountOnEntity.asInstanceOf[Long], 0L)
-        } else {
-          val (_, _, gid: Option[Long], moreAvailable) = db.findRelationToAndGroup_OnEntity(entityId)
-          if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
-                                                                  "there should be exactly one group in entity " + entityId + " .")
-          (rtgCountOnEntity, db.getGroupSize(gid.get, Some(false)))
-        }
+      } else if (rtgCountOnEntity > 1) {
+        // (For some reason, not having the 'asInstanceOf[Long]' here results in a stack trace on the variable assignment out of this block, with something
+        // about a tuple mismatch?, even tho it is already a Long:)
+        (rtgCountOnEntity.asInstanceOf[Long], 0L)
+      } else {
+        val (_, _, gid: Option[Long], moreAvailable) = db.findRelationToAndGroup_OnEntity(entityId)
+        if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
+                                                                "there should be exactly one group in entity " + entityId + " .")
+        (rtgCountOnEntity, db.getGroupSize(gid.get, Some(false)))
       }
     }
-    val subgroupsCountPrefix: String =
-      if (attrCount == 0 || (groupsCount == 1 && singleGroupEntryCount == 0)) {
-        ""
-      } else if ((attrCount == 1 && groupsCount == 0) || (groupsCount == 1 && singleGroupEntryCount > 0)) {
-        ">"
-      } else {
-        ">>"
-      }
+    val subgroupsCountPrefix: String = {
+      if (attrCount == 0) ""
+      else if (attrCount == 1) ">"
+      else ">>"
+    }
     subgroupsCountPrefix
   }
 
