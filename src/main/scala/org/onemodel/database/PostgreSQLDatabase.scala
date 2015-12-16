@@ -1518,7 +1518,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // doing so without exceeding the value of a Long during the calculation.)
       val increment: Long = (maxIdValue.asInstanceOf[Float] / numberOfSegments * 2).asInstanceOf[Long]
       // (start with an increment so that later there is room to sort something prior to it, manually)
-      var next: Long = (minIdValue + increment).asInstanceOf[Long]
+      var next: Long = minIdValue + increment
       var previous: Long = minIdValue
       if (!callerManagesTransactionsIn) beginTrans()
       try {

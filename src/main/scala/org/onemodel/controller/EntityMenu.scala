@@ -19,7 +19,7 @@ import org.onemodel.model._
 class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, val controller: Controller) extends SortableEntriesMenu(ui, db) {
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
   def getChoices(entityIn: Entity, numAttrsIn: Long, relationSourceEntityIn: Option[Entity] = None,
-                 relationIn: Option[RelationToEntity] = None): (Array[String], Boolean) = {
+                 relationIn: Option[RelationToEntity] = None): Array[String] = {
     // (idea: might be a little silly to do it this way, once this # gets very big?:)
     var choices = Array[String]("Add entry quickly (creates a \"has\" relation to a new Entity)",
 
@@ -37,17 +37,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
       require(relationIn.get.getRelatedId2 == entityIn.getId && relationSourceEntityIn.isDefined)
     }
-
-    val defaultEntity: Option[Long] = controller.findDefaultDisplayEntity
-    //  don't show the "set default" option if it's already been done w/ this same one:
-    val entityIsAlreadyTheDefault: Boolean = defaultEntity.isDefined && defaultEntity.get == entityIn.getId
-    if (! entityIsAlreadyTheDefault) {
-      choices = choices :+ ((if (defaultEntity.isEmpty) "****TRY ME---> " else "") +
-                            "Set current entity as default (first to come up when launching this program.)")
-    } else choices = choices :+ "(stub)"
+    choices = choices :+ "(stub)"
     choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; typing the letter instead goes to that attribute's menu)" else "(stub)")
-    choices = choices :+ "Other entity operations..."
-    (choices, entityIsAlreadyTheDefault)
+    choices = choices :+ (if (controller.findDefaultDisplayEntity.isEmpty) "****TRY ME---> " else "") + "Other entity operations..."
+    choices
   }
 
   /** The parameter attributeRowsStartingIndexIn means: of all the sorted attributes of entityIn, which one is to be displayed first (since we can only display
@@ -63,7 +56,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val numAttrsInEntity: Long = entityIn.getAttrCount
     val classDefiningEntityId: Option[Long] = entityIn.getClassDefiningEntityId
     val leadingText: Array[String] = new Array[String](2)
-    val (choices: Array[String], entityIsAlreadyTheDefault: Boolean) = getChoices(entityIn, numAttrsInEntity, relationSourceEntityIn, relationIn)
+    val choices: Array[String] = getChoices(entityIn, numAttrsInEntity, relationSourceEntityIn, relationIn)
     val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, controller.maxNameLength)
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
       db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes)
@@ -166,10 +159,6 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       } else if (answer == 6 && numAttrsInEntity > 0) {
         val startingIndex: Int = getNextStartingRowsIndex(attributeTuples.length, attributeRowsStartingIndexIn, numAttrsInEntity)
         entityMenu(entityIn, startingIndex, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
-      } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
-        // updates user preferences such that this obj will be the one displayed by default in future.
-        controller.mPrefs.putLong("first_display_entity", entityIn.getId)
-        entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
       } else if (answer == 8 && answer <= choices.length && numAttrsInEntity > 0) {
         // lets user select an attribute for further operations like moving, deleting.
         // (we have to have at least one choice or ui.askWhich fails...a require() call there.)

@@ -1147,7 +1147,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val answer = ans.get._1
       val userChoseAlternate = ans.get._2
       if (answer == listNextItemsChoiceNum && answer <= choices.length) {
-        // (For reason behind " && answer <= choices.size", see comment where it is used in entityMenu.)
+        // (For reason behind " && answer <= choices.length", see comment where it is used in entityMenu.)
         val index: Long = getNextStartingObjectIndex(objectsToDisplay.size, nonRelationAttrTypeNames, relationAttrTypeNames)
         chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inAttrType, index, inClassId, limitByClassIn,
                              containingGroupIn, markPreviousSelectionIn)

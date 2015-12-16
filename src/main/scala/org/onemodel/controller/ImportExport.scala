@@ -1,4 +1,3 @@
-
 /*  This file is part of OneModel, a program to manage knowledge.
     Copyright in each year of 2014-2015 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
