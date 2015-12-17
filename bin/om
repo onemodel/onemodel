@@ -35,8 +35,14 @@ fi
 #when java crashes (like if there's a debug port conflict during development):
 #ulimit -c 1
 #
+set +e
 java $DEBUG -Djline.keybindings="$THIS_SCRIPT_DIR/../jlinebindings.properties" -jar target/onemodel-*.jar 
+RESULT=$?
+set -e
+reset #see cmt just below for why. If adapting for other OSes, make sure that cmd doesn't do something drastic. 
 
 # Idea: put in a trap so ^C or ^Z gets handled right on those signals? (search 'man bash' for "times  Print the accumulated user and system times for the shell and for processes run from the shell",
 # and then see 'trap' there):  Or just fix the behavior of the application by watching for those & resetting the terminal state propertly. But what about coming back to it after a ^Z?
 echo "On unix, if the terminal is messed up now, you might have to blindly type (making sure the command line is clear first) "reset" and hit Enter.  Not usually, but there's a bug such that sometimes after ^Z or ^C it happens."
+
+exit $RESULT
