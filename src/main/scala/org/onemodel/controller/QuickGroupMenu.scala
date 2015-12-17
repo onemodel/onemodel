@@ -81,7 +81,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                 "Move up 25",
                                 "Move down 25"
                                 // idea: make an option #9 here which is a "quick archive"? (for removing completed tasks: maybe only after showing
-                                // archived things works well)
+                                // archived things and "undo" works well, or use 9 for the 'cut' part of a logical 'cut/paste' operation to move something?)
                                )
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn),
                                secondaryHighlightIndexIn = moveTargetIndexInObjList)
