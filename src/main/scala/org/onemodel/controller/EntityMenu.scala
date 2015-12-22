@@ -225,23 +225,23 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       val answer = response.get
       var numRowsToMove = 0
       var forwardNotBack = false
-      if (answer == 1) {
-        numRowsToMove = 5
-      } else if (answer == 2) {
-        numRowsToMove = 1
-      } else if (answer == 3) {
-        numRowsToMove = 1
-        forwardNotBack = true
-      } else if (answer == 4) {
-        numRowsToMove = 5
-        forwardNotBack = true
-      } else if (answer == 7) {
-        numRowsToMove = 20
-      } else if (answer == 8) {
-        numRowsToMove = 20
-        forwardNotBack = true
-      }
       if ((answer >= 1 && answer <= 4) || (answer >= 7 && answer <= 8)) {
+        if (answer == 1) {
+          numRowsToMove = 5
+        } else if (answer == 2) {
+          numRowsToMove = 1
+        } else if (answer == 3) {
+          numRowsToMove = 1
+          forwardNotBack = true
+        } else if (answer == 4) {
+          numRowsToMove = 5
+          forwardNotBack = true
+        } else if (answer == 7) {
+          numRowsToMove = 20
+        } else if (answer == 8) {
+          numRowsToMove = 20
+          forwardNotBack = true
+        }
         val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.getId, totalAttrsAvailable, numRowsToMove, forwardNotBackIn = forwardNotBack,
                                                                  startingDisplayRowIndexIn, highlightedAttributeIn.getId,
                                                                  highlightedIndexInObjListIn,

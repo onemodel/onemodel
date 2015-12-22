@@ -89,26 +89,29 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                          containingEntityIn)
     else {
       val answer = response.get
-      //idea: combine the below blocks for answers 1-4,7-8 like i did in EntityMenu.moveSelectedEntry?
-      if (answer == 1) {
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 5, forwardNotBackIn = false,
-                                                                  startingDisplayRowIndexIn, highlightedObjId,
-                                                                  highlightedIndexInObjListIn, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
-        quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
-      } else if (answer == 2) {
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 1, forwardNotBackIn = false,
-                                                                  startingDisplayRowIndexIn, highlightedObjId,
-                                                                  highlightedIndexInObjListIn, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
-        quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
-      } else if (answer == 3) {
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 1, forwardNotBackIn = true, startingDisplayRowIndexIn,
-                                                                  highlightedObjId,
-                                                                  highlightedIndexInObjListIn, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
-        quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
-      } else if (answer == 4) {
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 5, forwardNotBackIn = true, startingDisplayRowIndexIn,
-                                                                  highlightedObjId,
-                                                                  highlightedIndexInObjListIn, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
+      var numRowsToMove = 0
+      var forwardNotBack = false
+
+      if ((answer >= 1 && answer <= 4) || (answer >= 7 && answer <= 8)) {
+        if (answer == 1) {
+          numRowsToMove = 5
+        } else if (answer == 2) {
+          numRowsToMove = 1
+        } else if (answer == 3) {
+          numRowsToMove = 1
+          forwardNotBack = true
+        } else if (answer == 4) {
+          numRowsToMove = 5
+          forwardNotBack = true
+        } else if (answer == 7) {
+          numRowsToMove = 20
+        } else if (answer == 8) {
+          numRowsToMove = 20
+          forwardNotBack = true
+        }
+        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, numRowsToMove, forwardNotBack, startingDisplayRowIndexIn, highlightedObjId,
+
+                                                                 highlightedIndexInObjListIn, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
         quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 5 && targetForMovesIn.isDefined) {
         val targetRtgCount: Long = db.getRelationToGroupCountByEntity(Some(targetForMovesIn.get.getId))
@@ -122,7 +125,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
           db.moveEntityToNewGroup(targetGroupId, groupIn.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
           val entityToHighlight: Option[Entity] = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOneIn = true,
-                                                                           highlightedIndexInObjListIn, highlightedEntry)
+                                                                                      highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         }
       } else if (answer == 6) {
@@ -151,18 +154,9 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
         else {
           db.moveEntityToNewGroup(targetGroupId.get, groupIn.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
           val entityToHighlight: Option[Entity] = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOneIn = true,
-                                                                           highlightedIndexInObjListIn, highlightedEntry)
+                                                                                      highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         }
-      } else if (answer == 7) {
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 20, forwardNotBackIn = false, startingDisplayRowIndexIn,
-                                                                  highlightedObjId,
-                                                                  highlightedIndexInObjListIn, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
-        quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
-      } else if (answer == 8) {
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 20, forwardNotBackIn = true, startingDisplayRowIndexIn, highlightedObjId,
-                                                                  highlightedIndexInObjListIn, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
-        quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else {
         quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       }
