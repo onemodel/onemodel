@@ -788,7 +788,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
     // idea: WHEN CONSIDERING MODS TO THIS, ALSO CONSIDER THE Q'S ASKED AT CODE CMT WHERE DELETING A GROUP OF ENTITIES (SEE, for example "recursively").
     val ans = ui.askYesNoQuestion((if (delNotArchive) "DELETE" else "ARCHIVE") + " ENTITY \"" + name + "\" (and " + entityPartsThatCanBeAffected + ").  " +
-                                  groupsPrompt + "**ARE YOU REALLY SURE?**",
+                                  groupsPrompt + "**ARE YOU REALLY SURE?** (there is not yet an \"undo/un-archive\" feature, but it can be done" +
+                                  " manually using SQL commands; feedback welcome):",
                                   if (delNotArchive) Some("n") else Some(""))
     if (ans.isDefined && ans.get) {
       if (delNotArchive) {
