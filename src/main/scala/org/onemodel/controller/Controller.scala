@@ -58,6 +58,56 @@ object Controller {
     //val selection = new java.awt.datatransfer.StringSelection("someString")
     //clipboard.setContents(selection, null)
   }
+
+  // Used for example after one has been deleted, to put the highlight on right next one:
+  // idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
+  /**
+   * @param objectSetSize # of all the possible entries, not reduced by what fits in the available display space (I think).
+   * @param objectsToDisplayIn  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
+   * @param removedOne
+   * @param previouslyHighlightedIndexInObjListIn
+   * @param previouslyHighlightedEntryIn
+   * @return
+   */
+  def findEntityToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Entity], removedOne: Boolean,
+                               previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity): Option[Entity] = {
+    //NOTE: SIMILAR TO findAttributeToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
+    //system better.
+
+    // here of course, previouslyHighlightedIndexInObjListIn and objIds.size were calculated prior to the deletion.
+    if (removedOne) {
+      val newObjListSize = objectSetSize - 1
+      val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
+      if (newIndexToHighlight >= 0) {
+        if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) Some(objectsToDisplayIn.get(newIndexToHighlight))
+        else {
+          if (newIndexToHighlight + 1 < newObjListSize - 1) Some(objectsToDisplayIn.get(newIndexToHighlight + 1))
+          else if (newIndexToHighlight - 1 >= 0) Some(objectsToDisplayIn.get(newIndexToHighlight - 1))
+          else None
+        }
+      } else None
+    } else Some(previouslyHighlightedEntryIn)
+  }
+
+  /** SEE COMMENTS FOR findEntityToHighlightNext. */
+  def findAttributeToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Attribute], removedOne: Boolean,
+                               previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Attribute): Option[Attribute] = {
+    //NOTE: SIMILAR TO findEntityToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
+    //system better.
+    if (removedOne) {
+      val newObjListSize = objectSetSize - 1
+      val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
+      if (newIndexToHighlight >= 0) {
+        if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) Some(objectsToDisplayIn.get(newIndexToHighlight))
+        else {
+          if (newIndexToHighlight + 1 < newObjListSize - 1) Some(objectsToDisplayIn.get(newIndexToHighlight + 1))
+          else if (newIndexToHighlight - 1 >= 0) Some(objectsToDisplayIn.get(newIndexToHighlight - 1))
+          else None
+        }
+      } else None
+    } else Some(previouslyHighlightedEntryIn)
+  }
+
 }
 
 /** Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
@@ -516,8 +566,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     askForInfoAndUpdateAttribute_helper(inDH, attrType, promptForSelectingTypeId)
   }
 
+  /**
+   * @return whether the attribute in question was deleted (or archived)
+   */
   @tailrec
-  final def attributeEditMenu(attributeIn: Attribute) {
+  final def attributeEditMenu(attributeIn: Attribute): Boolean = {
     val leadingText: Array[String] = Array("Attribute: " + attributeIn.getDisplayString(0, None, None))
     var firstChoices = Array("Edit the attribute type, content (single line), and valid/observed dates",
                              if (attributeIn.isInstanceOf[TextAttribute]) "Edit (as multiline value)" else "(stub)",
@@ -528,7 +581,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       firstChoices = firstChoices ++ Array[String]("Export the file")
     }
     val response = ui.askWhich(Some(leadingText), firstChoices)
-    if (response.isEmpty) None
+    if (response.isEmpty) false
     else {
       val answer: Int = response.get
       if (answer == 1) {
@@ -616,10 +669,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         attributeEditMenu(new TextAttribute(db, attributeIn.getId))
       } else if (answer == 3 && canEditAttributeOnSingleLine(attributeIn)) {
         editAttributeOnSingleLine(attributeIn)
+        false
       } else if (answer == 4) {
         val ans = ui.askYesNoQuestion("DELETE this attribute: ARE YOU SURE?")
         if (ans.isDefined && ans.get) {
           attributeIn.delete()
+          true
         } else {
           ui.displayText("Did not delete attribute.", waitForKeystroke = false)
           attributeEditMenu(attributeIn)
@@ -1689,28 +1744,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
     }
     askForBothDates()
-  }
-
-  // Used for example after one has been deleted, to put the highlight on right next one:
-  // idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
-  def findEntryToHighlightNext(objIdsIn: Array[Long], objectsToDisplayIn: java.util.ArrayList[Entity], deletedOrArchivedOneIn: Boolean,
-                               previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity): Option[Entity] = {
-    // here of course, previouslyHighlightedIndexInObjListIn and objIds.size were calculated prior to the deletion.
-    if (deletedOrArchivedOneIn) {
-      val newObjListSize = objIdsIn.length - 1
-      val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
-      if (newIndexToHighlight >= 0) {
-        if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) Some(objectsToDisplayIn.get(newIndexToHighlight))
-        else {
-          if (newIndexToHighlight + 1 < newObjListSize - 1) Some(objectsToDisplayIn.get(newIndexToHighlight + 1))
-          else if (newIndexToHighlight - 1 >= 0) Some(objectsToDisplayIn.get(newIndexToHighlight - 1))
-          else None
-        }
-      }
-      else None
-    } else {
-      Some(previouslyHighlightedEntryIn)
-    }
   }
 
   def goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,

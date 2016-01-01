@@ -104,6 +104,7 @@ object PostgreSQLDatabase {
   }
 
   def getAttributeFormId(key: String): Int = {
+    //MAKE SURE THESE MATCH WITH THOSE IN attributeKeyExists !
     key.toLowerCase match {
       case "quantityattribute" => 1
       case "dateattribute" => 2
@@ -1633,7 +1634,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getRelationToEntityCount(inEntityId: Long, includeArchivedEntities: Boolean = true): Long = {
-    var sql = "select count(1) from RelationToEntity rte, entity e where rte.entity_id=" + inEntityId + " and rte.entity_id_2=e.id "
+    var sql = "select count(1) from RelationToEntity rte, entity e where rte.entity_id=" + inEntityId + " and rte.entity_id=e.id "
     if (! includeArchivedEntities) sql += " and (not e.archived)"
     extractRowCountFromCountQuery(sql)
   }
@@ -1972,15 +1973,32 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
   }
 
-  def quantityAttributeKeyExists(inID: Long): Boolean = doesThisExist("SELECT count(1) from QuantityAttribute where id=" + inID)
+  def quantityAttributeKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from QuantityAttribute where id=" + idIn)
 
-  def textAttributeKeyExists(inID: Long): Boolean = doesThisExist("SELECT count(1) from TextAttribute where id=" + inID)
+  def textAttributeKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from TextAttribute where id=" + idIn)
 
-  def dateAttributeKeyExists(inID: Long): Boolean = doesThisExist("SELECT count(1) from DateAttribute where id=" + inID)
+  def dateAttributeKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from DateAttribute where id=" + idIn)
 
-  def booleanAttributeKeyExists(inID: Long): Boolean = doesThisExist("SELECT count(1) from BooleanAttribute where id=" + inID)
+  def booleanAttributeKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from BooleanAttribute where id=" + idIn)
 
-  def fileAttributeKeyExists(inID: Long): Boolean = doesThisExist("SELECT count(1) from FileAttribute where id=" + inID)
+  def fileAttributeKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from FileAttribute where id=" + idIn)
+
+  def relationToEntityKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from RelationToEntity where id=" + idIn)
+
+  def relationToGroupKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from RelationToGroup where id=" + idIn)
+
+  def attributeKeyExists(formIdIn: Long, idIn: Long): Boolean = {
+      //MAKE SURE THESE MATCH WITH THOSE IN getAttributeFormId !
+      formIdIn match {
+        case 1 => quantityAttributeKeyExists(idIn)
+        case 2 => dateAttributeKeyExists(idIn)
+        case 3 => booleanAttributeKeyExists(idIn)
+        case 4 => fileAttributeKeyExists(idIn)
+        case 5 => textAttributeKeyExists(idIn)
+        case 6 => relationToEntityKeyExists(idIn)
+        case 7 => relationToGroupKeyExists(idIn)
+      }
+  }
 
   /** Excludes those entities that are really relationtypes, attribute types, or quantity units. */
   def entityOnlyKeyExists(inID: Long): Boolean = {
@@ -1988,7 +2006,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                                                                                                              (ENTITY_ONLY_SELECT_PART) + ")")
   }
 
-  def entityKeyExists(inID: Long): Boolean = doesThisExist("SELECT count(1) from Entity where id=" + inID)
+  def entityKeyExists(inID: Long, includeArchived: Boolean = true): Boolean = {
+    val condition = if (!includeArchived) " and not archived" else ""
+    doesThisExist("SELECT count(1) from Entity where id=" + inID + condition)
+  }
 
   def groupEntrySortingIndexInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean = doesThisExist("SELECT count(1) from Entitiesinagroup where group_id=" +
                                                                                         groupIdIn + " and sorting_index=" + sortingIndexIn)

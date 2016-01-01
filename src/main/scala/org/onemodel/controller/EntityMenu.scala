@@ -11,6 +11,7 @@
 package org.onemodel.controller
 
 import java.io.File
+import java.util
 
 import org.onemodel._
 import org.onemodel.database.PostgreSQLDatabase
@@ -60,18 +61,17 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, controller.maxNameLength)
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
       db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes)
-    if (numAttrsInEntity > 0 || attributeTuples.length > 0) require(numAttrsInEntity > 0 && attributeTuples.length > 0)
-    require(totalAttrsAvailable == numAttrsInEntity)
+    if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) require(numAttrsInEntity > 0 && attributeTuples.length > 0)
     val choicesModified = controller.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
     val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
-    val attributeDisplayStrings: Array[String] = getItemDisplayStrings(attributeTuples)
+    val (attributeDisplayStrings: Array[String], attributesToDisplay: util.ArrayList[Attribute]) = getItemDisplayStringsAndAttrs(attributeTuples)
 
-    var highlightedEntry: Option[Attribute] = if (attributeTuples.length == 0) None else Some(highlightedAttributeIn.getOrElse(attributeTuples(0)._2))
     // The variable highlightedIndexInObjList means: of the sorted attributes selected *for display* (potentially fewer than all existing attributes),
     // this is the zero-based index of the one that is marked for possible moving around in the sorted order (in the UI, marked as selected).
-    def getHighlightedIndexInAttrList: Option[Int] = {
-      if (highlightedEntry.isEmpty) None
+    def getHighlightedIndexInAttrList: (Option[Int], Option[Attribute]) = {
+      if (attributeTuples.length == 0 ) (None, None)
       else {
+        val highlightedEntry: Option[Attribute] = Some(highlightedAttributeIn.getOrElse(attributeTuples(0)._2))
         val highlightedObjFormId: Int = highlightedEntry.get.getFormId
         val highlightedObjId: Long = highlightedEntry.get.getId
         var index = -1
@@ -79,16 +79,15 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           index += 1
           val attribute = attributeTuple._2
           if (attribute.getFormId == highlightedObjFormId && attribute.getId == highlightedObjId) {
-            return Some(index)
+            return (Some(index), highlightedEntry)
           }
         }
-        // if we got to this point, it could simply have been deleted or something (probably), so just return something safe (instead of throwing an
-        // exception, as in a previous commit):
-        highlightedEntry = None
-        None
+        // if we got to this point, it could simply have been deleted or something (probably) but still passed in the highlightedAttributeIn parm by mistake,
+        // so just return something safe (instead of throwing an exception, as in a previous commit):
+        (Some(0), Some(attributeTuples(0)._2))
       }
     }
-    val highlightedIndexInObjList: Option[Int] = getHighlightedIndexInAttrList
+    val (highlightedIndexInObjList: Option[Int], highlightedEntry: Option[Attribute]) = getHighlightedIndexInAttrList
 
     choices(2) =
       // MAKE SURE this condition always matches the one in the edit handler below:
@@ -96,11 +95,12 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         "Edit the selected attribute's content (single line; go into the attribute's menu for more options)"
       } else "Edit entity name"
 
+    // MAKE SURE this next condition always is the opposite of the one at comment mentioning "choices(4) = ..." below
     if (highlightedIndexInObjList.isEmpty) {
       choices(4) = "(stub)"
     }
 
-    val response = ui.askWhich(Some(leadingTextModified), choicesModified, attributeDisplayStrings, highlightIndexIn = getHighlightedIndexInAttrList)
+    val response = ui.askWhich(Some(leadingTextModified), choicesModified, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList)
     if (response.isEmpty) None
     else {
       val answer = response.get
@@ -149,13 +149,25 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
           }
       } else if (answer == 5) {
-        // MAKE SURE this next condition always matches the one in "choices(4) = ..." above
+        // MAKE SURE this next condition always is the exact opposite of the one in "choices(4) = ..." above (4 vs. 5 because they are 0- vs. 1-based)
         if (highlightedIndexInObjList.isDefined) {
-          goToSelectedAttribute(answer, highlightedIndexInObjList.get, attributeTuples, entityIn)
+          val deletedIt = goToSelectedAttribute(answer, highlightedIndexInObjList.get, attributeTuples, entityIn)
+          // The entity or an attribute could have been removed or changed, so before trying to view it, confirm it exists, & (in call to entityMenu) reread from
+          // db to refresh data for display, like public/non-public status:
+          if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+            val entryToHighlightAfterPossibleDeletion: Option[Attribute] = {
+              if (deletedIt) {
+                Controller.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, deletedIt, highlightedIndexInObjList.get,
+                                                        highlightedEntry.get)
+              } else highlightedEntry
+            }
+            entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, entryToHighlightAfterPossibleDeletion, relationSourceEntityIn,
+                       relationIn, containingGroupIn)
+          } else None
         } else {
           ui.displayText("nothing selected")
+          entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
         }
-        entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
       } else if (answer == 6 && numAttrsInEntity > 0) {
         val startingIndex: Int = getNextStartingRowsIndex(attributeTuples.length, attributeRowsStartingIndexIn, numAttrsInEntity)
         entityMenu(entityIn, startingIndex, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
@@ -181,10 +193,17 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       } else if (answer == 9 && answer <= choices.length) {
         new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, relationIn,
                                                                 containingGroupIn, classDefiningEntityId)
-        // Entity could have been removed or changed, so before trying to view it, confirm it exists, & reread from db to refresh data for
-        // display, like public/non-public status:
-        if (db.entityOnlyKeyExists(entityIn.getId)) {
-          entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
+        // The entity or an attribute could have been removed or changed by navigating around various menus, so before trying to view it again,
+        // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
+        if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+          val entryToHighlightAfterPossibleDeletion: Option[Attribute] = {
+            if (highlightedEntry.isDefined && !db.attributeKeyExists(highlightedEntry.get.getFormId, highlightedEntry.get.getId)) {
+              Controller.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, removedOne = true, highlightedIndexInObjList.get,
+                                                      highlightedEntry.get)
+            } else highlightedEntry
+          }
+          entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, entryToHighlightAfterPossibleDeletion, relationSourceEntityIn,
+                     relationIn, containingGroupIn)
         } else None
       } else if (answer > choices.length && answer <= (choices.length + attributeTuples.length)) {
         // those in the condition are 1-based, not 0-based.
@@ -274,10 +293,12 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     leadingTextIn
   }
 
-  def getItemDisplayStrings(attributeTuples: Array[(Long, Attribute)]) = {
+  def getItemDisplayStringsAndAttrs(attributeTuples: Array[(Long, Attribute)]): (Array[String], util.ArrayList[Attribute]) = {
+    val attributes = new util.ArrayList[Attribute]
     val attributeNames: Array[String] =
       for (attributeTuple <- attributeTuples) yield {
         val attribute = attributeTuple._2
+        attributes.add(attribute)
         attribute match {
         case relation: RelationToEntity =>
           val relationType = new RelationType(db, relation.getAttrTypeId)
@@ -293,7 +314,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           attribute.getDisplayString(controller.maxNameLength, None, None)
       }
     }
-    attributeNames
+    (attributeNames, attributes)
   }
 
   def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, highlightedAttributeIn: Option[Attribute], relationSourceEntityIn: Option[Entity] = None,
@@ -458,10 +479,14 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     startingIndex
   }
 
-  def goToSelectedAttribute(answer: Int, choiceIndex: Int, attributeTuples: Array[(Long, Attribute)], entityIn: Entity) {
+  /**
+   * @return whether the entry in question was deleted (or archived)
+   */
+  def goToSelectedAttribute(answer: Int, choiceIndex: Int, attributeTuples: Array[(Long, Attribute)], entityIn: Entity): Boolean = {
     // user typed a letter to select an attribute (now 0-based)
     if (choiceIndex >= attributeTuples.length) {
       ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
+      false
     } else {
       val o: Attribute = attributeTuples(choiceIndex)._2
       o match {
@@ -471,9 +496,14 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         case ba: BooleanAttribute => controller.attributeEditMenu(ba)
         case fa: FileAttribute => controller.attributeEditMenu(fa)
         case ta: TextAttribute => controller.attributeEditMenu(ta)
-        case relToEntity: RelationToEntity => entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, Some(entityIn), Some(relToEntity))
-        case relToGroup: RelationToGroup => new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup),
-                                                                                                  containingEntityIn = Some(entityIn))
+        case relToEntity: RelationToEntity =>
+          entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, Some(entityIn), Some(relToEntity))
+          if (!db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false)) true
+          else false
+        case relToGroup: RelationToGroup =>
+          new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup), containingEntityIn = Some(entityIn))
+          if (!db.groupKeyExists(relToGroup.getGroupId)) true
+          else false
         case _ => throw new Exception("Unexpected choice has class " + o.getClass.getName + "--what should we do here?")
       }
     }

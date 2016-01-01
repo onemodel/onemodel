@@ -124,7 +124,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           val (_, _, targetGroupId) = createNewOrFindOneGroupOnEntity(groupIn, targetRtgCount, targetForMovesIn.get)
           // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
           db.moveEntityToNewGroup(targetGroupId, groupIn.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
-          val entityToHighlight: Option[Entity] = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOneIn = true,
+          val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne = true,
                                                                                       highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         }
@@ -153,8 +153,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                                   containingEntityIn)
         else {
           db.moveEntityToNewGroup(targetGroupId.get, groupIn.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
-          val entityToHighlight: Option[Entity] = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOneIn = true,
-                                                                                      highlightedIndexInObjListIn, highlightedEntry)
+          val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne = true,
+                                                                                              highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         }
       } else {
@@ -366,8 +366,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
         } else if (answer == 5) {
           new EntityMenu(ui, db, controller).entityMenu(highlightedEntry, 0, None, None, None, Some(groupIn))
           // deal with entityMenu possibly having deleted the entity:
-          val deletedOrArchivedOne: Boolean = !db.isEntityInGroup(groupIn.getId, highlightedEntry.getId)
-          val entityToHighlightNext: Option[Entity] = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOne, highlightedIndexInObjList,
+          val removedOne: Boolean = !db.isEntityInGroup(groupIn.getId, highlightedEntry.getId)
+          val entityToHighlightNext: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList,
                                                                                highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlightNext, targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 6) {
@@ -458,12 +458,12 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
             val (_ /*subEntitySelected:Option[Entity]*/ , groupId: Option[Long], moreThanOneGroupAvailable) =
               controller.goToEntityOrItsSoleGroupsMenu(userSelection, relationToGroupIn, Some(groupIn))
 
-            val deletedOrArchivedOne: Boolean = !db.isEntityInGroup(groupIn.getId, userSelection.getId)
+            val removedOne: Boolean = !db.isEntityInGroup(groupIn.getId, userSelection.getId)
             var entityToHighlightNext: Option[Entity] = Some(userSelection)
             if (groupId.isDefined && !moreThanOneGroupAvailable) {
               //idea: do something w/ this unused variable? Like, if the userSelection was deleted, then use this in its place in parms to
               // qGM just below? or what was it for originally?  Or, del this var around here?
-              entityToHighlightNext = controller.findEntryToHighlightNext(objIds, objectsToDisplay, deletedOrArchivedOne, highlightedIndexInObjList, highlightedEntry)
+              entityToHighlightNext = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList, highlightedEntry)
             }
 
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.

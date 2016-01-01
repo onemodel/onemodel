@@ -20,7 +20,7 @@ import org.onemodel.model._
 class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
 
   def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity], relationIn: Option[RelationToEntity],
-                      containingGroupIn: Option[Group], classDefiningEntityIdIn: Option[Long]): Option[Entity] = {
+                      containingGroupIn: Option[Group], classDefiningEntityIdIn: Option[Long]) {
     try {
       require(entityIn != null)
       val leadingText = Array[String]{"**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString}
