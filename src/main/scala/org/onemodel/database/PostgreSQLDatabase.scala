@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -1634,8 +1634,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getRelationToEntityCount(inEntityId: Long, includeArchivedEntities: Boolean = true): Long = {
-    var sql = "select count(1) from RelationToEntity rte, entity e where rte.entity_id=" + inEntityId + " and rte.entity_id=e.id "
-    if (! includeArchivedEntities) sql += " and (not e.archived)"
+    var sql = "select count(1) from entity eContaining, RelationToEntity rte, entity eContained " +
+              " where eContaining.id=rte.entity_id and rte.entity_id=" + inEntityId +
+              " and rte.entity_id_2=eContained.id"
+    if (! includeArchivedEntities) sql += " and (not eContained.archived)"
     extractRowCountFromCountQuery(sql)
   }
 
