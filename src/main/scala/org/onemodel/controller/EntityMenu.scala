@@ -212,8 +212,23 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         // checking also for " && answer <= choices.length" because otherwise choosing 'a' returns 8 but if those optional menu choices were not added in,
         // then it is found among the first "choice" answers, instead of being adjusted later ("val attributeChoicesIndex = answer - choices.length - 1")
         // to find it among the "moreChoices" as it should be: would be thrown off by the optional choice numbering.
-        goToSelectedAttribute(answer, choicesIndex, attributeTuples, entityIn)
-        entityMenu(entityIn, attributeRowsStartingIndexIn, Some(attributeTuples(choicesIndex)._2), relationSourceEntityIn, relationIn, containingGroupIn)
+
+        val deletedIt = goToSelectedAttribute(answer, choicesIndex, attributeTuples, entityIn)
+        // The entity or an attribute could have been removed or changed, so before trying to view it, confirm it exists, & (in call to entityMenu) reread from
+        // db to refresh data for display, like public/non-public status:
+        if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+          val entryToHighlightAfterPossibleDeletion: Option[Attribute] = {
+            if (deletedIt) {
+              Controller.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, deletedIt, choicesIndex, attributeTuples(choicesIndex)._2)
+            } else {
+              Some(attributeTuples(choicesIndex)._2)
+            }
+          }
+          entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, entryToHighlightAfterPossibleDeletion, relationSourceEntityIn,
+                     relationIn, containingGroupIn)
+        } else {
+          None
+        }
       } else {
         ui.displayText("invalid response")
         entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, relationSourceEntityIn, relationIn, containingGroupIn)
