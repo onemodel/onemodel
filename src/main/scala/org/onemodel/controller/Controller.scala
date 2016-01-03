@@ -98,8 +98,9 @@ object Controller {
       val newObjListSize = objectSetSize - 1
       val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
       if (newIndexToHighlight >= 0) {
-        if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) Some(objectsToDisplayIn.get(newIndexToHighlight))
-        else {
+        if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) {
+          Some(objectsToDisplayIn.get(newIndexToHighlight))
+        } else {
           if (newIndexToHighlight + 1 < newObjListSize - 1) Some(objectsToDisplayIn.get(newIndexToHighlight + 1))
           else if (newIndexToHighlight - 1 >= 0) Some(objectsToDisplayIn.get(newIndexToHighlight - 1))
           else None
