@@ -188,9 +188,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         val ans = ui.askYesNoQuestion(TextUI.NEWLN + TextUI.NEWLN + "The file LICENSE is missing from the distribution of this program or for " +
                                       "some other reason can't be displayed normally; please let us know to " +
                                       " correct that, and please be aware of the license.  You can go to this URL to see it:" + TextUI.NEWLN +
-                                      // idea: put this file on OM web site & link there, instead? or it could cur'tly forw to github but be there as a fallback?:
-                                      "    https://github.com/onemodel/onemodel/blob/master/LICENSE " + TextUI.NEWLN +
-                                      //       http://onemodel.org/om-LICENSE   ->    https://raw.githubusercontent.com/onemodel/onemodel/master/LICENSE
+                                      "    http://onemodel.org/download/OM-LICENSE " + TextUI.NEWLN +
                                       ".  (Do you want to see the detailed error output?)")
         if (ans.isDefined && ans.get) {
           ui.displayText("The error was: \"" + e.getClass.getName + ": " + e.getMessage + "\".  If you can provide simple instructions to " +
