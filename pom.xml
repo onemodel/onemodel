@@ -90,7 +90,7 @@
         <!-- This is just to set the mainClass so it becomes a runnable jar, for execution convenience. -->
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>1.4</version>
+        <version>2.4.2</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -101,6 +101,10 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <mainClass>${mainTextUIClass}</mainClass>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.DontIncludeResourceTransformer">
+                  <!-- what was making the apache license show up in the jar: put there by a dependency? Avoid confusion: OM is not under the apache license -->
+                  <resource>META-INF/LICENSE.txt</resource>
                 </transformer>
               </transformers>
             </configuration>

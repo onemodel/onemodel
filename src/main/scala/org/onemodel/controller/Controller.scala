@@ -151,11 +151,23 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   val mCopyright = {
     var all = ""
-    var append = false
-    var beforeAnyDashes = true
     try {
-      for (line <- scala.io.Source.fromFile("LICENSE").getLines()) {
-        //println(line)
+      val reader: BufferedReader = {
+        // first try to get it from the jar being run by the user:
+        val stream = this.getClass.getClassLoader.getResourceAsStream("LICENSE")
+        if (stream != null) {
+          new BufferedReader(new java.io.InputStreamReader(stream))
+        } else {
+          // failing that, check the filesystem, i.e., checking how it looks during development when the jar isn't built (or at least for consistent behavior
+          // during development)
+          new BufferedReader(scala.io.Source.fromFile("LICENSE").reader())
+        }
+      }
+      var append = false
+      var beforeAnyDashes = true
+      // idea: do this in a most scala-like way, like w/ immutable "line", recursion instead of a while loop, and can its libraries simplify this?:
+      var line: String = reader.readLine()
+      while (line != null) {
         if ((!append) && line.startsWith("-----") && beforeAnyDashes) {
           append = true
           beforeAnyDashes = false
@@ -168,11 +180,22 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // do nothing
           Unit
         }
+        line = reader.readLine()
       }
     }
     catch {
-      case e: java.io.FileNotFoundException =>
-        ui.displayText("The file LICENSE is missing from the distribution of this program; please correct that and be aware of the license.")
+      case e: Exception =>
+        val ans = ui.askYesNoQuestion(TextUI.NEWLN + TextUI.NEWLN + "The file LICENSE is missing from the distribution of this program or for " +
+                                      "some other reason can't be displayed normally; please let us know to " +
+                                      " correct that, and please be aware of the license.  You can go to this URL to see it:" + TextUI.NEWLN +
+                                      // idea: put this file on OM web site & link there, instead? or it could cur'tly forw to github but be there as a fallback?:
+                                      "    https://github.com/onemodel/onemodel/blob/master/LICENSE " + TextUI.NEWLN +
+                                      //       http://onemodel.org/om-LICENSE   ->    https://raw.githubusercontent.com/onemodel/onemodel/master/LICENSE
+                                      ".  (Do you want to see the detailed error output?)")
+        if (ans.isDefined && ans.get) {
+          ui.displayText("The error was: \"" + e.getClass.getName + ": " + e.getMessage + "\".  If you can provide simple instructions to " +
+                         "reproduce it consistently, maybe it can be fixed.  " + throwableToString(e))
+        }
     }
     all
   }
