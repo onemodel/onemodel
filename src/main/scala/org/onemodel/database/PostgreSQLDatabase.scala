@@ -28,7 +28,7 @@ import scala.util.Sorting
 /** Some methods are here on the object, so that PostgreSQLDatabaseTest can call destroyTables on test data.
   */
 object PostgreSQLDatabase {
-  // should these be more consistently upper-case? What is the scala style for constants?
+  // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
   val dbNamePrefix = "om_"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
@@ -39,6 +39,17 @@ object PostgreSQLDatabase {
   val EDITOR_INFO_ENTITY_NAME = "editorInfo"
   val TEXT_EDITOR_INFO_ENTITY_NAME = "textEditorInfo"
   val TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME = "textEditorCommand"
+
+  // where we create the table also calls this.
+  // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
+  // is needed, maybe it should be put in a TextAttribute and make those more convenient to use, instead.
+  def entityNameLength: Int = 160
+
+  // in postgres, one table "extends" the other (see comments in createTables)
+  def relationTypeNameLength: Int = entityNameLength
+
+  def classNameLength: Int = entityNameLength
+
 
   def destroyTables(inDbNameWithoutPrefix: String, username: String, password: String) {
     Class.forName("org.postgresql.Driver")
@@ -254,7 +265,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // id must be "unique not null" in ANY database used, because it is a primary key. "PRIMARY KEY" is the same.
       dbAction("create table Entity (" +
                "id bigint DEFAULT nextval('EntityKeySequence') PRIMARY KEY, " +
-               "name varchar(" + entityNameLength + ") NOT NULL, " +
+               "name varchar(" + PostgreSQLDatabase.entityNameLength + ") NOT NULL, " +
                "class_id bigint, " +
                // 'archived' is only on Entity for now, to see if rows from related tables just don't show up because we
                // never link to them (never seeing the linking Entity rows), so they're effectively hidden/archived too.
@@ -277,7 +288,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // For additional comments on usage, see the Controller.askForInfoAndCreateEntity method.
       dbAction("create table Class (" +
                "id bigint DEFAULT nextval('ClassKeySequence') PRIMARY KEY, " +
-               "name varchar(" + classNameLength + ") NOT NULL, " +
+               "name varchar(" + PostgreSQLDatabase.classNameLength + ") NOT NULL, " +
                "defining_entity_id bigint UNIQUE NOT NULL, " +
                "CONSTRAINT valid_related_to_entity_id FOREIGN KEY (defining_entity_id) REFERENCES entity (id) " +
                ") ")
@@ -298,7 +309,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // should be renamed to "RelationEntity" or something: think about all this some more: more use cases etc).
       dbAction("create table RelationType (" +
                "entity_id bigint PRIMARY KEY, " +
-               "name_in_reverse_direction varchar(" + relationTypeNameLength + "), " +
+               "name_in_reverse_direction varchar(" + PostgreSQLDatabase.relationTypeNameLength + "), " +
                // valid values are "BI ","UNI","NON"-directional for this relationship. example: parent/child is unidirectional. sibling is bidirectional,
                // and for nondirectional
                // see Controller's mention of "nondir" and/or elsewhere for comments
@@ -517,7 +528,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // Avoiding the word "group" as a table in sql might prevent other errors too.
       dbAction("create table grupo (" +
                "id bigint DEFAULT nextval('RelationToGroupKeySequence') PRIMARY KEY, " +
-               "name varchar(" + entityNameLength + ") NOT NULL, " +
+               "name varchar(" + PostgreSQLDatabase.entityNameLength + ") NOT NULL, " +
                // intended to be a readonly date: the (*java*-style numeric: milliseconds since 1970-1-1 or such) when this row was inserted (ie, when the
                // entity object was created in the db):
                "insertion_date bigint not null, " +
@@ -581,8 +592,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
       dbAction("create table Action (" +
                "id bigint DEFAULT nextval('ActionKeySequence') PRIMARY KEY, " +
                "class_id bigint NOT NULL, " +
-               "name varchar(" + entityNameLength + ") NOT NULL, " +
-               "action varchar(" + entityNameLength + ") NOT NULL, " +
+               "name varchar(" + PostgreSQLDatabase.entityNameLength + ") NOT NULL, " +
+               "action varchar(" + PostgreSQLDatabase.entityNameLength + ") NOT NULL, " +
                "CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES Class (id) ON DELETE CASCADE " +
                ") ")
       dbAction("create index action_class_id on Action (class_id)")
@@ -2041,16 +2052,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
     doesThisExist("SELECT count(1) from RelationToGroup where id=" + id + " and entity_id=" + entityId + " and rel_type_id=" + relTypeId +
                   " and group_id=" + groupId)
   }
-
-  // where we create the table also calls this.
-  // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
-  // is needed, maybe it should be put in a TextAttribute and make those more convenient to use, instead.
-  def entityNameLength: Int = 160
-
-  // in postgres, one table "extends" the other (see comments in createTables)
-  def relationTypeNameLength: Int = entityNameLength
-
-  def classNameLength: Int = entityNameLength
 
   /**
    * Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.

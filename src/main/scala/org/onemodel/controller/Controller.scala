@@ -23,6 +23,10 @@ import org.postgresql.util.PSQLException
 import scala.annotation.tailrec
 
 object Controller {
+  // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
+  def maxNameLength: Int = math.max(math.max(PostgreSQLDatabase.entityNameLength, PostgreSQLDatabase.relationTypeNameLength),
+                                    PostgreSQLDatabase.classNameLength)
+
   // Might not be the most familiar date form for us Americans, but it seems the most useful in the widest
   // variety of situations, and more readable than with the "T" embedded in place of
   // the 1st space.  So, this approximates iso-9601.
@@ -967,7 +971,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                   idToOmitIn: Option[Long] = None, regexIn: String): Option[IdWrapper] = {
     val leadingText = List[String]("SEARCH RESULTS: " + pickFromListPrompt)
     val choices: Array[String] = Array(listNextItemsPrompt)
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Controller.maxNameLength)
 
     val objectsToDisplay = attrTypeIn match {
       case Controller.ENTITY_TYPE =>
@@ -1134,7 +1138,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
       var leadingText = inLeadingText.getOrElse(List[String](prefix + "Pick from menu, or an item by letter; Alt+<letter> to go to the item & later come back)"))
       val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size + 3 /* up to: see more of leadingText below .*/ , choicesIn.length,
-                                                                    maxNameLength)
+                                                                    Controller.maxNameLength)
       val objectsToDisplay = {
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x BELOW ! (at similar comment)
         if (nonRelationAttrTypeNames.contains(inAttrType)) db.getEntities(startingDisplayRowIndexIn, Some(numDisplayableItems))
@@ -1341,8 +1345,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
-  def maxNameLength: Int = math.max(math.max(db.entityNameLength, db.relationTypeNameLength), db.classNameLength)
-
   def isNumeric(input: String): Boolean = {
     // simplicity over performance in this case:
     try {
@@ -1498,7 +1500,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                     "Create new group (aka RelationToGroup)",
                                                     "Search for existing group by name...",
                                                     "Search for existing group by id...")
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choicesPreAdjustment.length, maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choicesPreAdjustment.length, Controller.maxNameLength)
     val objectsToDisplay = db.getGroups(startingDisplayRowIndexIn, Some(numDisplayableItems), containingGroupIn)
     if (objectsToDisplay.size == 0) {
       val txt: String = TextUI.NEWLN + TextUI.NEWLN + "(None of the needed groups have been created in this model, yet."

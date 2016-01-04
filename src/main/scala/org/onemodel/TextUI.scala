@@ -236,10 +236,10 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     // idea: make this better by using features of or tweaking jline2? Or...? But at least make it easy to see when out of room!
     //val promptToShowStringSizeLimit = "(Max name length is  " + controller.maxNameLength
     val endPrompt = "(... which ends here: |)"
-    if (lastLineOfPrompt.length > 1 && lastLineOfPrompt.length + endPrompt.length - 1 <= controller.maxNameLength) {
+    if (lastLineOfPrompt.length > 1 && lastLineOfPrompt.length + endPrompt.length - 1 <= Controller.maxNameLength) {
       val spaces: StringBuilder = new StringBuilder("")
       // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker
-      val padLength: Int = controller.maxNameLength - lastLineOfPrompt.length - endPrompt.length + 1
+      val padLength: Int = Controller.maxNameLength - lastLineOfPrompt.length - endPrompt.length + 1
       for (x <- 0 until padLength) {
         spaces.append(" ")
       }
@@ -351,7 +351,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     // 'a' and go from there.
     require(choices.length > 0)
 
-    val maxChoiceLength = controller.maxNameLength
+    val maxChoiceLength = Controller.maxNameLength
 
     val firstMenuChars: StringBuffer = {
       //up to: "123456789"

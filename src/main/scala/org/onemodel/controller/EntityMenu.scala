@@ -58,7 +58,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val classDefiningEntityId: Option[Long] = entityIn.getClassDefiningEntityId
     val leadingText: Array[String] = new Array[String](2)
     val choices: Array[String] = getChoices(entityIn, numAttrsInEntity, relationSourceEntityIn, relationIn)
-    val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, controller.maxNameLength)
+    val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Controller.maxNameLength)
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
       db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes)
     if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) require(numAttrsInEntity > 0 && attributeTuples.length > 0)
@@ -310,16 +310,16 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         attribute match {
         case relation: RelationToEntity =>
           val relationType = new RelationType(db, relation.getAttrTypeId)
-          val desc = attribute.getDisplayString(controller.maxNameLength, Some(new Entity(db, relation.getRelatedId2)), Some(relationType), simplify = true)
+          val desc = attribute.getDisplayString(Controller.maxNameLength, Some(new Entity(db, relation.getRelatedId2)), Some(relationType), simplify = true)
           val prefix = controller.getEntityContentSizePrefix(relation.getRelatedId2)
           prefix + desc
         case relation: RelationToGroup =>
           val relationType = new RelationType(db, relation.getAttrTypeId)
-          val desc = attribute.getDisplayString(controller.maxNameLength, None, Some(relationType), simplify = true)
+          val desc = attribute.getDisplayString(Controller.maxNameLength, None, Some(relationType), simplify = true)
           val prefix = controller.getGroupContentSizePrefix(relation.getGroupId)
           prefix + "group: " + desc
         case _ =>
-          attribute.getDisplayString(controller.maxNameLength, None, None)
+          attribute.getDisplayString(Controller.maxNameLength, None, None)
       }
     }
     (attributeNames, attributes)

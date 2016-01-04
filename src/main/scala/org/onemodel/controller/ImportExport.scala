@@ -202,7 +202,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                             makeThemPublicIn)
         } else {
-          if (line.length > controller.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + controller.maxNameLength + " characters " +
+          if (line.length > Controller.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + Controller.maxNameLength + " characters " +
                                                                " (has " + line.length + "): " + line)
           val indentationSpaceCount: Int = getFirstNonSpaceIndex(lineUntrimmed.getBytes, 0)
           if (indentationSpaceCount % spacesPerIndentLevel != 0) throw new OmException("# of spaces is off, on line " + lineNumber + ": '" + line + "'")

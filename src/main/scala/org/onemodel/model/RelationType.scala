@@ -21,7 +21,7 @@ import org.onemodel.database.PostgreSQLDatabase
   */
 object RelationType {
   def getNameLength(inDB: PostgreSQLDatabase): Int = {
-    inDB.relationTypeNameLength
+    PostgreSQLDatabase.relationTypeNameLength
   }
 
   // idea: should use these more, elsewhere (replacing hard-coded valuels! )

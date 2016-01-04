@@ -180,7 +180,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       if (goWhereAnswer == seeContainingEntities_choiceNumber && goWhereAnswer <= choices.length) {
         val leadingText = List[String]("Pick from menu, or an entity by letter")
         val choices: Array[String] = Array(controller.listNextItemsPrompt)
-        val numDisplayableItems: Long = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, controller.maxNameLength)
+        val numDisplayableItems: Long = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Controller.maxNameLength)
         // This is partly set up so it could handle multiple screensful, but would need to be broken into a recursive method that
         // can specify dif't values on each call, for the startingIndexIn parm of getRelatingEntities.  I.e., could make it look more like
         // searchForExistingObject or such ? IF needed.  But to be needed means the user is putting the same object related by multiple
@@ -245,7 +245,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
     val leadingText = List[String]("Pick from menu, or a letter to (go to if one or) see the entities containing that group, or Alt+<letter> for the actual " +
                                    "*group* by letter")
     val choices: Array[String] = Array(controller.listNextItemsPrompt)
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, controller.maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Controller.maxNameLength)
     // (see comment in similar location just above where this is called, near "val containingEntities: util.ArrayList"...)
     val containingRelationToGroups: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn, 0, Some(numDisplayableItems))
     val containingRtgDescriptions: Array[String] = containingRelationToGroups.toArray.map {
@@ -253,7 +253,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                                                                                               val entityName: String = new Entity(db, rtg.getParentId).getName
                                                                                               val rt: RelationType = new RelationType(db, rtg.getAttrTypeId)
                                                                                               "entity " + entityName + " " +
-                                                                                              rtg.getDisplayString(controller.maxNameLength, None, Some(rt))
+                                                                                              rtg.getDisplayString(Controller.maxNameLength, None, Some(rt))
                                                                                             case _ => throw new OmException("??")
                                                                                           }
     val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, containingRtgDescriptions)

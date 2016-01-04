@@ -19,7 +19,7 @@ import java.io.{PrintWriter, StringWriter}
 import org.onemodel.database.PostgreSQLDatabase
 
 object EntityClass {
-  def nameLength(inDB: PostgreSQLDatabase): Int = inDB.classNameLength
+  def nameLength(inDB: PostgreSQLDatabase): Int = PostgreSQLDatabase.classNameLength
 
   def isDuplicate(inDB: PostgreSQLDatabase, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateClass(inName, inSelfIdToIgnore)
 }

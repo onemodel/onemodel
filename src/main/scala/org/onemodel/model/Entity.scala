@@ -22,7 +22,7 @@ import org.onemodel.controller.Controller
 import org.onemodel.database.PostgreSQLDatabase
 
 object Entity {
-  def nameLength(inDB: PostgreSQLDatabase): Int = inDB.entityNameLength
+  def nameLength(inDB: PostgreSQLDatabase): Int = PostgreSQLDatabase.entityNameLength
 
   def isDuplicate(inDB: PostgreSQLDatabase, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateEntity(inName, inSelfIdToIgnore)
 

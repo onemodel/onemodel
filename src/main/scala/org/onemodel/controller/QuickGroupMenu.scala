@@ -185,7 +185,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
     // (Idea: this color thing should probably be handled in the textui class instead, especially if there were multiple kinds of UI.)
     val leadingText: Array[String] = Array(Color.yellow("ENTITY GROUP") + " (quick menu: acts on (w/ #'s) OR selects (w/ letters...) an entity): "
                                            + displayDescription)
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, controller.maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Controller.maxNameLength)
     val objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(startingDisplayRowIndexIn, Some(numDisplayableItems))
     val objIds = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       entity.getId
