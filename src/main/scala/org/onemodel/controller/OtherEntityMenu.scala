@@ -19,8 +19,9 @@ import org.onemodel.model._
   */
 class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
 
-  def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity], relationIn: Option[RelationToEntity],
-                      containingGroupIn: Option[Group], classDefiningEntityIdIn: Option[Long]) {
+  def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
+                      containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
+                      classDefiningEntityIdIn: Option[Long]): Option[Entity] = {
     try {
       require(entityIn != null)
       val leadingText = Array[String]{"**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString}
@@ -46,7 +47,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           // The condition for this (when it was part of EntityMenu) used to include " && !entityIn.isInstanceOf[RelationType]", but maybe it's better w/o that.
           controller.editEntityPublicStatus(entityIn)
           // reread from db to refresh data for display, like public/non-public status:
-          otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, relationIn, containingGroupIn,
+          otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
                           classDefiningEntityIdIn)
         } else if (answer == 2) {
           val importOrExportAnswer = ui.askWhich(None, Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
@@ -64,14 +65,14 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               }
             }
           }
-          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, relationIn, containingGroupIn, classDefiningEntityIdIn)
+          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
         } else if (answer == 3) {
           val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
           otherEntityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn,
-                          relationIn, containingGroupIn, classDefiningEntityIdIn)
+                          containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
         } else if (answer == 4) {
           val (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber) =
-            controller.askWhetherDeleteOrArchiveEtc(entityIn, relationIn, relationSourceEntityIn, containingGroupIn)
+            controller.askWhetherDeleteOrArchiveEtc(entityIn, containingRelationToEntityIn, relationSourceEntityIn, containingGroupIn)
 
           if (delOrArchiveAnswer.isDefined) {
             val answer = delOrArchiveAnswer.get
@@ -79,10 +80,10 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               val thisEntityWasDeletedOrArchived = controller.deleteOrArchiveEntity(entityIn, answer == 1)
               if (thisEntityWasDeletedOrArchived) None
               else Some(entityIn)
-            } else if (answer == delEntityLink_choiceNumber && relationIn.isDefined && answer <= choices.length) {
+            } else if (answer == delEntityLink_choiceNumber && containingRelationToEntityIn.isDefined && answer <= choices.length) {
               val ans = ui.askYesNoQuestion("DELETE the relation: ARE YOU SURE?", Some(""))
               if (ans.isDefined && ans.get) {
-                relationIn.get.delete()
+                containingRelationToEntityIn.get.delete()
                 None
               } else {
                 ui.displayText("Did not delete relation.", waitForKeystroke = false)
@@ -95,34 +96,34 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                 Some(entityIn)
             } else {
               ui.displayText("invalid response")
-              otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, relationIn,
+              otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
                               containingGroupIn, classDefiningEntityIdIn)
             }
           } else {
             Some(entityIn)
           }
         } else if (answer == 5) {
-          goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn, classDefiningEntityIdIn)
+          goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
           //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
           if (db.entityKeyExists(entityIn.getId)) {
-            new EntityMenu(ui, db, controller).entityMenu(entityIn, attributeRowsStartingIndexIn, None, relationSourceEntityIn, relationIn, containingGroupIn)
+            new EntityMenu(ui, db, controller).entityMenu(entityIn, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
           }
           else
             None
         } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
           // updates user preferences such that this obj will be the one displayed by default in future.
           controller.mPrefs.putLong("first_display_entity", entityIn.getId)
-          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, relationIn, containingGroupIn, classDefiningEntityIdIn)
+          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
         } else {
           ui.displayText("invalid response")
-          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, relationIn, containingGroupIn, classDefiningEntityIdIn)
+          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
         }
       }
     } catch {
       case e: Exception =>
         controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
-        if (ans.isDefined && ans.get) otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, relationIn,
+        if (ans.isDefined && ans.get) otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
                                                       containingGroupIn, classDefiningEntityIdIn)
         else None
     }
@@ -203,7 +204,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             val index = answer - choices.length - 1
             // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
             val entity: Entity = containingEntities.get(index)._2
-            new EntityMenu(ui, db, controller).entityMenu(entity, 0, None)
+            new EntityMenu(ui, db, controller).entityMenu(entity)
           } else {
             ui.displayText("unknown response")
           }
@@ -211,7 +212,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       } else if (goWhereAnswer == seeContainingGroups_choiceNumber && goWhereAnswer <= choices.length) {
         if (numContainingGroups == 1) {
           require(containingGroup.isDefined)
-          new QuickGroupMenu(ui, db, controller).quickGroupMenu(containingGroup.get, 0, containingRtg)
+          new QuickGroupMenu(ui, db, controller).quickGroupMenu(containingGroup.get, 0, containingRtg, containingEntityIn = None)
         } else {
           viewContainingGroups(entityIn)
         }
@@ -229,12 +230,10 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         // force a reread from the DB so it shows the right info on the repeated menu (below):
         relationToEntity = Some(new RelationToEntity(db, relationIn.get.getId, relationIn.get.getAttrTypeId, relationIn.get.getRelatedId1,
                                                      relationIn.get.getRelatedId2))
-      }
-      else if (goWhereAnswer == goToRelationType_choiceNumber && relationIn.isDefined && goWhereAnswer <= choices.length) {
-        new EntityMenu(ui, db, controller).entityMenu(new Entity(db, relationIn.get.getAttrTypeId), 0, None)
-      }
-      else if (goWhereAnswer == goToClassDefiningEntity_choiceNumber && classDefiningEntityId.isDefined && goWhereAnswer <= choices.length) {
-        new EntityMenu(ui, db, controller).entityMenu(new Entity(db, classDefiningEntityId.get), 0, None)
+      } else if (goWhereAnswer == goToRelationType_choiceNumber && relationIn.isDefined && goWhereAnswer <= choices.length) {
+        new EntityMenu(ui, db, controller).entityMenu(new Entity(db, relationIn.get.getAttrTypeId))
+      } else if (goWhereAnswer == goToClassDefiningEntity_choiceNumber && classDefiningEntityId.isDefined && goWhereAnswer <= choices.length) {
+        new EntityMenu(ui, db, controller).entityMenu(new Entity(db, classDefiningEntityId.get))
       } else {
         ui.displayText("invalid response")
       }
@@ -274,7 +273,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         val numContainingEntities = containingEntities.size
         if (numContainingEntities == 1) {
           val containingEntity: Entity = containingEntities.get(0)._2
-          new EntityMenu(ui, db, controller).entityMenu(containingEntity, 0, None, None, None, Some(new Group(db, containingRelationToGroup.getGroupId)))
+          new EntityMenu(ui, db, controller).entityMenu(containingEntity, containingGroupIn = Some(new Group(db, containingRelationToGroup.getGroupId)))
         } else {
           controller.chooseAmongEntities(containingEntities)
         }
@@ -285,7 +284,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         val groupId: Long = containingRelationToGroups.get(index).getGroupId
         val relTypeId: Long = containingRelationToGroups.get(index).getAttrTypeId
         new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, groupId), 0, Some(new RelationToGroup(db, id, entityId, relTypeId, groupId)),
-                                                              Some(entityIn))
+                                                              Some(entityIn), containingEntityIn = None)
       } else {
         ui.displayText("unknown response")
         None

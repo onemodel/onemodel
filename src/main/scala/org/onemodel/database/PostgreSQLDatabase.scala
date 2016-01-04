@@ -793,6 +793,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
   }
 
+  /**
+   * @return the id of the new RTE
+   */
+  def addHASRelationToEntity(fromEntityIdIn: Long, toEntityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): RelationToEntity = {
+    val relationTypeId = findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+    val newRte = createRelationToEntity(relationTypeId, fromEntityIdIn, toEntityIdIn, validOnDateIn, observationDateIn)
+    newRte
+  }
+
   /** Returns at most 1 id, and a boolean indicating if more were available.  If 0 rows are found, returns (None,false), so this expects the caller
     * to know there is only one or deal with the None.
     */
@@ -1136,6 +1145,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
              " where rel_type_id=" + inRelationTypeId + " and entity_id=" + inEntityId1 + " and entity_id_2=" + inEntityId2)
   }
 
+  def moveRelationToEntity(relationToEntityIdIn: Long, newContainingEntityIdIn: Long) {
+    dbAction("UPDATE RelationToEntity SET (entity_id) = (" + newContainingEntityIdIn + ")" +
+             " where id=" + relationToEntityIdIn)
+  }
+
   def createGroup(inName: String, allowMixedClassesInGroupIn: Boolean = false): Long = {
     val name: String = escapeQuotesEtc(inName)
     val groupId: Long = getNewKey("RelationToGroupKeySequence")
@@ -1208,18 +1222,41 @@ class PostgreSQLDatabase(username: String, var password: String) {
              " where entity_id=" + entityIdIn + " and rel_type_id=" + inRelationTypeId + " and group_id=" + groupIdIn)
   }
 
+  def moveRelationToGroup(relationToGroupIdIn: Long, newContainingEntityIdIn: Long) {
+    dbAction("UPDATE RelationToGroup SET (entity_id) = (" + newContainingEntityIdIn + ")" +
+             " where id=" + relationToGroupIdIn)
+  }
+
   /** Trying it out with the entity's previous sortingIndex (or whatever is passed in) in case it's more convenient, say, when brainstorming a
-    * list then grouping them afterward, to keep them in the same order.  Might be better though just to put them all at the end; can see....
+    * list then grouping them afterward, to keep them in the same order.  Might be better though just to put them all at the beginning or end; can see....
     */
-  def moveEntityToNewGroup(targetGroupIdIn: Long, oldGroupIdIn: Long, entityIdIn: Long, sortingIndexIn: Long) {
+  def moveEntityFromGroupToGroup(fromGroupIdIn: Long, toGroupIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long) {
     beginTrans()
-    addEntityToGroup(targetGroupIdIn, entityIdIn, Some(sortingIndexIn), callerManagesTransactionsIn = true)
-    removeEntityFromGroup(oldGroupIdIn, entityIdIn, callerManagesTransactionsIn = true)
-    if (isEntityInGroup(targetGroupIdIn, entityIdIn) && !isEntityInGroup(oldGroupIdIn, entityIdIn)) {
+    addEntityToGroup(toGroupIdIn, moveEntityIdIn, Some(sortingIndexIn), callerManagesTransactionsIn = true)
+    removeEntityFromGroup(fromGroupIdIn, moveEntityIdIn, callerManagesTransactionsIn = true)
+    if (isEntityInGroup(toGroupIdIn, moveEntityIdIn) && !isEntityInGroup(fromGroupIdIn, moveEntityIdIn)) {
       commitTrans()
     } else {
       throw rollbackWithCatch(new OmException("Entity didn't get moved properly.  Retry: if predictably reproducible, it should be diagnosed."))
     }
+  }
+
+  /** (See comments on moveEntityFromGroupToGroup.)
+    */
+  def moveEntityFromGroupToEntity(fromGroupIdIn: Long, toEntityIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long) {
+    beginTrans()
+    addHASRelationToEntity(toEntityIdIn, moveEntityIdIn, None, System.currentTimeMillis())
+    removeEntityFromGroup(fromGroupIdIn, moveEntityIdIn, callerManagesTransactionsIn = true)
+    commitTrans()
+  }
+
+  /** (See comments on moveEntityFromGroupToGroup.)
+    */
+  def moveEntityFromEntityToGroup(removingRelationToEntityIn: RelationToEntity, targetGroupIdIn: Long, sortingIndexIn: Long) {
+    beginTrans()
+    addEntityToGroup(targetGroupIdIn, removingRelationToEntityIn.getRelatedId2, Some(sortingIndexIn), callerManagesTransactionsIn = true)
+    deleteRelationToEntity(removingRelationToEntityIn.getAttrTypeId, removingRelationToEntityIn.getRelatedId1, removingRelationToEntityIn.getRelatedId2)
+    commitTrans()
   }
 
   val UNUSED_GROUP_ERR1 = "No available index found which is not already used. How would so many be used?"
@@ -1716,7 +1753,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     results.reverse.toArray
   }
 
-  /** For a given group, find all the RelationToGroup's that contain entities that contain the provided group id.
+  /** For a given group, find all the RelationToGroup's that contain entities that contain the provided group id, and return their groupIds.
     * What is really the best name for this method (concise but clear on what it does)?
     */
   def getGroupsContainingEntitysGroupsIds(groupIdIn: Long, inLimit: Option[Long] = Some(5)): List[Array[Option[Any]]] = {
@@ -1863,6 +1900,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def getRelationToGroupData(entityId: Long, relTypeId: Long, groupId: Long): Array[Option[Any]] = {
     dbQueryWrapperForOneRow("select id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from RelationToGroup " +
                             " where entity_id=" + entityId + " and rel_type_id=" + relTypeId + " and group_id=" + groupId,
+                            "Long,Long,Long,Long,Long,Long")
+  }
+
+  def getRelationToGroupDataById(idIn: Long): Array[Option[Any]] = {
+    dbQueryWrapperForOneRow("select id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from RelationToGroup " +
+                            " where id=" + idIn,
                             "Long,Long,Long,Long,Long,Long")
   }
 

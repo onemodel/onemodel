@@ -479,7 +479,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
 
     if (answer != 27 && answer != '0' && (!allAllowedAnswers.toString.contains(answer.toChar))) {
       println("unknown choice: " + answer)
-      askWhichChoiceOrItsAlternate(leadingText, choices, moreChoices, includeEscChoice, trailingText)
+      askWhichChoiceOrItsAlternate(leadingText, choices, moreChoices, includeEscChoice, trailingText, highlightIndexIn, secondaryHighlightIndexIn)
     }
     else if (includeEscChoice && (answer == '0' || answer == 27)) {
       None

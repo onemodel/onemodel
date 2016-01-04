@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2013-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -16,6 +16,18 @@
 package org.onemodel.model
 
 import org.onemodel.database.PostgreSQLDatabase
+
+object RelationToGroup {
+  // Old idea: could change this into a constructor if the "class" line's parameters are changed to be only mDB and mId, and a new constructor is created
+  // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
+  // new constructors just wasn't working out.
+  // Idea: rename this to instantiateRelationToGroup, since create sounds like inserting a new row in the db. Not sure if there's a convention for that case.
+  def createRelationToGroup(mDB: PostgreSQLDatabase, idIn: Long): RelationToGroup = {
+    val relationData: Array[Option[Any]] = mDB.getRelationToGroupDataById(idIn)
+    new RelationToGroup(mDB, idIn, relationData(1).get.asInstanceOf[Long], relationData(2).get.asInstanceOf[Long], relationData(3).get.asInstanceOf[Long],
+                     relationData(4).asInstanceOf[Option[Long]], relationData(5).get.asInstanceOf[Long])
+  }
+}
 
 /** See comments on similar methods in RelationToEntity. */
 class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTypeId: Long, mGroupId:Long) extends AttributeWithValidAndObservedDates(mDB, mId) {

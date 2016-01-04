@@ -84,7 +84,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 ui.displayText(msg)
                 firstContainingEntryIn match {
                   case entity: Entity => new EntityMenu(ui, db, controller).entityMenu(entity)
-                  case group: Group => new QuickGroupMenu(ui, db, controller).quickGroupMenu(firstContainingEntryIn.asInstanceOf[Group], 0)
+                  case group: Group => new QuickGroupMenu(ui, db, controller).quickGroupMenu(firstContainingEntryIn.asInstanceOf[Group], 0,
+                                                                                             containingEntityIn = None)
                   case _ => throw new OmException("??")
                 }
                 ui.askYesNoQuestion("Do you want to commit the changes as they were made?")

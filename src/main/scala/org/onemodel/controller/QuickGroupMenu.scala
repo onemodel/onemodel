@@ -17,18 +17,30 @@ import org.onemodel.{Color, OmException, TextUI}
 /** Allows sorting of group entries, quick work like for brainstorming.
   */
 class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, val controller: Controller) extends SortableEntriesMenu(ui, db) {
-  /** returns None if user wants out. The parameter startingDisplayRowIndexIn refers to the 0-based index among all possible displayable rows (i.e.,
-    * if we have displayed
-    * 20 objects out of 100, and the user says to go to the next 20, the startingDisplayRowIndexIn would become 21. */
+
   // The @tailrec is desired when possible,
   // because it seems that otherwise we might try to ESC back to a menu instance which is attempting to view a deleted entity, & crash!  But see the comment
   // mentioning why not to have it, below.  Maybe we need to use a loop around the menu instead of tail recursion in this case, if there is not a
   // way to turn the tail optimization off for a particular line.
   //@tailrec
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
+  /**
+   * @param groupIn The id of the group whose info is being displayed.
+   * @param startingDisplayRowIndexIn refers to the 0-based index among all possible displayable rows (i.e., if we have displayed
+   *                                  20 objects out of 100, and the user says to go to the next 20, the startingDisplayRowIndexIn would become 21.
+   * @param relationToGroupIn Matches the groupIn parameter, but with more info when available, about the RelationToGroup that this group menu display shows,
+   *                          like if we came here via an entity (usually), the RelationToGroup that linked to the group,
+   * @param highlightedEntityIn
+   * @param targetForMovesIn
+   * @param callingMenusRtgIn Only applies if a we were at a QuickGroupMenu and went directly to an entity's sole subgroup: this parm holds
+   *                          the RelationToGroup for the group that was being displayed by that prior menu.
+   * @param containingEntityIn Since every group was once contained by an entity, this can usually be filled in, but would not if we were viewing an orphaned
+   *                           group (e.g., if its containing entity was deleted?, or cases where we came to the group some other way, not via the entity.)
+   * @return None if user wants out.
+   */
   def quickGroupMenu(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup] = None,
-                     highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None, callingMenusRtgIn: Option[RelationToGroup] = None,
-                     containingEntityIn: Option[Entity] = None): Option[Entity] = {
+                     highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None,
+                     callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     try {
       quickGroupMenu_doTheWork(groupIn, startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn, callingMenusRtgIn,
                                containingEntityIn)
@@ -43,6 +55,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
 
   }
 
+  /** Should be called only if the targetEntityIn has 0 or 1 RelationToGroups (no more).
+    */
   def createNewOrFindOneGroupOnEntity(groupIn: Group, targetEntitysRtgCount: Long, targetEntityIn: Entity): (Long, Long, Long) = {
     // if there is 1 (obvious) destination, or no RTG on the selected entity (1 can be created), then add new entry there
     val (targetRtgId: Long, targetRelTypeId: Long, targetGroupId: Long) = {
@@ -109,53 +123,97 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           numRowsToMove = 20
           forwardNotBack = true
         }
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, numRowsToMove, forwardNotBack, startingDisplayRowIndexIn, highlightedObjId,
-
-                                                                 highlightedIndexInObjListIn, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
+        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, numRowsToMove, forwardNotBack, startingDisplayRowIndexIn,
+                                                                 highlightedObjId, highlightedIndexInObjListIn, Some(highlightedObjId),
+                                                                 objectsToDisplay.size, -1, Some(-1))
         quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 5 && targetForMovesIn.isDefined) {
         val targetRtgCount: Long = db.getRelationToGroupCountByEntity(Some(targetForMovesIn.get.getId))
-        if (moveTargetIndexInObjList.isEmpty || targetRtgCount > 1) {
-          // IDEA: could guess & move it in even if >1 subgroup present, by seeing which subgroup has the same class, if only 1 like that? Or if same-named?
-          ui.displayText("Target must be selected (shows '+'), and must have exactly one subgroup (a single '>'), or none.")
+        if (moveTargetIndexInObjList.isEmpty) {
+          ui.displayText("Target must be selected (shows '+').")
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         } else {
-          // if there is 1 (obvious) destination, or no RTG on the selected entity (1 can be created), then move it there
-          val (_, _, targetGroupId) = createNewOrFindOneGroupOnEntity(groupIn, targetRtgCount, targetForMovesIn.get)
-          // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
-          db.moveEntityToNewGroup(targetGroupId, groupIn.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
-          val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne = true,
-                                                                                      highlightedIndexInObjListIn, highlightedEntry)
-          quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
-        }
-      } else if (answer == 6) {
-        // if there is 1 (provided or obvious) destination), then move it there
-        val targetGroupId: Option[Long] = {
-          if (callingMenusRtgIn.isDefined) {
-            Some(callingMenusRtgIn.get.getGroupId)
+          if (targetRtgCount > 1) {
+            // can't guess which subgroup so just move it to the entity (idea: could ask whether to do that or go to which subgroup, perhaps...)
+            db.moveEntityFromGroupToEntity(groupIn.getId, targetForMovesIn.get.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
+            val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
+                                                                                         highlightedIndexInObjListIn, highlightedEntry)
+            quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
           } else {
-            // none provided, so see if it's guessable
-            val containingGroups: List[Array[Option[Any]]] = db.getGroupsContainingEntitysGroupsIds(groupIn.getId)
-            if (containingGroups.isEmpty) {
-              ui.displayText("Unable to find any containing groups, for the group \"" + groupIn.getName + "\" (ie, nowhere \"up\" found, to move it to).")
-              None
-            } else if (containingGroups.size == 1) {
-              Some(containingGroups.head(0).get.asInstanceOf[Long])
+            val (_, defaultToUsingSubgroup: Option[Boolean]) = useSubgroup(targetForMovesIn.get)
+            if (defaultToUsingSubgroup.isEmpty) {
+              // user just wanted out of the question (whether the code can get here depends on parms passed to the ui question in above call to useSubgroup)
+              quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn,
+                             containingEntityIn)
             } else {
-              ui.displayText("There are more than one containing groups, for the group \"" + groupIn.getName + "\".  You could, from an Entity Menu, " +
-                             "choose the option to 'Go to...' and explore what contains it, to see if you want to make changes to the organization.  Might " +
-                             "need a feature to choose which containing group to which to move an entity...?")
-              None
+              if (defaultToUsingSubgroup.get) {
+                // if there is 1 (obvious) destination, or no RTG on the selected entity (1 can be created), then move it there
+                val (_, _, targetGroupId) = createNewOrFindOneGroupOnEntity(groupIn, targetRtgCount, targetForMovesIn.get)
+                // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
+                db.moveEntityFromGroupToGroup(groupIn.getId, targetGroupId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
+              } else {
+                // getting here means to just create a RelationToEntity on the containing entity, not a subgroup:
+                db.moveEntityFromGroupToEntity(groupIn.getId, targetForMovesIn.get.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1,
+                                                                                                                            highlightedObjId))
+              }
+              val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
+                                                                                           highlightedIndexInObjListIn, highlightedEntry)
+              quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
             }
           }
         }
-        if (targetGroupId.isEmpty) quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn,
-                                                  containingEntityIn)
-        else {
-          db.moveEntityToNewGroup(targetGroupId.get, groupIn.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
-          val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne = true,
-                                                                                              highlightedIndexInObjListIn, highlightedEntry)
+      } else if (answer == 6) {
+        // if there is 1 (provided or guessable) destination), then move it there
+        val (targetGroupId: Option[Long], targetEntity: Option[Entity]) = {
+          // see whether will be moving it to an entity or a group, if anywhere.
+          // ONLY RETURN ONE OF THE TWO, since the below relies on that to know which to do.
+          if (callingMenusRtgIn.isDefined && containingEntityIn.isDefined) {
+            val answer = ui.askWhich(None,
+                        Array("Move it to the containing entity: " + containingEntityIn.get.getName,
+                              "Move it to the containing group: " + new Group(db, callingMenusRtgIn.get.getGroupId).getName))
+            if (answer.isEmpty) {
+              (None, None)
+            } else if (answer.get == 1) {
+              (None, containingEntityIn)
+            } else if (answer.get == 2) {
+              (Some(callingMenusRtgIn.get.getGroupId), None)
+            }
+          } else if (callingMenusRtgIn.isDefined) {
+            (Some(callingMenusRtgIn.get.getGroupId), None)
+          } else if (containingEntityIn.isDefined) {
+            (None, containingEntityIn)
+          } else {
+            // none provided, so see if it's guessable
+            // (Idea: if useful, could also try guessing the entity if there's just one, then if both are there let user choose which as just above.
+            // And if > 1 of either or both groups/entities, ask to which of them to move it?)
+            val containingGroupsIds: List[Array[Option[Any]]] = db.getGroupsContainingEntitysGroupsIds(groupIn.getId)
+            if (containingGroupsIds.isEmpty) {
+              ui.displayText("Unable to find any containing groups, for the group \"" + groupIn.getName + "\" (ie, nowhere \"up\" found, to move it to).")
+              (None, None)
+            } else if (containingGroupsIds.size == 1) {
+              (Some(containingGroupsIds.head(0).get.asInstanceOf[Long]), None)
+            } else {
+              ui.displayText("There are more than one containing groups, for the group \"" + groupIn.getName + "\".  You could, from an Entity Menu, " +
+                             "choose the option to 'Go to...' and explore what contains it, to see if you want to make changes to the organization.  Might " +
+                             "need a feature to choose a containing group as the target for moving an entity...?")
+              (None, None)
+            }
+          }
+        }
+        if (targetEntity.isDefined) {
+          require(targetGroupId.isEmpty)
+          db.moveEntityFromGroupToEntity(groupIn.getId, containingEntityIn.get.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
+          val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
+                                                                                       highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
+        } else if (targetGroupId.isDefined) {
+          require(targetEntity.isEmpty)
+          db.moveEntityFromGroupToGroup(groupIn.getId, targetGroupId.get, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
+          val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
+                                                                                      highlightedIndexInObjListIn, highlightedEntry)
+          quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
+        } else {
+          quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         }
       } else {
         quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
@@ -166,9 +224,9 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
   /** The parameter relationToGroupIn is nice when available, optional otherwise, and represents the relation via which we got to this group.
     *
     * */
-  def quickGroupMenu_doTheWork(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup], highlightedEntityIn: Option[Entity] = None,
-                               targetForMovesIn: Option[Entity] = None, callingMenusRtgIn: Option[RelationToGroup] = None,
-                               containingEntityIn: Option[Entity] = None): Option[Entity] = {
+  def quickGroupMenu_doTheWork(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup],
+                               highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None,
+                               callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     require(groupIn != null)
     val choices = Array[String]("Create new entry quickly",
                                 "Move selection (*) up/down, in, out...",
@@ -281,7 +339,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 2) {
           moveSelectedEntry(groupIn, startingDisplayRowIndexIn, relationToGroupIn, targetForMoves, highlightedIndexInObjList, moveTargetIndexInObjList,
-                            highlightedEntry, highlightedObjId, objIds, objectsToDisplay)
+                            highlightedEntry, highlightedObjId, objIds, objectsToDisplay, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 3) {
           val editedEntity: Option[Entity] = controller.editEntityName(highlightedEntry)
           if (editedEntity.isEmpty)
@@ -298,18 +356,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           if (response.isDefined) {
             val addEntryAnswer = response.get
             if (addEntryAnswer == 1) {
-              val targetRtgCount: Long = db.getRelationToGroupCountByEntity(Some(highlightedEntry.getId))
-              val defaultToUsingSubgroup = {
-                // (This question is experimental, to see if my usage of OM can move away from mostly using groups, to using just entities and attributes,
-                // but still as efficiently. I.e., leaning toward 'modeling' data rather than just collapsible outlines.)  If it's a nuisance (ie, if most users
-                // want OM to just create the subgroup without asking, never just adding an entity to an entity in a group) the question can be removed
-                // and logic treated as if it were always Some(true). Or, logic could be treated as if it were always Some(false), so that subgroups can be
-                // added only when that is what the user really wants (by going to the entity and adding the RelationToGroup attribute).  It depends on
-                // which behavior should be encouraged.
-                if (targetRtgCount == 0) ui.askYesNoQuestion("Create a new subgroup on this entity first, putting the new entity in the new subgroup? "
-                                                             + "(answering \"n\" means just add it as a relationToEntity inside the selected entry", Some("n"))
-                else Some(true)
-              }
+              val (targetRtgCount: Long, defaultToUsingSubgroup: Option[Boolean]) = useSubgroup(highlightedEntry)
               if (defaultToUsingSubgroup.isDefined) {
                 if (defaultToUsingSubgroup.get) {
                   if (targetRtgCount > 1) {
@@ -326,7 +373,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                       val newEntityId: Long = ans.get.getId
                       db.addEntityToGroup(targetGroupId, newEntityId)
                       val newRtg: RelationToGroup = new RelationToGroup(db, rtgId, highlightedEntry.getId, relTypeId, targetGroupId)
-                      quickGroupMenu(new Group(db, targetGroupId), 0, Some(newRtg), None, None)
+                      quickGroupMenu(new Group(db, targetGroupId), 0, Some(newRtg), None, None, containingEntityIn = Some(highlightedEntry))
                     }
                     quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
                   }
@@ -336,7 +383,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                   if (newEntity.isDefined) {
                     val newEntityId: Long = newEntity.get.getId
                     val newRte: RelationToEntity = highlightedEntry.addHASRelationToEntity(newEntityId, None, System.currentTimeMillis())
-                    new EntityMenu(ui, db, controller).entityMenu(newEntity.get, 0, None, Some(highlightedEntry), Some(newRte))
+                    require(newRte.getParentId == highlightedEntry.getId)
+                    new EntityMenu(ui, db, controller).entityMenu(newEntity.get, containingRelationToEntityIn = Some(newRte))
                   }
                   quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, newEntity, targetForMoves, callingMenusRtgIn, containingEntityIn)
                 }
@@ -364,7 +412,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
             quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
           }
         } else if (answer == 5) {
-          new EntityMenu(ui, db, controller).entityMenu(highlightedEntry, 0, None, None, None, Some(groupIn))
+          new EntityMenu(ui, db, controller).entityMenu(highlightedEntry, containingGroupIn = Some(groupIn))
           // deal with entityMenu possibly having deleted the entity:
           val removedOne: Boolean = !db.isEntityInGroup(groupIn.getId, highlightedEntry.getId)
           val entityToHighlightNext: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList,
@@ -380,12 +428,10 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           }
           quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 7) {
-          val choices = Array[String]("Unselect current move target (if present; not necessary really)")
-          // says 'same screenful' because it's easier to assume that the returned index refers to the currently available
-          // local collections (a subset of all possible entries, for display), than calling chooseOrCreateObject and sounds as useful:
-          val leadingText: Array[String] = Array("CHOOSE AN ENTRY (that contains only one subgroup) FOR THE TARGET OF MOVES (choose from SAME SCREENFUL as " +
-                                                 "now;  if the target contains 0 subgroups, or 2 or more subgroups, " +
-                                                 "use other means to move entities to it until some kind of \"move anywhere\" feature is added):")
+          // NOTE: this code is similar (not identical) in EntityMenu as in QuickGroupMenu: if one changes,
+          // THE OTHER MIGHT ALSO NEED MAINTENANCE!
+          val choices = Array[String](Controller.unselectMoveTargetPromptText)
+          val leadingText: Array[String] = Array(Controller.unselectMoveTargetLeadingText)
           controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize, startingDisplayRowIndexIn)
 
           val response = ui.askWhich(Some(leadingText), choices, names, highlightIndexIn = Some(highlightedIndexInObjList),
@@ -409,13 +455,12 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                 }
               }
             }
-          //  and do same on selected, make sure that's not same as secondary (target): if so fail & don't select  (OR: just pass None so other one is
-          // un-selected!)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entryToHighlight, selectedTargetEntity, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 8) {
           // lets user select a new entity or group for further operations like moving, deleting.
           // (we have to have at least one choice or ui.askWhich fails...a require() call there.)
-          // NOTE: this code is similar (not identical) in EntityMenu as in QuickGroupMenu: if one changes, the other might also need maintenance.
+          // NOTE: this code is similar (not identical) in EntityMenu as in QuickGroupMenu: if one changes,
+          // THE OTHER MIGHT ALSO NEED MAINTENANCE!
           val choices = Array[String]("keep existing (same as ESC)")
           // says 'same screenful' because (see similar cmt elsewhere).
           val leadingText: Array[String] = Array("CHOOSE AN ENTRY to highlight (*)")
@@ -481,6 +526,27 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
         }
       }
     }
+  }
+
+  private def useSubgroup(highlightedEntry: Entity): (Long, Option[Boolean]) = {
+    val targetRtgCount: Long = db.getRelationToGroupCountByEntity(Some(highlightedEntry.getId))
+    val defaultToUsingSubgroup: Option[Boolean] = {
+      // (This question is experimental, to see if my usage of OM can move away from mostly using groups, to using just entities and attributes,
+      // but still as efficiently. I.e., leaning toward 'modeling' data rather than just collapsible outlines.)  If it's a nuisance (ie, if most users
+      // want OM to just create the subgroup without asking, never just adding an entity to an entity in a group) the question can be removed
+      // and logic treated as if it were always Some(true). Or, logic could be treated as if it were always Some(false), so that subgroups can be
+      // added only when that is what the user really wants (by going to the entity and adding the RelationToGroup attribute).  It depends on
+      // which behavior should be encouraged.
+      if (targetRtgCount == 0) {
+        ui.askYesNoQuestion("Create a new subgroup on this entity first, putting the new entity in the new subgroup? "
+                            + "(answering \"n\" means just add it as a relationToEntity inside the selected entry", Some("n"), allowBlankAnswer = true)
+      } else if (targetRtgCount == 1) {
+        Some(true)
+      } else {
+        throw new OmException("Didn't expect to get to this point.")
+      }
+    }
+    (targetRtgCount, defaultToUsingSubgroup)
   }
 
   protected def getAdjacentEntriesSortingIndexes(groupIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],

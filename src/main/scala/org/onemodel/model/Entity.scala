@@ -276,9 +276,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
    * @return the id of the new RTE
    */
   def addHASRelationToEntity(entityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): RelationToEntity = {
-    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
-    val newRte = mDB.createRelationToEntity(relationTypeId, getId, entityIdIn, validOnDateIn, observationDateIn)
-    newRte
+    mDB.addHASRelationToEntity(getId, entityIdIn, validOnDateIn, observationDateIn)
   }
 
   /** Creates new entity then adds it a particular kind of rte to this entity.

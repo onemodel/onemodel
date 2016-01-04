@@ -54,6 +54,14 @@ object Controller {
                                        " & see if it should be deleted, kept with an entity, or left out there floating." +
                                        "  (While this is not an expected usage, it is allowed and does not imply data corruption.)"
 
+  val unselectMoveTargetPromptText: String = "Unselect current move target (if present; not necessary really)"
+
+  // This says 'same screenful' because it's easier to assume that the returned index refers to the currently available
+  // local collections (a subset of all possible entries, for display), than calling chooseOrCreateObject, and sounds as useful:
+  val unselectMoveTargetLeadingText: String = "CHOOSE AN ENTRY (that contains only one subgroup) FOR THE TARGET OF MOVES (choose from SAME SCREENFUL as " +
+                                              "now;  if the target contains 0 subgroups, or 2 or more subgroups, " +
+                                              "use other means to move entities to it until some kind of \"move anywhere\" feature is added):"
+
   def getClipboardContent: String = {
     val clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
     val contents: String = clipboard.getContents(null).getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor).toString
@@ -68,18 +76,18 @@ object Controller {
   /**
    * @param objectSetSize # of all the possible entries, not reduced by what fits in the available display space (I think).
    * @param objectsToDisplayIn  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
-   * @param removedOne
+   * @param removedOneIn
    * @param previouslyHighlightedIndexInObjListIn
    * @param previouslyHighlightedEntryIn
    * @return
    */
-  def findEntityToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Entity], removedOne: Boolean,
+  def findEntityToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Entity], removedOneIn: Boolean,
                                previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity): Option[Entity] = {
     //NOTE: SIMILAR TO findAttributeToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
     //system better.
 
     // here of course, previouslyHighlightedIndexInObjListIn and objIds.size were calculated prior to the deletion.
-    if (removedOne) {
+    if (removedOneIn) {
       val newObjListSize = objectSetSize - 1
       val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
       if (newIndexToHighlight >= 0) {
@@ -1042,9 +1050,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                 val someRelationToGroups: java.util.ArrayList[RelationToGroup] = db.getRelationToGroupsByGroup(o.asInstanceOf[Group].getId, 0, Some(1))
                 if (someRelationToGroups.size < 1) {
                   ui.displayText(Controller.ORPHANED_GROUP_MESSAGE)
-                  new GroupMenu(ui, db, this).groupMenu(o.asInstanceOf[Group], 0, None)
+                  new GroupMenu(ui, db, this).groupMenu(o.asInstanceOf[Group], 0, None, containingEntityIn = None)
                 } else {
-                  new GroupMenu(ui, db, this).groupMenu(o.asInstanceOf[Group], 0, Some(someRelationToGroups.get(0)))
+                  new GroupMenu(ui, db, this).groupMenu(o.asInstanceOf[Group], 0, Some(someRelationToGroups.get(0)), containingEntityIn = None)
                 }
               case _ =>
                 throw new OmException("??")
@@ -1575,7 +1583,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // for now, picking the first RTG found for this group, until it's clear which of its RTGs to use.
           // (see also the other locations w/ similar comment!)
           val someRelationToGroups: java.util.ArrayList[RelationToGroup] = db.getRelationToGroupsByGroup(o.asInstanceOf[Group].getId, 0, Some(1))
-          new GroupMenu(ui, db, this).groupMenu(new Group(db, someRelationToGroups.get(0).getGroupId), 0, Some(someRelationToGroups.get(0)))
+          new GroupMenu(ui, db, this).groupMenu(new Group(db, someRelationToGroups.get(0).getGroupId), 0, Some(someRelationToGroups.get(0)),
+                                                containingEntityIn = None)
           chooseOrCreateGroup(inLeadingText, startingDisplayRowIndexIn, containingGroupIn)
         } else {
           // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
@@ -1779,10 +1788,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       // In quick menu, for efficiency of some work like brainstorming, if it's obvious which subgroup to go to, just go there.
       // We DON'T want @tailrec on this method for this call, so that we can ESC back to the current menu & list! (so what balance/best? Maybe move this
       // to its own method, so it doesn't try to tail optimize it?)  See also the comment with 'tailrec', mentioning why to have it, above.
-      new QuickGroupMenu(ui, db, this).quickGroupMenu(new Group(db, groupId.get), 0, Some(new RelationToGroup(db, rtgid.get, userSelection.getId, rtid.get, groupId.get)),
-                                                      callingMenusRtgIn = relationToGroupIn)
+      new QuickGroupMenu(ui, db, this).quickGroupMenu(new Group(db, groupId.get),
+                                                      0,
+                                                      Some(new RelationToGroup(db, rtgid.get, userSelection.getId, rtid.get, groupId.get)),
+                                                      callingMenusRtgIn = relationToGroupIn,
+                                                      containingEntityIn = Some(userSelection))
     } else {
-      new EntityMenu(ui, db, this).entityMenu(userSelection, 0, None, None, None, containingGroupIn)
+      new EntityMenu(ui, db, this).entityMenu(userSelection, containingGroupIn = containingGroupIn)
       // deal with entityMenu possibly having deleted the entity:
     }
     (subEntitySelected, groupId, moreThanOneAvailable)

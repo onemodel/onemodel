@@ -23,7 +23,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
   //@tailrec
   // idea: There's some better scala idiom for this control logic around recursion and exception handling (& there's similar code in all "*Menu" classes):
   final def groupMenu(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
-                      callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity] = None): Option[Entity] = {
+                      callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     try {
       groupMenu_helper(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     } catch {
@@ -42,7 +42,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
   //@tailrec
   //
   def groupMenu_helper(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
-                       callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity] = None): Option[Entity] = {
+                       callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     require(relationToGroupIn != null)
 
     val definingEntity = groupIn.getClassDefiningEntity
@@ -193,7 +193,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
           groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else {
           val entry = objectsToDisplay.get(choicesIndex)
-          new EntityMenu(ui, db, controller).entityMenu(entry.asInstanceOf[Entity], 0, None, None, None, Some(groupIn))
+          new EntityMenu(ui, db, controller).entityMenu(entry.asInstanceOf[Entity], containingGroupIn = Some(groupIn))
           groupMenu(groupIn, 0, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         }
       } else {

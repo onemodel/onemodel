@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, and 2013-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -48,7 +48,10 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
     assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn)
   }
 
-  override def getParentId: Long = throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
+  // (the next line used to return "throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")", and I'm not
+  // sure the reason: if it was just to prevent accidental misuse, it seems OK to have it be like this instead:
+  override def getParentId: Long = getRelatedId1
+
   def getRelatedId1: Long = mEntityId1
   def getRelatedId2: Long = mEntityId2
 
