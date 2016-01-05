@@ -796,9 +796,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
   /**
    * @return the id of the new RTE
    */
-  def addHASRelationToEntity(fromEntityIdIn: Long, toEntityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): RelationToEntity = {
+  def addHASRelationToEntity(fromEntityIdIn: Long, toEntityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
+                             sortingIndexIn: Option[Long] = None): RelationToEntity = {
     val relationTypeId = findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
-    val newRte = createRelationToEntity(relationTypeId, fromEntityIdIn, toEntityIdIn, validOnDateIn, observationDateIn)
+    val newRte = createRelationToEntity(relationTypeId, fromEntityIdIn, toEntityIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
     newRte
   }
 
@@ -1120,11 +1121,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
   def createRelationToEntity(inRelationTypeId: Long, inEntityId1: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long,
-                             callerManagesTransactionsIn: Boolean = false): RelationToEntity = {
+                             sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false): RelationToEntity = {
     val rteId: Long = getNewKey("RelationToEntityKeySequence")
     if (!callerManagesTransactionsIn) beginTrans()
     try {
-      addAttributeSortingRow(inEntityId1, PostgreSQLDatabase.getAttributeFormId("relationtoentity"), rteId)
+      addAttributeSortingRow(inEntityId1, PostgreSQLDatabase.getAttributeFormId("relationtoentity"), rteId, sortingIndexIn)
       dbAction("INSERT INTO RelationToEntity (id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date) " +
                "VALUES (" + rteId + "," + inRelationTypeId + "," + inEntityId1 + ", " + inEntityId2 + ", " +
                "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
@@ -1179,7 +1180,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val name: String = escapeQuotesEtc(newEntityNameIn)
     if (!callerManagesTransactionsIn) beginTrans()
     val newEntityId: Long = createEntity(name, isPublicIn = isPublicIn)
-    val newRte: RelationToEntity = createRelationToEntity(inRelationTypeId, inEntityId, newEntityId, inValidOnDate, inObservationDate, callerManagesTransactionsIn)
+    val newRte: RelationToEntity = createRelationToEntity(inRelationTypeId, inEntityId, newEntityId, inValidOnDate, inObservationDate, None,
+                                                          callerManagesTransactionsIn)
     if (!callerManagesTransactionsIn) commitTrans()
     (newEntityId, newRte.getId)
   }
@@ -1245,7 +1247,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     */
   def moveEntityFromGroupToEntity(fromGroupIdIn: Long, toEntityIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long) {
     beginTrans()
-    addHASRelationToEntity(toEntityIdIn, moveEntityIdIn, None, System.currentTimeMillis())
+    addHASRelationToEntity(toEntityIdIn, moveEntityIdIn, None, System.currentTimeMillis(), Some(sortingIndexIn))
     removeEntityFromGroup(fromGroupIdIn, moveEntityIdIn, callerManagesTransactionsIn = true)
     commitTrans()
   }
@@ -1341,10 +1343,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // SEE COMMENTS IN SIMILAR METHOD: addEntityToGroup.  **AND DO MAINTENANCE. IN BOTH PLACES.
     // Should probably be called from inside a transaction (which isn't managed in this method, since all its current callers do it.)
     val sortingIndex = {
-      val index = if (sortingIndexIn.isDefined) sortingIndexIn.get
-      // start with an increment off the min or max, so that later there is room to sort something before or after it, manually:
-      else if (getAttrCount(entityIdIn) == 0) minIdValue + 9999
-      else maxIdValue - 9999
+      val index = {
+        if (sortingIndexIn.isDefined) sortingIndexIn.get
+        // start with an increment off the min or max, so that later there is room to sort something before or after it, manually:
+        else if (getAttrCount(entityIdIn) == 0) minIdValue + 9999
+        else maxIdValue - 9999
+      }
       if (attributeSortingIndexInUse(entityIdIn, index))
         findUnusedAttributeSortingIndex(entityIdIn)
       else
