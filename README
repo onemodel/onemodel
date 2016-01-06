@@ -8,40 +8,110 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 --------------------------------------------------------------------------------
 
-About copyright year ranges: when a range of years (e.g., "2011-2013") is used in a copyright statement in this project, it means that a change was made in each year of the range inclusively (e.g., the previous example means 2011, 2012, and 2013).  (The FSF's web site said if using ranges, to make the meaning explicit.)
+About copyright year ranges: when a range of years (e.g., "2011-2013") is used
+in a copyright statement in this project, it means that a change was made in
+each year of the range inclusively (e.g., the previous example means 2011, 2012,
+and 2013).  (The FSF's web site said if using ranges, to make the meaning
+explicit.)
 
 These files pertain to the OneModel (also known as "OM") project.
 
-See the web site http://www.onemodel.org for background, contact or support information.
+See the web site http://www.onemodel.org for background, contact or support
+information.
 
-See the file LICENSE for copyright, license & distribution information.  (The file inside the onemodel*.jar file, called META-INF/LICENSE.txt, applies only to any Apache Project artifacts (such as from commons-io) used inside OM, and not to OM itself; similarly for any others like that.  The OM copyright is in the file LICENSE).
+See the file LICENSE for copyright, license & distribution information.  (The
+file inside the onemodel*.jar file, called META-INF/LICENSE.txt, applies only
+to any Apache Project artifacts (such as from commons-io) used inside OM, and
+not to OM itself; similarly for any others like that.  The OM copyright is in
+the file LICENSE).
 
 PROJECT STATUS
-    As of 2014-04-26:  Currently in an early state but suitable for daily use for maintaining lists and notes.  Allows import/export & manipulation of entities, attributes (including file storage with md5sums for integrity verification), nested groups, and relationships with very efficient traversal.  At any given time, everything you need to know is on the screen (or nearly so), and once you get used to the keystrokes, the most common operations are fast.  The structure and concepts will allow it to do much more, and it allows for expressing rich info in well-modeled ways, though to do that and share it is not efficient (yet!).
-    As of 2015-02, upcoming priorities include to finish making it run on OpenBSD, data sharing/cloud usage (so local postgres installation will be optional), mouse & mobile support, important internal improvements of many kinds (possibly including efficient graph queries), and other features.
+    As of 2014-04-26:  Currently in an early state but suitable for daily use
+for maintaining lists and notes.  Allows import/export & manipulation of
+entities, attributes (including file storage with md5sums for integrity
+verification), nested groups, and relationships with very efficient traversal.
+At any given time, everything you need to know is on the screen (or nearly so),
+and once you get used to the keystrokes, the most common operations are fast.
+The structure and concepts will allow it to do much more, and it allows for
+expressing rich info in well-modeled ways, though to do that and share it is
+not efficient (yet!).
+    As of 2015-02, upcoming priorities include to finish making it run on
+OpenBSD, data sharing/cloud usage (so local postgres installation will be
+optional), mouse & mobile support, important internal improvements of many
+kinds (possibly including efficient graph queries), and other features.
 
 See the file INSTALLING for instructions on compiling, installing, and running.
 
 CONCEPTUAL OVERVIEW (not yet fully implemented)
 ------------------
-In brief: think of something like wikipedia, containing all knowledge that anyone cares to collect, but computable (not based on text or words fundamentally, but on an atomic model of knowledge, focused around numbers and relationships).  Also personally or globally managed and maintained, and highly efficient.  Then add trust networks between instances.
+In brief: think of something like wikipedia, containing all knowledge that
+anyone cares to collect, but computable (not based on text or words
+fundamentally, but on an atomic model of knowledge, focused around numbers
+and relationships).  Also personally or globally managed and maintained, and
+highly efficient.  Then add trust networks between instances.
 
-Perhaps the nature of knowledge, at an atomic level, isn't text, but an object model.  Words are just a good useful way we express what we know, to each other, but the words are not the knowledge.  If you look at a glass of water, you don't fundamentally "know" about it in words; you can use different words, but you know its weight, where it has been, who owns it, what would happen if you throw it, etc.
+Perhaps the nature of knowledge, at an atomic level, isn't text, but an object
+model.  Words are just a good useful way we express what we know, to each other,
+but the words are not the knowledge.  If you look at a glass of water, you don't
+fundamentally "know" about it in words; you can use different words, but you
+know its weight, where it has been, who owns it, what would happen if you throw
+it, etc.
 
-Those things are numbers and relationships, and are captured in what we call an object model.  Words are a layer on top of that, a way to describe what is in the model, but words and text are not the model.
+Those things are numbers and relationships, and are captured in what we call an
+object model.  Words are a layer on top of that, a way to describe what is in
+the model, but words and text are not the model.
 
-What if you could create an object model for everything you know, all internally connected, and as we share, exchange and learn together (only what one wants to share), our models become better and more effective, and we can share everything we know.  If everyone did this, and shared the public parts, for everything they wanted to keep track of, can you imagine the rich data we would have for, say, economic, historical, medical or other kinds of research?  Or for personal or family growth and mentoring, to become the best we can?
+What if you could create an object model for everything you know, all internally
+connected, and as we share, exchange and learn together (only what one wants to
+share), our models become better and more effective, and we can share everything
+we know.  If everyone did this, and shared the public parts, for everything they
+wanted to keep track of, can you imagine the rich data we would have for, say,
+economic, historical, medical or other kinds of research?  Or for personal or
+family growth and mentoring, to become the best we can?
 
-Of course, the human interfaces would have to be very convenient: easy to use like a web browser or word processor, and not requiring specialized training in software engineering.  The model can grow and mature on the fly, as a side-effect of working within the system, learning, and editing; and it can be improved when merging/sharing/comparing with that of others, or on shared efforts.
+Of course, the human interfaces would have to be very convenient: easy to use like
+a web browser or word processor, and not requiring specialized training in software
+engineering.  The model can grow and mature on the fly, as a side-effect of working
+within the system, learning, and editing; and it can be improved when
+merging/sharing/comparing with that of others, or on shared efforts.
 
-The idea is different from, say, wikipedia, or cyc, or mindpixels, or the semantic web, because it is fundamentally computable: it is arbitrary knowledge with a uniform structure, so we could do calculations, rich queries, and provide a variety of representations or means of traversal, based on context or need, even if you & I use different terms for the same thing, or speak different languages, if we have shared and aligned (or shared with others who shared and aligned).  Those other systems that rely on human words could be seen as ways of superficially representing the knowledge contained in the object model.
+The idea is different from, say, wikipedia, or cyc, or mindpixels, or the semantic
+web, because it is fundamentally computable: it is arbitrary knowledge with a
+uniform structure, so we could do calculations, rich queries, and provide a variety
+of representations or means of traversal, based on context or need, even if you & I
+use different terms for the same thing, or speak different languages, if we have
+shared and aligned (or shared with others who shared and aligned).  Those other
+systems that rely on human words could be seen as ways of superficially
+representing the knowledge contained in the object model.
 
-This world has a lot of data now.  It is not well organized, when seen as a whole.  What if we made our individual data, or our big sets of data, highly organized and related, so that it is all shareable (if/when/as desired), and distributed and computable?  Let's try collecting everything we know, enabling a single, large, extremely *computable* system.  The beginning could be a personal organizer that relates everything to everything else, is easy to use, doesn't rely solely on words (awkward messy human language) at the lowest level, and allows intentional, useful, convenient sharing and exchange of any subset.  Of course it would  liberally show words, pictures and/or animations, based on the numbers and relationships and context awareness it contains.  And of course there are good problems to solve along the way, with  many good tools already available for use.
+This world has a lot of data now.  It is not well organized, when seen as a whole.
+What if we made our individual data, or our big sets of data, highly organized and
+related, so that it is all shareable (if/when/as desired), and distributed and
+computable?  Let's try collecting everything we know, enabling a single, large,
+extremely *computable* system.  The beginning could be a personal organizer that
+relates everything to everything else, is easy to use, doesn't rely solely on
+words (awkward messy human language) at the lowest level, and allows intentional,
+useful, convenient sharing and exchange of any subset.  Of course it would
+liberally show words, pictures and/or animations, based on the numbers and
+relationships and context awareness it contains.  And of course there are good
+problems to solve along the way, with  many good tools already available for use.
 
 The ideas and their embodiment in software should be free and open, as far as practical.
 
-What happens when everyone can know everything that matters?  (And what does it mean for government of the people, by the people and for the people, if the people can have effectively know at least as much about their government and everything else, as governments know about the people?  Consider the NSA, and the historical observation that sunlight kills germs.  It is not supposed to be "government by the big shots, for the big shots, of everyone else."  Changing the one-way mirror of surveillance into a respectful well-lit view in all directions seems necessary, as does pervasive honesty, the golden rule, and obedience to or adherence to the rule of law for the benefit of everyone; rather than laws being discretionary or only for other people, which leads toward lawlessness and the rule of men.  But (ahem) we digress....)
+What happens when everyone can know everything that matters?  (And what does it
+mean for government of the people, by the people and for the people, if the
+people can have effectively know at least as much about their government and
+everything else, as governments know about the people?  Consider the NSA, and
+the historical observation that sunlight kills germs.  It is not supposed to be
+"government by the big shots, for the big shots, of everyone else."  Changing
+the one-way mirror of surveillance into a respectful well-lit view in all
+directions seems necessary, as does pervasive honesty, the golden rule, and
+obedience to or adherence to the rule of law for the benefit of everyone; rather
+than laws being discretionary or only for other people, which leads toward
+lawlessness and the rule of men.  But (ahem) we digress....)
 
 More background info is at http://www.onemodel.org.
 
-(By the way, "one model" can mean "one model of knowledge for each person, organization, or use case", where desired, trending towards uniformity where suitable -- as opposed to many applications with their own data models.)
+(By the way, "one model" can mean "one model of knowledge for each person,
+organization, or use case", where desired, trending towards uniformity
+where suitable -- as opposed to many applications with their own data models.)
