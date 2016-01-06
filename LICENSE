@@ -694,8 +694,8 @@ if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <http://www.gnu.org/licenses/>.
 
+-----------[end AGPL-related content]--------------------------------------
 
--------------------------------------------------------------
 
 The license for jline2 (not including my enhancements), as mentioned in TextUI.scala,
 was retrieved from https://github.com/jline/jline2/blob/master/LICENSE.txt on 2015-01-01
