@@ -378,28 +378,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ") ")
       dbAction("create index quantity_parent_id on QuantityAttribute (entity_id)")
 
-      dbAction("create sequence TextAttributeKeySequence minvalue " + minIdValue)
-      // the entity_id is the key for the entity on which this text info is recorded; for other meanings see comments on
-      // Entity.addQuantityAttribute(...).
-      // id must be "unique not null" in ANY database used, because it is the primary key.
-      dbAction("create table TextAttribute (" +
-               // see comment for this column under "create table RelationToEntity", below:
-               "form_id smallint DEFAULT " + PostgreSQLDatabase.getAttributeFormId("TextAttribute") +
-               "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId("TextAttribute") + "), " +
-               "id bigint DEFAULT nextval('TextAttributeKeySequence') PRIMARY KEY, " +
-               "entity_id bigint NOT NULL, " +
-               "textValue text NOT NULL, " +
-               //eg, serial number (which would be an entity)
-               "attr_type_id bigint not null, " +
-               // see "create table RelationToEntity" for comments about dates' meanings.
-               "valid_on_date bigint, " +
-               "observation_date bigint not null, " +
-               "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
-               "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_ta_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
-               ") ")
-      dbAction("create index text_parent_id on TextAttribute (entity_id)")
-
       dbAction("create sequence DateAttributeKeySequence minvalue " + minIdValue)
       dbAction("create table DateAttribute (" +
                // see comment for this column under "create table RelationToEntity", below:
@@ -479,6 +457,28 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // see the links just above (especially the wiki one).
       dbAction("CREATE TRIGGER om_contents_oid_cleanup BEFORE UPDATE OR DELETE ON fileattributecontent " +
                "FOR EACH ROW EXECUTE PROCEDURE lo_manage(contents_oid)")
+
+      dbAction("create sequence TextAttributeKeySequence minvalue " + minIdValue)
+      // the entity_id is the key for the entity on which this text info is recorded; for other meanings see comments on
+      // Entity.addQuantityAttribute(...).
+      // id must be "unique not null" in ANY database used, because it is the primary key.
+      dbAction("create table TextAttribute (" +
+               // see comment for this column under "create table RelationToEntity", below:
+               "form_id smallint DEFAULT " + PostgreSQLDatabase.getAttributeFormId("TextAttribute") +
+               "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId("TextAttribute") + "), " +
+               "id bigint DEFAULT nextval('TextAttributeKeySequence') PRIMARY KEY, " +
+               "entity_id bigint NOT NULL, " +
+               "textValue text NOT NULL, " +
+               //eg, serial number (which would be an entity)
+               "attr_type_id bigint not null, " +
+               // see "create table RelationToEntity" for comments about dates' meanings.
+               "valid_on_date bigint, " +
+               "observation_date bigint not null, " +
+               "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
+               "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
+               "CONSTRAINT valid_ta_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
+               ") ")
+      dbAction("create index text_parent_id on TextAttribute (entity_id)")
 
       dbAction("create sequence RelationToEntityKeySequence minvalue " + minIdValue)
       //Example: a relationship between a state and various counties might be set up like this:

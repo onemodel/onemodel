@@ -463,7 +463,6 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                   Array("Relation to entity (i.e., \"is near\" a microphone, complete menu)",
                         "Relation to existing entity: quick search by name (uses \"has\" relation)",
                         "quantity attribute (example: a numeric value like \"length\"",
-                        "text attribute (rare: usually prefer relations; but for example: a serial number, which is not subject to arithmetic)",
                         "date",
                         "true/false value",
 
@@ -472,6 +471,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                         "given the concept behind OM, it's probably best" +
                         " to use this only for historical artifacts, or when you really can't fully model the data right now",
 
+                        "text attribute (rare: usually prefer relations; but for example: a serial number, which is not subject to arithmetic, or a quote)",
                         "Relation to group (i.e., \"has\" a list/group)",
                         "external web page (or other URI, to refer to external information and optionally quote it)")
                  )
@@ -497,27 +497,19 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                                           controller.quantityDescription,
                                                                           controller.askForQuantityAttributeNumberAndUnit, addQuantityAttribute)
       } else if (whichKindAnswer == 4) {
-        def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
-          Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, dhIn.validOnDate, dhIn.observationDate))
-        }
-        controller.askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(0, Some(0), 0, ""), Controller.TEXT_TYPE,
-                                                                      "SELECT TYPE OF " + controller.textDescription + ": ", controller
-                                                                                                                             .askForTextAttributeText,
-                                                                      addTextAttribute)
-      } else if (whichKindAnswer == 5) {
         def addDateAttribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
           Some(entityIn.addDateAttribute(dhIn.attrTypeId, dhIn.date))
         }
         controller.askForInfoAndAddAttribute[DateAttributeDataHolder](new DateAttributeDataHolder(0, 0), Controller.DATE_TYPE,
                                                                       "SELECT TYPE OF DATE: ", controller.askForDateAttributeValue, addDateAttribute)
-      } else if (whichKindAnswer == 6) {
+      } else if (whichKindAnswer == 5) {
         def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
           Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean))
         }
         controller.askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(0, Some(0), 0, false), Controller.BOOLEAN_TYPE,
                                                                          "SELECT TYPE OF TRUE/FALSE VALUE: ", controller.askForBooleanAttributeValue,
                                                                          addBooleanAttribute)
-      } else if (whichKindAnswer == 7) {
+      } else if (whichKindAnswer == 6) {
         def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
           Some(entityIn.addFileAttribute(dhIn.attrTypeId, dhIn.description, new java.io.File(dhIn.originalFilePath)))
         }
@@ -533,6 +525,14 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           }
         }
         result
+      } else if (whichKindAnswer == 7) {
+        def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
+          Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, dhIn.validOnDate, dhIn.observationDate))
+        }
+        controller.askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(0, Some(0), 0, ""), Controller.TEXT_TYPE,
+                                                                      "SELECT TYPE OF " + controller.textDescription + ": ", controller
+                                                                                                                             .askForTextAttributeText,
+                                                                      addTextAttribute)
       } else if (whichKindAnswer == 8) {
         def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
           require(dhIn.entityId == entityIn.getId)
