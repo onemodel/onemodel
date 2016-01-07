@@ -374,7 +374,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_unit_id FOREIGN KEY (unit_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_qa_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
+               "CONSTRAINT valid_qa_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
                ") ")
       dbAction("create index quantity_parent_id on QuantityAttribute (entity_id)")
 
@@ -396,7 +396,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "observation_date bigint not null, " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_ta_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
+               "CONSTRAINT valid_ta_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
                ") ")
       dbAction("create index text_parent_id on TextAttribute (entity_id)")
 
@@ -412,7 +412,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "date bigint not null, " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_da_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
+               "CONSTRAINT valid_da_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
                ") ")
       dbAction("create index date_parent_id on DateAttribute (entity_id)")
 
@@ -432,7 +432,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "observation_date bigint not null, " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_ba_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
+               "CONSTRAINT valid_ba_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
                ") ")
       dbAction("create index boolean_parent_id on BooleanAttribute (entity_id)")
 
@@ -459,7 +459,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "md5hash char(32) NOT NULL, " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_fa_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
+               "CONSTRAINT valid_fa_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
                ") ")
       dbAction("create index file_parent_id on FileAttribute (entity_id)")
       // about oids and large objects, blobs: here are some reference links (but consider also which version of postgresql is running):
@@ -514,7 +514,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_rel_type_id FOREIGN KEY (rel_type_id) REFERENCES RelationType (entity_id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_related_to_entity_id_1 FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_related_to_entity_id_2 FOREIGN KEY (entity_id_2) REFERENCES entity (id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_reltoent_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
+               "CONSTRAINT valid_reltoent_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
                ") ")
       dbAction("create index entity_id_1 on RelationToEntity (entity_id)")
       dbAction("create index entity_id_2 on RelationToEntity (entity_id_2)")
@@ -556,7 +556,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_reltogrp_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_reltogrp_rel_type_id FOREIGN KEY (rel_type_id) REFERENCES relationType (entity_id), " +
                "CONSTRAINT valid_reltogrp_group_id FOREIGN KEY (group_id) REFERENCES grupo (id) ON DELETE CASCADE, " +
-               "CONSTRAINT valid_reltogrp_sorting FOREIGN KEY (form_id, id) REFERENCES attributesorting (attribute_form_id, attribute_id) " +
+               "CONSTRAINT valid_reltogrp_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
                ") ")
       dbAction("create index RTG_entity_id on RelationToGroup (entity_id)")
       dbAction("create index RTG_group_id on RelationToGroup (group_id)")
@@ -668,8 +668,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // will probably have to change the next line when things grow/change, and say, we're doing upgrades not always a new system:
     require(ids.isEmpty)
 
-    // public=false, guessing at best value, since the world wants your modeled info, not details about your system internals (which might be...unique & personal
-    // somehow)?:
+    // public=false, guessing at best value, since the world wants your modeled info, not details about your system internals (which might be...unique &
+    // personal somehow)?:
     val systemEntityId = createEntity(PostgreSQLDatabase.systemEntityName, isPublicIn = Some(false))
 
     val existenceEntityId = createEntity("existence", isPublicIn = Some(false))
@@ -1146,9 +1146,35 @@ class PostgreSQLDatabase(username: String, var password: String) {
              " where rel_type_id=" + inRelationTypeId + " and entity_id=" + inEntityId1 + " and entity_id_2=" + inEntityId2)
   }
 
-  def moveRelationToEntity(relationToEntityIdIn: Long, newContainingEntityIdIn: Long) {
-    dbAction("UPDATE RelationToEntity SET (entity_id) = (" + newContainingEntityIdIn + ")" +
-             " where id=" + relationToEntityIdIn)
+  /**
+   * @param relationToEntityIdIn
+   * @param newContainingEntityIdIn
+   * @param sortingIndexIn Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
+   * @return the new RelationToEntity
+   */
+  def moveRelationToEntity(relationToEntityIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): RelationToEntity = {
+    beginTrans()
+    try {
+      val rteData: Array[Option[Any]] = getAllRelationToEntityDataById(relationToEntityIdIn)
+      val oldRteRelType: Long = rteData(2).get.asInstanceOf[Long]
+      val oldRteEntity1: Long = rteData(3).get.asInstanceOf[Long]
+      val oldRteEntity2: Long = rteData(4).get.asInstanceOf[Long]
+      val validOnDate: Option[Long] = rteData(5).asInstanceOf[Option[Long]]
+      val observedDate: Long = rteData(6).get.asInstanceOf[Long]
+      deleteRelationToEntity(oldRteRelType, oldRteEntity1, oldRteEntity2)
+      val newRTE: RelationToEntity = createRelationToEntity(oldRteRelType, newContainingEntityIdIn, oldRteEntity2, validOnDate, observedDate,
+                                                            Some(sortingIndexIn), callerManagesTransactionsIn = true)
+
+      //Something like the next line might have been more efficient than the above code to run, but not to write, given that it adds a complexity about updating
+      //the attributesorting table, which might be more tricky in future when something is added to prevent those from being orphaned. The above avoids that or
+      //centralizes the question to one place in the code.
+      //dbAction("UPDATE RelationToEntity SET (entity_id) = (" + newContainingEntityIdIn + ")" + " where id=" + relationToEntityIdIn)
+
+      commitTrans()
+      newRTE
+    } catch {
+      case e: Exception => throw rollbackWithCatch(e)
+    }
   }
 
   def createGroup(inName: String, allowMixedClassesInGroupIn: Boolean = false): Long = {
@@ -1167,7 +1193,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                     inValidOnDate: Option[Long], inObservationDate: Long, callerManagesTransactionsIn: Boolean = false): (Long, Long) = {
     if (!callerManagesTransactionsIn) beginTrans()
     val groupId: Long = createGroup(newGroupNameIn, allowMixedClassesInGroupIn)
-    val rtgId = createRelationToGroup(inEntityId, inRelationTypeId, groupId, inValidOnDate, inObservationDate, callerManagesTransactionsIn)
+    val rtgId = createRelationToGroup(inEntityId, inRelationTypeId, groupId, inValidOnDate, inObservationDate, None, callerManagesTransactionsIn)
     if (!callerManagesTransactionsIn) commitTrans()
     (groupId, rtgId)
   }
@@ -1190,11 +1216,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
     * Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
     */
   def createRelationToGroup(inEntityId: Long, inRelationTypeId: Long, groupIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long,
-                            callerManagesTransactionsIn: Boolean = false): Long = {
+                            sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false): Long = {
     if (!callerManagesTransactionsIn) beginTrans()
     val id: Long = getNewKey("RelationToGroupKeySequence2")
     try {
-      addAttributeSortingRow(inEntityId, PostgreSQLDatabase.getAttributeFormId("relationtogroup"), id)
+      addAttributeSortingRow(inEntityId, PostgreSQLDatabase.getAttributeFormId("relationtogroup"), id, sortingIndexIn)
       dbAction("INSERT INTO RelationToGroup (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date) " +
                "VALUES (" +
                id + "," + inEntityId + "," + inRelationTypeId + "," + groupIdIn +
@@ -1224,9 +1250,33 @@ class PostgreSQLDatabase(username: String, var password: String) {
              " where entity_id=" + entityIdIn + " and rel_type_id=" + inRelationTypeId + " and group_id=" + groupIdIn)
   }
 
-  def moveRelationToGroup(relationToGroupIdIn: Long, newContainingEntityIdIn: Long) {
-    dbAction("UPDATE RelationToGroup SET (entity_id) = (" + newContainingEntityIdIn + ")" +
-             " where id=" + relationToGroupIdIn)
+  /**
+   * @param relationToGroupIdIn
+   * @param newContainingEntityIdIn
+   * @param sortingIndexIn Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
+   * @return the new RelationToGroup's id.
+   */
+  def moveRelationToGroup(relationToGroupIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): Long = {
+    beginTrans()
+    try {
+      val rtgData: Array[Option[Any]] = getAllRelationToGroupDataById(relationToGroupIdIn)
+      val oldRtgEntityId: Long = rtgData(2).get.asInstanceOf[Long]
+      val oldRtgRelType: Long = rtgData(3).get.asInstanceOf[Long]
+      val oldRtgGroupId: Long = rtgData(4).get.asInstanceOf[Long]
+      val validOnDate: Option[Long] = rtgData(5).asInstanceOf[Option[Long]]
+      val observedDate: Long = rtgData(6).get.asInstanceOf[Long]
+      deleteRelationToGroup(oldRtgEntityId, oldRtgRelType, oldRtgGroupId)
+      val newRtgId: Long = createRelationToGroup(newContainingEntityIdIn, oldRtgRelType, oldRtgGroupId, validOnDate, observedDate, Some(sortingIndexIn),
+                                                 callerManagesTransactionsIn = true)
+
+      // (see comment at similar commented line in moveRelationToEntity)
+      //dbAction("UPDATE RelationToGroup SET (entity_id) = (" + newContainingEntityIdIn + ")" + " where id=" + relationToGroupIdIn)
+
+      commitTrans()
+      newRtgId
+    } catch {
+      case e: Exception => throw rollbackWithCatch(e)
+    }
   }
 
   /** Trying it out with the entity's previous sortingIndex (or whatever is passed in) in case it's more convenient, say, when brainstorming a
@@ -1429,7 +1479,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
     if (rollbackException.isEmpty) t
     else new Exception("See the chained messages for ALL: the cause of rollback failure, AND for the original failure(s).").initCause(rollbackException.get
-                                                                                                                                   .initCause(t))
+                                                                                                                                      .initCause(t))
   }
 
   def deleteEntity(inId: Long, callerManagesTransactionsIn: Boolean = false) = {
@@ -1689,7 +1739,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     var sql = "select count(1) from entity eContaining, RelationToEntity rte, entity eContained " +
               " where eContaining.id=rte.entity_id and rte.entity_id=" + inEntityId +
               " and rte.entity_id_2=eContained.id"
-    if (! includeArchivedEntities) sql += " and (not eContained.archived)"
+    if (!includeArchivedEntities) sql += " and (not eContained.archived)"
     extractRowCountFromCountQuery(sql)
   }
 
@@ -1782,7 +1832,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** Intended to show something like an activity log. Could be used for someone to show their personal journal or for other reporting.
-   */
+    */
   def findJournalEntries(startTimeIn: Long, endTimeIn: Long, inLimitIn: Option[Long] = None): Array[(Long, String, Long)] = {
     val rows: List[Array[Option[Any]]] = dbQuery("select insertion_date, 'Added: ' || name, id from entity where insertion_date >= " + startTimeIn +
                                                         " and insertion_date <= " + endTimeIn +
@@ -1805,7 +1855,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getContainingGroupsIds(entityIdIn: Long): List[Long] = {
     val groupIds: List[Array[Option[Any]]] = dbQuery("select group_id from EntitiesInAGroup where entity_id=" + entityIdIn,
-            "Long")
+                                                     "Long")
     var results: List[Long] = Nil
     for (row <- groupIds) {
       results = row(0).get.asInstanceOf[Long] :: results
@@ -1896,6 +1946,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
                             "Long,Long,Long")
   }
 
+  def getAllRelationToEntityDataById(inId: Long): Array[Option[Any]] = {
+    dbQueryWrapperForOneRow("select form_id, id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date from RelationToEntity where id=" + inId,
+                            "Int,Long,Long,Long,Long,Long,Long")
+  }
+
   def getGroupData(inId: Long): Array[Option[Any]] = {
     dbQueryWrapperForOneRow("select name, insertion_date, allow_mixed_classes from grupo where id=" + inId,
                             "String,Long,Boolean")
@@ -1906,6 +1961,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
                             " where entity_id=" + entityId + " and rel_type_id=" + relTypeId + " and group_id=" + groupId,
                             "Long,Long,Long,Long,Long,Long")
   }
+
+  def getAllRelationToGroupDataById(idIn: Long): Array[Option[Any]] = {
+    dbQueryWrapperForOneRow("select form_id, id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from RelationToGroup " +
+                            " where id=" + idIn,
+                            "Int,Long,Long,Long,Long,Long,Long")
+  }
+
 
   def getRelationToGroupDataById(idIn: Long): Array[Option[Any]] = {
     dbQueryWrapperForOneRow("select id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from RelationToGroup " +
@@ -2072,10 +2134,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def groupEntrySortingIndexInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean = doesThisExist("SELECT count(1) from Entitiesinagroup where group_id=" +
-                                                                                        groupIdIn + " and sorting_index=" + sortingIndexIn)
-  
+                                                                                                  groupIdIn + " and sorting_index=" + sortingIndexIn)
+
   def attributeSortingIndexInUse(entityIdIn: Long, sortingIndexIn: Long): Boolean = doesThisExist("SELECT count(1) from AttributeSorting where entity_id=" +
-                                                                                        entityIdIn + " and sorting_index=" + sortingIndexIn)
+                                                                                                  entityIdIn + " and sorting_index=" + sortingIndexIn)
 
   def classKeyExists(inID: Long): Boolean = doesThisExist("SELECT count(1) from class where id=" + inID)
 
@@ -2448,9 +2510,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** This one should explicitly NOT omit archived entities (unless parameterized for that later). See caller's comments for more, on purpose.
-   */
+    */
   def getNearestGroupEntrysSortingIndex(groupIdIn: Long, startingPointSortingIndexIn: Long, /* farNewNeighborSortingIndexIn: Long,*/
-                           forwardNotBackIn: Boolean): Option[Long] = {
+                                        forwardNotBackIn: Boolean): Option[Long] = {
     val results = dbQuery("select sorting_index from entitiesinagroup where group_id=" + groupIdIn + " and sorting_index " +
                           (if (forwardNotBackIn) ">" else "<") + startingPointSortingIndexIn +
                           " order by sorting_index " + (if (forwardNotBackIn) "ASC" else "DESC") +
@@ -2538,7 +2600,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val ta: TextAttribute = getTextAttributeByTypeId(textEditorInfoSystemEntity.getId, textEditorCommandNameAttrType.getId, Some(1))(0)
     ta.getText
   }
-  
+
   def getEntitiesFromRelationsToEntity(parentEntityIdIn: Long, nameIn: String, relTypeIdIn: Option[Long] = None,
                                      expectedRows: Option[Int] = None): Array[Entity] = {
     // (not getting all the attributes in this case, and doing another query to the entity table (less efficient), to save programming
@@ -2649,13 +2711,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
     //keeps track of where we are in getting rows >= inStartingObjectIndex and <= maxValsIn
     //    var counter: Long = 0
-//    while ((maxValsIn == 0 || counter - inStartingObjectIndex <= maxValsIn) && tableListIndex < tables.length) {
+    //    while ((maxValsIn == 0 || counter - inStartingObjectIndex <= maxValsIn) && tableListIndex < tables.length) {
     while (tableListIndex < tables.length) {
       val tableName = tables(tableListIndex)
       // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
       //val thisTablesRowCount: Long = extractRowCountFromCountQuery("select count(*) from " + tableName + " where " + whereClausesByTable(tableListIndex))
       //if (thisTablesRowCount > 0 && counter + thisTablesRowCount >= inStartingObjectIndex) {
-        //try {
+      //try {
 
           // Idea: could speed this query up in part? by doing on each query something like:
           //       limit maxValsIn+" offset "+ inStartingObjectIndex-counter;

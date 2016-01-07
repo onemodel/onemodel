@@ -358,18 +358,18 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             val movingRte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
             val targetContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToEntity].getRelatedId2
             require(movingRte.getParentId == entityIn.getId)
-            db.moveRelationToEntity(movingRte.getId, targetContainingEntityId)
+            db.moveRelationToEntity(movingRte.getId, targetContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
           } else if (highlightedAttributeIn.isInstanceOf[RelationToEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             require(targetForMovesIn.get.getFormId == PostgreSQLDatabase.getAttributeFormId("relationtogroup"))
             val targetGroupId = RelationToGroup.createRelationToGroup(db, targetForMovesIn.get.getId).getGroupId
             val rte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
-                  // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
+            // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
             db.moveEntityFromEntityToGroup(rte, targetGroupId, getSortingIndex(entityIn.getId, rte.getFormId, rte.getId))
           } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToEntity]) {
             val movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup]
             val newContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToEntity].getRelatedId2
             require(movingRtg.getParentId == entityIn.getId)
-            db.moveRelationToGroup(movingRtg.getId, newContainingEntityId)
+            db.moveRelationToGroup(movingRtg.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRtg.getFormId, movingRtg.getId))
           } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             ui.displayText("Can't do this: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
                            " other attributes. [1]")
@@ -386,10 +386,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             val newContainingEntityId = containingRelationToEntityIn.get.getRelatedId1
             if (highlightedAttributeIn.isInstanceOf[RelationToEntity]) {
               val movingRte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
-              db.moveRelationToEntity(movingRte.getId, newContainingEntityId)
+              db.moveRelationToEntity(movingRte.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
             } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup]) {
               val movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup]
-              db.moveRelationToGroup(movingRtg.getId, newContainingEntityId)
+              db.moveRelationToGroup(movingRtg.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRtg.getFormId, movingRtg.getId))
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [1]")
           } else if (containingGroupIn.isDefined) {
             require(containingRelationToEntityIn.isEmpty)
@@ -535,8 +535,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         result
       } else if (whichKindAnswer == 8) {
         def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
-          val rtgId: Long = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
-          Some(new RelationToGroup(db, rtgId, dhIn.entityId, dhIn.attrTypeId, dhIn.groupId))
+          require(dhIn.entityId == entityIn.getId)
+          val newRTG: RelationToGroup = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
+          Some(newRTG)
         }
         val result: Option[Attribute] = controller.askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, 0, 0,
                                                                                                                                       None,

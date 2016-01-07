@@ -305,8 +305,9 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   /**
     * @return the new group's id.
     */
-  def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long, validOnDateIn: Option[Long], inObservationDate: Long): Long = {
-    mDB.createRelationToGroup(getId, relTypeIdIn, groupIdIn, validOnDateIn, inObservationDate)
+  def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): RelationToGroup = {
+    val newRtgId = mDB.createRelationToGroup(getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn)
+    new RelationToGroup(mDB, newRtgId, getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn)
   }
 
   var mAlreadyReadData: Boolean = false
