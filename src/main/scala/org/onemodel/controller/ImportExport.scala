@@ -551,6 +551,24 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             printWriter.println("</ul>")
           case textAttr: TextAttribute =>
             printWriter.println("<li><pre>" + htmlEncode(textAttr.getDisplayString(0, None, None, simplify = true)) + "</pre></li>")
+          case fileAttr: FileAttribute =>
+            val originalPath = fileAttr.getOriginalFilePath
+            val fileName = {
+              if (originalPath.indexOf("/") >= 0) originalPath.substring(originalPath.lastIndexOf("/") + 1)
+              else if (originalPath.indexOf("\\") >= 0) originalPath.substring(originalPath.lastIndexOf("\\") + 1)
+              else originalPath
+            }
+            // (The Math.random prevents problems if the same filename is used more than once on an entity:)
+            val file: File = Files.createFile(new File(outputDirectoryIn.toFile, entitysFileNamePrefix + "-" + Math.floor(Math.random() * 1000000) + "-" + fileName).toPath).toFile
+            fileAttr.retrieveContent(file)
+            if (originalPath.toLowerCase.endsWith("png") || originalPath.toLowerCase.endsWith("jpg") || originalPath.toLowerCase.endsWith("jpeg") ||
+                originalPath.toLowerCase.endsWith("gif")) {
+              printWriter.println("<li><img src=\"" + file.getName + "\" alt=\"" + htmlEncode(fileAttr.getDisplayString(0, None, None, simplify = true)) +
+                                  "\"></li>")
+            } else {
+              printWriter.println("<li><a href=\"" + file.getName + "\">" + htmlEncode(fileAttr.getDisplayString(0, None, None, simplify = true)) +
+                                  "</a></li>")
+            }
           case attr: Attribute =>
             printWriter.println("<li>" + htmlEncode(attr.getDisplayString(0, None, None, simplify = true)) + "</li>")
           case unexpected =>
