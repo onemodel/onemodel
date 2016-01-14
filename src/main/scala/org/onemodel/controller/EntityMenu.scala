@@ -106,9 +106,12 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           // doesn't make sense if they're the same (ie move both, into both?, like if user changed the previous highlight on 1st selection to a move
           // target), so change one:
           if (highlightedIndexInObjList.get == 0 && attributeTuples.length > 1) {
-            highlightedIndexInObjList = Some(1)
+            val indexToUseInstead = 1
+            highlightedIndexInObjList = Some(indexToUseInstead)
+            highlightedEntry = Some(attributeTuples(indexToUseInstead)._2)
           } else {
             moveTargetIndexInObjList = None
+            targetForMoves = None
           }
         }
         (highlightedIndexInObjList, highlightedEntry, moveTargetIndexInObjList, targetForMoves)
@@ -212,9 +215,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             } else {
               // those in the condition are 1-based, not 0-based.
               // user typed a letter to select an attribute (now 0-based):
-              val choicesIndex: Int = answer - choices.length - 1
-              val userSelection: Attribute = attributeTuples(choicesIndex)._2
-              if (choicesIndex == highlightedIndexInObjList.get) {
+              val selectionIndex: Int = answer - choices.length - 1
+              val userSelection: Attribute = attributeTuples(selectionIndex)._2
+              if (selectionIndex == highlightedIndexInObjList.get) {
                 // chose same entity for the target, as the existing highlighted selection, so make it the target, and no highlighted one.
                 (None, Some(userSelection))
               } else {
