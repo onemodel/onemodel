@@ -46,9 +46,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         if (answer == 1) {
           // The condition for this (when it was part of EntityMenu) used to include " && !entityIn.isInstanceOf[RelationType]", but maybe it's better w/o that.
           controller.editEntityPublicStatus(entityIn)
-          // reread from db to refresh data for display, like public/non-public status:
-          otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
-                          classDefiningEntityIdIn)
+          Some(entityIn)
         } else if (answer == 2) {
           val importOrExportAnswer = ui.askWhich(None, Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
           if (importOrExportAnswer.isDefined) {
@@ -113,7 +111,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
           // updates user preferences such that this obj will be the one displayed by default in future.
           controller.mPrefs.putLong("first_display_entity", entityIn.getId)
-          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
+          Some(entityIn)
         } else {
           ui.displayText("invalid response")
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)

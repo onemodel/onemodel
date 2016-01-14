@@ -1417,7 +1417,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def askForTextAttributeText(inDH: TextAttributeDataHolder, inEditing: Boolean): Option[TextAttributeDataHolder] = {
     val outDH = inDH.asInstanceOf[TextAttributeDataHolder]
     val defaultValue: Option[String] = if (inEditing) Some(inDH.text) else None
-    val ans = ui.askForString(Some(Array("Type attribute value, then press Enter; ESC to cancel.  (If you need to add or edit multiple lines, just " +
+    val ans = ui.askForString(Some(Array("Type or paste a single-line attribute value, then press Enter; ESC to cancel.  (If you need to add or edit multiple lines, just " +
                                          "put in a single line or letter for now (or leave the multiple lines if already in place), then you can edit " +
                                          "it afterward to add the full text.  But consider if a 'file' attribute " +
                                          "or some other way of modeling the info " +

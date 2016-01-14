@@ -153,6 +153,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                         highlightedIndexInObjList.get, highlightedEntry.get, numDisplayableAttributes,
                                                         relationSourceEntity,
                                                         containingRelationToEntityIn, containingGroupIn)
+        // The 3rd parm highlightedEntry is risky because the move, if to a new entity, has destroyed/recreated it elsewhere: makes sense to use it now only
+        // if it moved within the same entity.  But it seems to move the highlight mark to the first entry in that case, so maybe that's safe at least, for now.
+        // Idea (alr in task list): therefore, could make this more like QuickGroupMenu's call to moveSelectedEntry, which calculates a good value for that.
         entityMenu(entityIn, newStartingDisplayIndex, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 3) {
         // MAKE SURE this next condition always matches the one in "choices(2) = ..." above
@@ -440,8 +443,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         attributes.add(attribute)
         attribute match {
         case relation: RelationToEntity =>
+          val toEntity: Entity = new Entity(db, relation.getRelatedId2)
           val relationType = new RelationType(db, relation.getAttrTypeId)
-          val desc = attribute.getDisplayString(Controller.maxNameLength, Some(new Entity(db, relation.getRelatedId2)), Some(relationType), simplify = true)
+          val desc = attribute.getDisplayString(Controller.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
           val prefix = controller.getEntityContentSizePrefix(relation.getRelatedId2)
           prefix + desc
         case relation: RelationToGroup =>
@@ -469,7 +473,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                         "external file (BUT CONSIDER FIRST ADDING AN ENTITY SPECIFICALLY FOR THE DOCUMENT SO IT CAN HAVE A DATE, OTHER ATTRS ETC.; " +
                         "AND ADDING THE DOCUMENT TO THAT ENTITY, SO IT CAN ALSO BE ASSOCIATED WITH OTHER ENTITIES EASILY!; also, " +
                         "given the concept behind OM, it's probably best" +
-                        " to use this only for historical artifacts, or when you really can't fully model the data right now",
+                        " to use this only for historical artifacts, or when you really can't fully model the data right now)",
 
                         "text attribute (rare: usually prefer relations; but for example: a serial number, which is not subject to arithmetic, or a quote)",
                         "Relation to group (i.e., \"has\" a list/group)",
