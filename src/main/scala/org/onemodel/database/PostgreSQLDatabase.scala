@@ -1611,11 +1611,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def renumberSortingIndexes(entityIdOrGroupIdIn: Long, callerManagesTransactionsIn: Boolean = false, isEntityAttrsNotGroupEntries: Boolean = true) {
     //This used to be called "renumberAttributeSortingIndexes" before it was merged with "renumberGroupSortingIndexes" (very similar).
     val numberOfEntries: Long = {
-      if (isEntityAttrsNotGroupEntries) getAttrCount(entityIdOrGroupIdIn)
+      if (isEntityAttrsNotGroupEntries) getAttrCount(entityIdOrGroupIdIn, includeArchivedEntitiesIn = true)
       else getGroupSize(entityIdOrGroupIdIn)
     }
     if (numberOfEntries != 0) {
-      // (like a number line so + 1, + 1 more (so + 2) in case we use up some room on the line due to "attributeSortingIndexInUse" (below))
+      // (like a number line so + 1, then add 1 more (so + 2) in case we use up some room on the line due to "attributeSortingIndexInUse" (below))
       val numberOfSegments = numberOfEntries + 2
       // ( * 2 on next line, because the minIdValue is negative so there is a larger range to split up, but
       // doing so without exceeding the value of a Long during the calculation.)
@@ -1644,7 +1644,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
             }
           }
           // (make sure a bug didn't cause wraparound w/in the possible the Long values)
-          require(next < maxIdValue && next > previous)
+          require(next < maxIdValue && next > previous, "Requirement failed for values next, maxIdValue, and previous: " + next + ", " + maxIdValue + ", " +
+                                                        previous)
           if (isEntityAttrsNotGroupEntries) {
             val formId: Long = entry(0).get.asInstanceOf[Int]
             val attributeId: Long = entry(1).get.asInstanceOf[Long]
@@ -1705,10 +1706,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getRelationTypeCount: Long = extractRowCountFromCountQuery("select count(1) from RelationType")
 
-  def getAttrCount(entityIdIn: Long): Long = {
+  def getAttrCount(entityIdIn: Long, includeArchivedEntitiesIn: Boolean = false): Long = {
     getQuantityAttributeCount(entityIdIn) +
     getTextAttributeCount(entityIdIn) +
-    getRelationToEntityCount(entityIdIn, includeArchivedEntities = false) +
+    getRelationToEntityCount(entityIdIn, includeArchivedEntitiesIn) +
     getRelationToGroupCountByEntity(Some(entityIdIn)) +
     getDateAttributeCount(entityIdIn) +
     getBooleanAttributeCount(entityIdIn) +

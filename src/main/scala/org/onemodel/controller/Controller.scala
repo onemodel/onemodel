@@ -606,9 +606,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   @tailrec
   final def attributeEditMenu(attributeIn: Attribute): Boolean = {
     val leadingText: Array[String] = Array("Attribute: " + attributeIn.getDisplayString(0, None, None))
-    var firstChoices = Array("Edit the attribute type, content (single line), and valid/observed dates",
+    var firstChoices = Array("Edit the attribute type, " +
+                             (if (canEditAttributeOnSingleLine(attributeIn)) "content (single line)," else "") +
+                             " and valid/observed dates",
+
                              if (attributeIn.isInstanceOf[TextAttribute]) "Edit (as multiline value)" else "(stub)",
-                             "Edit the attribute content (single line)",
+                             if (canEditAttributeOnSingleLine(attributeIn)) "Edit the attribute content (single line)" else "(stub)",
                              "Delete",
                              "Go to entity representing the type: " + new Entity(db, attributeIn.getAttrTypeId).getName)
     if (attributeIn.isInstanceOf[FileAttribute]) {
