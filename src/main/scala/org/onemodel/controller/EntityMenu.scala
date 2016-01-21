@@ -316,34 +316,34 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       require(relationSourceEntityIn.get.getId == containingRelationToEntityIn.get.getParentId)
     }
     val choices = Array[String](// (see comments at similar location in same-named method of QuickGroupMenu.)
+                                "Move up 25",
                                 "Move up 5", "Move up 1", "Move down 1", "Move down 5",
+                                "Move down 25",
 
                                 if (targetForMovesIn.isDefined) "Move (*) to selected target (+, if any)"
                                 else "(stub: have to choose a target before you can move entries to it)",
 
-                                "Move (*) to calling menu (up one)",
-                                "Move up 25",
-                                "Move down 25")
+                                "Move (*) to calling menu (up one)")
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn))
     if (response.isEmpty) startingDisplayRowIndexIn
     else {
       val answer = response.get
       var numRowsToMove = 0
       var forwardNotBack = false
-      if ((answer >= 1 && answer <= 4) || (answer >= 7 && answer <= 8)) {
+      if (answer >= 1 && answer <= 6) {
         if (answer == 1) {
-          numRowsToMove = 5
+          numRowsToMove = 20
         } else if (answer == 2) {
-          numRowsToMove = 1
+          numRowsToMove = 5
         } else if (answer == 3) {
           numRowsToMove = 1
-          forwardNotBack = true
         } else if (answer == 4) {
+          numRowsToMove = 1
+          forwardNotBack = true
+        } else if (answer == 5) {
           numRowsToMove = 5
           forwardNotBack = true
-        } else if (answer == 7) {
-          numRowsToMove = 20
-        } else if (answer == 8) {
+        } else if (answer == 6) {
           numRowsToMove = 20
           forwardNotBack = true
         }
@@ -354,7 +354,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                                  numObjectsToDisplayIn, highlightedAttributeIn.getFormId,
                                                                  Some(highlightedAttributeIn.getFormId))
         displayStartingRowNumber
-      } else if (answer == 5 && targetForMovesIn.isDefined) {
+      } else if (answer == 7 && targetForMovesIn.isDefined) {
         if (! ((highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup]) &&
                 (targetForMovesIn.get.isInstanceOf[RelationToEntity] || targetForMovesIn.get.isInstanceOf[RelationToGroup]))) {
           ui.displayText("Currently, you can only move an Entity or a Group, to an Entity or a Group.  Moving thus is not yet implemented for other " +
@@ -382,7 +382,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           }
         }
         startingDisplayRowIndexIn
-      } else if (answer == 6) {
+      } else if (answer == 8) {
         if (! (highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup])) {
           ui.displayText("Currently, you can only move an Entity or a Group, *to* an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [2]")

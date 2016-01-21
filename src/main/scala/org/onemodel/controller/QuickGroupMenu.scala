@@ -86,14 +86,14 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
     val choices = Array[String](// these are ordered for convenience in doing them w/ the left hand: by frequency of use, and what seems easiest to remember
                                 // for common operations with the 4 fingers sitting on the '1234' keys.  Using LH more in this because my RH gets tired more,
                                 // and it seems like often people have their RH on the mouse.
+                                "Move up 25",
                                 "Move up 5", "Move up 1", "Move down 1", "Move down 5",
+                                "Move down 25",
 
                                 if (targetForMovesIn.isDefined) "Move (*) to (sole, if present) subgroup of selected target (+, if any)"
                                 else "(stub: have to choose a target before you can move entries to it)",
 
-                                "Move (*) to calling menu (up one)",
-                                "Move up 25",
-                                "Move down 25"
+                                "Move (*) to calling menu (up one)"
                                 // idea: make an option #9 here which is a "quick archive"? (for removing completed tasks: maybe only after showing
                                 // archived things and "undo" works well, or use 9 for the 'cut' part of a logical 'cut/paste' operation to move something?)
                                )
@@ -106,20 +106,20 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
       var numRowsToMove = 0
       var forwardNotBack = false
 
-      if ((answer >= 1 && answer <= 4) || (answer >= 7 && answer <= 8)) {
+      if (answer >= 1 && answer <= 6) {
         if (answer == 1) {
-          numRowsToMove = 5
+          numRowsToMove = 20
         } else if (answer == 2) {
-          numRowsToMove = 1
+          numRowsToMove = 5
         } else if (answer == 3) {
           numRowsToMove = 1
-          forwardNotBack = true
         } else if (answer == 4) {
+          numRowsToMove = 1
+          forwardNotBack = true
+        } else if (answer == 5) {
           numRowsToMove = 5
           forwardNotBack = true
-        } else if (answer == 7) {
-          numRowsToMove = 20
-        } else if (answer == 8) {
+        } else if (answer == 6) {
           numRowsToMove = 20
           forwardNotBack = true
         }
@@ -127,7 +127,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                                                  highlightedObjId, highlightedIndexInObjListIn, Some(highlightedObjId),
                                                                  objectsToDisplay.size, -1, Some(-1))
         quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
-      } else if (answer == 5 && targetForMovesIn.isDefined) {
+      } else if (answer == 7 && targetForMovesIn.isDefined) {
         val targetRtgCount: Long = db.getRelationToGroupCountByEntity(Some(targetForMovesIn.get.getId))
         if (moveTargetIndexInObjList.isEmpty) {
           ui.displayText("Target must be selected (shows '+').")
@@ -162,7 +162,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
             }
           }
         }
-      } else if (answer == 6) {
+      } else if (answer == 8) {
         // if there is 1 (provided or guessable) destination), then move it there
         val (targetGroupId: Option[Long], targetEntity: Option[Entity]) = {
           // see whether will be moving it to an entity or a group, if anywhere.
