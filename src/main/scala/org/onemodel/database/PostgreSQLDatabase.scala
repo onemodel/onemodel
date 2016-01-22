@@ -2466,14 +2466,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
     else inMaxVals.get.toString
   }
 
-  def getGroupEntriesData(groupIdIn: Long, limitIn: Option[Long] = None): List[Array[Option[Any]]] = {
-    val results = dbQuery(// LIKE THE OTHER 3 BELOW SIMILAR METHODS:
-                          // Need to make sure it gets the desired rows, rather than just some, so the order etc matters at each step, probably.
-                          // idea: needs automated tests (in task list also).
-                          "select eiag.entity_id, eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id" +
-                          " and eiag.group_id=" + groupIdIn +
-                          " order by eiag.sorting_index, eiag.entity_id limit " + checkIfShouldBeAllResults(limitIn),
-                          "Long,Long")
+  def getGroupEntriesData(groupIdIn: Long, limitIn: Option[Long] = None, includeArchivedEntitiesIn: Boolean = true): List[Array[Option[Any]]] = {
+    // LIKE THE OTHER 3 BELOW SIMILAR METHODS:
+    // Need to make sure it gets the desired rows, rather than just some, so the order etc matters at each step, probably.
+    // idea: needs automated tests (in task list also).
+    var sql: String = "select eiag.entity_id, eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id" +
+                          " and eiag.group_id=" + groupIdIn
+    if (!includeArchivedEntitiesIn) sql += " and (not e.archived)"
+    sql += " order by eiag.sorting_index, eiag.entity_id limit " + checkIfShouldBeAllResults(limitIn)
+    val results = dbQuery(sql, "Long,Long")
     results
   }
 

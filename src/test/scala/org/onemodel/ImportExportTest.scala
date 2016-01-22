@@ -14,7 +14,7 @@ import java.nio.file.{Files, Path}
 
 import org.onemodel.controller.{ImportExport, Controller}
 import org.onemodel.database.PostgreSQLDatabase
-import org.onemodel.model.Entity
+import org.onemodel.model.{Attribute, Entity}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Args, FlatSpec, Status}
 
@@ -66,12 +66,12 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     assert(ids.get.nonEmpty)
     val entityId: Long = ids.get.head
     val startingEntity: Entity = new Entity(mDB, entityId)
-    val exportedEntities = new mutable.TreeSet[Long]()
+    val exportedEntitiesAndAttrs = new mutable.HashMap[Long, (Entity, Option[Array[(Long, Attribute)]])]()
     val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
     val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
     val uriClassId: Long = mDB.getOrCreateClassAndDefiningEntityIds("URI", callerManagesTransactionsIn = true)._1
     val quoteClassId = mDB.getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn = true)._1
-    mImportExport.exportHtml(startingEntity, levelsToExportIsInfinite = true, 0, outputDirectory, exportedEntities, mutable.TreeSet[Long](), uriClassId,
+    mImportExport.exportHtml(startingEntity, levelsToExportIsInfinite = true, 0, outputDirectory, exportedEntitiesAndAttrs, mutable.TreeSet[Long](), uriClassId,
                              quoteClassId, includePublicData = true, includeNonPublicData = true, includeUnspecifiedData = true,
                              Some("2015 thisisatestpersonname"))
 
