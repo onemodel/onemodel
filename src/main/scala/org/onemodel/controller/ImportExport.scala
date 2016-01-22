@@ -558,9 +558,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               else if (originalPath.indexOf("\\") >= 0) originalPath.substring(originalPath.lastIndexOf("\\") + 1)
               else originalPath
             }
-            // (The Math.random prevents problems if the same filename is used more than once on an entity:)
-            val file: File = Files.createFile(new File(outputDirectoryIn.toFile, entitysFileNamePrefix + "-" + Math.floor(Math.random() * 1000000) +
-                                                                                 "-" + fileName).toPath).toFile
+            // (The use of the attribute id prevents problems if the same filename is used more than once on an entity:)
+            val file: File = Files.createFile(new File(outputDirectoryIn.toFile, entitysFileNamePrefix + "-" + fileAttr.getId + "-" + fileName).toPath).toFile
             fileAttr.retrieveContent(file)
             if (originalPath.toLowerCase.endsWith("png") || originalPath.toLowerCase.endsWith("jpg") || originalPath.toLowerCase.endsWith("jpeg") ||
                 originalPath.toLowerCase.endsWith("gif")) {
