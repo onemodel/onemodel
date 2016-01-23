@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -67,17 +67,18 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val entityId: Long = ids.get.head
     val startingEntity: Entity = new Entity(mDB, entityId)
 
-    // see comments in ImportExport.export() method for explanation of these 3
+    // see comments in ImportExport.export() method for explanation of the next few lines:
     val exportedEntityIds = new mutable.TreeSet[Long]
     val cachedEntities = new mutable.HashMap[Long, Entity]
     val cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]]
+    val cachedGroupInfo = new mutable.HashMap[Long, Array[Long]]
 
     val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
     val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
     val uriClassId: Long = mDB.getOrCreateClassAndDefiningEntityIds("URI", callerManagesTransactionsIn = true)._1
     val quoteClassId = mDB.getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn = true)._1
     mImportExport.exportHtml(startingEntity, levelsToExportIsInfinite = true, 0, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
-                             mutable.TreeSet[Long](), uriClassId, quoteClassId, includePublicData = true, includeNonPublicData = true,
+                             cachedGroupInfo, mutable.TreeSet[Long](), uriClassId, quoteClassId, includePublicData = true, includeNonPublicData = true,
                              includeUnspecifiedData = true, Some("2015 thisisatestpersonname"))
 
     assert(outputDirectory.toFile.exists)
