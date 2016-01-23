@@ -43,34 +43,37 @@ between the lines and fill in your name, in this "OM contributor statement":
     under which the project is generally made available at that time, and also
     thereby grants back to me non-exclusive,
     royalty-free and non-cancellable rights to the work (i.e., this work, 
-    changes or enhancements, not the program that they enhance),
+    changes or enhancements, not the program that they enhance), to do 
     as I see fit.  I understand that Luke A. Call may assign rights to other 
     entities or release this work under other
     licenses in the future, as seems to him best for the good of this project 
     and humankind as a whole.
     Any other future submissions or contributions of work to Luke A. Call for 
-    use in the OneModel project are under these same terms.  
+    use in the OneModel project will be under these same terms.  
 
     I may revoke this agreement by so stating in an email message (or 
     certified mail) to which I receive a reply or receipt, but 
     only with respect to work submitted after that time.  Luke A. Call 
     may revoke his participation in this agreement simply by removing 
     the work or contribution in question from use by the OneModel project, 
-    and/or by replacing it with other material.  After any such 
-    revocation, I will assert no patent claims against the OneModel project or 
-    Luke A. Call, even if similar code is subsequently added.
+    and/or by replacing it with other material.  After any revocation of this
+    agreement, I will assert no related patent claims against the OneModel 
+    project or Luke A. Call, even if similar code is subsequently added.
 
     Any legal contest around this agreement will be decided in and per the 
     laws of the State of Utah, or in a jurisdiction chosen at Luke
     A. Call's discretion.  If a court declares any part of this agreement 
-    invalid or ineffective, the remaining parts will remain in force.  
+    invalid or ineffective, the remaining parts may remain in force at Luke A.
+    Call's discretion.  
 
-    By incorporating the contribution Luke A. Call also agrees that, if he dies
+    By incorporating the contribution Luke A. Call also agrees that: if he dies
     or becomes permanently incapacitated, and a new GNU AGPL is released by the
-    Free Software Foundation, and he does not publicly state his position on the new
-    GNU AGPL within a year, then the project's source code will automatically
-    fall under that latest version of the GNU AGPL, assuming it 
-    agrees in spirit with the GNU AGPL version 3 from the Free Software Foundation.
+    Free Software Foundation, and neither he nor his successors or assigns 
+    openly state his or their position on the new GNU AGPL within a year (in a 
+    OneModel mailing list or similarly related and prominent forum), then the 
+    project's source code will automatically fall under that new version 
+    of the GNU AGPL, assuming it agrees in spirit with the GNU AGPL 
+    version 3 from the Free Software Foundation.
     --------------------------------------------------------------------
 
 
