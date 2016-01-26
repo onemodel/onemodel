@@ -13,6 +13,9 @@ have received a copy of the GNU Affero General Public License along
 with OneModel.  If not, see <http://www.gnu.org/licenses/>
 --------------------------------------------------------------------------------
 
+This file has details. For simpler instructions see
+http://onemodel.org/1/e-9223372036854624134.html .
+
 Compiling, Installing and Running OneModel
 ======================================================
 
@@ -37,7 +40,7 @@ Compiling before installing is optional, but developers should have java
 & maven.
 
 First you'll need a java SDK, like openJdk 1.7.  Then install maven (mvn).
-These versions are known to work, on debian stable (wheezy or jessie)
+These versions are known to work, on debian 7 (wheezy) or 8 (jessie)
 as of 2015-12:
     Apache Maven 3.0.4 or 3.0.5.
     Java version: OpenJDK 1.7.0_65 or 1.7.0_91.
@@ -131,14 +134,13 @@ local	om_testrunner	testrunner    password
 INITIAL POSTGRES CONFIGURATION UNDER OPENBSD, tested with 5.7 and 5.8:
 (Corrections solicited as with everything here, but doing this with
 OpenBSD seemed more complicated.)
-As root, run commands one at a time (not as a script):
-  chpass -s bash _postgresql  #Optional.
+As root, run commands one at a time (not as a script), reading each line fully first:
+  chpass -s bash _postgresql  #Optional, for if you want that user to use bash. (You have to install bash first w/ "pkg_add bash", of course.)
   mkdir -p /var/log/postgresql
   chown -R _postgresql:_postgresql /var/log/postgresql
   /usr/bin/su - _postgresql
   echo 'umask 0077' >> .profile
-  echo 'export PS1="**\u** @\h \d \t:\w#"' >> .profile	#Optional.
-  exit
+  exit # to let the umask change take effect
   /usr/bin/su - _postgresql
   mkdir -p  /var/postgresql/9.4/main #BUT CHANGE THE '9.4' FOR your version of postgres!
   echo "check permissions on those new directories: probably don't want group or world access.)";read
@@ -155,7 +157,7 @@ local	om_<username>	<username>	  md5
 host	om_testrunner	testrunner    127.0.0.1/32    password
 local	om_testrunner	testrunner	password
 
-  (I also cmted out the lines starting with things like:
+  (I also commented out the lines starting with things like:
   @remove-line-for-nolocal@, AND another @ (so none left, until i
   understand that better: SHOULD READ THRU THE NOTES TO SEE IF STILL
   DOING IT RIGHT ALL THRU? WHAT ARE THE @ ONES FOR, WHICH VER STARTED
@@ -187,7 +189,7 @@ local	om_testrunner	testrunner	password
   or when run as root it also failed saying it should have been run as
   the _postgresql user.)
 
-  If & when needed, you can stop postgresql by running a command like
+  If ever needed, you can stop postgresql by running a command like
   this as root:
     sudo -u _postgresql /usr/local/bin/pg_ctl status -D /var/postgresql/9.4/main
 
