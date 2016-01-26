@@ -58,7 +58,7 @@ cp target/onemodel*jar ../om-website/download/
 ls -ltr ../om-website/download/
 echo "Update the web site now to point to the new .jar, & press Enter when that is done...";read
 
-read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (omitting '-SNAPSHOT'): " 
+read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (i.e., +1!!; omitting '-SNAPSHOT'): " 
 NEW_SNAPSHOT_VERSION=${NEW_SNAPSHOT_VERSION}-SNAPSHOT
 CHECK_FOR="ERROR|WARNING"
 maven versions:set -DnewVersion=$NEW_SNAPSHOT_VERSION
@@ -77,5 +77,5 @@ git commit -m "Begin new version: $NEW_SNAPSHOT_VERSION"
 # but ignore some warnings on this one for now
 CHECK_FOR="ERROR"
 maven clean
-c
+ca
 
