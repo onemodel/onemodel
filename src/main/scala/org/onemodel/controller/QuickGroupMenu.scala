@@ -90,8 +90,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                 "Move up 5", "Move up 1", "Move down 1", "Move down 5",
                                 "Move down 25",
 
-                                if (targetForMovesIn.isDefined) "Move (*) to (sole, if present) subgroup of selected target (+, if any)"
-                                else "(stub: have to choose a target before you can move entries to it)",
+                                if (targetForMovesIn.isDefined) "Move (*) to selected target (+, if any)"
+                                else "(stub: have to choose a target before you can move entries into it)",
 
                                 "Move (*) to calling menu (up one)"
                                 // idea: make an option #9 here which is a "quick archive"? (for removing completed tasks: maybe only after showing

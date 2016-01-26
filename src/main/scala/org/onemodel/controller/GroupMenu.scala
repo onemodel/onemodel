@@ -206,7 +206,11 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
   def confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup], callingMenusRtgIn: Option[RelationToGroup],
                                     containingEntityIn: Option[Entity], groupIn: Group, groupDescrIn: String, numEntitiesInGroupIn: Long,
                                     response: Option[Int]): Option[Entity] = {
-    var choices: Array[String] = Array("Delete group definition & remove from all relationships where it is found",
+    val numNonArchivedEntitiesInGroup: Long = db.getGroupSize(relationToGroupIn.get.getGroupId, Some(false))
+    val numArchived = numEntitiesInGroupIn - numNonArchivedEntitiesInGroup
+    var choices: Array[String] = Array("Delete group definition & remove from all relationships where it is found?" +
+                                         " (it contains " + numEntitiesInGroupIn + " entities, including " + numArchived + " archived):",
+
                                        "Delete group definition & remove from all relationships where it is found, AND delete all entities in it?")
     if (containingEntityIn.isDefined && relationToGroupIn.isDefined) {
       choices = choices :+ "Delete the link between the containing entity \"" + containingEntityIn.get.getName + "\", and this group?: " +

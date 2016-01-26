@@ -321,7 +321,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                 "Move down 25",
 
                                 if (targetForMovesIn.isDefined) "Move (*) to selected target (+, if any)"
-                                else "(stub: have to choose a target before you can move entries to it)",
+                                else "(stub: have to choose a target before you can move entries into it)",
 
                                 "Move (*) to calling menu (up one)")
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn))
@@ -473,8 +473,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                         "date",
                         "true/false value",
 
-                        "external file (BUT CONSIDER FIRST ADDING AN ENTITY SPECIFICALLY FOR THE DOCUMENT SO IT CAN HAVE A DATE, OTHER ATTRS ETC.; " +
-                        "AND ADDING THE DOCUMENT TO THAT ENTITY, SO IT CAN ALSO BE ASSOCIATED WITH OTHER ENTITIES EASILY!; also, " +
+                        "external file (to be captured in OM; BUT CONSIDER FIRST ADDING AN ENTITY SPECIFICALLY FOR THE DOCUMENT SO IT CAN HAVE A DATE, " +
+                        "OTHER ATTRS ETC.; AND ADDING THE DOCUMENT TO THAT ENTITY, SO IT CAN ALSO BE ASSOCIATED WITH OTHER ENTITIES EASILY!; also, " +
                         "given the concept behind OM, it's probably best" +
                         " to use this only for historical artifacts, or when you really can't fully model the data right now)",
 
