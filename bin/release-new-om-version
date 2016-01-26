@@ -47,13 +47,16 @@ git commit -m "Release version $RELEASE_VERSION"
 cpomjar-savbkup PAID
 
 # also build the free version
-patch -p1<other-tracked/makeFreeVersion.diff 
+patch --ignore-whitespace --verbose -p1<other-tracked/makeFreeVersion.diff || true
 echo "did the patch apply cleanly so it will build cleanly?";read
 maven package
 echo "did the free version build cleanly? want to test export & the main menu searches, to confirm it works as expected? Press Enter when ready to drop the changes.";read
 git stash save "building free version"
 git stash drop
 cpomjar-savbkup FREE
+cp target/onemodel*jar ../om-website/download/
+ls -ltr ../om-website/download/
+echo "Update the web site now to point to the new .jar, & press Enter when that is done...";read
 
 read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (omitting '-SNAPSHOT'): " 
 NEW_SNAPSHOT_VERSION=${NEW_SNAPSHOT_VERSION}-SNAPSHOT
