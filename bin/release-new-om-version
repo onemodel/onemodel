@@ -56,7 +56,7 @@ git stash drop
 cpomjar-savbkup FREE
 cp target/onemodel*jar ../om-website/download/
 ls -ltr ../om-website/download/
-echo "Update the web site now to point to the new .jar, & press Enter when that is done...";read
+echo "Might want to finish this sync now so any new jar gets there first, THEN update the web site now to point to the new .jar & sync again.";read
 
 read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (i.e., +1!!; omitting '-SNAPSHOT'): " 
 NEW_SNAPSHOT_VERSION=${NEW_SNAPSHOT_VERSION}-SNAPSHOT
