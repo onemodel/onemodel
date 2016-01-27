@@ -14,7 +14,7 @@
   <groupId>org.onemodel</groupId>
   <artifactId>onemodel</artifactId>
   <packaging>jar</packaging>
-  <version>0.0.7-SNAPSHOT</version>
+  <version>0.0.7</version>
   <name>OneModel CLI</name>
   <url>http://www.onemodel.org</url>
   <licenses>
