@@ -141,9 +141,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   // date stuff
   val VALID = "valid"
   val OBSERVED = "observed"
-  val genericDatePrompt: String = "Please enter the date (like this, w/ at least the year \"2013-01-31 23:59:59:999 MDT\"; zeros are " +
-                                  "allowed in all but the yyyy-mm-dd).  Or press Enter (blank) for \"now\"; ESC to exit.  \"BC\" or \"AD\" prefix allowed " +
-                                  "(before the year, with no space)."
+  val genericDatePrompt: String = "Please enter the date (Press Enter (blank) for \"now\", " +
+                                  "or like this, w/ at least the year \"2013-01-31 23:59:59:999 MDT\"; zeros are " +
+                                  "allowed in all but the yyyy-mm-dd)." +
+                                  //THIS LINE CAN BE PUT BACK AFTER the bug is fixed so ESC really works.  See similar cmt elsewhere; tracked in tasks:
+                                  //"  Or ESC to exit.  " +
+                                  "\"BC\" or \"AD\" prefix allowed (before the year, with no space)."
   val tooLongMessage = "value too long for type"
 
   // ****** MAKE SURE THE NEXT 2 LINES MATCH THE FORMAT of the STRING ABOVE, AND THE USER EXAMPLES IN THIS CLASS' OUTPUT! ******
@@ -568,7 +571,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     else Some(directionality.get.toUpperCase)
   }
 
-  val quantityDescription: String = "SELECT TYPE OF QUANTITY (type is length or volume, but not the measurement unit); ESC or leave both blank to cancel; " +
+  val quantityDescription: String = "SELECT TYPE OF QUANTITY (type is like length or volume, but not the measurement unit); ESC or leave both blank to cancel; " +
                                     "cancel if you need to create the needed type before selecting): "
   val textDescription: String = "TEXT (e.g., serial #)"
 
@@ -1391,7 +1394,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   /** Returns None if user wants to cancel. */
   def askForQuantityAttributeNumberAndUnit(inDH: QuantityAttributeDataHolder, inEditing: Boolean): Option[QuantityAttributeDataHolder] = {
     val outDH: QuantityAttributeDataHolder = inDH
-    val leadingText: List[String] = List("SELECT A UNIT FOR THIS QUANTITY (i.e., centimeters, or quarts; ESC or blank to cancel):")
+    val leadingText: List[String] = List("SELECT A *UNIT* FOR THIS QUANTITY (i.e., centimeters, or quarts; ESC or blank to cancel):")
     val previousSelectionDesc = if (inEditing) Some(new Entity(db, inDH.unitId).getName) else None
     val previousSelectionId = if (inEditing) Some(inDH.unitId) else None
     val unitSelection = chooseOrCreateObject(Some(leadingText), previousSelectionDesc, previousSelectionId, Controller.QUANTITY_TYPE)
@@ -1698,20 +1701,26 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     @tailrec def askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean): (Option[Long], Boolean) = {
       val leadingText: Array[String] =
         if (dateTypeIn == VALID) {
-          Array("\nPlease enter the date when this was first VALID (true) (like this, w/ at least the year: \"2013-01-31 23:59:59:999 MST\"; zeros are " +
-                "allowed in all but the yyyy-mm-dd):  (Or for \"all time\", enter just 0.  Or for unknown/unspecified leave blank.  Or for current date/time " +
-                "enter \"now\".  ESC to exit this.  For dates far in the past you can prefix them with \"BC \" (or \"AD \", but either way omit a space " +
-                "before the year), like BC3400-01-31 23:59:59:999 GMT, entered at least up through the year, up to ~292000000 years AD or BC.  " +
-                "There is ambiguity about BC that needs some " +
-                "investigation, because java allows a '0' year (which for now means 'for all time' in just this program), but normal human time doesn't " +
-                "allow a '0' year, so maybe you have to subtract a year from all BC things for them to work right, and enter/read them accordingly, until " +
-                "someone learns for sure, and we decide whether to subtract a year from everything BC for you automatically. Hm. *OR* maybe dates in year " +
-                "zero " +
-                "just don't mean anything so can be ignored by users, and all other dates' entry are just fine, so there's nothing to do but use it as is? " +
-                "But that would have to be kept in mind if doing any relative date calculations in the program, e.g. # of years, spanning 0.)" + TextUI.NEWLN +
-                "Also, real events with more " +
-                "specific time-tracking needs will probably need to model their own time-related entity classes, and establish relations to them, within " +
-                "their use of OM.")
+          Array("\nPlease enter the date when this was first VALID (i.e., true) (Press Enter (blank) for unknown/unspecified, or " +
+                "like this, w/ at least the year: \"2002\", \"2000-1-31\", or" +
+                " \"2013-01-31 23:59:59:999 MST\"; zeros are " +
+                "allowed in all but the yyyy-mm-dd.  Or for current date/time " +
+                "enter \"now\".  " +
+//                "ESC to exit this.  " + //THIS LINE CAN BE PUT BACK AFTER the bug is fixed so ESC really works.  See similar cmt elsewhere; tracked in tasks.
+                "For dates far in the past you can prefix them with \"BC\" (or \"AD\", but either way omit a space " +
+                "before the year), like BC3400-01-31 23:59:59:999 GMT, entered at least up through the year, up to ~292000000 years AD or BC.")
+          //IDEA: I had thought to say:  "Or for "all time", enter just 0.  ", BUT (while this is probably solved, it's not until the later part of
+                // this comment):
+//                "There is ambiguity about BC that needs some " +
+//                "investigation, because java allows a '0' year (which for now means 'for all time' in just this program), but normal human time doesn't " +
+//                "allow a '0' year, so maybe you have to subtract a year from all BC things for them to work right, and enter/read them accordingly, until " +
+//                "someone learns for sure, and we decide whether to subtract a year from everything BC for you automatically. Hm. *OR* maybe dates in year " +
+//                "zero " +
+//                "just don't mean anything so can be ignored by users, and all other dates' entry are just fine, so there's nothing to do but use it as is? " +
+//                "But that would have to be kept in mind if doing any relative date calculations in the program, e.g. # of years, spanning 0.)" + TextUI.NEWLN +
+//                "Also, real events with more " +
+//                "specific time-tracking needs will probably need to model their own time-related entity classes, and establish relations to them, within " +
+//                "their use of OM.")
           //ABOUT THAT LAST COMMENT: WHY DOES JAVA ALLOW A 0 YEAR, UNLESS ONLY BECAUSE IT USES long #'S? SEE E.G.
           // http://www.msevans.com/calendar/daysbetweendatesapplet.php
           //which says: "...[java?] uses a year 0, which is really 1 B.C. For B.C. dates, you have to remember that the years are off by one--10 B.C.
@@ -1719,8 +1728,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // Or, just let the dates go in & out of the data, interpreted just as they are now, but the savvy users will recognize that dates in year zero just
           // don't mean anything, thus the long values in that range don't mean anything so can be disregarded (is that how it really works in java??), (or if
           // so we could inform users when such a date is present, that it's bogus and to use 1 instead)?
+          // **SO:** it is already in the task list to have a separate flag in the database for "all time".
         } else if (dateTypeIn == OBSERVED) {
-          Array("\nWHEN OBSERVED?: " + genericDatePrompt + " (\"All time\" and \"unknown\" not" + " allowed here.) ")
+          Array("\nWHEN OBSERVED?: " + genericDatePrompt + /*" (\"All time\" and*/" \"unknown\" not" + " allowed here.) ")
         } else throw new Exception("unexpected type: " + dateTypeIn)
       val ans = ui.askForString(Some(leadingText), None,
                                 inDefaultValue =
