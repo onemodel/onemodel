@@ -93,7 +93,7 @@ There are additional steps to be performed from a command prompt:
 
 INITIAL POSTGRES CONFIGURATION UNDER LINUX:
 - Become the root user (i.e., run "/bin/su -" and enter the root
-password), then edit the file
+password), then make a backup copy of and edit the file
     /etc/postgresql/9.4/main/pg_hba.conf
   (or its equivalent on your system).
 
@@ -142,28 +142,22 @@ As root, run commands one at a time (not as a script), reading each line fully f
   echo 'umask 0077' >> .profile
   exit # to let the umask change take effect
   /usr/bin/su - _postgresql
-  mkdir -p  /var/postgresql/9.4/main #BUT CHANGE THE '9.4' FOR your version of postgres!
+  mkdir -p  /var/postgresql/9.4/main #BUT CHANGE THE '9.4' FOR your version of postgres! For example, no need to change if you have 9.4.4, but do change if you have 9.5, to say "9.5" instead of "9.4".
   echo "check permissions on those new directories: probably don't want group or world access.)";read
   cd 9.4/main  #BUT CHANGE THE '9.4' FOR your version of postgres!
   /usr/local/bin/initdb --pgdata /var/postgresql/9.4/main/ #BUT CHANGE THE '9.4' FOR your version of postgres!
-  cp /usr/local/share/postgresql/pg_hba.conf.sample pg_hba.conf
-  chmod +w pg_hba.conf
+  cp -p pg_hba.conf pg_hba.conf-original
 
-  Then edit the file pg_hba.conf and put these lines at the end,
-  substituting your username for the 4 instances of <username>:
-local	all		_postgresql				   peer
+Then edit the file pg_hba.conf. Comment out all lines that are not already
+commented out (there were 3), and put these 5 lines at the end, substituting
+your username (the user that will use OM) for the 4 instances of <username>:
+
+local	all		_postgresql	 peer
 host	om_<username>	<username>    127.0.0.1/32    md5
 local	om_<username>	<username>	  md5
 host	om_testrunner	testrunner    127.0.0.1/32    password
 local	om_testrunner	testrunner	password
 
-  (I also commented out the lines starting with things like:
-  @remove-line-for-nolocal@, AND another @ (so none left, until i
-  understand that better: SHOULD READ THRU THE NOTES TO SEE IF STILL
-  DOING IT RIGHT ALL THRU? WHAT ARE THE @ ONES FOR, WHICH VER STARTED
-  THEM, AND ARE THEY USEFUL TO ME? AT LEAST NOTE SMTHG TO BE AWARE OF
-  THEM SO DONT HAVE2LOOK IT UP IN FUTURE..?
-    ...so that only the ones I added from the above, were left.
   Make sure those 5 are the only un-commented lines, or that you
   understand the others and what they do & whether you want that.
 

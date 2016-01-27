@@ -135,6 +135,9 @@ KEEP IN MIND:
 DETAILS AND EXPLANATION ON COPYRIGHT ASSIGNMENT:
 - The FSF also requires copyright assignment, and their process is more
   detailed than this (more below).
+- ESR hints at it:
+  http://en.tldp.org/HOWTO/Software-Release-Practice-HOWTO/licensetheory.html
+  http://en.tldp.org/HOWTO/Software-Release-Practice-HOWTO/licensepractice.html
 - The single biggest reason is to maintain
   the ability to make changes or manage the rights in the ways that
   make this project have the most benefit to mankind.  For viability,

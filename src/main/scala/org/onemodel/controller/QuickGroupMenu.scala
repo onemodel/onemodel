@@ -531,15 +531,9 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
   private def useSubgroup(highlightedEntry: Entity): (Long, Option[Boolean]) = {
     val targetRtgCount: Long = db.getRelationToGroupCountByEntity(Some(highlightedEntry.getId))
     val defaultToUsingSubgroup: Option[Boolean] = {
-      // (This question is experimental, to see if my usage of OM can move away from mostly using groups, to using just entities and attributes,
-      // but still as efficiently. I.e., leaning toward 'modeling' data rather than just collapsible outlines.)  If it's a nuisance (ie, if most users
-      // want OM to just create the subgroup without asking, never just adding an entity to an entity in a group) the question can be removed
-      // and logic treated as if it were always Some(true). Or, logic could be treated as if it were always Some(false), so that subgroups can be
-      // added only when that is what the user really wants (by going to the entity and adding the RelationToGroup attribute).  It depends on
-      // which behavior should be encouraged.
       if (targetRtgCount == 0) {
-        ui.askYesNoQuestion("Create a new subgroup on this entity first, putting the new entity in the new subgroup? "
-                            + "(answering \"n\" means just add it as a relationToEntity inside the selected entry", Some("n"), allowBlankAnswer = true)
+        // the user could create one manually if desired; another idea is in the commit where I added this line, in a removed comment/code.
+        Some(false)
       } else if (targetRtgCount == 1) {
         Some(true)
       } else {
