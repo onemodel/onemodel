@@ -646,8 +646,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         case ta: TextAttribute => controller.attributeEditMenu(ta)
         case relToEntity: RelationToEntity =>
           entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
-          if (!db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false)) true
-          else false
+          val wasRemoved: Boolean = !db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId)
+          wasRemoved
         case relToGroup: RelationToGroup =>
           new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup), containingEntityIn = Some(entityIn))
           if (!db.groupKeyExists(relToGroup.getGroupId)) true
