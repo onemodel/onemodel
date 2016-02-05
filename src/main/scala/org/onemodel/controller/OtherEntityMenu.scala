@@ -16,12 +16,13 @@ import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model._
 
 /** This is simply to hold less-used operations so the main EntityMenu can be the most-used stuff.
+  * @return True if the entity was deleted, archived, or removed from containing entity or group, or false if still available for viewing.
   */
 class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
 
   def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
                       containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
-                      classDefiningEntityIdIn: Option[Long]): Option[Entity] = {
+                      classDefiningEntityIdIn: Option[Long]): Boolean = {
     try {
       require(entityIn != null)
       val leadingText = Array[String]{"**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString}
@@ -40,13 +41,13 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       } else choices = choices :+ "(stub)"
 
       val response = ui.askWhich(Some(leadingText), choices)
-      if (response.isEmpty) None
+      if (response.isEmpty) false
       else {
         val answer = response.get
         if (answer == 1) {
           // The condition for this (when it was part of EntityMenu) used to include " && !entityIn.isInstanceOf[RelationType]", but maybe it's better w/o that.
           controller.editEntityPublicStatus(entityIn)
-          Some(entityIn)
+          false
         } else if (answer == 2) {
           val importOrExportAnswer = ui.askWhich(None, Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
           if (importOrExportAnswer.isDefined) {
@@ -76,42 +77,42 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             val answer = delOrArchiveAnswer.get
             if (answer == 1 || answer == 2) {
               val thisEntityWasDeletedOrArchived = controller.deleteOrArchiveEntity(entityIn, answer == 1)
-              if (thisEntityWasDeletedOrArchived) None
-              else Some(entityIn)
+              thisEntityWasDeletedOrArchived
             } else if (answer == delEntityLink_choiceNumber && containingRelationToEntityIn.isDefined && answer <= choices.length) {
               val ans = ui.askYesNoQuestion("DELETE the relation: ARE YOU SURE?", Some(""))
               if (ans.isDefined && ans.get) {
                 containingRelationToEntityIn.get.delete()
-                None
+                true
               } else {
                 ui.displayText("Did not delete relation.", waitForKeystroke = false)
-                Some(entityIn)
+                false
               }
             } else if (answer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && answer <= choices.length) {
               if (controller.removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn))
-                None
+                true
               else
-                Some(entityIn)
+                false
             } else {
               ui.displayText("invalid response")
               otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
                               containingGroupIn, classDefiningEntityIdIn)
             }
           } else {
-            Some(entityIn)
+            false
           }
         } else if (answer == 5) {
           goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
           //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
           if (db.entityKeyExists(entityIn.getId)) {
             new EntityMenu(ui, db, controller).entityMenu(entityIn, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
+            false
           }
           else
-            None
+            true
         } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
           // updates user preferences such that this obj will be the one displayed by default in future.
           controller.mPrefs.putLong("first_display_entity", entityIn.getId)
-          Some(entityIn)
+          false
         } else {
           ui.displayText("invalid response")
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
@@ -123,7 +124,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
         if (ans.isDefined && ans.get) otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
                                                       containingGroupIn, classDefiningEntityIdIn)
-        else None
+        else false
     }
   }
 
@@ -162,7 +163,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                                 } else {
                                   "See groups containing this entity (" + numContainingGroups + ")"
                                 })
-    if (relationIn.isDefined) {
+    // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
+    if (relationIn.isDefined && relationSourceEntityIn.isDefined && db.entityKeyExists(relationSourceEntityIn.get.getId)) {
       choices = choices :+ "Go edit the relation to entity that that led here: " +
                            relationIn.get.getDisplayString(15, relationSourceEntityIn, Some(new RelationType(db, relationIn.get.getAttrTypeId)))
       choices = choices :+ "Go to the type, for the relation that that led here: " + new Entity(db, relationIn.get.getAttrTypeId).getName

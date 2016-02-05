@@ -38,7 +38,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
   /** The parameter attributeRowsStartingIndexIn means: of all the sorted attributes of entityIn, which one is to be displayed first (since we can only display
     * so many at a time with finite screen size).
-   * Returns None if user wants out.
+   * Returns None if user wants out (or if entity was deleted so we should exit to containing menu).
    * */
   //@tailrec //removed for now until the compiler can handle it with where the method calls itself.
   //idea on scoping: make this limited like this somehow?:  private[org.onemodel] ... Same for all others like it?
@@ -46,6 +46,11 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                  targetForMovesIn: Option[Attribute] = None,
                  containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Entity] = try {
     require(entityIn != null)
+    if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+      ui.displayText("The desired entity, " + entityIn.getId + ", has been deleted or archived, probably while browsing other entities via menu options," +
+                     "and so cannot be displayed here.  Exiting to the next menu.")
+      return None
+    }
     if (containingRelationToEntityIn.isDefined) {
       require(containingGroupIn.isEmpty)
       require(containingRelationToEntityIn.get.getRelatedId2 == entityIn.getId)
@@ -55,7 +60,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val classDefiningEntityId: Option[Long] = entityIn.getClassDefiningEntityId
     val leadingText: Array[String] = new Array[String](2)
     val relationSourceEntity: Option[Entity] = {
-      if (containingRelationToEntityIn.isEmpty) {
+      // (cking if exists also, because it could have been removed in another menu option)
+      if (containingRelationToEntityIn.isEmpty || !db.entityKeyExists(containingRelationToEntityIn.get.getId)) {
         None
       } else {
         Some(new Entity(db, containingRelationToEntityIn.get.getParentId))
@@ -186,10 +192,19 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       } else if (answer == 5) {
         // MAKE SURE this next condition always is the exact opposite of the one in "choices(4) = ..." above (4 vs. 5 because they are 0- vs. 1-based)
         if (highlightedIndexInObjList.isDefined) {
-          val entryIsGoneNow = goToSelectedAttribute(answer, highlightedIndexInObjList.get, attributeTuples, entityIn)
-          val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
-          gotoOrReturnNextHighlightedEntry(entityIn, attributeRowsStartingIndexIn, targetForMovesIn, containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
-                                           entryIsGoneNow, defaultEntryToHighlight, highlightedIndexInObjList)
+          val listEntryIsGoneNow = goToSelectedAttribute(answer, highlightedIndexInObjList.get, attributeTuples, entityIn)
+          // (entity could have been deleted or archived while browsing among containers via submenus)
+          val entityOfThisMenuIsGoneNow: Boolean = !db.entityKeyExists(entityIn.getId, includeArchived = false)
+          if (entityOfThisMenuIsGoneNow) None
+          else {
+            val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
+            // check this, given that while in the goToSelectedAttribute method, the previously highlighted one could have been removed from the list:
+            val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
+                                                                                   containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
+                                                                                   listEntryIsGoneNow, defaultEntryToHighlight, highlightedIndexInObjList)
+            entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
+                       containingRelationToEntityIn, containingGroupIn)
+          }
         } else {
           ui.displayText("nothing selected")
           entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMovesIn, containingRelationToEntityIn, containingGroupIn)
@@ -248,12 +263,19 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         }
         entityMenu(entityIn, attributeRowsStartingIndexIn, entryToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 9 && answer <= choices.length) {
-        new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
-                                                                containingGroupIn, classDefiningEntityId)
-        val entryIsGoneNow: Boolean = highlightedEntry.isDefined && !db.attributeKeyExists(highlightedEntry.get.getFormId, highlightedEntry.get.getId)
-        val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
-        gotoOrReturnNextHighlightedEntry(entityIn, attributeRowsStartingIndexIn, targetForMovesIn, containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
-                                         entryIsGoneNow, defaultEntryToHighlight, highlightedIndexInObjList)
+        val entityOfThisMenuIsGoneNow: Boolean = new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn,
+                                                                                   relationSourceEntity, containingRelationToEntityIn,
+                                                                                   containingGroupIn, classDefiningEntityId)
+        if (entityOfThisMenuIsGoneNow) None
+        else {
+          val listEntryIsGoneNow: Boolean = highlightedEntry.isDefined && !db.attributeKeyExists(highlightedEntry.get.getFormId, highlightedEntry.get.getId)
+          val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
+          val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
+                                                                                 containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
+                                                                                 listEntryIsGoneNow, defaultEntryToHighlight, highlightedIndexInObjList)
+          entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
+                     containingRelationToEntityIn, containingGroupIn)
+        }
       } else if (answer > choices.length && answer <= (choices.length + attributeTuples.length)) {
         // checking above for " && answer <= choices.length" because otherwise choosing 'a' returns 8 but if those optional menu choices were not added in,
         // then it is found among the first "choice" answers, instead of being adjusted later ("val attributeChoicesIndex = answer - choices.length - 1")
@@ -263,9 +285,17 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         // lets user go to an entity or group quickly (1 stroke)
         val choicesIndex = answer - choices.length - 1
         val entryIsGoneNow = goToSelectedAttribute(answer, choicesIndex, attributeTuples, entityIn)
-        val defaultEntryToHighlight: Option[Attribute] = Some(attributeTuples(choicesIndex)._2)
-        gotoOrReturnNextHighlightedEntry(entityIn, attributeRowsStartingIndexIn, targetForMovesIn, containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
-                                         entryIsGoneNow, defaultEntryToHighlight, Some(choicesIndex))
+        // (entity could have been deleted or archived while browsing among containers via submenus)
+        val entityOfThisMenuIsGoneNow: Boolean = !db.entityKeyExists(entityIn.getId, includeArchived = false)
+        if (entityOfThisMenuIsGoneNow) None
+        else {
+          val defaultEntryToHighlight: Option[Attribute] = Some(attributeTuples(choicesIndex)._2)
+          val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
+                                                                                 containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
+                                                                                 entryIsGoneNow, defaultEntryToHighlight, Some(choicesIndex))
+          entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
+                     containingRelationToEntityIn, containingGroupIn)
+        }
       } else {
         ui.displayText("invalid response")
         entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
@@ -283,22 +313,18 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       else None
   }
 
-  def gotoOrReturnNextHighlightedEntry(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
+  def determineNextEntryToHighlight(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
                                        containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
                                        attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: Boolean,
-                                       defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]): Option[Entity] = {
+                                       defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]): Option[Attribute] = {
     // The entity or an attribute could have been removed or changed by navigating around various menus, so before trying to view it again,
     // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
     if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
-      val entryToHighlightAfterPossibleDeletion: Option[Attribute] = {
-        if (highlightingIndex.isDefined && entryIsGoneNow) {
-          Controller.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight.get)
-        } else {
-          defaultEntryToHighlight
-        }
+      if (highlightingIndex.isDefined && entryIsGoneNow) {
+        Controller.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight.get)
+      } else {
+        defaultEntryToHighlight
       }
-      entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, entryToHighlightAfterPossibleDeletion, targetForMovesIn,
-                 containingRelationToEntityIn, containingGroupIn)
     } else {
       None
     }
@@ -424,7 +450,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                      entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
                      relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Array[String] = {
     leadingTextIn(0) = "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString
-    if (relationIn.isDefined) {
+    if (relationIn.isDefined && relationSourceEntityIn.isDefined) {
       leadingTextIn(0) += ": found via relation: " + relationSourceEntityIn.get.getName + " " +
                           relationIn.get.getDisplayString(0, Some(new Entity(db, relationIn.get.getRelatedId2)),
                                                           Some(new RelationType(db, relationIn.get.getAttrTypeId)))

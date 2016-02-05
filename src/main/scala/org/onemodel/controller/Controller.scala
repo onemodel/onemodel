@@ -924,8 +924,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                         "Archive this entity (remove from visibility but not permanent/total deletion)")
     val delEntityLink_choiceNumber: Int = 3
     var delFromContainingGroup_choiceNumber: Int = 3
-    if (relationIn.isDefined) {
-      // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options,
+    // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
+    if (relationIn.isDefined && relationSourceEntityIn.isDefined && db.entityKeyExists(relationSourceEntityIn.get.getId)) {
+     // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options,
       // because
       // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
       choices = choices :+ "Delete the link between the linking (or containing) entity: \"" + relationSourceEntityIn.get.getName + "\", " +
@@ -1285,8 +1286,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               val time: String = new java.text.SimpleDateFormat("HH:mm:ss").format(result._1)
               ui.out.println(time + " " + result._3 + ": " + result._2)
             }
-            ui.out.println("\n(For other ~'journal' info, could see also email, code commits, or entries made on a" +
-                               " different day in a 'journal' section of OM, for the day in question.)")
+            ui.out.println("\n(For other ~'journal' info, could see other things for the day in question, like email, code commits, or entries made on a" +
+                               " different day in a specific \"journal\" section of OM.)")
             ui.displayText("Scroll back to see more info if needed.  Press any key to continue...")
             None
           }
