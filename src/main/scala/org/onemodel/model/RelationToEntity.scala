@@ -49,7 +49,7 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
   }
 
   // (the next line used to return "throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")", and I'm not
-  // sure the reason: if it was just to prevent accidental misuse, it seems OK to have it be like this instead:
+  // sure the reason: if it was just to prevent accidental misuse or confusion, it seems OK to have it be like this instead:
   override def getParentId: Long = getRelatedId1
 
   def getRelatedId1: Long = mEntityId1

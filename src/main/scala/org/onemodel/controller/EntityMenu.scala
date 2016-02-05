@@ -60,8 +60,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val classDefiningEntityId: Option[Long] = entityIn.getClassDefiningEntityId
     val leadingText: Array[String] = new Array[String](2)
     val relationSourceEntity: Option[Entity] = {
-      // (cking if exists also, because it could have been removed in another menu option)
-      if (containingRelationToEntityIn.isEmpty || !db.entityKeyExists(containingRelationToEntityIn.get.getId)) {
+      // (checking if exists also, because it could have been removed in another menu option)
+      if (containingRelationToEntityIn.isEmpty || !db.entityKeyExists(containingRelationToEntityIn.get.getRelatedId1)) {
         None
       } else {
         Some(new Entity(db, containingRelationToEntityIn.get.getParentId))
@@ -338,8 +338,11 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                         relationSourceEntityIn: Option[Entity] = None,
                         containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Int = {
     if (relationSourceEntityIn.isDefined || containingRelationToEntityIn.isDefined) {
-      require(relationSourceEntityIn.isDefined && containingRelationToEntityIn.isDefined)
-      require(relationSourceEntityIn.get.getId == containingRelationToEntityIn.get.getParentId)
+      require(relationSourceEntityIn.isDefined && containingRelationToEntityIn.isDefined,
+              (if (relationSourceEntityIn.isEmpty) "relationSourceEntityIn is empty; " else "") +
+              (if (containingRelationToEntityIn.isEmpty) "containingRelationToEntityIn is empty." else ""))
+      require(relationSourceEntityIn.get.getId == containingRelationToEntityIn.get.getParentId, "relationSourceEntityIn: " + relationSourceEntityIn.get.getId +
+             " doesn't match containingRelationToEntityIn.get.getParentId: " + containingRelationToEntityIn.get.getParentId + ".")
     }
     val choices = Array[String](// (see comments at similar location in same-named method of QuickGroupMenu.)
                                 "Move up 25",
