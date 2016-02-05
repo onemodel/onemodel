@@ -54,13 +54,14 @@ echo "did the free version build cleanly? want to test export & the main menu se
 git stash save "building free version"
 git stash drop
 cpomjar-savbkup free
-cp target/onemodel*jar ../om-website/download/
+FREE_JAR_NAME=$(ls target/*jar|grep "target/onemodel" | xargs basename -s .jar)
+cp target/onemodel*jar ../om-website/download/${FREE_JAR_NAME}-free.jar
 ls -ltr ../om-website/download/
 echo "Might want to finish this sync now so any new jar gets there first, THEN update the web site now to point to the new .jar & sync again.";read
 
 read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (i.e., +1!!; omitting '-SNAPSHOT'): " 
 NEW_SNAPSHOT_VERSION=${NEW_SNAPSHOT_VERSION}-SNAPSHOT
-CHECK_FOR="ERROR|WARNING"
+CHECK_FOR="ERROR"
 maven versions:set -DnewVersion=$NEW_SNAPSHOT_VERSION
 git add pom.xml
 
@@ -70,7 +71,7 @@ echo
 echo
 echo "VERSION NOW SHOWS IN STARTUP AS:"
 head LICENSE |grep "OneModel.*a program to"
-echo "Does the file LICENSE have the new *snapshot* version (just the 1 line near the top), correctly?  ^C if not, Enter to continue."; read
+echo "Does the file LICENSE have the new *snapshot* version (just the 1 line near the top), correctly?  ^C or fix it if not, Enter to continue."; read
 git add LICENSE
 git commit -m "Begin new version: $NEW_SNAPSHOT_VERSION"
 
