@@ -44,7 +44,7 @@ CHECK_FOR="ERROR"
 maven clean install
 git add pom.xml LICENSE
 git commit -m "Release version $RELEASE_VERSION"
-cpomjar-savbkup PAID
+cpomjar-savbkup
 
 # also build the free version
 patch --ignore-whitespace --verbose -p1<other-tracked/makeFreeVersion.diff || true
@@ -53,7 +53,7 @@ maven package
 echo "did the free version build cleanly? want to test export & the main menu searches, to confirm it works as expected? Press Enter when ready to drop the changes.";read
 git stash save "building free version"
 git stash drop
-cpomjar-savbkup FREE
+cpomjar-savbkup free
 cp target/onemodel*jar ../om-website/download/
 ls -ltr ../om-website/download/
 echo "Might want to finish this sync now so any new jar gets there first, THEN update the web site now to point to the new .jar & sync again.";read
