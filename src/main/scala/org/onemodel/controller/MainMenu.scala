@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2015 inclusive, Luke A Call; all rights reserved.}
+    Copyright in each year of 2003-2004 and 2008-2016 inclusive, Luke A Call; all rights reserved.}
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
@@ -28,7 +28,8 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
       if (numEntities == 0 || entityIn == None) {
         val choices: List[String] = List[String]("Add new entity (such as yourself using your name, to start)",
                                                  "Search / list existing entities (except quantity units, attribute types, & relation types)")
-        val response: Option[Int] = ui.askWhich(None, choices.toArray, Array[String](), includeEscChoice = false, trailingText = Some("^C to quit"))
+        val response: Option[Int] = ui.askWhich(None, choices.toArray, Array[String](), includeEscChoice = false,
+                                                trailingText = Some(ui.howQuit + " to quit"))
         if (response != None && response.get != 0) {
           val answer = response.get
           // None means user hit ESC (or 0, though not shown) to get out
@@ -65,7 +66,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
                                                  "List existing relation types")
         val response =
           if (goDirectlyToChoice == None) ui.askWhich(Some(Array(leadingText)), choices.toArray, Array[String](), includeEscChoice = true,
-                                                      trailingText = Some("^C to quit (anytime)"))
+                                                      trailingText = Some(ui.howQuit + " to quit (anytime)"))
           else goDirectlyToChoice
 
         if (response != None && response.get != 0) {

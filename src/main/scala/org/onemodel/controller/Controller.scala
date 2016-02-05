@@ -71,6 +71,11 @@ object Controller {
     //clipboard.setContents(selection, null)
   }
 
+  def isWindows: Boolean = {
+    val osName = System.getProperty("os.name").toLowerCase
+    osName.contains("win")
+  }
+
   // Used for example after one has been deleted, to put the highlight on right next one:
   // idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
   /**
@@ -219,7 +224,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def start() {
     // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  make it save their answer 'yes/i agree' or such in the DB,
     // and don't make them press the keystroke again (timesaver)!  See code at top of PostgreSQLDatabase that puts things in the db at startup: do similarly?
-    ui.displayText(mCopyright, waitForKeystroke = true, Some("IF YOU DO NOT AGREE TO THOSE TERMS: Press Ctrl-C or close the window to exit.\n" +
+    ui.displayText(mCopyright, waitForKeystroke = true, Some("IF YOU DO NOT AGREE TO THOSE TERMS: " + ui.howQuit + " to exit.\n" +
                                                              "If you agree to those terms: "))
     // Max id used as default here because it seems the least likely # to be used in the system hence the
     // most likely to cause an error as default by being missing, so the system can respond by prompting
@@ -286,7 +291,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         }
       }
       if (db.isEmpty) {
-        ui.displayText("Login failed; retrying (^C to quit):", waitForKeystroke = false)
+        ui.displayText("Login failed; retrying (" + ui.howQuit + " to quit if needed):",
+                       waitForKeystroke = false)
         tryOtherLoginsOrPrompt()
       }
       else db.get

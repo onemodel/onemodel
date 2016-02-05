@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -987,8 +987,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(found)
 
     val editorCmd = mDB.getTextEditorCommand
-    val os: String = System.getProperty("os.name")
-    if (os.toLowerCase.contains("win")) assert(editorCmd.contains("notepad"))
+    if (Controller.isWindows) assert(editorCmd.contains("notepad"))
     else assert(editorCmd == "vi")
   }
 

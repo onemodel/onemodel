@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2014 and 2016-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -15,13 +15,21 @@
 */
 package org.onemodel
 
+import org.onemodel.controller.Controller
+
 object Color {
   // ansi codes (used scalatest source code as a reference; probably doc'd variously elsewhere also)
-  val green= "\033[32m"
-  val cyan= "\033[36m"
-  val yellow= "\033[33m"
-  val red= "\033[31m"
-  val reset="\033[0m"
+  val (green, cyan, yellow, red, reset) = {
+    if (Controller.isWindows) {
+      ("", "", "", "", "")
+    } else {
+      ("\033[32m",
+        "\033[36m",
+        "\033[33m",
+        "\033[31m",
+        "\033[0m")
+    }
+  }
 
   def red(s:String): String = {
     red + s + reset

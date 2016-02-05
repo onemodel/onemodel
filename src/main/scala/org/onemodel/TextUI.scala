@@ -51,6 +51,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   lazy val controller: Controller = new Controller(this, forceUsernamePasswordPrompt, username, password)
   lazy val mTerminal: jline.Terminal = initializeTerminal()
   val jlineReader: ConsoleReader = initializeReader()
+  val howQuit: String = if (Controller.isWindows) "Close the window" else "Ctrl+C"
 
   // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
   // the cleanup actually happens.
@@ -133,7 +134,18 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   }
 
   private def terminalWidth: Int = {
-    mTerminal.getWidth
+    if (!Controller.isWindows) {
+      mTerminal.getWidth
+    } else {
+      // This is a not-ideal workaround to a bug when running on Windows, where OM thinks it has more terminal width than it does: in a 95-character-wide
+      // command window, OM was displaying all entity name characters, including all the padding spaces for multiple om-display columns (ie, 2
+      // if the entity names are short & a 2-columns list will fit), up to 160 wide.  This caused an entity with a 5-character name to take up two lines,
+      // so the list looked like there was a blank line between each entry in the list: ugly.
+      // A better solution would be to take time to see what is the real bug, and if that can be fixed, or if necessary just disable the spaces (name
+      // padding for columns) and having multiple columns, on windows (I hardly ever use it on Linux or openbsd, and I'm not sure it's working right anyway).
+      // This # seems likely to fit in a customized command window on an 800x600 display:
+      93
+    }
   }
 
   def getUserInputChar: (Char, Boolean) = {

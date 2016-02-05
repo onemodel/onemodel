@@ -18,6 +18,7 @@ package org.onemodel.database
 import java.io.{PrintWriter, StringWriter}
 import java.sql.{Connection, DriverManager, ResultSet, Statement}
 
+import org.onemodel.controller.Controller
 import org.onemodel.model._
 import org.onemodel.{OmDatabaseException, OmException, OmFileTransferException}
 import org.postgresql.largeobject.{LargeObject, LargeObjectManager}
@@ -684,9 +685,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val textEditorCommandAttributeTypeId = createEntity(PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME, isPublicIn = Some(false))
     createRelationToEntity(hasRelTypeId, textEditorInfoEntityId, textEditorCommandAttributeTypeId, Some(System.currentTimeMillis()), System.currentTimeMillis())
     val editorCommand: String = {
-      val osName = System.getProperty("os.name").toLowerCase
-      // does this actually work?  Remove this comment when tested on windows.
-      if (osName.contains("win")) "notepad"
+      if (Controller.isWindows) "notepad"
       else "vi"
     }
     createTextAttribute(textEditorInfoEntityId, textEditorCommandAttributeTypeId, editorCommand, Some(System.currentTimeMillis()))
