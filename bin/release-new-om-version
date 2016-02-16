@@ -24,6 +24,8 @@ function maven() {
   #rm $LOG
 }
 
+echo "Have you done a gp, and had a quiet period to make sure the latest version is working very well?";read
+
 # could automate this part better, but it's not worth a lot as the release version and next version might not always
 # be programatically predictable (different major.minor.bugfix # changes than the one expected, etc.). At least
 # we can check it and revert conveniently etc:
@@ -57,7 +59,7 @@ cpomjar-savbkup free
 FREE_JAR_NAME=$(ls target/*jar|grep "target/onemodel" | xargs basename -s .jar)
 cp target/onemodel*jar ../om-website/download/${FREE_JAR_NAME}-free.jar
 ls -ltr ../om-website/download/
-echo "Might want to finish this sync now so any new jar gets there first, THEN update the web site now to point to the new .jar & sync again.";read
+echo "Might want to do a site sync now so any new jar gets there first, THEN update the web site now to point to the new .jar & sync again.";read
 
 read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (i.e., +1!!; omitting '-SNAPSHOT'): " 
 NEW_SNAPSHOT_VERSION=${NEW_SNAPSHOT_VERSION}-SNAPSHOT
