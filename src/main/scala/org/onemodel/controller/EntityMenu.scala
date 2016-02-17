@@ -72,7 +72,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
       db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes)
     if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) require(numAttrsInEntity > 0 && attributeTuples.length > 0)
-    val choicesModified = controller.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
+    controller.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
     val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, relationSourceEntity, containingRelationToEntityIn, containingGroupIn)
     val (attributeDisplayStrings: Array[String], attributesToDisplay: util.ArrayList[Attribute]) = getItemDisplayStringsAndAttrs(attributeTuples)
 
@@ -135,7 +135,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       choices(4) = "(stub)"
     }
 
-    val response = ui.askWhich(Some(leadingTextModified), choicesModified, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
+    val response = ui.askWhich(Some(leadingTextModified), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
                                secondaryHighlightIndexIn = moveTargetIndexInObjList)
     if (response.isEmpty) None
     else {

@@ -1815,7 +1815,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                       containingEntityIn = Some(userSelection))
     } else {
       new EntityMenu(ui, db, this).entityMenu(userSelection, containingGroupIn = containingGroupIn)
-      // deal with entityMenu possibly having deleted the entity:
     }
     (subEntitySelected, groupId, moreThanOneAvailable)
   }
