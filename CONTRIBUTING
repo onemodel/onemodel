@@ -134,7 +134,9 @@ KEEP IN MIND:
 
 DETAILS AND EXPLANATION ON COPYRIGHT ASSIGNMENT:
 - The FSF also requires copyright assignment, and their process is more
-  detailed than this (more below).
+  detailed than this (more below).  So does google and their form is also
+  longer and more detailed than mine:
+  https://cla.developers.google.com/about/google-individual .
 - ESR hints at it:
   http://en.tldp.org/HOWTO/Software-Release-Practice-HOWTO/licensetheory.html
   http://en.tldp.org/HOWTO/Software-Release-Practice-HOWTO/licensepractice.html
