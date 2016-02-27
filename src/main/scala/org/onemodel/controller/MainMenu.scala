@@ -61,7 +61,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
                                                  "----" /*spacer for better consistency of options with other menus, for memory & navigation speed*/ ,
                                                  "----" /*spacer for better consistency of options with other menus, for memory & navigation speed*/ ,
                                                  "Go to current entity (" + entity.getDisplayString + "; or its sole subgroup, if present)",
-                                                 "Search / list existing entities (except quantity units, attr types, & relation types)",
+                                                 controller.mainSearchPrompt,
                                                  "List existing classes",
                                                  "List existing relation types")
         val response =
@@ -81,7 +81,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
               if (subEntitySelected != None) mainMenu(subEntitySelected)
             case 6 =>
               val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
-              if (selection != None) {
+              if (selection.isDefined) {
                 controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get.getId)))
               }
             case 7 =>

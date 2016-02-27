@@ -17,6 +17,9 @@ import org.onemodel._
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model._
 
+import scala.annotation.tailrec
+import scala.collection.mutable
+
 class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, val controller: Controller) extends SortableEntriesMenu(ui, db) {
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
   def getChoices(entityIn: Entity, numAttrsIn: Long): Array[String] = {
@@ -29,7 +32,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
                                 "Add attribute (add entry with detailed options)",
                                 "Go to selected attribute",
-                                if (numAttrsIn > 0) controller.listNextItemsPrompt else "(stub)")
+                                "Search / List next ...")
     choices = choices :+ "Select target (entry move destination: gets a '+' and must be a RelationToEntity or ..ToGroup)"
     choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; typing the letter instead goes to that attribute's menu)" else "(stub)")
     choices = choices :+ (if (controller.findDefaultDisplayEntity.isEmpty) "****TRY ME---> " else "") + "Other entity operations..."
@@ -210,8 +213,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMovesIn, containingRelationToEntityIn, containingGroupIn)
         }
       } else if (answer == 6 && numAttrsInEntity > 0) {
-        val startingIndex: Int = getNextStartingRowsIndex(attributeTuples.length, attributeRowsStartingIndexIn, numAttrsInEntity)
-        entityMenu(entityIn, startingIndex, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
+        entitySearchSubmenu(entityIn, attributeRowsStartingIndexIn, containingRelationToEntityIn, containingGroupIn, numAttrsInEntity, attributeTuples,
+                            highlightedEntry, targetForMoves, answer)
+        entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 7) {
         // NOTE: this code is similar (not identical) in EntityMenu as in QuickGroupMenu: if one changes,
         // THE OTHER MIGHT ALSO NEED MAINTENANCE!
@@ -221,7 +225,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
         val response = ui.askWhich(Some(leadingText), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
                                    secondaryHighlightIndexIn = moveTargetIndexInObjList)
-        val (entryToHighlight, selectedTargetAttribute): (Option[Attribute], Option[Attribute]) =
+        val (entryToHighlight, selectedTargetAttribute): (Option[Attribute], Option[Attribute]) = {
           if (response.isEmpty) (highlightedEntry, targetForMoves)
           else {
             val answer = response.get
@@ -240,6 +244,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
               }
             }
           }
+        }
         entityMenu(entityIn, attributeRowsStartingIndexIn, entryToHighlight, selectedTargetAttribute, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 8 && answer <= choices.length && numAttrsInEntity > 0) {
         // lets user select an attribute for further operations like moving, deleting.
@@ -311,6 +316,64 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       if (ans.isDefined && ans.get) entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedAttributeIn, targetForMovesIn,
                                                containingRelationToEntityIn, containingGroupIn)
       else None
+  }
+
+  def entitySearchSubmenu(entityIn: Entity, attributeRowsStartingIndexIn: Int, containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn:
+  Option[Group], numAttrsInEntity: Long, attributeTuples: Array[(Long, Attribute)], highlightedEntry: Option[Attribute], targetForMoves: Option[Attribute],
+                          answer: Int) {
+    val searchResponse = ui.askWhich(Some(Array("Choose a search option:")), Array(if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)",
+                                                                                   if (numAttrsInEntity > 0) controller.listPrevItemsPrompt else "(stub)",
+                                                                                   "Search related entities",
+                                                                                   controller.mainSearchPrompt))
+    if (searchResponse.isDefined) {
+      val searchAnswer = searchResponse.get
+      if (searchAnswer == 1) {
+        val startingIndex: Int = getNextStartingRowsIndex(attributeTuples.length, attributeRowsStartingIndexIn, numAttrsInEntity)
+        entityMenu(entityIn, startingIndex, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
+      } else if (searchAnswer == 2) {
+        ui.displayText("(Not yet implemented.)")
+      } else if (searchAnswer == 3) {
+        // Idea: could share some code or ideas between here and Controller.findExistingObjectByText, and perhaps others like them.  For example,
+        // this doesn't yet have logic to page down through the results, but maybe for now there won't be many or it can be added later.
+        // Idea: maybe we could use an abstraction to make this kind of UI work even simpler, since we do it often.
+        val ans = ui.askForString(Some(Array("Enter part of the entity name to search for")))
+        if (ans.isDefined) {
+          val searchString: String = ans.get
+          val entityIds: Array[Long] = db.findContainedEntityIds(new mutable.TreeSet[Long], entityIn.getId, searchString).toArray
+          val entityNames: Array[String] = entityIds.toArray.map {
+                                                                   case id: Long =>
+                                                                     new Entity(db, id).getName
+                                                                   case _ => throw new OmException("How did the app get here?")
+                                                                 }
+          val leadingText2 = Array[String]("SEARCH RESULTS: Pick an item by letter to select:")
+          // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
+          val choices: Array[String] = Array("(stub)")
+          @tailrec def showSearchResults() {
+            val relatedEntitiesResult = ui.askWhich(Some(leadingText2), choices, entityNames)
+            if (relatedEntitiesResult.isDefined) {
+              val relatedEntitiesAnswer = relatedEntitiesResult.get
+              //there might be more than we have room to show here...but...see "idea"s above.
+              if (relatedEntitiesAnswer == 1 && relatedEntitiesAnswer <= choices.length) {
+                // (For reason behind " && answer <= choices.size", see comment where it is used elsewhere in entityMenu.)
+                ui.displayText("Nothing implemented here yet.")
+              } else if (relatedEntitiesAnswer > choices.length && relatedEntitiesAnswer <= (choices.length + entityNames.length)) {
+                // those in the condition on the previous line are 1-based, not 0-based.
+                val index = relatedEntitiesAnswer - choices.length - 1
+                val id: Long = entityIds(index)
+                entityMenu(new Entity(db, id))
+              }
+              showSearchResults()
+            }
+          }
+          showSearchResults()
+        }
+      } else if (searchAnswer == 4) {
+        val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
+        if (selection.isDefined) {
+          entityMenu(new Entity(db, selection.get.getId))
+        }
+      }
+    }
   }
 
   def determineNextEntryToHighlight(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],

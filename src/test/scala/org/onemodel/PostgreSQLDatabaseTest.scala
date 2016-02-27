@@ -17,6 +17,8 @@ import org.onemodel.model._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Args, FlatSpec, Status}
 
+import scala.collection.mutable
+
 object PostgreSQLDatabaseTest {
   def tearDownTestDB() {
     // reconnect to the normal production database and tear down the temporary one we used for testing.
@@ -965,18 +967,19 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(found)
   }
 
-  "createDefaultData, findEntityOnlyIdsByName, createClassDefiningEntity, and findRelationToGroup_OnEntity" should "have worked right in earlier db setup and" +
-                                                                                                                   " now" in {
+  "createDefaultData, findEntityOnlyIdsByName, createClassDefiningEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
+  "have worked right in earlier db setup and now" in {
+    val PERSON_TEMPLATE: String = "person-template"
     val systemEntityId = mDB.getSystemEntityId
     val groupIdOfClassTemplates = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classDefiningEntityGroupName))._3
 
-    // (Should be some value, but the activity on the test DB wouldn't have got it to 0 for id's yet,so that one would be invalid. Could use the
+    // (Should be some value, but the activity on the test DB wouldn't have ids incremented to 0 yet,so that one would be invalid. Could use the
     // other method to find an unused id, instead of 0.)
     assert(groupIdOfClassTemplates.isDefined && groupIdOfClassTemplates.get != 0)
     assert(new Group(mDB, groupIdOfClassTemplates.get).getMixedClassesAllowed)
 
-    val personTemplateEntityId = mDB.findEntityOnlyIdsByName("person-template").get.head
-    // idea: make this next part more scala-like:
+    val personTemplateEntityId: Long = mDB.findEntityOnlyIdsByName(PERSON_TEMPLATE).get.head
+    // idea: make this next part more scala-like (but only if still very simple to read for programmers who are used to other languages):
     var found = false
     val entitiesInGroup: java.util.ArrayList[Entity] = mDB.getGroupEntryObjects(groupIdOfClassTemplates.get, 0)
     for (entity <- entitiesInGroup.toArray) {
@@ -985,6 +988,36 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       }
     }
     assert(found)
+
+    // make sure the other approach also works, even with deeply nested data:
+    val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
+    val te1 = createTestRelationToEntity_WithOneEntity(personTemplateEntityId, relTypeId)
+    val te2 = createTestRelationToEntity_WithOneEntity(te1, relTypeId)
+    val te3 = createTestRelationToEntity_WithOneEntity(te2, relTypeId)
+    val te4 = createTestRelationToEntity_WithOneEntity(te3, relTypeId)
+    val foundIds: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, PERSON_TEMPLATE, 4)
+    assert(foundIds.contains(personTemplateEntityId), "Value not found in query: " + personTemplateEntityId)
+    val allContainedWithName: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4)
+    // (see idea above about making more scala-like)
+    var allContainedIds = ""
+    for (id: Long <- allContainedWithName) {
+      allContainedIds += id + ", "
+    }
+    assert(allContainedWithName.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
+    val te4Entity: Entity = new Entity(mDB, te4)
+    te4Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, 0)
+    val allContainedWithName2: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4)
+    // should be no change yet (added it outside the # of levels to check):
+    assert(allContainedWithName2.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
+    val te2Entity: Entity = new Entity(mDB, te2)
+    te2Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, 0)
+    val allContainedWithName3: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4)
+    // should be no change yet (the entity was already in the return set, so the TA addition didn't add anything)
+    assert(allContainedWithName3.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
+    te2Entity.addTextAttribute(te1/*not really but whatever*/, "otherText", None, 0)
+    val allContainedWithName4: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, "otherText", 4)
+    // now there should be a change:
+    assert(allContainedWithName4.size == 1, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
 
     val editorCmd = mDB.getTextEditorCommand
     if (Controller.isWindows) assert(editorCmd.contains("notepad"))

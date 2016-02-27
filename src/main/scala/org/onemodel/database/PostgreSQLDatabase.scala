@@ -24,6 +24,7 @@ import org.onemodel.{OmDatabaseException, OmException, OmFileTransferException}
 import org.postgresql.largeobject.{LargeObject, LargeObjectManager}
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.util.Sorting
 
 /** Some methods are here on the object, so that PostgreSQLDatabaseTest can call destroyTables on test data.
@@ -524,7 +525,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // doesn't rename the name inside the sequence, and keeping the old name is easier for now than deciding whether to do something about that (more info
       // if you search the WWW for "postgresql bug 3619".
       dbAction("create sequence RelationToGroupKeySequence minvalue " + minIdValue)
-      // This table named "grupo" because otherwise some queries (like "drop table group") don't work unless "group" is quoted, which doesn't work
+      // This table is named "grupo" because otherwise some queries (like "drop table group") don't work unless "group" is quoted, which doesn't work
       // with mixed case; but forcing the dropped names to lowercase and quoted also prevented dropping class and entity in the same command, it seemed.
       // Avoiding the word "group" as a table in sql might prevent other errors too.
       dbAction("create table grupo (" +
@@ -651,8 +652,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def findEntityOnlyIdsByName(inName: String): Option[List[Long]] = {
     // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
     // a performance issue then look at it?
-    val rows = dbQuery("select id from entity where (not archived) and lower(name) = lower('" + inName + "') " + limitToEntitiesOnly(ENTITY_ONLY_SELECT_PART)
-                       , "Long")
+    val rows = dbQuery("select id from entity where (not archived) and lower(name) = lower('" + inName + "') " + limitToEntitiesOnly(ENTITY_ONLY_SELECT_PART),
+                       "Long")
     if (rows.isEmpty) None
     else {
       var results: List[Long] = Nil
@@ -661,6 +662,49 @@ class PostgreSQLDatabase(username: String, var password: String) {
       }
       Some(results.reverse)
     }
+  }
+
+  /** case-insensitive. */
+  def findContainedEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String, levelsIn: Int = 20): mutable.TreeSet[Long] = {
+    // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two places).  But that has other complexities: see
+    // comments on ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of levels total, it might not matter anyway
+    // (ie, probably the current code is not optimized but is simpler and good enough for now).
+
+    // Idea: could do regexes instead of string matching, like we have elsewhere (& are now, for TextAttributes below)? If so, put similar text in the prompt
+    // (see Controller.findExistingObjectByText, clarify in the method names/docs that we are doing regexes, & methods getMatchingEntities, getMatchingGroups.
+
+    if (levelsIn > 0) {
+      val sql = "select rte.entity_id_2, e.name from entity e, RelationToEntity rte where rte.entity_id=" + fromEntityIdIn +
+                " and rte.entity_id_2=e.id and not e.archived"
+      val relatedEntityIdRows = dbQuery(sql, "Long,String")
+      for (row <- relatedEntityIdRows) {
+        val id: Long = row(0).get.asInstanceOf[Long]
+        val name = row(1).get.asInstanceOf[String]
+        if (name.toLowerCase.contains(searchStringIn.toLowerCase)) {
+          resultsInOut.add(id)
+        }
+        findContainedEntityIds(resultsInOut, id, searchStringIn, levelsIn - 1)
+      }
+      val sql2 = "select eiag.entity_id, e.name from RelationToGroup rtg, EntitiesInAGroup eiag, entity e where rtg.entity_id=" + fromEntityIdIn +
+                " and rtg.group_id=eiag.group_id and eiag.entity_id=e.id  and not e.archived"
+      val entitiesInGroups = dbQuery(sql2, "Long,String")
+      for (row <- entitiesInGroups) {
+        val id: Long = row(0).get.asInstanceOf[Long]
+        val name = row(1).get.asInstanceOf[String]
+        if (name.toLowerCase.contains(searchStringIn.toLowerCase)) {
+          resultsInOut.add(id)
+        }
+        findContainedEntityIds(resultsInOut, id, searchStringIn, levelsIn - 1)
+      }
+      // this part is doing a regex now:
+      val sql3 = "select ta.id from textattribute ta, entity e where entity_id=e.id and (not e.archived) and entity_id=" + fromEntityIdIn +
+                 " and textValue ~* '" + searchStringIn + "'"
+      val textAttributes: List[Array[Option[Any]]] = dbQuery(sql3, "Long")
+      if (textAttributes.nonEmpty) {
+        resultsInOut.add(fromEntityIdIn)
+      }
+    }
+    resultsInOut
   }
 
   def createDefaultData() {

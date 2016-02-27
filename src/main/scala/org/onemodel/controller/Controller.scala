@@ -142,6 +142,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
   val menuText_createEntityOrAttrType: String = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)"
   val menuText_CreateRelationType: String = "Add new relation type (" + mRelTypeExamples + ")"
+  val mainSearchPrompt = "Search / list existing entities (except quantity units, attr types, & relation types)"
 
   // date stuff
   val VALID = "valid"
@@ -853,6 +854,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   }
 
   val listNextItemsPrompt = "List next items"
+  val listPrevItemsPrompt = "List previous items"
   val relationToGroupNamePrompt = "Type a name for this group (e.g., \"xyz list\"), then press Enter; blank or ESC to cancel"
 
   def addRemainingCountToPrompt(choicesIn: Array[String], numDisplayedObjects: Long, totalRowsAvailableIn: Long,
