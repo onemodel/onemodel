@@ -341,9 +341,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           val searchString: String = ans.get
           val entityIds: Array[Long] = db.findContainedEntityIds(new mutable.TreeSet[Long], entityIn.getId, searchString).toArray
           val entityNames: Array[String] = entityIds.toArray.map {
-                                                                   case id: Long =>
-                                                                     new Entity(db, id).getName
-                                                                   case _ => throw new OmException("How did the app get here?")
+                                                                   case id: Long => new Entity(db, id).getName
                                                                  }
           val leadingText2 = Array[String]("SEARCH RESULTS: Pick an item by letter to select:")
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
