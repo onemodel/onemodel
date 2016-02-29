@@ -25,30 +25,30 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
   def mainMenu(entityIn: Option[Entity] = None, goDirectlyToChoice: Option[Int] = None) {
     try {
       val numEntities = db.getEntitiesOnlyCount()
-      if (numEntities == 0 || entityIn == None) {
+      if (numEntities == 0 || entityIn.isEmpty) {
         val choices: List[String] = List[String]("Add new entity (such as yourself using your name, to start)",
                                                  "Search / list existing entities (except quantity units, attribute types, & relation types)")
         val response: Option[Int] = ui.askWhich(None, choices.toArray, Array[String](), includeEscChoice = false,
                                                 trailingText = Some(ui.howQuit + " to quit"))
-        if (response != None && response.get != 0) {
+        if (response.isDefined && response.get != 0) {
           val answer = response.get
           // None means user hit ESC (or 0, though not shown) to get out
           answer match {
             case 1 => controller.showInEntityMenuThenMainMenu(controller.askForInfoAndCreateEntity())
             case 2 =>
               val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
-              if (selection != None) {
+              if (selection.isDefined) {
                 controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get.getId)))
               }
             case _ => ui.displayText("unexpected: " + answer)
           }
         }
-      } else if (Entity.getEntityById(db, entityIn.get.getId) == None) {
+      } else if (Entity.getEntityById(db, entityIn.get.getId).isEmpty) {
         ui.displayText("The entity to be displayed, id " + entityIn.get.getId + ": " + entityIn.get.getDisplayString + "\", is not present, " +
                        "probably because it was deleted.  Trying the prior one viewed.", waitForKeystroke = false)
         // then allow exit from this method so the caller will thus back up one entity and re-enter this menu.
       } else {
-        require(entityIn != None)
+        require(entityIn.isDefined)
         // We have an entity, so now we can act on it:
 
         // First, get a fresh copy in case things changed since the one passed in as the parameter was read, like edits etc since it was last saved by,
@@ -65,11 +65,11 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
                                                  "List existing classes",
                                                  "List existing relation types")
         val response =
-          if (goDirectlyToChoice == None) ui.askWhich(Some(Array(leadingText)), choices.toArray, Array[String](), includeEscChoice = true,
+          if (goDirectlyToChoice.isEmpty) ui.askWhich(Some(Array(leadingText)), choices.toArray, Array[String](), includeEscChoice = true,
                                                       trailingText = Some(ui.howQuit + " to quit (anytime)"))
           else goDirectlyToChoice
 
-        if (response != None && response.get != 0) {
+        if (response.isDefined && response.get != 0) {
           val answer = response.get
           answer match {
             case 1 =>
@@ -78,7 +78,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
               controller.showInEntityMenuThenMainMenu(controller.askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE))
             case 5 =>
               val subEntitySelected: Option[Entity] = controller.goToEntityOrItsSoleGroupsMenu(entity)._1
-              if (subEntitySelected != None) mainMenu(subEntitySelected)
+              if (subEntitySelected.isDefined) mainMenu(subEntitySelected)
             case 6 =>
               val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
               if (selection.isDefined) {
@@ -87,13 +87,13 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
             case 7 =>
               val classId: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_CLASS_TYPE)
               // (compare this to showInEntityMenuThenMainMenu)
-              if (classId != None) {
+              if (classId.isDefined) {
                 new ClassMenu(ui, db, controller).classMenu(new EntityClass(db, classId.get.getId))
                 mainMenu(Some(entity))
               }
             case 8 =>
               val rtId: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.RELATION_TYPE_TYPE)
-              if (rtId != None) {
+              if (rtId.isDefined) {
                 controller.showInEntityMenuThenMainMenu(Some(new RelationType(db, rtId.get.getId)))
               }
             case _: Int =>
@@ -108,7 +108,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
       case e: Exception =>
         controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
-        if (ans != None && ans.get) mainMenu(entityIn, goDirectlyToChoice)
+        if (ans.isDefined && ans.get) mainMenu(entityIn, goDirectlyToChoice)
     }
   }
 
