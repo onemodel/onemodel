@@ -231,9 +231,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     // most likely to cause an error as default by being missing, so the system can respond by prompting
     // the user in some other way for a use.
     if (getDefaultEntity._1.isEmpty) {
-      ui.displayText("Unable to find user's preference for first entity to display, or that entity is gone.  You probably will want to find or create an " +
-                     "entity (such as with your own name to track information connected to you, contacts, possessions etc, " +
-                     "or with the subject of study) then set that or some entity as your default, using its menu.")
+      ui.displayText("To get started, you probably want to find or create an " +
+                     "entity (such as with your own name, to track information connected to you, contacts, possessions etc, " +
+                     "or with the subject of study), then set that or some entity as your default (using its menu).")
     }
 
     // Explicitly *not* "@tailrec" so user can go "back" to previously viewed entities. See comments below at "def mainMenu" for more on the feature of the
