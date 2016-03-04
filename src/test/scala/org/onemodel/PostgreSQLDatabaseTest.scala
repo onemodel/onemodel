@@ -898,6 +898,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   }
 
   private def createTestRelationToEntity_WithOneEntity(inEntityId: Long, inRelTypeId: Long, inValidOnDate: Option[Long] = None): Long = {
+    // idea: could use here instead: db.createEntityAndRelationToEntity
     val relatedEntityId: Long = mDB.createEntity(RELATED_ENTITY_NAME)
     val validOnDate: Option[Long] = if (inValidOnDate.isEmpty) None else inValidOnDate
     val observationDate: Long = System.currentTimeMillis
