@@ -66,7 +66,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
     controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize, displayStartingRowNumberIn)
     val names: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity.getId)
-      numSubgroupsPrefix + entity.getName + " " + entity.getPublicStatusString()
+      numSubgroupsPrefix + entity.getName + " " + controller.getPublicStatusDisplayString(entity)
     }
     val numEntitiesInGroup: Long = groupIn.getSize
 

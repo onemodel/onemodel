@@ -246,6 +246,32 @@ class PostgreSQLDatabase(username: String, var password: String) {
     createTables()
     createDefaultData()
   }
+  createExpectedData()
+
+  /** Creates newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
+    * after an OM release was done.  This puts it into existing databases if needed.
+    */
+  def createExpectedData(): Unit = {
+    //Idea: should this really be in the controller then?  It wouldn't differ by which database type we are using.  Hmm, no, if there were multiple
+    // database types, there would probably a parent class over them (of some kind) to hold this.
+    val systemEntityId = getSystemEntityId
+    val HASrelationTypeId = findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+
+    val preferencesContainerId: Long = {
+      val preferencesEntityId: Option[Long] = getPreferencesContainerId
+      if (preferencesEntityId.isDefined) {
+        preferencesEntityId.get
+      } else {
+        // Since necessary, also create the entity that contains all the preferences:
+        val newEntityId: Long = createEntityAndRelationToEntity(systemEntityId, HASrelationTypeId, Controller.USER_PREFERENCES, None,
+                                                                Some(System.currentTimeMillis), System.currentTimeMillis)._1
+        newEntityId
+      }
+    }
+    if (getUserPreference2(preferencesContainerId, Controller.showPublicPrivateStatusPreference).isEmpty) {
+      setUserPreference(Controller.showPublicPrivateStatusPreference, false)
+    }
+  }
 
   def connect(inDbNameWithoutPrefix: String, username: String, password: String) {
     try if (mConn != null) mConn.close()
@@ -1625,6 +1651,86 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val ids: Option[List[Long]] = findEntityOnlyIdsByName(PostgreSQLDatabase.systemEntityName)
     require(ids.get.size == 1)
     ids.get.head
+  }
+
+  /** Creates the preference and the container of preferences, if either doesn't already exist.  */
+  def setUserPreference(nameIn: String, valueIn: Boolean) = {
+    val HASrelationTypeId = findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+    val preferencesContainerId: Long = getPreferencesContainerId.get
+    val preferenceInfo: Option[(Long, Boolean)] = getUserPreference2(preferencesContainerId, nameIn)
+    if (preferenceInfo.isDefined) {
+      val preferenceBooleanAttributeId: Long = preferenceInfo.get._1
+      val ba = new BooleanAttribute(this, preferenceBooleanAttributeId)
+      updateBooleanAttribute(ba.getId, ba.getParentId, ba.getAttrTypeId, valueIn, ba.getValidOnDate, ba.getObservationDate)
+    } else {
+      val preferenceEntityId: Long = createEntityAndRelationToEntity(preferencesContainerId, HASrelationTypeId, nameIn, None,
+                                                                     Some(System.currentTimeMillis()), System.currentTimeMillis())._1
+      // (For about the attr_type_id value, see comment about that field, in method getUserPreference2 below.)
+      createBooleanAttribute(preferenceEntityId, preferenceEntityId, valueIn, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    }
+  }
+
+  def getUserPreference(preferenceNameIn: String, defaultValueIn: Option[Boolean] = None): Option[Boolean] = {
+    val relatedEntityId: Option[Long] = getPreferencesContainerId
+    if (relatedEntityId.isEmpty) {
+      throw new OmException("This should never happen: method createExpectedData should be run at startup to create this part of the data.")
+    } else {
+      val preferencesContainerId: Long = relatedEntityId.get
+      val pref = getUserPreference2(preferencesContainerId, preferenceNameIn)
+      if (pref.isEmpty) {
+        defaultValueIn
+      } else {
+        Some(pref.get._2)
+      }
+    }
+  }
+  
+  def getUserPreference2(preferencesContainerIdIn: Long, preferenceNameIn: String): Option[(Long, Boolean)] = {
+    val foundPreferences: mutable.TreeSet[Long] = findContainedEntityIds(new mutable.TreeSet[Long], preferencesContainerIdIn, preferenceNameIn,
+                                                                         Controller.defaultPreferencesDepth)
+    if (foundPreferences.isEmpty) {
+      None
+    } else {
+      require(foundPreferences.size == 1, "Under the entity " + getEntityName(preferencesContainerIdIn) + " (" + preferencesContainerIdIn + ", possibly under" +
+                                          PostgreSQLDatabase.systemEntityName +
+                                          "), there is (eventually) more than entity with the name " + preferenceNameIn +
+                                          ", so the program does not know which one to use for this.")
+      val preferenceEntity = new Entity(this, foundPreferences.firstKey)
+      // (Using the preferenceEntity.getId for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
+      // IN setUserPreference METHOD CALL TO createBooleanAttribute!)
+      val sql2 = "select id, booleanValue from booleanattribute where entity_id=" + preferenceEntity.getId + " and attr_type_id=" + preferenceEntity.getId
+      val relevantAttributeRows = dbQuery(sql2, "Long,Boolean")
+      if (relevantAttributeRows.isEmpty) {
+        None
+      } else {
+        require(relevantAttributeRows.size == 1, "Under the entity " + getEntityName(preferenceEntity.getId) + " (" + preferenceEntity.getId +
+                                                     "), there are " + relevantAttributeRows.size +
+                                                     " BooleanAttributes with the relevant type (" + preferenceNameIn + ", " +
+                                                     preferencesContainerIdIn + ", so the program does not know what to use for this.  There should be *one*.")
+        val preferenceId: Long = relevantAttributeRows.head(0).get.asInstanceOf[Long]
+        val preferenceValue: Boolean = relevantAttributeRows.head(1).get.asInstanceOf[Boolean]
+        Some((preferenceId, preferenceValue))
+      }
+    }
+  }
+
+  def getRelationToEntityByName(containingEntityIdIn: Long, nameIn: String): Option[Long] = {
+    val sql = "select rte.entity_id_2 from relationtoentity rte, entity e where rte.entity_id=" + containingEntityIdIn +
+              " and rte.entity_id_2=e.id and e.name='" + nameIn + "'"
+    val relatedEntityIdRows = dbQuery(sql, "Long")
+    if (relatedEntityIdRows.isEmpty) {
+      None
+    } else {
+      require(relatedEntityIdRows.size == 1, "Under the entity " + getEntityName(containingEntityIdIn) + "(" + containingEntityIdIn +
+                                             "), there is more than entity with the name " + Controller.USER_PREFERENCES +
+                                             ", so the program does not know which one to use for this.")
+      Some(relatedEntityIdRows.head(0).get.asInstanceOf[Long])
+    }
+  }
+
+  /** This should never return None, except when method createExpectedData is called for the first time in a given database. */
+  def getPreferencesContainerId: Option[Long] = {
+    getRelationToEntityByName(getSystemEntityId, Controller.USER_PREFERENCES)
   }
 
   def getEntityCount: Long = extractRowCountFromCountQuery("SELECT count(1) from Entity where (not archived)")
@@ -3109,4 +3215,5 @@ class PostgreSQLDatabase(username: String, var password: String) {
         throw e
     }
   }
+
 }

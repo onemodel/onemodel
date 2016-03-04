@@ -62,6 +62,12 @@ object Controller {
                                               "now;  if the target contains 0 subgroups, or 2 or more subgroups, " +
                                               "use other means to move entities to it until some kind of \"move anywhere\" feature is added):"
 
+  val defaultPreferencesDepth = 10
+  // Don't change these: they get set and looked up in the data for preferences. Changing it would just require users to reset it though, and would
+  // leave the old as clutter in the data.
+  val USER_PREFERENCES = "User preferences"
+  final val showPublicPrivateStatusPreference = "Should entity lists show public/private status for each?"
+
   def getClipboardContent: String = {
     val clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
     val contents: String = clipboard.getContents(null).getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor).toString
@@ -137,7 +143,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
   val db: PostgreSQLDatabase = tryLogins(forceUserPassPromptIn, defaultUsernameIn, defaultPasswordIn)
 
-  // get default entity ID from user preferences; try to use i:
+  // get default entity ID from user preferences; try to use it:
   val mPrefs = java.util.prefs.Preferences.userNodeForPackage(this.getClass)
   // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
   val menuText_createEntityOrAttrType: String = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)"
@@ -2024,6 +2030,22 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
       //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn, containingGroupIn)
+    }
+  }
+
+  def getPublicStatusDisplayString(entityIn: Entity): String = {
+    //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
+    if (db.getUserPreference(Controller.showPublicPrivateStatusPreference).getOrElse(false)) {
+      val s = entityIn.getPublicStatusDisplayString(blankIfUnset = false)
+      if (s == Entity.PRIVACY_PUBLIC) {
+        Color.green(s)
+      } else if (s == Entity.PRIVACY_NON_PUBLIC) {
+        Color.yellow(s)
+      } else {
+        s
+      }
+    } else {
+      ""
     }
   }
 

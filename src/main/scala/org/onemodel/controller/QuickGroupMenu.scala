@@ -251,7 +251,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
     controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize, startingDisplayRowIndexIn)
     val names: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity.getId)
-      numSubgroupsPrefix + entity.getName + " " + entity.getPublicStatusString()
+      numSubgroupsPrefix + entity.getName + " " + controller.getPublicStatusDisplayString(entity)
     }
     if (objIds.length == 0) {
       val response = ui.askWhich(Some(leadingText), Array[String]("Add entry", "Other (slower, more complete menu)"), Array[String](),

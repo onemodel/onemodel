@@ -944,6 +944,10 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
         // leave it null so calling it will fail as desired below.
         mConn = null
       }
+      override def createExpectedData(): Unit = {
+        // because it is not needed for this test, and normally uses mConn, which by being set to null just above, breaks the method.
+        None
+      }
 
       override def modelTablesExist: Boolean = true
     }
@@ -1022,6 +1026,13 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val editorCmd = mDB.getTextEditorCommand
     if (Controller.isWindows) assert(editorCmd.contains("notepad"))
     else assert(editorCmd == "vi")
+  }
+
+  "setUserPreference and getUserPreference" should "work" in {
+    assert(mDB.getUserPreference("xyznevercreatemeinreallife").isEmpty)
+    assert(mDB.getUserPreference("xyznevercreatemeinreallife", Some(true)) == Some(true))
+    mDB.setUserPreference("xyznevercreatemeinreallife", false)
+    assert(mDB.getUserPreference("xyznevercreatemeinreallife", Some(true)) == Some(false))
   }
 
   "isDuplicateEntity" should "work" in {

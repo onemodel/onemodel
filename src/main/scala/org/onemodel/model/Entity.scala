@@ -114,7 +114,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     mPublic
   }
 
-  def getPublicStatusString(blankIfUnset: Boolean = true): String = {
+  def getPublicStatusDisplayString(blankIfUnset: Boolean = true): String = {
     if (!mAlreadyReadData) readDataFromDB()
 
     if (mPublic.isDefined && mPublic.get) {
@@ -143,7 +143,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   def getAttrCount: Long = mDB.getAttrCount(mId)
 
   def getDisplayString_helper: String = {
-    var displayString: String = getPublicStatusString()
+    var displayString: String = getPublicStatusDisplayString()
     displayString += Color.blue(getName)
     val definerInfo = if (mDB.getClassCount(Some(mId)) > 0) "defining entity (template) for " else ""
     val className: Option[String] = if (getClassId.isDefined) mDB.getClassName(getClassId.get) else None

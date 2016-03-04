@@ -58,7 +58,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
         val leadingText: String = "Main OM menu:"
         val choices: List[String] = List[String](controller.menuText_createEntityOrAttrType,
                                                  controller.menuText_CreateRelationType,
-                                                 "----" /*spacer for better consistency of options with other menus, for memory & navigation speed*/ ,
+                                                 "View preferences",
                                                  "----" /*spacer for better consistency of options with other menus, for memory & navigation speed*/ ,
                                                  "Go to current entity (" + entity.getDisplayString + "; or its sole subgroup, if present)",
                                                  controller.mainSearchPrompt,
@@ -76,6 +76,8 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
               controller.showInEntityMenuThenMainMenu(controller.askForInfoAndCreateEntity())
             case 2 =>
               controller.showInEntityMenuThenMainMenu(controller.askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE))
+            case 3 =>
+              new EntityMenu(ui, db, controller).entityMenu(new Entity(db, db.getPreferencesContainerId.get))
             case 5 =>
               val subEntitySelected: Option[Entity] = controller.goToEntityOrItsSoleGroupsMenu(entity)._1
               if (subEntitySelected.isDefined) mainMenu(subEntitySelected)
