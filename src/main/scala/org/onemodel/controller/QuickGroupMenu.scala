@@ -38,6 +38,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
    *                           group (e.g., if its containing entity was deleted?, or cases where we came to the group some other way, not via the entity.)
    * @return None if user wants out.
    */
+  //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation but not having to fill in obvious ones
   def quickGroupMenu(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup] = None,
                      highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None,
                      callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {

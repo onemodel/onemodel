@@ -187,6 +187,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(atid2 == atid1)
     assert(uid2 == uid1)
     assert(num2 == 4)
+    // (the ".contains" suggested by the IDE just caused another problem)
+    //noinspection OptionEqualsSome
     assert(vod2 == Some(5L))
     assert(od2 == 6)
 
@@ -228,6 +230,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(pid2 == pid1)
     assert(atid2 == atid1)
     assert(txt2 == aTextValue)
+    // (the ".contains" suggested by the IDE just caused another problem)
+    //noinspection OptionEqualsSome
     assert(vod2 == Some(123L))
     assert(od2 == 456)
 
@@ -311,6 +315,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(pid2 == pid1)
     assert(atid2 == atid1)
     assert(bool2 == val2)
+    // (the ".contains" suggested by the IDE just caused another problem)
+    //noinspection OptionEqualsSome
     assert(vod2 == Some(123L))
     assert(od2 == 456)
 
@@ -947,6 +953,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       }
       override def createExpectedData(): Unit = {
         // because it is not needed for this test, and normally uses mConn, which by being set to null just above, breaks the method.
+        // (intentional style violation for readability)
+        //noinspection ScalaUselessExpression
         None
       }
 
@@ -1031,8 +1039,11 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   "setUserPreference and getUserPreference" should "work" in {
     assert(mDB.getUserPreference("xyznevercreatemeinreallife").isEmpty)
+    // (intentional style violation for readability - the ".contains" suggested by the IDE just caused another problem)
+    //noinspection OptionEqualsSome
     assert(mDB.getUserPreference("xyznevercreatemeinreallife", Some(true)) == Some(true))
-    mDB.setUserPreference("xyznevercreatemeinreallife", false)
+    mDB.setUserPreference("xyznevercreatemeinreallife", valueIn = false)
+    //noinspection OptionEqualsSome
     assert(mDB.getUserPreference("xyznevercreatemeinreallife", Some(true)) == Some(false))
   }
 
@@ -1251,10 +1262,10 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   "getMatchingEntities" should "work" in {
     val entityId1 = mDB.createEntity("test: org.onemodel.PSQLDbTest.getMatchingEntities1--abc")
     val entityId2 = mDB.createEntity("test: org.onemodel.PSQLDbTest.getMatchingEntities2")
-    val textAttributeId1: Long = mDB.createTextAttribute(entityId1, entityId2, "defg", None, 0)
+    mDB.createTextAttribute(entityId1, entityId2, "defg", None, 0)
     val entities1 = mDB.getMatchingEntities(0, None, None, "abc")
     assert(entities1.size == 1)
-    val textAttributeId2: Long = mDB.createTextAttribute(entityId2, entityId1, "abc", None, 0)
+    mDB.createTextAttribute(entityId2, entityId1, "abc", None, 0)
     val entities2 = mDB.getMatchingEntities(0, None, None, "abc")
     assert(entities2.size == 2)
   }

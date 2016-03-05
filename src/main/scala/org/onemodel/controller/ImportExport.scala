@@ -35,6 +35,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
    * 1st parameter must be either an Entity or a RelationToGroup (what is the right way to do that, in the signature?).
    */
   def importCollapsibleOutlineAsGroups(firstContainingEntryIn: AnyRef) {
+    //noinspection ComparingUnrelatedTypes
     require(firstContainingEntryIn.isInstanceOf[Entity] || firstContainingEntryIn.isInstanceOf[Group])
     val ans1: Option[String] = ui.askForString(Some(Array("Enter file path (must exist, be readable, AND a text file with lines spaced in the form of a" +
                                                           " collapsible outline where each level change is marked by 1 tab or 2 spaces; textAttribute content" +
@@ -53,6 +54,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                      " and in it a group for the entries.)")
       if (ans3.isDefined) {
         val creatingNewStartingGroupFromTheFilename: Boolean = ans3.get
+        //noinspection ComparingUnrelatedTypes
         val addingToExistingGroup: Boolean = firstContainingEntryIn.isInstanceOf[Group] && !creatingNewStartingGroupFromTheFilename
 
         val putEntriesAtEndOption: Option[Boolean] = {
@@ -388,6 +390,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       }
     }
     // how manage this (& others like it) better using scala type system?:
+    //noinspection ComparingUnrelatedTypes
     require(containingEntry.isInstanceOf[Entity] || containingEntry.isInstanceOf[Group])
     // in order to put the new entries at the end of those already there, find the last used sortingIndex, and use the next one (renumbering
     // if necessary (idea: make this optional: putting them at beginning (w/ mDB.minIdValue) or end (w/ highestCurrentSortingIndex)).

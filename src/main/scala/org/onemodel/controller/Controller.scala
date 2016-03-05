@@ -92,6 +92,7 @@ object Controller {
    * @param previouslyHighlightedEntryIn
    * @return
    */
+  //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation but not having to fill in obvious ones
   def findEntityToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Entity], removedOneIn: Boolean,
                                previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity): Option[Entity] = {
     //NOTE: SIMILAR TO findAttributeToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
@@ -172,7 +173,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   // or of SimpleDateFormat.)
   def blankDate = "1970-01-01 00:00:00:000 " + timezone
 
-  val mCopyright = {
+  val mCopyright: String = {
     var all = ""
     try {
       val reader: BufferedReader = {
@@ -201,7 +202,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           all = all + line + TextUI.NEWLN
         else if (!append) {
           // do nothing
-          Unit
         }
         line = reader.readLine()
       }

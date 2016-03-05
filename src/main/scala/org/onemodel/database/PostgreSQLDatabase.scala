@@ -269,7 +269,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       }
     }
     if (getUserPreference2(preferencesContainerId, Controller.showPublicPrivateStatusPreference).isEmpty) {
-      setUserPreference(Controller.showPublicPrivateStatusPreference, false)
+      setUserPreference(Controller.showPublicPrivateStatusPreference, valueIn = false)
     }
   }
 
@@ -1151,6 +1151,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       def saveFileToDb() {
         numBytesRead = inputStreamIn.read(buffer)
         // (intentional style violation, for readability):
+        //noinspection ScalaUselessExpression
         if (numBytesRead == -1) Unit
         else {
           // just once by a test subclass is enough to mess w/ the md5sum.
@@ -1221,6 +1222,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
    * @param sortingIndexIn Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
    * @return the new RelationToEntity
    */
+  //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation but not having to fill in obvious ones
   def moveRelationToEntity(relationToEntityIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): RelationToEntity = {
     beginTrans()
     try {
@@ -1325,6 +1327,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
    * @param sortingIndexIn Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
    * @return the new RelationToGroup's id.
    */
+  //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation but not having to fill in obvious ones
   def moveRelationToGroup(relationToGroupIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): Long = {
     beginTrans()
     try {
@@ -2181,7 +2184,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
       d.update(bufferIn, startingIndexIn, numBytesIn)
     }
     val storedMd5Hash = actOnFileFromServer(fileAttributeIdIn, action)._2
-    // outputs same as command 'md5sum <file>'.  It is a style violation (advanced feature) but it's what I found when searching for how to do it.
+    // outputs same as command 'md5sum <file>'.
+    //noinspection LanguageFeature ...It is a style violation (advanced feature) but it's what I found when searching for how to do it.
     val md5hash: String = d.digest.map(0xFF &).map {"%02x".format(_)}.foldLeft("") {_ + _}
     if (md5hash == storedMd5Hash) (true, None)
     else {
@@ -2190,7 +2194,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** This is a no-op, called in actOnFileFromServer, that a test can customize to simulate a corrupted file on the server. */
-  // (intentional style violation, for readability)
+  //noinspection ScalaUselessExpression (...intentional style violation, for readability)
   def damageBuffer(buffer: Array[Byte]): Unit = Unit
 
   /** Returns the file size (having confirmed it is the same as the # of bytes processed), and the md5hash that was stored with the document.
@@ -2213,6 +2217,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       def readFileFromDbAndActOnIt() {
         numBytesRead = obj.read(buffer, 0, buffer.length)
         // (intentional style violation, for readability):
+        //noinspection ScalaUselessExpression
         if (numBytesRead <= 0) Unit
         else {
           // just once by a test subclass is enough to mess w/ the md5sum.

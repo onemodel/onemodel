@@ -450,6 +450,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           ui.displayText("Currently, you can only move an Entity or a Group, to an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [1]")
         } else {
+          //noinspection TypeCheckCanBeMatch
           if (highlightedAttributeIn.isInstanceOf[RelationToEntity] && targetForMovesIn.get.isInstanceOf[RelationToEntity]) {
             val movingRte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
             val targetContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToEntity].getRelatedId2
@@ -480,6 +481,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           if (containingRelationToEntityIn.isDefined) {
             require(containingGroupIn.isEmpty)
             val newContainingEntityId = containingRelationToEntityIn.get.getRelatedId1
+            //noinspection TypeCheckCanBeMatch
             if (highlightedAttributeIn.isInstanceOf[RelationToEntity]) {
               val movingRte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
               db.moveRelationToEntity(movingRte.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
@@ -489,6 +491,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [1]")
           } else if (containingGroupIn.isDefined) {
             require(containingRelationToEntityIn.isEmpty)
+            //noinspection TypeCheckCanBeMatch
             if (highlightedAttributeIn.isInstanceOf[RelationToEntity]) {
               val targetGroupId = containingGroupIn.get.getId
               val rte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
