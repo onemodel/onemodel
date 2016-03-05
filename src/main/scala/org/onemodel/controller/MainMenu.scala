@@ -77,7 +77,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
             case 2 =>
               controller.showInEntityMenuThenMainMenu(controller.askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE))
             case 3 =>
-              new EntityMenu(ui, db, controller).entityMenu(new Entity(db, db.getPreferencesContainerId.get))
+              new EntityMenu(ui, db, controller).entityMenu(new Entity(db, db.getPreferencesContainerId))
             case 5 =>
               val subEntitySelected: Option[Entity] = controller.goToEntityOrItsSoleGroupsMenu(entity)._1
               if (subEntitySelected.isDefined) mainMenu(subEntitySelected)

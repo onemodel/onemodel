@@ -20,7 +20,7 @@ import java.sql.{Connection, DriverManager, ResultSet, Statement}
 
 import org.onemodel.controller.Controller
 import org.onemodel.model._
-import org.onemodel.{OmDatabaseException, OmException, OmFileTransferException}
+import org.onemodel.{OmDatabaseException, OmFileTransferException}
 import org.postgresql.largeobject.{LargeObject, LargeObjectManager}
 
 import scala.annotation.tailrec
@@ -41,6 +41,8 @@ object PostgreSQLDatabase {
   val EDITOR_INFO_ENTITY_NAME = "editorInfo"
   val TEXT_EDITOR_INFO_ENTITY_NAME = "textEditorInfo"
   val TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME = "textEditorCommand"
+  val PREF_TYPE_BOOLEAN = "boolean"
+  val PREF_TYPE_ENTITY_ID = "entityId"
 
   // where we create the table also calls this.
   // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
@@ -258,7 +260,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val HASrelationTypeId = findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
 
     val preferencesContainerId: Long = {
-      val preferencesEntityId: Option[Long] = getPreferencesContainerId
+      val preferencesEntityId: Option[Long] = getRelationToEntityByName(getSystemEntityId, Controller.USER_PREFERENCES)
       if (preferencesEntityId.isDefined) {
         preferencesEntityId.get
       } else {
@@ -268,8 +270,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
         newEntityId
       }
     }
-    if (getUserPreference2(preferencesContainerId, Controller.showPublicPrivateStatusPreference).isEmpty) {
-      setUserPreference(Controller.showPublicPrivateStatusPreference, valueIn = false)
+    // (Not doing the default entity preference here also, because it might not be set by not and is not assumed to be.)
+    if (getUserPreference2(preferencesContainerId, Controller.showPublicPrivateStatusPreference, PostgreSQLDatabase.PREF_TYPE_BOOLEAN).isEmpty) {
+      setUserPreference_Boolean(Controller.showPublicPrivateStatusPreference, valueIn = false)
     }
   }
 
@@ -690,8 +693,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
   }
 
-  /** case-insensitive. */
-  def findContainedEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String, levelsIn: Int = 20): mutable.TreeSet[Long] = {
+  /** Case-insensitive.
+    * @param stopAfterAnyFound is to prevent a serious performance problem when searching for the default entity at startup, and that default entity
+    *                          eventually links to 1000's of others.  Alternatives included specifying a different levelsRemaining parameter in that
+    *                          case, or not following any RelationToEntity links (which defeats the ability to organize the preferences in a hierarchy),
+    *                          or flagging certain ones to skip by marking them as a preference (not a link to follow in the preferences hierarchy), but
+    *                          those all seemed more complicated.
+    * */
+  def findContainedEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String, 
+                             levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true): mutable.TreeSet[Long] = {
     // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two places).  But that has other complexities: see
     // comments on ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of levels total, it might not matter anyway
     // (ie, probably the current code is not optimized but is simpler and good enough for now).
@@ -699,7 +709,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // Idea: could do regexes instead of string matching, like we have elsewhere (& are now, for TextAttributes below)? If so, put similar text in the prompt
     // (see Controller.findExistingObjectByText, clarify in the method names/docs that we are doing regexes, & methods getMatchingEntities, getMatchingGroups.
 
-    if (levelsIn > 0) {
+    if (levelsRemaining <= 0 || (stopAfterAnyFound && resultsInOut.nonEmpty)) {
+      // do nothing: get out.
+    } else {
       val sql = "select rte.entity_id_2, e.name from entity e, RelationToEntity rte where rte.entity_id=" + fromEntityIdIn +
                 " and rte.entity_id_2=e.id and not e.archived"
       val relatedEntityIdRows = dbQuery(sql, "Long,String")
@@ -707,27 +719,33 @@ class PostgreSQLDatabase(username: String, var password: String) {
         val id: Long = row(0).get.asInstanceOf[Long]
         val name = row(1).get.asInstanceOf[String]
         if (name.toLowerCase.contains(searchStringIn.toLowerCase)) {
+          // have to do the name check here because we need to traverse all contained entities, so we need all those back from the sql, not just name matches.
           resultsInOut.add(id)
         }
-        findContainedEntityIds(resultsInOut, id, searchStringIn, levelsIn - 1)
+        findContainedEntityIds(resultsInOut, id, searchStringIn, levelsRemaining - 1, stopAfterAnyFound)
       }
-      val sql2 = "select eiag.entity_id, e.name from RelationToGroup rtg, EntitiesInAGroup eiag, entity e where rtg.entity_id=" + fromEntityIdIn +
-                " and rtg.group_id=eiag.group_id and eiag.entity_id=e.id  and not e.archived"
-      val entitiesInGroups = dbQuery(sql2, "Long,String")
-      for (row <- entitiesInGroups) {
-        val id: Long = row(0).get.asInstanceOf[Long]
-        val name = row(1).get.asInstanceOf[String]
-        if (name.toLowerCase.contains(searchStringIn.toLowerCase)) {
-          resultsInOut.add(id)
+      if (! (stopAfterAnyFound && resultsInOut.nonEmpty)) {
+        val sql2 = "select eiag.entity_id, e.name from RelationToGroup rtg, EntitiesInAGroup eiag, entity e where rtg.entity_id=" + fromEntityIdIn +
+                   " and rtg.group_id=eiag.group_id and eiag.entity_id=e.id  and not e.archived"
+        val entitiesInGroups = dbQuery(sql2, "Long,String")
+        for (row <- entitiesInGroups) {
+          val id: Long = row(0).get.asInstanceOf[Long]
+          val name = row(1).get.asInstanceOf[String]
+          if (name.toLowerCase.contains(searchStringIn.toLowerCase)) {
+            // have to do the name check here because we need to traverse all contained entities, so we need all those back from the sql, not just name matches.
+            resultsInOut.add(id)
+          }
+          findContainedEntityIds(resultsInOut, id, searchStringIn, levelsRemaining - 1, stopAfterAnyFound)
         }
-        findContainedEntityIds(resultsInOut, id, searchStringIn, levelsIn - 1)
       }
       // this part is doing a regex now:
-      val sql3 = "select ta.id from textattribute ta, entity e where entity_id=e.id and (not e.archived) and entity_id=" + fromEntityIdIn +
-                 " and textValue ~* '" + searchStringIn + "'"
-      val textAttributes: List[Array[Option[Any]]] = dbQuery(sql3, "Long")
-      if (textAttributes.nonEmpty) {
-        resultsInOut.add(fromEntityIdIn)
+      if (! (stopAfterAnyFound && resultsInOut.nonEmpty)) {
+        val sql3 = "select ta.id from textattribute ta, entity e where entity_id=e.id and (not e.archived) and entity_id=" + fromEntityIdIn +
+                   " and textValue ~* '" + searchStringIn + "'"
+        val textAttributes: List[Array[Option[Any]]] = dbQuery(sql3, "Long")
+        if (textAttributes.nonEmpty) {
+          resultsInOut.add(fromEntityIdIn)
+        }
       }
     }
     resultsInOut
@@ -1042,7 +1060,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       val groupId = row(0).get.asInstanceOf[Long]
       val mixedClassesAllowed: Boolean = areMixedClassesAllowed(groupId)
       if ((!mixedClassesAllowed) && hasMixedClasses(groupId)) {
-        throw rollbackWithCatch(new OmException(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
+        throw rollbackWithCatch(new OmDatabaseException(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
       }
     }
     if (!callerManagesTransactions) commitTrans()
@@ -1361,7 +1379,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     if (isEntityInGroup(toGroupIdIn, moveEntityIdIn) && !isEntityInGroup(fromGroupIdIn, moveEntityIdIn)) {
       commitTrans()
     } else {
-      throw rollbackWithCatch(new OmException("Entity didn't get moved properly.  Retry: if predictably reproducible, it should be diagnosed."))
+      throw rollbackWithCatch(new OmDatabaseException("Entity didn't get moved properly.  Retry: if predictably reproducible, it should be diagnosed."))
     }
   }
 
@@ -1656,63 +1674,124 @@ class PostgreSQLDatabase(username: String, var password: String) {
     ids.get.head
   }
 
-  /** Creates the preference and the container of preferences, if either doesn't already exist.  */
-  def setUserPreference(nameIn: String, valueIn: Boolean) = {
-    val HASrelationTypeId = findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
-    val preferencesContainerId: Long = getPreferencesContainerId.get
-    val preferenceInfo: Option[(Long, Boolean)] = getUserPreference2(preferencesContainerId, nameIn)
+  /** Creates the preference if it doesn't already exist.  */
+  def setUserPreference_Boolean(nameIn: String, valueIn: Boolean) = {
+    val preferencesContainerId: Long = getPreferencesContainerId
+    val result = getUserPreference2(preferencesContainerId, nameIn, PostgreSQLDatabase.PREF_TYPE_BOOLEAN)
+    val preferenceInfo: Option[(Long, Boolean)] = result.asInstanceOf[Option[(Long,Boolean)]]
     if (preferenceInfo.isDefined) {
-      val preferenceBooleanAttributeId: Long = preferenceInfo.get._1
-      val ba = new BooleanAttribute(this, preferenceBooleanAttributeId)
-      updateBooleanAttribute(ba.getId, ba.getParentId, ba.getAttrTypeId, valueIn, ba.getValidOnDate, ba.getObservationDate)
+      val preferenceAttributeId: Long = preferenceInfo.get._1
+      val attribute = new BooleanAttribute(this, preferenceAttributeId)
+      updateBooleanAttribute(attribute.getId, attribute.getParentId, attribute.getAttrTypeId, valueIn, attribute.getValidOnDate, attribute.getObservationDate)
     } else {
+      val HASrelationTypeId = findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
       val preferenceEntityId: Long = createEntityAndRelationToEntity(preferencesContainerId, HASrelationTypeId, nameIn, None,
                                                                      Some(System.currentTimeMillis()), System.currentTimeMillis())._1
-      // (For about the attr_type_id value, see comment about that field, in method getUserPreference2 below.)
+      // (For about the attr_type_id value (2nd parm), see comment about that field, in method getUserPreference_Boolean2 below.)
       createBooleanAttribute(preferenceEntityId, preferenceEntityId, valueIn, Some(System.currentTimeMillis()), System.currentTimeMillis())
     }
   }
 
-  def getUserPreference(preferenceNameIn: String, defaultValueIn: Option[Boolean] = None): Option[Boolean] = {
-    val relatedEntityId: Option[Long] = getPreferencesContainerId
-    if (relatedEntityId.isEmpty) {
-      throw new OmException("This should never happen: method createExpectedData should be run at startup to create this part of the data.")
+  def getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option[Boolean] = None): Option[Boolean] = {
+    val pref = getUserPreference2(getPreferencesContainerId, preferenceNameIn, PostgreSQLDatabase.PREF_TYPE_BOOLEAN)
+    if (pref.isEmpty) {
+      defaultValueIn
     } else {
-      val preferencesContainerId: Long = relatedEntityId.get
-      val pref = getUserPreference2(preferencesContainerId, preferenceNameIn)
-      if (pref.isEmpty) {
-        defaultValueIn
-      } else {
-        Some(pref.get._2)
-      }
+      Some(pref.get.asInstanceOf[(Long,Boolean)]._2)
     }
   }
-  
-  def getUserPreference2(preferencesContainerIdIn: Long, preferenceNameIn: String): Option[(Long, Boolean)] = {
-    val foundPreferences: mutable.TreeSet[Long] = findContainedEntityIds(new mutable.TreeSet[Long], preferencesContainerIdIn, preferenceNameIn,
-                                                                         Controller.defaultPreferencesDepth)
+
+  /** Creates the preference if it doesn't already exist.  */
+  def setUserPreference_EntityId(nameIn: String, entityIdIn: Long) = {
+    val preferencesContainerId: Long = getPreferencesContainerId
+    val result = getUserPreference2(preferencesContainerId, nameIn, PostgreSQLDatabase.PREF_TYPE_ENTITY_ID)
+    val preferenceInfo: Option[(Long, Long, Long)] = result.asInstanceOf[Option[(Long,Long,Long)]]
+    if (preferenceInfo.isDefined) {
+      val relationTypeId: Long = preferenceInfo.get._1
+      val entityId1: Long = preferenceInfo.get._2
+      val entityId2: Long = preferenceInfo.get._3
+      // didn't bother to put these 2 calls in a transaction because this is likely to be so rarely used and easily fixed by user if it fails (from default
+      // entity setting on any entity menu)
+      deleteRelationToEntity(relationTypeId, entityId1, entityId2)
+      // (Using entityId1 instead of (the likely identical) preferencesContainerId, in case this RTE was originally found down among some
+      // nested preferences (organized for user convenience) under here, in order to keep that organization.)
+      createRelationToEntity(relationTypeId, entityId1, entityIdIn, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    } else {
+      val HASrelationTypeId = findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+      val preferenceEntityId: Long = createEntityAndRelationToEntity(preferencesContainerId, HASrelationTypeId, nameIn, None,
+                                                                     Some(System.currentTimeMillis()), System.currentTimeMillis())._1
+      createRelationToEntity(HASrelationTypeId, preferenceEntityId, entityIdIn, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    }
+  }
+
+  def getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[Long] = None): Option[Long] = {
+    val pref = getUserPreference2(getPreferencesContainerId, preferenceNameIn, PostgreSQLDatabase.PREF_TYPE_ENTITY_ID)
+    if (pref.isEmpty) {
+      defaultValueIn
+    } else {
+      Some(pref.get.asInstanceOf[(Long,Long,Long)]._3)
+    }
+  }
+
+  def getUserPreference2(preferencesContainerIdIn: Long, preferenceNameIn: String, preferenceType: String): Option[Any] = {
+    // (Passing a smalling numeric parameter to findContainedEntityIds for levelsRemainingIn, so that in the (very rare) case where one does not
+    // have a default entity set at the *top* level of the preferences under the system entity, and there are links there to entities with many links
+    // to others, then it still won't take too long to traverse them all at startup when searching for the default entity.  But still allowing for
+    // preferences to be nested up to that many levels (3 as of this writing).
+    val foundPreferences: mutable.TreeSet[Long] = findContainedEntityIds(new mutable.TreeSet[Long], preferencesContainerIdIn, preferenceNameIn, 3)
     if (foundPreferences.isEmpty) {
       None
     } else {
-      require(foundPreferences.size == 1, "Under the entity " + getEntityName(preferencesContainerIdIn) + " (" + preferencesContainerIdIn + ", possibly under" +
-                                          PostgreSQLDatabase.systemEntityName +
-                                          "), there is (eventually) more than entity with the name " + preferenceNameIn +
-                                          ", so the program does not know which one to use for this.")
+      require(foundPreferences.size == 1, "Under the entity \"" + getEntityName(preferencesContainerIdIn) + "\" (" + preferencesContainerIdIn +
+                                          ", possibly under " + PostgreSQLDatabase.systemEntityName +
+                                          "), there is (eventually) more than one entity with the name \"" + preferenceNameIn +
+                                          "\", so the program does not know which one to use for this.")
       val preferenceEntity = new Entity(this, foundPreferences.firstKey)
-      // (Using the preferenceEntity.getId for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
-      // IN setUserPreference METHOD CALL TO createBooleanAttribute!)
-      val sql2 = "select id, booleanValue from booleanattribute where entity_id=" + preferenceEntity.getId + " and attr_type_id=" + preferenceEntity.getId
-      val relevantAttributeRows = dbQuery(sql2, "Long,Boolean")
+      val relevantAttributeRows: List[Array[Option[Any]]] = {
+        if (preferenceType == PostgreSQLDatabase.PREF_TYPE_BOOLEAN) {
+          // (Using the preferenceEntity.getId for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
+          // IN setUserPreference METHOD CALL TO createBooleanAttribute!)
+          val sql2 = "select id, booleanValue from booleanattribute where entity_id=" + preferenceEntity.getId + " and attr_type_id=" + preferenceEntity.getId
+          dbQuery(sql2, "Long,Boolean")
+        } else if (preferenceType == PostgreSQLDatabase.PREF_TYPE_ENTITY_ID) {
+          val sql2 = "select rel_type_id, entity_id, entity_id_2 from relationtoentity where entity_id=" + preferenceEntity.getId
+          dbQuery(sql2, "Long,Long,Long")
+        } else {
+          throw new OmDatabaseException("Unexpected preferenceType: " + preferenceType)
+        }
+      }
       if (relevantAttributeRows.isEmpty) {
+        // at this point we probably have a preference entity but not the expected attribute inside it that holds the actual useful information, so the
+        // user needs to go delete the bad preference entity or re-create the attribute.
+        // Idea: should there be a good way to *tell* them that, from here?
+        // Or, just delete the bad preference (self-cleanup). If it was the public/private display toggle, its absence will cause errors (though it is a
+        // very unlikely situation here), and it will be fixed on restarting the app (or starting another instance), via the createExpectedData method.
+        deleteEntity(preferenceEntity.getId)
         None
       } else {
         require(relevantAttributeRows.size == 1, "Under the entity " + getEntityName(preferenceEntity.getId) + " (" + preferenceEntity.getId +
                                                      "), there are " + relevantAttributeRows.size +
-                                                     " BooleanAttributes with the relevant type (" + preferenceNameIn + ", " +
-                                                     preferencesContainerIdIn + ", so the program does not know what to use for this.  There should be *one*.")
-        val preferenceId: Long = relevantAttributeRows.head(0).get.asInstanceOf[Long]
-        val preferenceValue: Boolean = relevantAttributeRows.head(1).get.asInstanceOf[Boolean]
-        Some((preferenceId, preferenceValue))
+                                                 (if (preferenceType == PostgreSQLDatabase.PREF_TYPE_BOOLEAN) {
+                                                   " BooleanAttributes with the relevant type (" + preferenceNameIn + "," + preferencesContainerIdIn + "), "
+                                                  } else if (preferenceType == PostgreSQLDatabase.PREF_TYPE_ENTITY_ID) {
+                                                     " RelationToEntity values "
+                                                  } else {
+                                                     throw new OmDatabaseException("Unexpected preferenceType: " + preferenceType)
+                                                  }
+                                                 ) +
+                                                 "so the program does not know what to use for this.  There should be *one*.")
+        if (preferenceType == PostgreSQLDatabase.PREF_TYPE_BOOLEAN) {
+          val preferenceId: Long = relevantAttributeRows.head(0).get.asInstanceOf[Long]
+          val preferenceValue: Boolean = relevantAttributeRows.head(1).get.asInstanceOf[Boolean]
+          Some((preferenceId, preferenceValue))
+        } else if (preferenceType == PostgreSQLDatabase.PREF_TYPE_ENTITY_ID) {
+          val relTypeId: Long = relevantAttributeRows.head(0).get.asInstanceOf[Long]
+          val entityId1: Long = relevantAttributeRows.head(1).get.asInstanceOf[Long]
+          val entityId2: Long = relevantAttributeRows.head(2).get.asInstanceOf[Long]
+          Some((relTypeId, entityId1, entityId2))
+        } else {
+          throw new OmDatabaseException("Unexpected preferenceType: " + preferenceType)
+        }
       }
     }
   }
@@ -1725,15 +1804,19 @@ class PostgreSQLDatabase(username: String, var password: String) {
       None
     } else {
       require(relatedEntityIdRows.size == 1, "Under the entity " + getEntityName(containingEntityIdIn) + "(" + containingEntityIdIn +
-                                             "), there is more than entity with the name " + Controller.USER_PREFERENCES +
-                                             ", so the program does not know which one to use for this.")
+                                             "), there is more one than entity with the name \"" + Controller.USER_PREFERENCES +
+                                             "\", so the program does not know which one to use for this.")
       Some(relatedEntityIdRows.head(0).get.asInstanceOf[Long])
     }
   }
 
   /** This should never return None, except when method createExpectedData is called for the first time in a given database. */
-  def getPreferencesContainerId: Option[Long] = {
-    getRelationToEntityByName(getSystemEntityId, Controller.USER_PREFERENCES)
+  def getPreferencesContainerId: Long = {
+    val relatedEntityId = getRelationToEntityByName(getSystemEntityId, Controller.USER_PREFERENCES)
+    if (relatedEntityId.isEmpty) {
+      throw new OmDatabaseException("This should never happen: method createExpectedData should be run at startup to create this part of the data.")
+    }
+    relatedEntityId.get
   }
 
   def getEntityCount: Long = extractRowCountFromCountQuery("SELECT count(1) from Entity where (not archived)")
@@ -2019,7 +2102,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def isEntityInGroup(inGroupId: Long, inEntityId: Long): Boolean = {
     val num = extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where eig.entity_id=e.id and (not e.archived)" +
                                             " and group_id=" + inGroupId + " and entity_id=" + inEntityId)
-    if (num > 1) throw new OmException("Entity " + inEntityId + " is in group " + inGroupId + " " + num + " times?? Should be 0 or 1.")
+    if (num > 1) throw new OmDatabaseException("Entity " + inEntityId + " is in group " + inGroupId + " " + num + " times?? Should be 0 or 1.")
     num == 1
   }
 
@@ -2184,8 +2267,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
       d.update(bufferIn, startingIndexIn, numBytesIn)
     }
     val storedMd5Hash = actOnFileFromServer(fileAttributeIdIn, action)._2
-    // outputs same as command 'md5sum <file>'.
     //noinspection LanguageFeature ...It is a style violation (advanced feature) but it's what I found when searching for how to do it.
+    // outputs same as command 'md5sum <file>'.
     val md5hash: String = d.digest.map(0xFF &).map {"%02x".format(_)}.foldLeft("") {_ + _}
     if (md5hash == storedMd5Hash) (true, None)
     else {

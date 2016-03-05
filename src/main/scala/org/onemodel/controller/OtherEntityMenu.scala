@@ -33,7 +33,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                                   "Go to other related entities or groups...",
                                   "(stub)")
       //  don't show the "set default" option if it's already been done w/ this same one:
-      val defaultEntity: Option[Long] = controller.findDefaultDisplayEntity
+      val defaultEntity: Option[Long] = controller.getDefaultEntity._1
       val entityIsAlreadyTheDefault: Boolean = defaultEntity.isDefined && defaultEntity.get == entityIn.getId
       if (! entityIsAlreadyTheDefault) {
         choices = choices :+ ((if (defaultEntity.isEmpty) "****TRY ME---> " else "") +
@@ -111,7 +111,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             true
         } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
           // updates user preferences such that this obj will be the one displayed by default in future.
-          controller.mPrefs.putLong("first_display_entity", entityIn.getId)
+          db.setUserPreference_EntityId(Controller.defaultEntityPreference, entityIn.getId)
           false
         } else {
           ui.displayText("invalid response")

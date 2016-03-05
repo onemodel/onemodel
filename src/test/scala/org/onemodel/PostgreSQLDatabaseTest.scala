@@ -1008,9 +1008,11 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val te2 = createTestRelationToEntity_WithOneEntity(te1, relTypeId)
     val te3 = createTestRelationToEntity_WithOneEntity(te2, relTypeId)
     val te4 = createTestRelationToEntity_WithOneEntity(te3, relTypeId)
-    val foundIds: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, PERSON_TEMPLATE, 4)
+    val foundIds: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, PERSON_TEMPLATE, 4,
+                                                                     stopAfterAnyFound = false)
     assert(foundIds.contains(personTemplateEntityId), "Value not found in query: " + personTemplateEntityId)
-    val allContainedWithName: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4)
+    val allContainedWithName: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
+                                                                                 stopAfterAnyFound = false)
     // (see idea above about making more scala-like)
     var allContainedIds = ""
     for (id: Long <- allContainedWithName) {
@@ -1019,16 +1021,19 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(allContainedWithName.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     val te4Entity: Entity = new Entity(mDB, te4)
     te4Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, 0)
-    val allContainedWithName2: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4)
+    val allContainedWithName2: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
+                                                                                  stopAfterAnyFound = false)
     // should be no change yet (added it outside the # of levels to check):
     assert(allContainedWithName2.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     val te2Entity: Entity = new Entity(mDB, te2)
     te2Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, 0)
-    val allContainedWithName3: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4)
+    val allContainedWithName3: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
+                                                                                  stopAfterAnyFound = false)
     // should be no change yet (the entity was already in the return set, so the TA addition didn't add anything)
     assert(allContainedWithName3.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     te2Entity.addTextAttribute(te1/*not really but whatever*/, "otherText", None, 0)
-    val allContainedWithName4: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, "otherText", 4)
+    val allContainedWithName4: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, "otherText", 4,
+                                                                                  stopAfterAnyFound = false)
     // now there should be a change:
     assert(allContainedWithName4.size == 1, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
 
@@ -1037,14 +1042,22 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     else assert(editorCmd == "vi")
   }
 
-  "setUserPreference and getUserPreference" should "work" in {
-    assert(mDB.getUserPreference("xyznevercreatemeinreallife").isEmpty)
+  "setUserPreference* and getUserPreference*" should "work" in {
+    assert(mDB.getUserPreference_Boolean("xyznevercreatemeinreallife").isEmpty)
     // (intentional style violation for readability - the ".contains" suggested by the IDE just caused another problem)
     //noinspection OptionEqualsSome
-    assert(mDB.getUserPreference("xyznevercreatemeinreallife", Some(true)) == Some(true))
-    mDB.setUserPreference("xyznevercreatemeinreallife", valueIn = false)
+    assert(mDB.getUserPreference_Boolean("xyznevercreatemeinreallife", Some(true)) == Some(true))
+    mDB.setUserPreference_Boolean("xyznevercreatemeinreallife", valueIn = false)
     //noinspection OptionEqualsSome
-    assert(mDB.getUserPreference("xyznevercreatemeinreallife", Some(true)) == Some(false))
+    assert(mDB.getUserPreference_Boolean("xyznevercreatemeinreallife", Some(true)) == Some(false))
+
+    assert(mDB.getUserPreference_EntityId("xyz2").isEmpty)
+    // (intentional style violation for readability - the ".contains" suggested by the IDE just caused another problem)
+    //noinspection OptionEqualsSome
+    assert(mDB.getUserPreference_EntityId("xyz2", Some(0L)) == Some(0L))
+    mDB.setUserPreference_EntityId("xyz2", mDB.getSystemEntityId)
+    //noinspection OptionEqualsSome
+    assert(mDB.getUserPreference_EntityId("xyz2", Some(0L)) == Some(mDB.getSystemEntityId))
   }
 
   "isDuplicateEntity" should "work" in {

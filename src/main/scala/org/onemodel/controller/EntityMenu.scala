@@ -35,7 +35,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                 "Search / List next ...")
     choices = choices :+ "Select target (entry move destination: gets a '+' and must be a RelationToEntity or ..ToGroup)"
     choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; typing the letter instead goes to that attribute's menu)" else "(stub)")
-    choices = choices :+ (if (controller.findDefaultDisplayEntity.isEmpty) "****TRY ME---> " else "") + "Other entity operations..."
+    choices = choices :+ (if (controller.getDefaultEntity._1.isEmpty) "****TRY ME---> " else "") + "Other entity operations..."
     choices
   }
 

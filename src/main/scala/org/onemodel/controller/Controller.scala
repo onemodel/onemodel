@@ -13,6 +13,7 @@ package org.onemodel.controller
 import java.io._
 import java.nio.file.{Files, Path}
 import java.util
+import java.util.prefs.Preferences
 
 import org.apache.commons.io.FilenameUtils
 import org.onemodel._
@@ -67,6 +68,7 @@ object Controller {
   // leave the old as clutter in the data.
   val USER_PREFERENCES = "User preferences"
   final val showPublicPrivateStatusPreference = "Should entity lists show public/private status for each?"
+  final val defaultEntityPreference = "Which entity should be displayed as default, when starting the program?"
 
   def getClipboardContent: String = {
     val clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
@@ -144,8 +146,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
   val db: PostgreSQLDatabase = tryLogins(forceUserPassPromptIn, defaultUsernameIn, defaultPasswordIn)
 
-  // get default entity ID from user preferences; try to use it:
-  val mPrefs = java.util.prefs.Preferences.userNodeForPackage(this.getClass)
+  val mDeprecatedOldStylePrefs: Preferences = java.util.prefs.Preferences.userNodeForPackage(this.getClass)
   // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
   val menuText_createEntityOrAttrType: String = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)"
   val menuText_CreateRelationType: String = "Add new relation type (" + mRelTypeExamples + ")"
@@ -223,7 +224,15 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
   def getDefaultEntity: (Option[Long], Option[Entity]) = {
-    val defaultEntityId = findDefaultDisplayEntity
+    val defaultEntityId: Option[Long] = {
+      try {
+        findDefaultDisplayEntityId
+      } catch {
+        case e: Exception =>
+          handleException(e)
+          None
+      }
+    }
     if (defaultEntityId.isEmpty) (None, None)
     else (defaultEntityId, Entity.getEntityById(db, defaultEntityId.get))
   }
@@ -343,21 +352,27 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
-  def findDefaultDisplayEntity: Option[Long] = {
-    //idea: move this from prefs into an auto-created (always there) first/"System" object (predictable location: lowest id?),
-    //which has a certain "defaultEntity" attribute always, which is not null if user has set a pref. (and, allow user to delete the pref?);
-    //that also sounds more easily testable using current strategies.
-    val first = mPrefs.get("first_display_entity", null)
-    if (first == null) None
-    else {
-      try {
-        if (!db.entityKeyExists(first.toLong)) None
-        else Some(first.toLong)
-      } catch {
-        case e: java.lang.NumberFormatException =>
-          ui.displayText("There is non-numeric value (" + first + ") in a file located somewhere like ~/.java/.userPrefs/org/onemodel/prefs.xml. You might " +
-                         "want to fix that, delete it, or re-save your default entity using the entity menu. Proceeding without it.")
-          None
+  private def findDefaultDisplayEntityId: Option[Long] = {
+    val dbval: Option[Long] = db.getUserPreference_EntityId(Controller.defaultEntityPreference)
+    if (dbval.isDefined) {
+      dbval
+    } else {
+      val first = mDeprecatedOldStylePrefs.get("first_display_entity", null)
+      if (first == null) None
+      else {
+        try {
+          if (!db.entityKeyExists(first.toLong)) None
+          else {
+            db.setUserPreference_EntityId(Controller.defaultEntityPreference, first.toLong)
+            mDeprecatedOldStylePrefs.remove("first_display_entity")
+            Some(first.toLong)
+          }
+        } catch {
+          case e: java.lang.NumberFormatException =>
+            ui.displayText("There is non-numeric value (" + first + ") in a file located somewhere like ~/.java/.userPrefs/org/onemodel/prefs.xml. You might " +
+                           "want to fix that, delete it, or re-save your default entity using the entity menu. Proceeding without it.")
+            None
+        }
       }
     }
   }
@@ -913,7 +928,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                               "separated)")
       case entity: Entity =>
         val valueBeforeEdit: Option[Boolean] = entityIn.getPublic
-        val valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("Enter yes/no value (or a space for 'unknown/unspecified'",
+        val valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("Enter yes/no value (or a space for 'unknown/unspecified'; used e.g. during data export)",
                                                                   if (valueBeforeEdit.isEmpty) Some("") else if (valueBeforeEdit.get) Some("y") else Some("n"),
                                                                   allowBlankAnswer = true)
         if (valueAfterEdit != valueBeforeEdit) {
@@ -2035,7 +2050,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def getPublicStatusDisplayString(entityIn: Entity): String = {
     //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
-    if (db.getUserPreference(Controller.showPublicPrivateStatusPreference).getOrElse(false)) {
+    if (db.getUserPreference_Boolean(Controller.showPublicPrivateStatusPreference).getOrElse(false)) {
       val s = entityIn.getPublicStatusDisplayString(blankIfUnset = false)
       if (s == Entity.PRIVACY_PUBLIC) {
         Color.green(s)
