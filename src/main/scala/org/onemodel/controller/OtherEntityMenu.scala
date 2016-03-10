@@ -111,7 +111,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             true
         } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
           // updates user preferences such that this obj will be the one displayed by default in future.
-          db.setUserPreference_EntityId(Controller.defaultEntityPreference, entityIn.getId)
+          db.setUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE, entityIn.getId)
+          controller.refreshDefaultDisplayEntityId()
           false
         } else {
           ui.displayText("invalid response")

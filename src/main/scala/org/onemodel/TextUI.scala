@@ -375,7 +375,9 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
     val possibleMenuChars = firstMenuChars + TextUI.menuCharsList
     // make sure caller didn't send more than the # of things we can handle
-    require((choices.length + moreChoices.length) <= possibleMenuChars.length)
+    require((choices.length + moreChoices.length) <= possibleMenuChars.length, "Programming error: there are more choices provided (" +
+                                                                               (choices.length + moreChoices.length) + ") than the menu can handle" +
+                                                                               possibleMenuChars.length)
 
     var alreadyFull = false
     var lineCounter: Int = 0

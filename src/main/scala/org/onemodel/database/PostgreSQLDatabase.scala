@@ -271,8 +271,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
       }
     }
     // (Not doing the default entity preference here also, because it might not be set by not and is not assumed to be.)
-    if (getUserPreference2(preferencesContainerId, Controller.showPublicPrivateStatusPreference, PostgreSQLDatabase.PREF_TYPE_BOOLEAN).isEmpty) {
-      setUserPreference_Boolean(Controller.showPublicPrivateStatusPreference, valueIn = false)
+    if (getUserPreference2(preferencesContainerId, Controller.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE, PostgreSQLDatabase.PREF_TYPE_BOOLEAN).isEmpty) {
+      setUserPreference_Boolean(Controller.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE, valueIn = false)
     }
   }
 
@@ -693,14 +693,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
   }
 
-  /** Case-insensitive.
+  /** @param searchStringIn is case-insensitive.
     * @param stopAfterAnyFound is to prevent a serious performance problem when searching for the default entity at startup, and that default entity
     *                          eventually links to 1000's of others.  Alternatives included specifying a different levelsRemaining parameter in that
     *                          case, or not following any RelationToEntity links (which defeats the ability to organize the preferences in a hierarchy),
     *                          or flagging certain ones to skip by marking them as a preference (not a link to follow in the preferences hierarchy), but
     *                          those all seemed more complicated.
     * */
-  def findContainedEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String, 
+  def findContainedEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String,
                              levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true): mutable.TreeSet[Long] = {
     // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two places).  But that has other complexities: see
     // comments on ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of levels total, it might not matter anyway
@@ -1235,12 +1235,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /**
-   * @param relationToEntityIdIn
-   * @param newContainingEntityIdIn
    * @param sortingIndexIn Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
    * @return the new RelationToEntity
    */
-  //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation but not having to fill in obvious ones
   def moveRelationToEntity(relationToEntityIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): RelationToEntity = {
     beginTrans()
     try {
@@ -1340,12 +1337,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /**
-   * @param relationToGroupIdIn
-   * @param newContainingEntityIdIn
    * @param sortingIndexIn Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
    * @return the new RelationToGroup's id.
    */
-  //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation but not having to fill in obvious ones
   def moveRelationToGroup(relationToGroupIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): Long = {
     beginTrans()
     try {
@@ -1734,11 +1728,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getUserPreference2(preferencesContainerIdIn: Long, preferenceNameIn: String, preferenceType: String): Option[Any] = {
-    // (Passing a smalling numeric parameter to findContainedEntityIds for levelsRemainingIn, so that in the (very rare) case where one does not
+    // (Passing a smaller numeric parameter to findContainedEntityIds for levelsRemainingIn, so that in the (very rare) case where one does not
     // have a default entity set at the *top* level of the preferences under the system entity, and there are links there to entities with many links
     // to others, then it still won't take too long to traverse them all at startup when searching for the default entity.  But still allowing for
     // preferences to be nested up to that many levels (3 as of this writing).
-    val foundPreferences: mutable.TreeSet[Long] = findContainedEntityIds(new mutable.TreeSet[Long], preferencesContainerIdIn, preferenceNameIn, 3)
+    val foundPreferences: mutable.TreeSet[Long] = findContainedEntityIds(new mutable.TreeSet[Long], preferencesContainerIdIn, preferenceNameIn, 1)
     if (foundPreferences.isEmpty) {
       None
     } else {

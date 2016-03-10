@@ -67,8 +67,8 @@ object Controller {
   // Don't change these: they get set and looked up in the data for preferences. Changing it would just require users to reset it though, and would
   // leave the old as clutter in the data.
   val USER_PREFERENCES = "User preferences"
-  final val showPublicPrivateStatusPreference = "Should entity lists show public/private status for each?"
-  final val defaultEntityPreference = "Which entity should be displayed as default, when starting the program?"
+  final val SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE = "Should entity lists show public/private status for each?"
+  final val DEFAULT_ENTITY_PREFERENCE = "Which entity should be displayed as default, when starting the program?"
 
   def getClipboardContent: String = {
     val clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
@@ -89,12 +89,8 @@ object Controller {
   /**
    * @param objectSetSize # of all the possible entries, not reduced by what fits in the available display space (I think).
    * @param objectsToDisplayIn  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
-   * @param removedOneIn
-   * @param previouslyHighlightedIndexInObjListIn
-   * @param previouslyHighlightedEntryIn
    * @return
    */
-  //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation but not having to fill in obvious ones
   def findEntityToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Entity], removedOneIn: Boolean,
                                previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity): Option[Entity] = {
     //NOTE: SIMILAR TO findAttributeToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
@@ -150,7 +146,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
   val menuText_createEntityOrAttrType: String = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)"
   val menuText_CreateRelationType: String = "Add new relation type (" + mRelTypeExamples + ")"
-  val mainSearchPrompt = "Search / list existing entities (except quantity units, attr types, & relation types)"
+  val mainSearchPrompt = "Search all / list existing entities (except quantity units, attr types, & relation types)"
 
   // date stuff
   val VALID = "valid"
@@ -352,10 +348,21 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
+  // Idea: From showPublicPrivateStatusPreference, on down through findDefaultDisplayEntityId, feels awkward.  Needs something better, but I'm not sure
+  // what, at the moment.  It was created this way as a sort of cache because looking it up every time was costly and made the app slow, like when
+  // displaying a list of entities (getting the preference every time, to N levels deep), and especially at startup when checking for the default
+  // up to N levels deep, among the preferences that can include entities with deep nesting.  So in a related change I made it also not look N levels
+  // deep, for preferences.  If you check other places touched by this commit there may be a "shotgun surgery" bad smell here also.
+  //Idea: Maybe these should have their cache expire after a period of time (to help when running multiple clients).
+  var showPublicPrivateStatusPreference: Option[Boolean] = db.getUserPreference_Boolean(Controller.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
+  def refreshPublicPrivateStatusPreference(): Unit = showPublicPrivateStatusPreference = db.getUserPreference_Boolean(Controller.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
+  // putting this in a var instead of recalculating it every time (too frequent) inside findDefaultDisplayEntityId:
+  var defaultDisplayEntityId: Option[Long] = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
+  def refreshDefaultDisplayEntityId(): Unit = defaultDisplayEntityId = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
+
   private def findDefaultDisplayEntityId: Option[Long] = {
-    val dbval: Option[Long] = db.getUserPreference_EntityId(Controller.defaultEntityPreference)
-    if (dbval.isDefined) {
-      dbval
+    if (defaultDisplayEntityId.isDefined) {
+      defaultDisplayEntityId
     } else {
       val first = mDeprecatedOldStylePrefs.get("first_display_entity", null)
       if (first == null) None
@@ -363,7 +370,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         try {
           if (!db.entityKeyExists(first.toLong)) None
           else {
-            db.setUserPreference_EntityId(Controller.defaultEntityPreference, first.toLong)
+            db.setUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE, first.toLong)
+            refreshDefaultDisplayEntityId()
             mDeprecatedOldStylePrefs.remove("first_display_entity")
             Some(first.toLong)
           }
@@ -2050,7 +2058,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def getPublicStatusDisplayString(entityIn: Entity): String = {
     //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
-    if (db.getUserPreference_Boolean(Controller.showPublicPrivateStatusPreference).getOrElse(false)) {
+    if (showPublicPrivateStatusPreference.getOrElse(false)) {
       val s = entityIn.getPublicStatusDisplayString(blankIfUnset = false)
       if (s == Entity.PRIVACY_PUBLIC) {
         Color.green(s)

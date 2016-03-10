@@ -27,7 +27,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
       val numEntities = db.getEntitiesOnlyCount()
       if (numEntities == 0 || entityIn.isEmpty) {
         val choices: List[String] = List[String]("Add new entity (such as yourself using your name, to start)",
-                                                 "Search / list existing entities (except quantity units, attribute types, & relation types)")
+                                                 controller.mainSearchPrompt)
         val response: Option[Int] = ui.askWhich(None, choices.toArray, Array[String](), includeEscChoice = false,
                                                 trailingText = Some(ui.howQuit + " to quit"))
         if (response.isDefined && response.get != 0) {
@@ -78,6 +78,8 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
               controller.showInEntityMenuThenMainMenu(controller.askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE))
             case 3 =>
               new EntityMenu(ui, db, controller).entityMenu(new Entity(db, db.getPreferencesContainerId))
+              controller.refreshPublicPrivateStatusPreference()
+              controller.refreshDefaultDisplayEntityId()
             case 5 =>
               val subEntitySelected: Option[Entity] = controller.goToEntityOrItsSoleGroupsMenu(entity)._1
               if (subEntitySelected.isDefined) mainMenu(subEntitySelected)

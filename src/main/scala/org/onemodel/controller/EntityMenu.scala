@@ -339,13 +339,32 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         val ans = ui.askForString(Some(Array("Enter part of the entity name to search for")))
         if (ans.isDefined) {
           val searchString: String = ans.get
-          val entityIds: Array[Long] = db.findContainedEntityIds(new mutable.TreeSet[Long], entityIn.getId, searchString).toArray
-          val entityNames: Array[String] = entityIds.toArray.map {
-                                                                   case id: Long => new Entity(db, id).getName
-                                                                 }
+          val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours)")), Some(controller.isNumeric),
+                                             Some("4"))
+          val levels: Int = levelsAnswer.getOrElse("4").toInt
+          val entityIds: Array[Long] = db.findContainedEntityIds(new mutable.TreeSet[Long], entityIn.getId, searchString, levels,
+                                                                 stopAfterAnyFound = false).toArray
           val leadingText2 = Array[String]("SEARCH RESULTS: Pick an item by letter to select:")
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
           val choices: Array[String] = Array("(stub)")
+          val entityIdsTruncated: Array[Long] = {
+            val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Controller.maxNameLength)
+            if (entityIds.length <= numDisplayableAttributes) {
+              entityIds
+            } else {
+              val newarray: Array[Long] = new Array(numDisplayableAttributes)
+              entityIds.copyToArray(newarray, 0, numDisplayableAttributes)
+              // (This is to avoid the later "require" error not far from the top of TextUI.askWhichChoiceOrItsAlternate, if there are too many
+              // menu items to display. It could be done better if we implement scrolling among the attrs, similarly to the other use of
+              // ui.maxColumnarChoicesToDisplayAfter above, but in a way to avoid re-doing the search each time.)
+              ui.displayText("There were " + entityIds.length + " results, but truncated them to " + numDisplayableAttributes + " for display.  (If" +
+                             " desired this can be improved, per the comments in the code.)")
+              newarray
+            }
+          }
+          val entityNames: Array[String] = entityIdsTruncated.toArray.map {
+                                                                   case id: Long => new Entity(db, id).getName
+                                                                 }
           @tailrec def showSearchResults() {
             val relatedEntitiesResult = ui.askWhich(Some(leadingText2), choices, entityNames)
             if (relatedEntitiesResult.isDefined) {
