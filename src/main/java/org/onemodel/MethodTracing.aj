@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.  
-    Copyright in each year of 2013-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -14,7 +14,7 @@ import org.aspectj.lang.reflect.CodeSignature;
 
 /** This is an attempt to make debugging work along the lines of "set -x"
     in bash code.  This can be modified to get only certain log output.
-    There's probably a way to do it at runtime w/o recompilation, but this is
+    There is probably a way to do it at runtime w/o recompilation, but this is
     what is working now.
 
     **************************
@@ -27,11 +27,16 @@ import org.aspectj.lang.reflect.CodeSignature;
     TO USE:  at the "before()" & "after() methods, comment out BOTH lines 
     that say "/*"  but don't commit that change.  I.e., change "/*" to "// /*" 
     or "///*".
+    Then, when running the program, you can redirect stderr to a
+    file to see the log by itself (vs mixed in w/ the UI output, a debatable
+    change), with something like:
+      bin/om 2>log
 */
 public aspect MethodTracing {
   int depth = 0;
   StringBuffer callDepthSpacing = new StringBuffer("");
   final static String NEWLN = System.getProperty("line.separator");
+  java.text.DateFormat DATEFORMAT = new java.text.SimpleDateFormat("HH:mm:ss:SSS");
   
   pointcut allOMMethods():
     execution(* org.onemodel..*(..))
@@ -40,31 +45,37 @@ public aspect MethodTracing {
   
   before(): allOMMethods() {
     /*
-     * // indented & marked for easy visual separation of this from other output
-     * callDepthSpacing.append("  "); depth++;
-     * System.out.println(callDepthSpacing + ">entering(" + depth + ") " +
-     * thisJoinPoint + ", " + thisJoinPoint.getSourceLocation());
-     * 
-     * // also occasionally useful to debug: printParameters(thisJoinPoint);
-     */
+    // indented & marked for easy visual separation of this from other output:
+    callDepthSpacing.append("  ");
+    depth++;
+    String timestamp = DATEFORMAT.format(new java.util.Date(System.currentTimeMillis()));
+    System.err.println(timestamp + callDepthSpacing + ">entering(" + depth + ") " + thisJoinPoint + ", " + thisJoinPoint.getSourceLocation());
+
+    // also occasionally useful while debugging:
+    printParameters(thisJoinPoint, timestamp);
+    // */
   }
   
   after() returning: allOMMethods() {
     /*
-     * // the spacing should line up w/ "entering" above
-     * System.out.println(callDepthSpacing + "<exiting (" + depth + ") " +
-     * thisJoinPoint + ", " + thisJoinPoint.getSourceLocation());
-     * callDepthSpacing.delete(0, 2); depth--; //
-     */
+    // the spacing should line up w/ "entering" above:
+    String timestamp = DATEFORMAT.format(new java.util.Date(System.currentTimeMillis()));
+    System.err.println(timestamp + callDepthSpacing + "<exiting(" + depth + ") " + thisJoinPoint + ", " + thisJoinPoint.getSourceLocation());
+    callDepthSpacing.delete(0, 2);
+    depth--;
+    // */
+    // */
   }
   
   // initially from: file:///usr/share/doc/aspectj-doc/progguide/examples-basic.html
-  private void printParameters(JoinPoint jp) {
-    System.out.println(callDepthSpacing + "  Arguments: " );
+  private void printParameters(JoinPoint jp, String timestamp) {
     Object[] args = jp.getArgs();
     String[] names = ((CodeSignature)jp.getSignature()).getParameterNames();
     @SuppressWarnings("rawtypes")
     Class[] types = ((CodeSignature)jp.getSignature()).getParameterTypes();
+    if (args.length > 0) {
+      System.err.println(timestamp + callDepthSpacing + "  Arguments: " );
+    }
     for (int i = 0; i < args.length; i++) {
       String display ="";
       if (args[i] != null) {
@@ -91,7 +102,7 @@ public aspect MethodTracing {
           display = args[i].toString();
         }
       }
-      System.out.println(callDepthSpacing + "    "  + i + ". " + names[i] +
+      System.err.println(timestamp + callDepthSpacing + "    "  + i + ". " + names[i] +
           " : " + types[i].getName() +
           " = "
           + display
