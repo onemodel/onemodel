@@ -25,6 +25,7 @@ function maven() {
 }
 
 echo "Have you done a gp, and had a quiet period to make sure the latest version is working very well?";read
+echo "Have you tested it on a new system (eg an account where OM has never been run) to make sure the startup, initial creation, & setting default entity work right?";read
 
 # could automate this part better, but it's not worth a lot as the release version and next version might not always
 # be programatically predictable (different major.minor.bugfix # changes than the one expected, etc.). At least
