@@ -415,7 +415,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   }
 
   // idea: see comment in EntityMenu about scoping.
-  def export(entity: Entity, exportTypeIn: String, copyrightYearAndNameIn: Option[String]) {
+  def export(entity: Entity, exportTypeIn: String, headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels to export (including this one; 0 = 'all'); ESC to cancel")),
                                               Some(controller.isNumeric), Some("0"))
     if (ans.isEmpty) return
@@ -472,7 +472,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
 
         exportHtml(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                    cachedGroupInfo, mutable.TreeSet[Long](), uriClassId, quoteClassId,
-                   includePublicData.get, includeNonPublicData.get, includeUnspecifiedData.get, copyrightYearAndNameIn)
+                   includePublicData.get, includeNonPublicData.get, includeUnspecifiedData.get, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
         ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
       } else {
         throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
@@ -487,12 +487,13 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                  entitiesAlreadyProcessedInThisRefChain: mutable.TreeSet[Long],
                  uriClassId: Long, quoteClassId: Long,
                  includePublicData: Boolean, includeNonPublicData: Boolean, includeUnspecifiedData: Boolean,
-                 copyrightYearAndName: Option[String]) {
+                 headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     exportEntityToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn,
-                           uriClassId, quoteClassId, includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndName)
+                           uriClassId, quoteClassId, includePublicData, includeNonPublicData, includeUnspecifiedData,
+                           headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
     exportItsChildrenToHtmlFiles(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntityIdsIn, cachedEntitiesIn,
                                  cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChain, uriClassId, quoteClassId,
-                                 includePublicData, includeNonPublicData, includeUnspecifiedData, copyrightYearAndName)
+                                 includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
   }
 
   /** This creates a new file for each entity.
@@ -505,7 +506,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                              cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]],
                              uriClassIdIn: Long, quoteClassIdIn: Long,
                              includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
-                             copyrightYearAndNameIn: Option[String]) {
+                             headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     // useful while debugging:
     //out.flush()
 
@@ -523,11 +524,19 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     //record, so we don't create duplicate files:
     exportedEntityIdsIn.add(entityIn.getId)
     try {
-      printWriter.println("<html><body>")
-      printWriter.println("<h1>" + htmlEncode(entityIn.getName) + "</h1>")
+      printWriter.println("<html><head>")
+      printWriter.println("  <title>" + entityIn.getName + "</title>")
+      printWriter.println("  <meta name=\"description\" content=\"" + entityIn.getName + "\">")
+      printWriter.println("  " + headerContentIn.getOrElse(""))
+
+      printWriter.println("</head>")
+      printWriter.println
+      printWriter.println("<body>")
+      printWriter.println("  " + beginBodyContentIn.getOrElse(""))
+      printWriter.println("  <h1>" + htmlEncode(entityIn.getName) + "</h1>")
 
       val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn.getId, cachedAttrsIn)
-      printWriter.println("<ul>")
+      printWriter.println("  <ul>")
       for (attrTuple <- attrTuples) {
         val attribute:Attribute = attrTuple._2
         attribute match {
@@ -548,8 +557,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             val relationType = new RelationType(db, relation.getAttrTypeId)
             val group = new Group(db, relation.getGroupId)
             // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
-            printWriter.println("<li>" + htmlEncode(relation.getDisplayString(0, None, Some(relationType), simplify = true)) + "</li>")
-            printWriter.println("<ul>")
+            printWriter.println("    <li>" + htmlEncode(relation.getDisplayString(0, None, Some(relationType), simplify = true)) + "</li>")
+            printWriter.println("    <ul>")
 
             // this 'if' check is duplicate with the call just below to isAllowedToExport, but can quickly save the time looping through them all,
             // checking entities, if there's no need:
@@ -567,9 +576,9 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                 }
               }
             }
-            printWriter.println("</ul>")
+            printWriter.println("    </ul>")
           case textAttr: TextAttribute =>
-            printWriter.println("<li><pre>" + htmlEncode(textAttr.getDisplayString(0, None, None, simplify = true)) + "</pre></li>")
+            printWriter.println("    <li><pre>" + htmlEncode(textAttr.getDisplayString(0, None, None, simplify = true)) + "</pre></li>")
           case fileAttr: FileAttribute =>
             val originalPath = fileAttr.getOriginalFilePath
             val fileName = {
@@ -582,24 +591,25 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             fileAttr.retrieveContent(file)
             if (originalPath.toLowerCase.endsWith("png") || originalPath.toLowerCase.endsWith("jpg") || originalPath.toLowerCase.endsWith("jpeg") ||
                 originalPath.toLowerCase.endsWith("gif")) {
-              printWriter.println("<li><img src=\"" + file.getName + "\" alt=\"" + htmlEncode(fileAttr.getDisplayString(0, None, None, simplify = true)) +
+              printWriter.println("    <li><img src=\"" + file.getName + "\" alt=\"" + htmlEncode(fileAttr.getDisplayString(0, None, None, simplify = true)) +
                                   "\"></li>")
             } else {
-              printWriter.println("<li><a href=\"" + file.getName + "\">" + htmlEncode(fileAttr.getDisplayString(0, None, None, simplify = true)) +
+              printWriter.println("    <li><a href=\"" + file.getName + "\">" + htmlEncode(fileAttr.getDisplayString(0, None, None, simplify = true)) +
                                   "</a></li>")
             }
           case attr: Attribute =>
-            printWriter.println("<li>" + htmlEncode(attr.getDisplayString(0, None, None, simplify = true)) + "</li>")
+            printWriter.println("    <li>" + htmlEncode(attr.getDisplayString(0, None, None, simplify = true)) + "</li>")
           case unexpected =>
             throw new OmException("How did we get here?: " + unexpected)
         }
       }
-      printWriter.println("</ul>")
+      printWriter.println("  </ul>")
+      printWriter.println
       if (copyrightYearAndNameIn.isDefined) {
         // (intentionally not doing "htmlEncode(copyrightYearAndNameIn.get)", so that some ~footer-like links can be included in it.
-        printWriter.println("<center><small>Copyright " + copyrightYearAndNameIn.get + "</small></center>")
+        printWriter.println("  <center><p><small>Copyright " + copyrightYearAndNameIn.get + "</small></p></center>")
       }
-      printWriter.println("</html></body>")
+      printWriter.println("</body></html>")
       printWriter.close()
     } finally {
       // close each file as we go along.
@@ -683,7 +693,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                    cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]],
                                    entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[Long], uriClassIdIn: Long, quoteClassId: Long,
                                    includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
-                                   copyrightYearAndNameIn: Option[String]) {
+                                   headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     if (! isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                             levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
       return
@@ -704,7 +714,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                        outputDirectoryIn, exportedEntityIdsIn, cachedEntitiesIn,
                        cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
-                       includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                       includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                       headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
           }
         case relation: RelationToGroup =>
           val entityIds: Array[Long] = getCachedGroupData(relation.getGroupId, cachedGroupInfoIn)
@@ -713,7 +724,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             exportHtml(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                        outputDirectoryIn, exportedEntityIdsIn, cachedEntitiesIn,
                        cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
-                       includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, copyrightYearAndNameIn)
+                       includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                       headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
           }
         case _ =>
           // nothing intended here

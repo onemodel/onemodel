@@ -52,15 +52,75 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           val importOrExportAnswer = ui.askWhich(None, Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
           if (importOrExportAnswer.isDefined) {
             if (importOrExportAnswer.get == 1) new ImportExport(ui, db, controller).importCollapsibleOutlineAsGroups(entityIn)
-            else if (importOrExportAnswer.get == 2) new ImportExport(ui, db, controller).export(entityIn, ImportExport.TEXT_EXPORT_TYPE, None)
+            else if (importOrExportAnswer.get == 2) new ImportExport(ui, db, controller).export(entityIn, ImportExport.TEXT_EXPORT_TYPE, None, None, None)
             else if (importOrExportAnswer.get == 3) {
+
+/* The immediately below was an idea for input, that didn't work if the input contained '!', which could havebeen resolved by eliminating
+somehow the call to expandEvents (maybe there is a switch?), but it will be easier to just call an editor instead since that is already
+known working elsewhere. Here is the error:
+Enter lines containing the initial *body* content (like a common banner or header) (if any). Blank line ends entry. 
+
+    </style>
+
+    <!--<link rel="stylesheet" href="om-site-style.css">-->
+[ERROR] Could not expand event
+java.lang.IllegalArgumentException: !-: event not found
+        at jline.console.ConsoleReader.expandEvents(ConsoleReader.java:750)
+        at jline.console.ConsoleReader.finishBuffer(ConsoleReader.java:623)
+        at jline.console.ConsoleReader.accept(ConsoleReader.java:2011)
+        at jline.console.ConsoleReader.readLine(ConsoleReader.java:2695)
+        at org.onemodel.TextUI.askForString(TextUI.scala:273)
+        at org.onemodel.controller.OtherEntityMenu.getLines$1(OtherEntityMenu.scala:63)
+        at org.onemodel.controller.OtherEntityMenu.otherEntityMenu(OtherEntityMenu.scala:77)
+        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:271)
+        at org.onemodel.controller.EntityMenu.goToSelectedAttribute(EntityMenu.scala:760)
+        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:292)
+        at org.onemodel.controller.EntityMenu.goToSelectedAttribute(EntityMenu.scala:760)
+        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:292)
+        at org.onemodel.controller.EntityMenu.goToSelectedAttribute(EntityMenu.scala:760)
+        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:292)
+        at org.onemodel.controller.Controller.goToEntityOrItsSoleGroupsMenu(Controller.scala:1848)
+        at org.onemodel.controller.MainMenu.mainMenu(MainMenu.scala:84)
+        at org.onemodel.controller.Controller.menuLoop$1(Controller.scala:261)
+        at org.onemodel.controller.Controller.start(Controller.scala:264)
+        at org.onemodel.TextUI.launchUI(TextUI.scala:212)
+        at org.onemodel.TextUI$.main(TextUI.scala:39)
+        at org.onemodel.TextUI.main(TextUI.scala:1)
+        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.lang.reflect.Method.invoke(Method.java:606)
+        at org.codehaus.mojo.exec.ExecJavaMojo$1.run(ExecJavaMojo.java:293)
+        at java.lang.Thread.run(Thread.java:745)
+*/
+              val prompt1 = "Enter lines containing the "
+              val prompt2 = " (if any). Blank line ends entry. "
+//              val start = (new java.util.Date).getSeconds
+              def getLines(lines: StringBuilder): String = {
+                val line: Option[String] = ui.askForString(None, None, None)
+//                  val line: Option[String] = {
+//                    val now = (new java.util.Date).getSeconds
+//                    println("now - start" + (now - start))
+//                    if ((now - start) < 2) Some(now.toString)
+//                    else None
+//                  }
+                if (line.isEmpty || line.get.isEmpty) lines.toString()
+                else getLines(lines.append(line.get))
+              }
+              ui.displayText(prompt1 + "html page \"<head>\" section contents" + prompt2 +
+                             " (Title & 'meta name=\"description\"' tags are automatically filled in from the entity's name.)", waitForKeystroke = false)
+              val headerContentIn: String = getLines(new StringBuilder(""))
+              ui.displayText(prompt1 + "initial *body* content (like a common banner or header)" + prompt2, waitForKeystroke = false)
+              val beginBodyContentIn: String = getLines(new StringBuilder(""))
+
               // idea (in task list):  have the date default to the entity creation date, then later add/replace that (w/ range or what for ranges?)
               // with the last edit date, when that feature exists.
-              val copyrightYearAndName = ui.askForString(Some(Array("Enter copyright year(s) and holder's name, i.e., the \"2015 John Doe\" part " +
+              val copyrightYearAndName = ui.askForString(Some(Array("On a SINGLE LINE, enter copyright year(s) and holder's name, i.e., the \"2015 John Doe\" part " +
                                                                     "of \"Copyright 2015 John Doe\" (This accepts HTML so can also be used for a " +
                                                                     "page footer, for example.)")))
               if (copyrightYearAndName.isDefined && copyrightYearAndName.get.trim.nonEmpty) {
-                new ImportExport(ui, db, controller).export(entityIn, ImportExport.HTML_EXPORT_TYPE, copyrightYearAndName)
+                new ImportExport(ui, db, controller).export(entityIn, ImportExport.HTML_EXPORT_TYPE,
+                                                            Some(headerContentIn), Some(beginBodyContentIn), copyrightYearAndName)
               }
             }
           }
