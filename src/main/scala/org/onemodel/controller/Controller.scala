@@ -70,6 +70,10 @@ object Controller {
   final val SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE = "Should entity lists show public/private status for each?"
   final val DEFAULT_ENTITY_PREFERENCE = "Which entity should be displayed as default, when starting the program?"
 
+  val HEADER_CONTENT_TAG = "htmlHeaderContent"
+  val BODY_CONTENT_TAG = "htmlInitialBodyContent"
+  val FOOTER_CONTENT_TAG = "htmlFooterContent"
+
   def getClipboardContent: String = {
     val clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
     val contents: String = clipboard.getContents(null).getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor).toString
@@ -721,26 +725,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         }
       } else if (answer == 2 && attributeIn.isInstanceOf[TextAttribute]) {
         val ta = attributeIn.asInstanceOf[TextAttribute]
-        //idea: allow user to change the edit command setting (ie which editor to use) from here?
-
-        //idea: allow user to prevent this message in future. Could be by using ui.askYesNoQuestion instead, adding to the  prompt "(ask this again?)", with
-        // 'y' as default, and storing the answer in the db.systemEntityName somewhere perhaps.
-        //PUT THIS BACK (& review/test it) after taking the time to read the Process package's classes or something like
-        // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
-//        val command: String = db.getTextEditorCommand
-//        ui.displayText("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for existing " +
-//                       "entities, choose the first one (called " + PostgreSQLDatabase.systemEntityName + "), choose " +
-//                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
-//                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
-//                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
-
-        val path: Path = Files.createTempFile("om-edit-", ".txt")
-        Files.write(path, ta.getText.getBytes)
-        ui.displayText("Until we improve this, you can now go edit the attribute content in this temporary file, & save it:\n" +
-                       path.toFile.getCanonicalPath + "\n...then come back here when ready to import that text.")
-        val newContent: String = new String(Files.readAllBytes(path))
+        val newContent: String = editMultilineText(ta.getText)
         ta.update(ta.getAttrTypeId, newContent, ta.getValidOnDate, ta.getObservationDate)
-        path.toFile.delete()
         //then force a reread from the DB so it shows the right info on the repeated menu:
         attributeEditMenu(new TextAttribute(db, attributeIn.getId))
       } else if (answer == 3 && canEditAttributeOnSingleLine(attributeIn)) {
@@ -782,6 +768,30 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
+
+  def editMultilineText(input: String): String = {
+    //idea: allow user to change the edit command setting (ie which editor to use) from here?
+
+    //idea: allow user to prevent this message in future. Could be by using ui.askYesNoQuestion instead, adding to the  prompt "(ask this again?)", with
+    // 'y' as default, and storing the answer in the db.systemEntityName somewhere perhaps.
+    //PUT THIS BACK (& review/test it) after taking the time to read the Process package's classes or something like
+    // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
+    //        val command: String = db.getTextEditorCommand
+    //        ui.displayText("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for
+    // existing " +
+    //                       "entities, choose the first one (called " + PostgreSQLDatabase.systemEntityName + "), choose " +
+    //                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
+    //                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
+    //                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
+
+    val path: Path = Files.createTempFile("om-edit-", ".txt")
+    Files.write(path, input.getBytes)
+    ui.displayText("Until we improve this, you can now go edit the content in this temporary file, & save it:\n" +
+                   path.toFile.getCanonicalPath + "\n...then come back here when ready to import that text.")
+    val newContent: String = new Predef.String(Files.readAllBytes(path))
+    path.toFile.delete()
+    newContent
+  }
 
   def editAttributeOnSingleLine(attributeIn: Attribute) {
     require(canEditAttributeOnSingleLine(attributeIn))

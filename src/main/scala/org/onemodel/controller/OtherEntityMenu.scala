@@ -54,73 +54,9 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             if (importOrExportAnswer.get == 1) new ImportExport(ui, db, controller).importCollapsibleOutlineAsGroups(entityIn)
             else if (importOrExportAnswer.get == 2) new ImportExport(ui, db, controller).export(entityIn, ImportExport.TEXT_EXPORT_TYPE, None, None, None)
             else if (importOrExportAnswer.get == 3) {
-
-/* The immediately below was an idea for input, that didn't work if the input contained '!', which could havebeen resolved by eliminating
-somehow the call to expandEvents (maybe there is a switch?), but it will be easier to just call an editor instead since that is already
-known working elsewhere. Here is the error:
-Enter lines containing the initial *body* content (like a common banner or header) (if any). Blank line ends entry. 
-
-    </style>
-
-    <!--<link rel="stylesheet" href="om-site-style.css">-->
-[ERROR] Could not expand event
-java.lang.IllegalArgumentException: !-: event not found
-        at jline.console.ConsoleReader.expandEvents(ConsoleReader.java:750)
-        at jline.console.ConsoleReader.finishBuffer(ConsoleReader.java:623)
-        at jline.console.ConsoleReader.accept(ConsoleReader.java:2011)
-        at jline.console.ConsoleReader.readLine(ConsoleReader.java:2695)
-        at org.onemodel.TextUI.askForString(TextUI.scala:273)
-        at org.onemodel.controller.OtherEntityMenu.getLines$1(OtherEntityMenu.scala:63)
-        at org.onemodel.controller.OtherEntityMenu.otherEntityMenu(OtherEntityMenu.scala:77)
-        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:271)
-        at org.onemodel.controller.EntityMenu.goToSelectedAttribute(EntityMenu.scala:760)
-        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:292)
-        at org.onemodel.controller.EntityMenu.goToSelectedAttribute(EntityMenu.scala:760)
-        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:292)
-        at org.onemodel.controller.EntityMenu.goToSelectedAttribute(EntityMenu.scala:760)
-        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:292)
-        at org.onemodel.controller.Controller.goToEntityOrItsSoleGroupsMenu(Controller.scala:1848)
-        at org.onemodel.controller.MainMenu.mainMenu(MainMenu.scala:84)
-        at org.onemodel.controller.Controller.menuLoop$1(Controller.scala:261)
-        at org.onemodel.controller.Controller.start(Controller.scala:264)
-        at org.onemodel.TextUI.launchUI(TextUI.scala:212)
-        at org.onemodel.TextUI$.main(TextUI.scala:39)
-        at org.onemodel.TextUI.main(TextUI.scala:1)
-        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
-        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-        at java.lang.reflect.Method.invoke(Method.java:606)
-        at org.codehaus.mojo.exec.ExecJavaMojo$1.run(ExecJavaMojo.java:293)
-        at java.lang.Thread.run(Thread.java:745)
-*/
-              val prompt1 = "Enter lines containing the "
-              val prompt2 = " (if any). Blank line ends entry. "
-//              val start = (new java.util.Date).getSeconds
-              def getLines(lines: StringBuilder): String = {
-                val line: Option[String] = ui.askForString(None, None, None)
-//                  val line: Option[String] = {
-//                    val now = (new java.util.Date).getSeconds
-//                    println("now - start" + (now - start))
-//                    if ((now - start) < 2) Some(now.toString)
-//                    else None
-//                  }
-                if (line.isEmpty || line.get.isEmpty) lines.toString()
-                else getLines(lines.append(line.get))
-              }
-              ui.displayText(prompt1 + "html page \"<head>\" section contents" + prompt2 +
-                             " (Title & 'meta name=\"description\"' tags are automatically filled in from the entity's name.)", waitForKeystroke = false)
-              val headerContentIn: String = getLines(new StringBuilder(""))
-              ui.displayText(prompt1 + "initial *body* content (like a common banner or header)" + prompt2, waitForKeystroke = false)
-              val beginBodyContentIn: String = getLines(new StringBuilder(""))
-
-              // idea (in task list):  have the date default to the entity creation date, then later add/replace that (w/ range or what for ranges?)
-              // with the last edit date, when that feature exists.
-              val copyrightYearAndName = ui.askForString(Some(Array("On a SINGLE LINE, enter copyright year(s) and holder's name, i.e., the \"2015 John Doe\" part " +
-                                                                    "of \"Copyright 2015 John Doe\" (This accepts HTML so can also be used for a " +
-                                                                    "page footer, for example.)")))
-              if (copyrightYearAndName.isDefined && copyrightYearAndName.get.trim.nonEmpty) {
-                new ImportExport(ui, db, controller).export(entityIn, ImportExport.HTML_EXPORT_TYPE,
-                                                            Some(headerContentIn), Some(beginBodyContentIn), copyrightYearAndName)
+              val (headerContent: String, beginBodyContent: String, footerContent: Option[String]) = getOptionalContentForExportedPages(entityIn)
+              if (footerContent.isDefined && footerContent.get.trim.nonEmpty) {
+                new ImportExport(ui, db, controller).export(entityIn, ImportExport.HTML_EXPORT_TYPE, Some(headerContent), Some(beginBodyContent), footerContent)
               }
             }
           }
@@ -187,6 +123,92 @@ java.lang.IllegalArgumentException: !-: event not found
                                                       containingGroupIn, classDefiningEntityIdIn)
         else false
     }
+  }
+
+  def getOptionalContentForExportedPages(entityIn: Entity): (String, String, Option[String]) = {
+    val prompt1 = "Enter lines containing the "
+    val prompt2 = " (if any).  "
+    val prompt3 = "  (NOTE: to simplify this step in the future, you can add to this entity a single text attribute whose type is an entity named "
+    // (Wrote "lines" plural, to clarify when this is presented with the "SINGLE LINE" copyright prompt below.)
+    val prompt4 = ", and put the relevant lines of html (or nothing) in the value for that attribute.  Or just press Enter to skip through this each time.)"
+
+    val headerTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Controller.HEADER_CONTENT_TAG, caseSensitive = true)
+    val bodyContentTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Controller.BODY_CONTENT_TAG, caseSensitive = true)
+    val footerTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Controller.FOOTER_CONTENT_TAG, caseSensitive = true)
+    if ((headerTypeIds.isDefined && headerTypeIds.get.size > 1) || (bodyContentTypeIds.isDefined && bodyContentTypeIds.get.size > 1)
+        || (footerTypeIds.isDefined && footerTypeIds.get.size > 1)) {
+      throw new OmException("Expected at most one entity (as typeId) each, with the names " + Controller.HEADER_CONTENT_TAG + ", " +
+                            Controller.BODY_CONTENT_TAG + ", or " + Controller.FOOTER_CONTENT_TAG + ", but found respectively " +
+                            headerTypeIds.getOrElse(List()).size + ", " +
+                            bodyContentTypeIds.getOrElse(List()).size + ", and " + headerTypeIds.getOrElse(List()).size + ".  Could change" +
+                            " the app to just take the first one found perhaps.... Anyway you'll need to fix in the data, that before proceeding " +
+                            "with the export.")
+
+    }
+
+    def getAttrText(entityIdIn: Long, typeIdIn: Long): Option[String] = {
+      val attrs: Array[TextAttribute] = db.getTextAttributeByTypeId(entityIdIn, typeIdIn)
+      if (attrs.length == 0) None
+      else if (attrs.length > 1) throw new OmException("The program doesn't know what to do with > 1 textAttributes with this type on the same " +
+                                                       "entity, for entity " + entityIdIn + ", and typeId " + typeIdIn)
+      else Some(attrs(0).getText)
+    }
+
+    // (Idea: combine the next 3 val definitions' code into one method with the "else" part as a parameter, but it should still be clear to most beginner
+    // scala programmers.)
+    val headerContent: String = {
+      val savedAttrText: Option[String] = {
+        if (headerTypeIds.isDefined && headerTypeIds.get.nonEmpty) {
+          getAttrText(entityIn.getId, headerTypeIds.get.head)
+        } else {
+          None
+        }
+      }
+      savedAttrText.getOrElse( {
+        ui.displayText(prompt1 + "html page \"<head>\" section contents" + prompt2 +
+                       " (Title & 'meta name=\"description\"' tags are automatically filled in from the entity's name.)" +
+                       prompt3 + "\"" + Controller.HEADER_CONTENT_TAG + "\"" + prompt4, waitForKeystroke = false)
+        val s: String = controller.editMultilineText("")
+        s
+      })
+    }
+    val beginBodyContent: String = {
+      val savedAttrText: Option[String] = {
+        if (bodyContentTypeIds.isDefined && bodyContentTypeIds.get.nonEmpty) {
+          getAttrText(entityIn.getId, bodyContentTypeIds.get.head)
+        } else {
+          None
+        }
+      }
+      savedAttrText.getOrElse({
+        ui.displayText(prompt1 + "initial *body* content (like a common banner or header)" + prompt2 +
+                       prompt3 + "\"" + Controller.BODY_CONTENT_TAG + "\"" + prompt4, waitForKeystroke = false)
+        val beginBodyContentIn: String = controller.editMultilineText("")
+        beginBodyContentIn
+      })
+    }
+    // (This value is an Option so that if None, it tells the program that the user wants out. The others haven't been set up that way (yet?).)
+    val footerContent: Option[String] = {
+      val savedAttrText: Option[String] = {
+        if (headerTypeIds.isDefined && headerTypeIds.get.nonEmpty) {
+          getAttrText(entityIn.getId, footerTypeIds.get.head)
+        } else {
+          None
+        }
+      }
+      if (savedAttrText.isEmpty) {
+        // idea (in task list):  have the date default to the entity creation date, then later add/replace that (w/ range or what for ranges?)
+        // with the last edit date, when that feature exists.
+        val copyrightYearAndName = ui.askForString(Some(Array("On a SINGLE LINE, enter copyright year(s) and holder's name, i.e., the \"2015 John Doe\" part " +
+                                                              "of \"Copyright 2015 John Doe\" (This accepts HTML so can also be used for a " +
+                                                              "page footer, for example.)" +
+                                                              prompt3 + "\"" + Controller.FOOTER_CONTENT_TAG + "\"" + prompt4)))
+        copyrightYearAndName
+      } else {
+        savedAttrText
+      }
+    }
+    (headerContent, beginBodyContent, footerContent)
   }
 
   def goToRelatedPlaces(startingAttributeRowsIndexIn: Int, entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,

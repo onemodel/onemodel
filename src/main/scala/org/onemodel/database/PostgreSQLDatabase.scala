@@ -678,10 +678,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** Case-insensitive. */
-  def findEntityOnlyIdsByName(inName: String): Option[List[Long]] = {
+  def findEntityOnlyIdsByName(nameIn: String): Option[List[Long]] = {
     // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
     // a performance issue then look at it?
-    val rows = dbQuery("select id from entity where (not archived) and lower(name) = lower('" + inName + "') " + limitToEntitiesOnly(ENTITY_ONLY_SELECT_PART),
+    val rows = dbQuery("select id from entity where (not archived) and lower(name) = lower('" + nameIn + "') " + limitToEntitiesOnly(ENTITY_ONLY_SELECT_PART),
                        "Long")
     if (rows.isEmpty) None
     else {

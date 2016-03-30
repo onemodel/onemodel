@@ -530,7 +530,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       printWriter.println("  " + headerContentIn.getOrElse(""))
 
       printWriter.println("</head>")
-      printWriter.println
+      printWriter.println()
       printWriter.println("<body>")
       printWriter.println("  " + beginBodyContentIn.getOrElse(""))
       printWriter.println("  <h1>" + htmlEncode(entityIn.getName) + "</h1>")
@@ -578,7 +578,12 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             }
             printWriter.println("    </ul>")
           case textAttr: TextAttribute =>
-            printWriter.println("    <li><pre>" + htmlEncode(textAttr.getDisplayString(0, None, None, simplify = true)) + "</pre></li>")
+            val typeName: String = getCachedEntity(textAttr.getAttrTypeId, cachedEntitiesIn).getName
+            if (typeName==Controller.HEADER_CONTENT_TAG || typeName == Controller.BODY_CONTENT_TAG || typeName==Controller.FOOTER_CONTENT_TAG) {
+              //skip it: this is used to create the pages and should not be considered a normal kind of displayable content in them:
+            } else {
+              printWriter.println("    <li><pre>" + htmlEncode(textAttr.getDisplayString(0, None, None, simplify = true)) + "</pre></li>")
+            }
           case fileAttr: FileAttribute =>
             val originalPath = fileAttr.getOriginalFilePath
             val fileName = {
@@ -604,7 +609,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         }
       }
       printWriter.println("  </ul>")
-      printWriter.println
+      printWriter.println()
       if (copyrightYearAndNameIn.isDefined) {
         // (intentionally not doing "htmlEncode(copyrightYearAndNameIn.get)", so that some ~footer-like links can be included in it.
         printWriter.println("  <center><p><small>Copyright " + copyrightYearAndNameIn.get + "</small></p></center>")
