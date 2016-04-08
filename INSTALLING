@@ -46,11 +46,6 @@ as of 2015-12:
     Java version: OpenJDK 1.7.0_65 or 1.7.0_91.
 ...but other versions probably work too.
 
-Then you have to get "jline2-om" from github (my fork w/ needed
-features, not merged as of 2014-12), probably "git checkout 3c735c2"
-(or the version needed per any error messages you get in the next step),
-and run "mvn install".
-
 Then in the directory where you have onemodel, run
   mvn clean package -DskipTests=true
 ...which builds the .jar -- but it can't run until the other steps below
