@@ -49,16 +49,18 @@ git add pom.xml LICENSE
 git commit -m "Release version $RELEASE_VERSION"
 cpomjar-savbkup
 
+# REMOVING NEXT BLOCK FOR NOW UNTIL COMMUNITY/MATURITY GROW ENOUGH TO ASK FOR FEEDBACK OR WHAT? FOR NOW, REMOVE ALL OBSTACLES TO PARTICIPATION:
 # also build the free version
-patch --ignore-whitespace --verbose -p1<other-tracked/makeFreeVersion.diff || true
-echo "did the patch apply cleanly so it will build cleanly?";read
-maven package
-echo "did the free version build cleanly? want to test export & the main menu searches, to confirm it works as expected? Press Enter when ready to drop the changes.";read
-git stash save "building free version"
-git stash drop
-cpomjar-savbkup free
-FREE_JAR_NAME=$(ls target/*jar|grep "target/onemodel" | xargs basename -s .jar)
-cp target/onemodel*jar ../om-website/download/${FREE_JAR_NAME}-free.jar
+#patch --ignore-whitespace --verbose -p1<other-tracked/makeFreeVersion.diff || true
+#echo "did the patch apply cleanly so it will build cleanly?";read
+#maven package
+#echo "did the free version build cleanly? want to test export & the main menu searches, to confirm it works as expected? Press Enter when ready to drop the changes.";read
+#git stash save "building free version"
+#git stash drop
+#cpomjar-savbkup free
+#FREE_JAR_NAME=$(ls target/*jar|grep "target/onemodel" | xargs basename -s .jar)
+#cp target/onemodel*jar ../om-website/download/${FREE_JAR_NAME}-free.jar
+
 ls -ltr ../om-website/download/
 echo "Might want to do a site sync now so any new jar gets there first, THEN update the web site now to point to the new .jar & sync again.";read
 
@@ -77,6 +79,8 @@ head LICENSE |grep "OneModel.*a program to"
 echo "Does the file LICENSE have the new *snapshot* version (just the 1 line near the top), correctly?  ^C or fix it if not, Enter to continue."; read
 git add LICENSE
 git commit -m "Begin new version: $NEW_SNAPSHOT_VERSION"
+
+echo "After the next check (launch) finishes, you might consider announcing.  Process details under -9223372036854640573: OM release process.";read
 
 # but ignore some warnings on this one for now
 CHECK_FOR="ERROR"
