@@ -16,14 +16,50 @@ explicit.)
 
 These files pertain to the OneModel (also known as "OM") project.
 
-See the web site http://www.onemodel.org for background, contact, support,
-and other information.
+See the web site http://www.onemodel.org for a live demo, downloads, mailing
+lists, and other general information.
 
 See the file LICENSE for copyright, license & distribution information.  (The
 file inside the onemodel*.jar file, called META-INF/LICENSE.txt, applies only
 to any Apache Project artifacts (such as from commons-io) used inside OM, and
 not to OM itself; similarly for any others like that.  The OM copyright is in
 the file LICENSE).
+
+
+SHORT OVERVIEW:
+
+1) Theory: We have many systems (wikis, evernote, cyc, etc), but all are
+crippled by relying on human language as a fundamental layer. To more
+powerfully manage knowledge, we can approach it more like an object model
+created on the fly by just using the system: what you know about a pen,
+say, is best expressed as numbers, relationships, and code (mass, owner,
+behavior ...); the human language words can change when the knowledge
+doesn't.
+
+2) Vision: Be effective on an individual level, then link OneModel
+instances (find others' data, subscribe to changes, copy, link, etc),
+to build large and comprehensive systems in wiki-like ways (with the
+power of the network effect), but without the crippling human-language
+limitations. Think wikipedia but all the data is effectively computable,
+and locally controllable.
+
+3) Today: The AGPL prototype is like emacs org-mode in being keyboard-
+and desktop-oriented, and feeling like nested lists galore, but uses
+postgresql, allows having the same data linked into multiple places,
+is much easier to learn & use than emacs, and has a bigger long-term
+vision. It's (for me) the best personal organizer ever: very fast to
+navigate, and very flexible. The web site is generated from its data.
+
+4) Next steps: Community-building and funding. I could really use
+feedback. The current target audience might be note-takers who touch
+type, like speed (and don't need mobile--cough), and need to be able
+to put the same information in more than one place in their notes. And
+anyone who wants to help move the big picture forward. Like, I hope to
+add anki-like features, and ways to attach code to classes of objects
+that were "modeled" on the fly as a side-effect of using the system (eg,
+so you can change the date on to-dos, in ways you specify, with simple
+code, or eventually run simulations, etc).
+
 
 PROJECT STATUS
     As of 2016-1-7:  Currently suitable for daily heavy use
