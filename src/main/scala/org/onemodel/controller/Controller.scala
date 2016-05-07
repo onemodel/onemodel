@@ -938,27 +938,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     editedEntity
   }
 
-  def editEntityPublicStatus(entityIn: Entity): Option[Entity] = {
-    val editedEntity: Option[Entity] = entityIn match {
-      //this doesn't seem to be working, doesn't get the exception. Maybe it's better without it, anyway.  Wouldn't matter when those 2 tables are broken apart.
-      case relTypeIn: RelationType =>
-        throw new OmException("shouldn't have got here: doesn't make sense to edit the public/nonpublic status of a RelationType (& those tables should be " +
-                              "separated)")
-      case entity: Entity =>
-        val valueBeforeEdit: Option[Boolean] = entityIn.getPublic
-        val valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("Enter yes/no value (or a space for 'unknown/unspecified'; used e.g. during data export)",
-                                                                  if (valueBeforeEdit.isEmpty) Some("") else if (valueBeforeEdit.get) Some("y") else Some("n"),
-                                                                  allowBlankAnswer = true)
-        if (valueAfterEdit != valueBeforeEdit) {
-          db.updateEntityOnlyPublicStatus(entity.getId, valueAfterEdit)
-          // reload to reflect the latest data (immutability of entity objects & all; see comment near top of db.createTables)
-          Some(new Entity(db, entity.getId))
-        }
-        else
-          Some(entity)
-      case _ => throw new Exception("??")
-    }
-    editedEntity
+  def askForPublicNonpublicStatus(defaultForPrompt: Option[Boolean]): Option[Boolean] = {
+    val valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("For Public vs. Non-public, enter a yes/no value (or a space " +
+                                                              "for 'unknown/unspecified'; used e.g. during data export)",
+                                                              if (defaultForPrompt.isEmpty) Some("") else if (defaultForPrompt.get) Some("y") else Some("n"),
+                                                              allowBlankAnswer = true)
+    valueAfterEdit
   }
 
   /**
