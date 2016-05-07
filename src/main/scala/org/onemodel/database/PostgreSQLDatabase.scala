@@ -1732,7 +1732,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // have a default entity set at the *top* level of the preferences under the system entity, and there are links there to entities with many links
     // to others, then it still won't take too long to traverse them all at startup when searching for the default entity.  But still allowing for
     // preferences to be nested up to that many levels (3 as of this writing).
-    val foundPreferences: mutable.TreeSet[Long] = findContainedEntityIds(new mutable.TreeSet[Long], preferencesContainerIdIn, preferenceNameIn, 1)
+    val foundPreferences: mutable.TreeSet[Long] = findContainedEntityIds(new mutable.TreeSet[Long], preferencesContainerIdIn, preferenceNameIn, 3)
     if (foundPreferences.isEmpty) {
       None
     } else {
@@ -1792,7 +1792,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getRelationToEntityByName(containingEntityIdIn: Long, nameIn: String): Option[Long] = {
     val sql = "select rte.entity_id_2 from relationtoentity rte, entity e where rte.entity_id=" + containingEntityIdIn +
-              " and rte.entity_id_2=e.id and e.name='" + nameIn + "'"
+              " and (not e.archived) and rte.entity_id_2=e.id and e.name='" + nameIn + "'"
     val relatedEntityIdRows = dbQuery(sql, "Long")
     if (relatedEntityIdRows.isEmpty) {
       None
