@@ -228,9 +228,9 @@
   </build>
   <dependencies>
     <dependency>
-      <groupId>org.postgresql</groupId>
+      <groupId>postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <version>9.4.1208.jre6</version>
+      <version>8.4-701.jdbc4</version>
     </dependency>
     <dependency>
       <groupId>jline</groupId>
