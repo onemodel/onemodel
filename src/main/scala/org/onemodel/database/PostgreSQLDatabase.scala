@@ -2423,13 +2423,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getMatchingEntities(inStartingObjectIndex: Long, inMaxVals: Option[Long] = None, omitEntityIdIn: Option[Long],
-                          regexIn: String): java.util.ArrayList[Entity] = {
+                          nameRegexIn: String): java.util.ArrayList[Entity] = {
+    val nameRegex = escapeQuotesEtc(nameRegexIn)
     val omissionExpression: String = if (omitEntityIdIn.isEmpty) "true" else "(not id=" + omitEntityIdIn.get + ")"
     val sql: String = "select id, name, class_id, insertion_date, public from entity where not archived and " + omissionExpression +
-                      " and name ~* '" + regexIn + "'" +
+                      " and name ~* '" + nameRegex + "'" +
                       " UNION " +
                       "select id, name, class_id, insertion_date, public from entity where not archived and " + omissionExpression +
-                      " and id in (select entity_id from textattribute where textValue ~* '" + regexIn + "')" +
+                      " and id in (select entity_id from textattribute where textValue ~* '" + nameRegex + "')" +
                       " ORDER BY" +
                       " id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
     val earlyResults = dbQuery(sql, "Long,String,Long,Long,Boolean")
@@ -2446,8 +2447,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getMatchingGroups(inStartingObjectIndex: Long, inMaxVals: Option[Long] = None, omitGroupIdIn: Option[Long],
                         nameRegexIn: String): java.util.ArrayList[Group] = {
+    val nameRegex = escapeQuotesEtc(nameRegexIn)
     val omissionExpression: String = if (omitGroupIdIn.isEmpty) "true" else "(not id=" + omitGroupIdIn.get + ")"
-    val sql: String = s"select id, name, insertion_date, allow_mixed_classes from grupo where name ~* '$nameRegexIn'" +
+    val sql: String = s"select id, name, insertion_date, allow_mixed_classes from grupo where name ~* '$nameRegex'" +
                       " and " + omissionExpression + " order by id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
     val earlyResults = dbQuery(sql, "Long,String,Long,Boolean")
     val finalResults = new java.util.ArrayList[Group]
