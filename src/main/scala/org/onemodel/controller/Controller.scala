@@ -149,8 +149,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   val mDeprecatedOldStylePrefs: Preferences = java.util.prefs.Preferences.userNodeForPackage(this.getClass)
   // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
   val menuText_createEntityOrAttrType: String = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)"
-  val menuText_CreateRelationType: String = "Add new relation type (" + mRelTypeExamples + ")"
+  val menuText_createRelationType: String = "Add new relation type (" + mRelTypeExamples + ")"
   val mainSearchPrompt = "Search all / list existing entities (except quantity units, attr types, & relation types)"
+  val menuText_viewPreferences: String = "View preferences"
+
 
   // date stuff
   val VALID = "valid"
@@ -939,8 +941,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   }
 
   def askForPublicNonpublicStatus(defaultForPrompt: Option[Boolean]): Option[Boolean] = {
-    val valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("For Public vs. Non-public, enter a yes/no value (or a space " +
-                                                              "for 'unknown/unspecified'; used e.g. during data export)",
+    val valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("For Public vs. Non-public, enter a yes/no value (or a space" +
+                                                              " for 'unknown/unspecified'; used e.g. during data export; display preference can be" +
+                                                              " set under main menu / " + menuText_viewPreferences + ")",
                                                               if (defaultForPrompt.isEmpty) Some("") else if (defaultForPrompt.get) Some("y") else Some("n"),
                                                               allowBlankAnswer = true)
     valueAfterEdit
@@ -1179,7 +1182,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         createRelationTypeChoiceNum += 4
         createClassChoiceNum += 4
       } else if (relationAttrTypeNames.contains(inAttrType)) {
-        choiceList = choiceList :+ menuText_CreateRelationType
+        choiceList = choiceList :+ menuText_createRelationType
         createRelationTypeChoiceNum += 1
         createClassChoiceNum += 1
       } else if (inAttrType == Controller.ENTITY_CLASS_TYPE) {

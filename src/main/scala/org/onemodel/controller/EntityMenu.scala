@@ -33,8 +33,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                 "Add attribute (add entry with detailed options)",
                                 "Go to selected attribute",
                                 "Search / List next ...")
-    choices = choices :+ "Select target (entry move destination: gets a '+' and must be a RelationToEntity or ..ToGroup)"
-    choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; typing the letter instead goes to that attribute's menu)" else "(stub)")
+    // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
+    choices = choices :+ "Select target (entry move destination: gets a '+' marker)"
+    // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
+    choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; type a letter to go to its attr menu)" else "(stub)")
     choices = choices :+ (if (controller.getDefaultEntity._1.isEmpty) "****TRY ME---> " else "") + "Other entity operations..."
     choices
   }
@@ -130,7 +132,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     choices(2) =
       // MAKE SURE this condition always matches the one in the edit handler below:
       if (highlightedEntry.isDefined && controller.canEditAttributeOnSingleLine(highlightedEntry.get)) {
-        "Edit the selected attribute's content (single line; go into the attribute's menu for more options)"
+        // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
+        "Edit the selected attribute's content (single line; go into attr for more)"
       } else "Edit entity name"
 
     // MAKE SURE this next condition always is the opposite of the one at comment mentioning "choices(4) = ..." below

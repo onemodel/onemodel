@@ -57,8 +57,8 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
 
         val leadingText: String = "Main OM menu:"
         val choices: List[String] = List[String](controller.menuText_createEntityOrAttrType,
-                                                 controller.menuText_CreateRelationType,
-                                                 "View preferences",
+                                                 controller.menuText_createRelationType,
+                                                 controller.menuText_viewPreferences,
                                                  "----" /*spacer for better consistency of options with other menus, for memory & navigation speed*/ ,
                                                  "Go to current entity (" + entity.getDisplayString + "; or its sole subgroup, if present)",
                                                  controller.mainSearchPrompt,
