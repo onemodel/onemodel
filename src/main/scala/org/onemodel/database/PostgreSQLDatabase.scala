@@ -1872,9 +1872,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
               next += 1
             }
           }
-          // (make sure a bug didn't cause wraparound w/in the possible the Long values)
-          require(next < maxIdValue && next > previous, "Requirement failed for values next, maxIdValue, and previous: " + next + ", " + maxIdValue + ", " +
-                                                        previous)
+          // (make sure a bug didn't cause wraparound w/in the set of possible Long values)
+          require(previous < next && next < maxIdValue, "Requirement failed for values previous, next, and maxIdValue: " + previous + ", " + next + ", " +
+                                                        maxIdValue)
           if (isEntityAttrsNotGroupEntries) {
             val formId: Long = entry(0).get.asInstanceOf[Int]
             val attributeId: Long = entry(1).get.asInstanceOf[Long]
@@ -1938,11 +1938,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def getAttrCount(entityIdIn: Long, includeArchivedEntitiesIn: Boolean = false): Long = {
     getQuantityAttributeCount(entityIdIn) +
     getTextAttributeCount(entityIdIn) +
-    getRelationToEntityCount(entityIdIn, includeArchivedEntitiesIn) +
-    getRelationToGroupCountByEntity(Some(entityIdIn)) +
     getDateAttributeCount(entityIdIn) +
     getBooleanAttributeCount(entityIdIn) +
-    getFileAttributeCount(entityIdIn)
+    getFileAttributeCount(entityIdIn) +
+    getRelationToEntityCount(entityIdIn, includeArchivedEntitiesIn) +
+    getRelationToGroupCountByEntity(Some(entityIdIn))
   }
 
   def getQuantityAttributeCount(inEntityId: Long): Long = {
@@ -3068,7 +3068,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     doesThisExist("SELECT count(" + keyColumnToIgnoreOn + ") from " + table + " where " +
                   (if (extraCondition.isDefined && extraCondition.get.nonEmpty) extraCondition.get else "true") +
                   " and lower(" + columnToCheckForDupValues + ")=lower('" + valueToCheck + "') " + exception,
-                  failIfMoreThanOneIn = false)
+                  failIfMoreThanOneFoundIn = false)
   }
 
 
@@ -3122,9 +3122,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** Convenience function. Error message it gives if > 1 found assumes that sql passed in will return only 1 row! */
-  private def doesThisExist(inSql: String, failIfMoreThanOneIn: Boolean = true): Boolean = {
+  private def doesThisExist(inSql: String, failIfMoreThanOneFoundIn: Boolean = true): Boolean = {
     val rowcnt: Long = extractRowCountFromCountQuery(inSql)
-    if (failIfMoreThanOneIn) {
+    if (failIfMoreThanOneFoundIn) {
       if (rowcnt == 1) true
       else if (rowcnt > 1) throw new Exception("Should there be > 1 entries for sql: " + inSql + "?? (" + rowcnt + " were found.)")
       else false

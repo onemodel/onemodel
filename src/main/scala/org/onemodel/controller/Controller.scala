@@ -1121,8 +1121,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
+  def searchPromptPart(typeIn: String): String = "Enter part of the " + typeIn + " name to search for."
+
   def searchPrompt(typeNameIn: String): String = {
-    "Enter part of the " + typeNameIn + " name to search for.  (For the curious: it will be used in matching as a " +
+    searchPromptPart(typeNameIn) + "  (For the curious: it will be used in matching as a " +
     "case-insensitive POSIX " +
     "regex; details at  http://www.postgresql.org/docs/9.1/static/functions-matching.html#FUNCTIONS-POSIX-REGEXP .)"
   }
@@ -1382,9 +1384,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def askForNameAndSearchForEntity: Option[IdWrapper] = {
     val ans = ui.askForString(Some(Array(searchPrompt(Controller.ENTITY_TYPE))))
-    if (ans.isEmpty)
+    if (ans.isEmpty) {
       None
-    else {
+    } else {
       // Allow relation to self (eg, picking self as 2nd part of a RelationToEntity), so None in 3nd parm.
       val e: Option[IdWrapper] = findExistingObjectByText(0, Controller.ENTITY_TYPE, None, ans.get)
       if (e.isEmpty) None
@@ -1395,9 +1397,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def searchById(typeNameIn: String): Option[IdWrapper] = {
     require(typeNameIn == Controller.ENTITY_TYPE || typeNameIn == Controller.GROUP_TYPE)
     val ans = ui.askForString(Some(Array("Enter the " + typeNameIn + " ID to search for:")))
-    if (ans.isEmpty)
+    if (ans.isEmpty) {
       None
-    else {
+    } else {
       // it's a long:
       val idString: String = ans.get
       if (!isNumeric(idString)) {

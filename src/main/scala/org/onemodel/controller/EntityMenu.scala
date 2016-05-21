@@ -339,7 +339,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         // Idea: could share some code or ideas between here and Controller.findExistingObjectByText, and perhaps others like them.  For example,
         // this doesn't yet have logic to page down through the results, but maybe for now there won't be many or it can be added later.
         // Idea: maybe we could use an abstraction to make this kind of UI work even simpler, since we do it often.
-        val ans = ui.askForString(Some(Array("Enter part of the entity name to search for")))
+        val ans = ui.askForString(Some(Array(controller.searchPromptPart(Controller.ENTITY_TYPE))))
         if (ans.isDefined) {
           val searchString: String = ans.get
           val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours)")), Some(controller.isNumeric),
