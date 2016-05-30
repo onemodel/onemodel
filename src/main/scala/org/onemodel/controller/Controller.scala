@@ -139,6 +139,9 @@ object Controller {
 
 /** Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
   * scalatest docs 4 ideas, & maybe use expect?), delaying side effects more, shorter methods, other better scala style, etc.
+  *
+  Don't ever instantiate a controller from a *test* without passing in username/password parameters, because it will try to log in to the user's default
+  database and run the tests there (ie, they could be destructive):
   */
 class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None, defaultPasswordIn: Option[String] = None) {
   val mRelTypeExamples = "i.e., ownership of or \"has\" another entity, family tie, &c"

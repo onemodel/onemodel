@@ -27,7 +27,7 @@ class ControllerTest extends FlatSpec with MockitoSugar {
     override def initializeTerminal() = null
   }
 
-  val controller: Controller = new Controller(ui)
+  val controller: Controller = new Controller(ui, false, Some(PostgreSQLDatabaseTest.TEST_USER), Some(PostgreSQLDatabaseTest.TEST_USER))
 
   "finishAndParseTheDate" should "work" in {
     //The longs in the assertions were found by either 1) running a corresponding (debian 7) date cmd like:
