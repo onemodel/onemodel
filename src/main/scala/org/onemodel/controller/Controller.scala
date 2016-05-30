@@ -1867,6 +1867,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def getEntityContentSizePrefix(entityId: Long): String = {
     // attrCount counts groups also, so account for the overlap in the below.
     val attrCount = db.getAttrCount(entityId)
+    // removed the below because it was buggy and not worth it at the time, but might be desired again, like, to not show that an entity contains
+    // more things (">" prefix...) if it only has one group which has no *non-archived* entities:
 //    val (groupsCount: Long, singleGroupEntryCount: Long) = {
 //      val rtgCountOnEntity: Long = db.getRelationToGroupCountByEntity(Some(entityId))
 //      if (rtgCountOnEntity == 0) {
