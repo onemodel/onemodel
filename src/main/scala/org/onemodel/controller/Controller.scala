@@ -285,12 +285,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         var pwdOpt: Option[String] = None
         // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
         val systemUserName = System.getProperty("user.name")
-        val dbWithSystemNameBlankPwd = login(systemUserName, "", showError = false)
+        val defaultPassword = "x"
+        val dbWithSystemNameBlankPwd = login(systemUserName, defaultPassword, showError = false)
         if (dbWithSystemNameBlankPwd.isDefined) dbWithSystemNameBlankPwd
         else {
           val usrOpt = ui.askForString(Some(Array("Username")), None, Some(systemUserName))
           if (usrOpt.isEmpty) System.exit(1)
-          val dbConnectedWithBlankPwd = login(usrOpt.get, "", showError = false)
+          val dbConnectedWithBlankPwd = login(usrOpt.get, defaultPassword, showError = false)
           if (dbConnectedWithBlankPwd.isDefined) dbConnectedWithBlankPwd
           else {
             try {

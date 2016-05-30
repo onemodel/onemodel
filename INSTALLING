@@ -189,8 +189,8 @@ CONTINUED POSTGRES CONFIGURATION FOR *BOTH* LINUX AND OPENBSD:
 postgres (or on BSD, _postgresql) user.
 
 - Choose a username and password.  If you use the same username as
-your system username, and leave a blank password ('', when setting the
-password below), OM will log you in automatically. In many cases this
+your system username, and password 'x' (without quotes) when setting the
+password below, OM will log you in automatically. In many cases this
 might be most convenient, especially if your operating system already
 requires a password to log in under your own username.	If you choose a
 different username, or a strong password (which is a good idea sometimes),
