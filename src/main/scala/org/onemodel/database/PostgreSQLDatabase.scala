@@ -245,10 +245,23 @@ class PostgreSQLDatabase(username: String, var password: String) {
   System.gc()
   System.gc()
   if (!modelTablesExist) {
-    createTables()
-    createDefaultData()
+    createBaseTables()
+    createBaseData()
   }
+  doDatabaseUpgrades()
   createExpectedData()
+
+  /** Performs automatic database upgrades as required by evolving versions of OneModel.
+    */
+  def doDatabaseUpgrades(): Unit = {
+    val versionTableExists: Boolean = doesThisExist("select count(1) from pg_class where relname='om_db_version'")
+    if (! versionTableExists) {
+       // table has 1 row and 1 column, to say what db version we are on.
+      dbAction("create table om_db_version (version integer DEFAULT 1) ")
+      dbAction("INSERT INTO om_db_version (version) values (0)")
+    }
+    val dbVersion: Int = dbQueryWrapperForOneRow("select version from om_db_version", "Int")(0).get.asInstanceOf[Int]
+  }
 
   /** Creates newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
     * after an OM release was done.  This puts it into existing databases if needed.
@@ -288,7 +301,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** Does standard setup for a "OneModel" database, such as when starting up for the first time, or when creating a test system. */
-  def createTables() {
+  def createBaseTables() {
     beginTrans()
     try {
       dbAction("create sequence EntityKeySequence minvalue " + minIdValue)
@@ -751,7 +764,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     resultsInOut
   }
 
-  def createDefaultData() {
+  /** Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.  
+    */
+  def createBaseData() {
     // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?
     val ids: Option[List[Long]] = findEntityOnlyIdsByName(PostgreSQLDatabase.systemEntityName)
     // will probably have to change the next line when things grow/change, and say, we're doing upgrades not always a new system:
@@ -912,7 +927,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** Indicates whether the database setup has been done. */
-  def modelTablesExist: Boolean = doesThisExist("select count(*) from pg_class where relname='entity'")
+  def modelTablesExist: Boolean = doesThisExist("select count(1) from pg_class where relname='entity'")
 
   /** Used, for example, when test code is finished with its test data. Be careful. */
   def destroyTables() {
@@ -3122,7 +3137,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** Convenience function. Error message it gives if > 1 found assumes that sql passed in will return only 1 row! */
-  private def doesThisExist(inSql: String, failIfMoreThanOneFoundIn: Boolean = true): Boolean = {
+  def doesThisExist(inSql: String, failIfMoreThanOneFoundIn: Boolean = true): Boolean = {
     val rowcnt: Long = extractRowCountFromCountQuery(inSql)
     if (failIfMoreThanOneFoundIn) {
       if (rowcnt == 1) true

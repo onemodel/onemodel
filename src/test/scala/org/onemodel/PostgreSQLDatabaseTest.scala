@@ -77,6 +77,15 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     result
   }
 
+  "database upgrades" should "work" in {
+    val versionTableExists: Boolean = mDB.doesThisExist("select count(1) from pg_class where relname='om_db_version'")
+    assert(versionTableExists)
+    val results = mDB.dbQueryWrapperForOneRow("select version from om_db_version", "Int")
+    assert(results.length == 1)
+    val dbVer: Int = results(0).get.asInstanceOf[Int]
+    assert(dbVer == 0, "Does the db ver in the test code need to be updated to match the one in db.doDatabaseUpgrades?")
+  }
+
   "escapeQuotesEtc" should "allow updating db with single-quotes" in {
     val name: String = "This ' name contains a single-quote."
     mDB.beginTrans()
@@ -959,6 +968,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       }
 
       override def modelTablesExist: Boolean = true
+      override def doDatabaseUpgrades = Unit
     }
     var found = false
     val originalErrMsg: String = "testing123"
