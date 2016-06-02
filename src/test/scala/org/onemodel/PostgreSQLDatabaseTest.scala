@@ -77,13 +77,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     result
   }
 
-  "database upgrades" should "work" in {
+  "database version table" should "have been created with right data" in {
     val versionTableExists: Boolean = mDB.doesThisExist("select count(1) from pg_class where relname='om_db_version'")
     assert(versionTableExists)
     val results = mDB.dbQueryWrapperForOneRow("select version from om_db_version", "Int")
     assert(results.length == 1)
     val dbVer: Int = results(0).get.asInstanceOf[Int]
-    assert(dbVer == 0, "Does the db ver in the test code need to be updated to match the one in db.doDatabaseUpgrades?")
+    assert(dbVer == PostgreSQLDatabase.CURRENT_DB_VERSION, "dbVer and PostgreSQLDatabase.CURRENT_DB_VERSION are: " +
+                                                           dbVer + ", " + PostgreSQLDatabase.CURRENT_DB_VERSION)
   }
 
   "escapeQuotesEtc" should "allow updating db with single-quotes" in {
@@ -152,38 +153,47 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     mDB.rollbackTrans()
   }
 
-  "getAttrCount" should "work in all circumstances" in {
+  "getAttrCount, getAttributeSortingRowsCount" should "work in all circumstances" in {
     mDB.beginTrans()
 
     val id: Long = mDB.createEntity("test: org.onemodel.PSQLDbTest.getAttrCount...")
+    val initialNumSortingRows = mDB.getAttributeSortingRowsCount(Some(id))
     assert(mDB.getAttrCount(id) == 0)
+    assert(initialNumSortingRows == 0)
 
     createTestQuantityAttributeWithTwoEntities(id)
     createTestQuantityAttributeWithTwoEntities(id)
     assert(mDB.getAttrCount(id) == 2)
+    assert(mDB.getAttributeSortingRowsCount(Some(id)) == 2)
 
     createTestTextAttributeWithOneEntity(id)
     assert(mDB.getAttrCount(id) == 3)
+    assert(mDB.getAttributeSortingRowsCount(Some(id)) == 3)
 
     //whatever, just need some relation type to go with:
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
     createTestRelationToEntity_WithOneEntity(id, relTypeId)
     assert(mDB.getAttrCount(id) == 4)
+    assert(mDB.getAttributeSortingRowsCount(Some(id)) == 4)
 
     createAndAddTestRelationToGroup_ToEntity(id, relTypeId, "somename", Some(12345L))
     assert(mDB.getAttrCount(id) == 5)
+    assert(mDB.getAttributeSortingRowsCount(Some(id)) == 5)
 
     mDB.rollbackTrans()
-    //idea: find out: WHY does the next line fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
+    //idea: find out: WHY do the next lines fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
     // Do I not understand rollback?
-    //assert(mDB.getAttrCount(id) == 0)
+//    assert(mDB.getAttrCount(id) == 0)
+//    assert(mDB.getAttributeSortingRowsCount(Some(id)) == 0)
   }
 
   "QuantityAttribute creation/update/deletion methods" should "work" in {
     mDB.beginTrans()
     val startingEntityCount = mDB.getEntityCount
     val entityId = mDB.createEntity("test: org.onemodel.PSQLDbTest.quantityAttrs()")
+    val initialTotalSortingRowsCount = mDB.getAttributeSortingRowsCount()
     val quantityAttributeId: Long = createTestQuantityAttributeWithTwoEntities(entityId)
+    assert(mDB.getAttributeSortingRowsCount() > initialTotalSortingRowsCount)
 
     val qa = new QuantityAttribute(mDB, quantityAttributeId)
     val (pid1, atid1, uid1) = (qa.getParentId, qa.getAttrTypeId, qa.getUnitId)
@@ -203,10 +213,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     val qAttrCount = mDB.getQuantityAttributeCount(entityId)
     assert(qAttrCount == 1)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
 
     //delete the quantity attribute: #'s still right?
     val entityCountBeforeQuantityDeletion: Long = mDB.getEntityCount
     mDB.deleteQuantityAttribute(quantityAttributeId)
+    // next 2 lines should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+    assert(mDB.getAttributeSortingRowsCount() == initialTotalSortingRowsCount)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
 
     val entityCountAfterQuantityDeletion: Long = mDB.getEntityCount
     assert(mDB.getQuantityAttributeCount(entityId) == 0)
@@ -223,10 +237,22 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     mDB.rollbackTrans()
   }
 
+  "Attribute and AttributeSorting row deletion" should "both happen automatically upon entity deletion" in {
+    val entityId = mDB.createEntity("test: org.onemodel.PSQLDbTest sorting rows stuff")
+    createTestQuantityAttributeWithTwoEntities(entityId)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
+    assert(mDB.getQuantityAttributeCount(entityId) == 1)
+    mDB.deleteEntity(entityId)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    assert(mDB.getQuantityAttributeCount(entityId) == 0)
+  }
+
   "TextAttribute create/delete/update methods" should "work" in {
     val startingEntityCount = mDB.getEntityCount
     val entityId = mDB.createEntity("test: org.onemodel.PSQLDbTest.testTextAttrs")
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     val textAttributeId: Long = createTestTextAttributeWithOneEntity(entityId)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
     val aTextValue = "asdfjkl"
 
     val ta = new TextAttribute(mDB, textAttributeId)
@@ -249,6 +275,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val entityCountBeforeTextDeletion: Long = mDB.getEntityCount
     mDB.deleteTextAttribute(textAttributeId)
     assert(mDB.getTextAttributeCount(entityId) == 0)
+    // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     val entityCountAfterTextDeletion: Long = mDB.getEntityCount
     if (entityCountAfterTextDeletion != entityCountBeforeTextDeletion) {
       fail("Got constraint backwards? Deleting text attribute changed Entity count from " + entityCountBeforeTextDeletion + " to " +
@@ -270,7 +298,9 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   "DateAttribute create/delete/update methods" should "work" in {
     val startingEntityCount = mDB.getEntityCount
     val entityId = mDB.createEntity("test: org.onemodel.PSQLDbTest.testDateAttrs")
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     val dateAttributeId: Long = createTestDateAttributeWithOneEntity(entityId)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
     val da = new DateAttribute(mDB, dateAttributeId)
     val (pid1, atid1) = (da.getParentId, da.getAttrTypeId)
     assert(entityId == pid1)
@@ -293,6 +323,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val entityCountBeforeDateDeletion: Long = mDB.getEntityCount
     mDB.deleteDateAttribute(dateAttributeId)
     assert(mDB.getDateAttributeCount(entityId) == 0)
+    // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     assert(mDB.getEntityCount == entityCountBeforeDateDeletion)
 
     // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below)
@@ -310,7 +342,9 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val val1 = true
     val observationDate: Long = System.currentTimeMillis
     val validOnDate: Option[Long] = Some(1234L)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     val booleanAttributeId: Long = createTestBooleanAttributeWithOneEntity(entityId, val1, validOnDate, observationDate)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
 
     val ba = new BooleanAttribute(mDB, booleanAttributeId)
     val (pid1, atid1) = (ba.getParentId, ba.getAttrTypeId)
@@ -334,6 +368,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val entityCountBeforeAttrDeletion: Long = mDB.getEntityCount
     mDB.deleteBooleanAttribute(booleanAttributeId)
     assert(mDB.getBooleanAttributeCount(entityId) == 0)
+    // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     val entityCountAfterAttrDeletion: Long = mDB.getEntityCount
     if (entityCountAfterAttrDeletion != entityCountBeforeAttrDeletion) {
       fail("Got constraint backwards? Deleting boolean attribute changed Entity count from " + entityCountBeforeAttrDeletion + " to " +
@@ -359,7 +395,9 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val startingEntityCount = mDB.getEntityCount
     val entityId = mDB.createEntity("test: org.onemodel.PSQLDbTest.testFileAttrs")
     val descr = "somedescr"
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     val fa: FileAttribute = createTestFileAttributeAndOneEntity(new Entity(mDB, entityId), descr, 1)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
     val fileAttributeId = fa.getId
     val (pid1, atid1, desc1) = (fa.getParentId, fa.getAttrTypeId, fa.getDescription)
     assert(desc1 == descr)
@@ -427,6 +465,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val entityCountBeforeFileAttrDeletion: Long = mDB.getEntityCount
     mDB.deleteFileAttribute(fileAttributeId)
     assert(mDB.getFileAttributeCount(entityId) == 0)
+    // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     val entityCountAfterFileAttrDeletion: Long = mDB.getEntityCount
     if (entityCountAfterFileAttrDeletion != entityCountBeforeFileAttrDeletion) {
       fail("Got constraint backwards? Deleting FileAttribute changed Entity count from " + entityCountBeforeFileAttrDeletion + " to " +
@@ -505,7 +545,9 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getRelationTypes(0, Some(25)).size == startingRelCount + 1)
     assert(mDB.getEntitiesOnlyCount() == startingEntityOnlyCount + 1)
 
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     val relatedEntityId: Long = createTestRelationToEntity_WithOneEntity(entityId, relTypeId)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
     val checkRelation = mDB.getRelationToEntityData(relTypeId, entityId, relatedEntityId)
     val checkValidOnDate = checkRelation(1)
     assert(checkValidOnDate.isEmpty) // should get back None when created with None: see description for table's field in createTables method.
@@ -523,6 +565,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     mDB.deleteRelationToEntity(relTypeId, entityId, relatedEntityId)
     assert(mDB.getRelationToEntityCount(entityId) == 0)
+    // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
 
     val entityOnlyCountBeforeRelationTypeDeletion: Long = mDB.getEntitiesOnlyCount()
     mDB.deleteRelationType(relTypeId)
@@ -577,7 +621,10 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val entityId = mDB.createEntity(entityName)
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
     val validOnDate = 12345L
-    val (groupId:Long, createdRtg:RelationToGroup) = createAndAddTestRelationToGroup_ToEntity(entityId, relTypeId, relToGroupName, Some(validOnDate), allowMixedClassesIn = true)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    val (groupId:Long, createdRtg:RelationToGroup) = createAndAddTestRelationToGroup_ToEntity(entityId, relTypeId, relToGroupName, Some(validOnDate),
+                                                                                              allowMixedClassesIn = true)
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
 
     val rtg: RelationToGroup = new RelationToGroup(mDB, createdRtg.getId, createdRtg.getParentId, createdRtg.getAttrTypeId, createdRtg.getGroupId)
     val group: Group = new Group(mDB, groupId)
@@ -604,6 +651,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
                                   new Entity(mDB, entityId2)
                                 }.getMessage.contains("does not exist"))
     assert(group.getSize == 0)
+    // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+    assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
 
     val (groupId2, _) = createAndAddTestRelationToGroup_ToEntity(entityId, relTypeId, "somename", None)
 
@@ -968,7 +1017,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       }
 
       override def modelTablesExist: Boolean = true
-      override def doDatabaseUpgrades = Unit
+      override def doDatabaseUpgradesIfNeeded() = Unit  //noinspection ScalaUselessExpression  (intentional style violation, for readability)
     }
     var found = false
     val originalErrMsg: String = "testing123"

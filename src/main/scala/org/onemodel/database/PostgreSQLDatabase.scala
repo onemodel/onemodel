@@ -31,6 +31,7 @@ import scala.util.Sorting
   */
 object PostgreSQLDatabase {
   // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
+  val CURRENT_DB_VERSION = 1
   val dbNamePrefix = "om_"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
@@ -66,6 +67,7 @@ object PostgreSQLDatabase {
     // Doing these individually so that if one fails (not previously existing, such as testing or a new installation), the others can proceed (drop method
     // ignores that exception).
 
+    drop("table", "om_db_version", connIn)
     drop("table", "QuantityAttribute", connIn)
     drop("table", "DateAttribute", connIn)
     drop("table", "BooleanAttribute", connIn)
@@ -73,7 +75,7 @@ object PostgreSQLDatabase {
     // The LO cleanup doesn't happen (trigger not invoked) w/ just a drop (or truncate), but does on delete.  For more info see the wiki reference
     // link among those down in this file below "create table FileAttribute".
     try {
-      dbAction("delete from FileAttributeContent", callerChecksRowCountEtc = true, connIn)
+      dbAction("delete from FileAttributeContent", callerChecksRowCountEtc = true, connIn = connIn)
     } catch {
       case e: Exception =>
         val sw: StringWriter = new StringWriter()
@@ -108,7 +110,7 @@ object PostgreSQLDatabase {
   }
 
   private def drop(sqlType: String, name: String, connIn: Connection) {
-    try dbAction("drop " + escapeQuotesEtc(sqlType) + " " + escapeQuotesEtc(name) + " CASCADE", callerChecksRowCountEtc = false, connIn)
+    try dbAction("drop " + escapeQuotesEtc(sqlType) + " " + escapeQuotesEtc(name) + " CASCADE", callerChecksRowCountEtc = false, connIn = connIn)
     catch {
       case e: Exception =>
         val sw: StringWriter = new StringWriter()
@@ -164,15 +166,19 @@ object PostgreSQLDatabase {
   }
 
   /** Returns the # of rows affected.
+    * @param skipCheckForBadSqlIn  SET TO false EXCEPT *RARELY*, WITH CAUTION AND ONLY WHEN THE SQL HAS NO USER-PROVIDED STRING IN IT!!  SEE THE (hopefully
+    *                              still just one) PLACE USING IT NOW (in method createAttributeSortingDeletionTrigger) AND PROBABLY LIMIT USE TO THAT!
     */
-  def dbAction(sqlIn: String, callerChecksRowCountEtc: Boolean = false, connIn: Connection): Long = {
+  def dbAction(sqlIn: String, callerChecksRowCountEtc: Boolean = false, connIn: Connection, skipCheckForBadSqlIn: Boolean = false): Long = {
     var rowsAffected = -1
     var st: Statement = null
     val isCreateDropOrAlterStatement = sqlIn.toLowerCase.startsWith("create ") || sqlIn.toLowerCase.startsWith("drop ") ||
                                        sqlIn.toLowerCase.startsWith("alter ")
     try {
       st = connIn.createStatement
-      checkForBadSql(sqlIn)
+      if (! skipCheckForBadSqlIn) {
+        checkForBadSql(sqlIn)
+      }
       rowsAffected = st.executeUpdate(sqlIn)
 
       // idea: not sure whether these checks belong here really.  Might be worth research
@@ -200,7 +206,7 @@ object PostgreSQLDatabase {
 
   def checkForBadSql(s: String) {
     if (s.contains(";")) {
-      // it seems that could mean somehow an embedded sql is in a normal command, as an attack vector. We don't need
+      // it seems that could mean somehow an embedded sql is in a normal command, as an attack vector. We don't usually need
       // to write like that, nor accept it from outside. This & any similar needed checks should happen reliably
       // at the lowest level before the database for security.  If text needs the problematic character(s), it should
       // be escaped prior (see escapeQuotesEtc for writing data, and where we read data).
@@ -213,8 +219,7 @@ object PostgreSQLDatabase {
 
 /**
  * Any code that would change when we change storage systems (like from postgresql to
- * an object database or who knows), goes in this class. Implements the Database
- * interface.
+ * an object database or who knows), goes in this class.
  * <br><br>
  * Note that any changes to the database structures (or constraints, etc) whatsoever should
  * ALWAYS have the following: <ul>
@@ -223,7 +228,7 @@ object PostgreSQLDatabase {
  * whenever possible. When this is impossible, it should be discussed on the developer mailing
  * so that we can consider putting it in the right place in the code, with the goal of
  * greatest simplicity and reliability.</li>
- * <li>Put these things in the auto-creation steps of the DB class. See createDatabase() and createTables().</li>
+ * <li>Put these things in the auto-creation steps of the DB class. See createBaseData(), createTables(), and doDatabaseUpgrades.</li>
  * <li>Add comments to that part of the code, explaining the change or requirement, as needed.</li>
  * <li>Any changes (as anywhere in this system) should be done in a test-first manner, for anything that
  * could go wrong, along these lines: First write a test that demonstrates the issue and fails, then
@@ -245,23 +250,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
   System.gc()
   System.gc()
   if (!modelTablesExist) {
-    createBaseTables()
+    createTables()
     createBaseData()
   }
-  doDatabaseUpgrades()
+  doDatabaseUpgradesIfNeeded()
   createExpectedData()
-
-  /** Performs automatic database upgrades as required by evolving versions of OneModel.
-    */
-  def doDatabaseUpgrades(): Unit = {
-    val versionTableExists: Boolean = doesThisExist("select count(1) from pg_class where relname='om_db_version'")
-    if (! versionTableExists) {
-       // table has 1 row and 1 column, to say what db version we are on.
-      dbAction("create table om_db_version (version integer DEFAULT 1) ")
-      dbAction("INSERT INTO om_db_version (version) values (0)")
-    }
-    val dbVersion: Int = dbQueryWrapperForOneRow("select version from om_db_version", "Int")(0).get.asInstanceOf[Int]
-  }
 
   /** Creates newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
     * after an OM release was done.  This puts it into existing databases if needed.
@@ -296,14 +289,18 @@ class PostgreSQLDatabase(username: String, var password: String) {
     mConn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
   }
 
-  def dbAction(sqlIn: String, callerChecksRowCountEtc: Boolean = false): Long = {
-    PostgreSQLDatabase.dbAction(sqlIn, callerChecksRowCountEtc, mConn)
+  /** @param skipCheckForBadSqlIn   Avoid using this! See comment on PostgreSQLDatabase.dbAction.
+    */
+  def dbAction(sqlIn: String, callerChecksRowCountEtc: Boolean = false, skipCheckForBadSqlIn: Boolean = false): Long = {
+    PostgreSQLDatabase.dbAction(sqlIn, callerChecksRowCountEtc, mConn, skipCheckForBadSqlIn)
   }
 
   /** Does standard setup for a "OneModel" database, such as when starting up for the first time, or when creating a test system. */
-  def createBaseTables() {
+  def createTables() {
     beginTrans()
     try {
+      createVersionTable()
+
       dbAction("create sequence EntityKeySequence minvalue " + minIdValue)
 
       // id must be "unique not null" in ANY database used, because it is a primary key. "PRIMARY KEY" is the same.
@@ -365,7 +362,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       /* This table maintains the users' preferred display sorting information for entities' attributes (including relations to groups/entities).
 
          It might instead have been implemented by putting the sorting_index column on each attribute table, which would simplify some things, but that
-         would have required writing a new way for placing & sorting the attributes and finding adjacent ones etc, and the first way was already
+         would have required writing a new way for placing & sorting the attributes and finding adjacent ones etc., and the first way was already
          mostly debugged, with much effort (for EntitiesInAGroup, and the hope is to reuse that way for interacting with this table).  But maybe that
          same effect could have been created by sorting the attributes in memory instead, adhoc when needed: not sure if that would be simpler
       */
@@ -379,24 +376,17 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ", sorting_index bigint not null" +
                ", PRIMARY KEY (entity_id, attribute_form_id, attribute_id)" +
                ", CONSTRAINT valid_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE" +
-               // I had thought to put "AND attribute_form_id <= 7" originally, since that's all there are, but upped it to avoid changing the DB if
-               // for some reason there are more later:
-               ", CONSTRAINT valid_attribute_form_id CHECK (attribute_form_id >= 1 AND attribute_form_id <= 100)" +
-
-               // ~Constraint: each time an attribute (or rte/rtg) is deleted, this row should be deleted too, enforced (or it had sorting problems, for one).
-               // I didn't see a quick way in postgresql 9.4 to enforce that the attribute_id value is found in *one of the* 7 attribute tables' id column,
-               // short of perhaps creating a separate table mapping attribute IDs with form_ids to this table), and tying them all together.  Triggers
-               // would work, BUT see the logic/comment inside method deleteObjects, near "if (tableLower.contains("attribute")", which does it.
-
+               ", CONSTRAINT valid_attribute_form_id CHECK (attribute_form_id >= 1 AND attribute_form_id <= 7)" +
                // make it so the sorting_index must also be unique for each entity (otherwise we have sorting problems):
                ", constraint noDupSortingIndexes2 unique (entity_id, sorting_index)" +
                // this one was required by the constraint valid_*_sorting on the tables that have a form_id column:
                ", constraint noDupSortingIndexes3 unique (attribute_form_id, attribute_id)" +
                ") ")
       dbAction("create index AttributeSorting_sorted on AttributeSorting (entity_id, sorting_index)")
+      createAttributeSortingDeletionTrigger()
 
       dbAction("create sequence QuantityAttributeKeySequence minvalue " + minIdValue)
-      // the entity_id is the key for the entity on which this quantity info is recorded; for other meanings see comments on
+      // The entity_id is the key for the entity on which this quantity info is recorded; for other meanings see comments on
       // Entity.addQuantityAttribute(...).
       // id must be "unique not null" in ANY database used, because it is the primary key.
       // FOR COLUMN MEANINGS, SEE ALSO THE COMMENTS IN CREATEQUANTITYATTRIBUTE.
@@ -418,9 +408,20 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_unit_id FOREIGN KEY (unit_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
+               // Didn't use "on delete cascade" for the following constraint, because it didn't originally occur to me that instead of deleting the
+               // sorting row (via triggers) when we delete the attribute, we could delete the attribute when deleting its sorting row, by instead
+               // putting "ON DELETE CASCADE" on the attribute tables' constraints that reference this table, and where we
+               // now delete attributes, instead deleting AttributeSorting rows, and so letting the attributes be deleted automatically.
+               // But for now, see the trigger below instead.
+               // (The same is true for all the attribute tables (including the 2 main RelationTo* tables).
                "CONSTRAINT valid_qa_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
+               // (next line is because otherwise when an attribute is deleted, it would fail on this constraint before the trigger files to delete the
+               // row from attributesorting.)
+               "  DEFERRABLE INITIALLY DEFERRED " +
                ") ")
       dbAction("create index quantity_parent_id on QuantityAttribute (entity_id)")
+      dbAction("CREATE TRIGGER qa_attribute_sorting_cleanup BEFORE DELETE ON QuantityAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
       dbAction("create sequence DateAttributeKeySequence minvalue " + minIdValue)
       dbAction("create table DateAttribute (" +
@@ -435,8 +436,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_da_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
+               "  DEFERRABLE INITIALLY DEFERRED " +
                ") ")
       dbAction("create index date_parent_id on DateAttribute (entity_id)")
+      dbAction("CREATE TRIGGER da_attribute_sorting_cleanup BEFORE DELETE ON DateAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
       dbAction("create sequence BooleanAttributeKeySequence minvalue " + minIdValue)
       dbAction("create table BooleanAttribute (" +
@@ -455,8 +459,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_ba_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
+               "  DEFERRABLE INITIALLY DEFERRED " +
                ") ")
       dbAction("create index boolean_parent_id on BooleanAttribute (entity_id)")
+      dbAction("CREATE TRIGGER ba_attribute_sorting_cleanup BEFORE DELETE ON BooleanAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
       dbAction("create sequence FileAttributeKeySequence minvalue " + minIdValue)
       dbAction("create table FileAttribute (" +
@@ -482,8 +489,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_fa_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
+               "  DEFERRABLE INITIALLY DEFERRED " +
                ") ")
       dbAction("create index file_parent_id on FileAttribute (entity_id)")
+      dbAction("CREATE TRIGGER fa_attribute_sorting_cleanup BEFORE DELETE ON FileAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
       // about oids and large objects, blobs: here are some reference links (but consider also which version of postgresql is running):
       //  https://duckduckgo.com/?q=postgresql+large+binary+streams
       //  http://www.postgresql.org/docs/9.1/interactive/largeobjects.html
@@ -499,6 +509,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ")")
       // This trigger exists because otherwise the binary data from large objects doesn't get cleaned up when the related rows are deleted. For details
       // see the links just above (especially the wiki one).
+      // (The reason I PUT THE "UPDATE OR" in the "BEFORE UPDATE OR DELETE" is simply: that is how this page's example (at least as of 2016-06-01:
+      //    http://www.postgresql.org/docs/current/static/lo.html
+      // ...said to do it.
+      //Idea: but we still might want more tests around it? and to use "vacuumlo" module, per that same url?
       dbAction("CREATE TRIGGER om_contents_oid_cleanup BEFORE UPDATE OR DELETE ON fileattributecontent " +
                "FOR EACH ROW EXECUTE PROCEDURE lo_manage(contents_oid)")
 
@@ -521,8 +535,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), " +
                "CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_ta_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
+               "  DEFERRABLE INITIALLY DEFERRED " +
                ") ")
       dbAction("create index text_parent_id on TextAttribute (entity_id)")
+      dbAction("CREATE TRIGGER ta_attribute_sorting_cleanup BEFORE DELETE ON TextAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
       dbAction("create sequence RelationToEntityKeySequence minvalue " + minIdValue)
       //Example: a relationship between a state and various counties might be set up like this:
@@ -559,9 +576,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_related_to_entity_id_1 FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_related_to_entity_id_2 FOREIGN KEY (entity_id_2) REFERENCES entity (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_reltoent_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
+               "  DEFERRABLE INITIALLY DEFERRED " +
                ") ")
       dbAction("create index entity_id_1 on RelationToEntity (entity_id)")
       dbAction("create index entity_id_2 on RelationToEntity (entity_id_2)")
+      dbAction("CREATE TRIGGER rte_attribute_sorting_cleanup BEFORE DELETE ON RelationToEntity " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
       // Would rename this sequence to match the table it's used in now, but the cmd "alter sequence relationtogroupkeysequence rename to groupkeysequence;"
       // doesn't rename the name inside the sequence, and keeping the old name is easier for now than deciding whether to do something about that (more info
@@ -601,12 +621,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "CONSTRAINT valid_reltogrp_rel_type_id FOREIGN KEY (rel_type_id) REFERENCES relationType (entity_id), " +
                "CONSTRAINT valid_reltogrp_group_id FOREIGN KEY (group_id) REFERENCES grupo (id) ON DELETE CASCADE, " +
                "CONSTRAINT valid_reltogrp_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " +
+               "  DEFERRABLE INITIALLY DEFERRED " +
                ") ")
       dbAction("create index RTG_entity_id on RelationToGroup (entity_id)")
       dbAction("create index RTG_group_id on RelationToGroup (group_id)")
+      dbAction("CREATE TRIGGER rtg_attribute_sorting_cleanup BEFORE DELETE ON RelationToGroup " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
       /* This table maintains a 1-to-many connection between one entity, and many others in a particular group that it contains.
-      Uhhh, clarify terms?: the table below is a (1) "relationship table" (aka relationship entity--not an OM entity but at a lower layer) which tracks
+      Will this clarify terms?: the table below is a (1) "relationship table" (aka relationship entity--not an OM entity but at a lower layer) which tracks
       those entities which are part of a particular group.  The nature of the (2) "relation"-ship between that group of entities and the entity that "has"
       them (or other relationtype to them...) is described by the table RelationToGroup, which is instead of a regular old (3) "RelationToEntity" because #3
       just
@@ -642,10 +665,111 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ") ")
       dbAction("create index action_class_id on Action (class_id)")
 
+      dbAction("UPDATE om_db_version SET (version) = (" + PostgreSQLDatabase.CURRENT_DB_VERSION + ")")
       commitTrans()
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
+  }
+
+  /** Performs automatic database upgrades as required by evolving versions of OneModel.
+    *
+    * ******MAKE SURE*****:       ...that everything this does is also done in createTables so that createTables is a single reference
+    * point for a developer to go read about the database structure, and for testing!  I.e., a newly-created OM instance shouldn't have to be upgraded,
+    * because createTables always provides the latest structure in a new system.  This method is just for updating older instances to what is in createTables!
+    */
+  def doDatabaseUpgradesIfNeeded(): Unit = {
+    val versionTableExists: Boolean = doesThisExist("select count(1) from pg_class where relname='om_db_version'")
+    if (! versionTableExists) {
+      createVersionTable()
+    }
+    val dbVersion: Int = dbQueryWrapperForOneRow("select version from om_db_version", "Int")(0).get.asInstanceOf[Int]
+    if (dbVersion == 0) {
+      upgradeDbFrom0to1()
+    }
+    /* NOTE FOR FUTURE METHODS LIKE upgradeDbFrom0to1: methods like this should be designed carefully and very well-tested:
+       0) make & test periodic backups of your live data to be safe!
+       1) Consider designing it to be idempotent: so multiple runs on a production db (if by some mistake) will no harm (or at least will err out safely).
+       2) Could run it against the test db (even though its tables already should have these changes, by being created from scratch), by not yet updating
+          the table om_db_version (perhaps by temporarily commenting out the line with
+          "UPDATE om_db_version ..." from createTables while running tests).  AND,
+       3) Could do a backup, open psql, start a transaction, paste the method's upgrade
+          commands there, do manual verifications, then rollback.
+       It doesn't seem to make sense to test methods like this with a unit test because the tests are run on a db created as a new
+       system, so there is no upgrade to do on a new test, and no known need to call this method except on old systems being upgraded.
+       (See also related comment above this doDatabaseUpgradesIfNeeded method.)
+      */
+
+    require(dbVersion == PostgreSQLDatabase.CURRENT_DB_VERSION)
+  }
+
+  def createVersionTable(): Long = {
+    // table has 1 row and 1 column, to say what db version we are on.
+    dbAction("create table om_db_version (version integer DEFAULT 1) ")
+    dbAction("INSERT INTO om_db_version (version) values (0)")
+  }
+
+  private def upgradeDbFrom0to1() = {
+    beginTrans()
+    try {
+      dbAction("ALTER TABLE AttributeSorting DROP CONSTRAINT valid_attribute_form_id")
+      dbAction("ALTER TABLE AttributeSorting ADD CONSTRAINT valid_attribute_form_id CHECK (attribute_form_id >= 1 AND attribute_form_id <= 7)")
+      createAttributeSortingDeletionTrigger()
+      dbAction("ALTER TABLE QuantityAttribute DROP CONSTRAINT valid_qa_sorting")
+      dbAction("ALTER TABLE QuantityAttribute ADD CONSTRAINT valid_qa_sorting FOREIGN KEY (entity_id, form_id, id) " +
+               "REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " + "  DEFERRABLE INITIALLY DEFERRED ")
+      dbAction("ALTER TABLE DateAttribute DROP CONSTRAINT valid_da_sorting")
+      dbAction("ALTER TABLE DateAttribute ADD CONSTRAINT valid_da_sorting FOREIGN KEY (entity_id, form_id, id) " +
+               "REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " + "  DEFERRABLE INITIALLY DEFERRED ")
+      dbAction("ALTER TABLE BooleanAttribute DROP CONSTRAINT valid_ba_sorting")
+      dbAction("ALTER TABLE BooleanAttribute ADD CONSTRAINT valid_ba_sorting FOREIGN KEY (entity_id, form_id, id) " +
+               "REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " + "  DEFERRABLE INITIALLY DEFERRED " )
+      dbAction("ALTER TABLE FileAttribute DROP CONSTRAINT valid_fa_sorting")
+      dbAction("ALTER TABLE FileAttribute ADD CONSTRAINT valid_fa_sorting FOREIGN KEY (entity_id, form_id, id) " +
+               "REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " + "  DEFERRABLE INITIALLY DEFERRED ")
+      dbAction("ALTER TABLE TextAttribute DROP CONSTRAINT valid_ta_sorting")
+      dbAction("ALTER TABLE TextAttribute ADD CONSTRAINT valid_ta_sorting FOREIGN KEY (entity_id, form_id, id) " +
+               "REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " + "  DEFERRABLE INITIALLY DEFERRED ")
+      dbAction("ALTER TABLE RelationToEntity DROP CONSTRAINT valid_reltoent_sorting")
+      dbAction("ALTER TABLE RelationToEntity ADD CONSTRAINT valid_reltoent_sorting FOREIGN KEY (entity_id, form_id, id) " +
+               "REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " + "  DEFERRABLE INITIALLY DEFERRED ")
+      dbAction("ALTER TABLE RelationToGroup DROP CONSTRAINT valid_reltogrp_sorting")
+      dbAction("ALTER TABLE RelationToGroup ADD CONSTRAINT valid_reltogrp_sorting FOREIGN KEY (entity_id, form_id, id) " +
+               "REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) " + "  DEFERRABLE INITIALLY DEFERRED ")
+      dbAction("CREATE TRIGGER qa_attribute_sorting_cleanup BEFORE DELETE ON QuantityAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
+      dbAction("CREATE TRIGGER da_attribute_sorting_cleanup BEFORE DELETE ON DateAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
+      dbAction("CREATE TRIGGER ba_attribute_sorting_cleanup BEFORE DELETE ON BooleanAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
+      dbAction("CREATE TRIGGER fa_attribute_sorting_cleanup BEFORE DELETE ON FileAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
+      dbAction("CREATE TRIGGER ta_attribute_sorting_cleanup BEFORE DELETE ON TextAttribute " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
+      dbAction("CREATE TRIGGER rte_attribute_sorting_cleanup BEFORE DELETE ON RelationToEntity " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
+      dbAction("CREATE TRIGGER rtg_attribute_sorting_cleanup BEFORE DELETE ON RelationToGroup " +
+               "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
+      dbAction("UPDATE om_db_version SET (version) = (1)")
+    }
+    catch {
+      case e: Exception => throw rollbackWithCatch(e)
+    }
+    commitTrans()
+  }
+
+  def createAttributeSortingDeletionTrigger(): Long = {
+    // Each time an attribute (or rte/rtg) is deleted, the AttributeSorting row should be deleted too, in an enforced way (or it had sorting problems, for one).
+    // I.e., an attempt to enforce (with triggers that call this procedure) that the AttributeSorting table's attribute_id value is found
+    // in *one of the* 7 attribute tables' id column,  Doing it in application code is not as simple or as reliable as doing it at the DDL level.
+    val sql = "CREATE OR REPLACE FUNCTION attribute_sorting_cleanup() RETURNS trigger AS $attribute_sorting_cleanup$ " +
+              "  BEGIN" +
+              // (OLD is a special PL/pgsql variable of type RECORD, which contains the attribute row before the deletion.)
+              "    DELETE FROM AttributeSorting WHERE entity_id=OLD.entity_id and attribute_form_id=OLD.form_id and attribute_id=OLD.id; " +
+              "    RETURN OLD; " +
+              "  END;" +
+              "$attribute_sorting_cleanup$ LANGUAGE plpgsql;"
+    dbAction(sql, skipCheckForBadSqlIn = true)
   }
 
   def findAllEntityIdsByName(inName: String, caseSensitive: Boolean = false): Option[List[Long]] = {
@@ -1873,6 +1997,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
           if (isEntityAttrsNotGroupEntries) getEntityAttributeSortingData(entityIdOrGroupIdIn)
           else getGroupEntriesData(entityIdOrGroupIdIn)
         }
+        require(data.size == numberOfEntries, "Unexpected data state: data.size=" + data.size + " and numberOfEntries=" + numberOfEntries  + ".")
         for (entry <- data) {
           if (isEntityAttrsNotGroupEntries) {
             while (attributeSortingIndexInUse(entityIdOrGroupIdIn, next)) {
@@ -1958,6 +2083,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
     getFileAttributeCount(entityIdIn) +
     getRelationToEntityCount(entityIdIn, includeArchivedEntitiesIn) +
     getRelationToGroupCountByEntity(Some(entityIdIn))
+  }
+
+  def getAttributeSortingRowsCount(entityIdIn: Option[Long] = None): Long = {
+    val sql = "select count(1) from AttributeSorting " + (if (entityIdIn.isDefined) "where entity_id=" + entityIdIn.get else "")
+    extractRowCountFromCountQuery(sql)
   }
 
   def getQuantityAttributeCount(inEntityId: Long): Long = {
@@ -3152,43 +3282,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
     */
   private def deleteObjects(tableNameIn: String, whereClauseIn: String, rowsExpected: Long = 1, callerManagesTransactions: Boolean = false): Long = {
     //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
-    //idea: learn to eliminate this var (and others in this file) in a scala-like way
     val sql = "DELETE FROM " + tableNameIn + " " + whereClauseIn
     if (!callerManagesTransactions) beginTrans()
     try {
-      val tableLower = tableNameIn.toLowerCase
-      var sortingRowsDeleted: Long = 0
-      var keys: List[Array[Option[Any]]] = List[Array[Option[Any]]]()
-      if (tableLower.endsWith("attribute") || tableLower == "relationtoentity" || tableLower == "relationtogroup") {
-        // *Before* deleting the attribute, get key info from it that allows deleting any attributesorting records tied to it.
-        // (I seriously considered using a trigger here, but this should be more readily portable to new databases.  See comments above
-        // at "create table AttributeSorting". BUT: now that I remember the other ways that some things are auto-deleted, there is a task
-        // noted for future to really use a trigger instead. Leaving this here just as interim workaround: the sql that can be used to see or delete
-        // leftover records, until the trigger is in place & tested, is like this:
-          /* select * [or delete]  from attributesorting where text(attribute_form_id)||text(attribute_id) not in
-             (select text(form_id) || text(id) from textattribute
-             UNION select text(form_id) || text(id) from quantityattribute
-             UNION select text(form_id) || text(id) from dateattribute
-             UNION select text(form_id) || text(id) from booleanattribute
-             UNION select text(form_id) || text(id) from fileattribute
-             UNION select text(form_id) || text(id) from relationtoentity attribute
-             UNION select text(form_id) || text(id) from relationtogroup)
-          */
-        keys = dbQuery("select entity_id, form_id, id from " + tableNameIn + " " + whereClauseIn, "Long,Long,Long")
-      }
       val rowsDeleted = dbAction(sql, callerChecksRowCountEtc = true)
-      for (row <- keys) {
-        // (deleting the rows after the attribute, because otherwise the deletion fails on a constraint)
-        val eid = row(0).get.asInstanceOf[Long]
-        val afid = row(1).get.asInstanceOf[Long]
-        val aid = row(2).get.asInstanceOf[Long]
-        sortingRowsDeleted += dbAction("delete from attributesorting where entity_id=" + eid + " and attribute_form_id=" + afid + " and attribute_id=" + aid,
-                                       callerChecksRowCountEtc = true)
-      }
-      if (sortingRowsDeleted > rowsDeleted) {
-        throw rollbackWithCatch(new OmDatabaseException("There should be at least as many attributes as sorting rows for them (since "
-                                                        + "an attribute can only be on a single entity, not in more than one place)."))
-      }
       if (rowsExpected >= 0 && rowsDeleted != rowsExpected) {
         // Roll back, as we definitely don't want to delete an unexpected # of rows.
         // Do it ***EVEN THOUGH callerManagesTransaction IS true***: seems cleaner/safer this way.
@@ -3207,7 +3304,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
     */
   private def archiveObjects(tableNameIn: String, whereClauseIn: String, rowsExpected: Long = 1, callerManagesTransactions: Boolean = false) {
     //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
-    //idea: learn to eliminate this var (and others in this file) in a scala-like way
     if (!callerManagesTransactions) beginTrans()
     try {
       val rowsAffected = dbAction("update " + tableNameIn + " set (archived, archived_date) = (true, " + System.currentTimeMillis() + ") " + whereClauseIn)
