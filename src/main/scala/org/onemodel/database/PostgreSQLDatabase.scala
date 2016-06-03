@@ -189,10 +189,10 @@ object PostgreSQLDatabase {
           && !warnings.toString.contains("NOTICE: CREATE TABLE / PRIMARY KEY will create implicit index")
           && !warnings.toString.contains("NOTICE: drop cascades to constraint valid_related_to_entity_id on table class")
       ) {
-        throw new Exception("Warnings from postgresql. Matters? Says: " + warnings)
+        throw new OmDatabaseException("Warnings from postgresql. Matters? Says: " + warnings)
       }
       if (!callerChecksRowCountEtc && !isCreateDropOrAlterStatement && rowsAffected != 1) {
-        throw new Exception("Affected " + rowsAffected + " rows instead of 1?? SQL was: " + sqlIn)
+        throw new OmDatabaseException("Affected " + rowsAffected + " rows instead of 1?? SQL was: " + sqlIn)
       }
       rowsAffected
     } catch {
@@ -210,7 +210,7 @@ object PostgreSQLDatabase {
       // to write like that, nor accept it from outside. This & any similar needed checks should happen reliably
       // at the lowest level before the database for security.  If text needs the problematic character(s), it should
       // be escaped prior (see escapeQuotesEtc for writing data, and where we read data).
-      throw new Exception("Input can't contain ';'")
+      throw new OmDatabaseException("Input can't contain ';'")
     }
   }
 
@@ -933,7 +933,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def createClassAndItsDefiningEntity(inName: String): (Long, Long) = {
     // The name doesn't have to be the same on the entity and the defining class, but why not for now.
     val name: String = escapeQuotesEtc(inName)
-    if (name == null || name.length == 0) throw new Exception("Name must have a value.")
+    if (name == null || name.length == 0) throw new OmDatabaseException("Name must have a value.")
     val classId: Long = getNewKey("ClassKeySequence")
     val entityId: Long = getNewKey("EntityKeySequence")
     beginTrans()
@@ -1321,7 +1321,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       }
       saveFileToDb()
       if (total != sizeIn) {
-        throw new Exception("Transferred " + total + " bytes instead of " + sizeIn + "??")
+        throw new OmDatabaseException("Transferred " + total + " bytes instead of " + sizeIn + "??")
       }
       dbAction("INSERT INTO FileAttributeContent (file_attribute_id, contents_oid) VALUES (" + id + "," + oid + ")")
 
@@ -1548,10 +1548,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
       if (groupEntrySortingIndexInUse(gId, workingIndex)) {
         if (workingIndex == maxIdValue) {
           // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
-          throw new Exception(UNUSED_GROUP_ERR1)
+          throw new OmDatabaseException(UNUSED_GROUP_ERR1)
         }
         // idea: see comment at similar location in findIdWhichIsNotKeyOfAnyEntity
-        if (counter > 1000) throw new Exception(UNUSED_GROUP_ERR2)
+        if (counter > 1000) throw new OmDatabaseException(UNUSED_GROUP_ERR2)
         findUnusedSortingIndex_helper(gId, workingIndex - 1, counter + 1)
       } else workingIndex
     }
@@ -1565,9 +1565,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     @tailrec def findUnusedSortingIndex_helper(eId: Long, workingIndex: Long, counter: Long): Long = {
       if (attributeSortingIndexInUse(eId, workingIndex)) {
         if (workingIndex == maxIdValue) {
-          throw new Exception(UNUSED_GROUP_ERR1)
+          throw new OmDatabaseException(UNUSED_GROUP_ERR1)
         }
-        if (counter > 1000) throw new Exception(UNUSED_GROUP_ERR2)
+        if (counter > 1000) throw new OmDatabaseException(UNUSED_GROUP_ERR2)
         findUnusedSortingIndex_helper(eId, workingIndex - 1, counter + 1)
       } else workingIndex
     }
@@ -1601,7 +1601,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val mixedClassesAllowed: Boolean = areMixedClassesAllowed(groupIdIn)
     if ((!mixedClassesAllowed) && hasMixedClasses(groupIdIn)) {
       if (!callerManagesTransactionsIn) rollbackTrans()
-      throw new Exception(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION)
+      throw new OmDatabaseException(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION)
     }
     if (!callerManagesTransactionsIn) commitTrans()
   }
@@ -1664,7 +1664,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def createEntity(inName: String, inClassId: Option[Long] = None, isPublicIn: Option[Boolean] = None): /*id*/ Long = {
     val name: String = escapeQuotesEtc(inName)
-    if (name == null || name.length == 0) throw new Exception("Name must have a value.")
+    if (name == null || name.length == 0) throw new OmDatabaseException("Name must have a value.")
     val id: Long = getNewKey("EntityKeySequence")
     val sql: String = "INSERT INTO Entity (id, insertion_date, name, public" + (if (inClassId.isDefined) ", class_id" else "") + ")" +
                       " VALUES (" + id + "," + System.currentTimeMillis() + ",'" + name + "'," +
@@ -1678,7 +1678,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val nameInReverseDirection: String = escapeQuotesEtc(inNameInReverseDirection)
     val name: String = escapeQuotesEtc(inName)
     val directionality: String = escapeQuotesEtc(inDirectionality)
-    if (name == null || name.length == 0) throw new Exception("Name must have a value.")
+    if (name == null || name.length == 0) throw new OmDatabaseException("Name must have a value.")
     beginTrans()
     try {
       val id: Long = getNewKey("EntityKeySequence")
@@ -1701,7 +1701,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
         rollbackException = Some(e)
     }
     if (rollbackException.isEmpty) t
-    else new Exception("See the chained messages for ALL: the cause of rollback failure, AND for the original failure(s).").initCause(rollbackException.get
+    else new OmDatabaseException("See the chained messages for ALL: the cause of rollback failure, AND for the original failure(s).").initCause(rollbackException.get
                                                                                                                                       .initCause(t))
   }
 
@@ -2267,7 +2267,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // idea: maybe both uses of getWarnings should be combined into a method.
       val warnings = rs.getWarnings
       val warnings2 = st.getWarnings
-      if (warnings != null || warnings2 != null) throw new Exception("Warnings from postgresql. Matters? Says: " + warnings + ", and " + warnings2)
+      if (warnings != null || warnings2 != null) throw new OmDatabaseException("Warnings from postgresql. Matters? Says: " + warnings + ", and " + warnings2)
       while (rs.next) {
         rowCounter += 1
         val row: Array[Option[Any]] = new Array[Option[Any]](typesAsArray.length)
@@ -2288,13 +2288,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
               row(columnCounter - 1) = Some(rs.getBoolean(columnCounter))
             } else if (typeString == "Int") {
               row(columnCounter - 1) = Some(rs.getInt(columnCounter))
-            } else throw new Exception("unexpected value: '" + typeString + "'")
+            } else throw new OmDatabaseException("unexpected value: '" + typeString + "'")
           }
         }
         results = row :: results
       }
     } catch {
-      case e: Exception => throw new Exception("Exception while processing sql: " + sql, e)
+      case e: Exception => throw new OmDatabaseException("Exception while processing sql: " + sql, e)
     } finally {
       if (rs != null) rs.close()
       if (st != null) st.close()
@@ -2305,7 +2305,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def dbQueryWrapperForOneRow(sql: String, types: String): Array[Option[Any]] = {
     val results = dbQuery(sql, types)
-    if (results.size != 1) throw new Exception("Got " + results.size + " instead of 1 result from sql " + sql + "??")
+    if (results.size != 1) throw new OmDatabaseException("Got " + results.size + " instead of 1 result from sql " + sql + "??")
     results.head
   }
 
@@ -2429,7 +2429,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       val lobjManager: LargeObjectManager = mConn.asInstanceOf[org.postgresql.PGConnection].getLargeObjectAPI
       val oidOption: Option[Long] = dbQueryWrapperForOneRow("select contents_oid from FileAttributeContent where file_attribute_id=" + fileAttributeIdIn,
                                                             "Long")(0).asInstanceOf[Option[Long]]
-      if (oidOption.isEmpty) throw new Exception("No contents found for file attribute id " + fileAttributeIdIn)
+      if (oidOption.isEmpty) throw new OmDatabaseException("No contents found for file attribute id " + fileAttributeIdIn)
       val oid: Long = oidOption.get
       obj = lobjManager.open(oid, LargeObjectManager.READ)
       val buffer = new Array[Byte](2048)
@@ -2452,7 +2452,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       }
       readFileFromDbAndActOnIt()
       val resultOption = dbQueryWrapperForOneRow("select size, md5hash from fileattribute where id=" + fileAttributeIdIn, "Long,String")
-      if (resultOption(0).isEmpty) throw new Exception("No result from query for fileattribute for id " + fileAttributeIdIn + ".")
+      if (resultOption(0).isEmpty) throw new OmDatabaseException("No result from query for fileattribute for id " + fileAttributeIdIn + ".")
       val (contentSize, md5hash) = (resultOption(0).get.asInstanceOf[Long], resultOption(1).get.asInstanceOf[String])
       if (total != contentSize) {
         throw new OmFileTransferException("Transferred " + total + " bytes instead of " + contentSize + "??")
@@ -3162,7 +3162,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                                result(4).get.asInstanceOf[Long],
                                                if (result(5).isEmpty) None else Some(result(5).get.asInstanceOf[Long]),
                                                result(6).get.asInstanceOf[Long])))
-              } else throw new Exception("invalid table type?: '" + tableName + "'")
+              } else throw new OmDatabaseException("invalid table type?: '" + tableName + "'")
 
             // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
             //}
@@ -3271,7 +3271,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val rowcnt: Long = extractRowCountFromCountQuery(inSql)
     if (failIfMoreThanOneFoundIn) {
       if (rowcnt == 1) true
-      else if (rowcnt > 1) throw new Exception("Should there be > 1 entries for sql: " + inSql + "?? (" + rowcnt + " were found.)")
+      else if (rowcnt > 1) throw new OmDatabaseException("Should there be > 1 entries for sql: " + inSql + "?? (" + rowcnt + " were found.)")
       else false
     }
     else rowcnt >= 1
@@ -3310,7 +3310,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       if (rowsExpected >= 0 && rowsAffected != rowsExpected) {
         // Roll back, as we definitely don't want to affect an unexpected # of rows.
         // Do it ***EVEN THOUGH callerManagesTransaction IS true***: seems cleaner/safer this way.
-        throw rollbackWithCatch(new Exception("Archive command would have updated " + rowsAffected + "rows, but " +
+        throw rollbackWithCatch(new OmDatabaseException("Archive command would have updated " + rowsAffected + "rows, but " +
                                               rowsExpected + " were expected! Did not perform archive."))
       } else {
         if (!callerManagesTransactions) commitTrans()
@@ -3345,11 +3345,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
       if (entityKeyExists(workingId)) {
         if (workingId == maxIdValue) {
           // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
-          throw new Exception("No id found which is not a key of any entity in the system. How could all id's be used??")
+          throw new OmDatabaseException("No id found which is not a key of any entity in the system. How could all id's be used??")
         }
         // idea: this check assumes that the thing to get IDs will re-use deleted ones and wrap around the set of #'s. That fix is on the list (informally
         // at this writing, 2013-11-18).
-        if (counter > 1000) throw new Exception("Very unexpected, but could it be that you are running out of available entity IDs?? Have someone check, " +
+        if (counter > 1000) throw new OmDatabaseException("Very unexpected, but could it be that you are running out of available entity IDs?? Have someone check, " +
                                                 "before you need to create, for example, a thousand more entities.")
         findIdWhichIsNotKeyOfAnyEntity_helper(workingId - 1, counter + 1)
       } else workingId
