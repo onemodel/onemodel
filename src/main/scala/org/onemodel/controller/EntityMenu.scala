@@ -164,14 +164,13 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         }
         entityMenu(entityIn, displayStartingRowNumber, newAttributeToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 2 && highlightedEntry.isDefined && highlightedIndexInObjList.isDefined && numAttrsInEntity > 0) {
-        val newStartingDisplayIndex = moveSelectedEntry(entityIn, attributeRowsStartingIndexIn, totalAttrsAvailable, targetForMoves,
+        val (newStartingDisplayIndex: Int, movedOneOut: Boolean) = moveSelectedEntry(entityIn, attributeRowsStartingIndexIn, totalAttrsAvailable, targetForMoves,
                                                         highlightedIndexInObjList.get, highlightedEntry.get, numDisplayableAttributes,
                                                         relationSourceEntity,
                                                         containingRelationToEntityIn, containingGroupIn)
-        // The 3rd parm highlightedEntry is risky because the move, if to a new entity, has destroyed/recreated it elsewhere: makes sense to use it now only
-        // if it moved within the same entity.  But it seems to move the highlight mark to the first entry in that case, so maybe that's safe at least, for now.
-        // Idea (alr in task list): therefore, could make this more like QuickGroupMenu's call to moveSelectedEntry, which calculates a good value for that.
-        entityMenu(entityIn, newStartingDisplayIndex, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
+        val attrToHighlight: Option[Attribute] = Controller.findAttributeToHighlightNext(attributeTuples.length, attributesToDisplay, removedOne = movedOneOut,
+                                                                                         highlightedIndexInObjList.get, highlightedEntry.get)
+        entityMenu(entityIn, newStartingDisplayIndex, attrToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 3) {
         // MAKE SURE this next condition always matches the one in "choices(2) = ..." above
         if (highlightedEntry.isDefined && controller.canEditAttributeOnSingleLine(highlightedEntry.get)) {
@@ -413,13 +412,13 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     }
   }
 
-  /** @return The newStartingDisplayIndex.
+  /** @return A tuple containing the newStartingDisplayIndex and whether an entry moved from being listed on this entity.
     * The parm relationSourceEntityIn is derivable from the parm containingRelationToEntityIn, but passing it in saves a db read.
     */
   def moveSelectedEntry(entityIn: Entity, startingDisplayRowIndexIn: Int, totalAttrsAvailable: Int, targetForMovesIn: Option[Attribute] = None,
                         highlightedIndexInObjListIn: Int, highlightedAttributeIn: Attribute, numObjectsToDisplayIn: Int,
                         relationSourceEntityIn: Option[Entity] = None,
-                        containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Int = {
+                        containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): (Int, Boolean) = {
     if (relationSourceEntityIn.isDefined || containingRelationToEntityIn.isDefined) {
       require(relationSourceEntityIn.isDefined && containingRelationToEntityIn.isDefined,
               (if (relationSourceEntityIn.isEmpty) "relationSourceEntityIn is empty; " else "") +
@@ -437,7 +436,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
                                 "Move (*) to calling menu (up one)")
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn))
-    if (response.isEmpty) startingDisplayRowIndexIn
+    if (response.isEmpty) (startingDisplayRowIndexIn, false)
     else {
       val answer = response.get
       var numRowsToMove = 0
@@ -465,12 +464,13 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                                  Some(highlightedAttributeIn.getId),
                                                                  numObjectsToDisplayIn, highlightedAttributeIn.getFormId,
                                                                  Some(highlightedAttributeIn.getFormId))
-        displayStartingRowNumber
+        (displayStartingRowNumber, false)
       } else if (answer == 7 && targetForMovesIn.isDefined) {
         if (! ((highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup]) &&
                 (targetForMovesIn.get.isInstanceOf[RelationToEntity] || targetForMovesIn.get.isInstanceOf[RelationToGroup]))) {
           ui.displayText("Currently, you can only move an Entity or a Group, to an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [1]")
+          (startingDisplayRowIndexIn, false)
         } else {
           //noinspection TypeCheckCanBeMatch
           if (highlightedAttributeIn.isInstanceOf[RelationToEntity] && targetForMovesIn.get.isInstanceOf[RelationToEntity]) {
@@ -478,27 +478,33 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             val targetContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToEntity].getRelatedId2
             require(movingRte.getParentId == entityIn.getId)
             db.moveRelationToEntity(movingRte.getId, targetContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
+            (startingDisplayRowIndexIn, true)
           } else if (highlightedAttributeIn.isInstanceOf[RelationToEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             require(targetForMovesIn.get.getFormId == PostgreSQLDatabase.getAttributeFormId("relationtogroup"))
             val targetGroupId = RelationToGroup.createRelationToGroup(db, targetForMovesIn.get.getId).getGroupId
             val rte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
             // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
             db.moveEntityFromEntityToGroup(rte, targetGroupId, getSortingIndex(entityIn.getId, rte.getFormId, rte.getId))
+            (startingDisplayRowIndexIn, true)
           } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToEntity]) {
             val movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup]
             val newContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToEntity].getRelatedId2
             require(movingRtg.getParentId == entityIn.getId)
             db.moveRelationToGroup(movingRtg.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRtg.getFormId, movingRtg.getId))
+            (startingDisplayRowIndexIn, true)
           } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             ui.displayText("Can't do this: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
                            " other attributes. [1]")
+            (startingDisplayRowIndexIn, false)
+          } else {
+            (startingDisplayRowIndexIn, false)
           }
         }
-        startingDisplayRowIndexIn
       } else if (answer == 8) {
         if (! (highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup])) {
           ui.displayText("Currently, you can only move an Entity or a Group, *to* an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [2]")
+          (startingDisplayRowIndexIn, false)
         } else {
           if (containingRelationToEntityIn.isDefined) {
             require(containingGroupIn.isEmpty)
@@ -507,9 +513,11 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             if (highlightedAttributeIn.isInstanceOf[RelationToEntity]) {
               val movingRte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
               db.moveRelationToEntity(movingRte.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
+              (startingDisplayRowIndexIn, true)
             } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup]) {
               val movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup]
               db.moveRelationToGroup(movingRtg.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRtg.getFormId, movingRtg.getId))
+              (startingDisplayRowIndexIn, true)
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [1]")
           } else if (containingGroupIn.isDefined) {
             require(containingRelationToEntityIn.isEmpty)
@@ -519,18 +527,20 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
               val rte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
               // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
               db.moveEntityFromEntityToGroup(rte, targetGroupId, getSortingIndex(entityIn.getId, rte.getFormId, rte.getId))
+              (startingDisplayRowIndexIn, true)
             } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup]) {
               ui.displayText("Can't do this: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
                              " other attributes. [2]")
+              (startingDisplayRowIndexIn, false)
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [2]")
           } else {
             ui.displayText("One of the container parameters needs to be available, in order to move the highlighted attribute to the containing entity or group" +
                            " (the one from which you navigated here).")
+            (startingDisplayRowIndexIn, false)
           }
         }
-        startingDisplayRowIndexIn
       } else {
-        startingDisplayRowIndexIn
+        (startingDisplayRowIndexIn, false)
       }
     }
   }
