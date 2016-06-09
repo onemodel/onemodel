@@ -1016,7 +1016,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
         None
       }
       override def modelTablesExist: Boolean = true
-      override def doDatabaseUpgradesIfNeeded() = Unit  //noinspection ScalaUselessExpression  (intentional style violation, for readability)
+      //noinspection ScalaUselessExpression  (intentional style violation, for readability)
+      override def doDatabaseUpgradesIfNeeded() = Unit
     }
     var found = false
     val originalErrMsg: String = "testing123"
