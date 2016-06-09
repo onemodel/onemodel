@@ -1701,8 +1701,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
         rollbackException = Some(e)
     }
     if (rollbackException.isEmpty) t
-    else new OmDatabaseException("See the chained messages for ALL: the cause of rollback failure, AND for the original failure(s).").initCause(rollbackException.get
-                                                                                                                                      .initCause(t))
+    else {
+      rollbackException.get.addSuppressed(t)
+      val exc = new OmDatabaseException("See the chained messages for ALL: the cause of rollback failure, AND for the original failure(s).",
+                                        rollbackException.get)
+      exc
+    }
   }
 
   def deleteEntity(inId: Long, callerManagesTransactionsIn: Boolean = false) = {

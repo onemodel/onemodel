@@ -39,7 +39,7 @@ Compiling
 Compiling before installing is optional, but developers should have java
 & maven.
 
-First you'll need a java SDK, like openJdk 1.7.  Then install maven (mvn).
+First you'll need a java SDK, like openJdk 1.7 (minimum).  Then install maven (mvn).
 These versions are known to work, on debian 7 (wheezy) or 8 (jessie)
 as of 2015-12:
     Apache Maven 3.0.4 or 3.0.5.

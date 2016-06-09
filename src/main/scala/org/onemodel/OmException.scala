@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2014, 2016-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -9,8 +9,23 @@
 */
 package org.onemodel
 
-class OmException(msg:String, t:Throwable=null) extends Exception(msg, t)
+class OmException(msg:String) extends Exception(msg) {
+  def this(msg: String, t:Throwable)  {
+    this(msg)
+    this.initCause(t)
+  }
+}
 
-class OmFileTransferException(msg:String, t:Throwable=null) extends OmException(msg,t)
+class OmFileTransferException(msg:String) extends OmException(msg) {
+  def this(msg: String, t:Throwable)  {
+    this(msg)
+    this.initCause(t)
+  }
+}
 
-class OmDatabaseException(msg:String, t:Throwable=null) extends OmException(msg,t)
+class OmDatabaseException(msg:String) extends OmException(msg) {
+  def this(msg: String, t:Throwable)  {
+    this(msg)
+    this.initCause(t)
+  }
+}

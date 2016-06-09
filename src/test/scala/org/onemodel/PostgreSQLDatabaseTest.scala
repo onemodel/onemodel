@@ -1010,12 +1010,11 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
         mConn = null
       }
       override def createExpectedData(): Unit = {
-        // because it is not needed for this test, and normally uses mConn, which by being set to null just above, breaks the method.
+        // Overriding because it is not needed for this test, and normally uses mConn, which by being set to null just above, breaks the method.
         // (intentional style violation for readability)
         //noinspection ScalaUselessExpression
         None
       }
-
       override def modelTablesExist: Boolean = true
       override def doDatabaseUpgradesIfNeeded() = Unit  //noinspection ScalaUselessExpression  (intentional style violation, for readability)
     }
