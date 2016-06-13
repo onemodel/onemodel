@@ -76,7 +76,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Controller.maxNameLength)
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
       db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes)
-    if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) require(numAttrsInEntity > 0 && attributeTuples.length > 0)
+    if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) {
+      require(numAttrsInEntity > 0 && attributeTuples.length > 0)
+    }
     controller.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
     val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, relationSourceEntity, containingRelationToEntityIn, containingGroupIn)
     val (attributeDisplayStrings: Array[String], attributesToDisplay: util.ArrayList[Attribute]) = getItemDisplayStringsAndAttrs(attributeTuples)
@@ -198,10 +200,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         // MAKE SURE this next condition always is the exact opposite of the one in "choices(4) = ..." above (4 vs. 5 because they are 0- vs. 1-based)
         if (highlightedIndexInObjList.isDefined) {
           val listEntryIsGoneNow = goToSelectedAttribute(answer, highlightedIndexInObjList.get, attributeTuples, entityIn)
-          // (entity could have been deleted or archived while browsing among containers via submenus)
-          val entityOfThisMenuIsGoneNow: Boolean = !db.entityKeyExists(entityIn.getId, includeArchived = false)
-          if (entityOfThisMenuIsGoneNow) None
-          else {
+          if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+            // (entity could have been deleted or archived while browsing among containers via submenus)
+            None
+          } else {
             val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
             // check this, given that while in the goToSelectedAttribute method, the previously highlighted one could have been removed from the list:
             val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
@@ -270,11 +272,12 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         }
         entityMenu(entityIn, attributeRowsStartingIndexIn, entryToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 9 && answer <= choices.length) {
-        val entityOfThisMenuIsGoneNow: Boolean = new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn,
-                                                                                   relationSourceEntity, containingRelationToEntityIn,
-                                                                                   containingGroupIn, classDefiningEntityId)
-        if (entityOfThisMenuIsGoneNow) None
-        else {
+        new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
+                                                                containingGroupIn, classDefiningEntityId)
+        if (! db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+          // entity could have been deleted by some operation in OtherEntityMenu
+          None
+        } else {
           val listEntryIsGoneNow: Boolean = highlightedEntry.isDefined && !db.attributeKeyExists(highlightedEntry.get.getFormId, highlightedEntry.get.getId)
           val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
           val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
@@ -292,10 +295,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         // lets user go to an entity or group quickly (1 stroke)
         val choicesIndex = answer - choices.length - 1
         val entryIsGoneNow = goToSelectedAttribute(answer, choicesIndex, attributeTuples, entityIn)
-        // (entity could have been deleted or archived while browsing among containers via submenus)
-        val entityOfThisMenuIsGoneNow: Boolean = !db.entityKeyExists(entityIn.getId, includeArchived = false)
-        if (entityOfThisMenuIsGoneNow) None
-        else {
+        if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+          // (entity could have been deleted or archived while browsing among containers via submenus)
+          None
+        } else {
           val defaultEntryToHighlight: Option[Attribute] = Some(attributeTuples(choicesIndex)._2)
           val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
                                                                                  containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
@@ -771,7 +774,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         case ta: TextAttribute => controller.attributeEditMenu(ta)
         case relToEntity: RelationToEntity =>
           entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
-          val wasRemoved: Boolean = !db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId)
+          val wasRemoved: Boolean = !( db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false)
+                                       && db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId) )
           wasRemoved
         case relToGroup: RelationToGroup =>
           new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup), containingEntityIn = Some(entityIn))

@@ -16,13 +16,12 @@ import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model._
 
 /** This is simply to hold less-used operations so the main EntityMenu can be the most-used stuff.
-  * @return True if the entity was deleted, archived, or removed from containing entity or group, or false if still available for viewing.
   */
 class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
 
   def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
                       containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
-                      classDefiningEntityIdIn: Option[Long]): Boolean = {
+                      classDefiningEntityIdIn: Option[Long]) {
     try {
       require(entityIn != null)
       val leadingText = Array[String]{"**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString}
@@ -41,8 +40,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       } else choices = choices :+ "(stub)"
 
       val response = ui.askWhich(Some(leadingText), choices)
-      if (response.isEmpty) false
-      else {
+      if (response.isDefined) {
         val answer = response.get
         if (answer == 1) {
           val valueBeforeEdit: Option[Boolean] = entityIn.getPublic
@@ -84,7 +82,6 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               ui.displayText("Updated " + count + " entities with new status.")
             }
           }
-          false
         } else if (answer == 2) {
           val importOrExportAnswer = ui.askWhich(None, Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
           if (importOrExportAnswer.isDefined) {
@@ -109,44 +106,32 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           if (delOrArchiveAnswer.isDefined) {
             val answer = delOrArchiveAnswer.get
             if (answer == 1 || answer == 2) {
-              val thisEntityWasDeletedOrArchived = controller.deleteOrArchiveEntity(entityIn, answer == 1)
-              thisEntityWasDeletedOrArchived
+              controller.deleteOrArchiveEntity(entityIn, answer == 1)
             } else if (answer == delEntityLink_choiceNumber && containingRelationToEntityIn.isDefined && answer <= choices.length) {
               val ans = ui.askYesNoQuestion("DELETE the relation: ARE YOU SURE?", Some(""))
               if (ans.isDefined && ans.get) {
                 containingRelationToEntityIn.get.delete()
-                true
               } else {
                 ui.displayText("Did not delete relation.", waitForKeystroke = false)
-                false
               }
             } else if (answer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && answer <= choices.length) {
-              if (controller.removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn))
-                true
-              else
-                false
+              controller.removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn)
             } else {
               ui.displayText("invalid response")
               otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
                               containingGroupIn, classDefiningEntityIdIn)
             }
-          } else {
-            false
           }
         } else if (answer == 5) {
           goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
           //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
-          if (db.entityKeyExists(entityIn.getId)) {
+          if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
             new EntityMenu(ui, db, controller).entityMenu(entityIn, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
-            false
           }
-          else
-            true
         } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
           // updates user preferences such that this obj will be the one displayed by default in future.
           db.setUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE, entityIn.getId)
           controller.refreshDefaultDisplayEntityId()
-          false
         } else {
           ui.displayText("invalid response")
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
@@ -156,9 +141,10 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       case e: Exception =>
         controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
-        if (ans.isDefined && ans.get) otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                                                      containingGroupIn, classDefiningEntityIdIn)
-        else false
+        if (ans.isDefined && ans.get) {
+          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
+                          containingGroupIn, classDefiningEntityIdIn)
+        }
     }
   }
 
