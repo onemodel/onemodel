@@ -149,7 +149,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
   val db: PostgreSQLDatabase = tryLogins(forceUserPassPromptIn, defaultUsernameIn, defaultPasswordIn)
 
-  val mDeprecatedOldStylePrefs: Preferences = java.util.prefs.Preferences.userNodeForPackage(this.getClass)
   // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
   val menuText_createEntityOrAttrType: String = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)"
   val menuText_createRelationType: String = "Add new relation type (" + mRelTypeExamples + ")"
@@ -229,17 +228,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
   def getDefaultEntity: (Option[Long], Option[Entity]) = {
-    val defaultEntityId: Option[Long] = {
-      try {
-        findDefaultDisplayEntityId
-      } catch {
-        case e: Exception =>
-          handleException(e)
-          None
-      }
-    }
-    if (defaultEntityId.isEmpty) (None, None)
-    else (defaultEntityId, Entity.getEntityById(db, defaultEntityId.get))
+    if (defaultDisplayEntityId.isEmpty || ! db.entityKeyExists(defaultDisplayEntityId.get)) {
+      (None, None)
+    } else (defaultDisplayEntityId, Entity.getEntityById(db, defaultDisplayEntityId.get))
   }
 
   def start() {
@@ -369,31 +360,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   // putting this in a var instead of recalculating it every time (too frequent) inside findDefaultDisplayEntityId:
   var defaultDisplayEntityId: Option[Long] = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
   def refreshDefaultDisplayEntityId(): Unit = defaultDisplayEntityId = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
-
-  private def findDefaultDisplayEntityId: Option[Long] = {
-    if (defaultDisplayEntityId.isDefined) {
-      defaultDisplayEntityId
-    } else {
-      val first = mDeprecatedOldStylePrefs.get("first_display_entity", null)
-      if (first == null) None
-      else {
-        try {
-          if (!db.entityKeyExists(first.toLong)) None
-          else {
-            db.setUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE, first.toLong)
-            refreshDefaultDisplayEntityId()
-            mDeprecatedOldStylePrefs.remove("first_display_entity")
-            Some(first.toLong)
-          }
-        } catch {
-          case e: java.lang.NumberFormatException =>
-            ui.displayText("There is non-numeric value (" + first + ") in a file located somewhere like ~/.java/.userPrefs/org/onemodel/prefs.xml. You might " +
-                           "want to fix that, delete it, or re-save your default entity using the entity menu. Proceeding without it.")
-            None
-        }
-      }
-    }
-  }
 
   def askForInfoAndCreateEntity(inClassId: Option[Long] = None): Option[Entity] = {
     var newClass = false
