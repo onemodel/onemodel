@@ -43,43 +43,26 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       if (response.isDefined) {
         val answer = response.get
         if (answer == 1) {
-          val valueBeforeEdit: Option[Boolean] = entityIn.getPublic
-          val valueAfterEdit: Option[Boolean] = controller.askForPublicNonpublicStatus(valueBeforeEdit)
+          val valueBeforeEntry: Option[Boolean] = entityIn.getPublic
+          val valueAfterEntry: Option[Boolean] = controller.askForPublicNonpublicStatus(valueBeforeEntry)
           val rteCount: Long= db.getRelationToEntityCount(entityIn.getId, includeArchivedEntities = false)
           val rtgCount: Long = db.getRelationToGroupCountByEntity(Some(entityIn.getId))
           val publicMenuResponse = ui.askWhich(None, Array("...for this entity (\"" + entityIn.getName + "\")",
                                                            "...for its " + rteCount + " contained entities (one level), and all the" +
-                                                           " entities contained in its " + rtgCount + " groups (one level)"))
+                                                           " entities contained in its " + rtgCount + " groups (one level)",
+                                                           "...for both."))
           if (publicMenuResponse.isDefined) {
             if (publicMenuResponse.get == 1) {
-              // The condition for this (when it was part of EntityMenu) used to include " && !entityIn.isInstanceOf[RelationType]", but maybe it's better w/o that.
-              val valueBeforeEdit: Option[Boolean] = entityIn.getPublic
-              if (valueAfterEdit != valueBeforeEdit) {
-                db.updateEntityOnlyPublicStatus(entityIn.getId, valueAfterEdit)
-              }
+              updatePublicStatus(entityIn.getId, valueBeforeEntry, valueAfterEntry)
+            } else if (publicMenuResponse.get == 2) {
+              var count: Int = updateContainedEntitiesPublicStatus(entityIn.getId, valueAfterEntry)
+              ui.displayText("Updated " + count + " contained entities with new status.")
+            } else if (publicMenuResponse.get == 3) {
+              updatePublicStatus(entityIn.getId, valueBeforeEntry, valueAfterEntry)
+              var count: Int = updateContainedEntitiesPublicStatus(entityIn.getId, valueAfterEntry)
+              ui.displayText("Updated this entity and " + count + " contained entities with new status.")
             } else {
-              require(publicMenuResponse.get == 2, "unexpected value: " + publicMenuResponse.get)
-              val (attrTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(entityIn.getId, 0, 0)
-              var count = 0
-              for (attr <- attrTuples) {
-                attr._2 match {
-                  case attribute: RelationToEntity =>
-                    require(attribute.getRelatedId1 == entityIn.getId, "Unexpected value: " + attribute.getRelatedId1)
-                    db.updateEntityOnlyPublicStatus(attribute.getRelatedId2, valueAfterEdit)
-                    count += 1
-                  case attribute: RelationToGroup =>
-                    val groupId: Long = attribute.getGroupId
-                    val entries: List[Array[Option[Any]]] = db.getGroupEntriesData(groupId, None, includeArchivedEntitiesIn = false)
-                    for (entry <- entries) {
-                      val entityId = entry(0).get.asInstanceOf[Long]
-                      db.updateEntityOnlyPublicStatus(entityId, valueAfterEdit)
-                      count += 1
-                    }
-                  case _ =>
-                    // do nothing
-                }
-              }
-              ui.displayText("Updated " + count + " entities with new status.")
+              ui.displayText("invalid response")
             }
           }
         } else if (answer == 2) {
@@ -146,6 +129,38 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                           containingGroupIn, classDefiningEntityIdIn)
         }
     }
+  }
+
+  def updatePublicStatus(entityIdIn: Long, oldValueIn: Option[Boolean], newValueIn: Option[Boolean]): Unit = {
+    // The condition for this (when it was part of EntityMenu) used to include " && !entityIn.isInstanceOf[RelationType]", but maybe it's better
+    // w/o that.
+    if (newValueIn != oldValueIn) {
+      db.updateEntityOnlyPublicStatus(entityIdIn, newValueIn)
+    }
+  }
+
+  def updateContainedEntitiesPublicStatus(entityIdIn: Long, newValueIn: Option[Boolean]): Int = {
+    val (attrTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(entityIdIn, 0, 0)
+    var count = 0
+    for (attr <- attrTuples) {
+      attr._2 match {
+        case attribute: RelationToEntity =>
+          require(attribute.getRelatedId1 == entityIdIn, "Unexpected value: " + attribute.getRelatedId1)
+          db.updateEntityOnlyPublicStatus(attribute.getRelatedId2, newValueIn)
+          count += 1
+        case attribute: RelationToGroup =>
+          val groupId: Long = attribute.getGroupId
+          val entries: List[Array[Option[Any]]] = db.getGroupEntriesData(groupId, None, includeArchivedEntitiesIn = false)
+          for (entry <- entries) {
+            val entityId = entry(0).get.asInstanceOf[Long]
+            db.updateEntityOnlyPublicStatus(entityId, newValueIn)
+            count += 1
+          }
+        case _ =>
+        // do nothing
+      }
+    }
+    count
   }
 
   def getOptionalContentForExportedPages(entityIn: Entity): (String, String, Option[String]) = {
