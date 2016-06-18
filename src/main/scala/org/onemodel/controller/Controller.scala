@@ -13,7 +13,6 @@ package org.onemodel.controller
 import java.io._
 import java.nio.file.{Files, Path}
 import java.util
-import java.util.prefs.Preferences
 
 import org.apache.commons.io.FilenameUtils
 import org.onemodel._
@@ -177,6 +176,16 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   // another time zone.  idea:  It seems like there's a better way to solve that though, maybe with a subclass of Controller in the test,
   // or of SimpleDateFormat.)
   def blankDate = "1970-01-01 00:00:00:000 " + timezone
+
+  def entityMenuLeadingText(entityIn: Entity) = {
+    val classDescription =
+      if (entityIn.getClassId.isEmpty) {
+        ""
+      } else {
+        " (class: " + db.getClassName(entityIn.getClassId.get) + ")"
+      }
+    "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString + classDescription
+  }
 
   val mCopyright: String = {
     var all = ""
@@ -361,16 +370,19 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   var defaultDisplayEntityId: Option[Long] = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
   def refreshDefaultDisplayEntityId(): Unit = defaultDisplayEntityId = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
 
+  def askForClass(): Option[Long] = {
+    val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String]("CHOOSE ENTITY'S CLASS (ESC if you don't know or care about this.  This is a way to associate code or default attributes with groups of entities.  Help me word this better, but:  for example, in the case of an attribute of an entity, it must have a type, which is also an entity; so, a Vehicle Identification Number (VIN) entity represents the *concept* of a VIN, a text attribute on a vehicle entity holds the content of the VIN in a string of characters, and the \"type entity\" (VIN concept entity) can have a class which holds code used to parse VIN strings for additional internal meaning; or, it could serve as a template holding standard fields for entities in the VIN class (such as if the VIN content were written in a multi-field entity rather than in a single text attribute).  The class-defining entity of the VIN class could be the same entity as the type entity for the an attribute, as far as I can see now.  ***Use this feature only if it helps you, otherwise press ESC for None.*** )")), None, None, Controller.ENTITY_CLASS_TYPE)
+    if (idWrapper.isEmpty) None
+    else Some(idWrapper.get.getId)
+  }
+
   def askForInfoAndCreateEntity(inClassId: Option[Long] = None): Option[Entity] = {
     var newClass = false
     val classId: Option[Long] =
       if (inClassId.isDefined) inClassId
       else {
-        val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String]("CHOOSE ENTITY'S CLASS (ESC if you don't know or care about this.  This is a way to associate code or default attributes with groups of entities.  Help me word this better, but:  for example, in the case of an attribute of an entity, it must have a type, which is also an entity; so, a Vehicle Identification Number (VIN) entity represents the *concept* of a VIN, a text attribute on a vehicle entity holds the content of the VIN in a string of characters, and the \"type entity\" (VIN concept entity) can have a class which holds code used to parse VIN strings for additional internal meaning; or, it could serve as a template holding standard fields for entities in the VIN class (such as if the VIN itself were written in a multi-field entity rather than in a single text attribute).  The class-defining entity of the VIN class could be the same entity as the type entity for the an attribute, as far as I can see now.  ***Use this feature only if it helps you, otherwise press ESC for None.*** )")), None, None,
-                                                                Controller.ENTITY_CLASS_TYPE)
         newClass = true
-        if (idWrapper.isEmpty) None
-        else Some(idWrapper.get.getId)
+        askForClass()
       }
     val ans: Option[Entity] = askForNameAndWriteEntity(Controller.ENTITY_TYPE, None, None, None, None, classId,
                                                        Some(if (newClass) "DEFINE THE ENTITY:" else ""))

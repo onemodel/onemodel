@@ -24,10 +24,10 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                       classDefiningEntityIdIn: Option[Long]) {
     try {
       require(entityIn != null)
-      val leadingText = Array[String]{"**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString}
+      val leadingText = Array[String]{ controller.entityMenuLeadingText(entityIn) }
       var choices = Array[String]("Edit public/nonpublic status",
                                   "Import/Export...",
-                                  "Edit entity name",
+                                  "Edit...",
                                   "Delete or Archive this entity (or link)...",
                                   "Go to other related entities or groups...",
                                   "(stub)")
@@ -79,9 +79,22 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           }
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
         } else if (answer == 3) {
-          val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
-          otherEntityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn,
-                          containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
+          val editAnswer = ui.askWhich(Some(Array[String]{controller.entityMenuLeadingText(entityIn)}),
+                                       Array("Edit entity name", "Change its class" /*, Edit all of its class-defined fields*/))
+          if (editAnswer.isDefined) {
+            if (editAnswer.get == 1) {
+              val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
+              otherEntityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn,
+                              containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
+            } else if (editAnswer.get == 2) {
+              val classId: Option[Long] = controller.askForClass()
+              if (classId.isDefined) {
+                db.updateEntitysClass(entityIn.getId, classId)
+              }
+              otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
+                              containingGroupIn, classDefiningEntityIdIn)
+            }
+          }
         } else if (answer == 4) {
           val (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber) =
             controller.askWhetherDeleteOrArchiveEtc(entityIn, containingRelationToEntityIn, relationSourceEntityIn, containingGroupIn)
