@@ -178,13 +178,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def blankDate = "1970-01-01 00:00:00:000 " + timezone
 
   def entityMenuLeadingText(entityIn: Entity) = {
-    val classDescription =
-      if (entityIn.getClassId.isEmpty) {
-        ""
-      } else {
-        " (class: " + db.getClassName(entityIn.getClassId.get) + ")"
-      }
-    "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString + classDescription
+    "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString
   }
 
   val mCopyright: String = {
