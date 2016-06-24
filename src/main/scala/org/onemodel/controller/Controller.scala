@@ -899,10 +899,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           if (entityNameBeforeEdit != entityNameAfterEdit) {
             val (_, _, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(editedEntity.get.getId)
             if (groupId.isDefined && !moreThanOneAvailable) {
+              val attrCount = entityIn.getAttrCount
               // for efficiency, if it's obvious which subgroup's name to change at the same time, offer to do so
-              val ans = ui.askYesNoQuestion("There's a single subgroup; probably it and this entity were created at the same time, " +
-                                            "for the subgroup.  Change" +
-                                            " the subgroup's name at the same time to be identical?", Some("y"))
+              val ans = ui.askYesNoQuestion("There's a single subgroup" + (if (attrCount > 1) " (AMONG " + (attrCount - 1) + " OTHER ATTRIBUTES)" else "") +
+                                            "; possibly it and this entity were created at the same time.  Also change" +
+                                            " the subgroup's name now to be identical?", Some("y"))
               if (ans.isDefined && ans.get) {
                 val group = new Group(db, groupId.get)
                 group.update(nameIn = Some(entityNameAfterEdit), validOnDateInIGNORED4NOW = None, observationDateInIGNORED4NOW = None)
