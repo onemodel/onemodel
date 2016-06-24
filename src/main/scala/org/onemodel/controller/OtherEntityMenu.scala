@@ -271,7 +271,9 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
     val seeContainingGroups_choiceNumber: Int = 2
     val goToRelation_choiceNumber: Int = 3
     val goToRelationType_choiceNumber: Int = 4
+    // The next 2 values are 3 & 4 in case the previous 2 are unused.  If the previous 2 are used, the next 2 will be += 2, below.
     var goToClassDefiningEntity_choiceNumber: Int = 3
+    var goToClass_choiceNumber: Int = 4
     val numContainingEntities = db.getEntitiesContainingEntity(entityIn, 0).size
     // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
     val numContainingGroups = db.getCountOfGroupsContainingEntity(entityIn.getId)
@@ -303,9 +305,11 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                            relationIn.get.getDisplayString(15, relationSourceEntityIn, Some(new RelationType(db, relationIn.get.getAttrTypeId)))
       choices = choices :+ "Go to the type, for the relation that that led here: " + new Entity(db, relationIn.get.getAttrTypeId).getName
       goToClassDefiningEntity_choiceNumber += 2
+      goToClass_choiceNumber += 2
     }
     if (classDefiningEntityId.isDefined) {
       choices = choices ++ Array[String]("Go to class-defining entity")
+      choices = choices ++ Array[String]("Go to class")
     }
     var relationToEntity: Option[RelationToEntity] = relationIn
 
@@ -368,6 +372,13 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         new EntityMenu(ui, db, controller).entityMenu(new Entity(db, relationIn.get.getAttrTypeId))
       } else if (goWhereAnswer == goToClassDefiningEntity_choiceNumber && classDefiningEntityId.isDefined && goWhereAnswer <= choices.length) {
         new EntityMenu(ui, db, controller).entityMenu(new Entity(db, classDefiningEntityId.get))
+      } else if (goWhereAnswer == goToClass_choiceNumber && classDefiningEntityId.isDefined && goWhereAnswer <= choices.length) {
+        val classId: Option[Long] = entityIn.getClassId
+        if (classId.isEmpty) {
+          throw new OmException("Unexpectedly, this entity doesn't seem to have a class id.  That is probably a bug.")
+        } else {
+          new ClassMenu(ui, db, controller).classMenu(new EntityClass(db, classId.get))
+        }
       } else {
         ui.displayText("invalid response")
       }
