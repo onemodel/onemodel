@@ -925,12 +925,19 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     valueAfterEdit
   }
 
+  def getContainingEntitiesDescription(entityCountNonArchivedIn: Long, entityCountArchivedIn: Long): String = {
+    "contained in " + entityCountNonArchivedIn + " entities, and in " + entityCountArchivedIn + " archived entities"
+  }
+
   /**
    * @return None means "get out", or Some(choiceNum) if a choice was made.
    */
   def askWhetherDeleteOrArchiveEtc(entityIn: Entity, relationIn: Option[RelationToEntity], relationSourceEntityIn: Option[Entity],
                                    containingGroupIn: Option[Group]): (Option[Int], Int, Int) = {
-    val leadingText = Some(Array("Choose a deletion or archiving option:"))
+    val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
+    val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(entityIn.getId)
+    val leadingText = Some(Array("Choose a deletion or archiving option:  (The entity is " +
+                                 getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) + ", and " + groupCount + " groups.)"))
     var choices = Array("Delete this entity",
                         "Archive this entity (remove from visibility but not permanent/total deletion)")
     val delEntityLink_choiceNumber: Int = 3
@@ -2016,9 +2023,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def removeEntityReferenceFromGroup_Menu(entityIn: Entity, containingGroupIn: Option[Group]): Boolean = {
     val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
     val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(entityIn.getId)
-    val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion. It can still be found by searching, and in " +
-                                  (groupCount - 1) + " group(s), and associated directly with " +
-                                  entityCountNonArchived + " other entity(ies) (and " + entityCountArchived + " archived entities)..", Some(""))
+    val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion. It can still be found by searching, etc.)",
+                                  Some(""))
     if (ans.isDefined && ans.get) {
       containingGroupIn.get.removeEntity(entityIn.getId)
       true

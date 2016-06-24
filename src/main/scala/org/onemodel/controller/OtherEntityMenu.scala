@@ -100,17 +100,17 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             controller.askWhetherDeleteOrArchiveEtc(entityIn, containingRelationToEntityIn, relationSourceEntityIn, containingGroupIn)
 
           if (delOrArchiveAnswer.isDefined) {
-            val answer = delOrArchiveAnswer.get
-            if (answer == 1 || answer == 2) {
-              controller.deleteOrArchiveEntity(entityIn, answer == 1)
-            } else if (answer == delEntityLink_choiceNumber && containingRelationToEntityIn.isDefined && answer <= choices.length) {
+            val delAnswer = delOrArchiveAnswer.get
+            if (delAnswer == 1 || delAnswer == 2) {
+              controller.deleteOrArchiveEntity(entityIn, delAnswer == 1)
+            } else if (delAnswer == delEntityLink_choiceNumber && containingRelationToEntityIn.isDefined && delAnswer <= choices.length) {
               val ans = ui.askYesNoQuestion("DELETE the relation: ARE YOU SURE?", Some(""))
               if (ans.isDefined && ans.get) {
                 containingRelationToEntityIn.get.delete()
               } else {
                 ui.displayText("Did not delete relation.", waitForKeystroke = false)
               }
-            } else if (answer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && answer <= choices.length) {
+            } else if (delAnswer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && delAnswer <= choices.length) {
               controller.removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn)
             } else {
               ui.displayText("invalid response")

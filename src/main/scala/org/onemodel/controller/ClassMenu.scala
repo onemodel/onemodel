@@ -43,8 +43,12 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
           } else {
             val name = classIn.getName
             val definingEntityName: String = new Entity(db, classIn.getDefiningEntityId).getName
+            val groupCount: Long = db.getCountOfGroupsContainingEntity(classIn.getDefiningEntityId)
+            val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(classIn.getDefiningEntityId)
             val ans = ui.askYesNoQuestion("DELETE CLASS \"" + name + "\" AND its defining ENTITY \"" + definingEntityName + "\" with " +
-                                          controller.entityPartsThatCanBeAffected + ".  **ARE YOU REALLY SURE?**")
+                                          controller.entityPartsThatCanBeAffected + ".  **ARE YOU REALLY SURE?**  (The defining entity is " +
+                                         controller.getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) + ", and " +
+                                          groupCount + " groups.)")
             if (ans.isDefined && ans.get) {
               classIn.delete()
               ui.displayText("Deleted class \"" + name + "\"" + ".")
