@@ -2024,7 +2024,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def removeEntityReferenceFromGroup_Menu(entityIn: Entity, containingGroupIn: Option[Group]): Boolean = {
     val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
     val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(entityIn.getId)
-    val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion. It can still be found by searching, etc.)",
+    val ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion: the entity can still be found by searching, and " +
+                                  "is " + getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) +
+                                  (if (groupCount > 1) ", and will still be in " + (groupCount - 1) + " group(s).)" else ""),
                                   Some(""))
     if (ans.isDefined && ans.get) {
       containingGroupIn.get.removeEntity(entityIn.getId)
