@@ -133,7 +133,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                                                                              relationToGroupIn.get.getGroupId,
                                                                                              relationToGroupIn.get.getValidOnDate,
                                                                                              relationToGroupIn.get.getObservationDate)
-            controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupDH, Controller.RELATION_TO_GROUP_TYPE,
+            controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupDH, askForAttrTypeId = true, Controller.RELATION_TO_GROUP_TYPE,
                                                                     "CHOOSE TYPE OF [correct me: or edit existing?] Relation to Entity:",
                                                                     controller.askForRelToGroupInfo, updateRelationToGroup)
             //force a reread from the DB so it shows the right info on the repeated menu:

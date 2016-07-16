@@ -589,8 +589,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     else Some(directionality.get.toUpperCase)
   }
 
-  val quantityDescription: String = "SELECT TYPE OF QUANTITY (type is like length or volume, but not the measurement unit); ESC or leave both blank to cancel; " +
-                                    "cancel if you need to create the needed type before selecting): "
+  val quantityTypePrompt: String = "SELECT TYPE OF QUANTITY (type is like length or volume, but not the measurement unit); ESC or leave both blank to cancel; " +
+                                   "cancel if you need to create the needed type before selecting): "
   val textDescription: String = "TEXT (e.g., serial #)"
 
 
@@ -601,11 +601,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
      methods.
      Need to learn more scala so I can do the equivalent of passing a Tuple without specifying the size in signatures?
    */
-  def askForInfoAndUpdateAttribute[T <: AttributeDataHolder](inDH: T, attrType: String, promptForSelectingTypeId: String,
+  def askForInfoAndUpdateAttribute[T <: AttributeDataHolder](inDH: T, askForAttrTypeId: Boolean, attrType: String, promptForSelectingTypeId: String,
                                                                        getOtherInfoFromUser: (T, Boolean) => Option[T], updateTypedAttribute: (T) => Unit) {
     @tailrec def askForInfoAndUpdateAttribute_helper(dhIn: T, attrType: String, promptForTypeId: String) {
-      val ans: Option[T] = askForAttributeData[T](dhIn, promptForTypeId, attrType, Some(new Entity(db, dhIn.attrTypeId).getName), Some(inDH.attrTypeId),
-                                                  getOtherInfoFromUser, inEditing = true)
+      val ans: Option[T] = askForAttributeData[T](dhIn, askForAttrTypeId, attrType, Some(promptForTypeId), Some(new Entity(db, dhIn.attrTypeId).getName),
+                                                  Some(inDH.attrTypeId), getOtherInfoFromUser, inEditing = true)
       if (ans.isDefined) {
         val dhOut: T = ans.get
         val ans2: Option[Int] = promptWhetherTo1Add2Correct(attrType)
@@ -653,9 +653,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                                                                       quantityAttribute.getValidOnDate,
                                                                                                       quantityAttribute.getObservationDate,
                                                                                                       quantityAttribute.getNumber, quantityAttribute.getUnitId),
-                                                                      Controller.QUANTITY_TYPE, quantityDescription,
-                                                                      askForQuantityAttributeNumberAndUnit,
-                                                                      updateQuantityAttribute)
+                                                                      askForAttrTypeId = true, Controller.QUANTITY_TYPE, quantityTypePrompt,
+                                                                      askForQuantityAttributeNumberAndUnit, updateQuantityAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
             attributeEditMenu(new QuantityAttribute(db, attributeIn.getId))
           case textAttribute: TextAttribute =>
@@ -664,7 +663,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             }
             val textAttributeDH: TextAttributeDataHolder = new TextAttributeDataHolder(textAttribute.getAttrTypeId, textAttribute.getValidOnDate,
                                                                                        textAttribute.getObservationDate, textAttribute.getText)
-            askForInfoAndUpdateAttribute[TextAttributeDataHolder](textAttributeDH, Controller.TEXT_TYPE,
+            askForInfoAndUpdateAttribute[TextAttributeDataHolder](textAttributeDH, askForAttrTypeId = true, Controller.TEXT_TYPE,
                                                                   "CHOOSE TYPE OF " + textDescription + ":",
                                                                   askForTextAttributeText, updateTextAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
@@ -674,7 +673,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               dateAttribute.update(dhInOut.attrTypeId, dhInOut.date)
             }
             val dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.getAttrTypeId, dateAttribute.getDate)
-            askForInfoAndUpdateAttribute[DateAttributeDataHolder](dateAttributeDH, Controller.DATE_TYPE, "CHOOSE TYPE OF DATE:",
+            askForInfoAndUpdateAttribute[DateAttributeDataHolder](dateAttributeDH, askForAttrTypeId = true, Controller.DATE_TYPE, "CHOOSE TYPE OF DATE:",
                                                                   askForDateAttributeValue, updateDateAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
             attributeEditMenu(new DateAttribute(db, attributeIn.getId))
@@ -685,9 +684,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             val booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.getAttrTypeId, booleanAttribute.getValidOnDate,
                                                                                                 booleanAttribute.getObservationDate,
                                                                                                 booleanAttribute.getBoolean)
-            askForInfoAndUpdateAttribute[BooleanAttributeDataHolder](booleanAttributeDH, Controller.BOOLEAN_TYPE,
-                                                                     "CHOOSE TYPE OF TRUE/FALSE VALUE:",
-                                                                     askForBooleanAttributeValue, updateBooleanAttribute)
+            askForInfoAndUpdateAttribute[BooleanAttributeDataHolder](booleanAttributeDH, askForAttrTypeId = true, Controller.BOOLEAN_TYPE,
+                                                                     "CHOOSE TYPE OF TRUE/FALSE VALUE:", askForBooleanAttributeValue, updateBooleanAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
             attributeEditMenu(new BooleanAttribute(db, attributeIn.getId))
           case fa: FileAttribute =>
@@ -695,7 +693,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               fa.update(Some(dhInOut.attrTypeId), Some(dhInOut.description))
             }
             val fileAttributeDH: FileAttributeDataHolder = new FileAttributeDataHolder(fa.getAttrTypeId, fa.getDescription, fa.getOriginalFilePath)
-            askForInfoAndUpdateAttribute[FileAttributeDataHolder](fileAttributeDH, Controller.FILE_TYPE, "CHOOSE TYPE OF FILE:",
+            askForInfoAndUpdateAttribute[FileAttributeDataHolder](fileAttributeDH, askForAttrTypeId = true, Controller.FILE_TYPE, "CHOOSE TYPE OF FILE:",
                                                                   askForFileAttributeInfo, updateFileAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
             attributeEditMenu(new FileAttribute(db, attributeIn.getId))
@@ -811,10 +809,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def getReplacementFilename(originalFilePathIn: String): (String, String) = FileAttribute.getReplacementFilename(originalFilePathIn)
 
-  def askForInfoAndAddAttribute[T <: AttributeDataHolder](inDH: T, attrType: String, promptForSelectingTypeId: String,
+  /**
+   * @return (See addAttribute method.)
+   */
+  def askForInfoAndAddAttribute[T <: AttributeDataHolder](inDH: T, askForAttrTypeId: Boolean, attrType: String, promptForSelectingTypeId: Option[String],
                                                                     getOtherInfoFromUser: (T, Boolean) => Option[T],
                                                                     addTypedAttribute: (T) => Option[Attribute]): Option[Attribute] = {
-    val ans: Option[T] = askForAttributeData[T](inDH, promptForSelectingTypeId, attrType, None, None, getOtherInfoFromUser, inEditing = false)
+    val ans: Option[T] = askForAttributeData[T](inDH, askForAttrTypeId, attrType, promptForSelectingTypeId, None, None, getOtherInfoFromUser, inEditing = false)
     if (ans.isDefined) {
       val dhOut: T = ans.get
       addTypedAttribute(dhOut)
@@ -974,14 +975,31 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     ask
   }
 
-  /** Returns data, or None if user wants to cancel/get out. */
-  def askForAttributeData[T <: AttributeDataHolder](inoutDH: T, prompt: String, attrType: String, inPreviousSelectionDesc: Option[String],
-                                                              inPreviousSelectionId: Option[Long], askForOtherInfo: (T, Boolean) => Option[T],
-                                                              inEditing: Boolean): Option[T] = {
-    val ans: Option[Long] = askForAttributeTypeId(prompt, attrType, inPreviousSelectionDesc, inPreviousSelectionId)
-    if (ans.isEmpty) None
-    else {
-      inoutDH.attrTypeId = ans.get
+  /** Returns data, or None if user wants to cancel/get out.
+    * @param attrType Constant referring to Attribute subtype, as used by the inObjectType parameter to the chooseOrCreateObject method
+    *                 (e.g., Controller.QUANTITY_TYPE).  See comment on that method, for that parm.
+    * */
+  def askForAttributeData[T <: AttributeDataHolder](inoutDH: T, askForAttrTypeId: Boolean, attrType: String, attrTypeInputPrompt: Option[String],
+                                                    inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[Long],
+                                                    askForOtherInfo: (T, Boolean) => Option[T], inEditing: Boolean): Option[T] = {
+    val (userWantsOut: Boolean, attrTypeId: Long) = {
+      if (!askForAttrTypeId) {
+        (false, inoutDH.attrTypeId)
+      } else {
+        require(attrTypeInputPrompt.isDefined)
+        val ans: Option[Long] = askForAttributeTypeId(attrTypeInputPrompt.get, attrType, inPreviousSelectionDesc, inPreviousSelectionId)
+        if (ans.isEmpty) {
+          (true, 0)
+        } else {
+          (false, ans.get)
+        }
+      }
+    }
+
+    if (userWantsOut) {
+      None
+    } else {
+      inoutDH.attrTypeId = attrTypeId
       val ans2: Option[T] = askForOtherInfo(inoutDH, inEditing)
       if (ans2.isEmpty) None
       else {
@@ -1120,11 +1138,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     * mentions of inAttrType for others to fix as well.)
     */
   @tailrec final def chooseOrCreateObject(inLeadingText: Option[List[String]], inPreviousSelectionDesc: Option[String],
-                                                    inPreviousSelectionId: Option[Long], inAttrType: String, startingDisplayRowIndexIn: Long = 0,
+                                                    inPreviousSelectionId: Option[Long], inObjectType: String, startingDisplayRowIndexIn: Long = 0,
                                                     inClassId: Option[Long] = None, limitByClassIn: Boolean = false,
                                                     containingGroupIn: Option[Long] = None,
                                                     markPreviousSelectionIn: Boolean = false): Option[IdWrapper] = {
-    if (inClassId.isDefined) require(inAttrType == Controller.ENTITY_TYPE)
+    if (inClassId.isDefined) require(inObjectType == Controller.ENTITY_TYPE)
     val nonRelationAttrTypeNames = Array(Controller.TEXT_TYPE, Controller.QUANTITY_TYPE, Controller.DATE_TYPE, Controller.BOOLEAN_TYPE, Controller.FILE_TYPE)
     val mostAttrTypeNames = Array(Controller.ENTITY_TYPE, Controller.TEXT_TYPE, Controller.QUANTITY_TYPE, Controller.DATE_TYPE, Controller.BOOLEAN_TYPE,
                                   Controller.FILE_TYPE)
@@ -1156,7 +1174,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         createClassChoiceNum += 1
       }
       //idea: use match instead of if: can it do || ?
-      if (mostAttrTypeNames.contains(inAttrType)) {
+      if (mostAttrTypeNames.contains(inObjectType)) {
         choiceList = choiceList :+ menuText_createEntityOrAttrType
         createAttrTypeChoiceNum += 1
         choiceList = choiceList :+ "Search for existing entity by name and text attribute content..."
@@ -1167,20 +1185,20 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         showJournalChoiceNum += 4
         createRelationTypeChoiceNum += 4
         createClassChoiceNum += 4
-      } else if (relationAttrTypeNames.contains(inAttrType)) {
+      } else if (relationAttrTypeNames.contains(inObjectType)) {
         choiceList = choiceList :+ menuText_createRelationType
         createRelationTypeChoiceNum += 1
         createClassChoiceNum += 1
-      } else if (inAttrType == Controller.ENTITY_CLASS_TYPE) {
+      } else if (inObjectType == Controller.ENTITY_CLASS_TYPE) {
         choiceList = choiceList :+ "create new class (template for new entities)"
         createClassChoiceNum += 1
-      } else throw new Exception("invalid inAttrType: " + inAttrType)
+      } else throw new Exception("invalid inAttrType: " + inObjectType)
 
       (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityByNameChoiceNum, searchForEntityByIdChoiceNum, showJournalChoiceNum, createRelationTypeChoiceNum, createClassChoiceNum)
     }
 
     def getLeadTextAndObjectList(choicesIn: Array[String]): (List[String], java.util.ArrayList[_ >: RelationType with EntityClass <: Object], Array[String]) = {
-      val prefix: String = inAttrType match {
+      val prefix: String = inObjectType match {
         case Controller.ENTITY_TYPE => "ENTITIES: "
         case Controller.QUANTITY_TYPE => "QUANTITIES (entities): "
         case Controller.TEXT_TYPE => "TEXT ATTRIBUTES (entities): "
@@ -1198,29 +1216,29 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                                     Controller.maxNameLength)
       val objectsToDisplay = {
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x BELOW ! (at similar comment)
-        if (nonRelationAttrTypeNames.contains(inAttrType)) db.getEntities(startingDisplayRowIndexIn, Some(numDisplayableItems))
-        else if (inAttrType == Controller.ENTITY_TYPE) db.getEntitiesOnly(startingDisplayRowIndexIn, Some(numDisplayableItems), inClassId, limitByClassIn,
+        if (nonRelationAttrTypeNames.contains(inObjectType)) db.getEntities(startingDisplayRowIndexIn, Some(numDisplayableItems))
+        else if (inObjectType == Controller.ENTITY_TYPE) db.getEntitiesOnly(startingDisplayRowIndexIn, Some(numDisplayableItems), inClassId, limitByClassIn,
                                                                            inPreviousSelectionId,
                                                                            containingGroupIn)
-        else if (relationAttrTypeNames.contains(inAttrType)) {
+        else if (relationAttrTypeNames.contains(inObjectType)) {
           db.getRelationTypes(startingDisplayRowIndexIn, Some(numDisplayableItems)).asInstanceOf[java.util.ArrayList[RelationType]]
         }
-        else if (inAttrType == Controller.ENTITY_CLASS_TYPE) db.getClasses(startingDisplayRowIndexIn, Some(numDisplayableItems))
-        else throw new Exception("invalid inAttrType: " + inAttrType)
+        else if (inObjectType == Controller.ENTITY_CLASS_TYPE) db.getClasses(startingDisplayRowIndexIn, Some(numDisplayableItems))
+        else throw new Exception("invalid inAttrType: " + inObjectType)
       }
       if (objectsToDisplay.size == 0) {
         // IF THIS CHANGES: change the guess at the 1st parameter to maxColumnarChoicesToDisplayAfter, JUST ABOVE!
-        val txt: String = TextUI.NEWLN + TextUI.NEWLN + "(None of the needed " + (if (inAttrType == "relationtype") "relation types" else "entities") +
+        val txt: String = TextUI.NEWLN + TextUI.NEWLN + "(None of the needed " + (if (inObjectType == "relationtype") "relation types" else "entities") +
                           " have been created in this model, yet."
         leadingText = leadingText ::: List(txt)
       }
       val totalExisting: Long = {
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x ELSEWHERE ! (at similar comment)
-        if (nonRelationAttrTypeNames.contains(inAttrType)) db.getEntitiesOnlyCount(inClassId, limitByClassIn, inPreviousSelectionId)
-        else if (inAttrType == Controller.ENTITY_TYPE) db.getEntitiesOnlyCount(inClassId, limitByClassIn, inPreviousSelectionId)
-        else if (relationAttrTypeNames.contains(inAttrType)) db.getRelationTypeCount
-        else if (inAttrType == Controller.ENTITY_CLASS_TYPE) db.getClassCount()
-        else throw new Exception("invalid inAttrType: " + inAttrType)
+        if (nonRelationAttrTypeNames.contains(inObjectType)) db.getEntitiesOnlyCount(inClassId, limitByClassIn, inPreviousSelectionId)
+        else if (inObjectType == Controller.ENTITY_TYPE) db.getEntitiesOnlyCount(inClassId, limitByClassIn, inPreviousSelectionId)
+        else if (relationAttrTypeNames.contains(inObjectType)) db.getRelationTypeCount
+        else if (inObjectType == Controller.ENTITY_CLASS_TYPE) db.getClassCount()
+        else throw new Exception("invalid inAttrType: " + inObjectType)
       }
       addRemainingCountToPrompt(choicesIn, objectsToDisplay.size, totalExisting, startingDisplayRowIndexIn)
       val objectNames: Array[String] = objectsToDisplay.toArray.map {
@@ -1239,13 +1257,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         //idea: should this just reuse the "totalExisting" value alr calculated in above in getLeadTextAndObjectList just above?
         val numObjectsInModel =
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x ABOVE ! (at similar comment)
-          if (nonRelationAttrTypeNames.contains(inAttrType))
+          if (nonRelationAttrTypeNames.contains(inObjectType))
             db.getEntityCount
-          else if (inAttrType == Controller.ENTITY_TYPE) db.getEntitiesOnlyCount(inClassId, limitByClassIn)
-          else if (relationAttrTypeNames.contains(inAttrType))
+          else if (inObjectType == Controller.ENTITY_TYPE) db.getEntitiesOnlyCount(inClassId, limitByClassIn)
+          else if (relationAttrTypeNames.contains(inObjectType))
             db.getRelationTypeCount
-          else if (inAttrType == Controller.ENTITY_CLASS_TYPE) db.getClassCount()
-          else throw new Exception("invalid inAttrType: " + inAttrType)
+          else if (inObjectType == Controller.ENTITY_CLASS_TYPE) db.getClassCount()
+          else throw new Exception("invalid inAttrType: " + inObjectType)
         if (x >= numObjectsInModel) {
           ui.displayText("End of list found; starting over from the beginning.")
           0 // start over
@@ -1267,7 +1285,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       if (answer == listNextItemsChoiceNum && answer <= choices.length) {
         // (For reason behind " && answer <= choices.length", see comment where it is used in entityMenu.)
         val index: Long = getNextStartingObjectIndex(objectsToDisplay.size, nonRelationAttrTypeNames, relationAttrTypeNames)
-        chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inAttrType, index, inClassId, limitByClassIn,
+        chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inObjectType, index, inClassId, limitByClassIn,
                              containingGroupIn, markPreviousSelectionIn)
       } else if (answer == keepPreviousSelectionChoice && answer <= choices.length) {
         // Such as if editing several fields on an attribute and doesn't want to change the first one.
@@ -1316,11 +1334,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
       } else if (answer == searchForEntityByIdChoice && answer <= choices.length) {
         searchById(Controller.ENTITY_TYPE)
-      } else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(inAttrType) && answer <= choices.length) {
+      } else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(inObjectType) && answer <= choices.length) {
         val entity: Option[Entity] = askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE)
         if (entity.isEmpty) None
         else Some(new IdWrapper(entity.get.getId))
-      } else if (answer == createClassChoice && inAttrType == Controller.ENTITY_CLASS_TYPE && answer <= choices.length) {
+      } else if (answer == createClassChoice && inObjectType == Controller.ENTITY_CLASS_TYPE && answer <= choices.length) {
         val result: Option[(Long, Long)] = askForAndWriteClassAndDefiningEntityName()
         if (result.isEmpty) None
         else {
@@ -1342,7 +1360,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         //if ("text,quantity,entity,date,boolean,file,relationtype".contains(inAttrType)) {
         //i.e., if (inAttrType == Controller.TEXT_TYPE || (= any of the other types...)):
         if (userChoseAlternate) {
-          inAttrType match {
+          inObjectType match {
             // idea: replace this condition by use of a trait (the type of o, which has getId), or being smarter with scala's type system. attrTypeIn match {
             case Controller.ENTITY_TYPE =>
               new EntityMenu(ui, db, this).entityMenu(o.asInstanceOf[Entity])
@@ -1350,17 +1368,17 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               // (choosing a group doesn't call this, it calls chooseOrCreateGroup)
               throw new OmException("not yet implemented")
           }
-          chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inAttrType, startingDisplayRowIndexIn, inClassId, limitByClassIn,
+          chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inObjectType, startingDisplayRowIndexIn, inClassId, limitByClassIn,
                                containingGroupIn, markPreviousSelectionIn)
         } else {
-          if (evenMoreAttrTypeNames.contains(inAttrType))
+          if (evenMoreAttrTypeNames.contains(inObjectType))
             Some(o.asInstanceOf[Entity].getIdWrapper)
-          else if (inAttrType == Controller.ENTITY_CLASS_TYPE) Some(o.asInstanceOf[EntityClass].getIdWrapper)
-          else throw new Exception("invalid inAttrType: " + inAttrType)
+          else if (inObjectType == Controller.ENTITY_CLASS_TYPE) Some(o.asInstanceOf[EntityClass].getIdWrapper)
+          else throw new Exception("invalid inAttrType: " + inObjectType)
         }
       } else {
         ui.displayText("unknown response")
-        chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inAttrType, startingDisplayRowIndexIn, inClassId,
+        chooseOrCreateObject(inLeadingText, inPreviousSelectionDesc, inPreviousSelectionId, inObjectType, startingDisplayRowIndexIn, inClassId,
                              limitByClassIn, containingGroupIn, markPreviousSelectionIn)
       }
     }
@@ -1584,7 +1602,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         else {
           val name = ans.get
           val ans2 = ui.askYesNoQuestion("Should this group allow entities with mixed classes? (Usually not desirable: doing so means losing some " +
-                                         "conveniences such as scripts and assisted data entry.)", Some("y"))
+                                         "conveniences such as scripts and assisted data entry.)", Some("n"))
           if (ans2.isEmpty) None
           else {
             val mixedClassesAllowed = ans2.get
@@ -2059,4 +2077,147 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
+  /**
+   * @param attrFormIn Contains the result of passing the right Controller.<string constant> to db.getAttributeFormId (SEE ALSO COMMENTS IN
+   *                   EntityMenu.addAttribute).  BUT, there are also cases
+   *                   where it is a # higher than those found in db.getAttributeFormId, and in that case is handled specially here.
+   * @return None if user wants out (or attrFormIn parm was an abortive mistake?), and the created Attribute if successful.
+   */
+  def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, attrFormIn: Int, attrTypeIdIn: Option[Long]): Option[Attribute] = {
+    val (attrTypeId: Long, askForAttrTypeId: Boolean) = {
+      if (attrTypeIdIn.isDefined) {
+        (attrTypeIdIn.get, false)
+      } else {
+        (0, true)
+      }
+    }
+    if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("quantityattribute")) {
+      def addQuantityAttribute(dhIn: QuantityAttributeDataHolder): Option[QuantityAttribute] = {
+        Some(entityIn.addQuantityAttribute(dhIn.attrTypeId, dhIn.unitId, dhIn.number, dhIn.validOnDate, dhIn.observationDate))
+      }
+      askForInfoAndAddAttribute[QuantityAttributeDataHolder](new QuantityAttributeDataHolder(attrTypeId, None, 0, 0, 0), askForAttrTypeId, Controller.QUANTITY_TYPE,
+                                                             Some(quantityTypePrompt), askForQuantityAttributeNumberAndUnit, addQuantityAttribute)
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("dateattribute")) {
+      def addDateAttribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
+        Some(entityIn.addDateAttribute(dhIn.attrTypeId, dhIn.date))
+      }
+      askForInfoAndAddAttribute[DateAttributeDataHolder](new DateAttributeDataHolder(attrTypeId, 0), askForAttrTypeId, Controller.DATE_TYPE,
+                                                         Some("SELECT TYPE OF DATE: "), askForDateAttributeValue, addDateAttribute)
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("booleanattribute")) {
+      def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
+        Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean))
+      }
+      askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(attrTypeId, Some(0), 0, false), askForAttrTypeId,
+                                                            Controller.BOOLEAN_TYPE, Some("SELECT TYPE OF TRUE/FALSE VALUE: "),  askForBooleanAttributeValue,
+                                                            addBooleanAttribute)
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("fileattribute")) {
+      def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
+        Some(entityIn.addFileAttribute(dhIn.attrTypeId, dhIn.description, new File(dhIn.originalFilePath)))
+      }
+      val result: Option[FileAttribute] = askForInfoAndAddAttribute[FileAttributeDataHolder](new FileAttributeDataHolder(attrTypeId, "", ""),
+                                                                                             askForAttrTypeId, Controller.FILE_TYPE,
+                                                                                             Some("SELECT TYPE OF FILE: "), askForFileAttributeInfo,
+                                                                                             addFileAttribute).asInstanceOf[Option[FileAttribute]]
+      if (result.isDefined) {
+        val ans = ui.askYesNoQuestion("Document successfully added. Do you want to DELETE the local copy (at " + result.get.getOriginalFilePath + " ?")
+        if (ans.isDefined && ans.get) {
+          if (!new File(result.get.getOriginalFilePath).delete()) {
+            ui.displayText("Unable to delete file at that location; reason unknown.  You could check the permissions.")
+          }
+        }
+      }
+      result
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("textattribute")) {
+      def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
+        Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, dhIn.validOnDate, dhIn.observationDate))
+      }
+      askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(attrTypeId, Some(0), 0, ""), askForAttrTypeId, Controller.TEXT_TYPE,
+                                                         Some("SELECT TYPE OF " + textDescription + ": "), askForTextAttributeText, addTextAttribute)
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("relationtoentity")) {
+      def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[RelationToEntity] = {
+        Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId2, dhIn.validOnDate, dhIn.observationDate))
+      }
+      askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(attrTypeId, None, 0, 0), askForAttrTypeId, Controller.RELATION_TYPE_TYPE,
+                                                            Some("CREATE OR SELECT RELATION TYPE: (" + mRelTypeExamples + ")"),
+                                                            askForRelationEntityIdNumber2, addRelationToEntity)
+    } else if (attrFormIn == 100) {
+      // re "100": see comments at attrFormIn above
+      val eId: Option[IdWrapper] = askForNameAndSearchForEntity
+      if (eId.isDefined) {
+        Some(entityIn.addHASRelationToEntity(eId.get.getId, None, System.currentTimeMillis))
+      } else {
+        None
+      }
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("relationtogroup")) {
+      def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
+        require(dhIn.entityId == entityIn.getId)
+        val newRTG: RelationToGroup = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
+        Some(newRTG)
+      }
+      val result: Option[Attribute] = askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, attrTypeId, 0,
+                                                                                                                         None, System.currentTimeMillis()),
+                                                                                           askForAttrTypeId, Controller.RELATION_TYPE_TYPE,
+                                                                                           Some("CREATE OR SELECT RELATION TYPE: (" + mRelTypeExamples + ")" +
+                                                                                                "." + TextUI.NEWLN + "(Does anyone see a specific " +
+                                                                                                "reason to keep asking for these dates?)"),
+                                                                                           askForRelToGroupInfo, addRelationToGroup)
+      if (result.isEmpty) {
+        None
+      } else {
+        val newRtg = result.get.asInstanceOf[RelationToGroup]
+        new GroupMenu(ui, db, this).groupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, Some(entityIn))
+        result
+      }
+    } else if (attrFormIn == 101  /*see comments at attrFormIn above*/) {
+      val newEntityName: Option[String] = ui.askForString(Some(Array {"Enter a name (or description) for this web page or other URI"}))
+      if (newEntityName.isEmpty || newEntityName.get.isEmpty) return None
+
+      val ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (normal) or the" +
+                                                " clipboard (faster sometimes)?")), Array("keyboard", "clipboard"))
+      if (ans1.isEmpty) return None
+      val keyboardOrClipboard1 = ans1.get
+      val uri: String = if (keyboardOrClipboard1 == 1) {
+        val text = ui.askForString(Some(Array("Enter the URI:")))
+        if (text.isEmpty || text.get.isEmpty) return None else text.get
+      } else {
+        val uriReady = ui.askYesNoQuestion("Put the url on the system clipboard, then Enter to continue (or hit ESC or answer 'n' to get out)", Some("y"))
+        if (uriReady.isEmpty || !uriReady.get) return None
+        Controller.getClipboardContent
+      }
+
+      val ans2 = ui.askWhich(Some(Array[String]("Do you want to enter a quote from it, via the keyboard (normal) or the" +
+                                                " clipboard (faster sometimes, especially if it's multiline)? Or, ESC to not enter a quote.")),
+                             Array("keyboard", "clipboard"))
+      val quote: Option[String] = if (ans2.isEmpty) {
+        None
+      } else {
+        val keyboardOrClipboard2 = ans2.get
+        if (keyboardOrClipboard2 == 1) {
+          val text = ui.askForString(Some(Array("Enter the quote")))
+          if (text.isEmpty || text.get.isEmpty) return None else text
+        } else {
+          val clip = ui.askYesNoQuestion("Put a quote on the system clipboard, then Enter to continue (or answer 'n' to get out)", Some("y"))
+          if (clip.isEmpty || !clip.get) return None
+          Some(Controller.getClipboardContent)
+        }
+      }
+      val quoteInfo = if (quote.isEmpty) "" else "For this text: \n  " + quote.get + "\n...and, "
+
+      val proceedAnswer = ui.askYesNoQuestion(quoteInfo + "...for this name & URI:\n  " + newEntityName.get + "\n  " + uri + "" +
+                                              "\n...: do you want to save them?", Some("y"))
+      if (proceedAnswer.isEmpty || !proceedAnswer.get) return None
+
+      //NOTE: the attrTypeId parm is ignored here since it is always a particular one for URIs:
+      val (newEntity: Entity, newRTE: RelationToEntity) = db.addUriEntityWithUriAttribute(entityIn, newEntityName.get, uri, System.currentTimeMillis(),
+                                                                                          entityIn.getPublic, callerManagesTransactionsIn = false, quote)
+
+      new EntityMenu(ui, db, this).entityMenu(newEntity, containingRelationToEntityIn = Some(newRTE))
+
+      Some(newRTE)
+    } else {
+      ui.displayText("invalid response")
+      None
+    }
+  }
+  
 }

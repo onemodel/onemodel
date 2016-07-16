@@ -10,7 +10,6 @@
 */
 package org.onemodel.controller
 
-import java.io.File
 import java.util
 
 import org.onemodel._
@@ -273,7 +272,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         entityMenu(entityIn, attributeRowsStartingIndexIn, entryToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 9 && answer <= choices.length) {
         new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
-                                                                containingGroupIn, classDefiningEntityId)
+                                                                containingGroupIn, classDefiningEntityId, attributeTuples)
         if (! db.entityKeyExists(entityIn.getId, includeArchived = false)) {
           // entity could have been deleted by some operation in OtherEntityMenu
           None
@@ -595,6 +594,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                    containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Attribute] = {
     val whichKindOfAttribute =
       ui.askWhich(Some(Array("Choose which kind of attribute to add:")),
+                  // THESE ARRAY INDICES (after being converted by askWhich to 1-based) MUST MATCH THOSE LISTED IN THE MATCH STATEMENT
+                  // JUST BELOW. See the comment there.
                   Array("Relation to entity (i.e., \"is near\" a microphone, complete menu)",
                         "Relation to existing entity: quick search by name (uses \"has\" relation)",
                         "quantity attribute (example: a numeric value like \"length\"",
@@ -611,136 +612,23 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                         "external web page (or other URI, to refer to external information and optionally quote it)")
                  )
     if (whichKindOfAttribute.isDefined) {
-      val whichKindAnswer = whichKindOfAttribute.get
-      if (whichKindAnswer == 1) {
-        def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[RelationToEntity] = {
-          Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId2, dhIn.validOnDate, dhIn.observationDate))
-        }
-        controller.askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(0, None, 0, 0), Controller .RELATION_TYPE_TYPE,
-                                                                         "CREATE OR SELECT RELATION TYPE: (" + controller.mRelTypeExamples + ")",
-                                                                         controller.askForRelationEntityIdNumber2, addRelationToEntity)
-      } else if (whichKindAnswer == 2) {
-        val eId: Option[IdWrapper] = controller.askForNameAndSearchForEntity
-        if (eId.isDefined) {
-          Some(entityIn.addHASRelationToEntity(eId.get.getId, None, System.currentTimeMillis))
-        } else None
-      } else if (whichKindAnswer == 3) {
-        def addQuantityAttribute(dhIn: QuantityAttributeDataHolder): Option[QuantityAttribute] = {
-          Some(entityIn.addQuantityAttribute(dhIn.attrTypeId, dhIn.unitId, dhIn.number, dhIn.validOnDate, dhIn.observationDate))
-        }
-        controller.askForInfoAndAddAttribute[QuantityAttributeDataHolder](new QuantityAttributeDataHolder(0, None, 0, 0, 0), Controller.QUANTITY_TYPE,
-                                                                          controller.quantityDescription,
-                                                                          controller.askForQuantityAttributeNumberAndUnit, addQuantityAttribute)
-      } else if (whichKindAnswer == 4) {
-        def addDateAttribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
-          Some(entityIn.addDateAttribute(dhIn.attrTypeId, dhIn.date))
-        }
-        controller.askForInfoAndAddAttribute[DateAttributeDataHolder](new DateAttributeDataHolder(0, 0), Controller.DATE_TYPE,
-                                                                      "SELECT TYPE OF DATE: ", controller.askForDateAttributeValue, addDateAttribute)
-      } else if (whichKindAnswer == 5) {
-        def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
-          Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean))
-        }
-        controller.askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(0, Some(0), 0, false), Controller.BOOLEAN_TYPE,
-                                                                         "SELECT TYPE OF TRUE/FALSE VALUE: ", controller.askForBooleanAttributeValue,
-                                                                         addBooleanAttribute)
-      } else if (whichKindAnswer == 6) {
-        def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
-          Some(entityIn.addFileAttribute(dhIn.attrTypeId, dhIn.description, new java.io.File(dhIn.originalFilePath)))
-        }
-        val result: Option[FileAttribute] = controller.askForInfoAndAddAttribute[FileAttributeDataHolder](new FileAttributeDataHolder(0, "", ""), Controller.FILE_TYPE,
-                                                                                                          "SELECT TYPE OF FILE: ", controller.askForFileAttributeInfo,
-                                                                                                          addFileAttribute).asInstanceOf[Option[FileAttribute]]
-        if (result.isDefined) {
-          val ans = ui.askYesNoQuestion("Document successfully added. Do you want to DELETE the local copy (at " + result.get.getOriginalFilePath + " ?")
-          if (ans.isDefined && ans.get) {
-            if (!new File(result.get.getOriginalFilePath).delete()) {
-              ui.displayText("Unable to delete file at that location; reason unknown.  You could check the permissions.")
-            }
-          }
-        }
-        result
-      } else if (whichKindAnswer == 7) {
-        def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
-          Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, dhIn.validOnDate, dhIn.observationDate))
-        }
-        controller.askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(0, Some(0), 0, ""), Controller.TEXT_TYPE,
-                                                                      "SELECT TYPE OF " + controller.textDescription + ": ", controller
-                                                                                                                             .askForTextAttributeText,
-                                                                      addTextAttribute)
-      } else if (whichKindAnswer == 8) {
-        def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
-          require(dhIn.entityId == entityIn.getId)
-          val newRTG: RelationToGroup = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
-          Some(newRTG)
-        }
-        val result: Option[Attribute] = controller.askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, 0, 0,
-                                                                                                                                      None,
-                                                                                                                                      System
-                                                                                                                                      .currentTimeMillis()),
-                                                                                                        Controller.RELATION_TYPE_TYPE,
-                                                                                                        "CREATE OR SELECT RELATION TYPE: (" + controller
-                                                                                                                                              .mRelTypeExamples + ")" +
-                                                                                                        "." + TextUI.NEWLN + "(Does anyone see a specific " +
-                                                                                                        "reason to keep asking for these dates?)",
-                                                                                                        controller.askForRelToGroupInfo, addRelationToGroup)
-        if (result.isEmpty) {
-          entityMenu(entityIn, startingAttributeIndexIn, highlightedAttributeIn, targetForMovesIn, containingRelationToEntityIn, containingGroupIn)
-          None
-        } else {
-          val newRtg = result.get.asInstanceOf[RelationToGroup]
-          new GroupMenu(ui, db, controller).groupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, Some(entityIn))
-          result
-        }
-      } else if (whichKindAnswer == 9) {
-        val newEntityName: Option[String] = ui.askForString(Some(Array{"Enter a name (or description) for this web page or other URI"}))
-        if (newEntityName.isEmpty || newEntityName.get.isEmpty) return None
-
-        val ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (normal) or the" +
-                                                  " clipboard (faster sometimes)?")), Array("keyboard", "clipboard"))
-        if (ans1.isEmpty) return None
-        val keyboardOrClipboard1 = ans1.get
-        val uri: String = if (keyboardOrClipboard1 == 1) {
-          val text = ui.askForString(Some(Array("Enter the URI:")))
-          if (text.isEmpty || text.get.isEmpty) return None else text.get
-        } else {
-          val uriReady = ui.askYesNoQuestion("Put the url on the system clipboard, then Enter to continue (or hit ESC or answer 'n' to get out)", Some("y"))
-          if (uriReady.isEmpty || !uriReady.get) return None
-          Controller.getClipboardContent
-        }
-
-        val ans2 = ui.askWhich(Some(Array[String]("Do you want to enter a quote from it, via the keyboard (normal) or the" +
-                                                  " clipboard (faster sometimes, especially if it's multiline)? Or, ESC to not enter a quote.")),
-                               Array("keyboard", "clipboard"))
-        val quote:Option[String] = if (ans2.isEmpty) {
-          None
-        } else {
-          val keyboardOrClipboard2 = ans2.get
-          if (keyboardOrClipboard2 == 1) {
-            val text = ui.askForString(Some(Array("Enter the quote")))
-            if (text.isEmpty || text.get.isEmpty) return None else text
-          } else {
-            val clip = ui.askYesNoQuestion("Put a quote on the system clipboard, then Enter to continue (or answer 'n' to get out)", Some("y"))
-            if (clip.isEmpty || !clip.get) return None
-            Some(Controller.getClipboardContent)
-          }
-        }
-        val quoteInfo = if (quote.isEmpty) "" else "For this text: \n  " + quote.get + "\n...and, "
-
-        val proceedAnswer = ui.askYesNoQuestion(quoteInfo + "...for this name & URI:\n  " + newEntityName.get + "\n  " + uri + "" +
-                                                "\n...: do you want to save them?", Some("y"))
-        if (proceedAnswer.isEmpty || !proceedAnswer.get) return None
-
-        val (newEntity: Entity, newRTE: RelationToEntity) = db.addUriEntityWithUriAttribute(entityIn, newEntityName.get, uri, System.currentTimeMillis(),
-                                                                entityIn.getPublic, callerManagesTransactionsIn = false, quote)
-        entityMenu(newEntity, containingRelationToEntityIn = Some(newRTE))
-
-        Some(newRTE)
-      } else {
-        ui.displayText("invalid response")
-        None
+      val attrForm: Int = whichKindOfAttribute.get match {
+        // This is a bridge between the expected order for convenient UI above, and the parameter value expected by controller.addAttribute
+        // (1-based, not 0-based.)
+        case 1 => PostgreSQLDatabase.getAttributeFormId("relationtoentity")
+        case 2 => 100
+        case 3 => PostgreSQLDatabase.getAttributeFormId("quantityattribute")
+        case 4 => PostgreSQLDatabase.getAttributeFormId("dateattribute")
+        case 5 => PostgreSQLDatabase.getAttributeFormId("booleanattribute")
+        case 6 => PostgreSQLDatabase.getAttributeFormId("fileattribute")
+        case 7 => PostgreSQLDatabase.getAttributeFormId("textattribute")
+        case 8 => PostgreSQLDatabase.getAttributeFormId("relationtogroup")
+        case 9 => 101
       }
-    } else None
+      controller.addAttribute(entityIn, startingAttributeIndexIn, attrForm, None)
+    } else {
+      None
+    }
   }
 
   def getNextStartingRowsIndex(numAttrsToDisplay: Int, startingAttributeRowsIndexIn: Int, numAttrsInEntity: Long): Int = {

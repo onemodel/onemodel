@@ -121,7 +121,7 @@ object PostgreSQLDatabase {
   }
 
   def getAttributeFormId(key: String): Int = {
-    //MAKE SURE THESE MATCH WITH THOSE IN attributeKeyExists !
+    //MAKE SURE THESE MATCH WITH THOSE IN attributeKeyExists and getAttributeFormName !
     key.toLowerCase match {
       case "quantityattribute" => 1
       case "dateattribute" => 2
@@ -130,6 +130,19 @@ object PostgreSQLDatabase {
       case "textattribute" => 5
       case "relationtoentity" => 6
       case "relationtogroup" => 7
+    }
+  }
+  def getAttributeFormName(key: Int): String = {
+    // MAKE SURE THESE MATCH WITH THOSE IN getAttributeFormId !
+    //idea: put these values in a structure that is looked up both ways, instead of duplicating them?
+    key match {
+      case 1 => "QuantityAttribute"
+      case 2 => "DateAttribute"
+      case 3 => "BooleanAttribute"
+      case 4 => "FileAttribute"
+      case 5 => "TextAttribute"
+      case 6 => "RelationToEntity"
+      case 7 => "RelationToGroup"
     }
   }
 
@@ -3042,7 +3055,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     * then decide which ones to return.  Maybe instead we could do that smartly, on just the needed subset.  But it still need to gracefully handle it
     * when a given attribute (or all) is not found in the sorting table.
     */
-  def getSortedAttributes(inEntityId: Long, inStartingObjectIndex: Int, maxValsIn: Int): (Array[(Long, Attribute)], Int) = {
+  def getSortedAttributes(inEntityId: Long, inStartingObjectIndex: Int = 0, maxValsIn: Int = 0): (Array[(Long, Attribute)], Int) = {
     val allResults: java.util.ArrayList[(Option[Long], Attribute)] = new java.util.ArrayList[(Option[Long], Attribute)]
     // First select the counts from each table, keep a running total so we know when to select attributes (compared to inStartingObjectIndex)
     // and when to stop.

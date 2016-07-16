@@ -15,13 +15,15 @@ import org.onemodel.{OmException, TextUI}
 import org.onemodel.database.PostgreSQLDatabase
 import org.onemodel.model._
 
+import scala.collection.mutable.ArrayBuffer
+
 /** This is simply to hold less-used operations so the main EntityMenu can be the most-used stuff.
   */
 class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
 
   def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
                       containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
-                      classDefiningEntityIdIn: Option[Long]) {
+                      classDefiningEntityIdIn: Option[Long], attributeTuplesIn: Array[(Long, Attribute)]) {
     try {
       require(entityIn != null)
       val leadingText = Array[String]{ controller.entityMenuLeadingText(entityIn) }
@@ -55,11 +57,11 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             if (publicMenuResponse.get == 1) {
               updatePublicStatus(entityIn.getId, valueBeforeEntry, valueAfterEntry)
             } else if (publicMenuResponse.get == 2) {
-              var count: Int = updateContainedEntitiesPublicStatus(entityIn.getId, valueAfterEntry)
+              val count: Int = updateContainedEntitiesPublicStatus(entityIn.getId, valueAfterEntry)
               ui.displayText("Updated " + count + " contained entities with new status.")
             } else if (publicMenuResponse.get == 3) {
               updatePublicStatus(entityIn.getId, valueBeforeEntry, valueAfterEntry)
-              var count: Int = updateContainedEntitiesPublicStatus(entityIn.getId, valueAfterEntry)
+              val count: Int = updateContainedEntitiesPublicStatus(entityIn.getId, valueAfterEntry)
               ui.displayText("Updated this entity and " + count + " contained entities with new status.")
             } else {
               ui.displayText("invalid response")
@@ -77,22 +79,66 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               }
             }
           }
-          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
+          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
+                          classDefiningEntityIdIn, attributeTuplesIn)
         } else if (answer == 3) {
+          val attributesToSuggestCopying: ArrayBuffer[Attribute] = {
+            // This determines which attributes from the template entity (or "pattern" or class-defining entity) are not found on this entity, so they can
+            // be added if the user wishes.
+            val attributesToSuggestCopying_workingCopy: ArrayBuffer[Attribute] = new ArrayBuffer()
+            if (classDefiningEntityIdIn.isDefined) {
+              // ("cde" in name means "classDefiningEntity")
+              val (cde_attributeTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(classDefiningEntityIdIn.get)
+              for (cde_attributeTuple <- cde_attributeTuples) {
+                var attributeTypeFoundOnEntity = false
+                val cde_attribute = cde_attributeTuple._2
+                for (attributeTuple <- attributeTuplesIn) {
+                  if (!attributeTypeFoundOnEntity) {
+                    val cde_typeId: Long = cde_attribute.getAttrTypeId
+                    val typeId = attributeTuple._2.getAttrTypeId
+                    if (cde_typeId == typeId) {
+                      attributeTypeFoundOnEntity = true
+                    }
+                  }
+                }
+                if (!attributeTypeFoundOnEntity) {
+                  attributesToSuggestCopying_workingCopy.append(cde_attribute)
+                }
+              }
+            }
+            attributesToSuggestCopying_workingCopy
+          }
           val editAnswer = ui.askWhich(Some(Array[String]{controller.entityMenuLeadingText(entityIn)}),
-                                       Array("Edit entity name", "Change its class" /*, Edit all of its class-defined fields*/))
+                                       Array("Edit entity name", "Change its class",
+                                             if (attributesToSuggestCopying.nonEmpty) "Add/edit class-defined fields" else "(stub)"))
           if (editAnswer.isDefined) {
             if (editAnswer.get == 1) {
               val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
               otherEntityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn,
-                              containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
+                              containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn, attributeTuplesIn)
             } else if (editAnswer.get == 2) {
               val classId: Option[Long] = controller.askForClass()
               if (classId.isDefined) {
                 db.updateEntitysClass(entityIn.getId, classId)
               }
               otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                              containingGroupIn, classDefiningEntityIdIn)
+                              containingGroupIn, classDefiningEntityIdIn, attributeTuplesIn)
+            } else if (editAnswer.get == 3 && attributesToSuggestCopying.nonEmpty) {
+              var userWantsToContinue = true
+              for (attribute:Attribute <- attributesToSuggestCopying) {
+                if (userWantsToContinue) {
+                  ui.displayText("Prompting for " + PostgreSQLDatabase.getAttributeFormName(attribute.getFormId) + " \"" +
+                                 attribute.getDisplayString(0, None, None, simplify = true) + " \", as suggested by the archetype entity:",
+                                 waitForKeystroke = true)
+                  val attr: Option[Attribute] = controller.addAttribute(entityIn, attributeRowsStartingIndexIn,
+                                                                        PostgreSQLDatabase.getAttributeFormId(attribute.getClass.getSimpleName),
+                                                                        Some(attribute.getAttrTypeId))
+                  if (attr.isEmpty) {
+                    // Like a break statement: could be replaced with a functional idiom (see link to stackoverflow somewhere in the code).
+                    userWantsToContinue = false
+                  }
+                }
+              }
             }
           }
         } else if (answer == 4) {
@@ -115,7 +161,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             } else {
               ui.displayText("invalid response")
               otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                              containingGroupIn, classDefiningEntityIdIn)
+                              containingGroupIn, classDefiningEntityIdIn, attributeTuplesIn)
             }
           }
         } else if (answer == 5) {
@@ -130,7 +176,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           controller.refreshDefaultDisplayEntityId()
         } else {
           ui.displayText("invalid response")
-          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
+          otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
+                          classDefiningEntityIdIn, attributeTuplesIn)
         }
       }
     } catch {
@@ -139,7 +186,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
         if (ans.isDefined && ans.get) {
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                          containingGroupIn, classDefiningEntityIdIn)
+                          containingGroupIn, classDefiningEntityIdIn, attributeTuplesIn)
         }
     }
   }
@@ -363,7 +410,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         }
         val relationToEntityDH: RelationToEntityDataHolder = new RelationToEntityDataHolder(relationIn.get.getAttrTypeId, relationIn.get.getValidOnDate,
                                                                                             relationIn.get.getObservationDate, relationIn.get.getRelatedId2)
-        controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, Controller.RELATION_TO_ENTITY_TYPE,
+        controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, askForAttrTypeId = true, Controller.RELATION_TO_ENTITY_TYPE,
                                                                             "CHOOSE TYPE OF Relation to Entity:", dummyMethod, updateRelationToEntity)
         // force a reread from the DB so it shows the right info on the repeated menu (below):
         relationToEntity = Some(new RelationToEntity(db, relationIn.get.getId, relationIn.get.getAttrTypeId, relationIn.get.getRelatedId1,
