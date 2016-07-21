@@ -328,11 +328,13 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
             val ans: Option[Entity] = controller.askForNameAndWriteEntity(Controller.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
                                                                inClassId = groupIn.getClassId)
             if (ans.isDefined) {
-              val newEntityId: Long = ans.get.getId
+              val newEntity = ans.get
+              val newEntityId: Long = newEntity.getId
               db.addEntityToGroup(groupIn.getId, newEntityId)
               val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 0, forwardNotBackIn = true,
                                                                        startingDisplayRowIndexIn, newEntityId,
                                                                        highlightedIndexInObjList, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
+              controller.defaultAttributeCopying(newEntity)
               (Some(new Entity(db, newEntityId)), displayStartingRowNumber)
             }
             else (Some(highlightedEntry), startingDisplayRowIndexIn)
@@ -372,7 +374,11 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                                                                   inClassId = groupIn.getClassId)
                     if (ans.isDefined) {
                       val newEntityId: Long = ans.get.getId
+                      val newEntity: Entity = ans.get
                       db.addEntityToGroup(targetGroupId, newEntityId)
+
+                      controller.defaultAttributeCopying(newEntity)
+
                       val newRtg: RelationToGroup = new RelationToGroup(db, rtgId, highlightedEntry.getId, relTypeId, targetGroupId)
                       quickGroupMenu(new Group(db, targetGroupId), 0, Some(newRtg), None, None, containingEntityIn = Some(highlightedEntry))
                     }

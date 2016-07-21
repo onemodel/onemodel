@@ -159,6 +159,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                                      if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
                                                                      numDisplayableAttributes, newAttribute.getFormId,
                                                                      if (highlightedEntry.isDefined) Some(highlightedEntry.get.getFormId) else None)
+            controller.defaultAttributeCopying(newEntity.get, Some(attributeTuples))
             (Some(newAttribute), displayStartingRowNumber)
           }
           else (highlightedEntry, attributeRowsStartingIndexIn)

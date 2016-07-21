@@ -24,7 +24,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
       val leadingText: Array[String] = Array[String]("CLASS: " + classIn.getDisplayString)
       val choices = Array[String]("(stub: classes can be added while creating a new entity)" /*"add"' option, if needed*/ ,
                                   "(stub)" /*"sort" if needed*/ ,
-                                  "Edit class name",
+                                  "Edit...",
                                   "Delete",
                                   "Go to defining entity",
                                   "Search (List all entities in this class)")
@@ -33,8 +33,37 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
       else {
         val answer = response.get
         if (answer == 3) {
-          controller.askForAndWriteClassAndDefiningEntityName(Some(classIn.getId), Some(classIn.getName))
-          classMenu(new EntityClass(db, classIn.getId))
+          val currentCreateDefaultAttrValue: Option[Boolean] = classIn.getCreateDefaultAttributes
+          val asDisplayed = {
+            if (currentCreateDefaultAttrValue.isEmpty) "unset"
+            else if (currentCreateDefaultAttrValue.get) "true" else "false"
+          }
+          val editResponse = ui.askWhich(None, Array[String]("Edit class name",
+                                                             "Edit \"Create template attributes by default on new entities\" value (currently " + asDisplayed + ")"))
+          if (editResponse.isEmpty) None
+          else if (editResponse.get == 1) {
+            controller.askForAndWriteClassAndDefiningEntityName(Some(classIn.getId), Some(classIn.getName))
+            classMenu(new EntityClass(db, classIn.getId))
+          } else if (editResponse.get == 2) {
+            val prompt = "Do you want the program to create all the attributes by default, when creating a new entity in this class, using " +
+                         "the class defining entity's attributes as a template?  Enter a yes/no value (or a space for 'unknown/unspecified', i.e., to " +
+                         "ask every time)"
+            val valueBefore: Option[Boolean] = db.getClassCreateDefaultAttributes(classIn.getId)
+            val defaultValue: String = valueBefore match {
+              case Some(true) => "y"
+              case Some(false) => "n"
+              case None => " "
+            }
+            val valueEntered: Option[Boolean] = ui.askYesNoQuestion(prompt, Some(defaultValue), allowBlankAnswer = true)
+            if (valueBefore != valueEntered) {
+              db.updateClassCreateDefaultAttributes(classIn.getId, valueEntered)
+            }
+            classMenu(new EntityClass(db, classIn.getId))
+          } else {
+            //textui doesn't actually let the code get here, but:
+            ui.displayText("invalid response")
+            None
+          }
         }
         else if (answer == 4) {
           val entitiesCount: Long = db.getEntitiesOnlyCount(Some(classIn.getId), limitByClass = true, Some(classIn.getDefiningEntityId))

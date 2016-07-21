@@ -212,24 +212,24 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     controller.start()
   }
 
-  /* Returns the string entered (None if the user just wants out of this question or whatever, OR the default value in that case if one is provided. Is that
-     true, or does it  always currently return just an empty string? Looks so. See internal comments for possibly fixing that.)
+  /* Returns the string entered (None if the user just wants out of this question or whatever, unless useDefaultIfBlankedIn is true).
    * The parameter "criteria"'s Option is a function which takes a String (which will be the user input), which it checks for validity.
    * If the entry didn't meet the criteria, it repeats the question until it does or user gets out w/ ESC.
    * A simple way to let the user know why it didn't meet the criteria is to put them in the leading text.
    */
   //@tailrec //see below note on 'recursive' for why removed 4 now.
-  final def askForString(inLeadingText: Option[Array[String]],
-                         inCriteria: Option[(String) => Boolean] = None,
+  final def askForString(leadingTextIn: Option[Array[String]],
+                         criteriaIn: Option[(String) => Boolean] = None,
                          inDefaultValue: Option[String] = None,
-                         inIsPassword: Boolean = false): Option[String] = {
+                         isPasswordIn: Boolean = false,
+                         useDefaultIfBlankedIn: Boolean = false): Option[String] = {
     var count = 0
     val lastLineOfPrompt: String = {
       var lastLineOfPrompt = ""
-      if (inLeadingText.isDefined) {
-        for (prompt <- inLeadingText.get) {
+      if (leadingTextIn.isDefined) {
+        for (prompt <- leadingTextIn.get) {
           count = count + 1
-          if (count < inLeadingText.get.length) {
+          if (count < leadingTextIn.get.length) {
             // all but the last one
             println(prompt)
           }
@@ -270,32 +270,27 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }.start()
 
     //jlineReader.readLine()
-    val line = jlineReader.readLine(null, if (inIsPassword) '*' else null)
+    val line = jlineReader.readLine(null, if (isPasswordIn) '*' else null)
     if (line == null) {
       None
     }
     else {
       def checkCriteria(line: String): Option[String] = {
-        if (inCriteria.isEmpty || inCriteria.get(line)) {
+        if (criteriaIn.isEmpty || criteriaIn.get(line)) {
           Some(line)
         }
         else {
           displayText("Didn't pass the criteria; please re-enter.")
           // this gets "recursive call not in tail position", until new version of jvm that allows scala2do it?
-          askForString(inLeadingText, inCriteria, inDefaultValue, inIsPassword)
+          askForString(leadingTextIn, criteriaIn, inDefaultValue, isPasswordIn)
         }
       }
 
-      if (line.length() == 0 && inDefaultValue.isDefined) {
-        // idea: we are currently taking the default value even if there are criteria and it fails: That could be reconsidered.
-        // If this is changed, places calling it that rely on its  behavior should be re-evaluated (ie, what is the behavior & how should callers use that?
-        // Especially for Controller.askForAttributeValidAndObservedDates, which currently, unfortunately, relies on this mis-behavior, and change the method
-        // comment describing its contract TO CORRECTLY DESCRIBE THE MEANING & OPERATION!
-        // Maybe the callers should control it via whether there is a default value, & change the cmt of this method, or, they should act based on whether the
-        // returned info is blank.  Does this mean also that we should add tests for the text UI, now?
+      if (line.isEmpty && inDefaultValue.isDefined && useDefaultIfBlankedIn) {
         checkCriteria(inDefaultValue.get)
-      }
-      else {
+      } else if (line.isEmpty) {
+        None
+      } else {
         checkCriteria(line)
       }
     }

@@ -34,7 +34,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
           val answer = response.get
           // None means user hit ESC (or 0, though not shown) to get out
           answer match {
-            case 1 => controller.showInEntityMenuThenMainMenu(controller.askForInfoAndCreateEntity())
+            case 1 => controller.showInEntityMenuThenMainMenu(controller.askForClassInfoAndNameAndCreateEntity())
             case 2 =>
               val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
               if (selection.isDefined) {
@@ -73,7 +73,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
           val answer = response.get
           answer match {
             case 1 =>
-              controller.showInEntityMenuThenMainMenu(controller.askForInfoAndCreateEntity())
+              controller.showInEntityMenuThenMainMenu(controller.askForClassInfoAndNameAndCreateEntity())
             case 2 =>
               controller.showInEntityMenuThenMainMenu(controller.askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE))
             case 3 =>

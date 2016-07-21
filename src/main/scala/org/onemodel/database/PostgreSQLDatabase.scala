@@ -31,7 +31,7 @@ import scala.util.Sorting
   */
 object PostgreSQLDatabase {
   // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
-  val CURRENT_DB_VERSION = 1
+  val CURRENT_DB_VERSION = 2
   val dbNamePrefix = "om_"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
@@ -343,7 +343,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
       dbAction("create table Class (" +
                "id bigint DEFAULT nextval('ClassKeySequence') PRIMARY KEY, " +
                "name varchar(" + PostgreSQLDatabase.classNameLength + ") NOT NULL, " +
+               // In other words, template, aka class-defining entity:
                "defining_entity_id bigint UNIQUE NOT NULL, " +
+               // this means whether the user wants the program to create all the attributes by default, using the defining_entity's attrs as a template:
+               "create_default_attributes boolean, " +
                "CONSTRAINT valid_related_to_entity_id FOREIGN KEY (defining_entity_id) REFERENCES entity (id) " +
                ") ")
       dbAction("alter table entity add CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES class (id)")
@@ -700,6 +703,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     if (dbVersion == 0) {
       upgradeDbFrom0to1()
     }
+    if (dbVersion == 1) {
+      upgradeDbFrom1to2()
+    }
     /* NOTE FOR FUTURE METHODS LIKE upgradeDbFrom0to1: methods like this should be designed carefully and very well-tested:
        0) make & test periodic backups of your live data to be safe!
        1) Consider designing it to be idempotent: so multiple runs on a production db (if by some mistake) will no harm (or at least will err out safely).
@@ -763,7 +769,20 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
       dbAction("CREATE TRIGGER rtg_attribute_sorting_cleanup BEFORE DELETE ON RelationToGroup " +
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
+
       dbAction("UPDATE om_db_version SET (version) = (1)")
+    }
+    catch {
+      case e: Exception => throw rollbackWithCatch(e)
+    }
+    commitTrans()
+  }
+  private def upgradeDbFrom1to2() = {
+    beginTrans()
+    try {
+      dbAction("ALTER TABLE class ADD COLUMN create_default_attributes boolean")
+
+      dbAction("UPDATE om_db_version SET (version) = (2)")
     }
     catch {
       case e: Exception => throw rollbackWithCatch(e)
@@ -2841,15 +2860,16 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
 
   def getClasses(inStartingObjectIndex: Long, inMaxVals: Option[Long] = None): java.util.ArrayList[EntityClass] = {
-    val sql: String = "SELECT id, name, defining_entity_id from class order by id limit " +
+    val sql: String = "SELECT id, name, defining_entity_id, create_default_attributes from class order by id limit " +
                       checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
-    val earlyResults = dbQuery(sql, "Long,String,Long")
+    val earlyResults = dbQuery(sql, "Long,String,Long,Boolean")
     val finalResults = new java.util.ArrayList[EntityClass]
     // idea: should the remainder of this method be moved to EntityClass, so the persistence layer doesn't know anything about the Model? (helps avoid circular
     // dependencies; is a cleaner design; see similar comment in getEntitiesGeneric.)
     for (result <- earlyResults) {
-      // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-      finalResults.add(new EntityClass(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[Long]))
+      // Only one of these values should be of "None" type, so not checking the others for that. If they are it's a bug:
+      finalResults.add(new EntityClass(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[Long],
+                                       if (result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Boolean])))
     }
     require(finalResults.size == earlyResults.size)
     finalResults
@@ -2963,24 +2983,42 @@ class PostgreSQLDatabase(username: String, var password: String) {
     sql.toString()
   }
 
-  def getEntityData(inID: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("SELECT name, class_id, insertion_date, public from Entity where id=" + inID, "String,Long,Long,Boolean")
+  def getEntityData(idIn: Long): Array[Option[Any]] = {
+    dbQueryWrapperForOneRow("SELECT name, class_id, insertion_date, public from Entity where id=" + idIn, "String,Long,Long,Boolean")
   }
 
-  def getEntityName(inID: Long): Option[String] = {
-    val name: Option[Any] = getEntityData(inID)(0)
+  def getEntityName(idIn: Long): Option[String] = {
+    val name: Option[Any] = getEntityData(idIn)(0)
     if (name.isEmpty) None
     else name.asInstanceOf[Option[String]]
   }
 
-  def getClassData(inID: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("SELECT name, defining_entity_id from class where id=" + inID, "String,Long")
+  def getClassData(idIn: Long): Array[Option[Any]] = {
+    dbQueryWrapperForOneRow("SELECT name, defining_entity_id, create_default_attributes from class where id=" + idIn, "String,Long,Boolean")
   }
 
-  def getClassName(inID: Long): Option[String] = {
-    val name: Option[Any] = getClassData(inID)(0)
+  def getClassName(idIn: Long): Option[String] = {
+    val name: Option[Any] = getClassData(idIn)(0)
     if (name.isEmpty) None
     else name.asInstanceOf[Option[String]]
+  }
+
+  /**
+   * @return the create_default_attributes boolean value from a given class.
+   */
+  def getClassCreateDefaultAttributes(classIdIn: Long): Option[Boolean] = {
+    val value: Option[Any]= getClassData(classIdIn)(2)
+    if (value.isEmpty) None
+    else value.asInstanceOf[Option[Boolean]]
+  }
+
+  /**
+   * @return the create_default_attributes boolean value from a given class.
+   */
+  def updateClassCreateDefaultAttributes(classIdIn: Long, value: Option[Boolean]) {
+    dbAction("update class set (create_default_attributes) = (" +
+             (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
+             ") where id=" + classIdIn)
   }
 
   def getTextEditorCommand: String = {

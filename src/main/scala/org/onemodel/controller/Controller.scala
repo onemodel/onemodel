@@ -13,6 +13,7 @@ package org.onemodel.controller
 import java.io._
 import java.nio.file.{Files, Path}
 import java.util
+import java.util.Date
 
 import org.apache.commons.io.FilenameUtils
 import org.onemodel._
@@ -21,6 +22,7 @@ import org.onemodel.model._
 import org.postgresql.util.PSQLException
 
 import scala.annotation.tailrec
+import scala.collection.mutable.ArrayBuffer
 
 object Controller {
   // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
@@ -32,7 +34,11 @@ object Controller {
   // the 1st space.  So, this approximates iso-9601.
   // these are for input.
   val DATEFORMAT = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS zzz")
+  val DATEFORMAT2 = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss zzz")
+  val DATEFORMAT3 = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm zzz")
   val DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz")
+  val DATEFORMAT2_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss zzz")
+  val DATEFORMAT3_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm zzz")
 
   //these are here to avoid colliding with use of the same names within other code inside the class.
   // idea: see what scala does with enums and/or constants; update this style?
@@ -283,13 +289,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         val dbWithSystemNameBlankPwd = login(systemUserName, defaultPassword, showError = false)
         if (dbWithSystemNameBlankPwd.isDefined) dbWithSystemNameBlankPwd
         else {
-          val usrOpt = ui.askForString(Some(Array("Username")), None, Some(systemUserName))
+          val usrOpt = ui.askForString(Some(Array("Username")), None, Some(systemUserName), useDefaultIfBlankedIn = true)
           if (usrOpt.isEmpty) System.exit(1)
           val dbConnectedWithBlankPwd = login(usrOpt.get, defaultPassword, showError = false)
           if (dbConnectedWithBlankPwd.isDefined) dbConnectedWithBlankPwd
           else {
             try {
-              pwdOpt = ui.askForString(Some(Array("Password")), None, None, inIsPassword = true)
+              pwdOpt = ui.askForString(Some(Array("Password")), None, None, isPasswordIn = true)
               if (pwdOpt.isEmpty) System.exit(1)
               val dbWithUserEnteredPwd = login(usrOpt.get, pwdOpt.get, showError = true)
               dbWithUserEnteredPwd
@@ -319,7 +325,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         val usrOpt = ui.askForString(Some(Array("Username")))
         if (usrOpt.isEmpty) System.exit(1)
 
-        val pwdOpt = ui.askForString(Some(Array("Password")), None, None, inIsPassword = true)
+        val pwdOpt = ui.askForString(Some(Array("Password")), None, None, isPasswordIn = true)
         if (pwdOpt.isEmpty) System.exit(1)
 
         val dbWithUserEnteredPwd: Option[PostgreSQLDatabase] = login(usrOpt.get, pwdOpt.get, showError = false)
@@ -370,7 +376,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     else Some(idWrapper.get.getId)
   }
 
-  def askForInfoAndCreateEntity(inClassId: Option[Long] = None): Option[Entity] = {
+  /** In any given usage, consider whether askForNameAndWriteEntity should be used instead: it is for quick (simpler) creation situations or
+    * to just edit the name when the entity already exists, or if the Entity is a RelationType,
+    * askForClassInfoAndNameAndCreateEntity (this one) prompts for a class and checks whether it should copy default attributes from the class-defining-entity.
+    * There is also editEntityName which calls askForNameAndWriteEntity: it checks if the Entity being edited is a RelationType, and if not also checks
+    * for whether a group name should be changed at the same time.
+    */
+  def askForClassInfoAndNameAndCreateEntity(inClassId: Option[Long] = None): Option[Entity] = {
     var newClass = false
     val classId: Option[Long] =
       if (inClassId.isDefined) inClassId
@@ -387,6 +399,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       // on the header for what is being displayed/edited next!: Needs refactoring anyway: this shouldn't be at
       // a low level.
       ui.displayText("Created " + Controller.ENTITY_TYPE + ": " + entity.getName, waitForKeystroke = false)
+
+      defaultAttributeCopying(entity)
+
       Some(entity)
     } else {
       None
@@ -403,9 +418,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
-  /** Returns None if user wants out.
-    * 2nd parameter should be None only if the call is intended to create; otherwise it is an edit.
+  /**
+   * SEE DESCRIPTIVE COMMENT ON askForClassAndNameAndCreateEntity, WHICH APPLIES TO BOTH METHODS.
+    *
     * The "previous..." parameters are for the already-existing data (ie, when editing not creating).
+    *
+    * @param existingIdIn should be None only if the call is intended to create; otherwise it is an edit.
+    * @return None if user wants out.
     */
   def askForNameAndWriteEntity(inType: String, existingIdIn: Option[Long] = None,
                                          previousNameIn: Option[String] = None, previousDirectionalityIn: Option[String] = None,
@@ -769,7 +788,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     newContent
   }
 
-  def editAttributeOnSingleLine(attributeIn: Attribute) {
+  /**
+   * @return Whether the user wants just to get out.
+   */
+  def editAttributeOnSingleLine(attributeIn: Attribute): Boolean = {
     require(canEditAttributeOnSingleLine(attributeIn))
 
     attributeIn match {
@@ -780,25 +802,31 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                    num.get,
                                    quantityAttribute.getValidOnDate, quantityAttribute.getObservationDate)
         }
+        num.isEmpty
       case textAttribute: TextAttribute =>
         val textAttributeDH: TextAttributeDataHolder = new TextAttributeDataHolder(textAttribute.getAttrTypeId, textAttribute.getValidOnDate,
                                                                                    textAttribute.getObservationDate, textAttribute.getText)
         val outDH: Option[TextAttributeDataHolder] = askForTextAttributeText(textAttributeDH, inEditing = true)
         if (outDH.isDefined) textAttribute.update(outDH.get.attrTypeId, outDH.get.text, outDH.get.validOnDate, outDH.get.observationDate)
+        outDH.isEmpty
       case dateAttribute: DateAttribute =>
         val dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.getAttrTypeId, dateAttribute.getDate)
         val outDH: Option[DateAttributeDataHolder] = askForDateAttributeValue(dateAttributeDH, inEditing = true)
         if (outDH.isDefined) dateAttribute.update(outDH.get.attrTypeId, outDH.get.date)
+        outDH.isEmpty
       case booleanAttribute: BooleanAttribute =>
         val booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.getAttrTypeId, booleanAttribute.getValidOnDate,
                                                                                             booleanAttribute.getObservationDate,
                                                                                             booleanAttribute.getBoolean)
         val outDH: Option[BooleanAttributeDataHolder] = askForBooleanAttributeValue(booleanAttributeDH, inEditing = true)
         if (outDH.isDefined) booleanAttribute.update(outDH.get.attrTypeId, outDH.get.boolean, outDH.get.validOnDate, outDH.get.observationDate)
+        outDH.isEmpty
       case rte: RelationToEntity =>
-        editEntityName(new Entity(db, rte.getRelatedId2))
+        val editedEntity: Option[Entity] = editEntityName(new Entity(db, rte.getRelatedId2))
+        editedEntity.isEmpty
       case rtg: RelationToGroup =>
-        editGroupName(new Group(db, rtg.getGroupId))
+        val editedGroupName: Option[String] = editGroupName(new Group(db, rtg.getGroupId))
+        editedGroupName.isEmpty
       case _ => throw new scala.Exception("Unexpected type: " + attributeIn.getClass.getName)
     }
   }
@@ -885,6 +913,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     choicesIn
   }
 
+  /**
+   * SEE DESCRIPTIVE COMMENT ON askForClassAndNameAndCreateEntity, WHICH APPLIES TO BOTH METHODS.
+   *
+   * @return None if user wants out.
+   */
   def editEntityName(entityIn: Entity): Option[Entity] = {
     val editedEntity: Option[Entity] = entityIn match {
       case relTypeIn: RelationType =>
@@ -1293,7 +1326,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         // then user wouldn't be able to proceed to other field edits.
         Some(new IdWrapper(inPreviousSelectionId.get))
       } else if (answer == createAttrTypeChoice && answer <= choices.length) {
-        val e: Option[Entity] = askForInfoAndCreateEntity(inClassId)
+        val e: Option[Entity] = askForClassInfoAndNameAndCreateEntity(inClassId)
         if (e.isEmpty) None
         else Some(new IdWrapper(e.get.getId))
       } else if (answer == searchForEntityByNameChoice && answer <= choices.length) {
@@ -1481,7 +1514,24 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     */
   def askForDateAttributeValue(inDH: DateAttributeDataHolder, inEditing: Boolean): Option[DateAttributeDataHolder] = {
     val outDH = inDH.asInstanceOf[DateAttributeDataHolder]
-    val defaultValue: Option[String] = if (!inEditing) None else Some(Controller.DATEFORMAT.format(new java.util.Date(inDH.date)))
+
+    // make the DateFormat omit trailing zeros, for editing convenience (to not have to backspace thru the irrelevant parts if not specified):
+    var dateFormatString = "yyyy-MM-dd"
+    val timeZone: String = new java.text.SimpleDateFormat("zzz").format(new java.util.Date(inDH.date))
+    val milliseconds: String = new java.text.SimpleDateFormat("SSS").format(new java.util.Date(inDH.date))
+    val seconds: String = new java.text.SimpleDateFormat("ss").format(new java.util.Date(inDH.date))
+    val minutes: String = new java.text.SimpleDateFormat("mm").format(new java.util.Date(inDH.date))
+    val hours: String = new java.text.SimpleDateFormat("HH").format(new java.util.Date(inDH.date))
+    if (milliseconds != "000") {
+      dateFormatString = dateFormatString + " HH:mm:ss:SSS zzz"
+    } else if (seconds != "00") {
+      dateFormatString = dateFormatString + " HH:mm:ss zzz"
+    } else if (minutes != "00" || hours != "00") {
+      dateFormatString = dateFormatString + " HH:mm zzz"
+    }
+    val dateFormat = new java.text.SimpleDateFormat(dateFormatString)
+    val defaultValue: Option[String] = if (!inEditing) None else Some(dateFormat.format(new java.util.Date(inDH.date)))
+
     def dateCriteria(date: String): Boolean = {
       !finishAndParseTheDate(date)._2
     }
@@ -1716,12 +1766,24 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     // then parse it:
     try {
       val d: java.util.Date =
+      try {
         if (era.isEmpty) Controller.DATEFORMAT.parse(dateStrWithZeros)
         else Controller.DATEFORMAT_WITH_ERA.parse(era + dateStrWithZeros)
+      } catch {
+        case e: java.text.ParseException =>
+          try {
+            if (era.isEmpty) Controller.DATEFORMAT2.parse(dateStrWithZeros)
+            else Controller.DATEFORMAT2_WITH_ERA.parse(era + dateStrWithZeros)
+          } catch {
+            case e: java.text.ParseException =>
+              if (era.isEmpty) Controller.DATEFORMAT3.parse(dateStrWithZeros)
+              else Controller.DATEFORMAT3_WITH_ERA.parse(era + dateStrWithZeros)
+          }
+      }
       (Some(d.getTime), false)
     } catch {
       case e: java.text.ParseException =>
-        ui.displayText("Invalid date format. Try something like \"2003\", or \"2003-01-31\", or if you need a timezone, " +
+        ui.displayText("Invalid date format. Try something like \"2003\", or \"2003-01-31\", or \"2003-01-31 22:15\" for 10:15pm, or if you need a timezone, " +
                        "all of \"yyyy-MM-dd HH:mm:ss:SSS zzz\", like for just before midnight: \"2013-01-31 //23:59:59:999 MST\".")
         (None, true)
     }
@@ -1782,8 +1844,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                     else None
                                   } else if (dateTypeIn == OBSERVED) {
                                     if (inEditing) Some(Controller.DATEFORMAT_WITH_ERA.format(new java.util.Date(oldObservedDateIn))) else None
-                                  } else throw new Exception("unexpected type: " + dateTypeIn)
-                               )
+                                  } else throw new Exception("unexpected type: " + dateTypeIn),
+                                useDefaultIfBlankedIn = true)
       if (ans.isEmpty) {
         if (dateTypeIn == VALID) (None, true)
         else if (dateTypeIn == OBSERVED) {
@@ -1906,52 +1968,56 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   }
 
   def addEntityToGroup(groupIn: Group): Option[Long] = {
-    if (!groupIn.getMixedClassesAllowed) {
-      if (groupIn.getSize == 0) {
-        // adding 1st entity to this group, so:
-        val leadingText = List("ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):")
+    val newEntityId: Option[Long] = {
+      if (!groupIn.getMixedClassesAllowed) {
+        if (groupIn.getSize == 0) {
+          // adding 1st entity to this group, so:
+          val leadingText = List("ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):")
+          val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Controller.ENTITY_TYPE,
+                                                                  containingGroupIn = Some(groupIn.getId))
+          if (idWrapper.isDefined) {
+            db.addEntityToGroup(groupIn.getId, idWrapper.get.getId)
+            Some(idWrapper.get.getId)
+          } else None
+        } else {
+          // it's not the 1st entry in the group, so add an entity using the same class as those previously added (or None as case may be).
+          val entityClassInUse = groupIn.getClassId
+          val idWrapper: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE, 0, entityClassInUse, limitByClassIn = true,
+                                                                  containingGroupIn = Some(groupIn.getId))
+          if (idWrapper.isEmpty) None
+          else {
+            val entityId = idWrapper.get.getId
+            try {
+              db.addEntityToGroup(groupIn.getId, entityId)
+              Some(entityId)
+            } catch {
+              case e: Exception =>
+                if (e.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION)) {
+                  val oldClass: String = if (entityClassInUse.isEmpty) "(none)" else new EntityClass(db, entityClassInUse.get).getDisplayString
+                  val newClassId = new Entity(db, entityId).getClassId
+                  val newClass: String = if (newClassId.isEmpty || entityClassInUse.isEmpty) "(none)"
+                  else new EntityClass(db,
+                                       entityClassInUse.get).getDisplayString
+                  ui.displayText("Adding an entity with class '" + newClass + "' to a group that doesn't allow mixed classes, " +
+                                 "and which already has an entity with class '" + oldClass + "' generates an error. The program should have prevented this by" +
+                                 " only showing entities with a matching class, but in any case the mismatched entity was not added to the group.")
+                  None
+                } else throw e
+            }
+          }
+        }
+      } else {
+        val leadingText = List("ADD ENTITY TO A (mixed-class) GROUP")
         val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Controller.ENTITY_TYPE,
                                                                 containingGroupIn = Some(groupIn.getId))
         if (idWrapper.isDefined) {
           db.addEntityToGroup(groupIn.getId, idWrapper.get.getId)
           Some(idWrapper.get.getId)
         } else None
-      } else {
-        // it's not the 1st entry in the group, so add an entity using the same class as those previously added (or None as case may be).
-        val entityClassInUse = groupIn.getClassId
-        val idWrapper: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE, 0, entityClassInUse, limitByClassIn = true,
-                                                                containingGroupIn = Some(groupIn.getId))
-        if (idWrapper.isEmpty) None
-        else {
-          val entityId = idWrapper.get.getId
-          try {
-            db.addEntityToGroup(groupIn.getId, entityId)
-            Some(entityId)
-          } catch {
-            case e: Exception =>
-              if (e.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION)) {
-                val oldClass: String = if (entityClassInUse.isEmpty) "(none)" else new EntityClass(db, entityClassInUse.get).getDisplayString
-                val newClassId = new Entity(db, entityId).getClassId
-                val newClass: String = if (newClassId.isEmpty || entityClassInUse.isEmpty) "(none)"
-                else new EntityClass(db,
-                                     entityClassInUse.get).getDisplayString
-                ui.displayText("Adding an entity with class '" + newClass + "' to a group that doesn't allow mixed classes, " +
-                               "and which already has an entity with class '" + oldClass + "' generates an error. The program should have prevented this by" +
-                               " only showing entities with a matching class, but in any case the mismatched entity was not added to the group.")
-                None
-              } else throw e
-          }
-        }
       }
-    } else {
-      val leadingText = List("ADD ENTITY TO A (mixed-class) GROUP")
-      val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Controller.ENTITY_TYPE,
-                                                              containingGroupIn = Some(groupIn.getId))
-      if (idWrapper.isDefined) {
-        db.addEntityToGroup(groupIn.getId, idWrapper.get.getId)
-        Some(idWrapper.get.getId)
-      } else None
     }
+
+    newEntityId
   }
 
   def handleException(e: Throwable) {//eliminate this once other users are switched 2 next 1 [what did i mean by that? anything still2do, or elim cmt?]
@@ -2088,7 +2154,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       if (attrTypeIdIn.isDefined) {
         (attrTypeIdIn.get, false)
       } else {
-        (0, true)
+        (0L, true)
       }
     }
     if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("quantityattribute")) {
@@ -2168,7 +2234,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         new GroupMenu(ui, db, this).groupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, Some(entityIn))
         result
       }
-    } else if (attrFormIn == 101  /*see comments at attrFormIn above*/) {
+    } else if (attrFormIn == 101  /*re "101": see comments at attrFormIn above*/) {
       val newEntityName: Option[String] = ui.askForString(Some(Array {"Enter a name (or description) for this web page or other URI"}))
       if (newEntityName.isEmpty || newEntityName.get.isEmpty) return None
 
@@ -2219,5 +2285,113 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       None
     }
   }
-  
+
+  def defaultAttributeCopying(entityIn: Entity, attributeTuplesIn: Option[Array[(Long, Attribute)]] = None): Unit = {
+    if (shouldTryAddingDefaultAttributes(entityIn)) {
+      val attributeTuples: Array[(Long, Attribute)] = if (attributeTuplesIn.isDefined) attributeTuplesIn.get else db.getSortedAttributes(entityIn.getId)._1
+      val templateAttributesToCopy: ArrayBuffer[Attribute] = getMissingAttributes(entityIn.getClassDefiningEntityId, attributeTuples)
+      copyAndEditAttributes(entityIn, templateAttributesToCopy)
+    }
+  }
+
+  def copyAndEditAttributes(entityIn: Entity, templateAttributesToCopyIn: ArrayBuffer[Attribute]): Unit = {
+    // userWantsOut is used like a break statement below: could be replaced with a functional idiom (see link to stackoverflow somewhere in the code).
+    var userWantsOut = false
+    for (templateAttribute: Attribute <- templateAttributesToCopyIn) {
+      if (!userWantsOut) {
+        ui.displayText("Edit the copied " + PostgreSQLDatabase.getAttributeFormName(templateAttribute.getFormId) + " \"" +
+                       templateAttribute.getDisplayString(0, None, None, simplify = true) + " \", from the archetype entity (ESC to abort):",
+                       waitForKeystroke = false)
+        val newAttribute: Option[Attribute] = {
+          templateAttribute match {
+            case a: QuantityAttribute => Some(entityIn.addQuantityAttribute(a.getAttrTypeId, a.getUnitId, a.getNumber))
+            case a: DateAttribute => Some(entityIn.addDateAttribute(a.getAttrTypeId, a.getDate))
+            case a: BooleanAttribute => Some(entityIn.addBooleanAttribute(a.getAttrTypeId, a.getBoolean))
+            case a: FileAttribute =>
+              ui.displayText("You can add a FileAttribute manually afterwards for this attribute.  Maybe it can be automated " +
+                                                    "more, when use cases for this part are more clear.")
+              None
+            case a: TextAttribute => Some(entityIn.addTextAttribute(a.getAttrTypeId, a.getText))
+            case a: RelationToEntity =>
+              val dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(new RelationToEntityDataHolder(0, None, 0, 0), inEditing = false)
+              if (dh.isDefined) {
+                Some(entityIn.addRelationToEntity(a.getAttrTypeId, dh.get.entityId2))
+              } else {
+                None
+              }
+            case a: RelationToGroup =>
+              val dh: Option[RelationToGroupDataHolder] = askForRelToGroupInfo(new RelationToGroupDataHolder(0, 0, 0, None, 0))
+              if (dh.isDefined) {
+                Some(entityIn.addRelationToGroup(a.getAttrTypeId, dh.get.groupId))
+              } else {
+                None
+              }
+            case _ => throw new OmException("Unexpected type: " + templateAttribute.getClass.getCanonicalName)
+          }
+        }
+        if (newAttribute.isDefined) {
+          userWantsOut = editAttributeOnSingleLine(newAttribute.get)
+          if (userWantsOut) {
+            // That includes a "never mind" intention on the last one added (just above), so:
+            newAttribute.get.delete()
+          }
+        }
+      }
+    }
+  }
+
+  def getMissingAttributes(classDefiningEntityIdIn: Option[Long], attributeTuplesIn: Array[(Long, Attribute)]): ArrayBuffer[Attribute] = {
+    val templateAttributesToSuggestCopying: ArrayBuffer[Attribute] = {
+      // This determines which attributes from the template entity (or "pattern" or class-defining entity) are not found on this entity, so they can
+      // be added if the user wishes.
+      val attributesToSuggestCopying_workingCopy: ArrayBuffer[Attribute] = new ArrayBuffer()
+      if (classDefiningEntityIdIn.isDefined) {
+        // ("cde" in name means "classDefiningEntity")
+        val (cde_attributeTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(classDefiningEntityIdIn.get)
+        for (cde_attributeTuple <- cde_attributeTuples) {
+          var attributeTypeFoundOnEntity = false
+          val cde_attribute = cde_attributeTuple._2
+          for (attributeTuple <- attributeTuplesIn) {
+            if (!attributeTypeFoundOnEntity) {
+              val cde_typeId: Long = cde_attribute.getAttrTypeId
+              val typeId = attributeTuple._2.getAttrTypeId
+              if (cde_typeId == typeId) {
+                attributeTypeFoundOnEntity = true
+              }
+            }
+          }
+          if (!attributeTypeFoundOnEntity) {
+            attributesToSuggestCopying_workingCopy.append(cde_attribute)
+          }
+        }
+      }
+      attributesToSuggestCopying_workingCopy
+    }
+    templateAttributesToSuggestCopying
+  }
+
+  def shouldTryAddingDefaultAttributes(entityIn: Entity): Boolean = {
+    if (entityIn.getClassId.isEmpty) {
+      false
+    } else {
+      val createAttributes: Option[Boolean] = db.getClassCreateDefaultAttributes(entityIn.getClassId.get)
+      if (createAttributes.isDefined) {
+        createAttributes.get
+      } else {
+        if (entityIn.getClassDefiningEntityId.isEmpty) {
+          false
+        } else {
+          val attrCount = new Entity(db, entityIn.getClassDefiningEntityId.get).getAttrCount
+          if (attrCount == 0) {
+            false
+          } else {
+            val addAttributesAnswer = ui.askYesNoQuestion("Add attributes to this entity as found on the class-defining entity (template)?",
+                                                          Some("y"), allowBlankAnswer = true)
+            addAttributesAnswer.isDefined && addAttributesAnswer.get
+          }
+        }
+      }
+    }
+  }
+
 }

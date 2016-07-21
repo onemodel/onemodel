@@ -82,35 +82,11 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
                           classDefiningEntityIdIn, attributeTuplesIn)
         } else if (answer == 3) {
-          val attributesToSuggestCopying: ArrayBuffer[Attribute] = {
-            // This determines which attributes from the template entity (or "pattern" or class-defining entity) are not found on this entity, so they can
-            // be added if the user wishes.
-            val attributesToSuggestCopying_workingCopy: ArrayBuffer[Attribute] = new ArrayBuffer()
-            if (classDefiningEntityIdIn.isDefined) {
-              // ("cde" in name means "classDefiningEntity")
-              val (cde_attributeTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(classDefiningEntityIdIn.get)
-              for (cde_attributeTuple <- cde_attributeTuples) {
-                var attributeTypeFoundOnEntity = false
-                val cde_attribute = cde_attributeTuple._2
-                for (attributeTuple <- attributeTuplesIn) {
-                  if (!attributeTypeFoundOnEntity) {
-                    val cde_typeId: Long = cde_attribute.getAttrTypeId
-                    val typeId = attributeTuple._2.getAttrTypeId
-                    if (cde_typeId == typeId) {
-                      attributeTypeFoundOnEntity = true
-                    }
-                  }
-                }
-                if (!attributeTypeFoundOnEntity) {
-                  attributesToSuggestCopying_workingCopy.append(cde_attribute)
-                }
-              }
-            }
-            attributesToSuggestCopying_workingCopy
-          }
+          val templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(classDefiningEntityIdIn, attributeTuplesIn)
           val editAnswer = ui.askWhich(Some(Array[String]{controller.entityMenuLeadingText(entityIn)}),
-                                       Array("Edit entity name", "Change its class",
-                                             if (attributesToSuggestCopying.nonEmpty) "Add/edit class-defined fields" else "(stub)"))
+                                       Array("Edit entity name",
+                                             "Change its class",
+                                             if (templateAttributesToCopy.nonEmpty) "Add/edit missing class-defined fields" else "(stub)"))
           if (editAnswer.isDefined) {
             if (editAnswer.get == 1) {
               val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
@@ -120,25 +96,15 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               val classId: Option[Long] = controller.askForClass()
               if (classId.isDefined) {
                 db.updateEntitysClass(entityIn.getId, classId)
+
+                // Idea here: when changing the class of an entity, we *could* controller.defaultAttributeCopying (or prompt as elsewhere) to
+                // set up the attributes, but the need is unclear, and user can now do that manually from the menus if needed.  Code in future
+                // should also be able to use default values from the class-defining entity, as another fallback.
               }
               otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
                               containingGroupIn, classDefiningEntityIdIn, attributeTuplesIn)
-            } else if (editAnswer.get == 3 && attributesToSuggestCopying.nonEmpty) {
-              var userWantsToContinue = true
-              for (attribute:Attribute <- attributesToSuggestCopying) {
-                if (userWantsToContinue) {
-                  ui.displayText("Prompting for " + PostgreSQLDatabase.getAttributeFormName(attribute.getFormId) + " \"" +
-                                 attribute.getDisplayString(0, None, None, simplify = true) + " \", as suggested by the archetype entity:",
-                                 waitForKeystroke = true)
-                  val attr: Option[Attribute] = controller.addAttribute(entityIn, attributeRowsStartingIndexIn,
-                                                                        PostgreSQLDatabase.getAttributeFormId(attribute.getClass.getSimpleName),
-                                                                        Some(attribute.getAttrTypeId))
-                  if (attr.isEmpty) {
-                    // Like a break statement: could be replaced with a functional idiom (see link to stackoverflow somewhere in the code).
-                    userWantsToContinue = false
-                  }
-                }
-              }
+            } else if (editAnswer.get == 3 && templateAttributesToCopy.nonEmpty) {
+              controller.copyAndEditAttributes(entityIn, templateAttributesToCopy)
             }
           }
         } else if (answer == 4) {

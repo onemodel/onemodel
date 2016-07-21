@@ -17,7 +17,6 @@ package org.onemodel
 
 import org.scalatest.{Status, FlatSpec}
 import org.scalatest.mock.MockitoSugar
-import scala.Predef._
 import org.mockito.Mockito._
 import org.scalatest.Args
 import org.onemodel.model.EntityClass
@@ -43,7 +42,7 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     // instantiation does DB setup (creates tables, default data, etc):
     mDB = new PostgreSQLDatabase("testrunner", "testrunner")
 
-    val (classId, entityId): (Long, Long) = mDB.createClassAndItsDefiningEntity("name of test class and its defining entity")
+    val (classId, _): (Long, Long) = mDB.createClassAndItsDefiningEntity("name of test class and its defining entity")
     mEntityClass = new EntityClass(mDB, classId)
   }
 
@@ -60,7 +59,7 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     when(mockDB.classKeyExists(id)).thenReturn(true)
     when(mockDB.getClassData(id)).thenThrow(new RuntimeException("some exception"))
 
-    var entityClass = new EntityClass(mockDB, id)
+    val entityClass = new EntityClass(mockDB, id)
     val ec = entityClass.getDisplayString
     assert(ec.contains("Unable to get class description due to"))
     assert(ec.toLowerCase.contains("exception"))
@@ -73,9 +72,9 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     val mockDB = mock[PostgreSQLDatabase]
     when(mockDB.classKeyExists(id)).thenReturn(true)
     when(mockDB.getClassName(id)).thenReturn(Some("class1Name"))
-    when(mockDB.getClassData(id)).thenReturn(Array[Option[Any]](Some("class1Name"), Some(definingEntityId)))
+    when(mockDB.getClassData(id)).thenReturn(Array[Option[Any]](Some("class1Name"), Some(definingEntityId), Some(true)))
 
-    var entityClass = new EntityClass(mockDB, id)
+    val entityClass = new EntityClass(mockDB, id)
     val ds = entityClass.getDisplayString
     assert(ds == "class1Name")
   }

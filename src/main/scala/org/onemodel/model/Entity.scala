@@ -178,7 +178,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   }
 
   /** Creates a quantity attribute on this Entity (i.e., "6 inches length"), with default values of "now" for the dates. See "addQuantityAttribute" comment
-    * in db implementation file
+   in db implementation file,
    for explanation of the parameters. It might also be nice to add the recorder's ID (person or app), but we'd have to do some kind
    of authentication/login 1st? And a GUID for users (as Entities?)?
    See PostgreSQLDatabase.createQuantityAttribute(...) for details.
@@ -244,6 +244,10 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     }
   }
 
+  def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long): RelationToEntity = {
+    addRelationToEntity(inAttrTypeId, inEntityId2, None, System.currentTimeMillis)
+  }
+
   def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long): RelationToEntity = {
     val rteId = mDB.createRelationToEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate).getId
     new RelationToEntity(mDB, rteId, inAttrTypeId, getId, inEntityId2)
@@ -305,6 +309,10 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   /**
     * @return the new group's id.
     */
+  def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long): RelationToGroup = {
+    addRelationToGroup(relTypeIdIn, groupIdIn, None, System.currentTimeMillis)
+  }
+
   def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): RelationToGroup = {
     val newRtgId = mDB.createRelationToGroup(getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn)
     new RelationToGroup(mDB, newRtgId, getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn)
