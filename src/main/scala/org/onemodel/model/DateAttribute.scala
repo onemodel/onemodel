@@ -61,6 +61,8 @@ class DateAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateDateAttribute(mId, getParentId, inDate, inAttrTypeId)
+    mDate = inDate
+    mAttrTypeId = inAttrTypeId
   }
 
   /** Removes this object from the system. */

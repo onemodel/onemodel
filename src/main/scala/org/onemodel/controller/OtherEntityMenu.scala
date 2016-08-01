@@ -314,9 +314,9 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                                 })
     // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
     if (relationIn.isDefined && relationSourceEntityIn.isDefined && db.entityKeyExists(relationSourceEntityIn.get.getId)) {
-      choices = choices :+ "Go edit the relation to entity that that led here: " +
-                           relationIn.get.getDisplayString(15, relationSourceEntityIn, Some(new RelationType(db, relationIn.get.getAttrTypeId)))
-      choices = choices :+ "Go to the type, for the relation that that led here: " + new Entity(db, relationIn.get.getAttrTypeId).getName
+      choices = choices :+ "Go edit the relation to entity that led here: " +
+                           relationIn.get.getDisplayString(15, Some(entityIn), Some(new RelationType(db, relationIn.get.getAttrTypeId)))
+      choices = choices :+ "Go to the type, for the relation that led here: " + new Entity(db, relationIn.get.getAttrTypeId).getName
       goToClassDefiningEntity_choiceNumber += 2
       goToClass_choiceNumber += 2
     }
@@ -372,7 +372,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           Some(inDH)
         }
         def updateRelationToEntity(dhInOut: RelationToEntityDataHolder) {
-          relationIn.get.update(Some(dhInOut.attrTypeId), dhInOut.validOnDate, Some(dhInOut.observationDate))
+          relationIn.get.update(relationIn.get.getAttrTypeId, dhInOut.validOnDate, Some(dhInOut.observationDate), Some(dhInOut.attrTypeId))
         }
         val relationToEntityDH: RelationToEntityDataHolder = new RelationToEntityDataHolder(relationIn.get.getAttrTypeId, relationIn.get.getValidOnDate,
                                                                                             relationIn.get.getObservationDate, relationIn.get.getRelatedId2)

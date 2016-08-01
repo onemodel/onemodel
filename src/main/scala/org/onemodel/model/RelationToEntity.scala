@@ -56,25 +56,48 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
   def getRelatedId2: Long = mEntityId2
 
   /**
-   * return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If inLengthLimit is 0 you get the whole thing.
-   * The 2nd parameter, inRelatedEntity, is not the entity from whose perspective the result will be returned, e.g.,
-   * 'x contains y' or 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
+   * @param relatedEntityIn, is not the entity from whose perspective the result will be returned, e.g.,
+   * 'x contains y' OR 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
+   * If left None here, the code will make a guess but might output confusing (backwards) info.
+   *
+   * @param relationTypeIn can be left None, but will run faster if not.
+   *
+   * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If inLengthLimit is 0 you get the whole thing.
    */
-  def getDisplayString(lengthLimitIn: Int, inRelatedEntity: Option[Entity], inRT: Option[RelationType], simplify: Boolean = false): String = {
-    require(inRelatedEntity.isDefined && inRT.isDefined)
-    if (inRT.get.getId != this.getAttrTypeId) {
-      throw new Exception("inRT parameter should be the same as the relationType on this relation.")
+  def getDisplayString(lengthLimitIn: Int, relatedEntityIn: Option[Entity], relationTypeIn: Option[RelationType], simplify: Boolean = false): String = {
+    val relType: RelationType = {
+      if (relationTypeIn.isDefined) {
+        if (relationTypeIn.get.getId != this.getAttrTypeId) {
+          // It can be ignored, but in cases called generically (the same as other Attribute types) it should have the right value or that indicates a
+          // misunderstanding in the caller's code. Also, if passed in and this were changed to use it again, it can save processing time re-instantiating one.
+          throw new scala.Exception("inRT parameter should be the same as the relationType on this relation.")
+        }
+        relationTypeIn.get
+      } else {
+        new RelationType(mDB, this.getAttrTypeId)
+      }
     }
-    val rtName: String =
-      if (inRelatedEntity.get.getId == mEntityId2)  inRT.get.getName
-      else if (inRelatedEntity.get.getId == mEntityId1) inRT.get.getNameInReverseDirection
-      else throw new Exception("Unrelated parent entity parameter?: '" + inRelatedEntity.get.getId + "', '" + inRelatedEntity.get.getName + "'")
 
+    val rtName: String = {
+      if (relatedEntityIn.isDefined) {
+        if (relatedEntityIn.get.getId == mEntityId2) {
+          relType.getName
+        } else if (relatedEntityIn.get.getId == mEntityId1) {
+          relType.getNameInReverseDirection
+        }
+        else throw new scala.Exception("Unrelated parent entity parameter?: '" + relatedEntityIn.get.getId + "', '" + relatedEntityIn.get.getName + "'")
+      } else {
+        relType.getName
+      }
+    }
+
+    // (See method comment about the relatedEntityIn param.)
+    val relatedEntity = relatedEntityIn.getOrElse(new Entity(mDB, mEntityId2))
     val result: String = if (simplify) {
-      if (rtName == PostgreSQLDatabase.theHASrelationTypeName) inRelatedEntity.get.getName
-      else rtName + ": " + inRelatedEntity.get.getName
+      if (rtName == PostgreSQLDatabase.theHASrelationTypeName) relatedEntity.getName
+      else rtName + ": " + relatedEntity.getName
     } else {
-      rtName + ": " + Color.blue(inRelatedEntity.get.getName) + "; " + getDatesDescription
+      rtName + ": " + Color.blue(relatedEntity.getName) + "; " + getDatesDescription
     }
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
@@ -89,12 +112,17 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
                            relationData(2).get.asInstanceOf[Long])
   }
 
-  def update(attrTypeIdIn: Option[Long] = None, validOnDateIn:Option[Long], observationDateIn:Option[Long]) {
-    mDB.updateRelationToEntity(if (attrTypeIdIn.isEmpty) getAttrTypeId else attrTypeIdIn.get,
-                               mEntityId1, mEntityId2,
-                               //pass validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
-                               if (validOnDateIn.isEmpty) getValidOnDate else validOnDateIn,
-                               if (observationDateIn.isEmpty) getObservationDate else observationDateIn.get)
+  def update(oldAttrTypeIdIn: Long, validOnDateIn:Option[Long], observationDateIn:Option[Long], newAttrTypeIdIn: Option[Long] = None) {
+    val newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId)
+    //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
+    //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations
+    // & how to be most clear (could be the same in RelationToGroup & other Attribute subclasses).)
+    val vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate
+    val od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate
+    mDB.updateRelationToEntity(oldAttrTypeIdIn, mEntityId1, mEntityId2, newAttrTypeId, vod, od)
+    mValidOnDate = vod
+    mObservationDate = od
+    mAttrTypeId = newAttrTypeId
   }
 
   /** Removes this object from the system. */

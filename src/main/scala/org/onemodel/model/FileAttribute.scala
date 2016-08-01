@@ -155,9 +155,13 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
   def update(inAttrTypeId: Option[Long] = None, inDescription: Option[String] = None) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
+    val descr = if (inDescription.isEmpty) getDescription else inDescription.get
+    val attrTypeId = if (inAttrTypeId.isEmpty) getAttrTypeId else inAttrTypeId.get
     mDB.updateFileAttribute(getId, getParentId,
-                            if (inAttrTypeId.isEmpty) getAttrTypeId else inAttrTypeId.get,
-                            if (inDescription.isEmpty) getDescription else inDescription.get)
+                            attrTypeId,
+                            descr)
+    mDescription = descr
+    mAttrTypeId = attrTypeId
   }
 
   ///** Using Options for the parameters so caller can pass in only those desired (named), and other members will stay the same.

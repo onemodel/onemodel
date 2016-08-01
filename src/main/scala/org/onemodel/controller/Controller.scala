@@ -149,6 +149,15 @@ object Controller {
   database and run the tests there (ie, they could be destructive):
   */
 class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None, defaultPasswordIn: Option[String] = None) {
+  // ****** MAKE SURE THE NEXT 2 LINES MATCH THE FORMAT of Controller.DATEFORMAT, AND THE USER EXAMPLES IN THIS CLASS' OUTPUT! ******
+  // Making this a var so that it can be changed for testing consistency (to use GMT for most tests so hopefully they will pass for developers in
+  // another time zone.  idea:  It seems like there's a better way to solve that though, maybe with a subclass of Controller in the test,
+  // or of SimpleDateFormat.)
+  var timezone: String = new java.text.SimpleDateFormat("zzz").format(System.currentTimeMillis())
+  // (This isn't intended to match the date represented by a long value of "0", but is intended to be a usable value to fill in the rest of whatever a user
+  // doesn't.  Perhaps assuming that the user will always put in a year if they put in anything (as currently enforced by the code at this time of writing).
+  def blankDate = "1970-01-01 00:00:00:000 " + timezone
+
   val mRelTypeExamples = "i.e., ownership of or \"has\" another entity, family tie, &c"
 
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
@@ -164,24 +173,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   // date stuff
   val VALID = "valid"
   val OBSERVED = "observed"
-  val genericDatePrompt: String = "Please enter the date (Press Enter (blank) for \"now\", " +
-                                  "or like this, w/ at least the year \"2013-01-31 23:59:59:999 MDT\"; zeros are " +
+  val genericDatePrompt: String = "Please enter the date like this, w/ at least the year, and other parts as desired: \"2013-01-31 23:59:59:999 MDT\"; zeros are " +
                                   "allowed in all but the yyyy-mm-dd)." +
                                   //THIS LINE CAN BE PUT BACK AFTER the bug is fixed so ESC really works.  See similar cmt elsewhere; tracked in tasks:
                                   //"  Or ESC to exit.  " +
                                   "\"BC\" or \"AD\" prefix allowed (before the year, with no space)."
   val tooLongMessage = "value too long for type"
-
-  // ****** MAKE SURE THE NEXT 2 LINES MATCH THE FORMAT of the STRING ABOVE, AND THE USER EXAMPLES IN THIS CLASS' OUTPUT! ******
-  // (i.e. + cur't time zone, checked at each call.)
-  var timezone: String = new java.text.SimpleDateFormat("zzz").format(0)
-
-  // (This isn't intended to match the date represented by a long value of "0", but is intended to be a usable value to fill in the rest of whatever a user
-  // doesn't.  Perhaps assuming that the user will always put in a year if they put in anything (as currently enforced by the code at this time of writing).
-  // Also, making this a var so that it can be changed for testing consistency (to use GMT for most tests so hopefully they will pass for developers in
-  // another time zone.  idea:  It seems like there's a better way to solve that though, maybe with a subclass of Controller in the test,
-  // or of SimpleDateFormat.)
-  def blankDate = "1970-01-01 00:00:00:000 " + timezone
 
   def entityMenuLeadingText(entityIn: Entity) = {
     "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString
@@ -289,7 +286,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         val dbWithSystemNameBlankPwd = login(systemUserName, defaultPassword, showError = false)
         if (dbWithSystemNameBlankPwd.isDefined) dbWithSystemNameBlankPwd
         else {
-          val usrOpt = ui.askForString(Some(Array("Username")), None, Some(systemUserName), useDefaultIfBlankedIn = true)
+          val usrOpt = ui.askForString(Some(Array("Username")), None, Some(systemUserName))
           if (usrOpt.isEmpty) System.exit(1)
           val dbConnectedWithBlankPwd = login(usrOpt.get, defaultPassword, showError = false)
           if (dbConnectedWithBlankPwd.isDefined) dbConnectedWithBlankPwd
@@ -554,7 +551,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
     }
 
-    tryAskingAndSaving(stringTooLongErrorMessage(nameLength), askAndSave)
+    tryAskingAndSaving(stringTooLongErrorMessage(nameLength), askAndSave, previousNameIn)
   }
 
 
@@ -1339,12 +1336,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // where going to each letter w/ Alt key does the same: goes 2 that entity so one can see its context, etc.
           // change the "None" returned to be the selected entity, like the little section above does.
           // could keep this text output as an option?
-        val beginDate: Option[Long] = askForDate_generic(Some("BEGINNING date in the time range (here, blank means \"starting yesterday\"): " + genericDatePrompt),
-                                                         blankMeansNowIn = false, blankMeansYesterdayIn = true)
+        val yDate = new java.util.Date(System.currentTimeMillis() - (24 * 60 * 60 * 1000))
+        val yesterday: String = new java.text.SimpleDateFormat("yyyy-MM-dd").format(yDate)
+        val beginDate: Option[Long] = askForDate_generic(Some("BEGINNING date in the time range: " + genericDatePrompt), Some(yesterday))
         if (beginDate.isEmpty) None
         else {
-          val endDate: Option[Long] = askForDate_generic(Some("ENDING date in the time range: " + genericDatePrompt),
-                                                         blankMeansNowIn = true)
+          val endDate: Option[Long] = askForDate_generic(Some("ENDING date in the time range: " + genericDatePrompt), None)
           if (endDate.isEmpty) None
           else {
             var dayCurrentlyShowing: String = ""
@@ -1517,7 +1514,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
     // make the DateFormat omit trailing zeros, for editing convenience (to not have to backspace thru the irrelevant parts if not specified):
     var dateFormatString = "yyyy-MM-dd"
-    val timeZone: String = new java.text.SimpleDateFormat("zzz").format(new java.util.Date(inDH.date))
     val milliseconds: String = new java.text.SimpleDateFormat("SSS").format(new java.util.Date(inDH.date))
     val seconds: String = new java.text.SimpleDateFormat("ss").format(new java.util.Date(inDH.date))
     val minutes: String = new java.text.SimpleDateFormat("mm").format(new java.util.Date(inDH.date))
@@ -1530,12 +1526,15 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       dateFormatString = dateFormatString + " HH:mm zzz"
     }
     val dateFormat = new java.text.SimpleDateFormat(dateFormatString)
-    val defaultValue: Option[String] = if (!inEditing) None else Some(dateFormat.format(new java.util.Date(inDH.date)))
+    val defaultValue: String = {
+      if (inEditing) dateFormat.format(new Date(inDH.date))
+      else Controller.DATEFORMAT.format(System.currentTimeMillis())
+    }
 
     def dateCriteria(date: String): Boolean = {
       !finishAndParseTheDate(date)._2
     }
-    val ans = ui.askForString(Some(Array(genericDatePrompt)), Some(dateCriteria), defaultValue)
+    val ans = ui.askForString(Some(Array(genericDatePrompt)), Some(dateCriteria), Some(defaultValue))
     if (ans.isEmpty) None
     else {
       val (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(ans.get)
@@ -1757,7 +1756,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     // Fill in the date w/ "blank" information for whatever detail the user didn't provide:
     val filledInDateStrWithoutYear = if (firstHyphenPosition < filledInDateStr.length) filledInDateStr.substring(firstHyphenPosition + 1) else ""
     val year = filledInDateStr.substring(0, firstHyphenPosition)
+
     val blankDateWithoutYear = blankDate.substring(5)
+
     val dateStrWithZeros =
       if (filledInDateStrWithoutYear.length() < blankDateWithoutYear.length) {
         year + '-' + filledInDateStrWithoutYear + blankDateWithoutYear.substring(filledInDateStrWithoutYear.length())
@@ -1801,7 +1802,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     /** Helper method made so it can be recursive, it returns the date (w/ meanings as with displayText below, and as in PostgreSQLDatabase.createTables),
       * and true if the user wants to cancel/get out). */
     @tailrec def askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean): (Option[Long], Boolean) = {
-      val leadingText: Array[String] =
+      val leadingText: Array[String] = {
         if (dateTypeIn == VALID) {
           Array("\nPlease enter the date when this was first VALID (i.e., true) (Press Enter (blank) for unknown/unspecified, or " +
                 "like this, w/ at least the year: \"2002\", \"2000-1-31\", or" +
@@ -1832,23 +1833,35 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           // so we could inform users when such a date is present, that it's bogus and to use 1 instead)?
           // **SO:** it is already in the task list to have a separate flag in the database for "all time".
         } else if (dateTypeIn == OBSERVED) {
-          Array("\nWHEN OBSERVED?: " + genericDatePrompt + /*" (\"All time\" and*/" \"unknown\" not" + " allowed here.) ")
-        } else throw new Exception("unexpected type: " + dateTypeIn)
-      val ans = ui.askForString(Some(leadingText), None,
-                                inDefaultValue =
-                                  if (dateTypeIn == VALID) {
-                                    if (inEditing && oldValidOnDateIn.isDefined) {
-                                      if (oldValidOnDateIn.get == 0) Some("0")
-                                      else Some(Controller.DATEFORMAT_WITH_ERA.format(new java.util.Date(oldValidOnDateIn.get)))
-                                    }
-                                    else None
-                                  } else if (dateTypeIn == OBSERVED) {
-                                    if (inEditing) Some(Controller.DATEFORMAT_WITH_ERA.format(new java.util.Date(oldObservedDateIn))) else None
-                                  } else throw new Exception("unexpected type: " + dateTypeIn),
-                                useDefaultIfBlankedIn = true)
+          Array("\nWHEN OBSERVED?: " + genericDatePrompt + /*" (\"All time\" and*/ " \"unknown\" not" + " allowed here.) ")
+        } else throw new scala.Exception("unexpected type: " + dateTypeIn)
+      }
+
+      val defaultValue: Option[String] = {
+        if (dateTypeIn == VALID) {
+          if (inEditing && oldValidOnDateIn.isDefined) {
+            if (oldValidOnDateIn.get == 0) Some("0")
+            else Some(Controller.DATEFORMAT_WITH_ERA.format(new Date(oldValidOnDateIn.get)))
+          }
+          else None
+        } else if (dateTypeIn == OBSERVED) {
+          if (inEditing) {
+            Some(Controller.DATEFORMAT_WITH_ERA.format(new Date(oldObservedDateIn)))
+          } else {
+            Some(Controller.DATEFORMAT_WITH_ERA.format(new Date(System.currentTimeMillis())))
+          }
+        } else throw new scala.Exception("unexpected type: " + dateTypeIn)
+      }
+
+      val ans = ui.askForString(Some(leadingText), None, defaultValue)
+
       if (ans.isEmpty) {
-        if (dateTypeIn == VALID) (None, true)
-        else if (dateTypeIn == OBSERVED) {
+        if (dateTypeIn == VALID) {
+          // don't let user cancel from valid date: blank there means "unknown" (but user can ESC again from observed date. Making these
+          // consistent probably means figuring out how to modify jline2 (again, now) so that it will distinguish between user pressing ESC and user
+          // pressing Enter with a blank line: now IIRC it just returns a blank line for both.  Or something.
+          (None, false)
+        } else if (dateTypeIn == OBSERVED) {
           //getting out, but observed date not allowed to be None (see caller for details)
           (Some(0), true)
         }
@@ -2083,24 +2096,15 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     * Idea: consider combining somehow with method askForDateAttributeValue.
     * @return None if user wants out.
     */
-  @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, blankMeansNowIn: Boolean = true,
-                                        blankMeansYesterdayIn: Boolean = false): Option[Long] = {
-    if (blankMeansNowIn) require(!blankMeansYesterdayIn)
-    if (blankMeansYesterdayIn) require(!blankMeansNowIn)
-
+  @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String]): Option[Long] = {
     val leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt))
-    val ans = ui.askForString(Some(leadingText))
+    val default: String = defaultIn.getOrElse(Controller.DATEFORMAT.format(System.currentTimeMillis()))
+    val ans = ui.askForString(Some(leadingText), None, Some(default))
     if (ans.isEmpty) None
     else {
-      var dateStr = ans.get.trim
-
-      if (blankMeansYesterdayIn && dateStr.isEmpty) dateStr = {
-        val yesterday = new java.util.Date(System.currentTimeMillis() - (24 * 60 * 60 * 1000))
-        new java.text.SimpleDateFormat("yyyy-MM-dd").format(yesterday)
-      }
-
-      val (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, blankMeansNowIn)
-      if (retry) askForDate_generic(promptTextIn, blankMeansNowIn)
+      val dateStr = ans.get.trim
+      val (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr)
+      if (retry) askForDate_generic(promptTextIn, defaultIn)
       else newDate
     }
   }

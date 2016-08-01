@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2014, 2016-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -20,7 +20,7 @@ import org.onemodel.database.PostgreSQLDatabase
 object AttributeWithValidAndObservedDates {
   def getDatesDescription(mValidOnDate:Option[Long], mObservationDate:Long): String = {
     val validDateDescr: String =
-      if (mValidOnDate == None) "unsp'd"
+      if (mValidOnDate.isEmpty) "unsp'd"
       else if (mValidOnDate.get == 0) "all time"
       else Attribute.usefulDateFormat(mValidOnDate.get)
     val observedDateDescr: String = Attribute.usefulDateFormat(mObservationDate)

@@ -1145,6 +1145,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def updateQuantityAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inUnitId: Long, inNumber: Float, inValidOnDate: Option[Long],
                               inObservationDate: Long) {
+    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
+    // in memory when the db updates, and the behavior gets weird.
     dbAction("update QuantityAttribute set (unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) = (" + inUnitId + "," +
              "" + inNumber + "," + inAttrTypeId + "," + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," +
              "" + inObservationDate + ") where id=" + inId + " and  entity_id=" + inParentId)
@@ -1152,17 +1154,23 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def updateTextAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inText: String, inValidOnDate: Option[Long], inObservationDate: Long) {
     val text: String = escapeQuotesEtc(inText)
+    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
+    // in memory when the db updates, and the behavior gets weird.
     dbAction("update TextAttribute set (textValue, attr_type_id, valid_on_date, observation_date) = ('" + text + "'," + inAttrTypeId + "," +
              "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ") where id=" + inId + " and  " +
              "entity_id=" + inParentId)
   }
 
   def updateDateAttribute(inId: Long, inParentId: Long, inDate: Long, inAttrTypeId: Long) {
+    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
+    // in memory when the db updates, and the behavior gets weird.
     dbAction("update DateAttribute set (date, attr_type_id) = (" + inDate + "," + inAttrTypeId + ") where id=" + inId + " and  " +
              "entity_id=" + inParentId)
   }
 
   def updateBooleanAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inBoolean: Boolean, inValidOnDate: Option[Long], inObservationDate: Long) {
+    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
+    // in memory when the db updates, and the behavior gets weird.
     dbAction("update BooleanAttribute set (booleanValue, attr_type_id, valid_on_date, observation_date) = (" + inBoolean + "," + inAttrTypeId + "," +
              "" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ") where id=" + inId + " and  " +
              "entity_id=" + inParentId)
@@ -1174,6 +1182,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
   // AND THAT: The validOnDate for a file attr shouldn't ever be None/NULL like with other attrs, because it is the file date in the filesystem before it was
   // read into OM.
   def updateFileAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inDescription: String) {
+    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
+    // in memory when the db updates, and the behavior gets weird.
     dbAction("update FileAttribute set (description, attr_type_id) = ('" + inDescription + "'," + inAttrTypeId + ")" +
              " where id=" + inId + " and entity_id=" + inParentId)
   }
@@ -1181,6 +1191,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
   // first take on this: might have a use for it later.  It's tested, and didn't delete, but none known now. Remove?
   def updateFileAttribute(inId: Long, inParentId: Long, inAttrTypeId: Long, inDescription: String, originalFileDateIn: Long, storedDateIn: Long,
                           originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: Long, md5hashIn: String) {
+    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
+    // in memory when the db updates, and the behavior gets weird.
     dbAction("update FileAttribute set " +
              " (description, attr_type_id, original_file_date, stored_date, original_file_path, readable, writable, executable, size, md5hash) =" +
              " ('" + inDescription + "'," + inAttrTypeId + "," + originalFileDateIn + "," + storedDateIn + ",'" + originalFilePathIn + "'," +
@@ -1399,10 +1411,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
-  def updateRelationToEntity(inRelationTypeId: Long, inEntityId1: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
+  def updateRelationToEntity(oldRelationTypeIdIn: Long, inEntityId1: Long, inEntityId2: Long,
+                             newRelationTypeIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
+    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
+    // in memory when the db updates, and the behavior gets weird.
     dbAction("UPDATE RelationToEntity SET (rel_type_id, valid_on_date, observation_date)" +
-             " = (" + inRelationTypeId + "," + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")" +
-             " where rel_type_id=" + inRelationTypeId + " and entity_id=" + inEntityId1 + " and entity_id_2=" + inEntityId2)
+             " = (" + newRelationTypeIdIn + "," + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")" +
+             " where rel_type_id=" + oldRelationTypeIdIn + " and entity_id=" + inEntityId1 + " and entity_id_2=" + inEntityId2)
   }
 
   /**
@@ -1502,6 +1517,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
     */
   def updateRelationToGroup(entityIdIn: Long, inRelationTypeId: Long, groupIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
+    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
+    // in memory when the db updates, and the behavior gets weird.
     dbAction("UPDATE RelationToGroup SET (valid_on_date, observation_date)" +
              " = (" + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")" +
              " where entity_id=" + entityIdIn + " and rel_type_id=" + inRelationTypeId + " and group_id=" + groupIdIn)
@@ -2682,19 +2699,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   /**
-   * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this entity (IN *EITHER* DIRECTION).
+   * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this entity (IN *ONE* DIRECTION ONLY).
    */
   def getCountOfEntitiesContainingEntity(entityIdIn: Long): (Long, Long) = {
-    val nonArchived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id and not e.archived" +
-                                                     " and e.id=" + entityIdIn)
     val nonArchived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and not e.archived" +
                                                      " and e.id=" + entityIdIn)
-    val archived1 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id and e.archived" +
-                                                  " and e.id=" + entityIdIn)
     val archived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and e.archived" +
                                                   " and e.id=" + entityIdIn)
 
-    (nonArchived1 + nonArchived2, archived1 + archived2)
+    (nonArchived2, archived2)
   }
 
   /**

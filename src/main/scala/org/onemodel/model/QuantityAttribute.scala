@@ -77,6 +77,11 @@ class QuantityAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWit
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateQuantityAttribute(mId, getParentId, inAttrTypeId, inUnitId, inNumber, inValidOnDate, inObservationDate)
+    mAttrTypeId = inAttrTypeId
+    mUnitId = inUnitId
+    mNumber = inNumber
+    mValidOnDate = inValidOnDate
+    mObservationDate = inObservationDate
   }
 
   /** Removes this object from the system. */

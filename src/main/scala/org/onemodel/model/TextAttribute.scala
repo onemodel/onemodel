@@ -66,6 +66,10 @@ class TextAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWithVal
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateTextAttribute(mId, getParentId, inAttrTypeId, inText, inValidOnDate, inObservationDate)
+    mText = inText
+    mAttrTypeId = inAttrTypeId
+    mValidOnDate = inValidOnDate
+    mObservationDate = inObservationDate
   }
 
   /** Removes this object from the system. */

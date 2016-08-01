@@ -221,8 +221,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   final def askForString(leadingTextIn: Option[Array[String]],
                          criteriaIn: Option[(String) => Boolean] = None,
                          inDefaultValue: Option[String] = None,
-                         isPasswordIn: Boolean = false,
-                         useDefaultIfBlankedIn: Boolean = false): Option[String] = {
+                         isPasswordIn: Boolean = false): Option[String] = {
     var count = 0
     val lastLineOfPrompt: String = {
       var lastLineOfPrompt = ""
@@ -286,9 +285,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
         }
       }
 
-      if (line.isEmpty && inDefaultValue.isDefined && useDefaultIfBlankedIn) {
-        checkCriteria(inDefaultValue.get)
-      } else if (line.isEmpty) {
+      if (line.isEmpty) {
         None
       } else {
         checkCriteria(line)

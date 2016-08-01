@@ -60,6 +60,10 @@ class BooleanAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWith
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateBooleanAttribute(mId, getParentId, inAttrTypeId, inBoolean, inValidOnDate, inObservationDate)
+    mAttrTypeId = inAttrTypeId
+    mBoolean = inBoolean
+    mValidOnDate = inValidOnDate
+    mObservationDate = inObservationDate
   }
 
   /** Removes this object from the system. */

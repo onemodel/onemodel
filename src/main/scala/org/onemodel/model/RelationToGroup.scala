@@ -64,10 +64,13 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTy
   }
 
   def update(validOnDateIn:Option[Long], observationDateIn:Option[Long]) {
-    mDB.updateRelationToGroup(mEntityId, mRelTypeId, mGroupId,
-                              //pass validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
-                              if (validOnDateIn.isEmpty) getValidOnDate else validOnDateIn,
-                              if (observationDateIn.isEmpty) getObservationDate else observationDateIn.get)
+    //use validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
+    //Idea/possible bug: see comment on similar method in RelationToEntity.
+    val vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate
+    val od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate
+    mDB.updateRelationToGroup(mEntityId, mRelTypeId, mGroupId, vod, od)
+    mValidOnDate = vod
+    mObservationDate = od
   }
 
   /** Removes this object from the system. */
