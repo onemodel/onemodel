@@ -552,11 +552,6 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                      entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
                      relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Array[String] = {
     leadingTextIn(0) = controller.entityMenuLeadingText(entityIn)
-    if (relationIn.isDefined && relationSourceEntityIn.isDefined) {
-      leadingTextIn(0) += ": found via relation: " + relationSourceEntityIn.get.getName + " " +
-                          relationIn.get.getDisplayString(0, Some(new Entity(db, relationIn.get.getRelatedId2)),
-                                                          Some(new RelationType(db, relationIn.get.getAttrTypeId)))
-    }
     if (containingGroupIn.isDefined) {
       leadingTextIn(0) += ": found via group: " + containingGroupIn.get.getName
     }

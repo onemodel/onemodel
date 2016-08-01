@@ -1808,22 +1808,21 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                 "like this, w/ at least the year: \"2002\", \"2000-1-31\", or" +
                 " \"2013-01-31 23:59:59:999 MST\"; zeros are " +
                 "allowed in all but the yyyy-mm-dd.  Or for current date/time " +
-                "enter \"now\".  " +
-//                "ESC to exit this.  " + //THIS LINE CAN BE PUT BACK AFTER the bug is fixed so ESC really works.  See similar cmt elsewhere; tracked in tasks.
+                "enter \"now\".  ESC to exit this.  " +
                 "For dates far in the past you can prefix them with \"BC\" (or \"AD\", but either way omit a space " +
                 "before the year), like BC3400-01-31 23:59:59:999 GMT, entered at least up through the year, up to ~292000000 years AD or BC.")
           //IDEA: I had thought to say:  "Or for "all time", enter just 0.  ", BUT (while this is probably solved, it's not until the later part of
-                // this comment):
-//                "There is ambiguity about BC that needs some " +
-//                "investigation, because java allows a '0' year (which for now means 'for all time' in just this program), but normal human time doesn't " +
-//                "allow a '0' year, so maybe you have to subtract a year from all BC things for them to work right, and enter/read them accordingly, until " +
-//                "someone learns for sure, and we decide whether to subtract a year from everything BC for you automatically. Hm. *OR* maybe dates in year " +
-//                "zero " +
-//                "just don't mean anything so can be ignored by users, and all other dates' entry are just fine, so there's nothing to do but use it as is? " +
-//                "But that would have to be kept in mind if doing any relative date calculations in the program, e.g. # of years, spanning 0.)" + TextUI.NEWLN +
-//                "Also, real events with more " +
-//                "specific time-tracking needs will probably need to model their own time-related entity classes, and establish relations to them, within " +
-//                "their use of OM.")
+          // this comment):
+          //    "There is ambiguity about BC that needs some " +
+          //    "investigation, because java allows a '0' year (which for now means 'for all time' in just this program), but normal human time doesn't " +
+          //    "allow a '0' year, so maybe you have to subtract a year from all BC things for them to work right, and enter/read them accordingly, until " +
+          //    "someone learns for sure, and we decide whether to subtract a year from everything BC for you automatically. Hm. *OR* maybe dates in year " +
+          //    "zero " +
+          //    "just don't mean anything so can be ignored by users, and all other dates' entry are just fine, so there's nothing to do but use it as is? " +
+          //    "But that would have to be kept in mind if doing any relative date calculations in the program, e.g. # of years, spanning 0.)" + TextUI.NEWLN +
+          //    "Also, real events with more " +
+          //    "specific time-tracking needs will probably need to model their own time-related entity classes, and establish relations to them, within " +
+          //    "their use of OM.")
           //ABOUT THAT LAST COMMENT: WHY DOES JAVA ALLOW A 0 YEAR, UNLESS ONLY BECAUSE IT USES long #'S? SEE E.G.
           // http://www.msevans.com/calendar/daysbetweendatesapplet.php
           //which says: "...[java?] uses a year 0, which is really 1 B.C. For B.C. dates, you have to remember that the years are off by one--10 B.C.
