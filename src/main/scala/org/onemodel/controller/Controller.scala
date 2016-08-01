@@ -1019,7 +1019,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         require(attrTypeInputPrompt.isDefined)
         val ans: Option[Long] = askForAttributeTypeId(attrTypeInputPrompt.get, attrType, inPreviousSelectionDesc, inPreviousSelectionId)
         if (ans.isEmpty) {
-          (true, 0)
+          (true, 0L)
         } else {
           (false, ans.get)
         }
