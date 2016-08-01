@@ -1,4 +1,4 @@
-/*  This file is part of OneModel, a program to manage knowledge.  
+/*  This file is part of OneModel, a program to manage knowledge.
     Copyright in each year of 2013-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
@@ -9,34 +9,43 @@
 */
 package org.onemodel;
 
+import java.io.File;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.reflect.CodeSignature;
 
 /** This is an attempt to make debugging work along the lines of "set -x"
     in bash code.  This can be modified to get only certain log output.
-    There is probably a way to do it at runtime w/o recompilation, but this is
-    what is working now.
+
+    TO USE (by changing at runtime): see the usages of the variable "runtimeOn" below.
+    (There is probably a better way to do it at runtime but this is what is working now.)
+
+    TO USE (by changing at compile-time):  at the "before()" & "after() methods, comment out BOTH lines
+    that say "/*"  but don't commit that change.  I.e., change "/*" to "// /*"
+    or "///*", then "mvn package" or such.
 
     **************************
     When changing this class, one has to run 'mvn clean' once, then 'mvn package' 
-    *TWICE* (such as in the script bin/c), for reasons left to the future.
+    *TWICE* (such as in the script bin/ca), for reasons left to the future.
     FOR MORE INFO ABOUT ASPECTS IN THE CURRENT IMPLEMENTATION, SEE comments
     in the pom.xml. 
     **************************
     
-    TO USE:  at the "before()" & "after() methods, comment out BOTH lines 
-    that say "/*"  but don't commit that change.  I.e., change "/*" to "// /*" 
-    or "///*".
     Then, when running the program, you can redirect stderr to a
     file to see the log by itself (vs mixed in w/ the UI output, a debatable
     change), with something like:
       bin/om 2>log
+    or
+      bin/om 2>&1 | tee /tmp/log
 */
 public aspect MethodTracing {
   int depth = 0;
   StringBuffer callDepthSpacing = new StringBuffer("");
   final static String NEWLN = System.getProperty("line.separator");
   java.text.DateFormat DATEFORMAT = new java.text.SimpleDateFormat("HH:mm:ss:SSS");
+
+  File omAspectjOnFile = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "omajon");
+  // so:  "touch /tmp/omajon" could be used to turn on aspect output if so compiled (per "TO USE" above):
+  boolean runtimeOn = omAspectjOnFile.exists();
   
   pointcut allOMMethods():
     execution(* org.onemodel..*(..))
@@ -44,7 +53,9 @@ public aspect MethodTracing {
     ;
   
   before(): allOMMethods() {
-    /*
+    ///*
+    if (! runtimeOn) return;
+
     // indented & marked for easy visual separation of this from other output:
     callDepthSpacing.append("  ");
     depth++;
@@ -57,13 +68,14 @@ public aspect MethodTracing {
   }
   
   after() returning: allOMMethods() {
-    /*
+    ///*
+    if (! runtimeOn) return;
+
     // the spacing should line up w/ "entering" above:
     String timestamp = DATEFORMAT.format(new java.util.Date(System.currentTimeMillis()));
     System.err.println(timestamp + callDepthSpacing + "<exiting(" + depth + ") " + thisJoinPoint + ", " + thisJoinPoint.getSourceLocation());
     callDepthSpacing.delete(0, 2);
     depth--;
-    // */
     // */
   }
   
