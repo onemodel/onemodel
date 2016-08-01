@@ -33,6 +33,7 @@ object FileAttribute {
       @tailrec
       def calculateRest() {
         numBytesRead = fis.read(buffer)
+        //noinspection RemoveRedundantReturn  //left intentionally for reading clarify
         if (numBytesRead == -1) return
         else {
           d.update(buffer, 0, numBytesRead)
@@ -47,7 +48,7 @@ object FileAttribute {
     //so then in scala REPL (interpreter) you set "val d..." as above, "d.update(ba)", and the below:
     // outputs same as command 'md5sum <file>':
     val md5sum: String = {
-      // (the '&' use is an 'advanced feature' style violation but it's the way i found to do it ...)
+      //noinspection LanguageFeature  //left for reading clarify: (the '&' use is an 'advanced feature' style violation but it's the way i found to do it ...)
       d.digest.map(0xFF &).map {"%02x".format(_)}.foldLeft("") {_ + _}
     }
     md5sum
@@ -155,11 +156,9 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
   def update(inAttrTypeId: Option[Long] = None, inDescription: Option[String] = None) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    val descr = if (inDescription.isEmpty) getDescription else inDescription.get
-    val attrTypeId = if (inAttrTypeId.isEmpty) getAttrTypeId else inAttrTypeId.get
-    mDB.updateFileAttribute(getId, getParentId,
-                            attrTypeId,
-                            descr)
+    val descr = if (inDescription.isDefined) inDescription.get else getDescription
+    val attrTypeId = if (inAttrTypeId.isDefined) inAttrTypeId.get else getAttrTypeId
+    mDB.updateFileAttribute(getId, getParentId, attrTypeId, descr)
     mDescription = descr
     mAttrTypeId = attrTypeId
   }
@@ -262,6 +261,7 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
 
       // this is a hook so tests can verify that we do fail if the file isn't intact
       // (huh? This next line does nothing. Noted in tasks to see what is meant & make it do that. or at least more clear.)
+      //noinspection ScalaUselessExpression  //left intentionally for reading clarify
       if (damageFileForTesting != null) damageFileForTesting
 
       val downloadedFilesHash = FileAttribute.md5Hash(fileIn)
