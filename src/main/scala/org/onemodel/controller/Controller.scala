@@ -368,14 +368,15 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def refreshDefaultDisplayEntityId(): Unit = defaultDisplayEntityId = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
 
   def askForClass(): Option[Long] = {
-    val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String]("CHOOSE ENTITY'S CLASS (ESC if you don't know or care about this.  This is a way to associate code or default attributes with groups of entities.  Help me word this better, but:  for example, in the case of an attribute of an entity, it must have a type, which is also an entity; so, a Vehicle Identification Number (VIN) entity represents the *concept* of a VIN, a text attribute on a vehicle entity holds the content of the VIN in a string of characters, and the \"type entity\" (VIN concept entity) can have a class which holds code used to parse VIN strings for additional internal meaning; or, it could serve as a template holding standard fields for entities in the VIN class (such as if the VIN content were written in a multi-field entity rather than in a single text attribute).  The class-defining entity of the VIN class could be the same entity as the type entity for the an attribute, as far as I can see now.  ***Use this feature only if it helps you, otherwise press ESC for None.*** )")), None, None, Controller.ENTITY_CLASS_TYPE)
+    val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String]("CHOOSE ENTITY'S CLASS (ESC if you don't know or care about this.  This is a way to associate code or default attributes with groups of entities.  Help me word this better, but:  for example, in the case of an attribute of an entity, it must have a type, which is also an entity; so, a Vehicle Identification Number (VIN) entity represents the *concept* of a VIN, a text attribute on a vehicle entity holds the content of the VIN in a string of characters, and the \"type entity\" (VIN concept entity) can have a class which holds code used to parse VIN strings for additional internal meaning; or, it could serve as a template holding standard fields for entities in the VIN class (such as if the VIN content were written in a multi-field entity rather than in a single text attribute).  The template entity of the VIN class could be the same entity as the type entity for the an attribute, as far as I can see now.  ***Use this feature only if it helps you, otherwise press ESC for None.*** )")), None, None, Controller.ENTITY_CLASS_TYPE)
     if (idWrapper.isEmpty) None
     else Some(idWrapper.get.getId)
   }
 
   /** In any given usage, consider whether askForNameAndWriteEntity should be used instead: it is for quick (simpler) creation situations or
     * to just edit the name when the entity already exists, or if the Entity is a RelationType,
-    * askForClassInfoAndNameAndCreateEntity (this one) prompts for a class and checks whether it should copy default attributes from the class-defining-entity.
+    * askForClassInfoAndNameAndCreateEntity (this one) prompts for a class and checks whether it should copy default attributes from the class-defining
+    * (template) entity.
     * There is also editEntityName which calls askForNameAndWriteEntity: it checks if the Entity being edited is a RelationType, and if not also checks
     * for whether a group name should be changed at the same time.
     */
@@ -526,12 +527,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   /** Returns None if user wants out, otherwise returns the new or updated classId and entityId.
     * 1st parameter should be None only if the call is intended to create; otherwise it is an edit.
     * */
-  def askForAndWriteClassAndDefiningEntityName(classIdIn: Option[Long] = None,
+  def askForAndWriteClassAndTemplateEntityName(classIdIn: Option[Long] = None,
                                                          previousNameIn: Option[String] = None): Option[(Long, Long)] = {
     val createNotUpdate: Boolean = classIdIn.isEmpty
     val nameLength = model.EntityClass.nameLength(db)
     def askAndSave(defaultNameIn: Option[String]): Option[(Long, Long)] = {
-      val nameOpt = ui.askForString(Some(Array("Enter class name (up to " + nameLength + " characters; will also be used for its defining entity name; ESC to" +
+      val nameOpt = ui.askForString(Some(Array("Enter class name (up to " + nameLength + " characters; will also be used for its template entity name; ESC to" +
                                                " cancel): ")),
                                     None, defaultNameIn)
       if (nameOpt.isEmpty) None
@@ -541,9 +542,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         else {
           if (duplicationProblem(name, classIdIn, createNotUpdate)) None
           else {
-            if (createNotUpdate) Some(db.createClassAndItsDefiningEntity(name))
+            if (createNotUpdate) Some(db.createClassAndItsTemplateEntity(name))
             else {
-              val entityId: Long = db.updateClassAndDefiningEntityName(classIdIn.get, name)
+              val entityId: Long = db.updateClassAndTemplateEntityName(classIdIn.get, name)
               Some(classIdIn.get, entityId)
             }
           }
@@ -1369,11 +1370,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (entity.isEmpty) None
         else Some(new IdWrapper(entity.get.getId))
       } else if (answer == createClassChoice && inObjectType == Controller.ENTITY_CLASS_TYPE && answer <= choices.length) {
-        val result: Option[(Long, Long)] = askForAndWriteClassAndDefiningEntityName()
+        val result: Option[(Long, Long)] = askForAndWriteClassAndTemplateEntityName()
         if (result.isEmpty) None
         else {
           val (classId, entityId) = result.get
-          val ans = ui.askYesNoQuestion("Do you want to add attributes to the newly created defining entity for this class? (These will be used for the " +
+          val ans = ui.askYesNoQuestion("Do you want to add attributes to the newly created template entity for this class? (These will be used for the " +
                                         "prompts " +
                                         "and defaults when creating/editing entities in this class).", Some("y"))
           if (ans.isDefined && ans.get) {
@@ -2292,7 +2293,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def defaultAttributeCopying(entityIn: Entity, attributeTuplesIn: Option[Array[(Long, Attribute)]] = None): Unit = {
     if (shouldTryAddingDefaultAttributes(entityIn)) {
       val attributeTuples: Array[(Long, Attribute)] = if (attributeTuplesIn.isDefined) attributeTuplesIn.get else db.getSortedAttributes(entityIn.getId)._1
-      val templateAttributesToCopy: ArrayBuffer[Attribute] = getMissingAttributes(entityIn.getClassDefiningEntityId, attributeTuples)
+      val templateAttributesToCopy: ArrayBuffer[Attribute] = getMissingAttributes(entityIn.getClassTemplateEntityId, attributeTuples)
       copyAndEditAttributes(entityIn, templateAttributesToCopy)
     }
   }
@@ -2353,14 +2354,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
-  def getMissingAttributes(classDefiningEntityIdIn: Option[Long], attributeTuplesIn: Array[(Long, Attribute)]): ArrayBuffer[Attribute] = {
+  def getMissingAttributes(classTemplateEntityIdIn: Option[Long], attributeTuplesIn: Array[(Long, Attribute)]): ArrayBuffer[Attribute] = {
     val templateAttributesToSuggestCopying: ArrayBuffer[Attribute] = {
-      // This determines which attributes from the template entity (or "pattern" or class-defining entity) are not found on this entity, so they can
+      // This determines which attributes from the template entity (or "pattern" or "class-defining entity") are not found on this entity, so they can
       // be added if the user wishes.
       val attributesToSuggestCopying_workingCopy: ArrayBuffer[Attribute] = new ArrayBuffer()
-      if (classDefiningEntityIdIn.isDefined) {
-        // ("cde" in name means "classDefiningEntity")
-        val (cde_attributeTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(classDefiningEntityIdIn.get)
+      if (classTemplateEntityIdIn.isDefined) {
+        // ("cde" in name means "classDefiningEntity" (aka template))
+        val (cde_attributeTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(classTemplateEntityIdIn.get)
         for (cde_attributeTuple <- cde_attributeTuples) {
           var attributeTypeFoundOnEntity = false
           val cde_attribute = cde_attributeTuple._2
@@ -2369,7 +2370,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               val cde_typeId: Long = cde_attribute.getAttrTypeId
               val typeId = attributeTuple._2.getAttrTypeId
               // This is an imperfect check, and will fail for example if there are 2 "has..." relations on the template (class-defining) entity, and
-              // only one on the entity being checked.  Perhaps this is a motive to use more descriptive relation types in class-defining entities.
+              // only one on the entity being checked.  Perhaps this is a motive to use more descriptive relation types in template entities.
               if (cde_typeId == typeId) {
                 attributeTypeFoundOnEntity = true
               }
@@ -2393,10 +2394,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       if (createAttributes.isDefined) {
         createAttributes.get
       } else {
-        if (entityIn.getClassDefiningEntityId.isEmpty) {
+        if (entityIn.getClassTemplateEntityId.isEmpty) {
           false
         } else {
-          val attrCount = new Entity(db, entityIn.getClassDefiningEntityId.get).getAttrCount
+          val attrCount = new Entity(db, entityIn.getClassTemplateEntityId.get).getAttrCount
           if (attrCount == 0) {
             false
           } else {

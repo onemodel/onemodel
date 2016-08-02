@@ -45,7 +45,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                        callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     require(relationToGroupIn != null)
 
-    val definingEntity = groupIn.getClassDefiningEntity
+    val templateEntity = groupIn.getClassTemplateEntity
     val choices = Array[String]("Add entity to group (if you add an existing entity with a relationship to one group, that is effectively adding that group " +
                                 "as a subgroup to this one)",
 
@@ -113,7 +113,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                             else "(stub)",
                             if (numContainingEntities == 1) "Go to entity containing this group: " + containingEntities.get(0)._2.getName
                                                             else "See entities that contain this group ( " + numContainingEntities + ")",
-                            if (definingEntity.isDefined) "Go to class-defining entity" else "(stub: no class-defining entity to go to)")
+                            if (templateEntity.isDefined) "Go to template entity" else "(stub: no template entity to go to)")
         //idea: consider: do we want this?:
         //(see similar comment in postgresqldatabase)
         //"See groups containing this group (" + numContainingGroups + ")")
@@ -154,8 +154,8 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
             if (db.groupKeyExists(groupIn.getId)) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             else None
-          } else if (ans == 3 && definingEntity.isDefined && ans <= choices.length) {
-            new EntityMenu(ui, db, controller).entityMenu(definingEntity.get)
+          } else if (ans == 3 && templateEntity.isDefined && ans <= choices.length) {
+            new EntityMenu(ui, db, controller).entityMenu(templateEntity.get)
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
             if (db.groupKeyExists(groupIn.getId)) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             else None

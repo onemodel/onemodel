@@ -35,10 +35,10 @@ EntityClass(mDB: PostgreSQLDatabase, mId: Long) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, inName: String, inDefiningEntityId: Long, createDefaultAttributesIn: Option[Boolean] = None) {
+  def this(mDB: PostgreSQLDatabase, mId: Long, inName: String, inTemplateEntityId: Long, createDefaultAttributesIn: Option[Boolean] = None) {
     this(mDB, mId)
     mName = inName
-    mDefiningEntityId = inDefiningEntityId
+    mTemplateEntityId = inTemplateEntityId
     mCreateDefaultAttributes = createDefaultAttributesIn
     mAlreadyReadData = true
   }
@@ -48,9 +48,9 @@ EntityClass(mDB: PostgreSQLDatabase, mId: Long) {
     mName
   }
 
-  def getDefiningEntityId: Long = {
+  def getTemplateEntityId: Long = {
     if (!mAlreadyReadData) readDataFromDB()
-    mDefiningEntityId
+    mTemplateEntityId
   }
 
   def getCreateDefaultAttributes: Option[Boolean] = {
@@ -61,7 +61,7 @@ EntityClass(mDB: PostgreSQLDatabase, mId: Long) {
   protected def readDataFromDB() {
     val classData: Array[Option[Any]] = mDB.getClassData(mId)
     mName = classData(0).get.asInstanceOf[String]
-    mDefiningEntityId = classData(1).get.asInstanceOf[Long]
+    mTemplateEntityId = classData(1).get.asInstanceOf[Long]
     mCreateDefaultAttributes = classData(2).asInstanceOf[Option[Boolean]]
     mAlreadyReadData = true
   }
@@ -91,10 +91,10 @@ EntityClass(mDB: PostgreSQLDatabase, mId: Long) {
   }
 
   /** Removes this object etc from the system. */
-  def delete() = mDB.deleteClassAndItsDefiningEntity(mId)
+  def delete() = mDB.deleteClassAndItsTemplateEntity(mId)
 
   var mAlreadyReadData: Boolean = false
   var mName: String = null
-  var mDefiningEntityId: Long = 0
+  var mTemplateEntityId: Long = 0
   var mCreateDefaultAttributes: Option[Boolean] = None
 }

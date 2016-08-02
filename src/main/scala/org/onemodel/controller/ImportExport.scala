@@ -467,8 +467,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
         val outputDirectory:Path = createOutputDir(prefix)
         // see note about this usage, in method importUriContent:
-        val uriClassId: Long = db.getOrCreateClassAndDefiningEntityIds("URI", callerManagesTransactionsIn = true)._1
-        val quoteClassId = db.getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn = true)._1
+        val uriClassId: Long = db.getOrCreateClassAndTemplateEntityIds("URI", callerManagesTransactionsIn = true)._1
+        val quoteClassId = db.getOrCreateClassAndTemplateEntityIds("quote", callerManagesTransactionsIn = true)._1
 
         exportHtml(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                    cachedGroupInfo, mutable.TreeSet[Long](), uriClassId, quoteClassId,
@@ -634,10 +634,10 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
     def findUriAttribute(): Option[TextAttribute] = {
       val attributesOnEntity2: Array[(Long, Attribute)] = getCachedAttributes(entity2.getId, cachedAttrsIn)
-      val uriClassDefiningEntityId: Long = new EntityClass(db, uriClassIdIn).getDefiningEntityId
+      val uriTemplateId: Long = new EntityClass(db, uriClassIdIn).getTemplateEntityId
       for (attrTuple <- attributesOnEntity2) {
         val attr2: Attribute = attrTuple._2
-        if (attr2.getAttrTypeId == uriClassDefiningEntityId && attr2.isInstanceOf[TextAttribute]) {
+        if (attr2.getAttrTypeId == uriTemplateId && attr2.isInstanceOf[TextAttribute]) {
           return Some(attr2.asInstanceOf[TextAttribute])
         }
       }
@@ -645,10 +645,10 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     }
     def findQuoteText(): Option[String] = {
       val attributesOnEntity2: Array[(Long, Attribute)] = getCachedAttributes(entity2.getId, cachedAttrsIn)
-      val quoteClassDefiningEntityId: Long = new EntityClass(db, quoteClassIdIn).getDefiningEntityId
+      val quoteClassTemplateId: Long = new EntityClass(db, quoteClassIdIn).getTemplateEntityId
       for (attrTuple <- attributesOnEntity2) {
         val attr2: Attribute = attrTuple._2
-        if (attr2.getAttrTypeId == quoteClassDefiningEntityId && attr2.isInstanceOf[TextAttribute]) {
+        if (attr2.getAttrTypeId == quoteClassTemplateId && attr2.isInstanceOf[TextAttribute]) {
           return Some(attr2.asInstanceOf[TextAttribute].getText)
         }
       }

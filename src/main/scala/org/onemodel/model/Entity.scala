@@ -91,12 +91,12 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     mClassId
   }
 
-  def getClassDefiningEntityId: Option[Long] = {
+  def getClassTemplateEntityId: Option[Long] = {
     val classId = getClassId
     if (classId.isEmpty) None
     else {
-      val definingEntityId: Option[Long] = mDB.getClassData(mClassId.get)(1).asInstanceOf[Option[Long]]
-      definingEntityId
+      val templateEntityId: Option[Long] = mDB.getClassData(mClassId.get)(1).asInstanceOf[Option[Long]]
+      templateEntityId
     }
   }
 
@@ -145,7 +145,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   def getDisplayString_helper: String = {
     var displayString: String = getPublicStatusDisplayString()
     displayString += Color.blue(getName)
-    val definerInfo = if (mDB.getClassCount(Some(mId)) > 0) "defining entity (template) for " else ""
+    val definerInfo = if (mDB.getClassCount(Some(mId)) > 0) "template (defining entity) for " else ""
     val className: Option[String] = if (getClassId.isDefined) mDB.getClassName(getClassId.get) else None
     displayString += (if (className.isDefined) " (" + definerInfo + "class: " + className.get + ")" else "")
     displayString

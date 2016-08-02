@@ -185,23 +185,23 @@ class EntityTest extends FlatSpec with MockitoSugar {
     when(mockDB2.getClassCount(Some(id2))).thenReturn(1)
     when(mockDB2.getEntityData(id2)).thenReturn(Array[Option[Any]](Some(name2), Some(classId2)))
     // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
-    //assert(entity2.getDisplayString == name2 + " (defining entity (template) for class: " + "class2Name)")
+    //assert(entity2.getDisplayString == name2 + " (template entity (template) for class: " + "class2Name)")
   }
 
-  "getClassDefiningEntityId" should "work right" in {
+  "getClassTemplateEntityId" should "work right" in {
     val mockDB = mock[PostgreSQLDatabase]
     val id = 1L
     val classId = 2L
     val className = "classname"
-    val definingEntityId = 3L
+    val templateEntityId = 3L
     when(mockDB.entityKeyExists(id)).thenReturn(true)
     val e = new Entity(mockDB, id, "entityname", None, 0L, Some(true))
-    assert(e.getClassDefiningEntityId.isEmpty)
+    assert(e.getClassTemplateEntityId.isEmpty)
 
     val e2 = new Entity(mockDB, id, "entityname", Option(classId), 0L, Some(false))
     when(mockDB.classKeyExists(classId)).thenReturn(true)
-    when(mockDB.getClassData(classId)).thenReturn(Array[Option[Any]](Some(className), Some(definingEntityId)))
-    assert(e2.getClassDefiningEntityId.get == definingEntityId)
+    when(mockDB.getClassData(classId)).thenReturn(Array[Option[Any]](Some(className), Some(templateEntityId)))
+    assert(e2.getClassTemplateEntityId.get == templateEntityId)
   }
 
 }

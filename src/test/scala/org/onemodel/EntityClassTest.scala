@@ -42,7 +42,7 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     // instantiation does DB setup (creates tables, default data, etc):
     mDB = new PostgreSQLDatabase("testrunner", "testrunner")
 
-    val (classId, _): (Long, Long) = mDB.createClassAndItsDefiningEntity("name of test class and its defining entity")
+    val (classId, _): (Long, Long) = mDB.createClassAndItsTemplateEntity("name of test class and its template entity")
     mEntityClass = new EntityClass(mDB, classId)
   }
 
@@ -68,11 +68,11 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
 
   "getDisplayString" should "return name" in {
     val id = 0L
-    val definingEntityId = 1L
+    val templateEntityId = 1L
     val mockDB = mock[PostgreSQLDatabase]
     when(mockDB.classKeyExists(id)).thenReturn(true)
     when(mockDB.getClassName(id)).thenReturn(Some("class1Name"))
-    when(mockDB.getClassData(id)).thenReturn(Array[Option[Any]](Some("class1Name"), Some(definingEntityId), Some(true)))
+    when(mockDB.getClassData(id)).thenReturn(Array[Option[Any]](Some("class1Name"), Some(templateEntityId), Some(true)))
 
     val entityClass = new EntityClass(mockDB, id)
     val ds = entityClass.getDisplayString

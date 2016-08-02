@@ -61,7 +61,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     }
     if (containingGroupIn.isDefined) require(containingRelationToEntityIn.isEmpty)
     val numAttrsInEntity: Long = entityIn.getAttrCount
-    val classDefiningEntityId: Option[Long] = entityIn.getClassDefiningEntityId
+    val templateEntityId: Option[Long] = entityIn.getClassTemplateEntityId
     val leadingText: Array[String] = new Array[String](2)
     val relationSourceEntity: Option[Entity] = {
       // (checking if exists also, because it could have been removed in another menu option)
@@ -273,7 +273,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         entityMenu(entityIn, attributeRowsStartingIndexIn, entryToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 9 && answer <= choices.length) {
         new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
-                                                                containingGroupIn, classDefiningEntityId, attributeTuples)
+                                                                containingGroupIn, templateEntityId, attributeTuples)
         if (! db.entityKeyExists(entityIn.getId, includeArchived = false)) {
           // entity could have been deleted by some operation in OtherEntityMenu
           None

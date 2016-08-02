@@ -23,7 +23,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
 
   def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
                       containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
-                      classDefiningEntityIdIn: Option[Long], attributeTuplesIn: Array[(Long, Attribute)]) {
+                      templateEntityIdIn: Option[Long], attributeTuplesIn: Array[(Long, Attribute)]) {
     try {
       require(entityIn != null)
       val leadingText = Array[String]{ controller.entityMenuLeadingText(entityIn) }
@@ -80,9 +80,9 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             }
           }
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
-                          classDefiningEntityIdIn, attributeTuplesIn)
+                          templateEntityIdIn, attributeTuplesIn)
         } else if (answer == 3) {
-          val templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(classDefiningEntityIdIn, attributeTuplesIn)
+          val templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(templateEntityIdIn, attributeTuplesIn)
           val editAnswer = ui.askWhich(Some(Array[String]{controller.entityMenuLeadingText(entityIn)}),
                                        Array("Edit entity name",
                                              "Change its class",
@@ -91,7 +91,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             if (editAnswer.get == 1) {
               val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
               otherEntityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn,
-                              containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn, attributeTuplesIn)
+                              containingRelationToEntityIn, containingGroupIn, templateEntityIdIn, attributeTuplesIn)
             } else if (editAnswer.get == 2) {
               val classId: Option[Long] = controller.askForClass()
               if (classId.isDefined) {
@@ -99,10 +99,10 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
 
                 // Idea here: when changing the class of an entity, we *could* controller.defaultAttributeCopying (or prompt as elsewhere) to
                 // set up the attributes, but the need is unclear, and user can now do that manually from the menus if needed.  Code in future
-                // should also be able to use default values from the class-defining entity, as another fallback.
+                // should also be able to use default values from the template entity, as another fallback.
               }
               otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                              containingGroupIn, classDefiningEntityIdIn, attributeTuplesIn)
+                              containingGroupIn, templateEntityIdIn, attributeTuplesIn)
             } else if (editAnswer.get == 3 && templateAttributesToCopy.nonEmpty) {
               controller.copyAndEditAttributes(entityIn, templateAttributesToCopy)
             }
@@ -127,11 +127,11 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             } else {
               ui.displayText("invalid response")
               otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                              containingGroupIn, classDefiningEntityIdIn, attributeTuplesIn)
+                              containingGroupIn, templateEntityIdIn, attributeTuplesIn)
             }
           }
         } else if (answer == 5) {
-          goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, classDefiningEntityIdIn)
+          goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, templateEntityIdIn)
           //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
           if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
             new EntityMenu(ui, db, controller).entityMenu(entityIn, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
@@ -143,7 +143,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         } else {
           ui.displayText("invalid response")
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
-                          classDefiningEntityIdIn, attributeTuplesIn)
+                          templateEntityIdIn, attributeTuplesIn)
         }
       }
     } catch {
@@ -152,7 +152,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
         if (ans.isDefined && ans.get) {
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                          containingGroupIn, classDefiningEntityIdIn, attributeTuplesIn)
+                          containingGroupIn, templateEntityIdIn, attributeTuplesIn)
         }
     }
   }
@@ -277,7 +277,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
 
   def goToRelatedPlaces(startingAttributeRowsIndexIn: Int, entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
                         relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None,
-                        classDefiningEntityId: Option[Long]) {
+                        templateEntityId: Option[Long]) {
     //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
     val leadingText = Some(Array("Go to..."))
     val seeContainingEntities_choiceNumber: Int = 1
@@ -285,7 +285,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
     val goToRelation_choiceNumber: Int = 3
     val goToRelationType_choiceNumber: Int = 4
     // The next 2 values are 3 & 4 in case the previous 2 are unused.  If the previous 2 are used, the next 2 will be += 2, below.
-    var goToClassDefiningEntity_choiceNumber: Int = 3
+    var goToTemplateEntity_choiceNumber: Int = 3
     var goToClass_choiceNumber: Int = 4
     val numContainingEntities = db.getEntitiesContainingEntity(entityIn, 0).size
     // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
@@ -317,11 +317,11 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       choices = choices :+ "Go edit the relation to entity that led here: " +
                            relationIn.get.getDisplayString(15, Some(entityIn), Some(new RelationType(db, relationIn.get.getAttrTypeId)))
       choices = choices :+ "Go to the type, for the relation that led here: " + new Entity(db, relationIn.get.getAttrTypeId).getName
-      goToClassDefiningEntity_choiceNumber += 2
+      goToTemplateEntity_choiceNumber += 2
       goToClass_choiceNumber += 2
     }
-    if (classDefiningEntityId.isDefined) {
-      choices = choices ++ Array[String]("Go to class-defining entity")
+    if (templateEntityId.isDefined) {
+      choices = choices ++ Array[String]("Go to template entity")
       choices = choices ++ Array[String]("Go to class")
     }
     var relationToEntity: Option[RelationToEntity] = relationIn
@@ -383,9 +383,9 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                                                      relationIn.get.getRelatedId2))
       } else if (goWhereAnswer == goToRelationType_choiceNumber && relationIn.isDefined && goWhereAnswer <= choices.length) {
         new EntityMenu(ui, db, controller).entityMenu(new Entity(db, relationIn.get.getAttrTypeId))
-      } else if (goWhereAnswer == goToClassDefiningEntity_choiceNumber && classDefiningEntityId.isDefined && goWhereAnswer <= choices.length) {
-        new EntityMenu(ui, db, controller).entityMenu(new Entity(db, classDefiningEntityId.get))
-      } else if (goWhereAnswer == goToClass_choiceNumber && classDefiningEntityId.isDefined && goWhereAnswer <= choices.length) {
+      } else if (goWhereAnswer == goToTemplateEntity_choiceNumber && templateEntityId.isDefined && goWhereAnswer <= choices.length) {
+        new EntityMenu(ui, db, controller).entityMenu(new Entity(db, templateEntityId.get))
+      } else if (goWhereAnswer == goToClass_choiceNumber && templateEntityId.isDefined && goWhereAnswer <= choices.length) {
         val classId: Option[Long] = entityIn.getClassId
         if (classId.isEmpty) {
           throw new OmException("Unexpectedly, this entity doesn't seem to have a class id.  That is probably a bug.")

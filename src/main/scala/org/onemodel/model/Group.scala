@@ -163,13 +163,13 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
     }
   }
 
-  def getClassDefiningEntity: (Option[Entity]) = {
+  def getClassTemplateEntity: (Option[Entity]) = {
     val classId: Option[Long] = getClassId
     if (getMixedClassesAllowed || classId.isEmpty)
       None
     else {
-      val definingEntityId = new EntityClass(mDB, classId.get).getDefiningEntityId
-      Some(new Entity(mDB, definingEntityId))
+      val templateEntityId = new EntityClass(mDB, classId.get).getTemplateEntityId
+      Some(new Entity(mDB, templateEntityId))
     }
   }
 

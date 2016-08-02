@@ -1039,11 +1039,11 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(found)
   }
 
-  "createDefaultData, findEntityOnlyIdsByName, createClassDefiningEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
+  "createDefaultData, findEntityOnlyIdsByName, createClassTemplateEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
   "have worked right in earlier db setup and now" in {
     val PERSON_TEMPLATE: String = "person-template"
     val systemEntityId = mDB.getSystemEntityId
-    val groupIdOfClassTemplates = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classDefiningEntityGroupName))._3
+    val groupIdOfClassTemplates = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classTemplateEntityGroupName))._3
 
     // (Should be some value, but the activity on the test DB wouldn't have ids incremented to 0 yet,so that one would be invalid. Could use the
     // other method to find an unused id, instead of 0.)
@@ -1154,7 +1154,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   "isDuplicateEntityClass and class update/deletion" should "work" in {
     val name: String = "testing isDuplicateEntityClass"
-    val (classId, entityId) = mDB.createClassAndItsDefiningEntity(name)
+    val (classId, entityId) = mDB.createClassAndItsTemplateEntity(name)
     assert(EntityClass.isDuplicate(mDB, name))
     assert(!EntityClass.isDuplicate(mDB, name, Some(classId)))
 
@@ -1165,7 +1165,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     mDB.updateClassName(classId, name)
 
     mDB.updateEntitysClass(entityId, None)
-    mDB.deleteClassAndItsDefiningEntity(classId)
+    mDB.deleteClassAndItsTemplateEntity(classId)
     assert(!EntityClass.isDuplicate(mDB, name, Some(classId)))
     assert(!EntityClass.isDuplicate(mDB, name))
   }
@@ -1176,8 +1176,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     // This also tests db.createEntity and db.updateEntityOnlyClass.
 
     val entityName = "test: PSQLDbTest.testgroup-class-uniqueness" + "--theEntity"
-    val (classId, entityId) = mDB.createClassAndItsDefiningEntity(entityName)
-    val (classId2, entityId2) = mDB.createClassAndItsDefiningEntity(entityName + 2)
+    val (classId, entityId) = mDB.createClassAndItsTemplateEntity(entityName)
+    val (classId2, entityId2) = mDB.createClassAndItsTemplateEntity(entityName + 2)
     val classCount = mDB.getClassCount()
     val classes = mDB.getClasses(0)
     assert(classCount == classes.size)
@@ -1221,7 +1221,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     val systemEntityId = mDB.getSystemEntityId
     // idea: (noted at other use of this method)
-    val classGroupId = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classDefiningEntityGroupName))._3
+    val classGroupId = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classTemplateEntityGroupName))._3
     assert(mDB.areMixedClassesAllowed(classGroupId.get))
 
     val groupSizeBeforeRemoval = mDB.getGroupSize(groupId)
@@ -1253,8 +1253,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val allEntitiesInClassCount1 = mDB.getEntitiesOnlyCount(Some(someClassId), limitByClass = true)
     val allEntitiesInClassCount2 = mDB.getEntitiesOnlyCount(Some(someClassId), limitByClass = true, None)
     assert(allEntitiesInClassCount1 == allEntitiesInClassCount2)
-    val definingClassId: Long = new EntityClass(mDB, someClassId).getDefiningEntityId
-    val allEntitiesInClassCountWoClass = mDB.getEntitiesOnlyCount(Some(someClassId), limitByClass = true, Some(definingClassId))
+    val templateClassId: Long = new EntityClass(mDB, someClassId).getTemplateEntityId
+    val allEntitiesInClassCountWoClass = mDB.getEntitiesOnlyCount(Some(someClassId), limitByClass = true, Some(templateClassId))
     assert(allEntitiesInClassCountWoClass == allEntitiesInClassCount1 - 1)
     assert(allEntitiesInClass.size == allEntitiesInClassCount1)
     assert(allEntitiesInClass.size < mDB.getEntitiesOnly(0, None, Some(someClassId), limitByClass = false).size)
@@ -1287,7 +1287,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     // ...for now anyway.  See comments at this table in psqld.createTables and/or hasMixedClasses.
 
     val entityName = "test: PSQLDbTest.testgroup-class-allowsAllNulls" + "--theEntity"
-    val (classId, entityId) = mDB.createClassAndItsDefiningEntity(entityName)
+    val (classId, entityId) = mDB.createClassAndItsTemplateEntity(entityName)
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
     val groupId = createAndAddTestRelationToGroup_ToEntity(entityId, relTypeId, "test: PSQLDbTest.testgroup-class-allowsAllNulls", Some(12345L),
                                                                 allowMixedClassesIn = false)._1

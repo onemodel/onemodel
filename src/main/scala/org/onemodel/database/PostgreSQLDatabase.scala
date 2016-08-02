@@ -36,7 +36,8 @@ object PostgreSQLDatabase {
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
   val systemEntityName = ".system-use-only"
-  val classDefiningEntityGroupName = "class-defining entities"
+  // aka template entities:
+  val classTemplateEntityGroupName = "class-defining entities"
   val theHASrelationTypeName = "has"
   val theIsHadByReverseName = "is had by"
   val EDITOR_INFO_ENTITY_NAME = "editorInfo"
@@ -950,20 +951,20 @@ class PostgreSQLDatabase(username: String, var password: String) {
     createTextAttribute(textEditorInfoEntityId, textEditorCommandAttributeTypeId, editorCommand, Some(System.currentTimeMillis()))
 
 
-    // the intent of this group is user convenience: the app shouldn't rely on this group to find classDefiningEntities, but use the relevant table.
+    // the intent of this group is user convenience: the app shouldn't rely on this group to find classDefiningEntities (templates), but use the relevant table.
     // idea: REALLY, this should probably be replaced with a query to the class table: so, when queries as menu options are part of the OM
     // features, put them all there instead.
     // It is set to allowMixedClassesInGroup just because no current known reason not to, will be interesting to see what comes of it.
-    createGroupAndRelationToGroup(systemEntityId, hasRelTypeId, PostgreSQLDatabase.classDefiningEntityGroupName, allowMixedClassesInGroupIn = true,
+    createGroupAndRelationToGroup(systemEntityId, hasRelTypeId, PostgreSQLDatabase.classTemplateEntityGroupName, allowMixedClassesInGroupIn = true,
                                   Some(System.currentTimeMillis()), System.currentTimeMillis(), None, callerManagesTransactionsIn = false)
 
     // NOTICE: code should not rely on this name, but on data in the tables.
-    /*val (classId, entityId) = */ createClassAndItsDefiningEntity("person-template")
+    /*val (classId, entityId) = */ createClassAndItsTemplateEntity("person-template")
   }
 
   /** Returns the classId and entityId, in a tuple. */
-  def createClassAndItsDefiningEntity(inName: String): (Long, Long) = {
-    // The name doesn't have to be the same on the entity and the defining class, but why not for now.
+  def createClassAndItsTemplateEntity(inName: String): (Long, Long) = {
+    // The name doesn't have to be the same on the entity and the template class, but why not for now.
     val name: String = escapeQuotesEtc(inName)
     if (name == null || name.length == 0) throw new OmDatabaseException("Name must have a value.")
     val classId: Long = getNewKey("ClassKeySequence")
@@ -989,36 +990,36 @@ class PostgreSQLDatabase(username: String, var password: String) {
     (classId, entityId)
   }
 
-  /** Returns the id of a specific group under the system entity.  This group is the one that contains class-defining entities. */
+  /** Returns the id of a specific group under the system entity.  This group is the one that contains class-defining (template) entities. */
   def getSystemEntitysClassGroupId: Option[Long] = {
     val systemEntityId: Long = getSystemEntityId
 
     // idea: maybe this stuff would be less breakable by the user if we put this kind of info in some system table
     // instead of in this group. (See also method createDefaultData).  Or maybe it doesn't matter, since it's just a user convenience. Hmm.
-    val classDefiningGroupId = findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classDefiningEntityGroupName))._3
-    if (classDefiningGroupId.isEmpty) {
+    val classTemplateGroupId = findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classTemplateEntityGroupName))._3
+    if (classTemplateGroupId.isEmpty) {
       // no exception thrown here because really this group is a convenience for the user to see things, not a requirement. Maybe a user message would be best:
       // Idea:: BAD SMELL! The UI should do all UI communication, no?
       System.err.println("Unable to find, from the entity " + PostgreSQLDatabase.systemEntityName + "(" + systemEntityId + "), " +
                          "any connection to its expected contained group " +
-                         PostgreSQLDatabase.classDefiningEntityGroupName + ".  If it was deleted, it could be replaced if you want the convenience of finding" +
-                         " class-defining " +
+                         PostgreSQLDatabase.classTemplateEntityGroupName + ".  If it was deleted, it could be replaced if you want the convenience of finding" +
+                         " template " +
                          "entities in it.")
     }
-    classDefiningGroupId
+    classTemplateGroupId
   }
 
-  def deleteClassAndItsDefiningEntity(inClassId: Long) {
+  def deleteClassAndItsTemplateEntity(inClassId: Long) {
     beginTrans()
     try {
-      val definingEntityId: Long = getClassData(inClassId)(1).get.asInstanceOf[Long]
+      val templateEntityId: Long = getClassData(inClassId)(1).get.asInstanceOf[Long]
       val classGroupId = getSystemEntitysClassGroupId
       if (classGroupId.isDefined) {
-        removeEntityFromGroup(classGroupId.get, definingEntityId, callerManagesTransactionsIn = true)
+        removeEntityFromGroup(classGroupId.get, templateEntityId, callerManagesTransactionsIn = true)
       }
-      updateEntitysClass(definingEntityId, None, callerManagesTransactions = true)
+      updateEntitysClass(templateEntityId, None, callerManagesTransactions = true)
       deleteObjectById("class", inClassId, callerManagesTransactions = true)
-      deleteObjectById(Controller.ENTITY_TYPE, definingEntityId, callerManagesTransactions = true)
+      deleteObjectById(Controller.ENTITY_TYPE, templateEntityId, callerManagesTransactions = true)
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -1213,12 +1214,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
              ") where id=" + inId)
   }
 
-  def updateClassAndDefiningEntityName(classIdIn: Long, name: String): Long = {
+  def updateClassAndTemplateEntityName(classIdIn: Long, name: String): Long = {
     var entityId: Long = 0
     beginTrans()
     try {
       updateClassName(classIdIn, name)
-      entityId = new EntityClass(this, classIdIn).getDefiningEntityId
+      entityId = new EntityClass(this, classIdIn).getTemplateEntityId
       updateEntityOnlyName(entityId, name)
     }
     catch {
@@ -2122,14 +2123,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
     * The parameter limitByClass decides whether any limiting is done at all: if true, the query is
     * limited to entities having the class specified by inClassId (even if that is None).
     *
-    * The parameter classDefiningEntity *further* limits, if limitByClass is true, by omitting the classDefiningEntity from the results (e.g., to help avoid
+    * The parameter templateEntity *further* limits, if limitByClass is true, by omitting the templateEntity from the results (e.g., to help avoid
     * counting that one when deciding whether it is OK to delete the class).
     * */
   def getEntitiesOnlyCount(inClassId: Option[Long] = None, limitByClass: Boolean = false,
-                           classDefiningEntity: Option[Long] = None): Long = {
+                           templateEntity: Option[Long] = None): Long = {
     extractRowCountFromCountQuery("SELECT count(1) from Entity e where (not archived) and true " +
                                   classLimit(limitByClass, inClassId) +
-                                  (if (limitByClass && classDefiningEntity.isDefined) " and id != " + classDefiningEntity.get else "") +
+                                  (if (limitByClass && templateEntity.isDefined) " and id != " + templateEntity.get else "") +
                                   " and id in " +
                                   "(select id from entity " + limitToEntitiesOnly(ENTITY_ONLY_SELECT_PART) +
                                   ")")
@@ -2640,13 +2641,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
     * to select only those entities whose class_id is NULL, such as when enforcing group uniformity (see method hasMixedClasses and its
     * uses, for more info).
     *
-    * The parameter omitEntity is (at this writing) used for the id of a class-defining entity, which we shouldn't show for editing when showing all the
+    * The parameter omitEntity is (at this writing) used for the id of a class-defining (template) entity, which we shouldn't show for editing when showing all the
     * entities in the class (editing that is a separate menu option), otherwise it confuses things.
     * */
   def getEntitiesOnly(inStartingObjectIndex: Long, inMaxVals: Option[Long] = None, inClassId: Option[Long] = None,
-                      limitByClass: Boolean = false, classDefiningEntity: Option[Long] = None,
+                      limitByClass: Boolean = false, templateEntity: Option[Long] = None,
                       groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Entity] = {
-    getEntitiesGeneric(inStartingObjectIndex, inMaxVals, "EntityOnly", inClassId, limitByClass, classDefiningEntity, groupToOmitIdIn)
+    getEntitiesGeneric(inStartingObjectIndex, inMaxVals, "EntityOnly", inClassId, limitByClass, templateEntity, groupToOmitIdIn)
   }
 
   /** similar to getEntities */
@@ -2841,7 +2842,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   // 1st parm is 0-based index to start with, 2nd parm is # of obj's to return (if None, means no limit).
   private def getEntitiesGeneric(inStartingObjectIndex: Long, inMaxVals: Option[Long], inTableName: String,
                                  inClassId: Option[Long] = None, limitByClass: Boolean = false,
-                                 classDefiningEntity: Option[Long] = None, groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Entity] = {
+                                 templateEntity: Option[Long] = None, groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Entity] = {
     val ENTITY_SELECT_PART: String = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public"
     val sql: String = ENTITY_SELECT_PART +
                       (if (inTableName.compareToIgnoreCase(Controller.RELATION_TYPE_TYPE) == 0) ", r.name_in_reverse_direction, r.directionality " else "") +
@@ -2853,7 +2854,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                       } else "") +
                       " where (not archived) and true " +
                       classLimit(limitByClass, inClassId) +
-                      (if (limitByClass && classDefiningEntity.isDefined) " and id != " + classDefiningEntity.get else "") +
+                      (if (limitByClass && templateEntity.isDefined) " and id != " + templateEntity.get else "") +
                       (if (inTableName.compareToIgnoreCase(Controller.RELATION_TYPE_TYPE) == 0) {
                         // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
                         // for which a RelationType row also exists.
@@ -3482,14 +3483,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // those in the same package? It was in Controller, but moved here
       // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
 
-      val (uriClassId: Long, uriClassDefiningEntityId: Long) = getOrCreateClassAndDefiningEntityIds("URI", callerManagesTransactionsIn)
-      val (_, quotationClassDefiningEntityId: Long) = getOrCreateClassAndDefiningEntityIds("quote", callerManagesTransactionsIn)
+      val (uriClassId: Long, uriClassTemplateId: Long) = getOrCreateClassAndTemplateEntityIds("URI", callerManagesTransactionsIn)
+      val (_, quotationClassTemplateId: Long) = getOrCreateClassAndTemplateEntityIds("quote", callerManagesTransactionsIn)
       val (newEntity: Entity, newRTE: RelationToEntity) = containingEntityIn.createEntityAndAddHASRelationToIt(newEntityNameIn, observationDateIn,
                                                                                                                makeThemPublicIn, callerManagesTransactionsIn)
       updateEntitysClass(newEntity.getId, Some(uriClassId), callerManagesTransactionsIn)
-      newEntity.addTextAttribute(uriClassDefiningEntityId, uriIn, None, None, observationDateIn, callerManagesTransactionsIn)
+      newEntity.addTextAttribute(uriClassTemplateId, uriIn, None, None, observationDateIn, callerManagesTransactionsIn)
       if (quoteIn.isDefined) {
-        newEntity.addTextAttribute(quotationClassDefiningEntityId, quoteIn.get, None, None, observationDateIn, callerManagesTransactionsIn)
+        newEntity.addTextAttribute(quotationClassTemplateId, quoteIn.get, None, None, observationDateIn, callerManagesTransactionsIn)
       }
       if (!callerManagesTransactionsIn) commitTrans()
       (newEntity, newRTE)
@@ -3500,17 +3501,17 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
   }
 
-  def getOrCreateClassAndDefiningEntityIds(classNameIn: String, callerManagesTransactionsIn: Boolean): (Long, Long) = {
+  def getOrCreateClassAndTemplateEntityIds(classNameIn: String, callerManagesTransactionsIn: Boolean): (Long, Long) = {
     //(see note above re 'bad smell' in method addUriEntityWithUriAttribute.)
     if (!callerManagesTransactionsIn) beginTrans()
     try {
       val (classId, entityId) = {
         val foundId = findFIRSTClassIdByName(classNameIn, caseSensitive = true)
         if (foundId.isDefined) {
-          val entityId: Long = new EntityClass(this, foundId.get).getDefiningEntityId
+          val entityId: Long = new EntityClass(this, foundId.get).getTemplateEntityId
           (foundId.get, entityId)
         } else {
-          val (classId: Long, entityId: Long) = createClassAndItsDefiningEntity(classNameIn)
+          val (classId: Long, entityId: Long) = createClassAndItsTemplateEntity(classNameIn)
           (classId, entityId)
         }
       }

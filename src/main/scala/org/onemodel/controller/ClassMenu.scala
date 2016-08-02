@@ -26,7 +26,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
                                   "(stub)" /*"sort" if needed*/ ,
                                   "Edit...",
                                   "Delete",
-                                  "Go to defining entity",
+                                  "Go to class's template entity",
                                   "Search (List all entities in this class)")
       val response = ui.askWhich(Some(leadingText), choices)
       if (response.isEmpty) None
@@ -42,7 +42,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
                                                              "Edit \"Create template attributes by default on new entities\" value (currently " + asDisplayed + ")"))
           if (editResponse.isEmpty) None
           else if (editResponse.get == 1) {
-            controller.askForAndWriteClassAndDefiningEntityName(Some(classIn.getId), Some(classIn.getName))
+            controller.askForAndWriteClassAndTemplateEntityName(Some(classIn.getId), Some(classIn.getName))
             classMenu(new EntityClass(db, classIn.getId))
           } else if (editResponse.get == 2) {
             val prompt = "Do you want the program to create all the attributes by default, when creating a new entity in this class, using " +
@@ -66,16 +66,16 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
           }
         }
         else if (answer == 4) {
-          val entitiesCount: Long = db.getEntitiesOnlyCount(Some(classIn.getId), limitByClass = true, Some(classIn.getDefiningEntityId))
+          val entitiesCount: Long = db.getEntitiesOnlyCount(Some(classIn.getId), limitByClass = true, Some(classIn.getTemplateEntityId))
           if (entitiesCount > 0) {
             ui.displayText("Can not delete class, because it is the class of " + entitiesCount + " entities.")
           } else {
             val name = classIn.getName
-            val definingEntityName: String = new Entity(db, classIn.getDefiningEntityId).getName
-            val groupCount: Long = db.getCountOfGroupsContainingEntity(classIn.getDefiningEntityId)
-            val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(classIn.getDefiningEntityId)
-            val ans = ui.askYesNoQuestion("DELETE CLASS \"" + name + "\" AND its defining ENTITY \"" + definingEntityName + "\" with " +
-                                          controller.entityPartsThatCanBeAffected + ".  **ARE YOU REALLY SURE?**  (The defining entity is " +
+            val templateEntityName: String = new Entity(db, classIn.getTemplateEntityId).getName
+            val groupCount: Long = db.getCountOfGroupsContainingEntity(classIn.getTemplateEntityId)
+            val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(classIn.getTemplateEntityId)
+            val ans = ui.askYesNoQuestion("DELETE CLASS \"" + name + "\" AND its template ENTITY \"" + templateEntityName + "\" with " +
+                                          controller.entityPartsThatCanBeAffected + ".  **ARE YOU REALLY SURE?**  (The template entity is " +
                                          controller.getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) + ", and " +
                                           groupCount + " groups.)")
             if (ans.isDefined && ans.get) {
@@ -89,10 +89,10 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
           }
           classMenu(classIn)
         } else if (answer == 5) {
-          new EntityMenu(ui, db, controller).entityMenu(new Entity(db, classIn.getDefiningEntityId))
+          new EntityMenu(ui, db, controller).entityMenu(new Entity(db, classIn.getTemplateEntityId))
           classMenu(new EntityClass(db, classIn.getId))
         } else if (answer == 6) {
-          val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, Some(classIn.getDefiningEntityId), Controller.ENTITY_TYPE, 0,
+          val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, Some(classIn.getTemplateEntityId), Controller.ENTITY_TYPE, 0,
                                                                                Some(classIn.getId),
                                                                                limitByClassIn = true)
           if (selection.isDefined) new EntityMenu(ui, db, controller).entityMenu(new Entity(db, selection.get.getId))
