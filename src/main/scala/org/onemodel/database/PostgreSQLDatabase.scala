@@ -302,7 +302,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     mConn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
   }
 
-  /** @param skipCheckForBadSqlIn   Avoid using this! See comment on PostgreSQLDatabase.dbAction.
+  /** @param skipCheckForBadSqlIn   Avoid using this parameter! See comment on PostgreSQLDatabase.dbAction.
     */
   def dbAction(sqlIn: String, callerChecksRowCountEtc: Boolean = false, skipCheckForBadSqlIn: Boolean = false): Long = {
     PostgreSQLDatabase.dbAction(sqlIn, callerChecksRowCountEtc, mConn, skipCheckForBadSqlIn)
@@ -1134,7 +1134,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     if (!callerManagesTransactionsIn) commitTrans()
     id
   }
-
+  
   def escapeQuotesEtc(s: String): String = {
     PostgreSQLDatabase.escapeQuotesEtc(s)
   }
@@ -1357,7 +1357,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
         //noinspection ScalaUselessExpression
         if (numBytesRead == -1) Unit
         else {
-          // just once by a test subclass is enough to mess w/ the md5sum.
+          // (just once by a subclass is enough to mess w/ the md5sum for testing:)
           if (total == 0) damageBuffer(buffer)
 
           obj.write(buffer, 0, numBytesRead)
