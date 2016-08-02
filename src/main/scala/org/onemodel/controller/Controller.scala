@@ -2307,26 +2307,25 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                        waitForKeystroke = false)
         val newAttribute: Option[Attribute] = {
           templateAttribute match {
-            case a: QuantityAttribute =>
-              Some(entityIn.addQuantityAttribute(a.getAttrTypeId, a.getUnitId, a.getNumber, None))
-            case a: DateAttribute => Some(entityIn.addDateAttribute(a.getAttrTypeId, a.getDate))
-            case a: BooleanAttribute => Some(entityIn.addBooleanAttribute(a.getAttrTypeId, a.getBoolean, None))
+            case a: QuantityAttribute => Some(entityIn.addQuantityAttribute(a.getAttrTypeId, a.getUnitId, a.getNumber, Some(a.getSortingIndex)))
+            case a: DateAttribute => Some(entityIn.addDateAttribute(a.getAttrTypeId, a.getDate, Some(a.getSortingIndex)))
+            case a: BooleanAttribute => Some(entityIn.addBooleanAttribute(a.getAttrTypeId, a.getBoolean, Some(a.getSortingIndex)))
             case a: FileAttribute =>
               ui.displayText("You can add a FileAttribute manually afterwards for this attribute.  Maybe it can be automated " +
                                                     "more, when use cases for this part are more clear.")
               None
-            case a: TextAttribute => Some(entityIn.addTextAttribute(a.getAttrTypeId, a.getText, None))
+            case a: TextAttribute => Some(entityIn.addTextAttribute(a.getAttrTypeId, a.getText, Some(a.getSortingIndex)))
             case a: RelationToEntity =>
               val dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(new RelationToEntityDataHolder(0, None, 0, 0), inEditing = false)
               if (dh.isDefined) {
-                Some(entityIn.addRelationToEntity(a.getAttrTypeId, dh.get.entityId2, None))
+                Some(entityIn.addRelationToEntity(a.getAttrTypeId, dh.get.entityId2, Some(a.getSortingIndex)))
               } else {
                 None
               }
             case a: RelationToGroup =>
               val dh: Option[RelationToGroupDataHolder] = askForRelToGroupInfo(new RelationToGroupDataHolder(0, 0, 0, None, 0))
               if (dh.isDefined) {
-                Some(entityIn.addRelationToGroup(a.getAttrTypeId, dh.get.groupId, None))
+                Some(entityIn.addRelationToGroup(a.getAttrTypeId, dh.get.groupId, Some(a.getSortingIndex)))
               } else {
                 None
               }
