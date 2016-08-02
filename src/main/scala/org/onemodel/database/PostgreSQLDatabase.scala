@@ -955,7 +955,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // features, put them all there instead.
     // It is set to allowMixedClassesInGroup just because no current known reason not to, will be interesting to see what comes of it.
     createGroupAndRelationToGroup(systemEntityId, hasRelTypeId, PostgreSQLDatabase.classDefiningEntityGroupName, allowMixedClassesInGroupIn = true,
-                                  Some(System.currentTimeMillis()), System.currentTimeMillis(), callerManagesTransactionsIn = false)
+                                  Some(System.currentTimeMillis()), System.currentTimeMillis(), None, callerManagesTransactionsIn = false)
 
     // NOTICE: code should not rely on this name, but on data in the tables.
     /*val (classId, entityId) = */ createClassAndItsDefiningEntity("person-template")
@@ -1464,10 +1464,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
     * Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
     */
   def createGroupAndRelationToGroup(inEntityId: Long, inRelationTypeId: Long, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false,
-                                    inValidOnDate: Option[Long], inObservationDate: Long, callerManagesTransactionsIn: Boolean = false): (Long, Long) = {
+                                    inValidOnDate: Option[Long], inObservationDate: Long,
+                                    sortingIndexIn: Option[Long], callerManagesTransactionsIn: Boolean = false): (Long, Long) = {
     if (!callerManagesTransactionsIn) beginTrans()
     val groupId: Long = createGroup(newGroupNameIn, allowMixedClassesInGroupIn)
-    val (rtgId,_) = createRelationToGroup(inEntityId, inRelationTypeId, groupId, inValidOnDate, inObservationDate, None, callerManagesTransactionsIn)
+    val (rtgId,_) = createRelationToGroup(inEntityId, inRelationTypeId, groupId, inValidOnDate, inObservationDate, sortingIndexIn, callerManagesTransactionsIn)
     if (!callerManagesTransactionsIn) commitTrans()
     (groupId, rtgId)
   }

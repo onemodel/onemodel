@@ -48,6 +48,10 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTy
 
   def getGroupId: Long = mGroupId
 
+  def getGroup: Group = {
+    new Group(mDB, getGroupId)
+  }
+
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, ignoredParameter: Option[RelationType] = None, simplify: Boolean = false): String = {
     val group = new Group(mDB, mGroupId)
     val rtName = new RelationType(mDB, this.getAttrTypeId).getName

@@ -271,15 +271,15 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     // anyway:
     val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
     val (group, rtg) = addGroupAndRelationToGroup(relationTypeId, newGroupNameIn, mixedClassesAllowedIn, None, observationDateIn,
-                                                  callerManagesTransactionsIn)
+                                                  None, callerManagesTransactionsIn)
     (group, rtg)
   }
 
   /** Like others, returns the new things' IDs. */
   def addGroupAndRelationToGroup(relTypeIdIn: Long, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false, validOnDateIn: Option[Long],
-                                 inObservationDate: Long, callerManagesTransactionsIn: Boolean = false): (Group, RelationToGroup) = {
+                                 inObservationDate: Long, sortingIndexIn: Option[Long], callerManagesTransactionsIn: Boolean = false): (Group, RelationToGroup) = {
     val (groupId: Long, rtgId: Long) = mDB.createGroupAndRelationToGroup(getId, relTypeIdIn, newGroupNameIn, allowMixedClassesInGroupIn, validOnDateIn,
-                                                                         inObservationDate, callerManagesTransactionsIn)
+                                                                         inObservationDate, sortingIndexIn, callerManagesTransactionsIn)
     val group = new Group(mDB, groupId)
     val rtg = new RelationToGroup(mDB, rtgId, getId, relTypeIdIn, groupId)
     (group, rtg)

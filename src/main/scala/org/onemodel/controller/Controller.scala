@@ -2302,9 +2302,15 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     var userWantsOut = false
     for (templateAttribute: Attribute <- templateAttributesToCopyIn) {
       if (!userWantsOut) {
+        val waitForKeystroke = {
+          templateAttribute match {
+            case a: RelationToEntity => true
+            case _ => false
+          }
+        }
         ui.displayText("Edit the copied " + PostgreSQLDatabase.getAttributeFormName(templateAttribute.getFormId) + " \"" +
                        templateAttribute.getDisplayString(0, None, None, simplify = true) + " \", from the archetype entity (ESC to abort):",
-                       waitForKeystroke = false)
+                       waitForKeystroke)
         val newAttribute: Option[Attribute] = {
           templateAttribute match {
             case a: QuantityAttribute => Some(entityIn.addQuantityAttribute(a.getAttrTypeId, a.getUnitId, a.getNumber, Some(a.getSortingIndex)))
@@ -2323,20 +2329,24 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                 None
               }
             case a: RelationToGroup =>
-              val dh: Option[RelationToGroupDataHolder] = askForRelToGroupInfo(new RelationToGroupDataHolder(0, 0, 0, None, 0))
-              if (dh.isDefined) {
-                Some(entityIn.addRelationToGroup(a.getAttrTypeId, dh.get.groupId, Some(a.getSortingIndex)))
-              } else {
-                None
-              }
+              val templateGroup = a.getGroup
+              val (_, newRTG: RelationToGroup) = entityIn.addGroupAndRelationToGroup(a.getAttrTypeId, templateGroup.getName,
+                                                                                     templateGroup.getMixedClassesAllowed, None,
+                                                                                     System.currentTimeMillis(), Some(a.getSortingIndex))
+              Some(newRTG)
             case _ => throw new OmException("Unexpected type: " + templateAttribute.getClass.getCanonicalName)
           }
         }
-        if (newAttribute.isDefined) {
-          userWantsOut = editAttributeOnSingleLine(newAttribute.get)
-          if (userWantsOut) {
-            // That includes a "never mind" intention on the last one added (just above), so:
-            newAttribute.get.delete()
+        if (newAttribute.isEmpty) {
+          userWantsOut = true
+        } else {
+          // (Not re-editing if it is a RTE  because it was edited just above as part of the initial attribute creation step.)
+          if (!newAttribute.get.isInstanceOf[RelationToEntity]) {
+            userWantsOut = editAttributeOnSingleLine(newAttribute.get)
+            if (userWantsOut) {
+              // That includes a "never mind" intention on the last one added (just above), so:
+              newAttribute.get.delete()
+            }
           }
         }
       }
@@ -2358,6 +2368,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             if (!attributeTypeFoundOnEntity) {
               val cde_typeId: Long = cde_attribute.getAttrTypeId
               val typeId = attributeTuple._2.getAttrTypeId
+              // This is an imperfect check, and will fail for example if there are 2 "has..." relations on the template (class-defining) entity, and
+              // only one on the entity being checked.  Perhaps this is a motive to use more descriptive relation types in class-defining entities.
               if (cde_typeId == typeId) {
                 attributeTypeFoundOnEntity = true
               }

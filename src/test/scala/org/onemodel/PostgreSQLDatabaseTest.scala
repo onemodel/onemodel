@@ -987,7 +987,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
                                                        inValidOnDate: Option[Long] = None, allowMixedClassesIn: Boolean = true): (Long, RelationToGroup) = {
     val validOnDate: Option[Long] = if (inValidOnDate.isEmpty) None else inValidOnDate
     val observationDate: Long = System.currentTimeMillis
-    val (group:Group, rtg: RelationToGroup) = new Entity(mDB, inParentId).addGroupAndRelationToGroup(inRelTypeId, inGroupName, allowMixedClassesIn, validOnDate, observationDate)
+    val (group:Group, rtg: RelationToGroup) = new Entity(mDB, inParentId).addGroupAndRelationToGroup(inRelTypeId, inGroupName, allowMixedClassesIn, validOnDate, observationDate, None)
 
     // and verify it:
     if (inValidOnDate.isEmpty) {
@@ -1268,7 +1268,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
     val id1: Long = mDB.createEntity("name1")
     val group: Group = new Entity(mDB, id1).addGroupAndRelationToGroup(relTypeId, "someRelToGroupName", allowMixedClassesInGroupIn = false, None, 1234L,
-                                                                       callerManagesTransactionsIn = false)._1
+                                                                       None, callerManagesTransactionsIn = false)._1
     val id2: Long = mDB.createEntity("name2")
     group.addEntity(id2)
     val entityCountAfterCreating = mDB.getEntitiesOnlyCount()
