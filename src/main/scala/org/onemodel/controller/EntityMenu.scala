@@ -483,7 +483,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             db.moveRelationToEntity(movingRte.getId, targetContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
             (startingDisplayRowIndexIn, true)
           } else if (highlightedAttributeIn.isInstanceOf[RelationToEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
-            require(targetForMovesIn.get.getFormId == PostgreSQLDatabase.getAttributeFormId("relationtogroup"))
+            require(targetForMovesIn.get.getFormId == PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_GROUP_TYPE))
             val targetGroupId = RelationToGroup.createRelationToGroup(db, targetForMovesIn.get.getId).getGroupId
             val rte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
             // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
@@ -611,14 +611,14 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       val attrForm: Int = whichKindOfAttribute.get match {
         // This is a bridge between the expected order for convenient UI above, and the parameter value expected by controller.addAttribute
         // (1-based, not 0-based.)
-        case 1 => PostgreSQLDatabase.getAttributeFormId("relationtoentity")
+        case 1 => PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_ENTITY_TYPE)
         case 2 => 100
-        case 3 => PostgreSQLDatabase.getAttributeFormId("quantityattribute")
-        case 4 => PostgreSQLDatabase.getAttributeFormId("dateattribute")
-        case 5 => PostgreSQLDatabase.getAttributeFormId("booleanattribute")
-        case 6 => PostgreSQLDatabase.getAttributeFormId("fileattribute")
-        case 7 => PostgreSQLDatabase.getAttributeFormId("textattribute")
-        case 8 => PostgreSQLDatabase.getAttributeFormId("relationtogroup")
+        case 3 => PostgreSQLDatabase.getAttributeFormId(Controller.QUANTITY_TYPE)
+        case 4 => PostgreSQLDatabase.getAttributeFormId(Controller.DATE_TYPE)
+        case 5 => PostgreSQLDatabase.getAttributeFormId(Controller.BOOLEAN_TYPE)
+        case 6 => PostgreSQLDatabase.getAttributeFormId(Controller.FILE_TYPE)
+        case 7 => PostgreSQLDatabase.getAttributeFormId(Controller.TEXT_TYPE)
+        case 8 => PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_GROUP_TYPE)
         case 9 => 101
       }
       controller.addAttribute(entityIn, startingAttributeIndexIn, attrForm, None)

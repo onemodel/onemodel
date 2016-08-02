@@ -42,18 +42,18 @@ object Controller {
 
   //these are here to avoid colliding with use of the same names within other code inside the class.
   // idea: see what scala does with enums and/or constants; update this style?
-  val ENTITY_TYPE: String = "entity"
-  val QUANTITY_TYPE: String = "quantity"
-  val TEXT_TYPE: String = "text"
-  val DATE_TYPE: String = "date"
-  val BOOLEAN_TYPE: String = "boolean"
-  val FILE_TYPE: String = "file"
+  val ENTITY_TYPE: String = "Entity"
+  val QUANTITY_TYPE: String = "QuantityAttribute"
+  val TEXT_TYPE: String = "TextAttribute"
+  val DATE_TYPE: String = "DateAttribute"
+  val BOOLEAN_TYPE: String = "BooleanAttribute"
+  val FILE_TYPE: String = "FileAttribute"
   //i.e., "relationTypeType", or the thing that we sometimes put in an attribute type parameter, though not exactly an attribute type, which is "RelationType":
-  val RELATION_TYPE_TYPE: String = "relationtype"
-  val RELATION_TO_ENTITY_TYPE: String = "relation to entity"
-  val RELATION_TO_GROUP_TYPE: String = "relation to group"
-  val GROUP_TYPE: String = "group"
-  val ENTITY_CLASS_TYPE: String = "class"
+  val RELATION_TYPE_TYPE: String = "RelationType"
+  val RELATION_TO_ENTITY_TYPE: String = "RelationToEntity"
+  val RELATION_TO_GROUP_TYPE: String = "RelationToGroup"
+  val GROUP_TYPE: String = "Group"
+  val ENTITY_CLASS_TYPE: String = "Class"
 
   val ORPHANED_GROUP_MESSAGE: String = "There is no entity with a containing relation to the group (orphaned).  You might search for it" +
                                        " (by adding it as an attribute to some entity)," +
@@ -1258,7 +1258,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
       if (objectsToDisplay.size == 0) {
         // IF THIS CHANGES: change the guess at the 1st parameter to maxColumnarChoicesToDisplayAfter, JUST ABOVE!
-        val txt: String = TextUI.NEWLN + TextUI.NEWLN + "(None of the needed " + (if (inObjectType == "relationtype") "relation types" else "entities") +
+        val txt: String = TextUI.NEWLN + TextUI.NEWLN + "(None of the needed " + (if (inObjectType == Controller.RELATION_TYPE_TYPE) "relation types" else "entities") +
                           " have been created in this model, yet."
         leadingText = leadingText ::: List(txt)
       }
@@ -2160,26 +2160,26 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         (0L, true)
       }
     }
-    if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("quantityattribute")) {
+    if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.QUANTITY_TYPE)) {
       def addQuantityAttribute(dhIn: QuantityAttributeDataHolder): Option[QuantityAttribute] = {
         Some(entityIn.addQuantityAttribute(dhIn.attrTypeId, dhIn.unitId, dhIn.number, None, dhIn.validOnDate, dhIn.observationDate))
       }
       askForInfoAndAddAttribute[QuantityAttributeDataHolder](new QuantityAttributeDataHolder(attrTypeId, None, 0, 0, 0), askForAttrTypeId, Controller.QUANTITY_TYPE,
                                                              Some(quantityTypePrompt), askForQuantityAttributeNumberAndUnit, addQuantityAttribute)
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("dateattribute")) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.DATE_TYPE)) {
       def addDateAttribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
         Some(entityIn.addDateAttribute(dhIn.attrTypeId, dhIn.date))
       }
       askForInfoAndAddAttribute[DateAttributeDataHolder](new DateAttributeDataHolder(attrTypeId, 0), askForAttrTypeId, Controller.DATE_TYPE,
                                                          Some("SELECT TYPE OF DATE: "), askForDateAttributeValue, addDateAttribute)
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("booleanattribute")) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.BOOLEAN_TYPE)) {
       def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
         Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean, None))
       }
       askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(attrTypeId, Some(0), 0, false), askForAttrTypeId,
                                                             Controller.BOOLEAN_TYPE, Some("SELECT TYPE OF TRUE/FALSE VALUE: "),  askForBooleanAttributeValue,
                                                             addBooleanAttribute)
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("fileattribute")) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.FILE_TYPE)) {
       def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
         Some(entityIn.addFileAttribute(dhIn.attrTypeId, dhIn.description, new File(dhIn.originalFilePath)))
       }
@@ -2196,13 +2196,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         }
       }
       result
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("textattribute")) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.TEXT_TYPE)) {
       def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
         Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, None, dhIn.validOnDate, dhIn.observationDate))
       }
       askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(attrTypeId, Some(0), 0, ""), askForAttrTypeId, Controller.TEXT_TYPE,
                                                          Some("SELECT TYPE OF " + textDescription + ": "), askForTextAttributeText, addTextAttribute)
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("relationtoentity")) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_ENTITY_TYPE)) {
       def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[RelationToEntity] = {
         Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId2, None, dhIn.validOnDate, dhIn.observationDate))
       }
@@ -2217,7 +2217,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       } else {
         None
       }
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("relationtogroup")) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_GROUP_TYPE)) {
       def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
         require(dhIn.entityId == entityIn.getId)
         val newRTG: RelationToGroup = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, None, dhIn.validOnDate, dhIn.observationDate)
