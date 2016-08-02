@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -40,7 +40,7 @@ class RelationToEntityTest extends FlatSpec with MockitoSugar {
     when(mockDB.relationToEntityKeysExistAndMatch(rteId, relTypeId, entity1Id, entity2Id)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    val relation = new RelationToEntity(mockDB, rteId, relTypeId, entity1Id, entity2Id, None, date)
+    val relation = new RelationToEntity(mockDB, rteId, relTypeId, entity1Id, entity2Id, None, date, 0)
     val smallLimit = 15
     val displayed1: String = relation.getDisplayString(smallLimit, Some(mockEntity2), Some(mockRelationType))
     val observedDateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST"

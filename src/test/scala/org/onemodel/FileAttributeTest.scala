@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2014 and 2016-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -34,13 +34,14 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     val longDescription = "this is a longish description of a file"
     val filePath = "/tmp/w.jpeg"
     val size = 12345678
+    //noinspection SpellCheckingInspection
     val hash = "e156b9a37060ccbcbffe5ec0fc967016"
     when(mockDB.getEntityName(otherEntityId)).thenReturn(Some(attrTypeName))
     when(mockDB.fileAttributeKeyExists(fileAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
     val fileAttribute = new FileAttribute(mockDB, fileAttributeId, entityId, otherEntityId, longDescription, modifiedDate, storedDate, filePath, true, true,
-                                          false, size, hash)
+                                          false, size, hash, 0)
     val smallLimit = 35
     val display1: String = fileAttribute.getDisplayString(smallLimit)
     val wholeThing: String = longDescription + " (" + attrTypeName + "); 12MB (12345678) rw- from " + filePath + ", " +
@@ -71,9 +72,9 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     val (basename2, extension2) = FileAttribute.getReplacementFilename(fa.getOriginalFilePath)
     assert(basename2 == "something" && extension2 == ".txt")
 
-    originalName = "somefilename"
+    originalName = "someFilename"
     val (basename3, extension3) = FileAttribute.getReplacementFilename(fa.getOriginalFilePath)
-    assert(basename3 == "somefilename" && extension3 == "")
+    assert(basename3 == "someFilename" && extension3 == "")
 
     originalName = ".hidden"
     val (basename4, extension4) = FileAttribute.getReplacementFilename(fa.getOriginalFilePath)

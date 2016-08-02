@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -33,11 +33,12 @@ class QuantityAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWit
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(db: PostgreSQLDatabase, id: Long, inParentId: Long, inAttrTypeId: Long, inUnitId: Long, inNumber: Float, validOnDate: Option[Long], observationDate: Long) {
+  def this(db: PostgreSQLDatabase, id: Long, inParentId: Long, inAttrTypeId: Long, inUnitId: Long, inNumber: Float, validOnDate: Option[Long],
+           observationDate: Long, sortingIndex: Long) {
     this(db, id)
     mUnitId = inUnitId
     mNumber = inNumber
-    assignCommonVars(inParentId, inAttrTypeId, validOnDate, observationDate)
+    assignCommonVars(inParentId, inAttrTypeId, validOnDate, observationDate, sortingIndex)
   }
 
   /**
@@ -70,7 +71,7 @@ class QuantityAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWit
     mUnitId = quantityData(1).get.asInstanceOf[Long]
     mNumber = quantityData(2).get.asInstanceOf[Float]
     assignCommonVars(quantityData(0).get.asInstanceOf[Long], quantityData(3).get.asInstanceOf[Long], quantityData(4).asInstanceOf[Option[Long]],
-                           quantityData(5).get.asInstanceOf[Long])
+                           quantityData(5).get.asInstanceOf[Long], quantityData(6).get.asInstanceOf[Long])
   }
 
   def update(inAttrTypeId: Long, inUnitId: Long, inNumber: Float, inValidOnDate: Option[Long], inObservationDate: Long) {

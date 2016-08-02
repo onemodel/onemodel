@@ -25,7 +25,7 @@ object RelationToGroup {
   def createRelationToGroup(mDB: PostgreSQLDatabase, idIn: Long): RelationToGroup = {
     val relationData: Array[Option[Any]] = mDB.getRelationToGroupDataById(idIn)
     new RelationToGroup(mDB, idIn, relationData(1).get.asInstanceOf[Long], relationData(2).get.asInstanceOf[Long], relationData(3).get.asInstanceOf[Long],
-                     relationData(4).asInstanceOf[Option[Long]], relationData(5).get.asInstanceOf[Long])
+                     relationData(4).asInstanceOf[Option[Long]], relationData(5).get.asInstanceOf[Long], relationData(6).get.asInstanceOf[Long])
   }
 }
 
@@ -40,9 +40,10 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTy
   }
 
   /** See comment about these 2 dates in PostgreSQLDatabase.createTables() */
-  def this(mDB: PostgreSQLDatabase, idIn: Long, entityIdIn: Long, relTypeIdIn: Long, groupIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long) {
+  def this(mDB: PostgreSQLDatabase, idIn: Long, entityIdIn: Long, relTypeIdIn: Long, groupIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long,
+           sortingIndexIn: Long) {
     this(mDB, idIn, entityIdIn, relTypeIdIn, groupIdIn)
-    assignCommonVars(entityIdIn, relTypeIdIn, inValidOnDate, inObservationDate)
+    assignCommonVars(entityIdIn, relTypeIdIn, inValidOnDate, inObservationDate, sortingIndexIn)
   }
 
   def getGroupId: Long = mGroupId
@@ -60,7 +61,7 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTy
     val relationData: Array[Option[Any]] = mDB.getRelationToGroupData(mEntityId, mRelTypeId, mGroupId)
     super.assignCommonVars(mEntityId, mRelTypeId,
                            relationData(4).asInstanceOf[Option[Long]],
-                           relationData(5).get.asInstanceOf[Long])
+                           relationData(5).get.asInstanceOf[Long], relationData(6).get.asInstanceOf[Long])
   }
 
   def update(validOnDateIn:Option[Long], observationDateIn:Option[Long]) {

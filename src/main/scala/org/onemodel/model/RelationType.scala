@@ -24,7 +24,7 @@ object RelationType {
     PostgreSQLDatabase.relationTypeNameLength
   }
 
-  // idea: should use these more, elsewhere (replacing hard-coded valuels! )
+  // idea: should use these more, elsewhere (replacing hard-coded values! )
   val BIDIRECTIONAL: String = "BI"
   val UNIDIRECTIONAL: String = "UNI"
   val NONDIRECTIONAL: String = "NON"

@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-14 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-14 inclusive and 2016, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -36,9 +36,10 @@ class QuantityAttributeTest extends FlatSpec with MockitoSugar {
     when(mockDB.getEntityName(attrTypeId)).thenReturn(Some("length"))
     when(mockDB.getEntityName(unitId)).thenReturn(Some("meters"))
 
-    val quantityAttribute = new QuantityAttribute(mockDB, quantityAttributeId, entityId, attrTypeId, unitId, number, None, date)
+    val quantityAttribute = new QuantityAttribute(mockDB, quantityAttributeId, entityId, attrTypeId, unitId, number, None, date, 0)
     val smallLimit = 8
     val display1: String = quantityAttribute.getDisplayString(smallLimit, None, None)
+    //noinspection SpellCheckingInspection
     assert(display1 == "lengt...")
     val unlimited=0
     val display2: String = quantityAttribute.getDisplayString(unlimited, None, None)

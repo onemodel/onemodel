@@ -173,8 +173,8 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   def archive() = mDB.archiveEntity(mId)
 
   /** Also for convenience */
-  def addQuantityAttribute(inAttrTypeId: Long, inUnitId: Long, inNumber: Float): QuantityAttribute = {
-    addQuantityAttribute(inAttrTypeId, inUnitId, inNumber, None, System.currentTimeMillis())
+  def addQuantityAttribute(inAttrTypeId: Long, inUnitId: Long, inNumber: Float, sortingIndexIn: Option[Long]): QuantityAttribute = {
+    addQuantityAttribute(inAttrTypeId, inUnitId, inNumber, sortingIndexIn, None, System.currentTimeMillis())
   }
 
   /** Creates a quantity attribute on this Entity (i.e., "6 inches length"), with default values of "now" for the dates. See "addQuantityAttribute" comment
@@ -183,10 +183,11 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
    of authentication/login 1st? And a GUID for users (as Entities?)?
    See PostgreSQLDatabase.createQuantityAttribute(...) for details.
     */
-  def addQuantityAttribute(inAttrTypeId: Long, inUnitId: Long, inNumber: Float, inValidOnDate: Option[Long], inObservationDate: Long): QuantityAttribute = {
+  def addQuantityAttribute(inAttrTypeId: Long, inUnitId: Long, inNumber: Float, sortingIndexIn: Option[Long] = None,
+                           inValidOnDate: Option[Long], inObservationDate: Long): QuantityAttribute = {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    val id = mDB.createQuantityAttribute(mId, inAttrTypeId, inUnitId, inNumber, inValidOnDate, inObservationDate)
+    val id = mDB.createQuantityAttribute(mId, inAttrTypeId, inUnitId, inNumber, inValidOnDate, inObservationDate, sortingIndexIn = sortingIndexIn)
     new QuantityAttribute(mDB, id)
   }
 
@@ -201,30 +202,36 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   def getFileAttribute(inKey: Long): FileAttribute = new FileAttribute(mDB, inKey)
 
   /** See addQuantityAttribute(...) methods for comments. */
-  def addTextAttribute(inAttrTypeId: Long, inText: String): TextAttribute = addTextAttribute(inAttrTypeId, inText, None, System.currentTimeMillis)
+  def addTextAttribute(inAttrTypeId: Long, inText: String, sortingIndexIn: Option[Long]): TextAttribute = {
+    addTextAttribute(inAttrTypeId, inText, sortingIndexIn, None, System.currentTimeMillis)
+  }
 
-  def addTextAttribute(inAttrTypeId: Long, inText: String, inValidOnDate: Option[Long], inObservationDate: Long,
+  def addTextAttribute(inAttrTypeId: Long, inText: String, sortingIndexIn: Option[Long], inValidOnDate: Option[Long], inObservationDate: Long,
                        callerManagesTransactionsIn: Boolean = false): TextAttribute = {
-    val id = mDB.createTextAttribute(mId, inAttrTypeId, inText, inValidOnDate, inObservationDate, callerManagesTransactionsIn)
+    val id = mDB.createTextAttribute(mId, inAttrTypeId, inText, inValidOnDate, inObservationDate, callerManagesTransactionsIn, sortingIndexIn)
     new TextAttribute(mDB, id)
   }
 
-  def addDateAttribute(inAttrTypeId: Long, inDate: Long): DateAttribute = {
-    val id = mDB.createDateAttribute(mId, inAttrTypeId, inDate)
+  def addDateAttribute(inAttrTypeId: Long, inDate: Long, sortingIndexIn: Option[Long] = None): DateAttribute = {
+    val id = mDB.createDateAttribute(mId, inAttrTypeId, inDate, sortingIndexIn)
     new DateAttribute(mDB, id)
   }
 
-  def addBooleanAttribute(inAttrTypeId: Long, inBoolean: Boolean): BooleanAttribute = addBooleanAttribute(inAttrTypeId, inBoolean, None,
-                                                                                                          System.currentTimeMillis)
+  def addBooleanAttribute(inAttrTypeId: Long, inBoolean: Boolean, sortingIndexIn: Option[Long]): BooleanAttribute = {
+    addBooleanAttribute(inAttrTypeId, inBoolean, sortingIndexIn, None, System.currentTimeMillis)
+  }
 
-  def addBooleanAttribute(inAttrTypeId: Long, inBoolean: Boolean, inValidOnDate: Option[Long], inObservationDate: Long): BooleanAttribute = {
-    val id = mDB.createBooleanAttribute(mId, inAttrTypeId, inBoolean, inValidOnDate, inObservationDate)
+  def addBooleanAttribute(inAttrTypeId: Long, inBoolean: Boolean, sortingIndexIn: Option[Long] = None,
+                          inValidOnDate: Option[Long], inObservationDate: Long): BooleanAttribute = {
+    val id = mDB.createBooleanAttribute(mId, inAttrTypeId, inBoolean, inValidOnDate, inObservationDate, sortingIndexIn)
     new BooleanAttribute(mDB, id)
   }
 
-  def addFileAttribute(inAttrTypeId: Long, inFile: java.io.File): FileAttribute = addFileAttribute(inAttrTypeId, inFile.getName, inFile)
+  def addFileAttribute(inAttrTypeId: Long, inFile: java.io.File): FileAttribute = {
+    addFileAttribute(inAttrTypeId, inFile.getName, inFile)
+  }
 
-  def addFileAttribute(inAttrTypeId: Long, descriptionIn: String, inFile: java.io.File): FileAttribute = {
+  def addFileAttribute(inAttrTypeId: Long, descriptionIn: String, inFile: java.io.File, sortingIndexIn: Option[Long] = None): FileAttribute = {
     if (!inFile.exists()) {
       throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
     }
@@ -234,7 +241,8 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     try {
       inputStream = new FileInputStream(inFile)
       val id = mDB.createFileAttribute(mId, inAttrTypeId, descriptionIn, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,
-                                       inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute.md5Hash(inFile), inputStream)
+                                       inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute.md5Hash(inFile), inputStream,
+                                       sortingIndexIn)
       new FileAttribute(mDB, id)
     }
     finally {
@@ -244,12 +252,13 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     }
   }
 
-  def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long): RelationToEntity = {
-    addRelationToEntity(inAttrTypeId, inEntityId2, None, System.currentTimeMillis)
+  def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long, sortingIndexIn: Option[Long]): RelationToEntity = {
+    addRelationToEntity(inAttrTypeId, inEntityId2, sortingIndexIn, None, System.currentTimeMillis)
   }
 
-  def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long, inValidOnDate: Option[Long], inObservationDate: Long): RelationToEntity = {
-    val rteId = mDB.createRelationToEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate).getId
+  def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long, sortingIndexIn: Option[Long],
+                          inValidOnDate: Option[Long], inObservationDate: Long): RelationToEntity = {
+    val rteId = mDB.createRelationToEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate, sortingIndexIn).getId
     new RelationToEntity(mDB, rteId, inAttrTypeId, getId, inEntityId2)
   }
 
@@ -309,13 +318,14 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   /**
     * @return the new group's id.
     */
-  def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long): RelationToGroup = {
-    addRelationToGroup(relTypeIdIn, groupIdIn, None, System.currentTimeMillis)
+  def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long, sortingIndexIn: Option[Long]): RelationToGroup = {
+    addRelationToGroup(relTypeIdIn, groupIdIn, sortingIndexIn, None, System.currentTimeMillis)
   }
 
-  def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): RelationToGroup = {
-    val newRtgId = mDB.createRelationToGroup(getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn)
-    new RelationToGroup(mDB, newRtgId, getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn)
+  def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long, sortingIndexIn: Option[Long],
+                         validOnDateIn: Option[Long], observationDateIn: Long): RelationToGroup = {
+    val (newRtgId, sortingIndex) = mDB.createRelationToGroup(getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
+    new RelationToGroup(mDB, newRtgId, getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn, sortingIndex)
   }
 
   var mAlreadyReadData: Boolean = false

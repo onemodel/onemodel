@@ -1116,12 +1116,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
    * Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
    */
   def createQuantityAttribute(inParentId: Long, inAttrTypeId: Long, inUnitId: Long, inNumber: Float, inValidOnDate: Option[Long],
-                              inObservationDate: Long, callerManagesTransactionsIn: Boolean = false): /*id*/ Long = {
+                              inObservationDate: Long, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option[Long] = None): /*id*/ Long = {
     if (!callerManagesTransactionsIn) beginTrans()
     var id: Long = 0L
     try {
       id = getNewKey("QuantityAttributeKeySequence")
-      addAttributeSortingRow(inParentId, PostgreSQLDatabase.getAttributeFormId("QuantityAttribute"), id)
+      addAttributeSortingRow(inParentId, PostgreSQLDatabase.getAttributeFormId("QuantityAttribute"), id, sortingIndexIn)
       dbAction("insert into QuantityAttribute (id, entity_id, unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) " +
                "values (" + id + "," + inParentId + "," + inUnitId + "," + inNumber + "," + inAttrTypeId + "," +
                (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
@@ -1272,12 +1272,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
   def createTextAttribute(parentIdIn: Long, attrTypeIdIn: Long, inText: String, validOnDateIn: Option[Long] = None,
-                          observationDateIn: Long = System.currentTimeMillis(), callerManagesTransactionsIn: Boolean = false): /*id*/ Long = {
+                          observationDateIn: Long = System.currentTimeMillis(), callerManagesTransactionsIn: Boolean = false,
+                          sortingIndexIn: Option[Long] = None): /*id*/ Long = {
     val text: String = escapeQuotesEtc(inText)
     val id: Long = getNewKey("TextAttributeKeySequence")
     if (!callerManagesTransactionsIn) beginTrans()
     try {
-      addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("TextAttribute"), id)
+      addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("TextAttribute"), id, sortingIndexIn)
       dbAction("insert into TextAttribute (id, entity_id, textvalue, attr_type_id, valid_on_date, observation_date) " +
                "values (" + id + "," + parentIdIn + ",'" + text + "'," + attrTypeIdIn + "," +
                "" + (if (validOnDateIn.isEmpty) "NULL" else validOnDateIn.get) + "," + observationDateIn + ")")
@@ -1291,11 +1292,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
     id
   }
 
-  def createDateAttribute(parentIdIn: Long, attrTypeIdIn: Long, dateIn: Long): /*id*/ Long = {
+  def createDateAttribute(parentIdIn: Long, attrTypeIdIn: Long, dateIn: Long, sortingIndexIn: Option[Long] = None): /*id*/ Long = {
     val id: Long = getNewKey("DateAttributeKeySequence")
     beginTrans()
     try {
-      addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("DateAttribute"), id)
+      addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("DateAttribute"), id, sortingIndexIn)
       dbAction("insert into DateAttribute (id, entity_id, attr_type_id, date) " +
                "values (" + id + "," + parentIdIn + ",'" + attrTypeIdIn + "'," + dateIn + ")")
     }
@@ -1306,11 +1307,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
     id
   }
 
-  def createBooleanAttribute(parentIdIn: Long, attrTypeIdIn: Long, booleanIn: Boolean, validOnDateIn: Option[Long], observationDateIn: Long): /*id*/ Long = {
+  def createBooleanAttribute(parentIdIn: Long, attrTypeIdIn: Long, booleanIn: Boolean, validOnDateIn: Option[Long], observationDateIn: Long,
+                             sortingIndexIn: Option[Long] = None): /*id*/ Long = {
     val id: Long = getNewKey("BooleanAttributeKeySequence")
     beginTrans()
     try {
-      addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("BooleanAttribute"), id)
+      addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("BooleanAttribute"), id, sortingIndexIn)
       dbAction("insert into BooleanAttribute (id, entity_id, booleanvalue, attr_type_id, valid_on_date, observation_date) " +
                "values (" + id + "," + parentIdIn + ",'" + booleanIn + "'," + attrTypeIdIn + "," +
                "" + (if (validOnDateIn.isEmpty) "NULL" else validOnDateIn.get) + "," + observationDateIn + ")")
@@ -1324,7 +1326,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def createFileAttribute(parentIdIn: Long, attrTypeIdIn: Long, descriptionIn: String, originalFileDateIn: Long, storedDateIn: Long,
                           originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: Long,
-                          md5hashIn: String, inputStreamIn: java.io.FileInputStream): /*id*/ Long = {
+                          md5hashIn: String, inputStreamIn: java.io.FileInputStream, sortingIndexIn: Option[Long] = None): /*id*/ Long = {
     val description: String = escapeQuotesEtc(descriptionIn)
     // (Next 2 for completeness but there shouldn't ever be a problem if other code is correct.)
     val originalFilePath: String = escapeQuotesEtc(originalFilePathIn)
@@ -1335,7 +1337,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     try {
       id = getNewKey("FileAttributeKeySequence")
       beginTrans()
-      addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("FileAttribute"), id)
+      addAttributeSortingRow(parentIdIn, PostgreSQLDatabase.getAttributeFormId("FileAttribute"), id, sortingIndexIn)
       dbAction("insert into FileAttribute (id, entity_id, attr_type_id, description, original_file_date, stored_date, original_file_path, readable, writable," +
                " executable, size, md5hash)" +
                " values (" + id + "," + parentIdIn + "," + attrTypeIdIn + ",'" + description + "'," + originalFileDateIn + "," + storedDateIn + "," +
@@ -1465,7 +1467,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                     inValidOnDate: Option[Long], inObservationDate: Long, callerManagesTransactionsIn: Boolean = false): (Long, Long) = {
     if (!callerManagesTransactionsIn) beginTrans()
     val groupId: Long = createGroup(newGroupNameIn, allowMixedClassesInGroupIn)
-    val rtgId = createRelationToGroup(inEntityId, inRelationTypeId, groupId, inValidOnDate, inObservationDate, None, callerManagesTransactionsIn)
+    val (rtgId,_) = createRelationToGroup(inEntityId, inRelationTypeId, groupId, inValidOnDate, inObservationDate, None, callerManagesTransactionsIn)
     if (!callerManagesTransactionsIn) commitTrans()
     (groupId, rtgId)
   }
@@ -1486,25 +1488,29 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   /** I.e., make it so the entity has a group in it, which can contain entities.
     * Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
+    * @return a tuple containing the id and new sortingIndex: (id, sortingIndex)
     */
   def createRelationToGroup(inEntityId: Long, inRelationTypeId: Long, groupIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long,
-                            sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false): Long = {
+                            sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false): (Long, Long) = {
     if (!callerManagesTransactionsIn) beginTrans()
     val id: Long = getNewKey("RelationToGroupKeySequence2")
-    try {
-      addAttributeSortingRow(inEntityId, PostgreSQLDatabase.getAttributeFormId("relationtogroup"), id, sortingIndexIn)
-      dbAction("INSERT INTO RelationToGroup (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date) " +
-               "VALUES (" +
-               id + "," + inEntityId + "," + inRelationTypeId + "," + groupIdIn +
-               ", " + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
-    }
-    catch {
-      case e: Exception =>
-        if (!callerManagesTransactionsIn) rollbackTrans()
-        throw e
+    val sortingIndex = {
+      try {
+        val sortingIndex: Long = addAttributeSortingRow(inEntityId, PostgreSQLDatabase.getAttributeFormId("relationtogroup"), id, sortingIndexIn)
+        dbAction("INSERT INTO RelationToGroup (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date) " +
+                 "VALUES (" +
+                 id + "," + inEntityId + "," + inRelationTypeId + "," + groupIdIn +
+                 ", " + (if (inValidOnDate.isEmpty) "NULL" else inValidOnDate.get) + "," + inObservationDate + ")")
+        sortingIndex
+      }
+      catch {
+        case e: Exception =>
+          if (!callerManagesTransactionsIn) rollbackTrans()
+          throw e
+      }
     }
     if (!callerManagesTransactionsIn) commitTrans()
-    id
+    (id, sortingIndex)
   }
 
   def updateGroup(groupIdIn: Long, inName: String, allowMixedClassesInGroupIn: Boolean = false) {
@@ -1538,7 +1544,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       val validOnDate: Option[Long] = rtgData(5).asInstanceOf[Option[Long]]
       val observedDate: Long = rtgData(6).get.asInstanceOf[Long]
       deleteRelationToGroup(oldRtgEntityId, oldRtgRelType, oldRtgGroupId)
-      val newRtgId: Long = createRelationToGroup(newContainingEntityIdIn, oldRtgRelType, oldRtgGroupId, validOnDate, observedDate, Some(sortingIndexIn),
+      val (newRtgId: Long,_) = createRelationToGroup(newContainingEntityIdIn, oldRtgRelType, oldRtgGroupId, validOnDate, observedDate, Some(sortingIndexIn),
                                                  callerManagesTransactionsIn = true)
 
       // (see comment at similar commented line in moveRelationToEntity)
@@ -1660,8 +1666,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
    *                       An alternate approach could be to pass in a callback to some controller (menu) code, which this can call if it thinks it
    *                       is taking a long time to find a free value, to give the eventual caller chance to give up if needed.  Or just pass in a known
    *                       good value or call the renumberSortingIndexes method.
+   * @return the sorting_index value that is actually used.
    */
-  def addAttributeSortingRow(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Option[Long] = None) {
+  def addAttributeSortingRow(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Option[Long] = None): Long = {
     // SEE COMMENTS IN SIMILAR METHOD: addEntityToGroup.  **AND DO MAINTENANCE. IN BOTH PLACES.
     // Should probably be called from inside a transaction (which isn't managed in this method, since all its current callers do it.)
     val sortingIndex = {
@@ -1678,6 +1685,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
     dbAction("insert into AttributeSorting (entity_id, attribute_form_id, attribute_id, sorting_index) " +
              "values (" + entityIdIn + "," + attributeFormIdIn + "," + attributeIdIn + "," + sortingIndex + ")")
+    sortingIndex
   }
 
   def areMixedClassesAllowed(groupId: Long): Boolean = {
@@ -2181,18 +2189,21 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getRelationToGroupsByGroup(groupIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup] = {
-    val sql: String = "select id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from RelationToGroup where group_id=" + groupIdIn
-    val earlyResults = dbQuery(sql, "Long,Long,Long,Long,Long,Long")
+    val sql: String = "select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, asort.sorting_index" +
+                      " from RelationToGroup rtg, AttributeSorting asort where group_id=" + groupIdIn +
+                      " and rtg.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("RelationToGroup") +
+                      " and rtg.id=asort.attribute_id"
+    val earlyResults = dbQuery(sql, "Long,Long,Long,Long,Long,Long,Long")
     val finalResults = new java.util.ArrayList[RelationToGroup]
     // idea: should the remainder of this method be moved to RelationToGroup, so the persistence layer doesn't know anything about the Model? (helps avoid
-    // circular
-    // dependencies? is a cleaner design?)
+    // circular dependencies? is a cleaner design?)
     for (result <- earlyResults) {
       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
       //finalResults.add(result(0).get.asInstanceOf[Long], new Entity(this, result(1).get.asInstanceOf[Long]))
       val rtg: RelationToGroup = new RelationToGroup(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[Long],
                                                      result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
-                                                     if (result(4).isEmpty) None else Some(result(4).get.asInstanceOf[Long]), result(5).get.asInstanceOf[Long])
+                                                     if (result(4).isEmpty) None else Some(result(4).get.asInstanceOf[Long]), result(5).get.asInstanceOf[Long],
+                                                     result(6).get.asInstanceOf[Long])
       finalResults.add(rtg)
     }
     require(finalResults.size == earlyResults.size)
@@ -2363,15 +2374,20 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getQuantityAttributeData(inQuantityId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select entity_id, unit_id, quantity_number, attr_type_id, valid_on_date, observation_date from QuantityAttribute " + "where id="
-                            + inQuantityId,
-                            "Long,Long,Float,Long,Long,Long")
+    dbQueryWrapperForOneRow("select qa.entity_id, qa.unit_id, qa.quantity_number, qa.attr_type_id, qa.valid_on_date, qa.observation_date, asort.sorting_index " +
+                            "from QuantityAttribute qa, AttributeSorting asort where qa.id=" + inQuantityId +
+                            " and qa.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("QuantityAttribute") +
+                            " and qa.id=asort.attribute_id",
+                            "Long,Long,Float,Long,Long,Long,Long")
   }
 
   def getRelationToEntityData(inRelTypeId: Long, inEntityId1: Long, inEntityId2: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select id, valid_on_date, observation_date from RelationToEntity where rel_type_id=" + inRelTypeId + " and entity_id=" +
-                            inEntityId1 + " " + "and entity_id_2=" + inEntityId2,
-                            "Long,Long,Long")
+    dbQueryWrapperForOneRow("select rte.id, rte.valid_on_date, rte.observation_date, asort.sorting_index" +
+                            " from RelationToEntity rte, AttributeSorting asort" +
+                            " where rte.rel_type_id=" + inRelTypeId + " and rte.entity_id=" + inEntityId1 + " and rte.entity_id_2=" + inEntityId2 +
+                            " and rte.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("RelationToEntity") +
+                            " and rte.id=asort.attribute_id",
+                            "Long,Long,Long,Long")
   }
 
   def getAllRelationToEntityDataById(inId: Long): Array[Option[Any]] = {
@@ -2385,9 +2401,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getRelationToGroupData(entityId: Long, relTypeId: Long, groupId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from RelationToGroup " +
-                            " where entity_id=" + entityId + " and rel_type_id=" + relTypeId + " and group_id=" + groupId,
-                            "Long,Long,Long,Long,Long,Long")
+    dbQueryWrapperForOneRow("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, asort.sorting_index " +
+                            "from RelationToGroup rtg, AttributeSorting asort" +
+                            " where rtg.entity_id=" + entityId + " and rtg.rel_type_id=" + relTypeId + " and rtg.group_id=" + groupId +
+                            " and rtg.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("RelationToGroup") +
+                            " and rtg.id=asort.attribute_id",
+                            "Long,Long,Long,Long,Long,Long,Long")
   }
 
   def getAllRelationToGroupDataById(idIn: Long): Array[Option[Any]] = {
@@ -2398,9 +2417,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
 
   def getRelationToGroupDataById(idIn: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from RelationToGroup " +
-                            " where id=" + idIn,
-                            "Long,Long,Long,Long,Long,Long")
+    dbQueryWrapperForOneRow("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, asort.sorting_index " +
+                            "from RelationToGroup rtg, AttributeSorting asort" +
+                            " where id=" + idIn +
+                            " and rtg.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("RelationToGroup") +
+                            " and rtg.id=asort.attribute_id",
+                            "Long,Long,Long,Long,Long,Long,Long")
   }
 
   def getRelationTypeData(inId: Long): Array[Option[Any]] = {
@@ -2412,25 +2434,36 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   // idea: combine all the methods that look like this (s.b. easier now, in scala, than java)
   def getTextAttributeData(inTextId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select entity_id, textValue, attr_type_id, valid_on_date, observation_date from TextAttribute where id=" + inTextId,
-                            "Long,String,Long,Long,Long")
+    dbQueryWrapperForOneRow("select ta.entity_id, ta.textValue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, asort.sorting_index" +
+                            " from TextAttribute ta, AttributeSorting asort where id=" + inTextId +
+                            " and ta.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("TextAttribute") +
+                            " and ta.id=asort.attribute_id",
+                            "Long,String,Long,Long,Long,Long")
   }
 
   def getDateAttributeData(inDateId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select entity_id, date, attr_type_id from DateAttribute where id=" + inDateId,
-                            "Long,Long,Long")
+    dbQueryWrapperForOneRow("select da.entity_id, da.date, da.attr_type_id, asort.sorting_index " +
+                            "from DateAttribute da, AttributeSorting asort where da.id=" + inDateId +
+                            " and da.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("DateAttribute") +
+                            " and da.id=asort.attribute_id",
+                            "Long,Long,Long,Long")
   }
 
   def getBooleanAttributeData(inBooleanId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select entity_id, booleanValue, attr_type_id, valid_on_date, observation_date from BooleanAttribute where id=" + inBooleanId,
-                            "Long,Boolean,Long,Long,Long")
+    dbQueryWrapperForOneRow("select ba.entity_id, ba.booleanValue, ba.attr_type_id, ba.valid_on_date, ba.observation_date, asort.sorting_index" +
+                            " from BooleanAttribute ba, AttributeSorting asort where id=" + inBooleanId +
+                            " and ba.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("BooleanAttribute") +
+                            " and ba.id=asort.attribute_id",
+                            "Long,Boolean,Long,Long,Long,Long")
   }
 
   def getFileAttributeData(inFileId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select entity_id, description, attr_type_id, original_file_date, stored_date, original_file_path, readable, writable, " +
-                            "executable, size, md5hash " +
-                            " from FileAttribute where id=" + inFileId,
-                            "Long,String,Long,Long,Long,String,Boolean,Boolean,Boolean,Long,String")
+    dbQueryWrapperForOneRow("select fa.entity_id, fa.description, fa.attr_type_id, fa.original_file_date, fa.stored_date, fa.original_file_path, fa.readable, " +
+                            "fa.writable, fa.executable, fa.size, fa.md5hash, asort.sorting_index " +
+                            " from FileAttribute fa, AttributeSorting asort where id=" + inFileId +
+                            " and fa.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("FileAttribute") +
+                            " and fa.id=asort.attribute_id",
+                            "Long,String,Long,Long,Long,String,Boolean,Boolean,Boolean,Long,String,Long")
   }
 
   def getFileAttributeContent(fileAttributeIdIn: Long, outputStreamIn: java.io.OutputStream): (Long, String) = {
@@ -3073,9 +3106,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getTextAttributeByTypeId(parentEntityIdIn: Long, typeIdIn: Long, expectedRows: Option[Int] = None): Array[TextAttribute] = {
-    val queryResults: List[Array[Option[Any]]] = dbQuery("select id, textValue, attr_type_id, valid_on_date, observation_date from textattribute where entity_id="
-                                                    + parentEntityIdIn + " and attr_type_id="+typeIdIn,
-                                                    "Long,String,Long,Long,Long")
+    val sql = "select ta.id, ta.textValue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, asort.sorting_index " +
+              " from textattribute ta, AttributeSorting asort where ta.entity_id=" + parentEntityIdIn + " and ta.attr_type_id="+typeIdIn +
+              " and ta.entity_id=asort.entity_id and asort.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId("TextAttribute") +
+              " and ta.id=asort.attribute_id"
+    val queryResults: List[Array[Option[Any]]] = dbQuery(sql, "Long,String,Long,Long,Long,Long")
     if (expectedRows.isDefined) {
       val count = queryResults.size
       if (count != expectedRows.get) throw new OmDatabaseException("Found " + count + " rows instead of expected " + expectedRows.get)
@@ -3088,7 +3123,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
       val attrTypeId: Long = r(2).get.asInstanceOf[Long]
       val validOnDate: Option[Long] = if (r(3).isEmpty) None else Some(r(3).get.asInstanceOf[Long])
       val observationDate: Long = r(4).get.asInstanceOf[Long]
-      finalResult(index) = new TextAttribute(this, textAttributeId, parentEntityIdIn, attrTypeId, textValue, validOnDate, observationDate)
+      val sortingIndex: Long = r(5).get.asInstanceOf[Long]
+      finalResult(index) = new TextAttribute(this, textAttributeId, parentEntityIdIn, attrTypeId, textValue, validOnDate, observationDate, sortingIndex)
       index += 1
     }
     finalResult
@@ -3175,6 +3211,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
           val columns = tableName + "." + columnsSelectedByTable(tableListIndex).replace(",", "," + tableName + ".")
           var sql: String = "select attributesorting.sorting_index, " + columns +
                             " from " +
+                            // idea: is the RIGHT JOIN really needed, or can it be a normal join? ie, given tables' setup can there really be
+                            // rows of any Attribute (or RelationTo*) table without a corresponding attributesorting row?  Going to assume not,
+                            // for some changes below adding the sortingindex parameter to the Attribute constructors, for now at least until this is studied
+                            // again.  Maybe it had to do with the earlier unreliability of always deleting rows from attributesorting when Attributes were
+                            // deleted (and in fact an attributesorting can in theory still be created without an Attribute row, and maybe other such problems).
                             "   attributesorting RIGHT JOIN " + tableName +
                             "     ON (attributesorting.attribute_form_id=" + PostgreSQLDatabase.getAttributeFormId(tableName) +
                             "     and attributesorting.attribute_id=" + tableName + ".id )" +
@@ -3198,38 +3239,41 @@ class PostgreSQLDatabase(username: String, var password: String) {
                 allResults.add((if (result(0).isEmpty) None else Some(result(0).get.asInstanceOf[Long]),
                            new QuantityAttribute(this, result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
                                                  result(4).get.asInstanceOf[Long], result(5).get.asInstanceOf[Float],
-                                                 if (result(6).isEmpty) None else Some(result(6).get.asInstanceOf[Long]), result(7).get.asInstanceOf[Long])))
+                                                 if (result(6).isEmpty) None else Some(result(6).get.asInstanceOf[Long]), result(7).get.asInstanceOf[Long],
+                                                 result(0).get.asInstanceOf[Long])))
               } else if (tableName == "TextAttribute") {
                 allResults.add((if (result(0).isEmpty) None else Some(result(0).get.asInstanceOf[Long]),
                            new TextAttribute(this, result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
                                              result(4).get.asInstanceOf[String], if (result(5).isEmpty) None else Some(result(5).get.asInstanceOf[Long]),
-                                             result(6).get.asInstanceOf[Long])))
+                                             result(6).get.asInstanceOf[Long], result(0).get.asInstanceOf[Long])))
               } else if (tableName == "DateAttribute") {
                 allResults.add((if (result(0).isEmpty) None else Some(result(0).get.asInstanceOf[Long]),
                            new DateAttribute(this, result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
-                                             result(4).get.asInstanceOf[Long])))
+                                             result(4).get.asInstanceOf[Long], result(0).get.asInstanceOf[Long])))
               } else if (tableName == "BooleanAttribute") {
                 allResults.add((if (result(0).isEmpty) None else Some(result(0).get.asInstanceOf[Long]),
                            new BooleanAttribute(this, result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
                                                 result(4).get.asInstanceOf[Boolean], if (result(5).isEmpty) None else Some(result(5).get.asInstanceOf[Long]),
-                                                result(6).get.asInstanceOf[Long])))
+                                                result(6).get.asInstanceOf[Long], result(0).get.asInstanceOf[Long])))
               } else if (tableName == "FileAttribute") {
                 allResults.add((if (result(0).isEmpty) None else Some(result(0).get.asInstanceOf[Long]),
                            new FileAttribute(this, result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
                                              result(4).get.asInstanceOf[String], result(5).get.asInstanceOf[Long], result(6).get.asInstanceOf[Long],
                                              result(7).get.asInstanceOf[String], result(8).get.asInstanceOf[Boolean], result(9).get.asInstanceOf[Boolean],
-                                             result(10).get.asInstanceOf[Boolean], result(11).get.asInstanceOf[Long], result(12).get.asInstanceOf[String])))
+                                             result(10).get.asInstanceOf[Boolean], result(11).get.asInstanceOf[Long], result(12).get.asInstanceOf[String],
+                                             result(0).get.asInstanceOf[Long])))
               } else if (tableName == "RelationToEntity") {
                 allResults.add((if (result(0).isEmpty) None else Some(result(0).get.asInstanceOf[Long]),
                            new RelationToEntity(this, result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
                                                 result(4).get.asInstanceOf[Long],
-                                                if (result(5).isEmpty) None else Some(result(5).get.asInstanceOf[Long]), result(6).get.asInstanceOf[Long])))
+                                                if (result(5).isEmpty) None else Some(result(5).get.asInstanceOf[Long]), result(6).get.asInstanceOf[Long],
+                                                result(0).get.asInstanceOf[Long])))
               } else if (tableName == "RelationToGroup") {
                 allResults.add((if (result(0).isEmpty) None else Some(result(0).get.asInstanceOf[Long]),
                            new RelationToGroup(this, result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
                                                result(4).get.asInstanceOf[Long],
                                                if (result(5).isEmpty) None else Some(result(5).get.asInstanceOf[Long]),
-                                               result(6).get.asInstanceOf[Long])))
+                                               result(6).get.asInstanceOf[Long], result(0).get.asInstanceOf[Long])))
               } else throw new OmDatabaseException("invalid table type?: '" + tableName + "'")
 
             // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
@@ -3442,9 +3486,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
       val (newEntity: Entity, newRTE: RelationToEntity) = containingEntityIn.createEntityAndAddHASRelationToIt(newEntityNameIn, observationDateIn,
                                                                                                                makeThemPublicIn, callerManagesTransactionsIn)
       updateEntitysClass(newEntity.getId, Some(uriClassId), callerManagesTransactionsIn)
-      newEntity.addTextAttribute(uriClassDefiningEntityId, uriIn, None, observationDateIn, callerManagesTransactionsIn)
+      newEntity.addTextAttribute(uriClassDefiningEntityId, uriIn, None, None, observationDateIn, callerManagesTransactionsIn)
       if (quoteIn.isDefined) {
-        newEntity.addTextAttribute(quotationClassDefiningEntityId, quoteIn.get, None, observationDateIn, callerManagesTransactionsIn)
+        newEntity.addTextAttribute(quotationClassDefiningEntityId, quoteIn.get, None, None, observationDateIn, callerManagesTransactionsIn)
       }
       if (!callerManagesTransactionsIn) commitTrans()
       (newEntity, newRTE)

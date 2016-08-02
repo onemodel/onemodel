@@ -41,11 +41,12 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(mDB: PostgreSQLDatabase, idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long) {
+  def this(mDB: PostgreSQLDatabase, idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long,
+           sortingIndexIn: Long) {
     this(mDB, idIn, relTypeIdIn, entityId1In, entityId2In)
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
-    assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn)
+    assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
   }
 
   // (the next line used to return "throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")", and I'm not
@@ -109,7 +110,7 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
     // the class hierarchy which wants it. Improve...?)
     super.assignCommonVars(mEntityId1, mAttrTypeId,
                            relationData(1).asInstanceOf[Option[Long]],
-                           relationData(2).get.asInstanceOf[Long])
+                           relationData(2).get.asInstanceOf[Long], relationData(3).get.asInstanceOf[Long])
   }
 
   def update(oldAttrTypeIdIn: Long, validOnDateIn:Option[Long], observationDateIn:Option[Long], newAttrTypeIdIn: Option[Long] = None) {

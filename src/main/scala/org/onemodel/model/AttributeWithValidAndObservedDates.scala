@@ -29,11 +29,11 @@ object AttributeWithValidAndObservedDates {
 }
 
 abstract class AttributeWithValidAndObservedDates(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, mId) {
-  protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long) {
+  protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long, sortingIndexIn: Long) {
     mValidOnDate = validOnDateIn
     // observationDate is not expected to be None, like mValidOnDate can be. See var def for more info.
     mObservationDate = observationDateIn
-    super.assignCommonVars(parentIdIn, attrTypeIdIn)
+    super.assignCommonVars(parentIdIn, attrTypeIdIn, sortingIndexIn)
   }
 
   def getDatesDescription: String = {

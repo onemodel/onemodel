@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -30,10 +30,11 @@ class BooleanAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWith
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, inParentId: Long, inAttrTypeId: Long, inBoolean: Boolean, validOnDate: Option[Long], observationDate: Long) {
+  def this(mDB: PostgreSQLDatabase, mId: Long, inParentId: Long, inAttrTypeId: Long, inBoolean: Boolean, validOnDate: Option[Long], observationDate: Long,
+           sortingIndexIn: Long) {
     this(mDB, mId)
     mBoolean = inBoolean
-    assignCommonVars(inParentId, inAttrTypeId, validOnDate, observationDate)
+    assignCommonVars(inParentId, inAttrTypeId, validOnDate, observationDate, sortingIndexIn)
   }
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
@@ -53,7 +54,8 @@ class BooleanAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWith
   protected def readDataFromDB() {
     val baTypeData = mDB.getBooleanAttributeData(mId)
     mBoolean = baTypeData(1).get.asInstanceOf[Boolean]
-    super.assignCommonVars(baTypeData(0).get.asInstanceOf[Long], baTypeData(2).get.asInstanceOf[Long], baTypeData(3).asInstanceOf[Option[Long]], baTypeData(4).get.asInstanceOf[Long])
+    super.assignCommonVars(baTypeData(0).get.asInstanceOf[Long], baTypeData(2).get.asInstanceOf[Long], baTypeData(3).asInstanceOf[Option[Long]],
+                           baTypeData(4).get.asInstanceOf[Long], baTypeData(5).get.asInstanceOf[Long])
   }
 
   def update(inAttrTypeId: Long, inBoolean: Boolean, inValidOnDate: Option[Long], inObservationDate: Long) {

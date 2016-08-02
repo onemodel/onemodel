@@ -2162,7 +2162,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
     if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("quantityattribute")) {
       def addQuantityAttribute(dhIn: QuantityAttributeDataHolder): Option[QuantityAttribute] = {
-        Some(entityIn.addQuantityAttribute(dhIn.attrTypeId, dhIn.unitId, dhIn.number, dhIn.validOnDate, dhIn.observationDate))
+        Some(entityIn.addQuantityAttribute(dhIn.attrTypeId, dhIn.unitId, dhIn.number, None, dhIn.validOnDate, dhIn.observationDate))
       }
       askForInfoAndAddAttribute[QuantityAttributeDataHolder](new QuantityAttributeDataHolder(attrTypeId, None, 0, 0, 0), askForAttrTypeId, Controller.QUANTITY_TYPE,
                                                              Some(quantityTypePrompt), askForQuantityAttributeNumberAndUnit, addQuantityAttribute)
@@ -2174,7 +2174,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                          Some("SELECT TYPE OF DATE: "), askForDateAttributeValue, addDateAttribute)
     } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("booleanattribute")) {
       def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
-        Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean))
+        Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean, None))
       }
       askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(attrTypeId, Some(0), 0, false), askForAttrTypeId,
                                                             Controller.BOOLEAN_TYPE, Some("SELECT TYPE OF TRUE/FALSE VALUE: "),  askForBooleanAttributeValue,
@@ -2198,13 +2198,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       result
     } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("textattribute")) {
       def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
-        Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, dhIn.validOnDate, dhIn.observationDate))
+        Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, None, dhIn.validOnDate, dhIn.observationDate))
       }
       askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(attrTypeId, Some(0), 0, ""), askForAttrTypeId, Controller.TEXT_TYPE,
                                                          Some("SELECT TYPE OF " + textDescription + ": "), askForTextAttributeText, addTextAttribute)
     } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("relationtoentity")) {
       def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[RelationToEntity] = {
-        Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId2, dhIn.validOnDate, dhIn.observationDate))
+        Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId2, None, dhIn.validOnDate, dhIn.observationDate))
       }
       askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(attrTypeId, None, 0, 0), askForAttrTypeId, Controller.RELATION_TYPE_TYPE,
                                                             Some("CREATE OR SELECT RELATION TYPE: (" + mRelTypeExamples + ")"),
@@ -2220,7 +2220,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId("relationtogroup")) {
       def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
         require(dhIn.entityId == entityIn.getId)
-        val newRTG: RelationToGroup = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, dhIn.validOnDate, dhIn.observationDate)
+        val newRTG: RelationToGroup = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, None, dhIn.validOnDate, dhIn.observationDate)
         Some(newRTG)
       }
       val result: Option[Attribute] = askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, attrTypeId, 0,
@@ -2307,25 +2307,26 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                        waitForKeystroke = false)
         val newAttribute: Option[Attribute] = {
           templateAttribute match {
-            case a: QuantityAttribute => Some(entityIn.addQuantityAttribute(a.getAttrTypeId, a.getUnitId, a.getNumber))
+            case a: QuantityAttribute =>
+              Some(entityIn.addQuantityAttribute(a.getAttrTypeId, a.getUnitId, a.getNumber, None))
             case a: DateAttribute => Some(entityIn.addDateAttribute(a.getAttrTypeId, a.getDate))
-            case a: BooleanAttribute => Some(entityIn.addBooleanAttribute(a.getAttrTypeId, a.getBoolean))
+            case a: BooleanAttribute => Some(entityIn.addBooleanAttribute(a.getAttrTypeId, a.getBoolean, None))
             case a: FileAttribute =>
               ui.displayText("You can add a FileAttribute manually afterwards for this attribute.  Maybe it can be automated " +
                                                     "more, when use cases for this part are more clear.")
               None
-            case a: TextAttribute => Some(entityIn.addTextAttribute(a.getAttrTypeId, a.getText))
+            case a: TextAttribute => Some(entityIn.addTextAttribute(a.getAttrTypeId, a.getText, None))
             case a: RelationToEntity =>
               val dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(new RelationToEntityDataHolder(0, None, 0, 0), inEditing = false)
               if (dh.isDefined) {
-                Some(entityIn.addRelationToEntity(a.getAttrTypeId, dh.get.entityId2))
+                Some(entityIn.addRelationToEntity(a.getAttrTypeId, dh.get.entityId2, None))
               } else {
                 None
               }
             case a: RelationToGroup =>
               val dh: Option[RelationToGroupDataHolder] = askForRelToGroupInfo(new RelationToGroupDataHolder(0, 0, 0, None, 0))
               if (dh.isDefined) {
-                Some(entityIn.addRelationToGroup(a.getAttrTypeId, dh.get.groupId))
+                Some(entityIn.addRelationToGroup(a.getAttrTypeId, dh.get.groupId, None))
               } else {
                 None
               }

@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -64,7 +64,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
   "testAddQuantityAttribute" should "work" in {
     System.out.println("starting testAddQuantityAttribute")
-    val id: Long = mEntity.addQuantityAttribute(mQuantityAttrTypeId, mUnitId, 100).getId
+    val id: Long = mEntity.addQuantityAttribute(mQuantityAttrTypeId, mUnitId, 100, None).getId
     val qo: QuantityAttribute = mEntity.getQuantityAttribute(id)
     if (qo == null) {
       fail("addQuantityAttribute then getQuantityAttribute returned null")
@@ -74,7 +74,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
   "testAddTextAttribute" should "also work" in {
     System.out.println("starting testAddTextAttribute")
-    val id: Long = mEntity.addTextAttribute(mTextAttrTypeId, "This is someName given to an object").getId
+    val id: Long = mEntity.addTextAttribute(mTextAttrTypeId, "This is someName given to an object", None).getId
     val t: TextAttribute = mEntity.getTextAttribute(id)
     if (t == null) {
       fail("addTextAttribute then getTextAttribute returned null")
@@ -95,7 +95,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
   "testAddBooleanAttribute" should "also work" in {
     System.out.println("starting testAddBooleanAttribute")
     val startTime = System.currentTimeMillis()
-    val id: Long = mEntity.addBooleanAttribute(mBooleanAttrTypeId, inBoolean = true).getId
+    val id: Long = mEntity.addBooleanAttribute(mBooleanAttrTypeId, inBoolean = true, None).getId
     val t: BooleanAttribute = mEntity.getBooleanAttribute(id)
     assert(t != null)
     assert(t.getId == id)

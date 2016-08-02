@@ -313,7 +313,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(atid2 == atid1)
     assert(date2 == date)
     // Also test the other constructor.
-    val da3 = new DateAttribute(mDB, dateAttributeId, pid1, atid1, date)
+    val da3 = new DateAttribute(mDB, dateAttributeId, pid1, atid1, date, 0)
     val (pid3, atid3, date3) = (da3.getParentId, da3.getAttrTypeId, da3.getDate)
     assert(pid3 == pid1)
     assert(atid3 == atid1)
@@ -507,13 +507,13 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
         intercept[OmFileTransferException] {
                                               mDB.createFileAttribute(entityId, attrTypeId, "xyz", 0, 0, "/doesntmatter", readableIn = true,
                                                                       writableIn = true, executableIn = false, uploadSourceFile.length(),
-                                                                      FileAttribute.md5Hash(uploadSourceFile), inputStream)
+                                                                      FileAttribute.md5Hash(uploadSourceFile), inputStream, Some(0))
                                             }
         mDoDamageBuffer = false
         //so it should work now:
         inputStream = new java.io.FileInputStream(uploadSourceFile)
         val faId: Long = mDB.createFileAttribute(entityId, attrTypeId, "xyz", 0, 0, "/doesntmatter", readableIn = true, writableIn = true, executableIn = false,
-                                                 uploadSourceFile.length(), FileAttribute.md5Hash(uploadSourceFile), inputStream)
+                                                 uploadSourceFile.length(), FileAttribute.md5Hash(uploadSourceFile), inputStream, None)
 
         val fa: FileAttribute = new FileAttribute(mDB, faId)
         mDoDamageBuffer = true
@@ -1079,18 +1079,18 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     }
     assert(allContainedWithName.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     val te4Entity: Entity = new Entity(mDB, te4)
-    te4Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, 0)
+    te4Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, None, 0)
     val allContainedWithName2: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
                                                                                   stopAfterAnyFound = false)
     // should be no change yet (added it outside the # of levels to check):
     assert(allContainedWithName2.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     val te2Entity: Entity = new Entity(mDB, te2)
-    te2Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, 0)
+    te2Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, None, 0)
     val allContainedWithName3: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
                                                                                   stopAfterAnyFound = false)
     // should be no change yet (the entity was already in the return set, so the TA addition didn't add anything)
     assert(allContainedWithName3.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
-    te2Entity.addTextAttribute(te1/*not really but whatever*/, "otherText", None, 0)
+    te2Entity.addTextAttribute(te1/*not really but whatever*/, "otherText", None, None, 0)
     val allContainedWithName4: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, "otherText", 4,
                                                                                   stopAfterAnyFound = false)
     // now there should be a change:

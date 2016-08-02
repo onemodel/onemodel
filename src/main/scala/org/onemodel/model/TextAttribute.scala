@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -33,9 +33,10 @@ class TextAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWithVal
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, inParentId: Long, inAttrTypeId: Long, inText: String, validOnDate: Option[Long], observationDate: Long) {
+  def this(mDB: PostgreSQLDatabase, mId: Long, inParentId: Long, inAttrTypeId: Long, inText: String, validOnDate: Option[Long], observationDate: Long,
+           sortingIndexIn: Long) {
     this(mDB, mId)
-    assignCommonVars(inParentId, inAttrTypeId, validOnDate, observationDate)
+    assignCommonVars(inParentId, inAttrTypeId, validOnDate, observationDate, sortingIndexIn)
     mText = inText
   }
 
@@ -59,7 +60,7 @@ class TextAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWithVal
   protected def readDataFromDB() {
     val taTypeData = mDB.getTextAttributeData(mId)
     mText = taTypeData(1).get.asInstanceOf[String]
-    super.assignCommonVars(taTypeData(0).get.asInstanceOf[Long], taTypeData(2).get.asInstanceOf[Long], taTypeData(3).asInstanceOf[Option[Long]], taTypeData(4).get.asInstanceOf[Long])
+    super.assignCommonVars(taTypeData(0).get.asInstanceOf[Long], taTypeData(2).get.asInstanceOf[Long], taTypeData(3).asInstanceOf[Option[Long]], taTypeData(4).get.asInstanceOf[Long], taTypeData(5).get.asInstanceOf[Long])
   }
 
   def update(inAttrTypeId: Long, inText: String, inValidOnDate: Option[Long], inObservationDate: Long) {

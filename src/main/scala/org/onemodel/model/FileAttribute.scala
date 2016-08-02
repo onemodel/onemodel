@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -95,7 +95,7 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
   one that already exists.
     */
   def this(mDB: PostgreSQLDatabase, mId: Long, inParentId: Long, inAttrTypeId: Long, inDescription: String, inOriginalFileDate: Long, inStoredDate: Long,
-           inOriginalFilePath: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, inSize: Long, inMd5hash: String) {
+           inOriginalFilePath: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, inSize: Long, inMd5hash: String, sortingIndexIn: Long) {
     this(mDB, mId)
     mDescription = inDescription
     mOriginalFileDate = inOriginalFileDate
@@ -106,7 +106,7 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
     mExecutable = executableIn
     mSize = inSize
     mMd5hash = inMd5hash
-    assignCommonVars(inParentId, inAttrTypeId)
+    assignCommonVars(inParentId, inAttrTypeId, sortingIndexIn)
   }
 
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None, simplify: Boolean = false): String = {
@@ -144,7 +144,7 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
     mExecutable = faTypeData(8).get.asInstanceOf[Boolean]
     mSize = faTypeData(9).get.asInstanceOf[Long]
     mMd5hash = faTypeData(10).get.asInstanceOf[String]
-    assignCommonVars(faTypeData(0).get.asInstanceOf[Long], faTypeData(2).get.asInstanceOf[Long])
+    assignCommonVars(faTypeData(0).get.asInstanceOf[Long], faTypeData(2).get.asInstanceOf[Long], faTypeData(11).get.asInstanceOf[Long])
   }
 
 

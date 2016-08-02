@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2014 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2014 and 2016-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -34,7 +34,7 @@ class DateAttributeTest extends FlatSpec with MockitoSugar {
     when(mockDB.dateAttributeKeyExists(dateAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    val dateAttribute = new DateAttribute(mockDB, dateAttributeId, entityId, otherEntityId, date)
+    val dateAttribute = new DateAttribute(mockDB, dateAttributeId, entityId, otherEntityId, date, 0)
     val smallLimit = 35
     val display1: String = dateAttribute.getDisplayString(smallLimit)
     val wholeThing: String = attrTypeName + ": Wed 1969-12-31 17:00:00:"+date+" MST"

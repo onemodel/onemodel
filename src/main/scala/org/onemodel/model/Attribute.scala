@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, and 2013-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -64,15 +64,21 @@ abstract class Attribute(mDB: PostgreSQLDatabase, mId: Long) {
     PostgreSQLDatabase.getAttributeFormId(this.getClass.getSimpleName)
   }
 
-  protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long) {
+  protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long, sortingIndexIn: Long) {
     mParentId = parentIdIn
     mAttrTypeId = attrTypeIdIn
+    mSortingIndex = sortingIndexIn
     mAlreadyReadData = true
   }
 
   def getAttrTypeId: Long = {
     if (!mAlreadyReadData) readDataFromDB()
     mAttrTypeId
+  }
+
+  def getSortingIndex: Long = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mSortingIndex
   }
 
   // idea: make the scope definitions (by whatever name: "private[onemodel] ") sensible and uniform
@@ -88,4 +94,5 @@ abstract class Attribute(mDB: PostgreSQLDatabase, mId: Long) {
   protected var mParentId: Long = 0L
   protected var mAttrTypeId: Long = 0L
   protected var mAlreadyReadData: Boolean = false
+  protected var mSortingIndex: Long = 0L
 }
