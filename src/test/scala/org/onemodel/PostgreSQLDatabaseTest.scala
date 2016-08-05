@@ -714,14 +714,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     group.addEntity(entityId2)
     assert(mDB.getGroupSize(groupId) == 2)
     assert(mDB.getCountOfGroupsContainingEntity(entityId2) == 1)
-    val descriptions = mDB.getRelationToGroupDescriptionsContaining(entityId2, Some(9999))
+    val descriptions = mDB.getContainingRelationToGroupDescriptions(entityId2, Some(9999))
     assert(descriptions.length == 1)
     assert(descriptions(0) == entityName + "->" + relToGroupName)
 
     //doesn't get an error:
     mDB.deleteEntity(entityId2)
 
-    val descriptions2 = mDB.getRelationToGroupDescriptionsContaining(entityId2, Some(9999))
+    val descriptions2 = mDB.getContainingRelationToGroupDescriptions(entityId2, Some(9999))
     assert(descriptions2.length == 0)
     assert(mDB.getCountOfGroupsContainingEntity(entityId2) == 0)
     assert(mDB.getEntitiesOnlyCount() == startingEntityCount + 2)

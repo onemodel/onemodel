@@ -42,8 +42,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
   /** The parameter attributeRowsStartingIndexIn means: of all the sorted attributes of entityIn, which one is to be displayed first (since we can only display
     * so many at a time with finite screen size).
-   * Returns None if user wants out (or if entity was deleted so we should exit to containing menu).
-   * */
+    * Returns None if user wants out (or if entity was deleted so we should exit to containing menu).
+    * */
   //@tailrec //removed for now until the compiler can handle it with where the method calls itself.
   //idea on scoping: make this limited like this somehow?:  private[org.onemodel] ... Same for all others like it?
   def entityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, highlightedAttributeIn: Option[Attribute] = None,
@@ -79,7 +79,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       require(numAttrsInEntity > 0 && attributeTuples.length > 0)
     }
     controller.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
-    val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, relationSourceEntity, containingRelationToEntityIn, containingGroupIn)
+    val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, relationSourceEntity, containingRelationToEntityIn,
+                                             containingGroupIn)
     val (attributeDisplayStrings: Array[String], attributesToDisplay: util.ArrayList[Attribute]) = getItemDisplayStringsAndAttrs(attributeTuples)
 
     // The variable highlightedIndexInObjList means: of the sorted attributes selected *for display* (potentially fewer than all existing attributes),
@@ -102,7 +103,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           if (attribute.getFormId == highlightedObjFormId && attribute.getId == highlightedObjId) {
             highlightedIndexInObjList = Some(index)
           }
-          if (targetForMovesIn.isDefined && attribute.getFormId==targetForMovesIn.get.getFormId && attribute.getId==targetForMovesIn.get.getId) {
+          if (targetForMovesIn.isDefined && attribute.getFormId == targetForMovesIn.get.getFormId && attribute.getId == targetForMovesIn.get.getId) {
             moveTargetIndexInObjList = Some(index)
             targetForMoves = targetForMovesIn
           }
@@ -166,10 +167,12 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         }
         entityMenu(entityIn, displayStartingRowNumber, newAttributeToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 2 && highlightedEntry.isDefined && highlightedIndexInObjList.isDefined && numAttrsInEntity > 0) {
-        val (newStartingDisplayIndex: Int, movedOneOut: Boolean) = moveSelectedEntry(entityIn, attributeRowsStartingIndexIn, totalAttrsAvailable, targetForMoves,
-                                                        highlightedIndexInObjList.get, highlightedEntry.get, numDisplayableAttributes,
-                                                        relationSourceEntity,
-                                                        containingRelationToEntityIn, containingGroupIn)
+        val (newStartingDisplayIndex: Int, movedOneOut: Boolean) = moveSelectedEntry(entityIn, attributeRowsStartingIndexIn, totalAttrsAvailable,
+                                                                                     targetForMoves,
+                                                                                     highlightedIndexInObjList.get, highlightedEntry.get,
+                                                                                     numDisplayableAttributes,
+                                                                                     relationSourceEntity,
+                                                                                     containingRelationToEntityIn, containingGroupIn)
         val attrToHighlight: Option[Attribute] = Controller.findAttributeToHighlightNext(attributeTuples.length, attributesToDisplay, removedOne = movedOneOut,
                                                                                          highlightedIndexInObjList.get, highlightedEntry.get)
         entityMenu(entityIn, newStartingDisplayIndex, attrToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
@@ -184,18 +187,18 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                      attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
         }
       } else if (answer == 4) {
-          val newAttribute: Option[Attribute] = addAttribute(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves,
-                                                             containingRelationToEntityIn, containingGroupIn)
-          if (newAttribute.isDefined && highlightedEntry.isDefined) {
-            placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBackIn = true, attributeRowsStartingIndexIn, newAttribute.get.getId,
-                                 highlightedIndexInObjList.getOrElse(0),
-                                 if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
-                                 numDisplayableAttributes, newAttribute.get.getFormId,
-                                 if (highlightedEntry.isDefined) Some(highlightedEntry.get.getFormId) else None)
-            entityMenu(entityIn, attributeRowsStartingIndexIn, newAttribute, targetForMoves, containingRelationToEntityIn, containingGroupIn)
-          } else {
-            entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
-          }
+        val newAttribute: Option[Attribute] = addAttribute(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves,
+                                                           containingRelationToEntityIn, containingGroupIn)
+        if (newAttribute.isDefined && highlightedEntry.isDefined) {
+          placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBackIn = true, attributeRowsStartingIndexIn, newAttribute.get.getId,
+                               highlightedIndexInObjList.getOrElse(0),
+                               if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
+                               numDisplayableAttributes, newAttribute.get.getFormId,
+                               if (highlightedEntry.isDefined) Some(highlightedEntry.get.getFormId) else None)
+          entityMenu(entityIn, attributeRowsStartingIndexIn, newAttribute, targetForMoves, containingRelationToEntityIn, containingGroupIn)
+        } else {
+          entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
+        }
       } else if (answer == 5) {
         // MAKE SURE this next condition always is the exact opposite of the one in "choices(4) = ..." above (4 vs. 5 because they are 0- vs. 1-based)
         if (highlightedIndexInObjList.isDefined) {
@@ -216,7 +219,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           ui.displayText("nothing selected")
           entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMovesIn, containingRelationToEntityIn, containingGroupIn)
         }
-      } else if (answer == 6 && numAttrsInEntity > 0) {
+      } else if (answer == 6) {
         entitySearchSubmenu(entityIn, attributeRowsStartingIndexIn, containingRelationToEntityIn, containingGroupIn, numAttrsInEntity, attributeTuples,
                             highlightedEntry, targetForMoves, answer)
         entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
@@ -274,7 +277,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       } else if (answer == 9 && answer <= choices.length) {
         new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
                                                                 containingGroupIn, templateEntityId, attributeTuples)
-        if (! db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+        if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
           // entity could have been deleted by some operation in OtherEntityMenu
           None
         } else {
@@ -317,7 +320,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       // "Can't connect to X11 window server ...", and it's better to recover from that than to abort the app (ie, when eventually calling
       // Controller.getClipboardContent)..
       controller.handleException(e)
-      val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
+      val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
       if (ans.isDefined && ans.get) entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedAttributeIn, targetForMovesIn,
                                                containingRelationToEntityIn, containingGroupIn)
       else None
@@ -367,18 +370,20 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
               newarray
             }
           }
-          val entityNames: Array[String] = entityIdsTruncated.toArray.map {
-                                                                   case id: Long => new Entity(db, id).getName
-                                                                 }
+          val entityStatusesAndNames: Array[String] = entityIdsTruncated.toArray.map {
+                                                                                       case id: Long =>
+                                                                                         val entity = new Entity(db, id)
+                                                                                         entity.getArchivedStatusDisplayString + entity.getName
+                                                                                     }
           @tailrec def showSearchResults() {
-            val relatedEntitiesResult = ui.askWhich(Some(leadingText2), choices, entityNames)
+            val relatedEntitiesResult = ui.askWhich(Some(leadingText2), choices, entityStatusesAndNames)
             if (relatedEntitiesResult.isDefined) {
               val relatedEntitiesAnswer = relatedEntitiesResult.get
               //there might be more than we have room to show here...but...see "idea"s above.
               if (relatedEntitiesAnswer == 1 && relatedEntitiesAnswer <= choices.length) {
                 // (For reason behind " && answer <= choices.size", see comment where it is used elsewhere in entityMenu.)
                 ui.displayText("Nothing implemented here yet.")
-              } else if (relatedEntitiesAnswer > choices.length && relatedEntitiesAnswer <= (choices.length + entityNames.length)) {
+              } else if (relatedEntitiesAnswer > choices.length && relatedEntitiesAnswer <= (choices.length + entityStatusesAndNames.length)) {
                 // those in the condition on the previous line are 1-based, not 0-based.
                 val index = relatedEntitiesAnswer - choices.length - 1
                 val id: Long = entityIds(index)
@@ -399,14 +404,15 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
   }
 
   def determineNextEntryToHighlight(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
-                                       containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
-                                       attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: Boolean,
-                                       defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]): Option[Attribute] = {
+                                    containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
+                                    attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: Boolean,
+                                    defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]): Option[Attribute] = {
     // The entity or an attribute could have been removed or changed by navigating around various menus, so before trying to view it again,
     // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
     if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
       if (highlightingIndex.isDefined && entryIsGoneNow) {
-        Controller.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight.get)
+        Controller.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight
+                                                                                                                                      .get)
       } else {
         defaultEntryToHighlight
       }
@@ -416,7 +422,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
   }
 
   /** @return A tuple containing the newStartingDisplayIndex and whether an entry moved from being listed on this entity.
-    * The parm relationSourceEntityIn is derivable from the parm containingRelationToEntityIn, but passing it in saves a db read.
+    *         The parm relationSourceEntityIn is derivable from the parm containingRelationToEntityIn, but passing it in saves a db read.
     */
   def moveSelectedEntry(entityIn: Entity, startingDisplayRowIndexIn: Int, totalAttrsAvailable: Int, targetForMovesIn: Option[Attribute] = None,
                         highlightedIndexInObjListIn: Int, highlightedAttributeIn: Attribute, numObjectsToDisplayIn: Int,
@@ -427,7 +433,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
               (if (relationSourceEntityIn.isEmpty) "relationSourceEntityIn is empty; " else "") +
               (if (containingRelationToEntityIn.isEmpty) "containingRelationToEntityIn is empty." else ""))
       require(relationSourceEntityIn.get.getId == containingRelationToEntityIn.get.getParentId, "relationSourceEntityIn: " + relationSourceEntityIn.get.getId +
-             " doesn't match containingRelationToEntityIn.get.getParentId: " + containingRelationToEntityIn.get.getParentId + ".")
+                                                                                                " doesn't match containingRelationToEntityIn.get.getParentId:" +
+                                                                                                " " + containingRelationToEntityIn.get.getParentId + ".")
     }
     val choices = Array[String](// (see comments at similar location in same-named method of QuickGroupMenu.)
                                 "Move up 25",
@@ -469,8 +476,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                                  Some(highlightedAttributeIn.getFormId))
         (displayStartingRowNumber, false)
       } else if (answer == 7 && targetForMovesIn.isDefined) {
-        if (! ((highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup]) &&
-                (targetForMovesIn.get.isInstanceOf[RelationToEntity] || targetForMovesIn.get.isInstanceOf[RelationToGroup]))) {
+        if (!((highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup]) &&
+              (targetForMovesIn.get.isInstanceOf[RelationToEntity] || targetForMovesIn.get.isInstanceOf[RelationToGroup]))) {
           ui.displayText("Currently, you can only move an Entity or a Group, to an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [1]")
           (startingDisplayRowIndexIn, false)
@@ -504,7 +511,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           }
         }
       } else if (answer == 8) {
-        if (! (highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup])) {
+        if (!(highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup])) {
           ui.displayText("Currently, you can only move an Entity or a Group, *to* an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [2]")
           (startingDisplayRowIndexIn, false)
@@ -537,8 +544,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
               (startingDisplayRowIndexIn, false)
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [2]")
           } else {
-            ui.displayText("One of the container parameters needs to be available, in order to move the highlighted attribute to the containing entity or group" +
-                           " (the one from which you navigated here).")
+            ui.displayText("One of the container parameters needs to be available, in order to move the highlighted attribute to the containing entity or " +
+                           "group (the one from which you navigated here).")
             (startingDisplayRowIndexIn, false)
           }
         }
@@ -563,27 +570,28 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
   def getItemDisplayStringsAndAttrs(attributeTuples: Array[(Long, Attribute)]): (Array[String], util.ArrayList[Attribute]) = {
     val attributes = new util.ArrayList[Attribute]
-    val attributeNames: Array[String] =
+    val attributeStatusesAndNames: Array[String] =
       for (attributeTuple <- attributeTuples) yield {
         val attribute = attributeTuple._2
         attributes.add(attribute)
         attribute match {
-        case relation: RelationToEntity =>
-          val toEntity: Entity = new Entity(db, relation.getRelatedId2)
-          val relationType = new RelationType(db, relation.getAttrTypeId)
-          val desc = attribute.getDisplayString(Controller.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
-          val prefix = controller.getEntityContentSizePrefix(relation.getRelatedId2)
-          prefix + desc + controller.getPublicStatusDisplayString(toEntity)
-        case relation: RelationToGroup =>
-          val relationType = new RelationType(db, relation.getAttrTypeId)
-          val desc = attribute.getDisplayString(Controller.maxNameLength, None, Some(relationType), simplify = true)
-          val prefix = controller.getGroupContentSizePrefix(relation.getGroupId)
-          prefix + "group: " + desc
-        case _ =>
-          attribute.getDisplayString(Controller.maxNameLength, None, None)
+          case relation: RelationToEntity =>
+            val toEntity: Entity = new Entity(db, relation.getRelatedId2)
+            val relationType = new RelationType(db, relation.getAttrTypeId)
+            val desc = attribute.getDisplayString(Controller.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
+            val prefix = controller.getEntityContentSizePrefix(relation.getRelatedId2)
+            val archivedStatus: String = toEntity.getArchivedStatusDisplayString
+            prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
+          case relation: RelationToGroup =>
+            val relationType = new RelationType(db, relation.getAttrTypeId)
+            val desc = attribute.getDisplayString(Controller.maxNameLength, None, Some(relationType), simplify = true)
+            val prefix = controller.getGroupContentSizePrefix(relation.getGroupId)
+            prefix + "group: " + desc
+          case _ =>
+            attribute.getDisplayString(Controller.maxNameLength, None, None)
+        }
       }
-    }
-    (attributeNames, attributes)
+    (attributeStatusesAndNames, attributes)
   }
 
   def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, highlightedAttributeIn: Option[Attribute], targetForMovesIn: Option[Attribute] = None,
@@ -658,8 +666,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         case ta: TextAttribute => controller.attributeEditMenu(ta)
         case relToEntity: RelationToEntity =>
           entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
-          val wasRemoved: Boolean = !( db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false)
-                                       && db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId) )
+          val wasRemoved: Boolean = !(db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false)
+                                      && db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId))
           wasRemoved
         case relToGroup: RelationToGroup =>
           new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup), containingEntityIn = Some(entityIn))
@@ -671,7 +679,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
   }
 
   protected def getAdjacentEntriesSortingIndexes(entityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
-                                   forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
+                                                 forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
     db.getAdjacentAttributesSortingIndexes(entityIdIn, movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 

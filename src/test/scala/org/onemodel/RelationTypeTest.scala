@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2015 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2016 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -22,7 +22,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     val testName = "thisisaname"
     val mockDB = mock[PostgreSQLDatabase]
     when(mockDB.entityKeyExists(id)).thenReturn(true)
-    val entity = new Entity(mockDB, id, testName, Some(1L), 2L, Some(true))
+    val entity = new Entity(mockDB, id, testName, Some(1L), 2L, Some(true), false)
     val testRelTypeName = PostgreSQLDatabase.theHASrelationTypeName
     val testNameReversed = "is had"
     val testDir = "BI"

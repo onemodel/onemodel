@@ -66,12 +66,14 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, nameIn: String, classIdIn: Option[Long] = None, insertionDateIn: Long, publicIn: Option[Boolean]) {
+  def this(mDB: PostgreSQLDatabase, mId: Long, nameIn: String, classIdIn: Option[Long] = None, insertionDateIn: Long, publicIn: Option[Boolean],
+           archivedIn: Boolean) {
     this(mDB, mId)
     mName = nameIn
     mClassId = classIdIn
     mInsertionDate = insertionDateIn
     mPublic = publicIn
+    mArchived = archivedIn
     mAlreadyReadData = true
   }
 
@@ -81,6 +83,8 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     this(inDB, inID)
   }
 
+  /** When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
+    * */
   def getName: String = {
     if (!mAlreadyReadData) readDataFromDB()
     mName
@@ -127,12 +131,27 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
       new OmException("how did we get here?")
   }
 
+  def getArchivedStatusDisplayString: String = {
+    if (!isArchived) {
+      ""
+    } else {
+      if (mDB.showAllArchivedEntities) {
+        "[ARCHIVED]"
+      } else {
+        throw new OmException("FYI in case this can be better understood and fixed:  due to an error, the program " +
+                              "got an archived entity to display, but this is probably a bug, " +
+                              "because the db setting to show archived entities is turned off. The entity is " + getId + " : " + getName)
+      }
+    }
+  }
+
   protected def readDataFromDB() {
     val entityData = mDB.getEntityData(mId)
     mName = entityData(0).get.asInstanceOf[String]
     mClassId = entityData(1).asInstanceOf[Option[Long]]
     mInsertionDate = entityData(2).get.asInstanceOf[Long]
     mPublic = entityData(3).asInstanceOf[Option[Boolean]]
+    mArchived = entityData(4).get.asInstanceOf[Boolean]
     mAlreadyReadData = true
   }
 
@@ -143,7 +162,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   def getAttrCount: Long = mDB.getAttrCount(mId)
 
   def getDisplayString_helper: String = {
-    var displayString: String = getPublicStatusDisplayString()
+    var displayString: String = getPublicStatusDisplayString() + getArchivedStatusDisplayString
     displayString += Color.blue(getName)
     val definerInfo = if (mDB.getClassCount(Some(mId)) > 0) "template (defining entity) for " else ""
     val className: Option[String] = if (getClassId.isDefined) mDB.getClassName(getClassId.get) else None
@@ -170,7 +189,15 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   /** Removes this object from the system. */
   def delete() = mDB.deleteEntity(mId)
 
-  def archive() = mDB.archiveEntity(mId)
+  def archive() = {
+    mDB.archiveEntity(mId)
+    mArchived = true
+  }
+
+  def unarchive() = {
+    mDB.unarchiveEntity(mId)
+    mArchived = false
+  }
 
   /** Also for convenience */
   def addQuantityAttribute(inAttrTypeId: Long, inUnitId: Long, inNumber: Float, sortingIndexIn: Option[Long]): QuantityAttribute = {
@@ -328,9 +355,15 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     new RelationToGroup(mDB, newRtgId, getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn, sortingIndex)
   }
 
+  def isArchived: Boolean = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mArchived
+  }
+
   var mAlreadyReadData: Boolean = false
   var mName: String = null
   var mClassId: Option[Long] = None
   var mInsertionDate: Long = -1
   var mPublic: Option[Boolean] = None
+  var mArchived: Boolean = false
 }

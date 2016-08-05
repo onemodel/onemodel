@@ -30,7 +30,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       var choices = Array[String]("Edit public/nonpublic status",
                                   "Import/Export...",
                                   "Edit...",
-                                  "Delete or Archive this entity (or link)...",
+                                  "Delete or " + (if (entityIn.isArchived) "Un-archive" else "Archive") + " this entity (or link)...",
                                   "Go to other related entities or groups...",
                                   "(stub)")
       //  don't show the "set default" option if it's already been done w/ this same one:
@@ -108,13 +108,19 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             }
           }
         } else if (answer == 4) {
-          val (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber) =
+          val (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber, showAllArchivedEntities_choiceNumber) =
             controller.askWhetherDeleteOrArchiveEtc(entityIn, containingRelationToEntityIn, relationSourceEntityIn, containingGroupIn)
 
           if (delOrArchiveAnswer.isDefined) {
             val delAnswer = delOrArchiveAnswer.get
-            if (delAnswer == 1 || delAnswer == 2) {
-              controller.deleteOrArchiveEntity(entityIn, delAnswer == 1)
+            if (delAnswer == 1) {
+              controller.deleteEntity(entityIn)
+            } else if (delAnswer == 2) {
+              if (!entityIn.isArchived) {
+                controller.archiveEntity(entityIn)
+              } else {
+                controller.unarchiveEntity(entityIn)
+              }
             } else if (delAnswer == delEntityLink_choiceNumber && containingRelationToEntityIn.isDefined && delAnswer <= choices.length) {
               val ans = ui.askYesNoQuestion("DELETE the relation: ARE YOU SURE?", Some(""))
               if (ans.isDefined && ans.get) {
@@ -124,6 +130,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               }
             } else if (delAnswer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && delAnswer <= choices.length) {
               controller.removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn)
+            } else if (delAnswer == showAllArchivedEntities_choiceNumber) {
+              db.setShowAllArchivedEntities(! db.showAllArchivedEntities)
             } else {
               ui.displayText("invalid response")
               otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
@@ -338,13 +346,13 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         // searchForExistingObject or such ? IF needed.  But to be needed means the user is putting the same object related by multiple
         // entities: enough to fill > 1 screen when listed.
         val containingEntities: util.ArrayList[(Long, Entity)] = db.getEntitiesContainingEntity(entityIn, 0, Some(numDisplayableItems))
-        val containingEntitiesNames: Array[String] = containingEntities.toArray.map {
+        val containingEntitiesStatusAndNames: Array[String] = containingEntities.toArray.map {
                                                                                       case relTypeIdAndEntity: (Long, Entity) =>
                                                                                         val entity: Entity = relTypeIdAndEntity._2
-                                                                                        entity.getName
+                                                                                        entity.getArchivedStatusDisplayString + entity.getName
                                                                                       case _ => throw new OmException("??")
                                                                                     }
-        val ans = ui.askWhich(Some(leadingText.toArray), choices, containingEntitiesNames)
+        val ans = ui.askWhich(Some(leadingText.toArray), choices, containingEntitiesStatusAndNames)
         if (ans.isDefined) {
           val answer = ans.get
           if (answer == 1 && answer <= choices.length) {

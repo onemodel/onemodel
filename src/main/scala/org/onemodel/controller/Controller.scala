@@ -850,49 +850,88 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   val entityPartsThatCanBeAffected: String = "ALL its attributes, actions, and relations, but not entities or groups the relations refer to"
 
-  /** Returns whether entity was deleted.
-    */
-  def deleteOrArchiveEntity(entityIn: Entity, delNotArchive: Boolean): Boolean = {
-    val name = entityIn.getName
-    val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
-    val groupsPrompt = if (groupCount == 0) ""
-    else {
+  def getExampleAffectedGroupsDescriptions(groupCount: Long, entityId: Long): (String) = {
+    if (groupCount == 0) {
+      ""
+    } else {
       val limit = 10
       val delimiter = ", "
       // (BUG: see comments in psql.java re "OTHER ENTITY NOTED IN A DELETION BUG")
-      val descrArray = db.getRelationToGroupDescriptionsContaining(entityIn.getId, Some(limit))
+      val descrArray = db.getContainingRelationToGroupDescriptions(entityId, Some(limit))
       var descriptions = ""
       var counter = 0
       for (s: String <- descrArray) {
         counter += 1
         descriptions += counter + ") " + s + delimiter
       }
-      descriptions = descriptions.substring(0, math.max(0, descriptions.length - delimiter.length)) + ".  "
-
-      //removed next line because it doesn't make sense (& fails): there could be, for example, a single group that contains an
-      //entity, but many entities that have a relation to that group:
-      //require(descrArray.size == math.min(limit, groupCount))
-
-      "This will ALSO remove it from " + (if (delNotArchive) "" else "visibility in ") + groupCount + " groups, " +
-      "including for example these " + descrArray.length + " relations " +
-      " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + descriptions
+      descriptions.substring(0, math.max(0, descriptions.length - delimiter.length)) + ".  "
     }
+  }
+
+  /** @return whether entity was deleted.
+    */
+  def deleteEntity(entityIn: Entity): Boolean = {
+    //IDEA: could combine this method with the following two. The only differences as of now are 3 strings and a method call, easily parameterized. Not
+    //doing it immediately in case they diverge again soon.
+    val name = entityIn.getName
+    val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
+    val affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entityIn.getId)
+    val effectMsg =  "This will ALSO remove it from " + groupCount + " groups, including for example these relations " +
+      " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + affectedExamples
     // idea: WHEN CONSIDERING MODS TO THIS, ALSO CONSIDER THE Q'S ASKED AT CODE CMT WHERE DELETING A GROUP OF ENTITIES (SEE, for example "recursively").
-    val ans = ui.askYesNoQuestion((if (delNotArchive) "DELETE" else "ARCHIVE") + " ENTITY \"" + name + "\" (and " + entityPartsThatCanBeAffected + ").  " +
-                                  groupsPrompt + "**ARE YOU REALLY SURE?** (there is not yet an \"undo/un-archive\" feature, but it can be done" +
-                                  " manually using SQL commands; feedback welcome):",
-                                  if (delNotArchive) Some("n") else Some(""))
+    // (and in the other 2 methods just like this)
+    val warningMsg = "DELETE ENTITY \"" + name + "\" (and " + entityPartsThatCanBeAffected + ").  " + effectMsg + "**ARE YOU REALLY SURE?**"
+    val ans = ui.askYesNoQuestion(warningMsg, Some("n"))
     if (ans.isDefined && ans.get) {
-      if (delNotArchive) {
-        entityIn.delete()
-        ui.displayText("Deleted entity \"" + name + "\"" + ".")
-      } else {
-        entityIn.archive()
-      }
+      entityIn.delete()
+      ui.displayText("Deleted entity \"" + name + "\"" + ".")
       true
+    } else {
+      ui.displayText("Did not delete entity.", waitForKeystroke = false)
+      false
     }
-    else {
-      ui.displayText("Did not " + (if (delNotArchive) "delete" else "archive") + " entity.", waitForKeystroke = false)
+  }
+
+  /** @return whether entity was archived.
+    */
+  def archiveEntity(entityIn: Entity): Boolean = {
+    val name = entityIn.getName
+    val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
+    val affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entityIn.getId)
+    val effectMsg = "This will affect affect its visibility in " + groupCount + " groups, including for example these relations " +
+                    " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + affectedExamples
+    // idea: WHEN CONSIDERING MODS TO THIS, ALSO CONSIDER THE Q'S ASKED AT CODE CMT WHERE DELETING A GROUP OF ENTITIES (SEE, for example "recursively").
+    // (and in the other 2 methods just like this)
+    val warningMsg = "ARCHIVE ENTITY \"" + name + "\" (and " + entityPartsThatCanBeAffected + ").  " + effectMsg + "**ARE YOU REALLY SURE?**"
+    val ans = ui.askYesNoQuestion(warningMsg, Some(""))
+    if (ans.isDefined && ans.get) {
+      entityIn.archive()
+      ui.displayText("Archived entity \"" + name + "\"" + ".")
+      true
+    } else {
+      ui.displayText("Did not archive entity.", waitForKeystroke = false)
+      false
+    }
+  }
+
+  /** @return whether entity was un-archived.
+    */
+  def unarchiveEntity(entityIn: Entity): Boolean = {
+    val name = entityIn.getName
+    val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
+    val affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entityIn.getId)
+    val effectMsg = "This will affect affect its visibility in " + groupCount + " groups, including for example these relations " +
+      " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + affectedExamples
+    // idea: WHEN CONSIDERING MODS TO THIS, ALSO CONSIDER THE Q'S ASKED AT CODE CMT WHERE DELETING A GROUP OF ENTITIES (SEE, for example "recursively").
+    // (and in the other 2 methods just like this)
+    val warningMsg = "un-archive entity \"" + name + "\" (and " + entityPartsThatCanBeAffected + ").  " + effectMsg + "**ARE YOU REALLY SURE?**"
+    val ans = ui.askYesNoQuestion(warningMsg, Some(""))
+    if (ans.isDefined && ans.get) {
+      entityIn.unarchive()
+      ui.displayText("Un-archived entity \"" + name + "\"" + ".")
+      true
+    } else {
+      ui.displayText("Did not un-archive entity.", waitForKeystroke = false)
       false
     }
   }
@@ -966,15 +1005,20 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
    * @return None means "get out", or Some(choiceNum) if a choice was made.
    */
   def askWhetherDeleteOrArchiveEtc(entityIn: Entity, relationIn: Option[RelationToEntity], relationSourceEntityIn: Option[Entity],
-                                   containingGroupIn: Option[Group]): (Option[Int], Int, Int) = {
+                                   containingGroupIn: Option[Group]): (Option[Int], Int, Int, Int) = {
     val groupCount: Long = db.getCountOfGroupsContainingEntity(entityIn.getId)
     val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(entityIn.getId)
     val leadingText = Some(Array("Choose a deletion or archiving option:  (The entity is " +
                                  getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) + ", and " + groupCount + " groups.)"))
     var choices = Array("Delete this entity",
-                        "Archive this entity (remove from visibility but not permanent/total deletion)")
+                        if (entityIn.isArchived) {
+                          "Un-archive this entity"
+                        } else {
+                          "Archive this entity (remove from visibility but not permanent/total deletion)"
+                        })
     val delEntityLink_choiceNumber: Int = 3
     var delFromContainingGroup_choiceNumber: Int = 3
+    var showAllArchivedEntities_choiceNumber: Int = 3
     // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
     if (relationIn.isDefined && relationSourceEntityIn.isDefined && db.entityKeyExists(relationSourceEntityIn.get.getId)) {
      // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options,
@@ -983,13 +1027,16 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       choices = choices :+ "Delete the link between the linking (or containing) entity: \"" + relationSourceEntityIn.get.getName + "\", " +
                            "and this one: \"" + entityIn.getName + "\""
       delFromContainingGroup_choiceNumber += 1
+      showAllArchivedEntities_choiceNumber += 1
     }
     if (containingGroupIn.isDefined) {
       choices = choices :+ "Delete the link between the group: \"" + containingGroupIn.get.getName + "\", and this Entity: \"" + entityIn.getName
+      showAllArchivedEntities_choiceNumber += 1
     }
+    choices = choices :+ (if (!db.showAllArchivedEntities) "Show archived entities" else "Do not show archived entities")
 
     val delOrArchiveAnswer: Option[(Int)] = ui.askWhich(leadingText, choices, Array[String]())
-    (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber)
+    (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber, showAllArchivedEntities_choiceNumber)
   }
 
   /** Returns None if user just wants out. */
@@ -1093,7 +1140,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val objectNames: Array[String] = objectsToDisplay.toArray.map {
                                                                       case entity: Entity =>
                                                                         val numSubgroupsPrefix: String = getEntityContentSizePrefix(entity.getId)
-                                                                        numSubgroupsPrefix + entity.getName
+                                                                        numSubgroupsPrefix + entity.getArchivedStatusDisplayString + entity.getName
                                                                       case group: Group =>
                                                                         val numSubgroupsPrefix: String = getGroupContentSizePrefix(group.getId)
                                                                         numSubgroupsPrefix + group.getName
@@ -1272,13 +1319,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         else throw new Exception("invalid inAttrType: " + inObjectType)
       }
       addRemainingCountToPrompt(choicesIn, objectsToDisplay.size, totalExisting, startingDisplayRowIndexIn)
-      val objectNames: Array[String] = objectsToDisplay.toArray.map {
-                                                                      case entity: Entity => entity.getName
+      val objectStatusesAndNames: Array[String] = objectsToDisplay.toArray.map {
+                                                                      case entity: Entity => entity.getArchivedStatusDisplayString + entity.getName
                                                                       case clazz: EntityClass => clazz.getName
                                                                       case x: Any => throw new Exception("unexpected class: " + x.getClass.getName)
                                                                       case _ => throw new Exception("??")
                                                                     }
-      (leadingText, objectsToDisplay, objectNames)
+      (leadingText, objectsToDisplay, objectStatusesAndNames)
     }
 
     def getNextStartingObjectIndex(previousListLength: Long, nonRelationAttrTypeNames: Array[String], relationAttrTypeNames: Array[String]): Long = {
@@ -1306,8 +1353,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val (choices, keepPreviousSelectionChoice, createAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, createRelationTypeChoice, createClassChoice): (Array[String],
       Int, Int, Int, Int, Int, Int, Int) = getChoiceList
 
-    val (leadingText, objectsToDisplay, names) = getLeadTextAndObjectList(choices)
-    val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, names)
+    val (leadingText, objectsToDisplay, statusesAndNames) = getLeadTextAndObjectList(choices)
+    val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, statusesAndNames)
 
     if (ans.isEmpty) None
     else {
@@ -1696,10 +1743,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   /** Returns None if user wants to cancel. */
   def askForRelationEntityIdNumber2(inDH: RelationToEntityDataHolder, inEditing: Boolean): Option[RelationToEntityDataHolder] = {
-    val previousSelectionDesc = if (!inEditing) None
-    else Some(new Entity(db, inDH.entityId2).getName)
-    val previousSelectionId = if (!inEditing) None
-    else Some(inDH.entityId2)
+    val previousSelectionDesc = {
+      if (!inEditing) None
+      else Some(new Entity(db, inDH.entityId2).getName)
+    }
+    val previousSelectionId = {
+      if (!inEditing) None
+      else Some(inDH.entityId2)
+    }
     val (id: Option[Long]) = askForAttributeTypeId("SELECT OTHER (RELATED) ENTITY FOR THIS RELATION", Controller.ENTITY_TYPE, previousSelectionDesc,
                                                    previousSelectionId)
     val outDH = inDH
@@ -2060,10 +2111,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                                                               case relTypeIdAndEntity: (Long, Entity) =>
                                                                                                 val relTypeId: Long = relTypeIdAndEntity._1
                                                                                                 val entity: Entity = relTypeIdAndEntity._2
-                                                                                                val relTypeName: String = new RelationType(db,
-                                                                                                                                           relTypeId).getName
-                                                                                                "the entity \"" + entity.getName + "\" " +
-                                                                                                relTypeName + " this group"
+                                                                                                val relTypeName: String = {
+                                                                                                  val reltype = new RelationType(db, relTypeId)
+                                                                                                  reltype.getArchivedStatusDisplayString + reltype.getName
+                                                                                                }
+                                                                                                "the entity \"" + entity.getArchivedStatusDisplayString +
+                                                                                                entity.getName + "\" " + relTypeName + " this group"
                                                                                               // other possible displays:
                                                                                               //1) entity.getName + " - " + relTypeName + " this
                                                                                               // group"

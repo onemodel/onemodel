@@ -64,14 +64,15 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
     val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Controller.maxNameLength)
     val objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems))
     controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize, displayStartingRowNumberIn)
-    val names: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
+    val statusesAndNames: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity.getId)
-      numSubgroupsPrefix + entity.getName + " " + controller.getPublicStatusDisplayString(entity)
+      val archivedStatus = entity.getArchivedStatusDisplayString
+      numSubgroupsPrefix + archivedStatus + entity.getName + " " + controller.getPublicStatusDisplayString(entity)
     }
     val numEntitiesInGroup: Long = groupIn.getSize
 
 
-    val response = ui.askWhich(Some(leadingText), choices, names)
+    val response = ui.askWhich(Some(leadingText), choices, statusesAndNames)
     if (response.isEmpty) None
     else {
       val answer = response.get
@@ -111,8 +112,13 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
         // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
         val choices = Array(if (relationToGroupIn.isDefined) "Go edit the relation to group that led us here :" + displayDescription
                             else "(stub)",
-                            if (numContainingEntities == 1) "Go to entity containing this group: " + containingEntities.get(0)._2.getName
-                                                            else "See entities that contain this group ( " + numContainingEntities + ")",
+                            if (numContainingEntities == 1) {
+                              val entity = containingEntities.get(0)._2
+                              val entityStatusAndName = entity.getArchivedStatusDisplayString + entity.getName
+                              "Go to entity containing this group: " + entityStatusAndName
+                            } else {
+                              "See entities that contain this group ( " + numContainingEntities + ")"
+                            },
                             if (templateEntity.isDefined) "Go to template entity" else "(stub: no template entity to go to)")
         //idea: consider: do we want this?:
         //(see similar comment in postgresqldatabase)
