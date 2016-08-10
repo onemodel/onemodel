@@ -12,23 +12,23 @@ package org.onemodel
 import org.scalatest.FlatSpec
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
-import org.onemodel.model.{RelationType, Entity}
+import org.onemodel.model.RelationType
 import org.onemodel.database.PostgreSQLDatabase
 
 class RelationTypeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "work with a populated entity or relationtype" in {
     // idea: parts of this test should probably be moved back up to the EntityTest class.
     val id = 0L
-    val testName = "thisisaname"
     val mockDB = mock[PostgreSQLDatabase]
     when(mockDB.entityKeyExists(id)).thenReturn(true)
-    val entity = new Entity(mockDB, id, testName, Some(1L), 2L, Some(true), false)
     val testRelTypeName = PostgreSQLDatabase.theHASrelationTypeName
     val testNameReversed = "is had"
     val testDir = "BI"
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
-    val reltype = new RelationType(mockDB, id, testRelTypeName, testNameReversed, testDir)
-    // idea (is in tracked tasks): put next line (LINES PLURAL) back after color refactoring is done (& places w/ similar comment elsewhere)
+    val reltype: RelationType = new RelationType(mockDB, id, testRelTypeName, testNameReversed, testDir)
+    // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
+    //val testName = "thisIsAName"
+    //val entity = new Entity(mockDB, id, testName, Some(1L), 2L, Some(true), false)
     //assert(entity.getDisplayString == testName)
     //assert(reltype.getDisplayString == "" + testRelTypeName + " (a relation type with: " + testDir + "/'" + testNameReversed + "')")
   }

@@ -17,8 +17,6 @@ import scala.annotation.tailrec
 
 import org.onemodel.model.FileAttribute
 
-//import scala.runtime.RichChar
-
 import java.io._
 
 import jline.console.{ConsoleReader, KeyMap}
@@ -415,7 +413,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
 
     def showMoreChoices() {
       if (moreChoices.length == 0) {
-        // (intentional style violation, for readability):
+        //noinspection ScalaUselessExpression (intentional style violation, for readability):
         Unit
       }
       else {
@@ -455,7 +453,8 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
             if (effectiveLineLength > terminalWidth) {
               linesTooLong = true
             }
-            println(line.toString.substring(0, math.min(line.length, terminalWidth)))
+            // (Appending Color.reset to the string in case it got cut with the substring cmd, allowing the color to bleed to subsequent lines.)
+            println(line.toString.substring(0, math.min(line.length, terminalWidth)) + Color.reset)
           }
         }
         if (linesTooLong) {

@@ -2285,7 +2285,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       else if (includeWhichEntitiesIn == 4) {
         if (includeArchivedEntities) "true" else "(not archived)"
       }
-      else (throw new OmDatabaseException("How did we get here? includeWhichEntities=" + includeWhichEntitiesIn))
+      else throw new OmDatabaseException("How did we get here? includeWhichEntities=" + includeWhichEntitiesIn)
     }
     extractRowCountFromCountQuery("select count(1) from entity e, EntitiesInAGroup eiag where e.id=eiag.entity_id and " + archivedSqlCondition + " and eiag" +
                                   ".group_id=" + groupIdIn)
