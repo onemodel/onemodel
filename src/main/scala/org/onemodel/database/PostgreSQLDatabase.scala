@@ -3346,7 +3346,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                               ""
                             }) +
                             whereClausesByTable(tableListIndex)
-          if (tableName.toLowerCase == Controller.RELATION_TO_ENTITY_TYPE && !includeArchivedEntities) {
+          if (tableName == Controller.RELATION_TO_ENTITY_TYPE && !includeArchivedEntities) {
             sql += " and not exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
                    " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.archived)"
           }
