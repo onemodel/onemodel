@@ -25,7 +25,7 @@ For code contributions, web site improvements, etc:  Please include
 in the *first* commit comment of the first pull request (or
 equivalent), the following statement with your name inserted in the
 blank (if you are legally an adult, or with explicit included
-guardian permission).  The reasoning for this is found below, under
+guardian permission).  PLEASE SEE THE REASONS below, under the section
 "DETAILS AND EXPLANATION ON COPYRIGHT ASSIGNMENT".  A nonbinding
 summary could be:  "I give this to Luke for use in the project,
 having full rights to do so; this also applies to all future
@@ -136,11 +136,13 @@ KEEP IN MIND:
 
 
 DETAILS AND EXPLANATION ON COPYRIGHT ASSIGNMENT:
-- The FSF also requires copyright assignment, and their process is more
-  detailed than this (more below).  So does google and their form is also
-  longer and more detailed than mine:
+- The FSF (Free Software Foundation, providers of the GNU toolchain and
+  many very widely-used products) also requires copyright assignment, 
+  and their process is more detailed than this (more below).  
+  So does Google, and their form is also longer and more detailed than mine:
   https://cla.developers.google.com/about/google-individual .
-- ESR hints at it:
+- ESR, prominent developer and writer about Free software-related 
+  topics, hints at it:
   http://en.tldp.org/HOWTO/Software-Release-Practice-HOWTO/licensetheory.html
   http://en.tldp.org/HOWTO/Software-Release-Practice-HOWTO/licensepractice.html
 - The single biggest reason is to maintain
@@ -170,8 +172,9 @@ DETAILS AND EXPLANATION ON COPYRIGHT ASSIGNMENT:
       ...which says "only copyright holders can enforce free software licenses
     in most countries" )
 
-- This is a much simpler form and process than used or recommended
-  by the FSF or the Harmony Project, and I hope it's good enough anyway.
+- What I am using is much simpler in form and process than what is 
+  used or recommended by the FSF or the Harmony Project, and I 
+  hope it's good enough anyway.
 - I am not an attorney, I often personally resent long
   (nonstandard) legal agreements.  (Their authors probably do not
   read long agreements themselves before clicking "I agree", and they
