@@ -135,7 +135,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     if (!isArchived) {
       ""
     } else {
-      if (mDB.showAllArchivedEntities) {
+      if (mDB.includeArchivedEntities) {
         "[ARCHIVED]"
       } else {
         throw new OmException("FYI in case this can be better understood and fixed:  due to an error, the program " +

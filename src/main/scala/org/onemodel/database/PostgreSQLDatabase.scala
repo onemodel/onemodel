@@ -258,7 +258,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   private val ENTITY_ONLY_SELECT_PART: String = "SELECT e.id"
   protected var mConn: Connection = null
   // When true, this means to override the usual settings and show the archived entities too (like a global temporary "un-archive"):
-  private var mShowAllArchivedEntities = false
+  private var mIncludeArchivedEntities = false
 
   Class.forName("org.postgresql.Driver")
   connect(PostgreSQLDatabase.dbNamePrefix + username, username, password)
@@ -812,7 +812,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
     // a performance issue then look at it?
     val sql = "select id from entity where " +
-              (if (!showAllArchivedEntities) {
+              (if (!includeArchivedEntities) {
                 "(not archived) and "
               } else {
                 ""
@@ -861,7 +861,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
     // a performance issue then look at it?
     val rows = dbQuery("select id from entity where " +
-                       (if (!showAllArchivedEntities) {
+                       (if (!includeArchivedEntities) {
                          "(not archived) and "
                        } else {
                          ""
@@ -899,7 +899,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     } else {
       val sql = "select rte.entity_id_2, e.name from entity e, RelationToEntity rte where rte.entity_id=" + fromEntityIdIn +
                 " and rte.entity_id_2=e.id " +
-                (if (!showAllArchivedEntities) {
+                (if (!includeArchivedEntities) {
                   "and not e.archived"
                 } else {
                   ""
@@ -917,7 +917,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       if (! (stopAfterAnyFound && resultsInOut.nonEmpty)) {
         val sql2 = "select eiag.entity_id, e.name from RelationToGroup rtg, EntitiesInAGroup eiag, entity e where rtg.entity_id=" + fromEntityIdIn +
                    " and rtg.group_id=eiag.group_id and eiag.entity_id=e.id" +
-                   (if (!showAllArchivedEntities) {
+                   (if (!includeArchivedEntities) {
                      " and not e.archived"
                    } else {
                      ""
@@ -936,7 +936,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // this part is doing a regex now:
       if (! (stopAfterAnyFound && resultsInOut.nonEmpty)) {
         val sql3 = "select ta.id from textattribute ta, entity e where entity_id=e.id" +
-                   (if (!showAllArchivedEntities) {
+                   (if (!includeArchivedEntities) {
                      " and (not e.archived)"
                    } else {
                      ""
@@ -2029,7 +2029,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getRelationToEntityByName(containingEntityIdIn: Long, nameIn: String): Option[Long] = {
     val sql = "select rte.entity_id_2 from relationtoentity rte, entity e where rte.entity_id=" + containingEntityIdIn +
-              (if (!showAllArchivedEntities) {
+              (if (!includeArchivedEntities) {
                 " and (not e.archived)"
               } else {
                 ""
@@ -2056,7 +2056,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getEntityCount: Long = extractRowCountFromCountQuery("SELECT count(1) from Entity " +
-                                                           (if (!showAllArchivedEntities) {
+                                                           (if (!includeArchivedEntities) {
                                                              "where (not archived)"
                                                            } else {
                                                              ""
@@ -2175,7 +2175,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def getEntitiesOnlyCount(inClassId: Option[Long] = None, limitByClass: Boolean = false,
                            templateEntity: Option[Long] = None): Long = {
     extractRowCountFromCountQuery("SELECT count(1) from Entity e where " +
-                                  (if (!showAllArchivedEntities) {
+                                  (if (!includeArchivedEntities) {
                                     "(not archived) and "
                                   } else {
                                     ""
@@ -2229,7 +2229,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     var sql = "select count(1) from entity eContaining, RelationToEntity rte, entity eContained " +
               " where eContaining.id=rte.entity_id and rte.entity_id=" + inEntityId +
               " and rte.entity_id_2=eContained.id"
-    if (!includeArchivedEntities && !showAllArchivedEntities) sql += " and (not eContained.archived)"
+    if (!includeArchivedEntities && !includeArchivedEntities) sql += " and (not eContained.archived)"
     extractRowCountFromCountQuery(sql)
   }
 
@@ -2270,12 +2270,23 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   /**
    * @param groupIdIn groupId
-   * @param includeArchivedEntities true/false means select only archived/non-archived entities; None there means BOTH archived and non-archived (all).
+   * @param includeWhichEntitiesIn 1/2/3 means select onlyNon-archived/onlyArchived/all entities, respectively.
+   *                               4 means "it depends on the value of includeArchivedEntities", which is what callers want in some cases.
+   *                               This param might be made more clear, but it is not yet clear how is best to do that.
+ *                                 Because the caller provides this switch specifically to the situation, the logic is not necessarily overridden
+   *                               internally based on the value of this.includeArchivedEntities.
    */
-  def getGroupSize(groupIdIn: Long, includeArchivedEntities: Option[Boolean] = None): Long = {
-    val archivedSqlCondition: String = if (includeArchivedEntities.isEmpty) "true"
-    else if (includeArchivedEntities.get) "archived"
-    else "(not archived)"
+  def getGroupSize(groupIdIn: Long, includeWhichEntitiesIn: Int = 3): Long = {
+    require(includeWhichEntitiesIn > 0 && includeWhichEntitiesIn < 5)
+    val archivedSqlCondition: String = {
+      if (includeWhichEntitiesIn == 1) "(not archived)"
+      else if (includeWhichEntitiesIn == 2) "archived"
+      else if (includeWhichEntitiesIn == 3) "true"
+      else if (includeWhichEntitiesIn == 4) {
+        if (includeArchivedEntities) "true" else "(not archived)"
+      }
+      else (throw new OmDatabaseException("How did we get here? includeWhichEntities=" + includeWhichEntitiesIn))
+    }
     extractRowCountFromCountQuery("select count(1) from entity e, EntitiesInAGroup eiag where e.id=eiag.entity_id and " + archivedSqlCondition + " and eiag" +
                                   ".group_id=" + groupIdIn)
   }
@@ -2287,7 +2298,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def getContainingRelationToGroupDescriptions(inEntityId: Long, inLimit: Option[Long] = None): Array[String] = {
     val rows: List[Array[Option[Any]]] = dbQuery("select e.name, grp.name, grp.id from entity e, relationtogroup rtg, " +
                                                  "grupo grp where " +
-                                                 (if (!showAllArchivedEntities) {
+                                                 (if (!includeArchivedEntities) {
                                                    "(not archived) and "
                                                  } else {
                                                    ""
@@ -2364,7 +2375,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def isEntityInGroup(inGroupId: Long, inEntityId: Long): Boolean = {
     val num = extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup eig, entity e where eig.entity_id=e.id" +
-                                            (if (!showAllArchivedEntities) {
+                                            (if (!includeArchivedEntities) {
                                               " and (not e.archived)"
                                             } else {
                                               ""
@@ -2492,7 +2503,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def getRelationTypeData(inId: Long): Array[Option[Any]] = {
     dbQueryWrapperForOneRow("select name, name_in_reverse_direction, directionality from RelationType r, Entity e where " +
-                            (if (!showAllArchivedEntities) {
+                            (if (!includeArchivedEntities) {
                               "(not archived) and "
                             } else {
                               ""
@@ -2659,12 +2670,17 @@ class PostgreSQLDatabase(username: String, var password: String) {
   /** Excludes those entities that are really relationtypes, attribute types, or quantity units. */
   def entityOnlyKeyExists(inID: Long): Boolean = {
     doesThisExist("SELECT count(1) from Entity where " +
-                  (if (!showAllArchivedEntities) "(not archived) and " else "") +
+                  (if (!includeArchivedEntities) "(not archived) and " else "") +
                   "id=" + inID + " and id in (select id from entity " + limitToEntitiesOnly(ENTITY_ONLY_SELECT_PART) + ")")
   }
 
+  /**
+   *
+   * @param includeArchived See comment on similar parameter to method getGroupSize.
+   */
+  //idea: see if any callers should pass the includeArchived parameter differently, now that the system can be used with archived entities displayed.
   def entityKeyExists(inID: Long, includeArchived: Boolean = true): Boolean = {
-    val condition = if (!includeArchived && ! showAllArchivedEntities) " and not archived" else ""
+    val condition = if (!includeArchived) " and not archived" else ""
     doesThisExist("SELECT count(1) from Entity where id=" + inID + condition)
   }
 
@@ -2730,7 +2746,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val nameRegex = escapeQuotesEtc(nameRegexIn)
     val omissionExpression: String = if (omitEntityIdIn.isEmpty) "true" else "(not id=" + omitEntityIdIn.get + ")"
     val sql: String = "select id, name, class_id, insertion_date, public, archived from entity where " +
-                      (if (!showAllArchivedEntities) {
+                      (if (!includeArchivedEntities) {
                         "not archived and "
                       } else {
                         ""
@@ -2739,7 +2755,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                       " and name ~* '" + nameRegex + "'" +
                       " UNION " +
                       "select id, name, class_id, insertion_date, public, archived from entity where " +
-                      (if (!showAllArchivedEntities) {
+                      (if (!includeArchivedEntities) {
                         "not archived and "
                       } else {
                         ""
@@ -2935,7 +2951,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                         ", RelationType r "
                       } else "") +
                       " where" +
-                      (if (!showAllArchivedEntities) {
+                      (if (!includeArchivedEntities) {
                         " (not archived) and"
                       } else {
                         ""
@@ -3026,7 +3042,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     // idea: needs automated tests (in task list also).
     var sql: String = "select eiag.entity_id, eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id" +
                           " and eiag.group_id=" + groupIdIn
-    if (!includeArchivedEntitiesIn && !showAllArchivedEntities) sql += " and (not e.archived)"
+    if (!includeArchivedEntitiesIn && !includeArchivedEntities) sql += " and (not e.archived)"
     sql += " order by eiag.sorting_index, eiag.entity_id limit " + checkIfShouldBeAllResults(limitIn)
     val results = dbQuery(sql, "Long,Long")
     results
@@ -3040,16 +3056,16 @@ class PostgreSQLDatabase(username: String, var password: String) {
     results
   }
 
-  /** As of 2014-8-4, this is only called when calculating a new sorting_index, but if it were used for something else ever, one might consider whether
-    * to (optionally!) add back the code removed today which ignores archived entries.  We can't ignore them for getting a new sorting_index: bug.
-    */
   def getAdjacentGroupEntriesSortingIndexes(groupIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long] = None,
                                             forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
     // see comments in getGroupEntriesData.
-    // Doing "not e.archived", because the caller is probably trying to move entries up/down in the UI, and if we count archived entries,
-    // we could move relative to invisible entries only, and not make a visible move,
+    // Doing "not e.archived", because the caller is probably trying to move entries up/down in the UI, and if we count archived entries but
+    // are not showing them,
+    // we could move relative to invisible entries only, and not make a visible move,  BUT: as of 2014-8-4, a comment was added, now gone, that said to ignore
+    // archived entities while getting a new sorting_index is a bug. So if that bug is found again, we should cover all scenarios with automated
+    // tests (showAllArchivedEntities is true and false, with archived entities present, and any other).
     val results = dbQuery("select eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id" +
-                          (if (!showAllArchivedEntities) {
+                          (if (!includeArchivedEntities) {
                             " and (not e.archived)"
                           } else {
                             ""
@@ -3101,7 +3117,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   def getGroupEntryObjects(inGroupId: Long, inStartingObjectIndex: Long, inMaxVals: Option[Long] = None): java.util.ArrayList[Entity] = {
     // see comments in getGroupEntriesData
     val sql = "select entity_id, sorting_index from entity e, EntitiesInAGroup eiag where e.id=eiag.entity_id" +
-              (if (!showAllArchivedEntities) {
+              (if (!includeArchivedEntities) {
                 " and (not e.archived) "
               } else {
                 ""
@@ -3324,13 +3340,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
                             "     and attributesorting.attribute_id=" + tableName + ".id )" +
                             "   JOIN entity ON entity.id=" + key +
                             " where " +
-                            (if (!showAllArchivedEntities) {
+                            (if (!includeArchivedEntities) {
                               "(not entity.archived) and "
                             } else {
                               ""
                             }) +
                             whereClausesByTable(tableListIndex)
-          if (tableName.toLowerCase == Controller.RELATION_TO_ENTITY_TYPE && !showAllArchivedEntities) {
+          if (tableName.toLowerCase == Controller.RELATION_TO_ENTITY_TYPE && !includeArchivedEntities) {
             sql += " and not exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
                    " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.archived)"
           }
@@ -3419,7 +3435,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   /** The 2nd parameter is to avoid saying an entity is a duplicate of itself: checks for all others only. */
   def isDuplicateEntity(inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = {
     val first = isDuplicateRow(inName, Controller.ENTITY_TYPE, "id", "name",
-                               if (!showAllArchivedEntities) {
+                               if (!includeArchivedEntities) {
                                  Some("(not archived)")
                                } else {
                                  None
@@ -3646,10 +3662,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
   }
 
-  def showAllArchivedEntities: Boolean = mShowAllArchivedEntities
+  /**
+    This means whether to act on *all* entities (true), or only non-archived (false, the more typical use).  Needs clarification?
+  */
+  def includeArchivedEntities: Boolean = mIncludeArchivedEntities
 
-  def setShowAllArchivedEntities(in: Boolean): Unit = {
-    mShowAllArchivedEntities = in
+  def setIncludeArchivedEntities(in: Boolean): Unit = {
+    mIncludeArchivedEntities = in
   }
 
 }

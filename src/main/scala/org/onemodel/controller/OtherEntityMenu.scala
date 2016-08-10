@@ -119,6 +119,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               if (!entityIn.isArchived) {
                 controller.archiveEntity(entityIn)
               } else {
+                // ** IF THIS OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in controller.getDefaultEntity. **
                 controller.unarchiveEntity(entityIn)
               }
             } else if (delAnswer == delEntityLink_choiceNumber && containingRelationToEntityIn.isDefined && delAnswer <= choices.length) {
@@ -131,7 +132,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             } else if (delAnswer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && delAnswer <= choices.length) {
               controller.removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn)
             } else if (delAnswer == showAllArchivedEntities_choiceNumber) {
-              db.setShowAllArchivedEntities(! db.showAllArchivedEntities)
+              // ** IF THIS OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in controller.getDefaultEntity. **
+              db.setIncludeArchivedEntities(! db.includeArchivedEntities)
             } else {
               ui.displayText("invalid response")
               otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,

@@ -236,7 +236,24 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def getDefaultEntity: (Option[Long], Option[Entity]) = {
     if (defaultDisplayEntityId.isEmpty || ! db.entityKeyExists(defaultDisplayEntityId.get)) {
       (None, None)
-    } else (defaultDisplayEntityId, Entity.getEntityById(db, defaultDisplayEntityId.get))
+    } else {
+      val entity: Option[Entity] = Entity.getEntityById(db, defaultDisplayEntityId.get)
+      if (entity.isDefined && entity.get.isArchived) {
+        val msg = "The default entity " + TextUI.NEWLN + "    " + entity.get.getId + ": \"" + entity.get.getName + "\"" + TextUI.NEWLN +
+                  "... was found but is archived.  You might run" +
+                  " into problems unless you un-archive it, or choose a different entity to make the default, or display all archived" +
+                  " entities then search for this entity and un-archive it under its Entity Menu options 9, 4."
+        val ans = ui.askWhich(Some(Array(msg)), Array("Un-archive the default entity now", "Display archived entities"))
+        if (ans.isDefined) {
+          if (ans.get == 1) {
+            entity.get.unarchive()
+          } else if (ans.get == 2) {
+            db.setIncludeArchivedEntities(true)
+          }
+        }
+      }
+      (defaultDisplayEntityId, entity)
+    }
   }
 
   def start() {
@@ -1033,7 +1050,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       choices = choices :+ "Delete the link between the group: \"" + containingGroupIn.get.getName + "\", and this Entity: \"" + entityIn.getName
       showAllArchivedEntities_choiceNumber += 1
     }
-    choices = choices :+ (if (!db.showAllArchivedEntities) "Show archived entities" else "Do not show archived entities")
+    choices = choices :+ (if (!db.includeArchivedEntities) "Show archived entities" else "Do not show archived entities")
 
     val delOrArchiveAnswer: Option[(Int)] = ui.askWhich(leadingText, choices, Array[String]())
     (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber, showAllArchivedEntities_choiceNumber)
@@ -1487,6 +1504,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         None
       } else {
         // (BTW, do allow relation to self, e.g., picking self as 2nd part of a RelationToEntity.)
+        // (Also, the call to entityKeyExists should here include archived entities so the user can find out if the one
+        // needed is archived, even if the hard way.)
         if ((typeNameIn == Controller.ENTITY_TYPE && db.entityKeyExists(idString.toLong)) ||
             (typeNameIn == Controller.GROUP_TYPE && db.groupKeyExists(idString.toLong))) {
           Some(new IdWrapper(idString.toLong))
@@ -1980,7 +1999,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   /** see comments for getContentSizePrefix. */
   def getGroupContentSizePrefix(groupId: Long): String = {
-    val grpSize = db.getGroupSize(groupId, Some(false))
+    val grpSize = db.getGroupSize(groupId, 1)
     if (grpSize == 0) ""
     else ">"
   }
@@ -2034,7 +2053,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def addEntityToGroup(groupIn: Group): Option[Long] = {
     val newEntityId: Option[Long] = {
       if (!groupIn.getMixedClassesAllowed) {
-        if (groupIn.getSize == 0) {
+        if (groupIn.getSize() == 0) {
           // adding 1st entity to this group, so:
           val leadingText = List("ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):")
           val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Controller.ENTITY_TYPE,

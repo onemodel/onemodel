@@ -639,10 +639,10 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(checkRelation(3).get.asInstanceOf[Long] == groupId)
     assert(checkRelation(4).get.asInstanceOf[Long] == validOnDate)
 
-    assert(group.getSize == 0)
+    assert(group.getSize() == 0)
     val entityId2 = mDB.createEntity(entityName + 2)
     group.addEntity(entityId2)
-    assert(group.getSize == 1)
+    assert(group.getSize() == 1)
     group.deleteWithEntities()
     assert(intercept[Exception] {
                                   new RelationToGroup(mDB, rtg.getId, rtg.getParentId, rtg.getAttrTypeId, rtg.getGroupId )
@@ -650,24 +650,24 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(intercept[Exception] {
                                   new Entity(mDB, entityId2)
                                 }.getMessage.contains("does not exist"))
-    assert(group.getSize == 0)
+    assert(group.getSize() == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
     assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
 
     val (groupId2, _) = createAndAddTestRelationToGroup_ToEntity(entityId, relTypeId, "somename", None)
 
     val group2: Group = new Group(mDB, groupId2)
-    assert(group2.getSize == 0)
+    assert(group2.getSize() == 0)
 
     val entityId3 = mDB.createEntity(entityName + 3)
     group2.addEntity(entityId3)
-    assert(group2.getSize == 1)
+    assert(group2.getSize() == 1)
 
     val entityId4 = mDB.createEntity(entityName + 4)
     group2.addEntity(entityId4)
     val entityId5 = mDB.createEntity(entityName + 5)
     group2.addEntity(entityId5)
-    assert(group2.getSize == 3)
+    assert(group2.getSize() == 3)
     assert(mDB.getGroupEntryObjects(group2.getId, 0).size() == 3)
 
     group2.removeEntity(entityId5)
@@ -677,7 +677,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(intercept[Exception] {
                                   new Group(mDB, groupId)
                                 }.getMessage.contains("does not exist"))
-    assert(group2.getSize == 0)
+    assert(group2.getSize() == 0)
     // ensure the other entity still exists: not deleted by that delete command
     new Entity(mDB, entityId3)
 
@@ -1226,21 +1226,21 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     val groupSizeBeforeRemoval = mDB.getGroupSize(groupId)
 
-    assert(mDB.getGroupSize(groupId, Some(true)) == 0)
-    assert(mDB.getGroupSize(groupId, Some(false)) == groupSizeBeforeRemoval)
-    assert(mDB.getGroupSize(groupId, None) == groupSizeBeforeRemoval)
+    assert(mDB.getGroupSize(groupId, 2) == 0)
+    assert(mDB.getGroupSize(groupId, 1) == groupSizeBeforeRemoval)
+    assert(mDB.getGroupSize(groupId) == groupSizeBeforeRemoval)
     mDB.archiveEntity(entityId2)
-    assert(mDB.getGroupSize(groupId, Some(true)) == 1)
-    assert(mDB.getGroupSize(groupId, Some(false)) == groupSizeBeforeRemoval - 1)
-    assert(mDB.getGroupSize(groupId, None) == groupSizeBeforeRemoval)
+    assert(mDB.getGroupSize(groupId, 2) == 1)
+    assert(mDB.getGroupSize(groupId, 1) == groupSizeBeforeRemoval - 1)
+    assert(mDB.getGroupSize(groupId) == groupSizeBeforeRemoval)
 
     mDB.removeEntityFromGroup(groupId, entityId2)
     val groupSizeAfterRemoval = mDB.getGroupSize(groupId)
     assert(groupSizeAfterRemoval < groupSizeBeforeRemoval)
 
-    assert(mDB.getGroupSize(groupId, Some(true)) == 0)
-    assert(mDB.getGroupSize(groupId, Some(false)) == groupSizeBeforeRemoval - 1)
-    assert(mDB.getGroupSize(groupId, None) == groupSizeBeforeRemoval - 1)
+    assert(mDB.getGroupSize(groupId, 2) == 0)
+    assert(mDB.getGroupSize(groupId, 1) == groupSizeBeforeRemoval - 1)
+    assert(mDB.getGroupSize(groupId) == groupSizeBeforeRemoval - 1)
   }
 
   "getEntitiesOnly and ...Count" should "allow limiting results by classId and/or group containment" in {

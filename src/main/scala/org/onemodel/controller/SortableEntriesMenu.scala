@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -26,9 +26,10 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
     * feature such that) the user inserts a new attribute after an existing one (ie specifying its position immediately instead of just moving it later) and
     * therefore the attribute already in that position, and the  one added at that position are different.
     */
-  protected def placeEntryInPosition(containingObjectIdIn: Long, groupSizeOrNumAttributesIn: Long, numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: Boolean,
-                           startingDisplayRowIndexIn: Int, movingObjIdIn: Long, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option[Long],
-                           numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]): Int = {
+  protected def placeEntryInPosition(containingObjectIdIn: Long, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: Long,
+                                     numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: Boolean,
+                                     startingDisplayRowIndexIn: Int, movingObjIdIn: Long, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option[Long],
+                                     numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]): Int = {
 
     require(if (objectAtThatIndexIdIn.isDefined || objectAtThatIndexFormIdIn.isDefined) {
                 objectAtThatIndexIdIn.isDefined && objectAtThatIndexFormIdIn.isDefined
@@ -54,7 +55,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
     } else {
       val (newSortingIndex: Long, trouble: Boolean) = {
         var (newSortingIndex: Long, trouble: Boolean, newStartingRowNum: Int) = {
-          getNewSortingIndex(containingObjectIdIn, groupSizeOrNumAttributesIn, startingDisplayRowIndexIn, nearNewNeighborSortingIndex,
+          getNewSortingIndex(containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In, startingDisplayRowIndexIn, nearNewNeighborSortingIndex,
                              farNewNeighborSortingIndex, forwardNotBackIn,
                              byHowManyEntriesActuallyMoving, movingFromPosition_sortingIndex, moveFromIndexInObjListIn, numDisplayLinesIn)
         }
@@ -75,8 +76,8 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
           val (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option[Long], farNewNeighborSortingIndex2: Option[Long]) =
             findNewNeighbors(containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex2)
           // (for some reason, can't reassign the results directly to the vars like this "(newSortingIndex, trouble, newStartingRowNum) = ..."?
-          val (a: Long, b: Boolean, c: Int) = getNewSortingIndex(containingObjectIdIn, groupSizeOrNumAttributesIn, startingDisplayRowIndexIn,
-                                                                 nearNewNeighborSortingIndex2,
+          val (a: Long, b: Boolean, c: Int) = getNewSortingIndex(containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,
+                                                                 startingDisplayRowIndexIn, nearNewNeighborSortingIndex2,
                                                                  farNewNeighborSortingIndex2, forwardNotBackIn,
                                                                  byHowManyEntriesMoving2, movingFromPosition_sortingIndex2, moveFromIndexInObjListIn,
                                                                  numDisplayLinesIn)
@@ -101,7 +102,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
 
   protected def getSortingIndex(containingObjectIdIn: Long, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: Long): Long
 
-  protected def getNewSortingIndex(containingObjectIdIn: Long, groupSizeOrNumAttributesIn: Long, startingDisplayRowIndexIn: Int,
+  protected def getNewSortingIndex(containingObjectIdIn: Long, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: Long, startingDisplayRowIndexIn: Int,
                                    nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long], forwardNotBack: Boolean,
                                    byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: Long, moveFromIndexInObjListIn: Int,
                                    numDisplayLines: Int): (Long, Boolean, Int) = {
@@ -173,7 +174,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
       if (forwardNotBack) {
         if ((moveFromIndexInObjListIn + byHowManyEntriesMoving) > numDisplayLines) {
           // if the object will move too far to be seen in this screenful, adjust the screenful to redisplay, with some margin
-          val x: Long = groupSizeOrNumAttributesIn - numDisplayLines
+          val x: Long = groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In - numDisplayLines
           //(was: "(numDisplayLines / 4)", but center it better in the screen):
           val y: Int = startingDisplayRowIndexIn + numDisplayLines + byHowManyEntriesMoving - (numDisplayLines / 2)
           val min: Int = math.min(x,y).asInstanceOf[Int]

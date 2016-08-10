@@ -42,7 +42,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     when(mockDB.entityKeyExists(relTypeId)).thenReturn(true)
     when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, relTypeId, groupId)).thenReturn(true)
     when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true)))
-    when(mockDB.getGroupSize(groupId, Some(false))).thenReturn(grpEntryCount)
+    when(mockDB.getGroupSize(groupId, 1)).thenReturn(grpEntryCount)
     when(mockDB.getRelationTypeData(relTypeId)).thenReturn(Array[Option[Any]](Some(relationTypeName), Some(PostgreSQLDatabase.theIsHadByReverseName),
                                                                               Some("xyz..")))
     // (using arbitrary numbers for the unnamed parameters):
@@ -69,7 +69,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     val list = new java.util.ArrayList[Entity](1)
     list.add(new Entity(mockDB, classTemplateEntityId, "asdf", None, 0L, None, false))
     when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(list)
-    when(mockDB.getGroupSize(groupId)).thenReturn(list.size)
+    when(mockDB.getGroupSize(groupId, 3)).thenReturn(list.size)
     val all3: String = relationToGroup3.getDisplayString(0, None)
     assert(!all3.contains("(mixed)"))
     assert(all3.contains(", class: (specified as None)"))

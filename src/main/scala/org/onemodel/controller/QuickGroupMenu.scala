@@ -124,7 +124,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           numRowsToMove = 20
           forwardNotBack = true
         }
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, numRowsToMove, forwardNotBack, startingDisplayRowIndexIn,
+        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize(4), numRowsToMove, forwardNotBack, startingDisplayRowIndexIn,
                                                                  highlightedObjId, highlightedIndexInObjListIn, Some(highlightedObjId),
                                                                  objectsToDisplay.size, -1, Some(-1))
         quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
@@ -249,7 +249,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
     val objIds = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       entity.getId
     }
-    controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize, startingDisplayRowIndexIn)
+    controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
     val statusesAndNames: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity.getId)
       val archivedStatus = entity.getArchivedStatusDisplayString
@@ -332,8 +332,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
               val newEntity = ans.get
               val newEntityId: Long = newEntity.getId
               db.addEntityToGroup(groupIn.getId, newEntityId)
-              val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 0, forwardNotBackIn = true,
-                                                                       startingDisplayRowIndexIn, newEntityId,
+              val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize(4), 0,
+                                                                       forwardNotBackIn = true, startingDisplayRowIndexIn, newEntityId,
                                                                        highlightedIndexInObjList, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
               controller.defaultAttributeCopying(newEntity)
               (Some(new Entity(db, newEntityId)), displayStartingRowNumber)
@@ -405,7 +405,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                 if (entityChosen.isDefined) {
                   val entityChosenId: Long = entityChosen.get.getId
                   db.addEntityToGroup(groupIn.getId, entityChosenId)
-                  val newDisplayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize, 0, forwardNotBackIn = true,
+                  val newDisplayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize(4), 0, forwardNotBackIn = true,
                                                                               startingDisplayRowIndexIn, entityChosenId, highlightedIndexInObjList,
                                                                               Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
                   (Some(new Entity(db, entityChosenId)), newDisplayStartingRowNumber)
@@ -429,7 +429,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
         } else if (answer == 6) {
           val (entryToHighlight: Option[Entity], displayStartingRowNumber: Int) = {
             val nextStartPosition = startingDisplayRowIndexIn + objectsToDisplay.size
-            if (nextStartPosition >= groupIn.getSize) {
+            if (nextStartPosition >= groupIn.getSize(4)) {
               ui.displayText("End of attribute list found; restarting from the beginning.")
               (None, 0) // start over
             } else (highlightedEntityIn, nextStartPosition)
@@ -440,7 +440,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           // THE OTHER MIGHT ALSO NEED MAINTENANCE!
           val choices = Array[String](Controller.unselectMoveTargetPromptText)
           val leadingText: Array[String] = Array(Controller.unselectMoveTargetLeadingText)
-          controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize, startingDisplayRowIndexIn)
+          controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
 
           val response = ui.askWhich(Some(leadingText), choices, statusesAndNames, highlightIndexIn = Some(highlightedIndexInObjList),
                                      secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -472,7 +472,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           val choices = Array[String]("keep existing (same as ESC)")
           // says 'same screenful' because (see similar cmt elsewhere).
           val leadingText: Array[String] = Array("CHOOSE AN ENTRY to highlight (*)")
-          controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize, startingDisplayRowIndexIn)
+          controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
           val response = ui.askWhich(Some(leadingText), choices, statusesAndNames, highlightIndexIn = Some(highlightedIndexInObjList),
                                      secondaryHighlightIndexIn = moveTargetIndexInObjList)
           val (entityToHighlight, selectedTargetEntity): (Option[Entity], Option[Entity]) =

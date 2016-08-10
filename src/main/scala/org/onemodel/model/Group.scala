@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2015 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2016 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
     of the License, or (at your option) any later version.  See the file LICENSE for details.
@@ -61,10 +61,12 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
   def deleteWithEntities() = mDB.deleteGroupRelationsToItAndItsEntries(mId)
 
   // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability, or vals not vars)?
-  def getSize: Long = mDB.getGroupSize(mId)
+  def getSize(includeWhichEntities: Int = 3): Long = {
+    mDB.getGroupSize(mId, includeWhichEntities)
+  }
 
   def getDisplayString(lengthLimitIn: Int, simplifyIn: Boolean = false): String = {
-    val numEntries = mDB.getGroupSize(getId, Some(false))
+    val numEntries = mDB.getGroupSize(getId, 1)
     var result: String =  ""
     result += {
       if (simplifyIn) getName
@@ -116,14 +118,13 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
       None
     else {
       val classId: Option[Long] = getClassId
-      if (classId.isEmpty && getSize == 0) {
+      if (classId.isEmpty && getSize() == 0) {
         // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
         Some("(unspecified)")
-      }
-      // means the group requires uniform classes, but the enforced uniform class is None:
-      else if (classId.isEmpty)
-             Some("(specified as None)")
-      else {
+      } else if (classId.isEmpty) {
+        // means the group requires uniform classes, but the enforced uniform class is None, i.e., to not have a class:
+        Some("(specified as None)")
+      } else {
         val exampleEntitysClass = new EntityClass(mDB, classId.get)
         Some(exampleEntitysClass.getName)
       }
