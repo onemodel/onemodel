@@ -68,7 +68,11 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             }
           }
         } else if (answer == 2) {
-          val importOrExportAnswer = ui.askWhich(None, Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
+          val importOrExportAnswer = ui.askWhich(Some(Array("NOTE: this is very useful for getting things in & out of OM, but is not" +
+                                                            " complete or tested enough" +
+                                                            " to use for OM backup/restore.  (That has to be done at the database level.  Try the mailing" +
+                                                            " list for help with that.  If it is a hosted OM solution the backups should be done for you.)")),
+                                                 Array("Import", "Export to a text file (outline)", "Export to html pages"), Array[String]())
           if (importOrExportAnswer.isDefined) {
             if (importOrExportAnswer.get == 1) new ImportExport(ui, db, controller).importCollapsibleOutlineAsGroups(entityIn)
             else if (importOrExportAnswer.get == 2) new ImportExport(ui, db, controller).export(entityIn, ImportExport.TEXT_EXPORT_TYPE, None, None, None)
