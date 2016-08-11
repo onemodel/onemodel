@@ -760,7 +760,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         val fa: FileAttribute = attributeIn.asInstanceOf[FileAttribute]
         try {
           // this file should be confirmed by the user as ok to write, even overwriting what is there.
-          val file: Option[File] = ui.getExportDestinationFile(fa.getOriginalFilePath, fa.getMd5Hash)
+          val file: Option[File] = ui.getExportDestination(fa.getOriginalFilePath, fa.getMd5Hash)
           if (file.isDefined) {
             fa.retrieveContent(file.get)
             ui.displayText("File saved at: " + file.get.getCanonicalPath)

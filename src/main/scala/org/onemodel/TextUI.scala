@@ -519,38 +519,46 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
 
   /** This is in the UI code because probably a GUI would do it very differently.
     */
-  def getExportDestinationFile(originalPathIn: String, originalMd5HashIn: String): Option[File] = {
-    val origPathFile = new File(originalPathIn)
-    val containingDirectory = origPathFile.getParentFile
-    if ((!origPathFile.exists) && containingDirectory != null && containingDirectory.exists) Some(origPathFile)
-    else {
+  def getExportDestination(originalPathIn: String, originalMd5HashIn: String): Option[File] = {
+    def newLocation(originalNameIn: String): Option[File] = {
+      val oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn)
+      if (oldNameInTmpDir.getParentFile.canWrite && !oldNameInTmpDir.exists()) Some(oldNameInTmpDir)
+      else {
+        val (baseName, extension) = controller.getReplacementFilename(originalPathIn)
+        Some(File.createTempFile(baseName + "-", extension))
+      }
+    }
+    val originalFile = new File(originalPathIn)
+    val originalContainingDirectory = originalFile.getParentFile
+    val originalName = FilenameUtils.getBaseName(originalPathIn)
+    val baseConfirmationMessage = "Put the file in the original location: \"" + originalPathIn + "\""
+    val restOfConfirmationMessage = " (No means put it in a new/temporary location instead.)"
+    if (originalContainingDirectory != null && originalContainingDirectory.exists && (!originalFile.exists)) {
+      val ans = askYesNoQuestion(baseConfirmationMessage + "?" + restOfConfirmationMessage)
+      if (ans.isEmpty) None
+      else {
+        if (ans.get) Some(originalFile)
+        else newLocation(originalName)
+      }
+    } else {
       val yesExportTheFile: Option[Boolean] = {
-        if (origPathFile.exists) {
-          if (FileAttribute.md5Hash(origPathFile) != originalMd5HashIn) Some(true)
+        if (originalFile.exists) {
+          if (FileAttribute.md5Hash(originalFile) != originalMd5HashIn) Some(true)
           else {
             askYesNoQuestion("The file currently at " + originalPathIn + " is identical to the one stored.  Export anyway?  (Answering " +
-                             "'y' will still allow choosing whether to overwrite it.)")
+                             "'y' will still allow choosing whether to overwrite it or write to a new location instead.)")
           }
         } else Some(true)
       }
       if (yesExportTheFile.isEmpty || !yesExportTheFile.get) None
       else {
-        def newLocation(originalNameIn: String): Option[File] = {
-          val oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn)
-          if (oldNameInTmpDir.getParentFile.canWrite && !oldNameInTmpDir.exists()) Some(oldNameInTmpDir)
-          else {
-            val (baseName, extension) = controller.getReplacementFilename(originalPathIn)
-            Some(File.createTempFile(baseName + "-", extension))
-          }
-        }
-        val originalName = FilenameUtils.getBaseName(originalPathIn)
-        if (!origPathFile.getParentFile.exists) {
+        if (originalContainingDirectory != null && !originalContainingDirectory.exists) {
           newLocation(originalName)
         } else {
-          val msgIfExists = if (!new File(originalPathIn).exists) "" else " (overwriting the current copy)"
-          val ans = askYesNoQuestion("Put the file in the original location: \"" + originalPathIn + "\"" + msgIfExists + "?")
+          require(originalFile.exists, "Logic got here unexpectedly, to a point where the original file is expected to exist but does not: " + originalPathIn)
+          val ans = askYesNoQuestion(baseConfirmationMessage + "\" (overwriting the current copy)?" + restOfConfirmationMessage)
           if (ans.isEmpty) None
-          else if (ans.get) Some(origPathFile)
+          else if (ans.get) Some(originalFile)
           else newLocation(originalName)
         }
       }
