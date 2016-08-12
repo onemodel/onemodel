@@ -131,7 +131,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
               if (ans.isDefined && ans.get) {
                 containingRelationToEntityIn.get.delete()
               } else {
-                ui.displayText("Did not delete relation.", waitForKeystroke = false)
+                ui.displayText("Did not delete relation.", waitForKeystrokeIn = false)
               }
             } else if (delAnswer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && delAnswer <= choices.length) {
               controller.removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn)
@@ -245,7 +245,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       savedAttrText.getOrElse( {
         ui.displayText(prompt1 + "html page \"<head>\" section contents" + prompt2 +
                        " (Title & 'meta name=\"description\"' tags are automatically filled in from the entity's name.)" +
-                       prompt3 + "\"" + Controller.HEADER_CONTENT_TAG + "\"" + prompt4, waitForKeystroke = false)
+                       prompt3 + "\"" + Controller.HEADER_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
         val s: String = controller.editMultilineText("")
         s
       })
@@ -260,7 +260,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       }
       savedAttrText.getOrElse({
         ui.displayText(prompt1 + "initial *body* content (like a common banner or header)" + prompt2 +
-                       prompt3 + "\"" + Controller.BODY_CONTENT_TAG + "\"" + prompt4, waitForKeystroke = false)
+                       prompt3 + "\"" + Controller.BODY_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
         val beginBodyContentIn: String = controller.editMultilineText("")
         beginBodyContentIn
       })

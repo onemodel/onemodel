@@ -237,7 +237,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
           ui.displayText("Deleted group definition: \"" + groupDescrIn + "\"" + ".")
           None
         } else {
-          ui.displayText("Did not delete group definition.", waitForKeystroke = false)
+          ui.displayText("Did not delete group definition.", waitForKeystrokeIn = false)
           groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         }
       } else if (ans == 2) {
@@ -266,7 +266,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
             None
           } else None
         } else {
-          ui.displayText("Did not delete group.", waitForKeystroke = false)
+          ui.displayText("Did not delete group.", waitForKeystrokeIn = false)
           groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         }
       } else if (ans == 3 && relationToGroupIn.isDefined) {
@@ -296,7 +296,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
       //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn)
     } else {
-      ui.displayText("Did not remove group from the entity.", waitForKeystroke = false)
+      ui.displayText("Did not remove group from the entity.", waitForKeystrokeIn = false)
       false
 
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:

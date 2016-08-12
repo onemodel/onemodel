@@ -28,8 +28,8 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
       if (numEntities == 0 || entityIn.isEmpty) {
         val choices: List[String] = List[String]("Add new entity (such as yourself using your name, to start)",
                                                  controller.mainSearchPrompt)
-        val response: Option[Int] = ui.askWhich(None, choices.toArray, Array[String](), includeEscChoice = false,
-                                                trailingText = Some(ui.howQuit + " to quit"))
+        val response: Option[Int] = ui.askWhich(None, choices.toArray, Array[String](), includeEscChoiceIn = false,
+                                                trailingTextIn = Some(ui.howQuit + " to quit"))
         if (response.isDefined && response.get != 0) {
           val answer = response.get
           // None means user hit ESC (or 0, though not shown) to get out
@@ -45,7 +45,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
         }
       } else if (Entity.getEntityById(db, entityIn.get.getId).isEmpty) {
         ui.displayText("The entity to be displayed, id " + entityIn.get.getId + ": " + entityIn.get.getDisplayString + "\", is not present, " +
-                       "probably because it was deleted.  Trying the prior one viewed.", waitForKeystroke = false)
+                       "probably because it was deleted.  Trying the prior one viewed.", waitForKeystrokeIn = false)
         // then allow exit from this method so the caller will thus back up one entity and re-enter this menu.
       } else {
         require(entityIn.isDefined)
@@ -65,8 +65,8 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
                                                  "List existing classes",
                                                  "List existing relation types")
         val response =
-          if (goDirectlyToChoice.isEmpty) ui.askWhich(Some(Array(leadingText)), choices.toArray, Array[String](), includeEscChoice = true,
-                                                      trailingText = Some(ui.howQuit + " to quit (anytime)"))
+          if (goDirectlyToChoice.isEmpty) ui.askWhich(Some(Array(leadingText)), choices.toArray, Array[String](), includeEscChoiceIn = true,
+                                                      trailingTextIn = Some(ui.howQuit + " to quit (anytime)"))
           else goDirectlyToChoice
 
         if (response.isDefined && response.get != 0) {

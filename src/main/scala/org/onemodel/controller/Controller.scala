@@ -259,7 +259,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def start() {
     // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  make it save their answer 'yes/i agree' or such in the DB,
     // and don't make them press the keystroke again (timesaver)!  See code at top of PostgreSQLDatabase that puts things in the db at startup: do similarly?
-    ui.displayText(mCopyright, waitForKeystroke = true, Some("IF YOU DO NOT AGREE TO THOSE TERMS: " + ui.howQuit + " to exit.\n" +
+    ui.displayText(mCopyright, waitForKeystrokeIn = true, Some("IF YOU DO NOT AGREE TO THOSE TERMS: " + ui.howQuit + " to exit.\n" +
                                                              "If you agree to those terms: "))
     // Max id used as default here because it seems the least likely # to be used in the system hence the
     // most likely to cause an error as default by being missing, so the system can respond by prompting
@@ -328,7 +328,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
       if (db.isEmpty) {
         ui.displayText("Login failed; retrying (" + ui.howQuit + " to quit if needed):",
-                       waitForKeystroke = false)
+                       waitForKeystrokeIn = false)
         tryOtherLoginsOrPrompt()
       }
       else db.get
@@ -413,7 +413,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       // where creating a new relationship, and creating the entity2 in the process, it puts the wrong info
       // on the header for what is being displayed/edited next!: Needs refactoring anyway: this shouldn't be at
       // a low level.
-      ui.displayText("Created " + Controller.ENTITY_TYPE + ": " + entity.getName, waitForKeystroke = false)
+      ui.displayText("Created " + Controller.ENTITY_TYPE + ": " + entity.getName, waitForKeystrokeIn = false)
 
       defaultAttributeCopying(entity)
 
@@ -748,7 +748,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           attributeIn.delete()
           true
         } else {
-          ui.displayText("Did not delete attribute.", waitForKeystroke = false)
+          ui.displayText("Did not delete attribute.", waitForKeystrokeIn = false)
           attributeEditMenu(attributeIn)
         }
       } else if (answer == 5) {
@@ -904,7 +904,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       ui.displayText("Deleted entity \"" + name + "\"" + ".")
       true
     } else {
-      ui.displayText("Did not delete entity.", waitForKeystroke = false)
+      ui.displayText("Did not delete entity.", waitForKeystrokeIn = false)
       false
     }
   }
@@ -926,7 +926,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       ui.displayText("Archived entity \"" + name + "\"" + ".")
       true
     } else {
-      ui.displayText("Did not archive entity.", waitForKeystroke = false)
+      ui.displayText("Did not archive entity.", waitForKeystrokeIn = false)
       false
     }
   }
@@ -948,7 +948,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       ui.displayText("Un-archived entity \"" + name + "\"" + ".")
       true
     } else {
-      ui.displayText("Did not un-archive entity.", waitForKeystroke = false)
+      ui.displayText("Did not un-archive entity.", waitForKeystrokeIn = false)
       false
     }
   }
@@ -1123,7 +1123,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                       inPreviousSelectionId: Option[Long]): (Option[Long]) = {
     val attrTypeSelection = chooseOrCreateObject(Some(List(prompt)), inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[Long], attrType)
     if (attrTypeSelection.isEmpty) {
-      ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystroke = false)
+      ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystrokeIn = false)
       None
     } else Some[Long](attrTypeSelection.get.getId)
   }
@@ -1536,7 +1536,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val previousSelectionId = if (inEditing) Some(inDH.unitId) else None
     val unitSelection = chooseOrCreateObject(Some(leadingText), previousSelectionDesc, previousSelectionId, Controller.QUANTITY_TYPE)
     if (unitSelection.isEmpty) {
-      ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystroke = false)
+      ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystrokeIn = false)
       None
     } else {
       outDH.unitId = unitSelection.get.getId
@@ -1661,7 +1661,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val groupSelection = chooseOrCreateGroup(Some(List("SELECT GROUP FOR THIS RELATION")), 0)
     val groupId: Option[Long] = {
       if (groupSelection.isEmpty) {
-        ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystroke = false)
+        ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystrokeIn = false)
         None
       } else Some[Long](groupSelection.get.getId)
     }
@@ -2195,7 +2195,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
       //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn)
     } else {
-      ui.displayText("Did not remove entity from that group.", waitForKeystroke = false)
+      ui.displayText("Did not remove entity from that group.", waitForKeystrokeIn = false)
       false
 
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:

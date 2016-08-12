@@ -195,12 +195,12 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     mTesting
   }
 
-  def displayText(text: String, waitForKeystroke: Boolean = true, prePrompt: Option[String] = None) {
+  def displayText(textIn: String, waitForKeystrokeIn: Boolean = true, prePromptIn: Option[String] = None) {
     displayVisualSeparator()
-    println(text)
+    println(textIn)
 
-    if (waitForKeystroke && (!weAreTesting)) {
-      print(prePrompt.getOrElse(""))
+    if (waitForKeystrokeIn && (!weAreTesting)) {
+      print(prePromptIn.getOrElse(""))
       println("Press any key to continue...")
       getUserInputChar
     }
@@ -218,7 +218,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   //@tailrec //see below note on 'recursive' for why removed 4 now.
   final def askForString(leadingTextIn: Option[Array[String]],
                          criteriaIn: Option[(String) => Boolean] = None,
-                         inDefaultValue: Option[String] = None,
+                         defaultValueIn: Option[String] = None,
                          isPasswordIn: Boolean = false): Option[String] = {
     var count = 0
     val lastLineOfPrompt: String = {
@@ -260,7 +260,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       override def run() {
         // wait for the readline below to start, before putting something in it
         Thread.sleep(80)
-        jlineReader.putString(inDefaultValue.getOrElse(""))
+        jlineReader.putString(defaultValueIn.getOrElse(""))
         jlineReader.redrawLine()
         jlineReader.flush()
       }
@@ -279,7 +279,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
         else {
           displayText("Didn't pass the criteria; please re-enter.")
           // this gets "recursive call not in tail position", until new version of jvm that allows scala2do it?
-          askForString(leadingTextIn, criteriaIn, inDefaultValue, isPasswordIn)
+          askForString(leadingTextIn, criteriaIn, defaultValueIn, isPasswordIn)
         }
       }
 
@@ -291,8 +291,8 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
   }
 
-  private def linesLeft(numOfLeadingTextLines: Int, numChoicesAboveColumns: Int): Int = {
-    val linesUsedBeforeMoreChoices = numOfLeadingTextLines + numChoicesAboveColumns + 3 // 3 as described in one caller
+  private def linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int): Int = {
+    val linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 3 // 3 as described in one caller
     terminalHeight - linesUsedBeforeMoreChoices
   }
 
@@ -301,17 +301,17 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     * and 1 line for the cursor at the bottom to not push things off the top.
     * based on # of available columns and a possible max column width.
     */
-  def maxColumnarChoicesToDisplayAfter(numOfLeadingTextLines: Int, numChoicesAboveColumns: Int, fieldWidth: Int): Int = {
-    val maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLines, numChoicesAboveColumns) * columnsPossible(fieldWidth + objectChooserMenuPrefixLength)
+  def maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int): Int = {
+    val maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + objectChooserMenuPrefixLength)
     // the next 2 lines are in coordination with a 'require' statement in askWhich, so we don't fail it:
     val maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length
     math.min(maxMoreChoicesBySpaceAvailable, maxMoreChoicesByMenuCharsAvailable)
   }
 
-  def columnsPossible(columnWidth: Int): Int = {
-    require(columnWidth > 0)
+  def columnsPossible(columnWidthIn: Int): Int = {
+    require(columnWidthIn > 0)
     // allow at least 1 column, even with a smaller terminal width
-    math.max(terminalWidth / columnWidth, 1)
+    math.max(terminalWidth / columnWidthIn, 1)
   }
 
   /** The parm "choices" are shown in a single-column list; the "moreChoices" are shown in columns as space allows.
@@ -323,14 +323,14 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     * If calling methods are kept small, it should be easy for them to visually determine which 'choice's go with the return value;
     * see current callers for examples of how to easily determine which 'moreChoice's go with the return value.
     */
-  final def askWhich(leadingText: Option[Array[String]],
-                     choices: Array[String],
-                     moreChoices: Array[String] = Array(),
-                     includeEscChoice: Boolean = true,
-                     trailingText: Option[String] = None,
+  final def askWhich(leadingTextIn: Option[Array[String]],
+                     choicesIn: Array[String],
+                     moreChoicesIn: Array[String] = Array(),
+                     includeEscChoiceIn: Boolean = true,
+                     trailingTextIn: Option[String] = None,
                      highlightIndexIn: Option[Int] = None,
                      secondaryHighlightIndexIn: Option[Int] = None): Option[Int] = {
-    val result = askWhichChoiceOrItsAlternate(leadingText, choices, moreChoices, includeEscChoice, trailingText, highlightIndexIn, secondaryHighlightIndexIn)
+    val result = askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn)
     if (result.isEmpty) None
     else Some(result.get._1)
   }
@@ -338,11 +338,11 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   /** Like askWhich but if user makes the alternate action on a choice (eg, double-click, click+differentButton, right-click, presses "alt+letter"),
     * then it tells you so in the 2nd (boolean) part of the return value. */
   @tailrec
-  final def askWhichChoiceOrItsAlternate(leadingText: Option[Array[String]],
-                     choices: Array[String],
-                     moreChoices: Array[String] = Array(),
-                     includeEscChoice: Boolean = true,
-                     trailingText: Option[String] = None,
+  final def askWhichChoiceOrItsAlternate(leadingTextIn: Option[Array[String]],
+                     choicesIn: Array[String],
+                     moreChoicesIn: Array[String] = Array(),
+                     includeEscChoiceIn: Boolean = true,
+                     trailingTextIn: Option[String] = None,
                      highlightIndexIn: Option[Int] = None,
                      secondaryHighlightIndexIn: Option[Int] = None): Option[(Int, Boolean)] = {
     // This attempts to always use as menu option keystroke choices: numbers for "choices" (such as major operations available on the
@@ -351,22 +351,22 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     // I.e., 2nd part of menu ("moreChoices") always starts with a letter, not a #, but the 1st part can use numbers+letters as necessary.
     // This is for the user experience: it seems will be easier to remember how to get around one's own model if attributes always start with
     // 'a' and go from there.
-    require(choices.length > 0)
+    require(choicesIn.length > 0)
 
     val maxChoiceLength = Controller.maxNameLength
 
     val firstMenuChars: StringBuffer = {
       //up to: "123456789"
       val chars = new StringBuffer
-      for (number: Int <- 1 to 9) if (number <= choices.length) {
+      for (number: Int <- 1 to 9) if (number <= choicesIn.length) {
         chars.append(number)
       }
       chars
     }
     val possibleMenuChars = firstMenuChars + TextUI.menuCharsList
     // make sure caller didn't send more than the # of things we can handle
-    require((choices.length + moreChoices.length) <= possibleMenuChars.length, "Programming error: there are more choices provided (" +
-                                                                               (choices.length + moreChoices.length) + ") than the menu can handle" +
+    require((choicesIn.length + moreChoicesIn.length) <= possibleMenuChars.length, "Programming error: there are more choices provided (" +
+                                                                               (choicesIn.length + moreChoicesIn.length) + ") than the menu can handle" +
                                                                                possibleMenuChars.length)
 
     var alreadyFull = false
@@ -391,7 +391,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       }
       else if ((!alreadyFull) && lineCounter > terminalHeight) {
         // (+ 1 above to leave room for the error message line, below)
-        val unshownCount: Int = choices.length + moreChoices.length - lineCounter - 1
+        val unshownCount: Int = choicesIn.length + moreChoicesIn.length - lineCounter - 1
         println("Unable to show remaining " + unshownCount + " items in the available screen space(!?). Consider code change to pass the " +
                 "right number of them, relaunching w/ larger terminal, or grouping things?")
         alreadyFull = true
@@ -401,32 +401,32 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
 
     def showChoices() {
-      for (choice <- choices) {
+      for (choice <- choicesIn) {
         if (!ranOutOfVerticalSpace) {
           println(nextMenuChar() + "-" + choice)
         }
       }
-      if (includeEscChoice && !ranOutOfVerticalSpace) {
+      if (includeEscChoiceIn && !ranOutOfVerticalSpace) {
         println("0/ESC - back/previous menu")
       }
     }
 
     def showMoreChoices() {
-      if (moreChoices.length == 0) {
+      if (moreChoicesIn.length == 0) {
         //noinspection ScalaUselessExpression (intentional style violation, for readability):
         Unit
       }
       else {
         // this collection size might be much larger than needed (given multiple columns of display) but that's better than having more complex calculations.
-        val moreLines = new Array[StringBuffer](moreChoices.length)
+        val moreLines = new Array[StringBuffer](moreChoicesIn.length)
         for (i <- moreLines.indices) {
           moreLines(i) = new StringBuffer()
         }
-        val linesLeftHere = linesLeft(leadingText.size, choices.length)
+        val linesLeftHere = linesLeft(leadingTextIn.size, choicesIn.length)
         var lineCounter = -1
         // now build the lines out of columns be4 displaying them.
         var index = -1
-        for (choice <- moreChoices) {
+        for (choice <- moreChoicesIn) {
           index += 1
           lineCounter = lineCounter + 1
           if (lineCounter >= linesLeftHere) {
@@ -466,15 +466,15 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
 
     displayVisualSeparator()
-    if (leadingText.isDefined && leadingText.get.length > 0) {
-      for (prompt <- leadingText.get) {
+    if (leadingTextIn.isDefined && leadingTextIn.get.length > 0) {
+      for (prompt <- leadingTextIn.get) {
         lineCounter = lineCounter + 1
         println(prompt)
       }
     }
     showChoices()
     showMoreChoices()
-    if (trailingText.isDefined && trailingText.get.nonEmpty) println(trailingText.get)
+    if (trailingTextIn.isDefined && trailingTextIn.get.nonEmpty) println(trailingTextIn.get)
 
     val allowedInputChars: Array[Char] = new Array(allAllowedAnswers.length + 2)
     allowedInputChars(0) = '0'
@@ -484,9 +484,9 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
 
     if (answer != 27 && answer != '0' && (!allAllowedAnswers.toString.contains(answer.toChar))) {
       println("unknown choice: " + answer)
-      askWhichChoiceOrItsAlternate(leadingText, choices, moreChoices, includeEscChoice, trailingText, highlightIndexIn, secondaryHighlightIndexIn)
+      askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn)
     }
-    else if (includeEscChoice && (answer == '0' || answer == 27)) {
+    else if (includeEscChoiceIn && (answer == '0' || answer == 27)) {
       None
     }
     else {

@@ -84,7 +84,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
               val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_CLASS_TYPE)
               if (selection.isDefined) classMenu(new EntityClass(db, selection.get.getId))
             } else {
-              ui.displayText("Did not delete class.", waitForKeystroke = false)
+              ui.displayText("Did not delete class.", waitForKeystrokeIn = false)
             }
           }
           classMenu(classIn)
