@@ -2011,8 +2011,18 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def getEntityContentSizePrefix(entityId: Long): String = {
     // attrCount counts groups also, so account for the overlap in the below.
     val attrCount = db.getAttrCount(entityId)
-    // removed the below because it was buggy and not worth it at the time, but might be desired again, like, to not show that an entity contains
-    // more things (">" prefix...) if it only has one group which has no *non-archived* entities:
+    // This is to not show that an entity contains more things (">" prefix...) if it only has one group which has no *non-archived* entities:
+    val justHasOneEmptyGroup: Boolean = {
+      val numGroups: Long = db.getRelationToGroupCountByEntity(Some(entityId))
+      if (numGroups != 1) false
+      else {
+        val (_, _, gid: Option[Long], moreAvailable) = db.findRelationToAndGroup_OnEntity(entityId)
+        if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
+                                                                        "there should be exactly one group in entity " + entityId + " .")
+        val groupSize = db.getGroupSize(gid.get, 1)
+        groupSize == 0
+      }
+    }
 //    val (groupsCount: Long, singleGroupEntryCount: Long) = {
 //      val rtgCountOnEntity: Long = db.getRelationToGroupCountByEntity(Some(entityId))
 //      if (rtgCountOnEntity == 0) {
@@ -2029,7 +2039,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 //      }
 //    }
     val subgroupsCountPrefix: String = {
-      if (attrCount == 0) ""
+      if (attrCount == 0 || justHasOneEmptyGroup) ""
       else if (attrCount == 1) ">"
       else ">>"
     }
