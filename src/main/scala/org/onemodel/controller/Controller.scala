@@ -2012,7 +2012,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     // attrCount counts groups also, so account for the overlap in the below.
     val attrCount = db.getAttrCount(entityId)
     // This is to not show that an entity contains more things (">" prefix...) if it only has one group which has no *non-archived* entities:
-    val justHasOneEmptyGroup: Boolean = {
+    val hasOneEmptyGroup: Boolean = {
       val numGroups: Long = db.getRelationToGroupCountByEntity(Some(entityId))
       if (numGroups != 1) false
       else {
@@ -2023,23 +2023,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         groupSize == 0
       }
     }
-//    val (groupsCount: Long, singleGroupEntryCount: Long) = {
-//      val rtgCountOnEntity: Long = db.getRelationToGroupCountByEntity(Some(entityId))
-//      if (rtgCountOnEntity == 0) {
-//        (0L, 0L)
-//      } else if (rtgCountOnEntity > 1) {
-//        // (For some reason, not having the 'asInstanceOf[Long]' here results in a stack trace on the variable assignment out of this block, with something
-//        // about a tuple mismatch?, even tho it is already a Long:)
-//        (rtgCountOnEntity.asInstanceOf[Long], 0L)
-//      } else {
-//        val (_, _, gid: Option[Long], moreAvailable) = db.findRelationToAndGroup_OnEntity(entityId)
-//        if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
-//                                                                "there should be exactly one group in entity " + entityId + " .")
-//        (rtgCountOnEntity, db.getGroupSize(gid.get, Some(false)))
-//      }
-//    }
     val subgroupsCountPrefix: String = {
-      if (attrCount == 0 || justHasOneEmptyGroup) ""
+      if (attrCount == 0 || (attrCount == 1 && hasOneEmptyGroup)) ""
       else if (attrCount == 1) ">"
       else ">>"
     }
