@@ -202,7 +202,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
     // get enough data to represent the new location in the sort order: movingDistanceIn entries away, and one beyond, and place this entity between them:
     val queryLimit = movingDistanceIn + 1
 
-    val results: Array[Array[Option[Any]]] = getAdjacentEntriesSortingIndexes(groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),
+    val results: Array[Array[Option[Any]]] = getAdjacentEntriesSortingIndexes (groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),
                                                                      forwardNotBackIn = forwardNotBackIn).toArray
     require(results.length <= queryLimit)
     // (get the last result's sortingIndex, if possible; 0-based of course; i.e., that of the first entry beyond where we're moving to):
@@ -211,8 +211,14 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
       else None
     val (nearNewNeighborSortingIndex: Option[Long], byHowManyEntriesMoving: Int) = {
       if (results.length == 0) {
-        // there's nowhere to move to, so just get out of here (shortly, as noted in the caller)
-        (None, 0)
+        // There's nowhere to move to, so just get out of here (shortly, as noted in the caller)
+        // Or, it could be a new entry trying to be moved to the a first or last position, or a mistake with the current entity. Both seem OK if we
+        // just say we need to move from a slightly incr/decremented position.  Maybe the incr/decrement isn't even needed, but harmless & cheap.
+        val newNearIndex = {
+          if (forwardNotBackIn) movingFromPosition_sortingIndex + 1
+          else movingFromPosition_sortingIndex - 1
+        }
+        (Some(newNearIndex), 1)
       } else if (results.length == queryLimit) {
         if (queryLimit == 1) (Some(movingFromPosition_sortingIndex), 1)
         else {

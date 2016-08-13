@@ -154,7 +154,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Controller.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"))
           if (newEntity.isDefined) {
             val newAttribute: Attribute = entityIn.addHASRelationToEntity(newEntity.get.getId, None, System.currentTimeMillis())
-            val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBackIn = true,
+            // The next line is so if adding a new entry on the 1st entry, the new one becomes the first entry (common for logs/jnl w/ latest first),
+            // otherwise the new entry is placed after the current entry.
+            val forwardNotBack = highlightedIndexInObjList.getOrElse(0) != 0
+            val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBack,
                                                                      attributeRowsStartingIndexIn, newAttribute.getId,
                                                                      highlightedIndexInObjList.getOrElse(0),
                                                                      if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
@@ -190,8 +193,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         val newAttribute: Option[Attribute] = addAttribute(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves,
                                                            containingRelationToEntityIn, containingGroupIn)
         if (newAttribute.isDefined && highlightedEntry.isDefined) {
-          placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBackIn = true, attributeRowsStartingIndexIn, newAttribute.get.getId,
-                               highlightedIndexInObjList.getOrElse(0),
+          // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
+          val forwardNotBack = highlightedIndexInObjList.getOrElse(0) != 0
+          placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBackIn = forwardNotBack, attributeRowsStartingIndexIn,
+                               newAttribute.get.getId, highlightedIndexInObjList.getOrElse(0),
                                if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
                                numDisplayableAttributes, newAttribute.get.getFormId,
                                if (highlightedEntry.isDefined) Some(highlightedEntry.get.getFormId) else None)
