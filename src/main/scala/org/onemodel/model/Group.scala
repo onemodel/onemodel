@@ -26,11 +26,12 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
   }
 
   /** See comment about these 2 dates in PostgreSQLDatabase.createTables() */
-  def this(mDB: PostgreSQLDatabase, idIn: Long, nameIn: String, insertionDateIn: Long, mixedClassesAllowedIn: Boolean) {
+  def this(mDB: PostgreSQLDatabase, idIn: Long, nameIn: String, insertionDateIn: Long, mixedClassesAllowedIn: Boolean, newEntriesStickToTopIn: Boolean) {
     this(mDB, idIn)
     mName = nameIn
     mInsertionDate = insertionDateIn
     mMixedClassesAllowed = mixedClassesAllowedIn
+    mNewEntriesStickToTop = newEntriesStickToTopIn
   }
 
   def readDataFromDB() {
@@ -38,18 +39,22 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
     mName = relationData(0).get.asInstanceOf[String]
     mInsertionDate = relationData(1).get.asInstanceOf[Long]
     mMixedClassesAllowed = relationData(2).get.asInstanceOf[Boolean]
+    mNewEntriesStickToTop = relationData(3).get.asInstanceOf[Boolean]
     mAlreadyReadData = true
   }
 
-  def update(attrTypeIdIn: Option[Long] = None, nameIn: Option[String] = None, allowMixedClassesInGroupIn: Option[Boolean] = None,
+  def update(attrTypeIdInIGNOREDFORSOMEREASON: Option[Long] = None, nameIn: Option[String] = None, allowMixedClassesInGroupIn: Option[Boolean] = None,
+             newEntriesStickToTopIn: Option[Boolean] = None,
              validOnDateInIGNORED4NOW: Option[Long], observationDateInIGNORED4NOW: Option[Long]) {
+
     mDB.updateGroup(mId,
+                    if (nameIn.isEmpty) getName else nameIn.get,
+                    if (allowMixedClassesInGroupIn.isEmpty) getMixedClassesAllowed else allowMixedClassesInGroupIn.get,
+                    if (newEntriesStickToTopIn.isEmpty) getNewEntriesStickToTop else newEntriesStickToTopIn.get)
 
-                    if (nameIn.isEmpty) getName
-                    else nameIn.get,
-
-                    if (allowMixedClassesInGroupIn.isEmpty) getMixedClassesAllowed
-                    else allowMixedClassesInGroupIn.get)
+    if (nameIn.isDefined) mName = nameIn.get
+    if (allowMixedClassesInGroupIn.isDefined) mMixedClassesAllowed = allowMixedClassesInGroupIn.get
+    if (newEntriesStickToTopIn.isDefined) mNewEntriesStickToTop = newEntriesStickToTopIn.get
   }
 
   /** Removes this object from the system. */
@@ -65,7 +70,7 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
     mDB.getGroupSize(mId, includeWhichEntities)
   }
 
-  def getDisplayString(lengthLimitIn: Int, simplifyIn: Boolean = false): String = {
+  def getDisplayString(lengthLimitIn: Int = 0, simplifyIn: Boolean = false): String = {
     val numEntries = mDB.getGroupSize(getId, 1)
     var result: String =  ""
     result += {
@@ -106,6 +111,11 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
   def getMixedClassesAllowed: Boolean = {
     if (!mAlreadyReadData) readDataFromDB()
     mMixedClassesAllowed
+  }
+
+  def getNewEntriesStickToTop: Boolean = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mNewEntriesStickToTop
   }
 
   def getInsertionDate: Long = {
@@ -182,4 +192,5 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
   private var mName: String = null
   private var mInsertionDate: Long = 0L
   private var mMixedClassesAllowed: Boolean = false
+  private var mNewEntriesStickToTop: Boolean = false
 }

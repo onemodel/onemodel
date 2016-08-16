@@ -184,6 +184,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString
   }
 
+  def groupMenuLeadingText(groupIn: Group) = {
+    "**CURRENT GROUP " + groupIn.getId + ": " + groupIn.getDisplayString()
+  }
+
   val mCopyright: String = {
     var all = ""
     try {
@@ -579,7 +583,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def stringTooLongErrorMessage(nameLength: Int): String = {
     // for details, see method PostgreSQLDatabase.escapeQuotesEtc.
     "Got an error.  Please try a shorter (" + nameLength + " chars) entry.  " +
-    "(Could be due to escaped, i.e. expanded, characters like \"'\" or \";\".  Details: %s"
+    "(Could be due to escaped, i.e. expanded, characters like ' or \";\".  Details: %s"
   }
 
   def duplicationProblem(name: String, previousIdIn: Option[Long], createNotUpdate: Boolean): Boolean = {
@@ -2053,7 +2057,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       ui.displayText("Not updated.")
       None
     } else {
-      groupIn.update(None, Some(ans.get.trim), None, None, None)
+      groupIn.update(None, Some(ans.get.trim), None, None, None, None)
       ans
     }
   }

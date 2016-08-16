@@ -333,7 +333,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
               val newEntityId: Long = newEntity.getId
               db.addEntityToGroup(groupIn.getId, newEntityId)
               // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
-              val forwardNotBack = highlightedIndexInObjList != 0
+              val goingBackward: Boolean = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop
+              val forwardNotBack = !goingBackward
               val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize(4), 0,
                                                                        forwardNotBackIn = forwardNotBack, startingDisplayRowIndexIn, newEntityId,
                                                                        highlightedIndexInObjList, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
@@ -408,8 +409,9 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                   val entityChosenId: Long = entityChosen.get.getId
                   db.addEntityToGroup(groupIn.getId, entityChosenId)
                   // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
-                  val forwardNotBack = highlightedIndexInObjList != 0
-                  val newDisplayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize(4), 0, forwardNotBackIn = forwardNotBack,
+                  val goingBackward: Boolean = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop
+                  val forward = !goingBackward
+                  val newDisplayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize(4), 0, forwardNotBackIn = forward,
                                                                               startingDisplayRowIndexIn, entityChosenId, highlightedIndexInObjList,
                                                                               Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
                   (Some(new Entity(db, entityChosenId)), newDisplayStartingRowNumber)

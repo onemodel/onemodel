@@ -202,7 +202,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
     // get enough data to represent the new location in the sort order: movingDistanceIn entries away, and one beyond, and place this entity between them:
     val queryLimit = movingDistanceIn + 1
 
-    val results: Array[Array[Option[Any]]] = getAdjacentEntriesSortingIndexes (groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),
+    val results: Array[Array[Option[Any]]] = getAdjacentEntriesSortingIndexes(groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),
                                                                      forwardNotBackIn = forwardNotBackIn).toArray
     require(results.length <= queryLimit)
     // (get the last result's sortingIndex, if possible; 0-based of course; i.e., that of the first entry beyond where we're moving to):

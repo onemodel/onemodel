@@ -52,7 +52,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                 "as a subgroup to this one)",
 
                                 "Import/Export...",
-                                "Edit group name",
+                                "Edit ...",
                                 "Delete...",
                                 "Go to...",
                                 controller.listNextItemsPrompt,
@@ -91,19 +91,32 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
         }
         groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 3) {
-        val ans = controller.editGroupName(groupIn)
-        if (ans.isEmpty) {
-          groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
-        } else {
-          // reread the RTG to get the updated info:
-          groupMenu(groupIn, displayStartingRowNumberIn,
-                    if (relationToGroupIn.isDefined) {
-                      Some(new RelationToGroup(db, relationToGroupIn.get.getId, relationToGroupIn.get.getParentId, relationToGroupIn.get.getAttrTypeId,
-                                               relationToGroupIn.get.getGroupId))
-                    } else None,
-                    callingMenusRtgIn,
-                    containingEntityIn)
+        val editAnswer = ui.askWhich(Some(Array[String]{controller.groupMenuLeadingText(groupIn)}),
+                                     Array("Edit group name",
+
+                                           if (groupIn.getNewEntriesStickToTop) {
+                                             "Set group so new items added from the top highlight become the *2nd* entry (CURRENTLY: they stay at the top)."
+                                           } else {
+                                             "Set group so new items added from the top highlight become the *top* entry (CURRENTLY: they will be 2nd)."
+                                           }))
+        if (editAnswer.isDefined) {
+          if (editAnswer.get == 1) {
+            val ans = controller.editGroupName(groupIn)
+            if (ans.isDefined) {
+              // reread the RTG to get the updated info:
+              groupMenu(groupIn, displayStartingRowNumberIn,
+                        if (relationToGroupIn.isDefined) {
+                          Some(new RelationToGroup(db, relationToGroupIn.get.getId, relationToGroupIn.get.getParentId, relationToGroupIn.get.getAttrTypeId,
+                                                   relationToGroupIn.get.getGroupId))
+                        } else None,
+                        callingMenusRtgIn,
+                        containingEntityIn)
+            }
+          } else if (editAnswer.get == 2) {
+            groupIn.update(None, None, None, Some(!groupIn.getNewEntriesStickToTop), None, None)
+          }
         }
+        groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 4) {
         confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn, groupIn, displayDescription,
                                       response)

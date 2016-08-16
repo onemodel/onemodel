@@ -90,7 +90,13 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           val editAnswer = ui.askWhich(Some(Array[String]{controller.entityMenuLeadingText(entityIn)}),
                                        Array("Edit entity name",
                                              "Change its class",
-                                             if (templateAttributesToCopy.nonEmpty) "Add/edit missing class-defined fields" else "(stub)"))
+                                             if (templateAttributesToCopy.nonEmpty) "Add/edit missing class-defined fields" else "(stub)",
+
+                                             if (entityIn.getNewEntriesStickToTop) {
+                                               "Set entity so new items added from the top highlight become the *2nd* entry (CURRENTLY: they stay at the top)."
+                                             } else {
+                                               "Set entity so new items added from the top highlight become the *top* entry (CURRENTLY: they will be 2nd)."
+                                             }))
           if (editAnswer.isDefined) {
             if (editAnswer.get == 1) {
               val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
@@ -109,6 +115,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                               containingGroupIn, templateEntityIdIn, attributeTuplesIn)
             } else if (editAnswer.get == 3 && templateAttributesToCopy.nonEmpty) {
               controller.copyAndEditAttributes(entityIn, templateAttributesToCopy)
+            } else if (editAnswer.get == 4) {
+              entityIn.updateNewEntriesStickToTop(!entityIn.getNewEntriesStickToTop)
             }
           }
         } else if (answer == 4) {

@@ -67,13 +67,14 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     one that already exists.
     */
   def this(mDB: PostgreSQLDatabase, mId: Long, nameIn: String, classIdIn: Option[Long] = None, insertionDateIn: Long, publicIn: Option[Boolean],
-           archivedIn: Boolean) {
+           archivedIn: Boolean, newEntriesStickToTopIn: Boolean) {
     this(mDB, mId)
     mName = nameIn
     mClassId = classIdIn
     mInsertionDate = insertionDateIn
     mPublic = publicIn
     mArchived = archivedIn
+    mNewEntriesStickToTop = newEntriesStickToTopIn
     mAlreadyReadData = true
   }
 
@@ -152,6 +153,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     mInsertionDate = entityData(2).get.asInstanceOf[Long]
     mPublic = entityData(3).asInstanceOf[Option[Boolean]]
     mArchived = entityData(4).get.asInstanceOf[Boolean]
+    mNewEntriesStickToTop = entityData(5).get.asInstanceOf[Boolean]
     mAlreadyReadData = true
   }
 
@@ -360,10 +362,23 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     mArchived
   }
 
+  def getNewEntriesStickToTop: Boolean = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mNewEntriesStickToTop
+  }
+
+  def updateNewEntriesStickToTop(b: Boolean) = {
+    if (b != mNewEntriesStickToTop) {
+      mDB.updateEntityOnlyNewEntriesStickToTop(getId, b)
+      mNewEntriesStickToTop = b
+    }
+  }
+
   var mAlreadyReadData: Boolean = false
   var mName: String = null
   var mClassId: Option[Long] = None
   var mInsertionDate: Long = -1
   var mPublic: Option[Boolean] = None
   var mArchived: Boolean = false
+  var mNewEntriesStickToTop: Boolean = false
 }

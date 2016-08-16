@@ -41,7 +41,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     when(mockDB.relationTypeKeyExists(relTypeId)).thenReturn(true)
     when(mockDB.entityKeyExists(relTypeId)).thenReturn(true)
     when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, relTypeId, groupId)).thenReturn(true)
-    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true)))
+    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true), Some(false)))
     when(mockDB.getGroupSize(groupId, 1)).thenReturn(grpEntryCount)
     when(mockDB.getRelationTypeData(relTypeId)).thenReturn(Array[Option[Any]](Some(relationTypeName), Some(PostgreSQLDatabase.theIsHadByReverseName),
                                                                               Some("xyz..")))
@@ -59,7 +59,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     //  assert(all == wholeThing)
 
     val relationToGroup2 = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0)
-    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(false)))
+    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(false), Some(false)))
     val all2: String = relationToGroup2.getDisplayString(0, None)
     assert(!all2.contains("(mixed)"))
     assert(all2.contains(", class: (unspecified)"))
@@ -67,7 +67,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     val relationToGroup3 = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0)
     when(mockDB.entityKeyExists(classTemplateEntityId)).thenReturn(true)
     val list = new java.util.ArrayList[Entity](1)
-    list.add(new Entity(mockDB, classTemplateEntityId, "asdf", None, 0L, None, false))
+    list.add(new Entity(mockDB, classTemplateEntityId, "asdf", None, 0L, None, false, false))
     when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(list)
     when(mockDB.getGroupSize(groupId, 3)).thenReturn(list.size)
     val all3: String = relationToGroup3.getDisplayString(0, None)
@@ -76,7 +76,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
 
     val relationToGroup4 = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0)
     val list4 = new java.util.ArrayList[Entity](1)
-    list4.add(new Entity(mockDB, classTemplateEntityId, "asdf", Some(classId), 0L, Some(true), false))
+    list4.add(new Entity(mockDB, classTemplateEntityId, "asdf", Some(classId), 0L, Some(true), false, false))
     when(mockDB.entityKeyExists(classTemplateEntityId)).thenReturn(true)
     when(mockDB.classKeyExists(classId)).thenReturn(true)
     when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(list4)
@@ -110,12 +110,12 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     when(mockDB.classKeyExists(classId)).thenReturn(true)
     when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(new java.util.ArrayList[Entity](0))
     when(mockDB.getClassData(classId)).thenReturn(Array[Option[Any]](Some(className), Some(classTemplateEntityId), Some(true)))
-    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(false)))
+    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(false), Some(false)))
     // should be None because it is not yet specified (no entities added):
     assert(group.getClassTemplateEntity.isEmpty)
 
     val list = new java.util.ArrayList[Entity](1)
-    val entity = new Entity(mockDB, entityId, "testEntityName", Some(classId), 0L, Some(false), false)
+    val entity = new Entity(mockDB, entityId, "testEntityName", Some(classId), 0L, Some(false), false, false)
     list.add(entity)
     when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(list)
     // should be != None because mixed classes are NOT allowed in the group and an entity was added:
@@ -123,7 +123,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
 
     //relationToGroup = new RelationToGroup(mockDB, entityId, relTypeId, groupId, None, date)
     // should be None when mixed classes are allowed in the group:
-    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true)))
+    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true), Some(false)))
     val group2 = new Group(mockDB, groupId)
     assert(group2.getClassTemplateEntity.isEmpty)
   }

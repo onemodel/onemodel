@@ -31,7 +31,7 @@ import scala.util.Sorting
   */
 object PostgreSQLDatabase {
   // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
-  val CURRENT_DB_VERSION = 2
+  val CURRENT_DB_VERSION = 3
   val dbNamePrefix = "om_"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
@@ -335,7 +335,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
                // entity object was created in the db):
                "insertion_date bigint not null, " +
                // null in the 'public' field means 'undecided' (effectively "false", but a different nuance,e.g. in case user wants to remember to decide later)
-               "public boolean " +
+               "public boolean, " +
+               // Tells the UI that, with the highlight at the beginning of the list, attributes added to an entity should become the new 1st entry, not 2nd.
+               // (ie, grows from the top: convenient sometimes like for logs, but most of the time it is more convenient for creating the 2nd entry after
+               // the 1st one, such as when creating new lists).
+               "new_entries_stick_to_top boolean NOT NULL default false" +
                ") ")
       // not unique, but for convenience/speed:
       dbAction("create index entity_lower_name on Entity (lower(NAME))")
@@ -616,7 +620,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
                // intended to be a readonly date: the (*java*-style numeric: milliseconds since 1970-1-1 or such) when this row was inserted (ie, when the
                // entity object was created in the db):
                "insertion_date bigint not null, " +
-               "allow_mixed_classes boolean NOT NULL " +
+               "allow_mixed_classes boolean NOT NULL, " +
+               // see comment at same field in Entity table
+               "new_entries_stick_to_top boolean NOT NULL  default false" +
                ") ")
 
       dbAction("create sequence RelationToGroupKeySequence2 minvalue " + minIdValue)
@@ -710,6 +716,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     if (dbVersion == 1) {
       upgradeDbFrom1to2()
     }
+    if (dbVersion == 2) {
+      upgradeDbFrom2to3()
+    }
     /* NOTE FOR FUTURE METHODS LIKE upgradeDbFrom0to1: methods like this should be designed carefully and very well-tested:
        0) make & test periodic backups of your live data to be safe!
        1) Consider designing it to be idempotent: so multiple runs on a production db (if by some mistake) will no harm (or at least will err out safely).
@@ -773,7 +782,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
       dbAction("CREATE TRIGGER rtg_attribute_sorting_cleanup BEFORE DELETE ON RelationToGroup " +
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
-
       dbAction("UPDATE om_db_version SET (version) = (1)")
     }
     catch {
@@ -785,8 +793,20 @@ class PostgreSQLDatabase(username: String, var password: String) {
     beginTrans()
     try {
       dbAction("ALTER TABLE class ADD COLUMN create_default_attributes boolean")
-
       dbAction("UPDATE om_db_version SET (version) = (2)")
+    }
+    catch {
+      case e: Exception => throw rollbackWithCatch(e)
+    }
+    commitTrans()
+  }
+
+  private def upgradeDbFrom2to3() = {
+    beginTrans()
+    try {
+      dbAction("ALTER TABLE entity ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
+      dbAction("ALTER TABLE grupo ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false") //When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION. //%% (Do we really need the require statement that checks it though? Seems vagely good to check, but it costs when forgetting, and what benefit? Hm.)
+      dbAction("UPDATE om_db_version SET (version) = (3)")
     }
     catch {
       case e: Exception => throw rollbackWithCatch(e)
@@ -1245,6 +1265,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
              ") where id=" + inId)
   }
 
+  def updateEntityOnlyNewEntriesStickToTop(inId: Long, newEntriesStickToTop: Boolean) {
+    dbAction("update Entity set (new_entries_stick_to_top) = ('" + newEntriesStickToTop + "') where id=" + inId)
+  }
+
   def updateClassAndTemplateEntityName(classIdIn: Long, name: String): Long = {
     var entityId: Long = 0
     beginTrans()
@@ -1547,10 +1571,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
     (id, sortingIndex)
   }
 
-  def updateGroup(groupIdIn: Long, inName: String, allowMixedClassesInGroupIn: Boolean = false) {
+  def updateGroup(groupIdIn: Long, inName: String, allowMixedClassesInGroupIn: Boolean = false, newEntriesStickToTopIn: Boolean = false) {
     val name: String = escapeQuotesEtc(inName)
-    dbAction("UPDATE grupo SET (name, allow_mixed_classes)" +
-             " = ('" + name + "', " + (if (allowMixedClassesInGroupIn) "TRUE" else "FALSE") +
+    dbAction("UPDATE grupo SET (name, allow_mixed_classes, new_entries_stick_to_top)" +
+             " = ('" + name + "', " + (if (allowMixedClassesInGroupIn) "TRUE" else "FALSE") + ", " + (if (newEntriesStickToTopIn) "TRUE" else "FALSE") +
              ") where id=" + groupIdIn)
   }
 
@@ -2475,8 +2499,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getGroupData(inId: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("select name, insertion_date, allow_mixed_classes from grupo where id=" + inId,
-                            "String,Long,Boolean")
+    dbQueryWrapperForOneRow("select name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where id=" + inId,
+                            "String,Long,Boolean,Boolean")
   }
 
   def getRelationToGroupData(entityId: Long, relTypeId: Long, groupId: Long): Array[Option[Any]] = {
@@ -2749,7 +2773,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                           nameRegexIn: String): java.util.ArrayList[Entity] = {
     val nameRegex = escapeQuotesEtc(nameRegexIn)
     val omissionExpression: String = if (omitEntityIdIn.isEmpty) "true" else "(not id=" + omitEntityIdIn.get + ")"
-    val sql: String = "select id, name, class_id, insertion_date, public, archived from entity where " +
+    val sql: String = "select id, name, class_id, insertion_date, public, archived, new_entries_stick_to_top from entity where " +
                       (if (!includeArchivedEntities) {
                         "not archived and "
                       } else {
@@ -2758,7 +2782,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                       omissionExpression +
                       " and name ~* '" + nameRegex + "'" +
                       " UNION " +
-                      "select id, name, class_id, insertion_date, public, archived from entity where " +
+                      "select id, name, class_id, insertion_date, public, archived, new_entries_stick_to_top from entity where " +
                       (if (!includeArchivedEntities) {
                         "not archived and "
                       } else {
@@ -2768,13 +2792,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
                       " and id in (select entity_id from textattribute where textValue ~* '" + nameRegex + "')" +
                       " ORDER BY" +
                       " id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
-    val earlyResults = dbQuery(sql, "Long,String,Long,Long,Boolean,Boolean")
+    val earlyResults = dbQuery(sql, "Long,String,Long,Long,Boolean,Boolean,Boolean")
     val finalResults = new java.util.ArrayList[Entity]
     // idea: (see getEntitiesGeneric for idea, see if applies here)
     for (result <- earlyResults) {
       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
       finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
-                                  result(3).get.asInstanceOf[Long], result(4).asInstanceOf[Option[Boolean]], result(5).get.asInstanceOf[Boolean]))
+                                  result(3).get.asInstanceOf[Long], result(4).asInstanceOf[Option[Boolean]], result(5).get.asInstanceOf[Boolean],
+                                  result(6).get.asInstanceOf[Boolean]))
     }
     require(finalResults.size == earlyResults.size)
     finalResults
@@ -2784,15 +2809,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
                         nameRegexIn: String): java.util.ArrayList[Group] = {
     val nameRegex = escapeQuotesEtc(nameRegexIn)
     val omissionExpression: String = if (omitGroupIdIn.isEmpty) "true" else "(not id=" + omitGroupIdIn.get + ")"
-    val sql: String = s"select id, name, insertion_date, allow_mixed_classes from grupo where name ~* '$nameRegex'" +
+    val sql: String = s"select id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where name ~* '$nameRegex'" +
                       " and " + omissionExpression + " order by id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
-    val earlyResults = dbQuery(sql, "Long,String,Long,Boolean")
+    val earlyResults = dbQuery(sql, "Long,String,Long,Boolean,Boolean")
     val finalResults = new java.util.ArrayList[Group]
     // idea: (see getEntitiesGeneric for idea, see if applies here)
     for (result <- earlyResults) {
       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
       finalResults.add(new Group(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[Long],
-                                 result(3).get.asInstanceOf[Boolean]))
+                                 result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
     }
     require(finalResults.size == earlyResults.size)
     finalResults
@@ -2945,7 +2970,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   private def getEntitiesGeneric(inStartingObjectIndex: Long, inMaxVals: Option[Long], inTableName: String,
                                  inClassId: Option[Long] = None, limitByClass: Boolean = false,
                                  templateEntity: Option[Long] = None, groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Entity] = {
-    val ENTITY_SELECT_PART: String = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public, e.archived"
+    val ENTITY_SELECT_PART: String = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public, e.archived, e.new_entries_stick_to_top"
     val sql: String = ENTITY_SELECT_PART +
                       (if (inTableName.compareToIgnoreCase(Controller.RELATION_TYPE_TYPE) == 0) ", r.name_in_reverse_direction, r.directionality " else "") +
                       " from Entity e " +
@@ -2978,7 +3003,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                if (inTableName.compareToIgnoreCase(Controller.RELATION_TYPE_TYPE) == 0) {
                                  "Long,String,Long,Long,Boolean,Boolean,String,String"
                                } else {
-                                 "Long,String,Long,Long,Boolean,Boolean"
+                                 "Long,String,Long,Long,Boolean,Boolean,Boolean"
                                })
     val finalResults = new java.util.ArrayList[Entity]
     // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
@@ -2990,7 +3015,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                           result(7).get.asInstanceOf[String]))
       } else {
         finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
-                                    result(3).get.asInstanceOf[Long], result(4).asInstanceOf[Option[Boolean]], result(5).get.asInstanceOf[Boolean]))
+                                    result(3).get.asInstanceOf[Long], result(4).asInstanceOf[Option[Boolean]], result(5).get.asInstanceOf[Boolean],
+                                    result(6).get.asInstanceOf[Boolean]))
       }
     }
 
@@ -3002,16 +3028,16 @@ class PostgreSQLDatabase(username: String, var password: String) {
     * 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
     */
   def getGroups(inStartingObjectIndex: Long, inMaxVals: Option[Long] = None, groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Group] = {
-    val sql = "SELECT id, name, insertion_date, allow_mixed_classes from grupo " +
+    val sql = "SELECT id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo " +
               " order by id limit " + checkIfShouldBeAllResults(inMaxVals) + " offset " + inStartingObjectIndex
-    val earlyResults = dbQuery(sql, "Long,String,Long,Boolean")
+    val earlyResults = dbQuery(sql, "Long,String,Long,Boolean,Boolean")
     val finalResults = new java.util.ArrayList[Group]
     // idea: should the remainder of this method be moved to RTG, so the persistence layer doesn't know anything about the Model? (helps avoid circular
     // dependencies; is a cleaner design.)
     for (result <- earlyResults) {
       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
       finalResults.add(new Group(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[Long],
-                                 result(3).get.asInstanceOf[Boolean]))
+                                 result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
     }
     require(finalResults.size == earlyResults.size)
     finalResults
@@ -3153,7 +3179,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getEntityData(idIn: Long): Array[Option[Any]] = {
-    dbQueryWrapperForOneRow("SELECT name, class_id, insertion_date, public, archived from Entity where id=" + idIn, "String,Long,Long,Boolean,Boolean")
+     dbQueryWrapperForOneRow("SELECT name, class_id, insertion_date, public, archived, new_entries_stick_to_top from Entity where id=" + idIn,
+                            "String,Long,Long,Boolean,Boolean,Boolean")
   }
 
   def getEntityName(idIn: Long): Option[String] = {
