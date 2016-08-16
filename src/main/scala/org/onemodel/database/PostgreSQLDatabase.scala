@@ -805,7 +805,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     beginTrans()
     try {
       dbAction("ALTER TABLE entity ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
-      dbAction("ALTER TABLE grupo ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false") //When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION. //%% (Do we really need the require statement that checks it though? Seems vagely good to check, but it costs when forgetting, and what benefit? Hm.)
+      dbAction("ALTER TABLE grupo ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
+      //When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION.
+      // (Do we really need the require statement that checks it though? Seems vagely good to check, but it costs when forgetting, and what benefit? Hm.)
       dbAction("UPDATE om_db_version SET (version) = (3)")
     }
     catch {

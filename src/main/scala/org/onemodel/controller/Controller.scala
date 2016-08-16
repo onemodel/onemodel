@@ -2320,7 +2320,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         None
       } else {
         val newRtg = result.get.asInstanceOf[RelationToGroup]
-        new GroupMenu(ui, db, this).groupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, Some(entityIn))
+        new QuickGroupMenu(ui, db, this).quickGroupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, containingEntityIn = Some(entityIn))
         result
       }
     } else if (attrFormIn == 101  /*re "101": see comments at attrFormIn above*/) {
