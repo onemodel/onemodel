@@ -2367,8 +2367,26 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def copyAndEditAttributes(entityIn: Entity, templateAttributesToCopyIn: ArrayBuffer[Attribute]): Unit = {
     // userWantsOut is used like a break statement below: could be replaced with a functional idiom (see link to stackoverflow somewhere in the code).
+    var escCounter = 0
     var userWantsOut = false
+
+    def checkIfExiting(escCounterIn: Int, attributeCounterIn: Int, numAttributes: Int): Int = {
+      var escCounterLocal = escCounterIn + 1
+      if (escCounterLocal > 3 && attributeCounterIn < numAttributes /* <, so we don't ask when done anyway. */) {
+        val outAnswer = ui.askYesNoQuestion("Stop checking/adding attributes?", Some(""))
+        require(outAnswer.isDefined, "Unexpected behavior: meant to make user answer here.")
+        if (outAnswer.get) {
+          userWantsOut = true
+        } else {
+          escCounterLocal = 0
+        }
+      }
+      escCounterLocal
+    }
+
+    var attrCounter = 0
     for (templateAttribute: Attribute <- templateAttributesToCopyIn) {
+      attrCounter += 1
       if (!userWantsOut) {
         val waitForKeystroke = {
           templateAttribute match {
@@ -2406,14 +2424,15 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           }
         }
         if (newAttribute.isEmpty) {
-          userWantsOut = true
+          escCounter = checkIfExiting(escCounter, attrCounter, templateAttributesToCopyIn.size)
         } else {
           // (Not re-editing if it is a RTE  because it was edited just above as part of the initial attribute creation step.)
           if (!newAttribute.get.isInstanceOf[RelationToEntity]) {
-            userWantsOut = editAttributeOnSingleLine(newAttribute.get)
-            if (userWantsOut) {
+            val exitedOneEditLine: Boolean = editAttributeOnSingleLine(newAttribute.get)
+            if (exitedOneEditLine) {
               // That includes a "never mind" intention on the last one added (just above), so:
               newAttribute.get.delete()
+              escCounter = checkIfExiting(escCounter, attrCounter, templateAttributesToCopyIn.size)
             }
           }
         }
