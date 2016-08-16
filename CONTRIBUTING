@@ -121,7 +121,9 @@ KEEP IN MIND:
   again, perhaps with improvements.
 - It's usually best to mimic the code style, etc, that is already in place.  And let's
   keep the scala code at a level that is generally easy to read (guessable) for a
-  java programmer, or make it that way if it isn't so now.
+  java programmer, or discuss making it that way if it isn't so now.  See
+  updates to this page:  http://onemodel.org/1/e-9223372036854618069.html
+  ...for current thoughts on scala style in OM, or ask on the mailing list.
 - Let's have fewer build warnings rather than more.  
 - Test well.  Consider the audience.  Be diligent at not introducing new bugs.
   Consider testing more than one facet of the program, in more than one way.
