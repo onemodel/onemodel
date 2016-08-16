@@ -67,6 +67,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         if (putEntriesAtEndOption.isDefined) {
           //@tailrec: would be nice to use, but jvm doesn't support it, or something.
           def tryIt() {
+            //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
             var reader: Reader = null
             try {
               val putEntriesAtEnd: Boolean = putEntriesAtEndOption.get
@@ -137,6 +138,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   }
 
   @tailrec
+  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
   private def getFirstNonSpaceIndex(line: Array[Byte], index: Int): Int = {
     //idea: this logic might need to be fixed (9?):
     if (line(index) == 9) {
@@ -165,6 +167,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
      The parameter lastIndentationlevel should be set to zero, from the original caller, and indent from there w/ the recursion.
   */
   @tailrec
+  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
   private def importRestOfLines(r: LineNumberReader, lastEntityAdded: Option[Entity], lastIndentationLevel: Int, containerList: List[AnyRef],
                                 lastSortingIndexes: List[Long], observationDateIn: Long, mixedClassesAllowedDefaultIn: Boolean,
                                 makeThemPublicIn: Option[Boolean]) {
@@ -362,6 +365,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   // wait for next debian stable version--jessie?--be4 it's probably worth finding out)
   def doTheImport(dataSourceIn: Reader, dataSourceFullPath: String, dataSourceLastModifiedDate: Long, firstContainingEntryIn: AnyRef,
                   creatingNewStartingGroupFromTheFilenameIn: Boolean, addingToExistingGroup: Boolean,
+                  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                   putEntriesAtEnd: Boolean, makeThemPublicIn: Option[Boolean], mixedClassesAllowedDefaultIn: Boolean = false, testing: Boolean = false) {
     var r: LineNumberReader = null
     r = new LineNumberReader(dataSourceIn)
@@ -803,6 +807,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                             printWriterIn: PrintWriter,
                             includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.TreeSet[Long], cachedEntitiesIn: mutable.HashMap[Long, Entity],
                             cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], spacesPerIndentLevelIn: Int,
+                            //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                             includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean) {
     // useful while debugging:
     //out.flush()

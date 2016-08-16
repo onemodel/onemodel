@@ -220,7 +220,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
                          criteriaIn: Option[(String) => Boolean] = None,
                          defaultValueIn: Option[String] = None,
                          isPasswordIn: Boolean = false,
-                         //IF ADDING ANY PARAMETERS, be sure they are also passed along in the recursive call to askForString within this method, below!
+                         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
                          escKeySkipsCriteriaCheck: Boolean = true): Option[String] = {
     var count = 0
     val lastLineOfPrompt: String = {
@@ -344,6 +344,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
                      includeEscChoiceIn: Boolean = true,
                      trailingTextIn: Option[String] = None,
                      highlightIndexIn: Option[Int] = None,
+                     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
                      secondaryHighlightIndexIn: Option[Int] = None): Option[(Int, Boolean)] = {
     // This attempts to always use as menu option keystroke choices: numbers for "choices" (such as major operations available on the
     // current entity) and letters for "moreChoices" (such as attributes of the current entity to select for further work).  But if

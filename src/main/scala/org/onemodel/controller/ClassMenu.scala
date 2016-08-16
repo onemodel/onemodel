@@ -18,6 +18,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
   /** returns None if user wants out. */
   //@tailrec //see comment re this on EntityMenu
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
+  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
   def classMenu(classIn: EntityClass): Option[EntityClass] = {
     try {
       require(classIn != null)

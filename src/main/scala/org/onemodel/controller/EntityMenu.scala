@@ -48,6 +48,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
   //idea on scoping: make this limited like this somehow?:  private[org.onemodel] ... Same for all others like it?
   def entityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, highlightedAttributeIn: Option[Attribute] = None,
                  targetForMovesIn: Option[Attribute] = None,
+                 //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                  containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Entity] = try {
     require(entityIn != null)
     if (!db.entityKeyExists(entityIn.getId, includeArchived = db.includeArchivedEntities)) {
@@ -380,6 +381,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                                                          val entity = new Entity(db, id)
                                                                                          entity.getArchivedStatusDisplayString + entity.getName
                                                                                      }
+          //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
           @tailrec def showSearchResults() {
             val relatedEntitiesResult = ui.askWhich(Some(leadingText2), choices, entityStatusesAndNames)
             if (relatedEntitiesResult.isDefined) {

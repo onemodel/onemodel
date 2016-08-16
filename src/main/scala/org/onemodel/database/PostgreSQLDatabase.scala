@@ -1383,6 +1383,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       var numBytesRead = 0
       var total: Long = 0
       @tailrec
+      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
       def saveFileToDb() {
         numBytesRead = inputStreamIn.read(buffer)
         // (intentional style violation, for readability):
@@ -1633,6 +1634,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
     //only one iteration, ever.  (See similar comments elsewhere.)
     @tailrec def findUnusedSortingIndex_helper(gId: Long, workingIndex: Long, counter: Long): Long = {
+      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
       if (groupEntrySortingIndexInUse(gId, workingIndex)) {
         if (workingIndex == maxIdValue) {
           // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
@@ -1651,6 +1653,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   // **ABOUT THE SORTINGINDEX:  SEE the related comment on method addAttributeSortingRow.
   def findUnusedAttributeSortingIndex(entityIdIn: Long, startingWithIn: Option[Long] = None): Long = {
     @tailrec def findUnusedSortingIndex_helper(eId: Long, workingIndex: Long, counter: Long): Long = {
+      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
       if (attributeSortingIndexInUse(eId, workingIndex)) {
         if (workingIndex == maxIdValue) {
           throw new OmDatabaseException(UNUSED_GROUP_ERR1)
@@ -2605,6 +2608,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       var total: Long = 0
       @tailrec
       def readFileFromDbAndActOnIt() {
+        //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
         numBytesRead = obj.read(buffer, 0, buffer.length)
         // (intentional style violation, for readability):
         //noinspection ScalaUselessExpression
@@ -3593,6 +3597,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val startingId: Long = maxIdValue - 1
 
     @tailrec def findIdWhichIsNotKeyOfAnyEntity_helper(workingId: Long, counter: Long): Long = {
+      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
       if (entityKeyExists(workingId)) {
         if (workingId == maxIdValue) {
           // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.

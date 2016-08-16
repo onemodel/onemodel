@@ -32,6 +32,7 @@ object FileAttribute {
       var numBytesRead = 0
       @tailrec
       def calculateRest() {
+        //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
         numBytesRead = fis.read(buffer)
         //noinspection RemoveRedundantReturn  //left intentionally for reading clarify
         if (numBytesRead == -1) return

@@ -23,6 +23,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
   // @tailrec
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
   def mainMenu(entityIn: Option[Entity] = None, goDirectlyToChoice: Option[Int] = None) {
+    //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method! (if it fits the situation)
     try {
       val numEntities = db.getEntitiesOnlyCount()
       if (numEntities == 0 || entityIn.isEmpty) {

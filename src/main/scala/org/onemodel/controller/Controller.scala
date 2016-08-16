@@ -280,6 +280,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     // like choosing a related entity to view its entity menu showed the default object's entity menu instead, until going into the usual loop and
     // choosing it again. Now we do it w/ the same code path, thus the same behavior, as normally expected.
     def menuLoop(goDirectlyToChoice: Option[Int] = None) {
+      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method! (should they be, in this case tho'?)
       //re-checking for the default each time because user can change it.
       new MainMenu(ui, db, this).mainMenu(getDefaultEntity._2, goDirectlyToChoice)
       menuLoop()
@@ -293,7 +294,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
     require(if (forceUserPassPromptIn) defaultUsernameIn.isEmpty && defaultPasswordIn.isEmpty else true)
 
-    // tries the system username, blank password, & if that doesn't work, prompts user.
+    // Tries the system username, blank password, & if that doesn't work, prompts user.
+    //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
     @tailrec def tryOtherLoginsOrPrompt(): PostgreSQLDatabase = {
       val db = {
         var pwdOpt: Option[String] = None
@@ -335,6 +337,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
 
     if (forceUserPassPromptIn) {
+      //IF ADDING ANY optional PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
       @tailrec def loopPrompting: PostgreSQLDatabase = {
         val usrOpt = ui.askForString(Some(Array("Username")))
         if (usrOpt.isEmpty) System.exit(1)
@@ -588,6 +591,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     duplicateProblemSoSkip
   }
 
+  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
   @tailrec final def askForNameInReverseDirection(directionalityStrIn: String, nameLengthIn: Int, nameIn: String,
                                                             previousNameInReverseIn: Option[String] = None): String = {
     // see createTables (or UI prompts) for meanings of bi/uni/non...
@@ -637,6 +641,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
    */
   def askForInfoAndUpdateAttribute[T <: AttributeDataHolder](inDH: T, askForAttrTypeId: Boolean, attrType: String, promptForSelectingTypeId: String,
                                                                        getOtherInfoFromUser: (T, Boolean) => Option[T], updateTypedAttribute: (T) => Unit) {
+    //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
     @tailrec def askForInfoAndUpdateAttribute_helper(dhIn: T, attrType: String, promptForTypeId: String) {
       val ans: Option[T] = askForAttributeData[T](dhIn, askForAttrTypeId, attrType, Some(promptForTypeId), Some(new Entity(db, dhIn.attrTypeId).getName),
                                                   Some(inDH.attrTypeId), getOtherInfoFromUser, inEditing = true)
@@ -659,6 +664,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
    * @return whether the attribute in question was deleted (or archived)
    */
   @tailrec
+  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
   final def attributeEditMenu(attributeIn: Attribute): Boolean = {
     val leadingText: Array[String] = Array("Attribute: " + attributeIn.getDisplayString(0, None, None))
     var firstChoices = Array("Edit the attribute type, " +
@@ -1058,6 +1064,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   /** Returns None if user just wants out. */
   def promptWhetherTo1Add2Correct(inAttrTypeDesc: String): Option[Int] = {
+    //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
     @tailrec def ask: Option[Int] = {
       val ans = ui.askWhich(None, Array("1-Save this " + inAttrTypeDesc + " attribute?", "2-Correct it?"))
       if (ans.isEmpty) return None
@@ -1136,7 +1143,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     * Idea: re attrTypeIn parm, enum/improvement: see comment re inAttrType at beginning of chooseOrCreateObject.
     */
   @tailrec final def findExistingObjectByText(startingDisplayRowIndexIn: Long = 0, attrTypeIn: String,
-                                                  idToOmitIn: Option[Long] = None, regexIn: String): Option[IdWrapper] = {
+                                              //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
+                                              idToOmitIn: Option[Long] = None, regexIn: String): Option[IdWrapper] = {
     val leadingText = List[String]("SEARCH RESULTS: " + pickFromListPrompt)
     val choices: Array[String] = Array(listNextItemsPrompt)
     val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Controller.maxNameLength)
@@ -1233,10 +1241,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     * mentions of inAttrType for others to fix as well.)
     */
   @tailrec final def chooseOrCreateObject(inLeadingText: Option[List[String]], inPreviousSelectionDesc: Option[String],
-                                                    inPreviousSelectionId: Option[Long], inObjectType: String, startingDisplayRowIndexIn: Long = 0,
-                                                    inClassId: Option[Long] = None, limitByClassIn: Boolean = false,
-                                                    containingGroupIn: Option[Long] = None,
-                                                    markPreviousSelectionIn: Boolean = false): Option[IdWrapper] = {
+                                          inPreviousSelectionId: Option[Long], inObjectType: String, startingDisplayRowIndexIn: Long = 0,
+                                          inClassId: Option[Long] = None, limitByClassIn: Boolean = false,
+                                          containingGroupIn: Option[Long] = None,
+                                          //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
+                                          markPreviousSelectionIn: Boolean = false): Option[IdWrapper] = {
     if (inClassId.isDefined) require(inObjectType == Controller.ENTITY_TYPE)
     val nonRelationAttrTypeNames = Array(Controller.TEXT_TYPE, Controller.QUANTITY_TYPE, Controller.DATE_TYPE, Controller.BOOLEAN_TYPE, Controller.FILE_TYPE)
     val mostAttrTypeNames = Array(Controller.ENTITY_TYPE, Controller.TEXT_TYPE, Controller.QUANTITY_TYPE, Controller.DATE_TYPE, Controller.BOOLEAN_TYPE,
@@ -1677,7 +1686,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     * i.e. omitting them from the list of entities (e.g. to add to the group), that this method returns.
     */
   @tailrec final def chooseOrCreateGroup(inLeadingText: Option[List[String]], startingDisplayRowIndexIn: Long = 0,
-                                                   containingGroupIn: Option[Long] = None /*ie group to omit from pick list*/): Option[IdWrapper] = {
+                                         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
+                                         containingGroupIn: Option[Long] = None /*ie group to omit from pick list*/): Option[IdWrapper] = {
     val totalExisting: Long = db.getGroupCount
     def getNextStartingObjectIndex(currentListLength: Long): Long = {
       val x = startingDisplayRowIndexIn + currentListLength
@@ -1872,6 +1882,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     // when at it, recombine the askForDate_Generic method w/ these or so it's all cleaned up.
     /** Helper method made so it can be recursive, it returns the date (w/ meanings as with displayText below, and as in PostgreSQLDatabase.createTables),
       * and true if the user wants to cancel/get out). */
+    //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
     @tailrec def askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean): (Option[Long], Boolean) = {
       val leadingText: Array[String] = {
         if (dateTypeIn == VALID) {
@@ -1990,6 +2001,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                       0,
                                                       Some(new RelationToGroup(db, rtgid.get, userSelection.getId, rtid.get, groupId.get)),
                                                       callingMenusRtgIn = relationToGroupIn,
+                                                      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s)
+                                                      // w/in this method!
                                                       containingEntityIn = Some(userSelection))
     } else {
       new EntityMenu(ui, db, this).entityMenu(userSelection, containingGroupIn = containingGroupIn)
@@ -2163,6 +2176,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     * Idea: consider combining somehow with method askForDateAttributeValue.
     * @return None if user wants out.
     */
+  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
   @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String]): Option[Long] = {
     val leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt))
     val default: String = defaultIn.getOrElse(Controller.DATEFORMAT.format(System.currentTimeMillis()))

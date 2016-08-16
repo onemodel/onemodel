@@ -23,6 +23,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
   //@tailrec
   // idea: There's some better scala idiom for this control logic around recursion and exception handling (& there's similar code in all "*Menu" classes):
   final def groupMenu(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
+                      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                       callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     try {
       groupMenu_helper(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
@@ -42,6 +43,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
   //@tailrec
   //
   def groupMenu_helper(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
+                       //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                        callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     require(relationToGroupIn != null)
 

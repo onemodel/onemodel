@@ -17,7 +17,6 @@ import org.onemodel.{Color, OmException, TextUI}
 /** Allows sorting of group entries, quick work like for brainstorming.
   */
 class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, val controller: Controller) extends SortableEntriesMenu(ui, db) {
-
   // The @tailrec is desired when possible,
   // because it seems that otherwise we might try to ESC back to a menu instance which is attempting to view a deleted entity, & crash!  But see the comment
   // mentioning why not to have it, below.  Maybe we need to use a loop around the menu instead of tail recursion in this case, if there is not a
@@ -41,6 +40,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
   //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation or having all the parms here, but not having to fill them all in.
   def quickGroupMenu(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup] = None,
                      highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None,
+                     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                      callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     try {
       quickGroupMenu_doTheWork(groupIn, startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn, callingMenusRtgIn,
