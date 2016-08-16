@@ -210,7 +210,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     controller.start()
   }
 
-  /* Returns the string entered (None if the user just wants out of this question or whatever, unless useDefaultIfBlankedIn is true).
+  /* Returns the string entered (None if the user just wants out of this question or whatever, unless escKeySkipsCriteriaCheck is false).
    * The parameter "criteria"'s Option is a function which takes a String (which will be the user input), which it checks for validity.
    * If the entry didn't meet the criteria, it repeats the question until it does or user gets out w/ ESC.
    * A simple way to let the user know why it didn't meet the criteria is to put them in the leading text.
@@ -219,7 +219,9 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   final def askForString(leadingTextIn: Option[Array[String]],
                          criteriaIn: Option[(String) => Boolean] = None,
                          defaultValueIn: Option[String] = None,
-                         isPasswordIn: Boolean = false): Option[String] = {
+                         isPasswordIn: Boolean = false,
+                         //IF ADDING ANY PARAMETERS, be sure they are also passed along in the recursive call to askForString within this method, below!
+                         escKeySkipsCriteriaCheck: Boolean = true): Option[String] = {
     var count = 0
     val lastLineOfPrompt: String = {
       var lastLineOfPrompt = ""
@@ -229,8 +231,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
           if (count < leadingTextIn.get.length) {
             // all but the last one
             println(prompt)
-          }
-          else {
+          } else {
             //print(prompt)
             //if (inDefaultValue.isDefined && inDefaultValue.get.length() > 0) {
             //  print(" [defaults to " + inDefaultValue.get + "]")
@@ -275,15 +276,14 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       def checkCriteria(line: String): Option[String] = {
         if (criteriaIn.isEmpty || criteriaIn.get(line)) {
           Some(line)
-        }
-        else {
+        } else {
           displayText("Didn't pass the criteria; please re-enter.")
           // this gets "recursive call not in tail position", until new version of jvm that allows scala2do it?
-          askForString(leadingTextIn, criteriaIn, defaultValueIn, isPasswordIn)
+          askForString(leadingTextIn, criteriaIn, defaultValueIn, isPasswordIn, escKeySkipsCriteriaCheck)
         }
       }
 
-      if (line.isEmpty) {
+      if (line.isEmpty && escKeySkipsCriteriaCheck) {
         None
       } else {
         checkCriteria(line)
@@ -510,9 +510,12 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   def askYesNoQuestion(promptIn: String, defaultValueIn: Option[String] = Some("n"), allowBlankAnswer: Boolean = false): Option[Boolean] = {
     val ans = askForString(Some(Array[String](promptIn + " (y/n)")),
                            if (allowBlankAnswer) Some(isValidYesNoOrBlankAnswer) else Some(isValidYesNoAnswer),
-                           defaultValueIn)
-    if (ans.isEmpty) None
-    else if (allowBlankAnswer && ans.get.trim.isEmpty) None
+                           defaultValueIn, escKeySkipsCriteriaCheck = allowBlankAnswer)
+    if (allowBlankAnswer && (ans.isEmpty || ans.get.trim.isEmpty)) None
+    else if (!allowBlankAnswer && (ans.isEmpty || ans.get.trim.isEmpty)) {
+      throw new OmException("A blank answer was not allowed by the caller but was somehow found here; probably a programming mistake.")
+    }
+    else if (ans.isEmpty) throw new OmException("How did we get here?")
     else if (ans.get.toLowerCase.startsWith("y")) Some(true)
     else Some(false)
   }
