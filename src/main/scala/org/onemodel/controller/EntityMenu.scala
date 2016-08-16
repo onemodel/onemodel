@@ -50,7 +50,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                  targetForMovesIn: Option[Attribute] = None,
                  containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Entity] = try {
     require(entityIn != null)
-    if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+    if (!db.entityKeyExists(entityIn.getId, includeArchived = db.includeArchivedEntities)) {
       ui.displayText("The desired entity, " + entityIn.getId + ", has been deleted or archived, probably while browsing other entities via menu options," +
                      "and so cannot be displayed here.  Exiting to the next menu.")
       return None
