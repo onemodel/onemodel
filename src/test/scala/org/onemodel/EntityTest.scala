@@ -151,7 +151,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     when(mockDB.entityKeyExists(id)).thenReturn(true)
     when(mockDB.getEntityData(id)).thenThrow(new RuntimeException("some exception"))
     val entity = new Entity(mockDB, id)
-    val se = entity.getDisplayString
+    val se = entity.getDisplayString()
     assert(se.contains("Unable to get entity description due to"))
     assert(se.toLowerCase.contains("exception"))
     assert(se.toLowerCase.contains("at org.onemodel"))

@@ -132,6 +132,18 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
       new OmException("how did we get here?")
   }
 
+  def getPublicStatusDisplayStringWithColor(blankIfUnset: Boolean = true): String = {
+    //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
+    val s = this.getPublicStatusDisplayString(blankIfUnset)
+    if (s == Entity.PRIVACY_PUBLIC) {
+      Color.green(s)
+    } else if (s == Entity.PRIVACY_NON_PUBLIC) {
+      Color.yellow(s)
+    } else {
+      s
+    }
+  }
+
   def getArchivedStatusDisplayString: String = {
     if (!isArchived) {
       ""
@@ -163,8 +175,15 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
 
   def getAttrCount: Long = mDB.getAttrCount(mId)
 
-  def getDisplayString_helper: String = {
-    var displayString: String = getPublicStatusDisplayString() + getArchivedStatusDisplayString
+  def getDisplayString_helper(withColor: Boolean): String = {
+    var displayString: String = {
+      if (withColor) {
+        getPublicStatusDisplayStringWithColor()
+      } else {
+        getPublicStatusDisplayString()
+      }
+    }
+    displayString += getArchivedStatusDisplayString
     displayString += Color.blue(getName)
     val definerInfo = if (mDB.getClassCount(Some(mId)) > 0) "template (defining entity) for " else ""
     val className: Option[String] = if (getClassId.isDefined) mDB.getClassName(getClassId.get) else None
@@ -172,10 +191,10 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     displayString
   }
 
-  def getDisplayString: String = {
+  def getDisplayString(withColor: Boolean = false): String = {
     var result = ""
     try {
-      result = getDisplayString_helper
+      result = getDisplayString_helper(withColor)
     } catch {
       case e: Exception =>
         result += "Unable to get entity description due to: "

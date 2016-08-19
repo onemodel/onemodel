@@ -75,7 +75,7 @@ class RelationType(mDB: PostgreSQLDatabase, mId: Long) extends Entity(mDB, mId) 
     mName
   }
 
-  override def getDisplayString_helper: String = {
+  override def getDisplayString_helper(withColorIGNOREDFORNOW: Boolean): String = {
     getArchivedStatusDisplayString + getName + " (a relation type with: " + getDirectionality + "/'" + getNameInReverseDirection + "')"
   }
 

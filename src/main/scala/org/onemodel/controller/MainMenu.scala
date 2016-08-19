@@ -45,7 +45,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
           }
         }
       } else if (Entity.getEntityById(db, entityIn.get.getId).isEmpty) {
-        ui.displayText("The entity to be displayed, id " + entityIn.get.getId + ": " + entityIn.get.getDisplayString + "\", is not present, " +
+        ui.displayText("The entity to be displayed, id " + entityIn.get.getId + ": " + entityIn.get.getDisplayString() + "\", is not present, " +
                        "probably because it was deleted.  Trying the prior one viewed.", waitForKeystrokeIn = false)
         // then allow exit from this method so the caller will thus back up one entity and re-enter this menu.
       } else {
@@ -61,7 +61,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
                                                  controller.menuText_createRelationType,
                                                  controller.menuText_viewPreferences,
                                                  "----" /*spacer for better consistency of options with other menus, for memory & navigation speed*/ ,
-                                                 "Go to current entity (" + entity.getDisplayString + "; or its sole subgroup, if present)",
+                                                 "Go to current entity (" + entity.getDisplayString() + "; or its sole subgroup, if present)",
                                                  controller.mainSearchPrompt,
                                                  "List existing classes",
                                                  "List existing relation types")

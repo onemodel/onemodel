@@ -42,7 +42,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     when(mockDB.entityKeyExists(id)).thenReturn(true)
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
     val relationType = new RelationType(mockDB, id)
-    val sr = relationType.getDisplayString
+    val sr = relationType.getDisplayString()
     assert(sr.contains("Unable to get entity description due to"))
     assert(sr.toLowerCase.contains("exception"))
     assert(sr.toLowerCase.contains("at org.onemodel"))

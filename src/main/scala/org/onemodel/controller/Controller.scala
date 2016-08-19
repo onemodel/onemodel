@@ -181,7 +181,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   val tooLongMessage = "value too long for type"
 
   def entityMenuLeadingText(entityIn: Entity) = {
-    "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString
+    "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString(withColor = true)
   }
 
   def groupMenuLeadingText(groupIn: Group) = {
@@ -2219,14 +2219,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def getPublicStatusDisplayString(entityIn: Entity): String = {
     //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
     if (showPublicPrivateStatusPreference.getOrElse(false)) {
-      val s = entityIn.getPublicStatusDisplayString(blankIfUnset = false)
-      if (s == Entity.PRIVACY_PUBLIC) {
-        Color.green(s)
-      } else if (s == Entity.PRIVACY_NON_PUBLIC) {
-        Color.yellow(s)
-      } else {
-        s
-      }
+      entityIn.getPublicStatusDisplayStringWithColor(blankIfUnset = false)
     } else {
       ""
     }

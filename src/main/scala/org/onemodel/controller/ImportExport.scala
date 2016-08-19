@@ -828,7 +828,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val entityName: String = entityIn.getName
         printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
 
-        if (includeMetadataIn) printWriterIn.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString)
+        if (includeMetadataIn) printWriterIn.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString())
         else printWriterIn.println(entityName)
 
         val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn.getId, cachedAttrsIn)
