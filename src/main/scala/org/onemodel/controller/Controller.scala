@@ -2314,7 +2314,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       } else {
         val newRtg = result.get.asInstanceOf[RelationToGroup]
         new QuickGroupMenu(ui, db, this).quickGroupMenu(new Group(db, newRtg.getGroupId), 0, Some(newRtg), None, containingEntityIn = Some(entityIn))
-        result
+        // user could have deleted the new result: check that before returning it as something to act upon:
+        if (db.relationToGroupKeyExists(newRtg.getId)) {
+          result
+        } else {
+          None
+        }
       }
     } else if (attrFormIn == 101  /*re "101": see comments at attrFormIn above*/) {
       val newEntityName: Option[String] = ui.askForString(Some(Array {"Enter a name (or description) for this web page or other URI"}))
@@ -2358,10 +2363,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       //NOTE: the attrTypeId parm is ignored here since it is always a particular one for URIs:
       val (newEntity: Entity, newRTE: RelationToEntity) = db.addUriEntityWithUriAttribute(entityIn, newEntityName.get, uri, System.currentTimeMillis(),
                                                                                           entityIn.getPublic, callerManagesTransactionsIn = false, quote)
-
       new EntityMenu(ui, db, this).entityMenu(newEntity, containingRelationToEntityIn = Some(newRTE))
-
-      Some(newRTE)
+      // user could have deleted the new result: check that before returning it as something to act upon:
+      if (db.relationToEntityKeyExists(newRTE.getId) && db.entityKeyExists(newEntity.getId)) {
+        Some(newRTE)
+      } else {
+        None
+      }
     } else {
       ui.displayText("invalid response")
       None
