@@ -210,19 +210,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       } else if (answer == 5) {
         // MAKE SURE this next condition always is the exact opposite of the one in "choices(4) = ..." above (4 vs. 5 because they are 0- vs. 1-based)
         if (highlightedIndexInObjList.isDefined) {
-          val listEntryIsGoneNow = goToSelectedAttribute(answer, highlightedIndexInObjList.get, attributeTuples, entityIn)
-          if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
-            // (entity could have been deleted or archived while browsing among containers via submenus)
-            None
-          } else {
-            val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
-            // check this, given that while in the goToSelectedAttribute method, the previously highlighted one could have been removed from the list:
-            val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
-                                                                                   containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
-                                                                                   listEntryIsGoneNow, defaultEntryToHighlight, highlightedIndexInObjList)
-            entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
-                       containingRelationToEntityIn, containingGroupIn)
-          }
+          goToAttributeThenRedisplayHere(entityIn, attributeRowsStartingIndexIn, targetForMovesIn, containingRelationToEntityIn, containingGroupIn,
+                                         attributeTuples, attributesToDisplay, answer, highlightedIndexInObjList.get)
         } else {
           ui.displayText("nothing selected")
           entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMovesIn, containingRelationToEntityIn, containingGroupIn)
@@ -304,19 +293,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
         // those in the condition are 1-based, not 0-based.
         // lets user go to an entity or group quickly (1 stroke)
-        val choicesIndex = answer - choices.length - 1
-        val entryIsGoneNow = goToSelectedAttribute(answer, choicesIndex, attributeTuples, entityIn)
-        if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
-          // (entity could have been deleted or archived while browsing among containers via submenus)
-          None
-        } else {
-          val defaultEntryToHighlight: Option[Attribute] = Some(attributeTuples(choicesIndex)._2)
-          val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
-                                                                                 containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
-                                                                                 entryIsGoneNow, defaultEntryToHighlight, Some(choicesIndex))
-          entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
-                     containingRelationToEntityIn, containingGroupIn)
-        }
+        val choicesIndex: Int = answer - choices.length - 1
+        goToAttributeThenRedisplayHere(entityIn, attributeRowsStartingIndexIn, targetForMovesIn, containingRelationToEntityIn, containingGroupIn,
+                                       attributeTuples, attributesToDisplay, answer, choicesIndex)
       } else {
         ui.displayText("invalid response")
         entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
@@ -332,6 +311,52 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       if (ans.isDefined && ans.get) entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedAttributeIn, targetForMovesIn,
                                                containingRelationToEntityIn, containingGroupIn)
       else None
+  }
+
+  def goToAttributeThenRedisplayHere(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute], containingRelationToEntityIn:
+  Option[RelationToEntity], containingGroupIn: Option[Group], attributeTuples: Array[(Long, Attribute)], attributesToDisplay: util.ArrayList[Attribute],
+                                     answer: Int, choicesIndex: Int): Option[Entity] = {
+    val entryIsGoneNow = {
+      // user typed a letter to select an attribute (now 0-based)
+      if (choicesIndex >= attributeTuples.length) {
+        ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
+        false
+      } else {
+        val o: Attribute = attributeTuples(choicesIndex)._2
+        o match {
+          //idea: there's probably also some more scala-like cleaner syntax 4 this, as elsewhere:
+          case qa: QuantityAttribute => controller.attributeEditMenu(qa)
+          case da: DateAttribute => controller.attributeEditMenu(da)
+          case ba: BooleanAttribute => controller.attributeEditMenu(ba)
+          case fa: FileAttribute => controller.attributeEditMenu(fa)
+          case ta: TextAttribute => controller.attributeEditMenu(ta)
+          case relToEntity: RelationToEntity =>
+            entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
+            val wasRemoved: Boolean = !(db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false)
+                                        && db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId))
+            wasRemoved
+          case relToGroup: RelationToGroup =>
+            new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup), containingEntityIn = Some
+                                                                                                                                                  (entityIn))
+            if (!db.groupKeyExists(relToGroup.getGroupId)) true
+            else false
+          case _ => throw new Exception("Unexpected choice has class " + o.getClass.getName + "--what should we do here?")
+        }
+      }
+    }
+
+    if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+      // (entity could have been deleted or archived while browsing among containers via submenus)
+      None
+    } else {
+      // check this, given that while in the goToSelectedAttribute method, the previously highlighted one could have been removed from the list:
+      val defaultEntryToHighlight: Option[Attribute] = Some(attributeTuples(choicesIndex)._2)
+      val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
+                                                                             containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
+                                                                             entryIsGoneNow, defaultEntryToHighlight, Some(choicesIndex))
+      entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
+                 containingRelationToEntityIn, containingGroupIn)
+    }
   }
 
   def entitySearchSubmenu(entityIn: Entity, attributeRowsStartingIndexIn: Int, containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn:
@@ -360,7 +385,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           val levels: Int = levelsAnswer.getOrElse("4").toInt
           val entityIds: Array[Long] = db.findContainedEntityIds(new mutable.TreeSet[Long], entityIn.getId, searchString, levels,
                                                                  stopAfterAnyFound = false).toArray
-          val leadingText2 = Array[String]("SEARCH RESULTS: Pick an item by letter to select:")
+          val leadingText2 = Array[String](controller.pickFromListPrompt)
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
           val choices: Array[String] = Array("(stub)")
           val entityIdsTruncated: Array[Long] = {
@@ -654,37 +679,6 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
     }
     startingIndex
-  }
-
-  /**
-   * @return whether the entry in question was deleted (or archived)
-   */
-  def goToSelectedAttribute(answer: Int, choiceIndex: Int, attributeTuples: Array[(Long, Attribute)], entityIn: Entity): Boolean = {
-    // user typed a letter to select an attribute (now 0-based)
-    if (choiceIndex >= attributeTuples.length) {
-      ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
-      false
-    } else {
-      val o: Attribute = attributeTuples(choiceIndex)._2
-      o match {
-        //idea: there's probably also some more scala-like cleaner syntax 4 this, as elsewhere:
-        case qa: QuantityAttribute => controller.attributeEditMenu(qa)
-        case da: DateAttribute => controller.attributeEditMenu(da)
-        case ba: BooleanAttribute => controller.attributeEditMenu(ba)
-        case fa: FileAttribute => controller.attributeEditMenu(fa)
-        case ta: TextAttribute => controller.attributeEditMenu(ta)
-        case relToEntity: RelationToEntity =>
-          entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
-          val wasRemoved: Boolean = !(db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false)
-                                      && db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId))
-          wasRemoved
-        case relToGroup: RelationToGroup =>
-          new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup), containingEntityIn = Some(entityIn))
-          if (!db.groupKeyExists(relToGroup.getGroupId)) true
-          else false
-        case _ => throw new Exception("Unexpected choice has class " + o.getClass.getName + "--what should we do here?")
-      }
-    }
   }
 
   protected def getAdjacentEntriesSortingIndexes(entityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],

@@ -1039,9 +1039,9 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(found)
   }
 
-  "createDefaultData, findEntityOnlyIdsByName, createClassTemplateEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
+  "createBaseData, findEntityOnlyIdsByName, createClassTemplateEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
   "have worked right in earlier db setup and now" in {
-    val PERSON_TEMPLATE: String = "person-template"
+    val PERSON_TEMPLATE: String = "person" + PostgreSQLDatabase.TEMPLATE_NAME_SUFFIX
     val systemEntityId = mDB.getSystemEntityId
     val groupIdOfClassTemplates = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classTemplateEntityGroupName))._3
 
@@ -1154,7 +1154,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   "isDuplicateEntityClass and class update/deletion" should "work" in {
     val name: String = "testing isDuplicateEntityClass"
-    val (classId, entityId) = mDB.createClassAndItsTemplateEntity(name)
+    val (classId, entityId) = mDB.createClassAndItsTemplateEntity(name, name)
     assert(EntityClass.isDuplicate(mDB, name))
     assert(!EntityClass.isDuplicate(mDB, name, Some(classId)))
 
@@ -1176,8 +1176,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     // This also tests db.createEntity and db.updateEntityOnlyClass.
 
     val entityName = "test: PSQLDbTest.testgroup-class-uniqueness" + "--theEntity"
-    val (classId, entityId) = mDB.createClassAndItsTemplateEntity(entityName)
-    val (classId2, entityId2) = mDB.createClassAndItsTemplateEntity(entityName + 2)
+    val (classId, entityId) = mDB.createClassAndItsTemplateEntity(entityName, entityName)
+    val (classId2, entityId2) = mDB.createClassAndItsTemplateEntity(entityName + 2, entityName + 2)
     val classCount = mDB.getClassCount()
     val classes = mDB.getClasses(0)
     assert(classCount == classes.size)
@@ -1287,7 +1287,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     // ...for now anyway.  See comments at this table in psqld.createTables and/or hasMixedClasses.
 
     val entityName = "test: PSQLDbTest.testgroup-class-allowsAllNulls" + "--theEntity"
-    val (classId, entityId) = mDB.createClassAndItsTemplateEntity(entityName)
+    val (classId, entityId) = mDB.createClassAndItsTemplateEntity(entityName, entityName)
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
     val groupId = createAndAddTestRelationToGroup_ToEntity(entityId, relTypeId, "test: PSQLDbTest.testgroup-class-allowsAllNulls", Some(12345L),
                                                                 allowMixedClassesIn = false)._1

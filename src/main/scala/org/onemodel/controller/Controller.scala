@@ -392,7 +392,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def refreshDefaultDisplayEntityId(): Unit = defaultDisplayEntityId = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
 
   def askForClass(): Option[Long] = {
-    val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String]("CHOOSE ENTITY'S CLASS (ESC if you don't know or care about this.  This is a way to associate code or default attributes with groups of entities.  Help me word this better, but:  for example, in the case of an attribute of an entity, it must have a type, which is also an entity; so, a Vehicle Identification Number (VIN) entity represents the *concept* of a VIN, a text attribute on a vehicle entity holds the content of the VIN in a string of characters, and the \"type entity\" (VIN concept entity) can have a class which holds code used to parse VIN strings for additional internal meaning; or, it could serve as a template holding standard fields for entities in the VIN class (such as if the VIN content were written in a multi-field entity rather than in a single text attribute).  The template entity of the VIN class could be the same entity as the type entity for the an attribute, as far as I can see now.  ***Use this feature only if it helps you, otherwise press ESC for None.*** )")), None, None, Controller.ENTITY_CLASS_TYPE)
+    val msg = "CHOOSE ENTITY'S CLASS.  (Press ESC if you don't know or care about this.  Detailed explanation on the class feature will be available " +
+              "at onemodel.org when this feature is documented more (hopefully at the next release), or ask on the email list.)"
+    val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String](msg)), None, None, Controller.ENTITY_CLASS_TYPE)
     if (idWrapper.isEmpty) None
     else Some(idWrapper.get.getId)
   }
@@ -451,7 +453,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def askForNameAndWriteEntity(inType: String, existingIdIn: Option[Long] = None,
                                          previousNameIn: Option[String] = None, previousDirectionalityIn: Option[String] = None,
                                          previousNameInReverseIn: Option[String] = None, inClassId: Option[Long] = None,
-                                         inLeadingText: Option[String] = None): Option[Entity] = {
+                                         inLeadingText: Option[String] = None, duplicateNameProbablyOK: Boolean = false): Option[Entity] = {
     if (inClassId.isDefined) require(inType == Controller.ENTITY_TYPE)
     val createNotUpdate: Boolean = existingIdIn.isEmpty
     if (!createNotUpdate && inType == Controller.RELATION_TYPE_TYPE) require(previousDirectionalityIn.isDefined)
@@ -476,18 +478,13 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         val name = nameOpt.get.trim()
         if (name.length <= 0) None
         else {
-          var duplicate = false
-          if (model.Entity.isDuplicate(db, name, existingIdIn)) {
-            val answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, Some("n"))
-            if (answerOpt.isEmpty || (!answerOpt.get.equalsIgnoreCase("y"))) duplicate = true
-          }
           // idea: this size check might be able to account better for the escaping that's done. Or just keep letting the exception handle it as is already
           // done in the caller of this.
           if (name.length > maxNameLength) {
             ui.displayText(stringTooLongErrorMessage(maxNameLength).format(tooLongMessage) + ".")
             askAndSave(Some(name))
           } else {
-            if (duplicate) None
+            if (isDuplicationAProblem(model.Entity.isDuplicate(db, name, existingIdIn), duplicateNameProbablyOK)) None
             else {
               if (inType == Controller.ENTITY_TYPE) {
                 if (createNotUpdate) {
@@ -551,20 +548,27 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   /** Returns None if user wants out, otherwise returns the new or updated classId and entityId.
     * 1st parameter should be None only if the call is intended to create; otherwise it is an edit.
     * */
-  def askForAndWriteClassAndTemplateEntityName(classIdIn: Option[Long] = None,
-                                                         previousNameIn: Option[String] = None): Option[(Long, Long)] = {
+  def askForAndWriteClassAndTemplateEntityName(classIdIn: Option[Long] = None, previousNameIn: Option[String] = None): Option[(Long, Long)] = {
     val createNotUpdate: Boolean = classIdIn.isEmpty
     val nameLength = model.EntityClass.nameLength(db)
+    val oldEntityIdPrompt = {
+      if (createNotUpdate) ""
+      else {
+        val entityId = new EntityClass(db, classIdIn.get).getTemplateEntityId
+        val templateEntityName = new Entity(db, entityId).getName
+        " (which is currently \"" + templateEntityName + "\")"
+      }
+    }
     def askAndSave(defaultNameIn: Option[String]): Option[(Long, Long)] = {
-      val nameOpt = ui.askForString(Some(Array("Enter class name (up to " + nameLength + " characters; will also be used for its template entity name; ESC to" +
-                                               " cancel): ")),
+      val nameOpt = ui.askForString(Some(Array("Enter class name (up to " + nameLength + " characters; will also be used for its template entity name" +
+                                               oldEntityIdPrompt + "; ESC to cancel): ")),
                                     None, defaultNameIn)
       if (nameOpt.isEmpty) None
       else {
         val name = nameOpt.get.trim()
         if (name.length() <= 0) None
         else {
-          if (duplicationProblem(name, classIdIn, createNotUpdate)) None
+          if (isDuplicationAProblem(EntityClass.isDuplicate(db, name, classIdIn), duplicateNameProbablyOK = false)) None
           else {
             if (createNotUpdate) Some(db.createClassAndItsTemplateEntity(name))
             else {
@@ -586,10 +590,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     "(Could be due to escaped, i.e. expanded, characters like ' or \";\".  Details: %s"
   }
 
-  def duplicationProblem(name: String, previousIdIn: Option[Long], createNotUpdate: Boolean): Boolean = {
+  def isDuplicationAProblem(isDuplicateIn: Boolean, duplicateNameProbablyOK: Boolean): Boolean = {
     var duplicateProblemSoSkip = false
-    if (EntityClass.isDuplicate(db, name, previousIdIn)) {
-      val answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, Some("n"))
+    if (isDuplicateIn) {
+      val defaultAnswer = {
+        if (duplicateNameProbablyOK) Some("n")
+        else Some("y")
+      }
+      val answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, defaultAnswer)
       if (answerOpt.isEmpty || (!answerOpt.get.equalsIgnoreCase("y"))) duplicateProblemSoSkip = true
     }
     duplicateProblemSoSkip
@@ -933,7 +941,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val ans = ui.askYesNoQuestion(warningMsg, Some(""))
     if (ans.isDefined && ans.get) {
       entityIn.archive()
-      ui.displayText("Archived entity \"" + name + "\"" + ".")
+      ui.displayText("Archived entity \"" + name + "\"" + ".", waitForKeystrokeIn = false)
       true
     } else {
       ui.displayText("Did not archive entity.", waitForKeystrokeIn = false)
@@ -955,7 +963,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val ans = ui.askYesNoQuestion(warningMsg, Some(""))
     if (ans.isDefined && ans.get) {
       entityIn.unarchive()
-      ui.displayText("Un-archived entity \"" + name + "\"" + ".")
+      ui.displayText("Un-archived entity \"" + name + "\"" + ".", waitForKeystrokeIn = false)
       true
     } else {
       ui.displayText("Did not un-archive entity.", waitForKeystrokeIn = false)
@@ -999,9 +1007,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             if (groupId.isDefined && !moreThanOneAvailable) {
               val attrCount = entityIn.getAttrCount
               // for efficiency, if it's obvious which subgroup's name to change at the same time, offer to do so
-              val ans = ui.askYesNoQuestion("There's a single subgroup" + (if (attrCount > 1) " (AMONG " + (attrCount - 1) + " OTHER ATTRIBUTES)" else "") +
+              val defaultAnswer = if (attrCount > 1) Some("n") else Some("y")
+              val ans = ui.askYesNoQuestion("There's a single subgroup" +
+                                            (if (attrCount > 1) " (***AMONG " + (attrCount - 1) + " OTHER ATTRIBUTES***)" else "") +
                                             "; possibly it and this entity were created at the same time.  Also change" +
-                                            " the subgroup's name now to be identical?", Some("y"))
+                                            " the subgroup's name now to be identical?", defaultAnswer)
               if (ans.isDefined && ans.get) {
                 val group = new Group(db, groupId.get)
                 group.update(nameIn = Some(entityNameAfterEdit), validOnDateInIGNORED4NOW = None, observationDateInIGNORED4NOW = None)
@@ -1093,7 +1103,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         (false, inoutDH.attrTypeId)
       } else {
         require(attrTypeInputPrompt.isDefined)
-        val ans: Option[Long] = askForAttributeTypeId(attrTypeInputPrompt.get, attrType, inPreviousSelectionDesc, inPreviousSelectionId)
+        val ans: Option[Long] = chooseOrCreateObject_OrSaysCancelled(attrTypeInputPrompt.get, attrType, inPreviousSelectionDesc, inPreviousSelectionId)
         if (ans.isEmpty) {
           (true, 0L)
         } else {
@@ -1130,7 +1140,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     }
   }
 
-  def askForAttributeTypeId(prompt: String, attrType: String, inPreviousSelectionDesc: Option[String],
+  def chooseOrCreateObject_OrSaysCancelled(prompt: String, attrType: String, inPreviousSelectionDesc: Option[String],
                                       inPreviousSelectionId: Option[Long]): (Option[Long]) = {
     val attrTypeSelection = chooseOrCreateObject(Some(List(prompt)), inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[Long], attrType)
     if (attrTypeSelection.isEmpty) {
@@ -1380,7 +1390,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       index
     }
 
-    val (choices, keepPreviousSelectionChoice, createAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, createRelationTypeChoice, createClassChoice): (Array[String],
+    val (choices, keepPreviousSelectionChoice, createEntityOrAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, createRelationTypeChoice, createClassChoice): (Array[String],
       Int, Int, Int, Int, Int, Int, Int) = getChoiceList
 
     val (leadingText, objectsToDisplay, statusesAndNames) = getLeadTextAndObjectList(choices)
@@ -1400,7 +1410,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         // Not using "get out" option for this because it would exit from a few levels at once and
         // then user wouldn't be able to proceed to other field edits.
         Some(new IdWrapper(inPreviousSelectionId.get))
-      } else if (answer == createAttrTypeChoice && answer <= choices.length) {
+      } else if (answer == createEntityOrAttrTypeChoice && answer <= choices.length) {
         val e: Option[Entity] = askForClassInfoAndNameAndCreateEntity(inClassId)
         if (e.isEmpty) None
         else Some(new IdWrapper(e.get.getId))
@@ -1784,7 +1794,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       if (!inEditing) None
       else Some(inDH.entityId2)
     }
-    val (id: Option[Long]) = askForAttributeTypeId("SELECT OTHER (RELATED) ENTITY FOR THIS RELATION", Controller.ENTITY_TYPE, previousSelectionDesc,
+    val (id: Option[Long]) = chooseOrCreateObject_OrSaysCancelled("SELECT OTHER (RELATED) ENTITY FOR THIS RELATION", Controller.ENTITY_TYPE, previousSelectionDesc,
                                                    previousSelectionId)
     val outDH = inDH
     if (id.isEmpty) None
@@ -2054,7 +2064,6 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     // doesn't seem to make sense to ck for duplicate names here: the real identity depends on what it relates to, and dup names may be common.
     val ans = ui.askForString(Some(Array(relationToGroupNamePrompt)), None, Some(groupIn.getName))
     if (ans.isEmpty || ans.get.trim.length() == 0) {
-      ui.displayText("Not updated.")
       None
     } else {
       groupIn.update(None, Some(ans.get.trim), None, None, None, None)
@@ -2413,27 +2422,67 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             case _ => false
           }
         }
-        ui.displayText("Edit the copied " + PostgreSQLDatabase.getAttributeFormName(templateAttribute.getFormId) + " \"" +
-                       templateAttribute.getDisplayString(0, None, None, simplify = true) + " \", from the archetype entity (ESC to abort):",
-                       waitForKeystroke)
+        def promptToEditAttributeCopy() {
+          ui.displayText("Edit the copied " + PostgreSQLDatabase.getAttributeFormName(templateAttribute.getFormId) + " \"" +
+                         templateAttribute.getDisplayString(0, None, None, simplify = true) + "\", from the template entity (ESC to abort):",
+                         waitForKeystroke)
+        }
         val newAttribute: Option[Attribute] = {
           templateAttribute match {
-            case a: QuantityAttribute => Some(entityIn.addQuantityAttribute(a.getAttrTypeId, a.getUnitId, a.getNumber, Some(a.getSortingIndex)))
-            case a: DateAttribute => Some(entityIn.addDateAttribute(a.getAttrTypeId, a.getDate, Some(a.getSortingIndex)))
-            case a: BooleanAttribute => Some(entityIn.addBooleanAttribute(a.getAttrTypeId, a.getBoolean, Some(a.getSortingIndex)))
+            case a: QuantityAttribute =>
+              promptToEditAttributeCopy()
+              Some(entityIn.addQuantityAttribute(a.getAttrTypeId, a.getUnitId, a.getNumber, Some(a.getSortingIndex)))
+            case a: DateAttribute =>
+              promptToEditAttributeCopy()
+              Some(entityIn.addDateAttribute(a.getAttrTypeId, a.getDate, Some(a.getSortingIndex)))
+            case a: BooleanAttribute =>
+              promptToEditAttributeCopy()
+              Some(entityIn.addBooleanAttribute(a.getAttrTypeId, a.getBoolean, Some(a.getSortingIndex)))
             case a: FileAttribute =>
               ui.displayText("You can add a FileAttribute manually afterwards for this attribute.  Maybe it can be automated " +
                                                     "more, when use cases for this part are more clear.")
               None
-            case a: TextAttribute => Some(entityIn.addTextAttribute(a.getAttrTypeId, a.getText, Some(a.getSortingIndex)))
+            case a: TextAttribute =>
+              promptToEditAttributeCopy()
+              Some(entityIn.addTextAttribute(a.getAttrTypeId, a.getText, Some(a.getSortingIndex)))
             case a: RelationToEntity =>
-              val dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(new RelationToEntityDataHolder(0, None, 0, 0), inEditing = false)
-              if (dh.isDefined) {
-                Some(entityIn.addRelationToEntity(a.getAttrTypeId, dh.get.entityId2, Some(a.getSortingIndex)))
-              } else {
+              val whichRteLeadingText: Array[String] = Array("The template has a relation to an entity named \"" +
+                                                             templateAttribute.getDisplayString(0, None, None, simplify = true) +
+                                                             "\": how would you like the equivalent to be provided for this new entity being created?" +
+                                                             " (0/ESC to just skip this one for now)")
+              val whichRteChoices = Array[String]("Copy the template entity, editing its name (MOST LIKELY CHOICE)",
+                                          "Create a new entity or search for an existing one for this purpose",
+                                          "Keep a reference to the same entity as in the template (least likely choice)")
+              val whichRteResponse = ui.askWhich(Some(whichRteLeadingText), whichRteChoices)
+              if (whichRteResponse.isEmpty) {
                 None
+              } else {
+                if (whichRteResponse.get == 1) {
+                  val templatesRelatedEntity: Entity = new Entity(db,a.getRelatedId2)
+                  val oldName: String = templatesRelatedEntity.getName
+                  val newEntity = askForNameAndWriteEntity(Controller.ENTITY_TYPE, None, Some(oldName), None, None, templatesRelatedEntity.getClassId,
+                                           Some("EDIT THE ENTITY NAME:"))
+                  if (newEntity.isEmpty) {
+                    None
+                  } else {
+                    Some(entityIn.addRelationToEntity(a.getAttrTypeId, newEntity.get.getId, Some(a.getSortingIndex)))
+                  }
+                } else if (whichRteResponse.get == 2) {
+                  val dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(new RelationToEntityDataHolder(0, None, 0, 0), inEditing = false)
+                  if (dh.isDefined) {
+                    Some(entityIn.addRelationToEntity(a.getAttrTypeId, dh.get.entityId2, Some(a.getSortingIndex)))
+                  } else {
+                    None
+                  }
+                } else if (whichRteResponse.get == 3) {
+                  Some(entityIn.addRelationToEntity(a.getAttrTypeId, a.getRelatedId2, Some(a.getSortingIndex)))
+                } else {
+                  ui.displayText("Unexpected answer: " + whichRteResponse.get)
+                  None
+                }
               }
             case a: RelationToGroup =>
+              promptToEditAttributeCopy()
               val templateGroup = a.getGroup
               val (_, newRTG: RelationToGroup) = entityIn.addGroupAndRelationToGroup(a.getAttrTypeId, templateGroup.getName,
                                                                                      templateGroup.getMixedClassesAllowed, None,

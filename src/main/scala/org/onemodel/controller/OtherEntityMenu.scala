@@ -90,8 +90,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           val editAnswer = ui.askWhich(Some(Array[String]{controller.entityMenuLeadingText(entityIn)}),
                                        Array("Edit entity name",
                                              "Change its class",
-                                             if (templateAttributesToCopy.nonEmpty) "Add/edit missing class-defined fields" else "(stub)",
-
+                                             if (templateAttributesToCopy.nonEmpty) "Add/edit missing class-defined fields (in other words, to make this " +
+                                                                                    "entity more resemble its class' template)" else "(stub)",
                                              if (entityIn.getNewEntriesStickToTop) {
                                                "Set entity so new items added from the top highlight become the *2nd* entry (CURRENTLY: they stay at the top)."
                                              } else {

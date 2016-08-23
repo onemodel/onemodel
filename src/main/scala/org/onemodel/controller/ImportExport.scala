@@ -302,7 +302,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val prompt = "A name for the *type* of this text attribute was not provided; it would be the entire line content preceding the \"" +
                      beginningTagMarker + "\" " +
                      "(it has to match an existing entity, case-sensitively)"
-        val typeId = controller.askForAttributeTypeId(prompt + ", so please choose one or ESC to abort this import operation:", Controller.TEXT_TYPE, None, None)
+        val typeId = controller.chooseOrCreateObject_OrSaysCancelled(prompt + ", so please choose one or ESC to abort this import operation:", Controller.TEXT_TYPE, None, None)
         if (typeId.isEmpty)
           throw new OmException(prompt + " or selected.")
         else

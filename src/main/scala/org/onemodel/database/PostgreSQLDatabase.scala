@@ -45,6 +45,7 @@ object PostgreSQLDatabase {
   val TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME = "textEditorCommand"
   val PREF_TYPE_BOOLEAN = "boolean"
   val PREF_TYPE_ENTITY_ID = "entityId"
+  val TEMPLATE_NAME_SUFFIX: String = "-template"
 
   // where we create the table also calls this.
   // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
@@ -807,7 +808,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
       dbAction("ALTER TABLE entity ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
       dbAction("ALTER TABLE grupo ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
       //When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION.
-      // (Do we really need the require statement that checks it though? Seems vagely good to check, but it costs when forgetting, and what benefit? Hm.)
+      // (Do we really need the require statement that checks it though? Seems vaguely good to check, but it costs when forgetting, and what benefit? Hm.)
       dbAction("UPDATE om_db_version SET (version) = (3)")
     }
     catch {
@@ -1012,14 +1013,20 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                   Some(System.currentTimeMillis()), System.currentTimeMillis(), None, callerManagesTransactionsIn = false)
 
     // NOTICE: code should not rely on this name, but on data in the tables.
-    /*val (classId, entityId) = */ createClassAndItsTemplateEntity("person-template")
+    /*val (classId, entityId) = */ createClassAndItsTemplateEntity("person")
+  }
+
+  def createClassAndItsTemplateEntity(classNameIn: String): (Long, Long) = {
+    createClassAndItsTemplateEntity(classNameIn, classNameIn + PostgreSQLDatabase.TEMPLATE_NAME_SUFFIX)
   }
 
   /** Returns the classId and entityId, in a tuple. */
-  def createClassAndItsTemplateEntity(inName: String): (Long, Long) = {
+  def createClassAndItsTemplateEntity(classNameIn: String, entityNameIn: String): (Long, Long) = {
     // The name doesn't have to be the same on the entity and the template class, but why not for now.
-    val name: String = escapeQuotesEtc(inName)
-    if (name == null || name.length == 0) throw new OmDatabaseException("Name must have a value.")
+    val className: String = escapeQuotesEtc(classNameIn)
+    val entityName = escapeQuotesEtc(entityNameIn)
+    if (className == null || className.length == 0) throw new OmDatabaseException("Class name must have a value.")
+    if (entityName == null || entityName.length == 0) throw new OmDatabaseException("Entity name must have a value.")
     val classId: Long = getNewKey("ClassKeySequence")
     val entityId: Long = getNewKey("EntityKeySequence")
     beginTrans()
@@ -1027,8 +1034,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
       // Start the entity w/ a NULL class_id so that it can be inserted w/o the class present, then update it afterward; constraints complain otherwise.
       // Idea: instead of doing in 3 steps, could specify 'deferred' on the 'not null'
       // constraint?: (see file:///usr/share/doc/postgresql-doc-9.1/html/sql-createtable.html).
-      dbAction("INSERT INTO Entity (id, insertion_date, name, class_id) VALUES (" + entityId + "," + System.currentTimeMillis() + ",'" + name + "', NULL)")
-      dbAction("INSERT INTO Class (id, name, defining_entity_id) VALUES (" + classId + ",'" + name + "', " + entityId + ")")
+      dbAction("INSERT INTO Entity (id, insertion_date, name, class_id) VALUES (" + entityId + "," + System.currentTimeMillis() + ",'" + entityNameIn + "', NULL)")
+      dbAction("INSERT INTO Class (id, name, defining_entity_id) VALUES (" + classId + ",'" + classNameIn + "', " + entityId + ")")
       dbAction("update Entity set (class_id) = (" + classId + ") where id=" + entityId)
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
@@ -1048,7 +1055,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val systemEntityId: Long = getSystemEntityId
 
     // idea: maybe this stuff would be less breakable by the user if we put this kind of info in some system table
-    // instead of in this group. (See also method createDefaultData).  Or maybe it doesn't matter, since it's just a user convenience. Hmm.
+    // instead of in this group. (See also method createBaseData).  Or maybe it doesn't matter, since it's just a user convenience. Hmm.
     val classTemplateGroupId = findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classTemplateEntityGroupName))._3
     if (classTemplateGroupId.isEmpty) {
       // no exception thrown here because really this group is a convenience for the user to see things, not a requirement. Maybe a user message would be best:
@@ -1277,7 +1284,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     try {
       updateClassName(classIdIn, name)
       entityId = new EntityClass(this, classIdIn).getTemplateEntityId
-      updateEntityOnlyName(entityId, name)
+      updateEntityOnlyName(entityId, name  + PostgreSQLDatabase.TEMPLATE_NAME_SUFFIX)
     }
     catch {
       case e: Exception => throw rollbackWithCatch(e)

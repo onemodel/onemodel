@@ -150,7 +150,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       getUserInputChar(Nil)
   }
 
-  def getUserInputChar(allowedCharsIn: List[Char]): (Char, Boolean) = {
+  def getUserInputChar(allowedCharsIn_CURRENTLY_IGNORED: List[Char]): (Char, Boolean) = {
     var input: Int = jlineReader.readCharacter(true)
     if (!input.isValidChar) {
       throw new Exception("Unexpected non-char value " + input + " from readCharacter().")
@@ -271,8 +271,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     val line = jlineReader.readLine(null, if (isPasswordIn) '*' else null)
     if (line == null) {
       None
-    }
-    else {
+    } else {
       def checkCriteria(line: String): Option[String] = {
         if (criteriaIn.isEmpty || criteriaIn.get(line)) {
           Some(line)
@@ -336,7 +335,11 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   }
 
   /** Like askWhich but if user makes the alternate action on a choice (eg, double-click, click+differentButton, right-click, presses "alt+letter"),
-    * then it tells you so in the 2nd (boolean) part of the return value. */
+    * then it tells you so in the 2nd (boolean) part of the return value.
+    *
+    * @param highlightIndexIn 0-based (like almost everything; exceptions are noted.).
+    * @param secondaryHighlightIndexIn 0-based.
+    * */
   @tailrec
   final def askWhichChoiceOrItsAlternate(leadingTextIn: Option[Array[String]],
                      choicesIn: Array[String],
@@ -389,16 +392,14 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       lineCounter = lineCounter + 1
       if (alreadyFull) {
         alreadyFull
-      }
-      else if ((!alreadyFull) && lineCounter > terminalHeight) {
+      } else if ((!alreadyFull) && lineCounter > terminalHeight) {
         // (+ 1 above to leave room for the error message line, below)
         val unshownCount: Int = choicesIn.length + moreChoicesIn.length - lineCounter - 1
         println("Unable to show remaining " + unshownCount + " items in the available screen space(!?). Consider code change to pass the " +
                 "right number of them, relaunching w/ larger terminal, or grouping things?")
         alreadyFull = true
         alreadyFull
-      }
-      else false
+      } else false
     }
 
     def showChoices() {
@@ -416,8 +417,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       if (moreChoicesIn.length == 0) {
         //noinspection ScalaUselessExpression (intentional style violation, for readability):
         Unit
-      }
-      else {
+      } else {
         // this collection size might be much larger than needed (given multiple columns of display) but that's better than having more complex calculations.
         val moreLines = new Array[StringBuffer](moreChoicesIn.length)
         for (i <- moreLines.indices) {
@@ -477,20 +477,16 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     showMoreChoices()
     if (trailingTextIn.isDefined && trailingTextIn.get.nonEmpty) println(trailingTextIn.get)
 
-    val allowedInputChars: Array[Char] = new Array(allAllowedAnswers.length + 2)
-    allowedInputChars(0) = '0'
-    allowedInputChars(1) = 27.asInstanceOf[Char] //ESC
-    allAllowedAnswers.getChars(0, allAllowedAnswers.length, allowedInputChars, 2)
-    val (answer: Char, userChoseAlternate: Boolean) = getUserInputChar(allowedInputChars.toList)
-
-    if (answer != 27 && answer != '0' && (!allAllowedAnswers.toString.contains(answer.toChar))) {
+    val (answer: Char, userChoseAlternate: Boolean) = getUserInputChar
+    if (answer != 27 && answer != '0' && answer != 13 && (!allAllowedAnswers.toString.contains(answer.toChar))) {
       println("unknown choice: " + answer)
       askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn)
-    }
-    else if (includeEscChoiceIn && (answer == '0' || answer == 27)) {
+    } else if (answer == 13 && highlightIndexIn.isDefined) {
+      // user hit Enter ie '\r', so take the one that was highlighted
+      Some(choicesIn.length + highlightIndexIn.get + 1, userChoseAlternate)
+    } else if (includeEscChoiceIn && (answer == '0' || answer == 27)) {
       None
-    }
-    else {
+    } else {
       Some(possibleMenuChars.indexOf(answer) + 1, userChoseAlternate) // result from this function is 1-based, but 'answer' is 0-based.
     }
   }

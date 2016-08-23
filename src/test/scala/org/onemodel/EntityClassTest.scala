@@ -42,7 +42,8 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     // instantiation does DB setup (creates tables, default data, etc):
     mDB = new PostgreSQLDatabase("testrunner", "testrunner")
 
-    val (classId, _): (Long, Long) = mDB.createClassAndItsTemplateEntity("name of test class and its template entity")
+    val name = "name of test class and its template entity"
+    val (classId, _): (Long, Long) = mDB.createClassAndItsTemplateEntity(name, name)
     mEntityClass = new EntityClass(mDB, classId)
   }
 
