@@ -593,12 +593,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   def isDuplicationAProblem(isDuplicateIn: Boolean, duplicateNameProbablyOK: Boolean): Boolean = {
     var duplicateProblemSoSkip = false
     if (isDuplicateIn) {
-      val defaultAnswer = {
-        if (duplicateNameProbablyOK) Some("n")
-        else Some("y")
+      if (!duplicateNameProbablyOK) {
+        val answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, Some("n"))
+        if (answerOpt.isEmpty || (!answerOpt.get.equalsIgnoreCase("y"))) duplicateProblemSoSkip = true
       }
-      val answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, defaultAnswer)
-      if (answerOpt.isEmpty || (!answerOpt.get.equalsIgnoreCase("y"))) duplicateProblemSoSkip = true
     }
     duplicateProblemSoSkip
   }
@@ -2412,6 +2410,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       escCounterLocal
     }
 
+    var (allCopy: Boolean, allCreateOrSearch: Boolean, allKeepReference: Boolean) = (false, false, false)
+    val choice1text = "Copy the template entity, editing its name (**MOST LIKELY CHOICE)"
+    val choice2text = "Create a new entity or search for an existing one for this purpose"
+    val choice3text = "Keep a reference to the same entity as in the template (least likely choice)"
+    var askEveryTime: Option[Boolean] = None
     var attrCounter = 0
     for (templateAttribute: Attribute <- templateAttributesToCopyIn) {
       attrCounter += 1
@@ -2446,39 +2449,76 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               promptToEditAttributeCopy()
               Some(entityIn.addTextAttribute(a.getAttrTypeId, a.getText, Some(a.getSortingIndex)))
             case a: RelationToEntity =>
-              val whichRteLeadingText: Array[String] = Array("The template has a relation to an entity named \"" +
-                                                             templateAttribute.getDisplayString(0, None, None, simplify = true) +
-                                                             "\": how would you like the equivalent to be provided for this new entity being created?" +
-                                                             " (0/ESC to just skip this one for now)")
-              val whichRteChoices = Array[String]("Copy the template entity, editing its name (MOST LIKELY CHOICE)",
-                                          "Create a new entity or search for an existing one for this purpose",
-                                          "Keep a reference to the same entity as in the template (least likely choice)")
-              val whichRteResponse = ui.askWhich(Some(whichRteLeadingText), whichRteChoices)
-              if (whichRteResponse.isEmpty) {
+              askEveryTime = {
+                if (askEveryTime.isDefined) {
+                  askEveryTime
+                } else {
+                  val howRTEsLeadingText: Array[String] = Array("The template has relations to entities.  How would you like the equivalent to be provided" +
+                                                                " for this new entity being created?")
+                  val howHandleRTEsChoices = Array[String]("For ALL entity relations being added: " + choice1text,
+                                                           "For ALL entity relations being added: " + choice2text,
+                                                           "For ALL entity relations being added: " + choice3text,
+                                                           "Ask for each relation to entity being created from the template")
+                  val howHandleRTEsResponse = ui.askWhich(Some(howRTEsLeadingText), howHandleRTEsChoices)
+                  if (howHandleRTEsResponse.isDefined) {
+                    if (howHandleRTEsResponse.get == 1) {
+                      allCopy = true
+                      Some(false)
+                    } else if (howHandleRTEsResponse.get == 2) {
+                      allCreateOrSearch = true
+                      Some(false)
+                    } else if (howHandleRTEsResponse.get == 3) {
+                      allKeepReference = true
+                      Some(false)
+                    } else if (howHandleRTEsResponse.get == 4) {
+                      Some(true)
+                    } else {
+                      ui.displayText("Unexpected answer: " + howHandleRTEsResponse.get)
+                      None
+                    }
+                  } else {
+                    None
+                  }
+                }
+              }
+              if (askEveryTime.isEmpty) {
                 None
               } else {
-                if (whichRteResponse.get == 1) {
-                  val templatesRelatedEntity: Entity = new Entity(db,a.getRelatedId2)
-                  val oldName: String = templatesRelatedEntity.getName
-                  val newEntity = askForNameAndWriteEntity(Controller.ENTITY_TYPE, None, Some(oldName), None, None, templatesRelatedEntity.getClassId,
-                                           Some("EDIT THE ENTITY NAME:"))
-                  if (newEntity.isEmpty) {
-                    None
-                  } else {
-                    Some(entityIn.addRelationToEntity(a.getAttrTypeId, newEntity.get.getId, Some(a.getSortingIndex)))
-                  }
-                } else if (whichRteResponse.get == 2) {
-                  val dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(new RelationToEntityDataHolder(0, None, 0, 0), inEditing = false)
-                  if (dh.isDefined) {
-                    Some(entityIn.addRelationToEntity(a.getAttrTypeId, dh.get.entityId2, Some(a.getSortingIndex)))
-                  } else {
-                    None
-                  }
-                } else if (whichRteResponse.get == 3) {
-                  Some(entityIn.addRelationToEntity(a.getAttrTypeId, a.getRelatedId2, Some(a.getSortingIndex)))
-                } else {
-                  ui.displayText("Unexpected answer: " + whichRteResponse.get)
+                var whichRTEResponse: Option[Int] = None
+                if (askEveryTime.get) {
+                  val whichRteLeadingText: Array[String] = Array("The template has a relation to an entity named \"" +
+                                                                 templateAttribute.getDisplayString(0, None, None, simplify = true) +
+                                                                 "\": how would you like the equivalent to be provided for this new entity being created?" +
+                                                                 " (0/ESC to just skip this one for now)")
+                  val whichRTEChoices = Array[String](choice1text, choice2text, choice3text)
+                  whichRTEResponse = ui.askWhich(Some(whichRteLeadingText), whichRTEChoices)
+                }
+                if (askEveryTime.get && whichRTEResponse.isEmpty) {
                   None
+                } else {
+                  if (allCopy || (whichRTEResponse.isDefined && whichRTEResponse.get == 1)) {
+                    val templatesRelatedEntity: Entity = new Entity(db, a.getRelatedId2)
+                    val oldName: String = templatesRelatedEntity.getName
+                    val newEntity = askForNameAndWriteEntity(Controller.ENTITY_TYPE, None, Some(oldName), None, None, templatesRelatedEntity.getClassId,
+                                                             Some("EDIT THE ENTITY NAME:"), duplicateNameProbablyOK = true)
+                    if (newEntity.isEmpty) {
+                      None
+                    } else {
+                      Some(entityIn.addRelationToEntity(a.getAttrTypeId, newEntity.get.getId, Some(a.getSortingIndex)))
+                    }
+                  } else if (allCreateOrSearch || (whichRTEResponse.isDefined && whichRTEResponse.get == 2)) {
+                    val dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(new RelationToEntityDataHolder(0, None, 0, 0), inEditing = false)
+                    if (dh.isDefined) {
+                      Some(entityIn.addRelationToEntity(a.getAttrTypeId, dh.get.entityId2, Some(a.getSortingIndex)))
+                    } else {
+                      None
+                    }
+                  } else if (allKeepReference || (whichRTEResponse.isDefined && whichRTEResponse.get == 3)) {
+                    Some(entityIn.addRelationToEntity(a.getAttrTypeId, a.getRelatedId2, Some(a.getSortingIndex)))
+                  } else {
+                    ui.displayText("Unexpected answer: " + whichRTEResponse.get)
+                    None
+                  }
                 }
               }
             case a: RelationToGroup =>
@@ -2523,9 +2563,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             if (!attributeTypeFoundOnEntity) {
               val cde_typeId: Long = cde_attribute.getAttrTypeId
               val typeId = attributeTuple._2.getAttrTypeId
-              // This is an imperfect check, and will fail for example if there are 2 "has..." relations on the template (class-defining) entity, and
-              // only one on the entity being checked.  Perhaps this is a motive to use more descriptive relation types in template entities.
-              if (cde_typeId == typeId) {
+              // This is a very imperfect check.  Perhaps this is a motive to use more descriptive relation types in template entities.
+              val existingAttributeStringContainsTemplateString: Boolean = {
+                attributeTuple._2.getDisplayString(0, None, None, simplify = true).contains(cde_attribute.getDisplayString(0, None, None, simplify = true))
+              }
+              if (cde_typeId == typeId && existingAttributeStringContainsTemplateString) {
                 attributeTypeFoundOnEntity = true
               }
             }
