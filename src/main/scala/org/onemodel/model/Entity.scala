@@ -173,7 +173,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
 
   def getId: Long = mId
 
-  def getAttrCount: Long = mDB.getAttrCount(mId)
+  def getAttrCount(): Long = mDB.getAttrCount(mId, mDB.includeArchivedEntities)
 
   def getDisplayString_helper(withColor: Boolean): String = {
     var displayString: String = {
