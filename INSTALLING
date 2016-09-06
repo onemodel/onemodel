@@ -41,9 +41,9 @@ Compiling before installing is optional, but developers should have java
 
 First you'll need a java SDK, like openJdk 1.7 (minimum).  Then install maven (mvn).
 These versions are known to work, on debian 7 (wheezy) or 8 (jessie)
-as of 2015-12:
+as of 2016-9:
     Apache Maven 3.0.4 or 3.0.5.
-    Java version: OpenJDK 1.7.0_65 or 1.7.0_91.
+    Java version: OpenJDK 1.7.0_65, 1.7.0_91 or 1.8.0_102.
 ...but other versions probably work too.
 
 Then in the directory where you have onemodel, run
