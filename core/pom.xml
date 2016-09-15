@@ -1,0 +1,299 @@
+<!--
+    This file is part of OneModel, a program to manage knowledge.
+    Copyright in each year of 2010-2016 inclusive, Luke A Call; all rights reserved.
+    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
+    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+    You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.onemodel</groupId>
+    <artifactId>onemodel</artifactId>
+    <version>0.2.0-SNAPSHOT</version>
+  </parent>
+  <groupId>org.onemodel</groupId>
+  <artifactId>core</artifactId>
+  <packaging>jar</packaging>
+  <version>0.2.0-SNAPSHOT</version>
+  <name>OneModel core and CLI</name>
+  <url>http://www.onemodel.org</url>
+  <licenses>
+    <license><comments>See the file LICENSE.</comments></license>
+  </licenses>
+  <properties>
+    <jdkVersion>1.6</jdkVersion>
+    <aspectj.version>1.7.3</aspectj.version>
+    <!-- encoding as per http://blog.vinodsingh.com/2009/04/encoding-warning-with-maven-210.html  -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <scala.version>2.10.3</scala.version>
+    <mainTextUIClass>org.onemodel.TextUI</mainTextUIClass>
+    <!-- why is next line needed for exec plugin to work from cli as just "mvn exec:java"? I had tried
+         a plugin configuration section with "<mainClass>${mainTextUIClass}</mainClass>", or with "exec.mainClass",
+         but it didn't seem to work and this does. -->
+    <exec.mainClass>${mainTextUIClass}</exec.mainClass>
+  </properties>
+  <build>
+    <finalName>onemodel-core-${project.version}</finalName>
+    <resources>
+      <resource>
+        <directory>${basedir}/../</directory>
+        <includes>
+          <!--
+          <include>src/main/resources/jlinebindings.properties</include>
+          -->
+          <include>LICENSE</include>
+          <include>INSTALLING</include>
+          <include>README</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>${basedir}</directory>
+        <includes>
+          <include>INSTALLING</include>
+        </includes>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <groupId>org.scala-tools</groupId>
+        <artifactId>maven-scala-plugin</artifactId>
+        <version>2.15.2</version>
+        <configuration>
+          <scalaVersion>2.10.3</scalaVersion>
+        </configuration>
+        <executions>
+          <execution>
+            <id>compile</id>
+            <goals>
+            <goal>compile</goal>
+            </goals>
+            <phase>compile</phase>
+          </execution>
+          <execution>
+            <id>test-compile</id>
+            <goals>
+            <goal>testCompile</goal>
+            </goals>
+            <phase>test-compile</phase>
+          </execution>
+          <execution>
+            <phase>process-resources</phase>
+            <goals>
+            <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.3.2</version>
+        <configuration>
+          <source>${jdkVersion}</source>
+          <target>${jdkVersion}</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <!-- This is just to set the mainClass so it becomes a runnable jar, for execution convenience. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.4.2</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>${mainTextUIClass}</mainClass>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.DontIncludeResourceTransformer">
+                  <!-- what was making the apache license show up in the jar: put there by a dependency? Avoid confusion: OM is not under the apache license -->
+                  <resource>META-INF/LICENSE.txt</resource>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- as of 2013-6, aspectj is only used for some (hoped-for) debugging convenience. -->
+        <!-- as of 2013-9, aspectj at compile time doesn't seem to work for scala code, using
+             the mvn plugin, but only the java code.  However, if this isn't here, in ADDITION
+             to the next plugin (antrun) below, aspects don't seem to work.  A future possible task to
+             figure out why and and improve it.
+             -->
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>aspectj-maven-plugin</artifactId>
+        <version>1.4</version>
+        <executions>
+          <execution>
+            <id>compile</id>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <phase>process-classes</phase>
+            <configuration>
+              <source>${jdkVersion}</source>
+              <target>${jdkVersion}</target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>test-compile</id>
+            <goals>
+              <goal>test-compile</goal>
+            </goals>
+            <phase>process-test-classes</phase>
+            <configuration>
+              <source>${jdkVersion}</source>
+              <target>${jdkVersion}</target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!--  ...but someone suggested this way instead: 
+             (at http://stackoverflow.com/questions/6102518/maven-scala-spring-aspectj ) 
+             However, this doesn't work for some reason unless after 'mvn clean' you also run
+             'mvn package' *twice*.  And if you want the aspects to go away after changing the
+             code, run 'mvn clean' of course.
+             (It might be better still to weave aspects at load time instead of with these 2 plugins
+             at compile time, as described here for one:
+             http://java.dzone.com/articles/aspectj-akka-and-scala   .)
+        -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>1.6</version>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+                <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <taskdef resource="org/aspectj/tools/ant/taskdefs/aspectjTaskdefs.properties"
+                  classpathref="maven.plugin.classpath" />
+                <iajc
+                  srcDir="src/main/scala"
+                  destDir="target/classes"
+                  inpath="target/classes"
+                  source="1.6"
+                  aspectPath="${org.springframework:spring-aspects:jar}"
+                  classpathRef="maven.compile.classpath"
+                  Xlint="ignore" />
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+              <groupId>org.aspectj</groupId>
+              <artifactId>aspectjtools</artifactId>
+              <version>${aspectj.version}</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <!-- disable surefire (so scala tests can run, as per scalatest web site docs -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.7</version> <!-- version probably insignificant for this, but having it might mean fewer downloading delays-->
+        <configuration>
+          <skipTests>true</skipTests>
+        </configuration>
+      </plugin>
+      <!-- enable scalatest -->
+      <plugin>
+        <groupId>org.scalatest</groupId>
+        <artifactId>scalatest-maven-plugin</artifactId>
+        <version>1.0-RC1</version>
+        <configuration>
+          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+          <junitxml>.</junitxml>
+          <!--filereports>WDF TestSuite.txt</filereports-->
+          <filereports>scalatestTestSuite.txt</filereports>
+        </configuration>
+        <executions>
+          <execution>
+            <id>test</id>
+            <goals>
+              <goal>test</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- more info:  http://www.mojohaus.org/exec-maven-plugin -->
+        <groupId>org.codehouse.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.4.0</version>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>8.4-701.jdbc4</version>
+    </dependency>
+    <dependency>
+      <groupId>jline</groupId>
+      <artifactId>jline</artifactId>
+      <version>2.14.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.aspectj</groupId>
+      <artifactId>aspectjrt</artifactId>
+      <version>${aspectj.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <version>1.9.5</version>
+      <scope>test</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+      <version>${scala.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scalatest</groupId>
+      <artifactId>scalatest_2.10</artifactId>
+      <version>2.0</version>
+      <scope>test</scope>
+      <!-- adding these exclusions so that they will override scalatest's trying to force use of
+           scala 2.10.0 (which prevents scala console from working).
+      -->
+      <exclusions>
+        <exclusion>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-compiler</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-reflect</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.4</version>
+    </dependency>
+  </dependencies>
+</project>
+
