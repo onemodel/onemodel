@@ -26,11 +26,9 @@
     <license><comments>See the file LICENSE.</comments></license>
   </licenses>
   <properties>
-    <jdkVersion>1.6</jdkVersion>
     <aspectj.version>1.7.3</aspectj.version>
     <!-- encoding as per http://blog.vinodsingh.com/2009/04/encoding-warning-with-maven-210.html  -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <scala.version>2.11.8</scala.version>
     <mainTextUIClass>org.onemodel.TextUI</mainTextUIClass>
     <!-- why is next line needed for exec plugin to work from cli as just "mvn exec:java"? I had tried
          a plugin configuration section with "<mainClass>${mainTextUIClass}</mainClass>", or with "exec.mainClass",

@@ -21,6 +21,8 @@
     <license><comments>See the file LICENSE.</comments></license>
   </licenses>
   <properties>
+    <jdkVersion>1.6</jdkVersion>
+    <scala.version>2.11.8</scala.version>
   </properties>
   <build>
     <plugins>
@@ -30,6 +32,7 @@
   </dependencies>
   <modules>
     <module>core</module>
+    <module>web</module>
   </modules>
 </project>
 
