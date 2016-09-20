@@ -9,6 +9,10 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 
+//The Play docs say to add this, but what is it needed for? Only if needed plugins are found only there?:
+// (doc:   https://www.playframework.com/documentation/2.5.x/NewApplication )
+//resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/maven-releases/"
+
 // The Play plugin
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.5.8")
 

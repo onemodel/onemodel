@@ -8,19 +8,20 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-val projectVersion = "0.2.0-SNAPSHOT"
+package org.onemodel.controllers
 
-lazy val root = (project in file(".")).
-  settings(
-    organization := "org.onemodel",
-    name := "om-web",
-    version := projectVersion,
-    scalaVersion := "2.11.8",
-    resolvers += Resolver.mavenLocal,
-    libraryDependencies += "org.onemodel" % "core" % projectVersion
-  ).
-  enablePlugins(PlayScala)
+import javax.inject._
+import akka.util.ByteString
+import play.api.mvc._
+import play.api.http.HttpEntity
 
-// cached resolution for performance on multiple subprojects. Docs said
-// is experimental.  If issues, remove, and/or ck http://www.scala-sbt.org/1.0/docs/Cached-Resolution.html .
-updateOptions := updateOptions.value.withCachedResolution(true)
+class Application @Inject extends Controller {
+
+  def index: Action[AnyContent] = Action { implicit request =>
+//    Ok("Got request [" + request + "]")
+    Result(
+      header = ResponseHeader(200, Map.empty),
+      body = HttpEntity.Strict(ByteString("Hello world!  Got request [" + request + "]"), Some("text/plain"))
+    )
+  }
+}
