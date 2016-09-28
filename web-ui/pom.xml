@@ -17,10 +17,10 @@
     <version>0.2.0-SNAPSHOT</version>
   </parent>
   <groupId>org.onemodel</groupId>
-  <artifactId>rest-server</artifactId>
+  <artifactId>web-ui</artifactId>
   <packaging>play2</packaging>
   <version>0.2.0-SNAPSHOT</version>
-  <name>OneModel rest-server module</name>
+  <name>OneModel web UI module</name>
   <url>http://www.onemodel.org</url>
   <licenses>
     <license><comments>See the file LICENSE in parent directory.</comments></license>
@@ -120,8 +120,8 @@
       </plugin>
       <plugin>
         <groupId>com.google.code.sbt-compiler-maven-plugin</groupId>
-        <artifactId>${sbt-compiler-maven-plugin}</artifactId>
-        <version>sbt-compiler-maven-plugin.version</version>
+        <artifactId>sbt-compiler-maven-plugin</artifactId>
+        <version>${sbt-compiler-maven-plugin.version}</version>
       </plugin>
     </plugins>
   </build>
