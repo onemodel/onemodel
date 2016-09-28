@@ -15,13 +15,14 @@ import akka.util.ByteString
 import play.api.mvc._
 import play.api.http.HttpEntity
 
-class Application @Inject extends Controller {
+import org.onemodel.controller._
+
+class Application @Inject extends play.api.mvc.Controller {
 
   def index: Action[AnyContent] = Action { implicit request =>
-//    Ok("Got request [" + request + "]")
     Result(
       header = ResponseHeader(200, Map.empty),
-      body = HttpEntity.Strict(ByteString("Hello world!  Got request [" + request + "]"), Some("text/plain"))
+      body = HttpEntity.Strict(ByteString("Got request [" + request + "]?: " + org.onemodel.controller.Controller.isWindows), Some("text/plain"))
     )
   }
 }

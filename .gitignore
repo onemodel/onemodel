@@ -13,3 +13,4 @@ out/
 .todo-om-dev-details.txt.marks
 dependency-reduced-pom.xml
 .history
+testscalaworksheet.sc
