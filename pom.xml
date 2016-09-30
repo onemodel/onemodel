@@ -23,8 +23,6 @@
   <properties>
     <jdkVersion>1.6</jdkVersion>
     <scala.version>2.11.8</scala.version>
-    <play2-maven-plugin.version>1.0.0-beta5</play2-maven-plugin.version>
-    <sbt-compiler-maven-plugin.version>1.0.0-beta9</sbt-compiler-maven-plugin.version>
   </properties>
   <build>
     <plugins>
@@ -34,8 +32,7 @@
   </dependencies>
   <modules>
     <module>core</module>
-    <module>rest-server</module>
-    <module>web-ui</module>
+    <module>web</module>
   </modules>
 </project>
 
