@@ -65,6 +65,14 @@
       <version>${play2.version}</version>
       <scope>runtime</scope>
     </dependency>
+
+    <!-- apparently required so mvn can see it, since w/o this, sbt compile works, but running mvn compile doesn't work, even though
+         we are using play2-maven-plugin . -->
+    <dependency>
+      <groupId>org.onemodel</groupId>
+      <artifactId>core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
