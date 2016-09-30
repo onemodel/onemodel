@@ -23,7 +23,7 @@
   <name>OneModel web module</name>
   <url>http://www.onemodel.org</url>
   <licenses>
-    <license><comments>See the file LICENSE.</comments></license>
+    <license><comments>See the file LICENSE in parent directory.</comments></license>
   </licenses>
 
   <properties>
@@ -88,8 +88,8 @@
         <version>1.0.0-beta5</version>
         <extensions>true</extensions>
         <configuration>
-          <!-- if using controllers without dependency injection; default value is "injected" -->
-          <routesGenerator>static</routesGenerator>
+          <!-- if using controllers without dependency injection; default value is "injected": -->
+          <!--routesGenerator>static</routesGenerator-->
         </configuration>
         <!-- (leaving these example execution configs in, because it is very likely I'd forget
              to get them from the webpage when adding the dependencies if needed later.)

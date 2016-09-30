@@ -17,8 +17,7 @@ import play.api.http.HttpEntity
 
 import org.onemodel.controller._
 
-class Application @Inject extends play.api.mvc.Controller {
-
+class Application @Inject extends Controller {
   def index: Action[AnyContent] = Action { implicit request =>
     Result(
       header = ResponseHeader(200, Map.empty),

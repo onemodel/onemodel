@@ -23,10 +23,9 @@
   <name>OneModel core and CLI</name>
   <url>http://www.onemodel.org</url>
   <licenses>
-    <license><comments>See the file LICENSE.</comments></license>
+    <license><comments>See the file LICENSE in parent directory.</comments></license>
   </licenses>
   <properties>
-    <aspectj.version>1.7.3</aspectj.version>
     <!-- encoding as per http://blog.vinodsingh.com/2009/04/encoding-warning-with-maven-210.html  -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <mainTextUIClass>org.onemodel.TextUI</mainTextUIClass>
@@ -121,84 +120,6 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <!-- as of 2013-6, aspectj is only used for some (hoped-for) debugging convenience. -->
-        <!-- as of 2013-9, aspectj at compile time doesn't seem to work for scala code, using
-             the mvn plugin, but only the java code.  However, if this isn't here, in ADDITION
-             to the next plugin (antrun) below, aspects don't seem to work.  A future possible task to
-             figure out why and and improve it.
-             -->
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>aspectj-maven-plugin</artifactId>
-        <version>1.4</version>
-        <executions>
-          <execution>
-            <id>compile</id>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-            <phase>process-classes</phase>
-            <configuration>
-              <source>${jdkVersion}</source>
-              <target>${jdkVersion}</target>
-            </configuration>
-          </execution>
-          <execution>
-            <id>test-compile</id>
-            <goals>
-              <goal>test-compile</goal>
-            </goals>
-            <phase>process-test-classes</phase>
-            <configuration>
-              <source>${jdkVersion}</source>
-              <target>${jdkVersion}</target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <!--  ...but someone suggested this way instead: 
-             (at http://stackoverflow.com/questions/6102518/maven-scala-spring-aspectj ) 
-             However, this doesn't work for some reason unless after 'mvn clean' you also run
-             'mvn package' *twice*.  And if you want the aspects to go away after changing the
-             code, run 'mvn clean' of course.
-             (It might be better still to weave aspects at load time instead of with these 2 plugins
-             at compile time, as described here for one:
-             http://java.dzone.com/articles/aspectj-akka-and-scala   .)
-        -->
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <version>1.6</version>
-        <executions>
-          <execution>
-            <phase>compile</phase>
-            <goals>
-                <goal>run</goal>
-            </goals>
-            <configuration>
-              <target>
-                <taskdef resource="org/aspectj/tools/ant/taskdefs/aspectjTaskdefs.properties"
-                  classpathref="maven.plugin.classpath" />
-                <iajc
-                  srcDir="src/main/scala"
-                  destDir="target/classes"
-                  inpath="target/classes"
-                  source="1.6"
-                  aspectPath="${org.springframework:spring-aspects:jar}"
-                  classpathRef="maven.compile.classpath"
-                  Xlint="ignore" />
-              </target>
-            </configuration>
-          </execution>
-        </executions>
-        <dependencies>
-          <dependency>
-              <groupId>org.aspectj</groupId>
-              <artifactId>aspectjtools</artifactId>
-              <version>${aspectj.version}</version>
-          </dependency>
-        </dependencies>
-      </plugin>
       <!-- disable surefire (so scala tests can run, as per scalatest web site docs -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -246,11 +167,6 @@
       <groupId>jline</groupId>
       <artifactId>jline</artifactId>
       <version>2.14.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.aspectj</groupId>
-      <artifactId>aspectjrt</artifactId>
-      <version>${aspectj.version}</version>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>

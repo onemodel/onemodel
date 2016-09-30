@@ -21,7 +21,7 @@
     <license><comments>See the file LICENSE.</comments></license>
   </licenses>
   <properties>
-    <jdkVersion>1.6</jdkVersion>
+    <jdkVersion>1.8</jdkVersion>
     <scala.version>2.11.8</scala.version>
   </properties>
   <build>
