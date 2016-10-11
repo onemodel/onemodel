@@ -10,6 +10,7 @@
 package org.onemodel.core
 
 import java.io.File
+import java.util
 
 import org.onemodel.core.controllers.{Controller, ImportExport}
 import org.onemodel.core.database.PostgreSQLDatabase
@@ -85,6 +86,21 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val dbVer: Int = results(0).get.asInstanceOf[Int]
     assert(dbVer == PostgreSQLDatabase.CURRENT_DB_VERSION, "dbVer and PostgreSQLDatabase.CURRENT_DB_VERSION are: " +
                                                            dbVer + ", " + PostgreSQLDatabase.CURRENT_DB_VERSION)
+  }
+
+  "getLocalOmInstanceData and friends" should "work" in {
+    val oi: OmInstance = mDB.getLocalOmInstanceData
+    val uuid: String = oi.getId
+    assert(mDB.omInstanceKeyExists(uuid))
+    assert(mDB.getOmInstanceCount == 1)
+    val oiAgainAddress = mDB.getOmInstanceData(uuid)(1).get.asInstanceOf[String]
+    assert(oiAgainAddress == "localhost")
+    val omInstances: util.ArrayList[OmInstance] = mDB.getOmInstances()
+    assert(omInstances.size == 1)
+    assert(mDB.getOmInstances(Some(true)).size == 1)
+    assert(mDB.getOmInstances(Some(false)).size == 0)
+    assert(! mDB.omInstanceKeyExists(java.util.UUID.randomUUID().toString))
+    assert(new OmInstance(mDB, uuid).getAddress == "localhost")
   }
 
   "escapeQuotesEtc" should "allow updating db with single-quotes" in {
@@ -1009,7 +1025,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
         // leave it null so calling it will fail as desired below.
         mConn = null
       }
-      override def createExpectedData(): Unit = {
+      override def createAndCheckExpectedData(): Unit = {
         // Overriding because it is not needed for this test, and normally uses mConn, which by being set to null just above, breaks the method.
         // (intentional style violation for readability)
         //noinspection ScalaUselessExpression

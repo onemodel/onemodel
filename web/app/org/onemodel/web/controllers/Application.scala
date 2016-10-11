@@ -10,18 +10,17 @@
 */
 package org.onemodel.web.controllers
 
-import javax.inject._
 import akka.util.ByteString
 import play.api.mvc._
 import play.api.http.HttpEntity
 
-import org.onemodel.core.controllers._
-
 class Application extends play.api.mvc.Controller {
   def index: Action[AnyContent] = Action { implicit request =>
+    val msg: String = "Stub web UI; just REST endpoints are working here for now.\n\n" +
+                      "(Got request [" + request + "].  Test value: " + org.onemodel.core.controllers.Controller.isWindows + ".)"
     Result(
       header = ResponseHeader(200, Map.empty),
-      body = HttpEntity.Strict(ByteString("Got request [" + request + "]?: " + org.onemodel.core.controllers.Controller.isWindows), Some("text/plain"))
+      body = HttpEntity.Strict(ByteString(msg), Some("text/plain"))
     )
   }
 }

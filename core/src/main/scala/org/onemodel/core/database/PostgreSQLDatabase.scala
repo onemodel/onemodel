@@ -31,7 +31,7 @@ import scala.util.Sorting
   */
 object PostgreSQLDatabase {
   // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
-  val CURRENT_DB_VERSION = 3
+  val CURRENT_DB_VERSION = 4
   val dbNamePrefix = "om_"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
@@ -95,6 +95,7 @@ object PostgreSQLDatabase {
     drop("table", "grupo", connIn)
     drop("table", Controller.RELATION_TYPE_TYPE, connIn)
     drop("table", "AttributeSorting", connIn)
+    drop("table", "om_instance", connIn)
     drop("table", Controller.ENTITY_TYPE, connIn)
     drop("table", "class", connIn)
     drop("sequence", "EntityKeySequence", connIn)
@@ -257,7 +258,7 @@ object PostgreSQLDatabase {
  */
 class PostgreSQLDatabase(username: String, var password: String) {
   private val ENTITY_ONLY_SELECT_PART: String = "SELECT e.id"
-  protected var mConn: Connection = null
+  protected var mConn: Connection = _
   // When true, this means to override the usual settings and show the archived entities too (like a global temporary "un-archive"):
   private var mIncludeArchivedEntities = false
 
@@ -272,12 +273,12 @@ class PostgreSQLDatabase(username: String, var password: String) {
     createBaseData()
   }
   doDatabaseUpgradesIfNeeded()
-  createExpectedData()
+  createAndCheckExpectedData()
 
-  /** Creates newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
+  /** For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
     * after an OM release was done.  This puts it into existing databases if needed.
     */
-  def createExpectedData(): Unit = {
+  def createAndCheckExpectedData(): Unit = {
     //Idea: should this really be in the controller then?  It wouldn't differ by which database type we are using.  Hmm, no, if there were multiple
     // database types, there would probably a parent class over them (of some kind) to hold this.
     val systemEntityId = getSystemEntityId
@@ -619,7 +620,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "id bigint DEFAULT nextval('RelationToGroupKeySequence') PRIMARY KEY, " +
                "name varchar(" + PostgreSQLDatabase.entityNameLength + ") NOT NULL, " +
                // intended to be a readonly date: the (*java*-style numeric: milliseconds since 1970-1-1 or such) when this row was inserted (ie, when the
-               // entity object was created in the db):
+               // object was created in the db):
                "insertion_date bigint not null, " +
                "allow_mixed_classes boolean NOT NULL, " +
                // see comment at same field in Entity table
@@ -692,6 +693,37 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ") ")
       dbAction("create index action_class_id on Action (class_id)")
 
+      /* This current database is one OM instance, and known (remote or local) databases to which this one might refer are other instances.
+        Design musings:
+      This is being implemented in an explicit table instead of just with the features around EntityClass objects & the "class" table, to
+      avoid a chicken/egg problem:
+      imagine a new OM instance, or one where the user deleted via the UI the relevant entity class(es) for handling remote OM instances: how would the user
+      retrieve those classes from others' shared OM data if the feature to connect to remote ones is broken?  Still, it is debatable whether it would have
+      worked just as well to put this info in an entity under the .system entity, like user preferences are, and try to prevent deleting it or something,
+      because other info might be needed on it in the future such as security settings, and using the entity_id field for links to that info could become
+      just as awkward as having an entity to begin with.  But doing it the way it is now might make db-level constraints on such things
+      more reliable, especially given that the OM-level constraints via classes/code on entities isn't developed yet.
+
+      This might have some design overlap with the ".system" entity; maybe that should have been put here?
+       */
+      dbAction("create table om_instance (" +
+               "id uuid PRIMARY KEY" +
+               ", local boolean NOT NULL" +
+               // Address and port could be an IPv4 or IPv6 address or a hostname to be checked in DNS; ":<port> is optional, or a default of 9000 is assumed?
+               // Examples include: localhost, 127.0.0.1:2345, ::1  (?), om.example.com, my.example.com:80, om.example.com:8080, xyz.example.com:9000 .
+               // Idea: Is it worth having to know future formats, to enforce validity in a constraint?  Problems seem likely to be infrequent & easy to fix.
+               // (The DNS hostname max size seems to be 255 plus a null, but the ":<port>" part could add 6 more digits.
+               // Maybe someday we will have to move to a larger size in case it changes or uses unicode or I don't know what.)
+               ", address varchar(261) NOT NULL" +
+               // See table entity for description:
+               ", insertion_date bigint not null" +
+               // To link to an entity with whatever details, such as a human-given name for familiarity, security settings, other adhoc info, etc.
+               // NULL values are intentionally allowed, in case user doesn't need to specify any extra info about an om_instance.
+               // Idea: require a certain class for this entity, created at startup/db initialization? or a shared one? Waiting until use cases become clearer.
+               ", entity_id bigint REFERENCES entity (id) ON DELETE RESTRICT" +
+               ") ")
+
+
       dbAction("UPDATE om_db_version SET (version) = (" + PostgreSQLDatabase.CURRENT_DB_VERSION + ")")
       commitTrans()
     } catch {
@@ -710,15 +742,18 @@ class PostgreSQLDatabase(username: String, var password: String) {
     if (! versionTableExists) {
       createVersionTable()
     }
-    val dbVersion: Int = dbQueryWrapperForOneRow("select version from om_db_version", "Int")(0).get.asInstanceOf[Int]
+    var dbVersion: Int = dbQueryWrapperForOneRow("select version from om_db_version", "Int")(0).get.asInstanceOf[Int]
     if (dbVersion == 0) {
-      upgradeDbFrom0to1()
+      dbVersion = upgradeDbFrom0to1()
     }
     if (dbVersion == 1) {
-      upgradeDbFrom1to2()
+      dbVersion = upgradeDbFrom1to2()
     }
     if (dbVersion == 2) {
-      upgradeDbFrom2to3()
+      dbVersion = upgradeDbFrom2to3()
+    }
+    if (dbVersion == 3) {
+      dbVersion = upgradeDbFrom3to4()
     }
     /* NOTE FOR FUTURE METHODS LIKE upgradeDbFrom0to1: methods like this should be designed carefully and very well-tested:
        0) make & test periodic backups of your live data to be safe!
@@ -730,9 +765,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
           commands there, do manual verifications, then rollback.
        It doesn't seem to make sense to test methods like this with a unit test because the tests are run on a db created as a new
        system, so there is no upgrade to do on a new test, and no known need to call this method except on old systems being upgraded.
-       (See also related comment above this doDatabaseUpgradesIfNeeded method.)
+       (See also related comment above this doDatabaseUpgradesIfNeeded method.)  Better ideas?
       */
 
+    // This at least makes sure all the upgrades ran to completion:
     require(dbVersion == PostgreSQLDatabase.CURRENT_DB_VERSION)
   }
 
@@ -742,7 +778,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     dbAction("INSERT INTO om_db_version (version) values (0)")
   }
 
-  private def upgradeDbFrom0to1() = {
+  private def upgradeDbFrom0to1(): Int = {
     beginTrans()
     try {
       dbAction("ALTER TABLE AttributeSorting DROP CONSTRAINT valid_attribute_form_id")
@@ -789,8 +825,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
       case e: Exception => throw rollbackWithCatch(e)
     }
     commitTrans()
+    1
   }
-  private def upgradeDbFrom1to2() = {
+  private def upgradeDbFrom1to2(): Int = {
     beginTrans()
     try {
       dbAction("ALTER TABLE class ADD COLUMN create_default_attributes boolean")
@@ -800,21 +837,38 @@ class PostgreSQLDatabase(username: String, var password: String) {
       case e: Exception => throw rollbackWithCatch(e)
     }
     commitTrans()
+    2
   }
-
-  private def upgradeDbFrom2to3() = {
+  private def upgradeDbFrom2to3(): Int = {
     beginTrans()
     try {
       dbAction("ALTER TABLE entity ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
       dbAction("ALTER TABLE grupo ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
-      //When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION.
-      // (Do we really need the require statement that checks it though? Seems vaguely good to check, but it costs when forgetting, and what benefit? Hm.)
       dbAction("UPDATE om_db_version SET (version) = (3)")
     }
     catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
     commitTrans()
+    3
+  }
+  private def upgradeDbFrom3to4(): Int = {
+    beginTrans()
+    try {
+      dbAction("create table om_instance (" + "id uuid PRIMARY KEY" + ", local boolean NOT NULL" +
+               ", address varchar(261) NOT NULL" + ", insertion_date bigint not null" +
+               ", entity_id bigint REFERENCES entity (id) ON DELETE RESTRICT " + ") ")
+      // (this, or with its successors in later such methods, should be same as the line in createBaseData)
+      createOmInstance(java.util.UUID.randomUUID().toString, isLocalIn = true, "localhost", None)
+      //When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION.
+      // (Do we really need the require statement that checks it though? Seems vaguely good to check, but it costs when forgetting, and what benefit? Hm.)
+      dbAction("UPDATE om_db_version SET (version) = (4)")
+    }
+    catch {
+      case e: Exception => throw rollbackWithCatch(e)
+    }
+    commitTrans()
+    4
   }
 
   def createAttributeSortingDeletionTrigger(): Long = {
@@ -1014,6 +1068,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
     // NOTICE: code should not rely on this name, but on data in the tables.
     /*val (classId, entityId) = */ createClassAndItsTemplateEntity("person")
+    // (should be same as the line in upgradeDbFrom3to4(), or when combined with later such methods, .)
+    createOmInstance(java.util.UUID.randomUUID().toString, isLocalIn = true, "localhost", None)
   }
 
   def createClassAndItsTemplateEntity(classNameIn: String): (Long, Long) = {
@@ -3166,7 +3222,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val earlyResults = dbQuery(sql, "Long,Long")
     val finalResults = new java.util.ArrayList[Entity]
     // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-    // dependencies; is a cleaner design. Or, maybe this class and all the object classes like Entity, etc, are all part of the same layer.)
+    // dependencies; is a cleaner design. Or, maybe this class and all the object classes like Entity, etc, are all part of the same layer.) And
+    // doing similarly elsewhere such as in getOmInstanceData().
     for (result <- earlyResults) {
       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
       finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long]))
@@ -3710,6 +3767,73 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   def setIncludeArchivedEntities(in: Boolean): Unit = {
     mIncludeArchivedEntities = in
+  }
+
+  def getOmInstanceCount: Long = {
+    extractRowCountFromCountQuery("SELECT count(1) from om_instance")
+  }
+
+  def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[Long] = None): String = {
+    if (idIn == null || idIn.length == 0) throw new OmDatabaseException("ID must have a value.")
+    if (addressIn == null || addressIn.length == 0) throw new OmDatabaseException("Address must have a value.")
+    val id: String = escapeQuotesEtc(idIn)
+    val address: String = escapeQuotesEtc(addressIn)
+    require(id == idIn, "Didn't expect quotes etc in the UUID provided: " + idIn)
+    require(address == addressIn, "Didn't expect quotes etc in the address provided: " + address)
+    val sql: String = "INSERT INTO om_instance (id, local, address, insertion_date, entity_id)" +
+                      " VALUES ('" + id + "'," + (if (isLocalIn) "TRUE" else "FALSE") + ",'" + address + "'," + System.currentTimeMillis() +
+                      ", " + (if (entityIdIn.isEmpty) "NULL" else entityIdIn.get) + ")"
+    dbAction(sql)
+    id
+  }
+
+  def getOmInstanceData(idIn: String): Array[Option[Any]] = {
+    val row: Array[Option[Any]] = dbQueryWrapperForOneRow("SELECT local, address, insertion_date, entity_id from om_instance" +
+                                                          " where id='" + idIn + "'", "Boolean,String,Long,Long")
+    row
+  }
+
+  def getLocalOmInstanceData: OmInstance = {
+    val sql = "SELECT id, address, insertion_date, entity_id from om_instance where local=TRUE"
+    val results = dbQuery(sql, "String,String,Long,Long")
+    if (results.size != 1) throw new OmDatabaseException("Got " + results.size + " instead of 1 result from sql " + sql +
+                                                         ".  Does the usage now warrant removing this check (ie, multiple locals stored)?")
+    val result = results.head
+    new OmInstance(this, result(0).get.asInstanceOf[String], isLocalIn = true,
+                   result(1).get.asInstanceOf[String],
+                   result(2).get.asInstanceOf[Long], if (result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Long]))
+  }
+
+  def omInstanceKeyExists(inId: String): Boolean = {
+    doesThisExist("SELECT count(1) from om_instance where id='" + inId + "'")
+  }
+
+  def getOmInstances(localIn: Option[Boolean] = None): java.util.ArrayList[OmInstance] = {
+    val sql = "select id, local, address, insertion_date, entity_id from om_instance" +
+              (if (localIn.isDefined) {
+                if (localIn.get) {
+                  " where local=TRUE"
+                } else {
+                  " where local=FALSE"
+                }
+              } else {
+                ""
+              })
+    val earlyResults = dbQuery(sql, "String,Boolean,String,Long,Long")
+    val finalResults = new java.util.ArrayList[OmInstance]
+    // (Idea: See note in similar point in getGroupEntryObjects.)
+    for (result <- earlyResults) {
+      finalResults.add(new OmInstance(this, result(0).get.asInstanceOf[String], isLocalIn = result(1).get.asInstanceOf[Boolean],
+                                      result(2).get.asInstanceOf[String],
+                                      result(3).get.asInstanceOf[Long], if (result(4).isEmpty) None else Some(result(4).get.asInstanceOf[Long])))
+    }
+    require(finalResults.size == earlyResults.size)
+    if (localIn.isDefined && localIn.get && finalResults.size == 0) {
+      val total = getOmInstanceCount
+      throw new OmDatabaseException("Unexpected: the # of rows om_instance where local=TRUE is 0, and there should always be at least one." +
+                                    "(See insert at end of createBaseData and upgradeDbFrom3to4.)  Total # of rows: " + total)
+    }
+    finalResults
   }
 
 }

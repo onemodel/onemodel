@@ -369,7 +369,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   }
 
   private def login(username: String, password: String, showError: Boolean): Option[PostgreSQLDatabase] = {
-    try new Some(new PostgreSQLDatabase(username, new String(password)))
+    try Some(new PostgreSQLDatabase(username, new String(password)))
     catch {
       case ex: PSQLException =>
         // attempt didn't work, but don't throw exc if the program

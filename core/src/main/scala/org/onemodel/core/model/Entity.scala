@@ -78,8 +78,11 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     mAlreadyReadData = true
   }
 
-  /** Allows createEntity to return an instance without duplicating the database check that it Entity(long, PostgreSQLDatabase) does. */
-  //idea: replace this w/ a mock? where used? same, for similar code elsewhere? (and EntityTest etc could be with mocks instead of real db use.)
+  /** Allows createEntity to return an instance without duplicating the database check that it Entity(long, PostgreSQLDatabase) does.
+    * (The 3rd parameter "ignoreMe" is so it will have a different signature and avoid compile errors.)
+    * */
+  // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and EntityTest etc could be with mocks
+  // instead of real db use.)  Does this really skip that other check though?
   @SuppressWarnings(Array("unused")) def this(inDB: PostgreSQLDatabase, inID: Long, ignoreMe: Boolean) {
     this(inDB, inID)
   }
@@ -173,18 +176,16 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
 
   def getId: Long = mId
 
-  def getAttrCount(): Long = mDB.getAttrCount(mId, mDB.includeArchivedEntities)
+  def getAttrCount: Long = mDB.getAttrCount(mId, mDB.includeArchivedEntities)
 
   def getDisplayString_helper(withColor: Boolean): String = {
     var displayString: String = {
       if (withColor) {
-        getPublicStatusDisplayStringWithColor()
+        getPublicStatusDisplayStringWithColor() + getArchivedStatusDisplayString + Color.blue(getName)
       } else {
-        getPublicStatusDisplayString()
+        getPublicStatusDisplayString() + getArchivedStatusDisplayString + getName
       }
     }
-    displayString += getArchivedStatusDisplayString
-    displayString += Color.blue(getName)
     val definerInfo = if (mDB.getClassCount(Some(mId)) > 0) "template (defining entity) for " else ""
     val className: Option[String] = if (getClassId.isDefined) mDB.getClassName(getClassId.get) else None
     displayString += (if (className.isDefined) " (" + definerInfo + "class: " + className.get + ")" else "")
@@ -394,7 +395,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   }
 
   var mAlreadyReadData: Boolean = false
-  var mName: String = null
+  var mName: String = _
   var mClassId: Option[Long] = None
   var mInsertionDate: Long = -1
   var mPublic: Option[Boolean] = None
