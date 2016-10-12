@@ -28,7 +28,7 @@
   <properties>
     <!-- encoding as per http://blog.vinodsingh.com/2009/04/encoding-warning-with-maven-210.html  -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <mainTextUIClass>org.onemodel.TextUI</mainTextUIClass>
+    <mainTextUIClass>org.onemodel.core.TextUI</mainTextUIClass>
     <!-- why is next line needed for exec plugin to work from cli as just "mvn exec:java"? I had tried
          a plugin configuration section with "<mainClass>${mainTextUIClass}</mainClass>", or with "exec.mainClass",
          but it didn't seem to work and this does. -->
