@@ -140,6 +140,10 @@ object Controller {
     } else Some(previouslyHighlightedEntryIn)
   }
 
+  def getDefaultUserInfo: (String, String) = {
+    (System.getProperty("user.name"), "x")
+  }
+
 }
 
 /** Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
@@ -304,12 +308,11 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val db = {
         var pwdOpt: Option[String] = None
         // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
-        val systemUserName = System.getProperty("user.name")
-        val defaultPassword = "x"
-        val dbWithSystemNameBlankPwd = login(systemUserName, defaultPassword, showError = false)
+        val (defaultUserName, defaultPassword) = Controller.getDefaultUserInfo
+        val dbWithSystemNameBlankPwd = login(defaultUserName, defaultPassword, showError = false)
         if (dbWithSystemNameBlankPwd.isDefined) dbWithSystemNameBlankPwd
         else {
-          val usrOpt = ui.askForString(Some(Array("Username")), None, Some(systemUserName))
+          val usrOpt = ui.askForString(Some(Array("Username")), None, Some(defaultUserName))
           if (usrOpt.isEmpty) System.exit(1)
           val dbConnectedWithBlankPwd = login(usrOpt.get, defaultPassword, showError = false)
           if (dbConnectedWithBlankPwd.isDefined) dbConnectedWithBlankPwd

@@ -11,16 +11,16 @@
 package org.onemodel.web.controllers
 
 import akka.util.ByteString
-import org.onemodel.core.database.PostgreSQLDatabase
-import org.onemodel.core.model._
 import play.api.mvc._
 import play.api.http.HttpEntity
 
+import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.model._
+
 class Rest extends play.api.mvc.Controller {
   def id: Action[AnyContent] = Action { implicit request =>
-    val systemUserName = System.getProperty("user.name")
-    val defaultPassword = "x"
-    val db = new PostgreSQLDatabase(systemUserName, defaultPassword)
+    val (user, pass) = org.onemodel.core.controllers.Controller.getDefaultUserInfo
+    val db = new PostgreSQLDatabase(user, pass)
     val inst: OmInstance = db.getLocalOmInstanceData
     val msg = "Instance " + inst.getDisplayString
     Result(
@@ -30,9 +30,8 @@ class Rest extends play.api.mvc.Controller {
   }
 
   def entity(idIn: Long): Action[AnyContent] = Action { implicit request =>
-    val systemUserName = System.getProperty("user.name")
-    val defaultPassword = "x"
-    val db = new PostgreSQLDatabase(systemUserName, defaultPassword)
+    val (user, pass) = org.onemodel.core.controllers.Controller.getDefaultUserInfo
+    val db = new PostgreSQLDatabase(user, pass)
     val exists: Boolean = db.entityOnlyKeyExists(idIn)
     if (! exists) {
       val msg: String = "Entity " + idIn + " was not found."
@@ -49,7 +48,7 @@ class Rest extends play.api.mvc.Controller {
               )
       } else {
         val msg: String = "Entity " + idIn + " is not public."
-        //idea: look in http response codes: is there one that makes more sense than this, for this use?:
+        //idea: look in http response codes: is there one that makes more sense than this, here?
         NotFound(msg)
       }
     }
