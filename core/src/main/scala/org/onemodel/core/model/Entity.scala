@@ -54,6 +54,8 @@ object Entity {
   *
   * This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
   * Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
+  *   (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
+  *   set... method to fix it.)
   */
 class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   if (!mDB.entityKeyExists(mId)) {
@@ -85,6 +87,12 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   // instead of real db use.)  Does this really skip that other check though?
   @SuppressWarnings(Array("unused")) def this(inDB: PostgreSQLDatabase, inID: Long, ignoreMe: Boolean) {
     this(inDB, inID)
+  }
+
+  def setClass(classIdIn: Option[Long]): Unit = {
+    mDB.updateEntitysClass(this.getId, classIdIn)
+    if (!mAlreadyReadData) readDataFromDB()
+    mClassId = classIdIn
   }
 
   /** When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).

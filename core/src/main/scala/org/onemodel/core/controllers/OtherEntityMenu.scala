@@ -23,7 +23,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
 
   def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
                       containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
-                      templateEntityIdIn: Option[Long], attributeTuplesIn: Array[(Long, Attribute)]) {
+                      attributeTuplesIn: Array[(Long, Attribute)]) {
     try {
       require(entityIn != null)
       val leadingText = Array[String]{ controller.entityMenuLeadingText(entityIn) }
@@ -34,7 +34,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                                   "Go to other related entities or groups...",
                                   "(stub)")
       //  don't show the "set default" option if it's already been done w/ this same one:
-      val defaultEntity: Option[Long] = controller.getDefaultEntity._1
+      val defaultEntityTuple: Option[(Long, Entity)] = controller.getDefaultEntity
+      val defaultEntity: Option[Long] = if (defaultEntityTuple.isEmpty) None else Some(defaultEntityTuple.get._1)
       val entityIsAlreadyTheDefault: Boolean = defaultEntity.isDefined && defaultEntity.get == entityIn.getId
       if (! entityIsAlreadyTheDefault) {
         choices = choices :+ ((if (defaultEntity.isEmpty) "****TRY ME---> " else "") +
@@ -84,9 +85,10 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             }
           }
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
-                          templateEntityIdIn, attributeTuplesIn)
+                          attributeTuplesIn)
         } else if (answer == 3) {
-          val templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(templateEntityIdIn, attributeTuplesIn)
+          val templateEntityId: Option[Long] = entityIn.getClassTemplateEntityId
+          val templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(templateEntityId, attributeTuplesIn)
           val editAnswer = ui.askWhich(Some(Array[String]{controller.entityMenuLeadingText(entityIn)}),
                                        Array("Edit entity name",
                                              "Change its class",
@@ -101,18 +103,18 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             if (editAnswer.get == 1) {
               val editedEntity: Option[Entity] = controller.editEntityName(entityIn)
               otherEntityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn,
-                              containingRelationToEntityIn, containingGroupIn, templateEntityIdIn, attributeTuplesIn)
+                              containingRelationToEntityIn, containingGroupIn, attributeTuplesIn)
             } else if (editAnswer.get == 2) {
               val classId: Option[Long] = controller.askForClass()
               if (classId.isDefined) {
-                db.updateEntitysClass(entityIn.getId, classId)
+                entityIn.setClass(classId)
 
                 // Idea here: when changing the class of an entity, we *could* controller.defaultAttributeCopying (or prompt as elsewhere) to
                 // set up the attributes, but the need is unclear, and user can now do that manually from the menus if needed.  Code in future
                 // should also be able to use default values from the template entity, as another fallback.
               }
               otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                              containingGroupIn, templateEntityIdIn, attributeTuplesIn)
+                              containingGroupIn, attributeTuplesIn)
             } else if (editAnswer.get == 3 && templateAttributesToCopy.nonEmpty) {
               controller.copyAndEditAttributes(entityIn, templateAttributesToCopy)
             } else if (editAnswer.get == 4) {
@@ -149,11 +151,12 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             } else {
               ui.displayText("invalid response")
               otherEntityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                              containingGroupIn, templateEntityIdIn, attributeTuplesIn)
+                              containingGroupIn, attributeTuplesIn)
             }
           }
         } else if (answer == 5) {
-          goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, templateEntityIdIn)
+          val templateEntityId: Option[Long] = entityIn.getClassTemplateEntityId
+          goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, templateEntityId)
           //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
           if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
             new EntityMenu(ui, db, controller).entityMenu(entityIn, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
@@ -165,7 +168,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         } else {
           ui.displayText("invalid response")
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
-                          templateEntityIdIn, attributeTuplesIn)
+                          attributeTuplesIn)
         }
       }
     } catch {
@@ -174,7 +177,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
         if (ans.isDefined && ans.get) {
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
-                          containingGroupIn, templateEntityIdIn, attributeTuplesIn)
+                          containingGroupIn, attributeTuplesIn)
         }
     }
   }

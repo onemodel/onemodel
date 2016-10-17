@@ -36,7 +36,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     choices = choices :+ "Select target (entry move destination: gets a '+' marker)"
     // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
     choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; type a letter to go to its attr menu)" else "(stub)")
-    choices = choices :+ (if (controller.getDefaultEntity._1.isEmpty) "****TRY ME---> " else "") + "Other entity operations..."
+    choices = choices :+ (if (controller.getDefaultEntity.isEmpty) "****TRY ME---> " else "") + "Other entity operations..."
     choices
   }
 
@@ -62,7 +62,6 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     }
     if (containingGroupIn.isDefined) require(containingRelationToEntityIn.isEmpty)
     val numAttrsInEntity: Long = entityIn.getAttrCount
-    val templateEntityId: Option[Long] = entityIn.getClassTemplateEntityId
     val leadingText: Array[String] = new Array[String](2)
     val relationSourceEntity: Option[Entity] = {
       // (checking if exists also, because it could have been removed in another menu option)
@@ -273,7 +272,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         entityMenu(entityIn, attributeRowsStartingIndexIn, entryToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 9 && answer <= choices.length) {
         new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
-                                                                containingGroupIn, templateEntityId, attributeTuples)
+                                                                containingGroupIn, attributeTuples)
         if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
           // entity could have been deleted by some operation in OtherEntityMenu
           None

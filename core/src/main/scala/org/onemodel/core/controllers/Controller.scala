@@ -241,9 +241,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   }
 
   /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
-  def getDefaultEntity: (Option[Long], Option[Entity]) = {
+  def getDefaultEntity: Option[(Long, Entity)] = {
     if (defaultDisplayEntityId.isEmpty || ! db.entityKeyExists(defaultDisplayEntityId.get)) {
-      (None, None)
+      None
     } else {
       val entity: Option[Entity] = Entity.getEntityById(db, defaultDisplayEntityId.get)
       if (entity.isDefined && entity.get.isArchived) {
@@ -260,7 +260,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           }
         }
       }
-      (defaultDisplayEntityId, entity)
+      Some((defaultDisplayEntityId.get, entity.get))
     }
   }
 
@@ -272,7 +272,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     // Max id used as default here because it seems the least likely # to be used in the system hence the
     // most likely to cause an error as default by being missing, so the system can respond by prompting
     // the user in some other way for a use.
-    if (getDefaultEntity._1.isEmpty) {
+    if (getDefaultEntity.isEmpty) {
       ui.displayText("To get started, you probably want to find or create an " +
                      "entity (such as with your own name, to track information connected to you, contacts, possessions etc, " +
                      "or with the subject of study), then set that or some entity as your default (using its menu).")
@@ -290,7 +290,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     def menuLoop(goDirectlyToChoice: Option[Int] = None) {
       //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method! (should they be, in this case tho'?)
       //re-checking for the default each time because user can change it.
-      new MainMenu(ui, db, this).mainMenu(getDefaultEntity._2, goDirectlyToChoice)
+      new MainMenu(ui, db, this).mainMenu(if (getDefaultEntity.isEmpty) None else Some(getDefaultEntity.get._2),
+                                          goDirectlyToChoice)
       menuLoop()
     }
     menuLoop(Some(5))
