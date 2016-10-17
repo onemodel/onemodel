@@ -89,12 +89,6 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     this(inDB, inID)
   }
 
-  def setClass(classIdIn: Option[Long]): Unit = {
-    mDB.updateEntitysClass(this.getId, classIdIn)
-    if (!mAlreadyReadData) readDataFromDB()
-    mClassId = classIdIn
-  }
-
   /** When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
     * */
   def getName: String = {
@@ -395,7 +389,16 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     mNewEntriesStickToTop
   }
 
+  def updateClass(classIdIn: Option[Long]): Unit = {
+    if (!mAlreadyReadData) readDataFromDB()
+    if (classIdIn != mClassId) {
+      mDB.updateEntitysClass(this.getId, classIdIn)
+      mClassId = classIdIn
+    }
+  }
+
   def updateNewEntriesStickToTop(b: Boolean) = {
+    if (!mAlreadyReadData) readDataFromDB()
     if (b != mNewEntriesStickToTop) {
       mDB.updateEntityOnlyNewEntriesStickToTop(getId, b)
       mNewEntriesStickToTop = b

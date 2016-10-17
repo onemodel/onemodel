@@ -2508,6 +2508,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                     if (newEntity.isEmpty) {
                       None
                     } else {
+                      newEntity.get.updateNewEntriesStickToTop(templatesRelatedEntity.getNewEntriesStickToTop)
                       Some(entityIn.addRelationToEntity(a.getAttrTypeId, newEntity.get.getId, Some(a.getSortingIndex)))
                     }
                   } else if (allCreateOrSearch || (whichRTEResponse.isDefined && whichRTEResponse.get == 2)) {

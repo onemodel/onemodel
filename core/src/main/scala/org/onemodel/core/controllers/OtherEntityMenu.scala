@@ -107,7 +107,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
             } else if (editAnswer.get == 2) {
               val classId: Option[Long] = controller.askForClass()
               if (classId.isDefined) {
-                entityIn.setClass(classId)
+                entityIn.updateClass(classId)
 
                 // Idea here: when changing the class of an entity, we *could* controller.defaultAttributeCopying (or prompt as elsewhere) to
                 // set up the attributes, but the need is unclear, and user can now do that manually from the menus if needed.  Code in future
