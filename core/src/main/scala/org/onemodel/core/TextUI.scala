@@ -321,6 +321,13 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     *
     * If calling methods are kept small, it should be easy for them to visually determine which 'choice's go with the return value;
     * see current callers for examples of how to easily determine which 'moreChoice's go with the return value.
+    *
+    * @param highlightIndexIn 0-based (like almost everything; exceptions are noted.).
+    * @param secondaryHighlightIndexIn 0-based.
+    * @param defaultChoiceIn 1-based.
+    *
+    * @return 1-based (see description).
+    *
     */
   final def askWhich(leadingTextIn: Option[Array[String]],
                      choicesIn: Array[String],
@@ -328,17 +335,16 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
                      includeEscChoiceIn: Boolean = true,
                      trailingTextIn: Option[String] = None,
                      highlightIndexIn: Option[Int] = None,
-                     secondaryHighlightIndexIn: Option[Int] = None): Option[Int] = {
-    val result = askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn)
+                     secondaryHighlightIndexIn: Option[Int] = None,
+                     defaultChoiceIn: Option[Int] = None): Option[Int] = {
+    val result = askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn,
+                                              highlightIndexIn, secondaryHighlightIndexIn, defaultChoiceIn)
     if (result.isEmpty) None
     else Some(result.get._1)
   }
 
   /** Like askWhich but if user makes the alternate action on a choice (eg, double-click, click+differentButton, right-click, presses "alt+letter"),
     * then it tells you so in the 2nd (boolean) part of the return value.
-    *
-    * @param highlightIndexIn 0-based (like almost everything; exceptions are noted.).
-    * @param secondaryHighlightIndexIn 0-based.
     * */
   @tailrec
   final def askWhichChoiceOrItsAlternate(leadingTextIn: Option[Array[String]],
@@ -348,7 +354,8 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
                      trailingTextIn: Option[String] = None,
                      highlightIndexIn: Option[Int] = None,
                      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
-                     secondaryHighlightIndexIn: Option[Int] = None): Option[(Int, Boolean)] = {
+                     secondaryHighlightIndexIn: Option[Int] = None,
+                     defaultChoiceIn: Option[Int] = None): Option[(Int, Boolean)] = {
     // This attempts to always use as menu option keystroke choices: numbers for "choices" (such as major operations available on the
     // current entity) and letters for "moreChoices" (such as attributes of the current entity to select for further work).  But if
     // there are too many "choices", it will use letters for those as well.
@@ -403,10 +410,16 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
 
     def showChoices() {
+      // see containing method description: these choices are 1-based when considered from the human/UI perspective:
+      var index: Int = 1
+
       for (choice <- choicesIn) {
         if (!ranOutOfVerticalSpace) {
-          println(nextMenuChar() + "-" + choice)
+          println(nextMenuChar() +
+                  (if (defaultChoiceIn.isDefined && index == defaultChoiceIn.get) "/Enter" else "") +
+                  "-" + choice)
         }
+        index += 1
       }
       if (includeEscChoiceIn && !ranOutOfVerticalSpace) {
         println("0/ESC - back/previous menu")
@@ -481,9 +494,13 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     if (answer != 27 && answer != '0' && answer != 13 && (!allAllowedAnswers.toString.contains(answer.toChar))) {
       println("unknown choice: " + answer)
       askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn)
-    } else if (answer == 13 && highlightIndexIn.isDefined) {
-      // user hit Enter ie '\r', so take the one that was highlighted
-      Some(choicesIn.length + highlightIndexIn.get + 1, userChoseAlternate)
+    } else if (answer == 13 && (defaultChoiceIn.isDefined || highlightIndexIn.isDefined)) {
+      // user hit Enter ie '\r', so take the one that was passed in as default, or highlighted
+      if (defaultChoiceIn.isDefined) {
+        Some(defaultChoiceIn.get, userChoseAlternate)
+      } else {
+        Some(choicesIn.length + highlightIndexIn.get + 1, userChoseAlternate)
+      }
     } else if (includeEscChoiceIn && (answer == '0' || answer == 27)) {
       None
     } else {

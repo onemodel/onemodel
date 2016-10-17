@@ -67,7 +67,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
                                                  "List existing relation types")
         val response =
           if (goDirectlyToChoice.isEmpty) ui.askWhich(Some(Array(leadingText)), choices.toArray, Array[String](), includeEscChoiceIn = true,
-                                                      trailingTextIn = Some(ui.howQuit + " to quit (anytime)"))
+                                                      trailingTextIn = Some(ui.howQuit + " to quit (anytime)"), defaultChoiceIn = Some(5))
           else goDirectlyToChoice
 
         if (response.isDefined && response.get != 0) {
