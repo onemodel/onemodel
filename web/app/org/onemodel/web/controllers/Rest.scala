@@ -48,9 +48,27 @@ class Rest extends play.api.mvc.Controller {
               )
       } else {
         val msg: String = "Entity " + idIn + " is not public."
-        //idea: look in http response codes: is there one that makes more sense than this, here?
+        //idea: look in http response codes: is there one that makes more sense than this, here & in similar locations?
         NotFound(msg)
       }
+    }
+  }
+
+  def defaultEntity = Action { implicit request =>
+    var defaultEntityId: Option[Long] = db.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
+    if (defaultEntityId.isDefined) {
+      /* idea: do something different if archived, or show more info about the entity & save a repeat call for that?:
+        val entity: Option[Entity] = Entity.getEntityById(db, defaultDisplayEntityId.get)
+        if (entity.isDefined && entity.get.isArchived) { ...
+       */
+      Result(
+              header = ResponseHeader(200, Map.empty),
+              body = HttpEntity.Strict(ByteString(defaultEntityId.get.toString), Some("text/plain"))
+            )
+    } else {
+      val msg: String = "A default entity preference was not found."
+      //(idea: see similar location in entity method.)
+      NotFound(msg)
     }
   }
 

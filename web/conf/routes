@@ -13,7 +13,9 @@
 
 # An example controller showing a sample home page
 GET     /                           org.onemodel.web.controllers.Application.index
+GET     /index.html                           org.onemodel.web.controllers.Application.index
 GET     /id                           org.onemodel.web.controllers.Rest.id
+GET     /entities/                           org.onemodel.web.controllers.Rest.defaultEntity
 GET     /entities/:id                           org.onemodel.web.controllers.Rest.entity(id: Long)
 
 # Map static resources from the /public folder to the /assets URL path
