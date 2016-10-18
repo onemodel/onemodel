@@ -20,7 +20,7 @@ class Application extends play.api.mvc.Controller {
     //Idea for next?: if no ID provided, ck if default entity is public & if so show that, if not, show a search box? or just they need to provide an id/retry?
 
     val msg: String = "Stub web UI; just REST endpoints are working here for now.\n\n" +
-                      "(Got request [" + request + "].  Test value: " + org.onemodel.core.controllers.Controller.isWindows + ".)"
+                      "(Got request [" + request + "].  Test value: " + org.onemodel.core.Util.isWindows + ".)"
     Result(
       header = ResponseHeader(200, Map.empty),
       body = HttpEntity.Strict(ByteString(msg), Some("text/plain"))

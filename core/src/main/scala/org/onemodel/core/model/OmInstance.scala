@@ -16,7 +16,6 @@
 package org.onemodel.core.model
 
 import org.onemodel.core._
-import org.onemodel.core.controllers.Controller
 import org.onemodel.core.database.PostgreSQLDatabase
 
 object OmInstance {
@@ -83,7 +82,7 @@ class OmInstance(mDB: PostgreSQLDatabase, mId: String) {
   }
 
   def getCreationDateFormatted: String = {
-    Controller.DATEFORMAT.format(new java.util.Date(getCreationDate))
+    Util.DATEFORMAT.format(new java.util.Date(getCreationDate))
   }
 
   def getAddress: String = {

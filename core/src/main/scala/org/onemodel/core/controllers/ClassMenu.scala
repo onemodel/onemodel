@@ -10,6 +10,7 @@
 */
 package org.onemodel.core.controllers
 
+import org.onemodel.core._
 import org.onemodel.core.TextUI
 import org.onemodel.core.model.{IdWrapper, EntityClass, Entity}
 import org.onemodel.core.database.PostgreSQLDatabase
@@ -82,7 +83,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
             if (ans.isDefined && ans.get) {
               classIn.delete()
               ui.displayText("Deleted class \"" + name + "\"" + ".")
-              val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_CLASS_TYPE)
+              val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_CLASS_TYPE)
               if (selection.isDefined) classMenu(new EntityClass(db, selection.get.getId))
             } else {
               ui.displayText("Did not delete class.", waitForKeystrokeIn = false)
@@ -93,7 +94,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
           new EntityMenu(ui, db, controller).entityMenu(new Entity(db, classIn.getTemplateEntityId))
           classMenu(new EntityClass(db, classIn.getId))
         } else if (answer == 6) {
-          val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, Some(classIn.getTemplateEntityId), Controller.ENTITY_TYPE, 0,
+          val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, Some(classIn.getTemplateEntityId), Util.ENTITY_TYPE, 0,
                                                                                Some(classIn.getId),
                                                                                limitByClassIn = true)
           if (selection.isDefined) new EntityMenu(ui, db, controller).entityMenu(new Entity(db, selection.get.getId))

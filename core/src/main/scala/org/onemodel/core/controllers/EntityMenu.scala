@@ -72,7 +72,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       }
     }
     val choices: Array[String] = getChoices(entityIn, numAttrsInEntity)
-    val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Controller.maxNameLength)
+    val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength)
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
       db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes)
     if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) {
@@ -151,7 +151,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       if (answer == 1) {
         val (newAttributeToHighlight: Option[Attribute], displayStartingRowNumber: Int) = {
           // ask for less info when here, to add entity quickly w/ no fuss, like brainstorming. Like in QuickGroupMenu.  User can always use option 2.
-          val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Controller.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"))
+          val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"))
           if (newEntity.isDefined) {
             val newAttribute: Attribute = entityIn.addHASRelationToEntity(newEntity.get.getId, None, System.currentTimeMillis())
             // The next 2 lines are so if adding a new entry on the 1st entry, and if the user so prefers, the new one becomes the
@@ -177,7 +177,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
                                                                                      numDisplayableAttributes,
                                                                                      relationSourceEntity,
                                                                                      containingRelationToEntityIn, containingGroupIn)
-        val attrToHighlight: Option[Attribute] = Controller.findAttributeToHighlightNext(attributeTuples.length, attributesToDisplay, removedOne = movedOneOut,
+        val attrToHighlight: Option[Attribute] = Util.findAttributeToHighlightNext(attributeTuples.length, attributesToDisplay, removedOne = movedOneOut,
                                                                                          highlightedIndexInObjList.get, highlightedEntry.get)
         entityMenu(entityIn, newStartingDisplayIndex, attrToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 3) {
@@ -222,8 +222,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       } else if (answer == 7) {
         // NOTE: this code is similar (not identical) in EntityMenu as in QuickGroupMenu: if one changes,
         // THE OTHER MIGHT ALSO NEED MAINTENANCE!
-        val choices = Array[String](Controller.unselectMoveTargetPromptText)
-        val leadingText: Array[String] = Array(Controller.unselectMoveTargetLeadingText)
+        val choices = Array[String](Util.unselectMoveTargetPromptText)
+        val leadingText: Array[String] = Array(Util.unselectMoveTargetLeadingText)
         controller.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttrCount, attributeRowsStartingIndexIn)
 
         val response = ui.askWhich(Some(leadingText), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
@@ -376,7 +376,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         // Idea: could share some code or ideas between here and Controller.findExistingObjectByText, and perhaps others like them.  For example,
         // this doesn't yet have logic to page down through the results, but maybe for now there won't be many or it can be added later.
         // Idea: maybe we could use an abstraction to make this kind of UI work even simpler, since we do it often.
-        val ans = ui.askForString(Some(Array(controller.searchPromptPart(Controller.ENTITY_TYPE))))
+        val ans = ui.askForString(Some(Array(controller.searchPromptPart(Util.ENTITY_TYPE))))
         if (ans.isDefined) {
           val searchString: String = ans.get
           val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours)")), Some(controller.isNumeric),
@@ -388,7 +388,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
           val choices: Array[String] = Array("(stub)")
           val entityIdsTruncated: Array[Long] = {
-            val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Controller.maxNameLength)
+            val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Util.maxNameLength)
             if (entityIds.length <= numDisplayableAttributes) {
               entityIds
             } else {
@@ -428,7 +428,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           showSearchResults()
         }
       } else if (searchAnswer == 4) {
-        val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE)
+        val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
         if (selection.isDefined) {
           entityMenu(new Entity(db, selection.get.getId))
         }
@@ -444,7 +444,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
     if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
       if (highlightingIndex.isDefined && entryIsGoneNow) {
-        Controller.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight
+        Util.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight
                                                                                                                                       .get)
       } else {
         defaultEntryToHighlight
@@ -523,7 +523,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             db.moveRelationToEntity(movingRte.getId, targetContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
             (startingDisplayRowIndexIn, true)
           } else if (highlightedAttributeIn.isInstanceOf[RelationToEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
-            require(targetForMovesIn.get.getFormId == PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_GROUP_TYPE))
+            require(targetForMovesIn.get.getFormId == PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE))
             val targetGroupId = RelationToGroup.createRelationToGroup(db, targetForMovesIn.get.getId).getGroupId
             val rte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
             // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
@@ -611,17 +611,17 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           case relation: RelationToEntity =>
             val toEntity: Entity = new Entity(db, relation.getRelatedId2)
             val relationType = new RelationType(db, relation.getAttrTypeId)
-            val desc = attribute.getDisplayString(Controller.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
+            val desc = attribute.getDisplayString(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
             val prefix = controller.getEntityContentSizePrefix(relation.getRelatedId2)
             val archivedStatus: String = toEntity.getArchivedStatusDisplayString
             prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
           case relation: RelationToGroup =>
             val relationType = new RelationType(db, relation.getAttrTypeId)
-            val desc = attribute.getDisplayString(Controller.maxNameLength, None, Some(relationType), simplify = true)
+            val desc = attribute.getDisplayString(Util.maxNameLength, None, Some(relationType), simplify = true)
             val prefix = controller.getGroupContentSizePrefix(relation.getGroupId)
             prefix + "group: " + desc
           case _ =>
-            attribute.getDisplayString(Controller.maxNameLength, None, None)
+            attribute.getDisplayString(Util.maxNameLength, None, None)
         }
       }
     (attributeStatusesAndNames, attributes)
@@ -652,14 +652,14 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       val attrForm: Int = whichKindOfAttribute.get match {
         // This is a bridge between the expected order for convenient UI above, and the parameter value expected by controller.addAttribute
         // (1-based, not 0-based.)
-        case 1 => PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_ENTITY_TYPE)
+        case 1 => PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE)
         case 2 => 100
-        case 3 => PostgreSQLDatabase.getAttributeFormId(Controller.QUANTITY_TYPE)
-        case 4 => PostgreSQLDatabase.getAttributeFormId(Controller.DATE_TYPE)
-        case 5 => PostgreSQLDatabase.getAttributeFormId(Controller.BOOLEAN_TYPE)
-        case 6 => PostgreSQLDatabase.getAttributeFormId(Controller.FILE_TYPE)
-        case 7 => PostgreSQLDatabase.getAttributeFormId(Controller.TEXT_TYPE)
-        case 8 => PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_GROUP_TYPE)
+        case 3 => PostgreSQLDatabase.getAttributeFormId(Util.QUANTITY_TYPE)
+        case 4 => PostgreSQLDatabase.getAttributeFormId(Util.DATE_TYPE)
+        case 5 => PostgreSQLDatabase.getAttributeFormId(Util.BOOLEAN_TYPE)
+        case 6 => PostgreSQLDatabase.getAttributeFormId(Util.FILE_TYPE)
+        case 7 => PostgreSQLDatabase.getAttributeFormId(Util.TEXT_TYPE)
+        case 8 => PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE)
         case 9 => 101
       }
       controller.addAttribute(entityIn, startingAttributeIndexIn, attrForm, None)

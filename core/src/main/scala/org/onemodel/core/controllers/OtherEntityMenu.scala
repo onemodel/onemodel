@@ -11,6 +11,7 @@ package org.onemodel.core.controllers
 
 import java.util
 
+import org.onemodel.core._
 import org.onemodel.core.{OmException, TextUI}
 import org.onemodel.core.database.PostgreSQLDatabase
 import org.onemodel.core.model._
@@ -163,7 +164,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           }
         } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault) {
           // updates user preferences such that this obj will be the one displayed by default in future.
-          db.setUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE, entityIn.getId)
+          db.setUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE, entityIn.getId)
           controller.refreshDefaultDisplayEntityId()
         } else {
           ui.displayText("invalid response")
@@ -221,13 +222,13 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
     // (Wrote "lines" plural, to clarify when this is presented with the "SINGLE LINE" copyright prompt below.)
     val prompt4 = ", and put the relevant lines of html (or nothing) in the value for that attribute.  Or just press Enter to skip through this each time.)"
 
-    val headerTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Controller.HEADER_CONTENT_TAG, caseSensitive = true)
-    val bodyContentTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Controller.BODY_CONTENT_TAG, caseSensitive = true)
-    val footerTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Controller.FOOTER_CONTENT_TAG, caseSensitive = true)
+    val headerTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Util.HEADER_CONTENT_TAG, caseSensitive = true)
+    val bodyContentTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Util.BODY_CONTENT_TAG, caseSensitive = true)
+    val footerTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Util.FOOTER_CONTENT_TAG, caseSensitive = true)
     if ((headerTypeIds.isDefined && headerTypeIds.get.size > 1) || (bodyContentTypeIds.isDefined && bodyContentTypeIds.get.size > 1)
         || (footerTypeIds.isDefined && footerTypeIds.get.size > 1)) {
-      throw new OmException("Expected at most one entity (as typeId) each, with the names " + Controller.HEADER_CONTENT_TAG + ", " +
-                            Controller.BODY_CONTENT_TAG + ", or " + Controller.FOOTER_CONTENT_TAG + ", but found respectively " +
+      throw new OmException("Expected at most one entity (as typeId) each, with the names " + Util.HEADER_CONTENT_TAG + ", " +
+                            Util.BODY_CONTENT_TAG + ", or " + Util.FOOTER_CONTENT_TAG + ", but found respectively " +
                             headerTypeIds.getOrElse(List()).size + ", " +
                             bodyContentTypeIds.getOrElse(List()).size + ", and " + headerTypeIds.getOrElse(List()).size + ".  Could change" +
                             " the app to just take the first one found perhaps.... Anyway you'll need to fix in the data, that before proceeding " +
@@ -256,7 +257,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       savedAttrText.getOrElse( {
         ui.displayText(prompt1 + "html page \"<head>\" section contents" + prompt2 +
                        " (Title & 'meta name=\"description\"' tags are automatically filled in from the entity's name.)" +
-                       prompt3 + "\"" + Controller.HEADER_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
+                       prompt3 + "\"" + Util.HEADER_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
         val s: String = controller.editMultilineText("")
         s
       })
@@ -271,7 +272,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       }
       savedAttrText.getOrElse({
         ui.displayText(prompt1 + "initial *body* content (like a common banner or header)" + prompt2 +
-                       prompt3 + "\"" + Controller.BODY_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
+                       prompt3 + "\"" + Util.BODY_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
         val beginBodyContentIn: String = controller.editMultilineText("")
         beginBodyContentIn
       })
@@ -291,7 +292,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         val copyrightYearAndName = ui.askForString(Some(Array("On a SINGLE LINE, enter copyright year(s) and holder's name, i.e., the \"2015 John Doe\" part " +
                                                               "of \"Copyright 2015 John Doe\" (This accepts HTML so can also be used for a " +
                                                               "page footer, for example.)" +
-                                                              prompt3 + "\"" + Controller.FOOTER_CONTENT_TAG + "\"" + prompt4)))
+                                                              prompt3 + "\"" + Util.FOOTER_CONTENT_TAG + "\"" + prompt4)))
         copyrightYearAndName
       } else {
         savedAttrText
@@ -325,7 +326,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
 
       val containingRtgList: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn, 0, Some(1))
       if (containingRtgList.size < 1) {
-        ui.displayText("There is a group containing the entity (" + entityIn.getName + "), but:  " + Controller.ORPHANED_GROUP_MESSAGE)
+        ui.displayText("There is a group containing the entity (" + entityIn.getName + "), but:  " + Util.ORPHANED_GROUP_MESSAGE)
       } else {
         containingRtg = Some(containingRtgList.get(0))
       }
@@ -357,7 +358,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       if (goWhereAnswer == seeContainingEntities_choiceNumber && goWhereAnswer <= choices.length) {
         val leadingText = List[String]("Pick from menu, or an entity by letter")
         val choices: Array[String] = Array(controller.listNextItemsPrompt)
-        val numDisplayableItems: Long = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Controller.maxNameLength)
+        val numDisplayableItems: Long = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength)
         // This is partly set up so it could handle multiple screensful, but would need to be broken into a recursive method that
         // can specify dif't values on each call, for the startingIndexIn parm of getRelatingEntities.  I.e., could make it look more like
         // searchForExistingObject or such ? IF needed.  But to be needed means the user is putting the same object related by multiple
@@ -401,7 +402,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         }
         val relationToEntityDH: RelationToEntityDataHolder = new RelationToEntityDataHolder(relationIn.get.getAttrTypeId, relationIn.get.getValidOnDate,
                                                                                             relationIn.get.getObservationDate, relationIn.get.getRelatedId2)
-        controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, askForAttrTypeId = true, Controller.RELATION_TO_ENTITY_TYPE,
+        controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, askForAttrTypeId = true, Util.RELATION_TO_ENTITY_TYPE,
                                                                             "CHOOSE TYPE OF Relation to Entity:", dummyMethod, updateRelationToEntity)
         // force a reread from the DB so it shows the right info on the repeated menu (below):
         relationToEntity = Some(new RelationToEntity(db, relationIn.get.getId, relationIn.get.getAttrTypeId, relationIn.get.getRelatedId1,
@@ -427,7 +428,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
     val leadingText = List[String]("Pick from menu, or a letter to (go to if one or) see the entities containing that group, or Alt+<letter> for the actual " +
                                    "*group* by letter")
     val choices: Array[String] = Array(controller.listNextItemsPrompt)
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Controller.maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength)
     // (see comment in similar location just above where this is called, near "val containingEntities: util.ArrayList"...)
     val containingRelationToGroups: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn, 0, Some(numDisplayableItems))
     val containingRtgDescriptions: Array[String] = containingRelationToGroups.toArray.map {
@@ -435,7 +436,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                                                                                               val entityName: String = new Entity(db, rtg.getParentId).getName
                                                                                               val rt: RelationType = new RelationType(db, rtg.getAttrTypeId)
                                                                                               "entity " + entityName + " " +
-                                                                                              rtg.getDisplayString(Controller.maxNameLength, None, Some(rt))
+                                                                                              rtg.getDisplayString(Util.maxNameLength, None, Some(rt))
                                                                                             case _ => throw new OmException("??")
                                                                                           }
     val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, containingRtgDescriptions)

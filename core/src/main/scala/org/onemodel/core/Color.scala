@@ -15,12 +15,10 @@
 */
 package org.onemodel.core
 
-import org.onemodel.core.controllers.Controller
-
 object Color {
   // ansi codes (used scalatest source code as a reference; probably doc'd variously elsewhere also)
   val (green, cyan, yellow, red, reset) = {
-    if (Controller.isWindows) {
+    if (Util.isWindows) {
       ("", "", "", "", "")
     } else {
       ("\033[32m",

@@ -24,133 +24,17 @@ import org.postgresql.util.PSQLException
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
-object Controller {
-  // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
-  def maxNameLength: Int = math.max(math.max(PostgreSQLDatabase.entityNameLength, PostgreSQLDatabase.relationTypeNameLength),
-                                    PostgreSQLDatabase.classNameLength)
-
-  // Might not be the most familiar date form for us Americans, but it seems the most useful in the widest
-  // variety of situations, and more readable than with the "T" embedded in place of
-  // the 1st space.  So, this approximates iso-9601.
-  // these are for input.
-  val DATEFORMAT = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS zzz")
-  val DATEFORMAT2 = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss zzz")
-  val DATEFORMAT3 = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm zzz")
-  val DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz")
-  val DATEFORMAT2_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss zzz")
-  val DATEFORMAT3_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm zzz")
-
-  //these are here to avoid colliding with use of the same names within other code inside the class.
-  // idea: see what scala does with enums and/or constants; update this style?
-  val ENTITY_TYPE: String = "Entity"
-  val QUANTITY_TYPE: String = "QuantityAttribute"
-  val TEXT_TYPE: String = "TextAttribute"
-  val DATE_TYPE: String = "DateAttribute"
-  val BOOLEAN_TYPE: String = "BooleanAttribute"
-  val FILE_TYPE: String = "FileAttribute"
-  //i.e., "relationTypeType", or the thing that we sometimes put in an attribute type parameter, though not exactly an attribute type, which is "RelationType":
-  val RELATION_TYPE_TYPE: String = "RelationType"
-  val RELATION_TO_ENTITY_TYPE: String = "RelationToEntity"
-  val RELATION_TO_GROUP_TYPE: String = "RelationToGroup"
-  val GROUP_TYPE: String = "Group"
-  val ENTITY_CLASS_TYPE: String = "Class"
-
-  val ORPHANED_GROUP_MESSAGE: String = "There is no entity with a containing relation to the group (orphaned).  You might search for it" +
-                                       " (by adding it as an attribute to some entity)," +
-                                       " & see if it should be deleted, kept with an entity, or left out there floating." +
-                                       "  (While this is not an expected usage, it is allowed and does not imply data corruption.)"
-
-  val unselectMoveTargetPromptText: String = "Unselect current move target (if present; not necessary really)"
-
-  // This says 'same screenful' because it's easier to assume that the returned index refers to the currently available
-  // local collections (a subset of all possible entries, for display), than calling chooseOrCreateObject, and sounds as useful:
-  val unselectMoveTargetLeadingText: String = "CHOOSE AN ENTRY (that contains only one subgroup) FOR THE TARGET OF MOVES (choose from SAME SCREENFUL as " +
-                                              "now;  if the target contains 0 subgroups, or 2 or more subgroups, " +
-                                              "use other means to move entities to it until some kind of \"move anywhere\" feature is added):"
-
-  val defaultPreferencesDepth = 10
-  // Don't change these: they get set and looked up in the data for preferences. Changing it would just require users to reset it though, and would
-  // leave the old as clutter in the data.
-  val USER_PREFERENCES = "User preferences"
-  final val SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE = "Should entity lists show public/private status for each?"
-  final val DEFAULT_ENTITY_PREFERENCE = "Which entity should be displayed as default, when starting the program?"
-
-  val HEADER_CONTENT_TAG = "htmlHeaderContent"
-  val BODY_CONTENT_TAG = "htmlInitialBodyContent"
-  val FOOTER_CONTENT_TAG = "htmlFooterContent"
-
-  def getClipboardContent: String = {
-    val clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
-    val contents: String = clipboard.getContents(null).getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor).toString
-    contents.trim
-    //(example of placing data on the clipboard, for future reference:)
-    //val selection = new java.awt.datatransfer.StringSelection("someString")
-    //clipboard.setContents(selection, null)
-  }
-
-  def isWindows: Boolean = {
-    val osName = System.getProperty("os.name").toLowerCase
-    osName.contains("win")
-  }
-
-  // Used for example after one has been deleted, to put the highlight on right next one:
-  // idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
-  /**
-   * @param objectSetSize # of all the possible entries, not reduced by what fits in the available display space (I think).
-   * @param objectsToDisplayIn  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
-   * @return
-   */
-  def findEntityToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Entity], removedOneIn: Boolean,
-                               previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity): Option[Entity] = {
-    //NOTE: SIMILAR TO findAttributeToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
-    //system better.
-
-    // here of course, previouslyHighlightedIndexInObjListIn and objIds.size were calculated prior to the deletion.
-    if (removedOneIn) {
-      val newObjListSize = objectSetSize - 1
-      val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
-      if (newIndexToHighlight >= 0) {
-        if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) Some(objectsToDisplayIn.get(newIndexToHighlight))
-        else {
-          if (newIndexToHighlight + 1 < newObjListSize - 1) Some(objectsToDisplayIn.get(newIndexToHighlight + 1))
-          else if (newIndexToHighlight - 1 >= 0) Some(objectsToDisplayIn.get(newIndexToHighlight - 1))
-          else None
-        }
-      } else None
-    } else Some(previouslyHighlightedEntryIn)
-  }
-
-  /** SEE COMMENTS FOR findEntityToHighlightNext. */
-  def findAttributeToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Attribute], removedOne: Boolean,
-                               previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Attribute): Option[Attribute] = {
-    //NOTE: SIMILAR TO findEntityToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
-    //system better.
-    if (removedOne) {
-      val newObjListSize = objectSetSize - 1
-      val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
-      if (newIndexToHighlight >= 0) {
-        if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) {
-          Some(objectsToDisplayIn.get(newIndexToHighlight))
-        } else {
-          if (newIndexToHighlight + 1 < newObjListSize - 1) Some(objectsToDisplayIn.get(newIndexToHighlight + 1))
-          else if (newIndexToHighlight - 1 >= 0) Some(objectsToDisplayIn.get(newIndexToHighlight - 1))
-          else None
-        }
-      } else None
-    } else Some(previouslyHighlightedEntryIn)
-  }
-
-  def getDefaultUserInfo: (String, String) = {
-    (System.getProperty("user.name"), "x")
-  }
-
-}
-
-/** Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
-  * scalatest docs 4 ideas, & maybe use expect?), delaying side effects more, shorter methods, other better scala style, etc.
+/** This Controller is for user-interactive things.  The Controller class in the web module is for the REST API.  For shared code that does not fit
+  * in those, see the org.onemodel.core.Util object (in Util.scala).
   *
+  * Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
+  * scalatest docs 4 ideas, & maybe use expect or the gnu testing tool that uses expect?), delaying side effects more,
+  * shorter methods, other better scala style, etc.
+  *
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
   Don't ever instantiate a controller from a *test* without passing in username/password parameters, because it will try to log in to the user's default
   database and run the tests there (ie, they could be destructive):
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
   */
 class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None, defaultPasswordIn: Option[String] = None) {
   // ****** MAKE SURE THE NEXT 2 LINES MATCH THE FORMAT of Controller.DATEFORMAT, AND THE USER EXAMPLES IN THIS CLASS' OUTPUT! ******
@@ -309,7 +193,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val db = {
         var pwdOpt: Option[String] = None
         // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
-        val (defaultUserName, defaultPassword) = Controller.getDefaultUserInfo
+        val (defaultUserName, defaultPassword) = Util.getDefaultUserInfo
         val dbWithSystemNameBlankPwd = login(defaultUserName, defaultPassword, showError = false)
         if (dbWithSystemNameBlankPwd.isDefined) dbWithSystemNameBlankPwd
         else {
@@ -389,16 +273,16 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   // up to N levels deep, among the preferences that can include entities with deep nesting.  So in a related change I made it also not look N levels
   // deep, for preferences.  If you check other places touched by this commit there may be a "shotgun surgery" bad smell here also.
   //Idea: Maybe these should have their cache expire after a period of time (to help when running multiple clients).
-  var showPublicPrivateStatusPreference: Option[Boolean] = db.getUserPreference_Boolean(Controller.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
-  def refreshPublicPrivateStatusPreference(): Unit = showPublicPrivateStatusPreference = db.getUserPreference_Boolean(Controller.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
+  var showPublicPrivateStatusPreference: Option[Boolean] = db.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
+  def refreshPublicPrivateStatusPreference(): Unit = showPublicPrivateStatusPreference = db.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
   // putting this in a var instead of recalculating it every time (too frequent) inside findDefaultDisplayEntityId:
-  var defaultDisplayEntityId: Option[Long] = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
-  def refreshDefaultDisplayEntityId(): Unit = defaultDisplayEntityId = db.getUserPreference_EntityId(Controller.DEFAULT_ENTITY_PREFERENCE)
+  var defaultDisplayEntityId: Option[Long] = db.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
+  def refreshDefaultDisplayEntityId(): Unit = defaultDisplayEntityId = db.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
 
   def askForClass(): Option[Long] = {
     val msg = "CHOOSE ENTITY'S CLASS.  (Press ESC if you don't know or care about this.  Detailed explanation on the class feature will be available " +
               "at onemodel.org when this feature is documented more (hopefully at the next release), or ask on the email list.)"
-    val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String](msg)), None, None, Controller.ENTITY_CLASS_TYPE)
+    val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(List[String](msg)), None, None, Util.ENTITY_CLASS_TYPE)
     if (idWrapper.isEmpty) None
     else Some(idWrapper.get.getId)
   }
@@ -418,7 +302,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         newClass = true
         askForClass()
       }
-    val ans: Option[Entity] = askForNameAndWriteEntity(Controller.ENTITY_TYPE, None, None, None, None, classId,
+    val ans: Option[Entity] = askForNameAndWriteEntity(Util.ENTITY_TYPE, None, None, None, None, classId,
                                                        Some(if (newClass) "DEFINE THE ENTITY:" else ""))
     if (ans.isDefined) {
       val entity = ans.get
@@ -426,7 +310,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       // where creating a new relationship, and creating the entity2 in the process, it puts the wrong info
       // on the header for what is being displayed/edited next!: Needs refactoring anyway: this shouldn't be at
       // a low level.
-      ui.displayText("Created " + Controller.ENTITY_TYPE + ": " + entity.getName, waitForKeystrokeIn = false)
+      ui.displayText("Created " + Util.ENTITY_TYPE + ": " + entity.getName, waitForKeystrokeIn = false)
 
       defaultAttributeCopying(entity)
 
@@ -458,16 +342,16 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                          previousNameIn: Option[String] = None, previousDirectionalityIn: Option[String] = None,
                                          previousNameInReverseIn: Option[String] = None, inClassId: Option[Long] = None,
                                          inLeadingText: Option[String] = None, duplicateNameProbablyOK: Boolean = false): Option[Entity] = {
-    if (inClassId.isDefined) require(inType == Controller.ENTITY_TYPE)
+    if (inClassId.isDefined) require(inType == Util.ENTITY_TYPE)
     val createNotUpdate: Boolean = existingIdIn.isEmpty
-    if (!createNotUpdate && inType == Controller.RELATION_TYPE_TYPE) require(previousDirectionalityIn.isDefined)
+    if (!createNotUpdate && inType == Util.RELATION_TYPE_TYPE) require(previousDirectionalityIn.isDefined)
     val maxNameLength = {
-      if (inType == Controller.RELATION_TYPE_TYPE) model.RelationType.getNameLength(db)
-      else if (inType == Controller.ENTITY_TYPE) model.Entity.nameLength(db)
+      if (inType == Util.RELATION_TYPE_TYPE) model.RelationType.getNameLength(db)
+      else if (inType == Util.ENTITY_TYPE) model.Entity.nameLength(db)
       else throw new scala.Exception("invalid inType: " + inType)
     }
     val example = {
-      if (inType == Controller.RELATION_TYPE_TYPE) " (use 3rd-person verb like \"owns\"--might make output like sentences more consistent later on)"
+      if (inType == Util.RELATION_TYPE_TYPE) " (use 3rd-person verb like \"owns\"--might make output like sentences more consistent later on)"
       else ""
     }
 
@@ -490,7 +374,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           } else {
             if (isDuplicationAProblem(model.Entity.isDuplicate(db, name, existingIdIn), duplicateNameProbablyOK)) None
             else {
-              if (inType == Controller.ENTITY_TYPE) {
+              if (inType == Util.ENTITY_TYPE) {
                 if (createNotUpdate) {
                   val newId = model.Entity.createEntity(db, name, inClassId).getId
                   Some(newId, 0L)
@@ -498,7 +382,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                   db.updateEntityOnlyName(existingIdIn.get, name)
                   Some(existingIdIn.get, 0L)
                 }
-              } else if (inType == Controller.RELATION_TYPE_TYPE) {
+              } else if (inType == Util.RELATION_TYPE_TYPE) {
                 val ans: Option[String] = askForRelationDirectionality(previousDirectionalityIn)
                 if (ans.isEmpty) None
                 else {
@@ -707,7 +591,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                                                                       quantityAttribute.getValidOnDate,
                                                                                                       quantityAttribute.getObservationDate,
                                                                                                       quantityAttribute.getNumber, quantityAttribute.getUnitId),
-                                                                      askForAttrTypeId = true, Controller.QUANTITY_TYPE, quantityTypePrompt,
+                                                                      askForAttrTypeId = true, Util.QUANTITY_TYPE, quantityTypePrompt,
                                                                       askForQuantityAttributeNumberAndUnit, updateQuantityAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
             attributeEditMenu(new QuantityAttribute(db, attributeIn.getId))
@@ -717,7 +601,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             }
             val textAttributeDH: TextAttributeDataHolder = new TextAttributeDataHolder(textAttribute.getAttrTypeId, textAttribute.getValidOnDate,
                                                                                        textAttribute.getObservationDate, textAttribute.getText)
-            askForInfoAndUpdateAttribute[TextAttributeDataHolder](textAttributeDH, askForAttrTypeId = true, Controller.TEXT_TYPE,
+            askForInfoAndUpdateAttribute[TextAttributeDataHolder](textAttributeDH, askForAttrTypeId = true, Util.TEXT_TYPE,
                                                                   "CHOOSE TYPE OF " + textDescription + ":",
                                                                   askForTextAttributeText, updateTextAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
@@ -727,7 +611,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               dateAttribute.update(dhInOut.attrTypeId, dhInOut.date)
             }
             val dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.getAttrTypeId, dateAttribute.getDate)
-            askForInfoAndUpdateAttribute[DateAttributeDataHolder](dateAttributeDH, askForAttrTypeId = true, Controller.DATE_TYPE, "CHOOSE TYPE OF DATE:",
+            askForInfoAndUpdateAttribute[DateAttributeDataHolder](dateAttributeDH, askForAttrTypeId = true, Util.DATE_TYPE, "CHOOSE TYPE OF DATE:",
                                                                   askForDateAttributeValue, updateDateAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
             attributeEditMenu(new DateAttribute(db, attributeIn.getId))
@@ -738,7 +622,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             val booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.getAttrTypeId, booleanAttribute.getValidOnDate,
                                                                                                 booleanAttribute.getObservationDate,
                                                                                                 booleanAttribute.getBoolean)
-            askForInfoAndUpdateAttribute[BooleanAttributeDataHolder](booleanAttributeDH, askForAttrTypeId = true, Controller.BOOLEAN_TYPE,
+            askForInfoAndUpdateAttribute[BooleanAttributeDataHolder](booleanAttributeDH, askForAttrTypeId = true, Util.BOOLEAN_TYPE,
                                                                      "CHOOSE TYPE OF TRUE/FALSE VALUE:", askForBooleanAttributeValue, updateBooleanAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
             attributeEditMenu(new BooleanAttribute(db, attributeIn.getId))
@@ -747,7 +631,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
               fa.update(Some(dhInOut.attrTypeId), Some(dhInOut.description))
             }
             val fileAttributeDH: FileAttributeDataHolder = new FileAttributeDataHolder(fa.getAttrTypeId, fa.getDescription, fa.getOriginalFilePath)
-            askForInfoAndUpdateAttribute[FileAttributeDataHolder](fileAttributeDH, askForAttrTypeId = true, Controller.FILE_TYPE, "CHOOSE TYPE OF FILE:",
+            askForInfoAndUpdateAttribute[FileAttributeDataHolder](fileAttributeDH, askForAttrTypeId = true, Util.FILE_TYPE, "CHOOSE TYPE OF FILE:",
                                                                   askForFileAttributeInfo, updateFileAttribute)
             //force a reread from the DB so it shows the right info on the repeated menu:
             attributeEditMenu(new FileAttribute(db, attributeIn.getId))
@@ -996,12 +880,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val editedEntity: Option[Entity] = entityIn match {
       case relTypeIn: RelationType =>
         val previousNameInReverse: String = relTypeIn.getNameInReverseDirection //idea: check: this edits name w/ prefill also?:
-        askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE, Some(relTypeIn.getId), Some(relTypeIn.getName), Some(relTypeIn.getDirectionality),
+        askForNameAndWriteEntity(Util.RELATION_TYPE_TYPE, Some(relTypeIn.getId), Some(relTypeIn.getName), Some(relTypeIn.getDirectionality),
                                  if (previousNameInReverse == null || previousNameInReverse.trim().isEmpty) None else Some(previousNameInReverse),
                                  None)
       case entity: Entity =>
         val entityNameBeforeEdit: String = entityIn.getName
-        val editedEntity: Option[Entity] = askForNameAndWriteEntity(Controller.ENTITY_TYPE, Some(entity.getId), Some(entity.getName), None, None, None)
+        val editedEntity: Option[Entity] = askForNameAndWriteEntity(Util.ENTITY_TYPE, Some(entity.getId), Some(entity.getName), None, None, None)
         if (editedEntity.isDefined) {
           val entityNameAfterEdit: String = editedEntity.get.getName
           if (entityNameBeforeEdit != entityNameAfterEdit) {
@@ -1163,12 +1047,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                               idToOmitIn: Option[Long] = None, regexIn: String): Option[IdWrapper] = {
     val leadingText = List[String]("SEARCH RESULTS: " + pickFromListPrompt)
     val choices: Array[String] = Array(listNextItemsPrompt)
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Controller.maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength)
 
     val objectsToDisplay = attrTypeIn match {
-      case Controller.ENTITY_TYPE =>
+      case Util.ENTITY_TYPE =>
         db.getMatchingEntities(startingDisplayRowIndexIn, Some(numDisplayableItems), idToOmitIn, regexIn)
-      case Controller.GROUP_TYPE =>
+      case Util.GROUP_TYPE =>
         db.getMatchingGroups(startingDisplayRowIndexIn, Some(numDisplayableItems), idToOmitIn, regexIn)
       case _ =>
         throw new OmException("??")
@@ -1203,16 +1087,16 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           if (userChoseAlternate) {
             attrTypeIn match {
               // idea: replace this condition by use of a trait (the type of o, which has getId), or being smarter with scala's type system. attrTypeIn match {
-              case Controller.ENTITY_TYPE =>
+              case Util.ENTITY_TYPE =>
                 new EntityMenu(ui, db, this).entityMenu(o.asInstanceOf[Entity])
-              case Controller.GROUP_TYPE =>
+              case Util.GROUP_TYPE =>
                 // for now, picking the first RTG found for this group, until it's clear which of its RTGs to use.
                 // (see also the other locations w/ similar comment!)
                 // (There is probably no point in showing this GroupMenu with RTG info, since which RTG to use was picked arbitrarily, except if
                 // that added info is a convenience, or if it helps the user clean up orphaned data sometimes.)
                 val someRelationToGroups: java.util.ArrayList[RelationToGroup] = db.getRelationToGroupsByGroup(o.asInstanceOf[Group].getId, 0, Some(1))
                 if (someRelationToGroups.size < 1) {
-                  ui.displayText(Controller.ORPHANED_GROUP_MESSAGE)
+                  ui.displayText(Util.ORPHANED_GROUP_MESSAGE)
                   new GroupMenu(ui, db, this).groupMenu(o.asInstanceOf[Group], 0, None, containingEntityIn = None)
                 } else {
                   new GroupMenu(ui, db, this).groupMenu(o.asInstanceOf[Group], 0, Some(someRelationToGroups.get(0)), containingEntityIn = None)
@@ -1225,9 +1109,9 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
             attrTypeIn match {
               // idea: replace this condition by use of a trait (the type of o, which has getId), or being smarter with scala's type system. attrTypeIn match {
-              case Controller.ENTITY_TYPE =>
+              case Util.ENTITY_TYPE =>
                 Some(new IdWrapper(o.asInstanceOf[Entity].getId))
-              case Controller.GROUP_TYPE =>
+              case Util.GROUP_TYPE =>
                 Some(new IdWrapper(o.asInstanceOf[Group].getId))
               case _ =>
                 throw new OmException("??")
@@ -1262,14 +1146,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                           containingGroupIn: Option[Long] = None,
                                           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                                           markPreviousSelectionIn: Boolean = false): Option[IdWrapper] = {
-    if (inClassId.isDefined) require(inObjectType == Controller.ENTITY_TYPE)
-    val nonRelationAttrTypeNames = Array(Controller.TEXT_TYPE, Controller.QUANTITY_TYPE, Controller.DATE_TYPE, Controller.BOOLEAN_TYPE, Controller.FILE_TYPE)
-    val mostAttrTypeNames = Array(Controller.ENTITY_TYPE, Controller.TEXT_TYPE, Controller.QUANTITY_TYPE, Controller.DATE_TYPE, Controller.BOOLEAN_TYPE,
-                                  Controller.FILE_TYPE)
-    val relationAttrTypeNames = Array(Controller.RELATION_TYPE_TYPE, Controller.RELATION_TO_ENTITY_TYPE, Controller.RELATION_TO_GROUP_TYPE)
-    val evenMoreAttrTypeNames = Array(Controller.ENTITY_TYPE, Controller.TEXT_TYPE, Controller.QUANTITY_TYPE, Controller.DATE_TYPE, Controller.BOOLEAN_TYPE,
-                                      Controller.FILE_TYPE, Controller.RELATION_TYPE_TYPE, Controller.RELATION_TO_ENTITY_TYPE,
-                                      Controller.RELATION_TO_GROUP_TYPE)
+    if (inClassId.isDefined) require(inObjectType == Util.ENTITY_TYPE)
+    val nonRelationAttrTypeNames = Array(Util.TEXT_TYPE, Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE, Util.FILE_TYPE)
+    val mostAttrTypeNames = Array(Util.ENTITY_TYPE, Util.TEXT_TYPE, Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE,
+                                  Util.FILE_TYPE)
+    val relationAttrTypeNames = Array(Util.RELATION_TYPE_TYPE, Util.RELATION_TO_ENTITY_TYPE, Util.RELATION_TO_GROUP_TYPE)
+    val evenMoreAttrTypeNames = Array(Util.ENTITY_TYPE, Util.TEXT_TYPE, Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE,
+                                      Util.FILE_TYPE, Util.RELATION_TYPE_TYPE, Util.RELATION_TO_ENTITY_TYPE,
+                                      Util.RELATION_TO_GROUP_TYPE)
     val listNextItemsChoiceNum = 1
 
     // attempt to keep these straight even though the size of the list, hence their option #'s on the menu,
@@ -1309,7 +1193,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         choiceList = choiceList :+ menuText_createRelationType
         createRelationTypeChoiceNum += 1
         createClassChoiceNum += 1
-      } else if (inObjectType == Controller.ENTITY_CLASS_TYPE) {
+      } else if (inObjectType == Util.ENTITY_CLASS_TYPE) {
         choiceList = choiceList :+ "create new class (template for new entities)"
         createClassChoiceNum += 1
       } else throw new Exception("invalid inAttrType: " + inObjectType)
@@ -1319,45 +1203,45 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
     def getLeadTextAndObjectList(choicesIn: Array[String]): (List[String], java.util.ArrayList[_ >: RelationType with EntityClass <: Object], Array[String]) = {
       val prefix: String = inObjectType match {
-        case Controller.ENTITY_TYPE => "ENTITIES: "
-        case Controller.QUANTITY_TYPE => "QUANTITIES (entities): "
-        case Controller.TEXT_TYPE => "TEXT ATTRIBUTES (entities): "
-        case Controller.DATE_TYPE => "DATE ATTRIBUTES (entities): "
-        case Controller.BOOLEAN_TYPE => "TRUE/FALSE ATTRIBUTES (entities): "
-        case Controller.FILE_TYPE => "FILE ATTRIBUTES (entities): "
-        case Controller.RELATION_TYPE_TYPE => "RELATION TYPES: "
-        case Controller.ENTITY_CLASS_TYPE => "CLASSES: "
-        case Controller.RELATION_TO_ENTITY_TYPE => "RELATION TYPES: "
-        case Controller.RELATION_TO_GROUP_TYPE => "RELATION TYPES: "
+        case Util.ENTITY_TYPE => "ENTITIES: "
+        case Util.QUANTITY_TYPE => "QUANTITIES (entities): "
+        case Util.TEXT_TYPE => "TEXT ATTRIBUTES (entities): "
+        case Util.DATE_TYPE => "DATE ATTRIBUTES (entities): "
+        case Util.BOOLEAN_TYPE => "TRUE/FALSE ATTRIBUTES (entities): "
+        case Util.FILE_TYPE => "FILE ATTRIBUTES (entities): "
+        case Util.RELATION_TYPE_TYPE => "RELATION TYPES: "
+        case Util.ENTITY_CLASS_TYPE => "CLASSES: "
+        case Util.RELATION_TO_ENTITY_TYPE => "RELATION TYPES: "
+        case Util.RELATION_TO_GROUP_TYPE => "RELATION TYPES: "
         case _ => ""
       }
       var leadingText = inLeadingText.getOrElse(List[String](prefix + "Pick from menu, or an item by letter; Alt+<letter> to go to the item & later come back)"))
       val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size + 3 /* up to: see more of leadingText below .*/ , choicesIn.length,
-                                                                    Controller.maxNameLength)
+                                                                    Util.maxNameLength)
       val objectsToDisplay = {
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x BELOW ! (at similar comment)
         if (nonRelationAttrTypeNames.contains(inObjectType)) db.getEntities(startingDisplayRowIndexIn, Some(numDisplayableItems))
-        else if (inObjectType == Controller.ENTITY_TYPE) db.getEntitiesOnly(startingDisplayRowIndexIn, Some(numDisplayableItems), inClassId, limitByClassIn,
+        else if (inObjectType == Util.ENTITY_TYPE) db.getEntitiesOnly(startingDisplayRowIndexIn, Some(numDisplayableItems), inClassId, limitByClassIn,
                                                                            inPreviousSelectionId,
                                                                            containingGroupIn)
         else if (relationAttrTypeNames.contains(inObjectType)) {
           db.getRelationTypes(startingDisplayRowIndexIn, Some(numDisplayableItems)).asInstanceOf[java.util.ArrayList[RelationType]]
         }
-        else if (inObjectType == Controller.ENTITY_CLASS_TYPE) db.getClasses(startingDisplayRowIndexIn, Some(numDisplayableItems))
+        else if (inObjectType == Util.ENTITY_CLASS_TYPE) db.getClasses(startingDisplayRowIndexIn, Some(numDisplayableItems))
         else throw new Exception("invalid inAttrType: " + inObjectType)
       }
       if (objectsToDisplay.size == 0) {
         // IF THIS CHANGES: change the guess at the 1st parameter to maxColumnarChoicesToDisplayAfter, JUST ABOVE!
-        val txt: String = TextUI.NEWLN + TextUI.NEWLN + "(None of the needed " + (if (inObjectType == Controller.RELATION_TYPE_TYPE) "relation types" else "entities") +
+        val txt: String = TextUI.NEWLN + TextUI.NEWLN + "(None of the needed " + (if (inObjectType == Util.RELATION_TYPE_TYPE) "relation types" else "entities") +
                           " have been created in this model, yet."
         leadingText = leadingText ::: List(txt)
       }
       val totalExisting: Long = {
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x ELSEWHERE ! (at similar comment)
         if (nonRelationAttrTypeNames.contains(inObjectType)) db.getEntitiesOnlyCount(inClassId, limitByClassIn, inPreviousSelectionId)
-        else if (inObjectType == Controller.ENTITY_TYPE) db.getEntitiesOnlyCount(inClassId, limitByClassIn, inPreviousSelectionId)
+        else if (inObjectType == Util.ENTITY_TYPE) db.getEntitiesOnlyCount(inClassId, limitByClassIn, inPreviousSelectionId)
         else if (relationAttrTypeNames.contains(inObjectType)) db.getRelationTypeCount
-        else if (inObjectType == Controller.ENTITY_CLASS_TYPE) db.getClassCount()
+        else if (inObjectType == Util.ENTITY_CLASS_TYPE) db.getClassCount()
         else throw new Exception("invalid inAttrType: " + inObjectType)
       }
       addRemainingCountToPrompt(choicesIn, objectsToDisplay.size, totalExisting, startingDisplayRowIndexIn)
@@ -1379,10 +1263,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x ABOVE ! (at similar comment)
           if (nonRelationAttrTypeNames.contains(inObjectType))
             db.getEntityCount
-          else if (inObjectType == Controller.ENTITY_TYPE) db.getEntitiesOnlyCount(inClassId, limitByClassIn)
+          else if (inObjectType == Util.ENTITY_TYPE) db.getEntitiesOnlyCount(inClassId, limitByClassIn)
           else if (relationAttrTypeNames.contains(inObjectType))
             db.getRelationTypeCount
-          else if (inObjectType == Controller.ENTITY_CLASS_TYPE) db.getClassCount()
+          else if (inObjectType == Util.ENTITY_CLASS_TYPE) db.getClassCount()
           else throw new Exception("invalid inAttrType: " + inObjectType)
         if (x >= numObjectsInModel) {
           ui.displayText("End of list found; starting over from the beginning.")
@@ -1453,12 +1337,12 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         }
 
       } else if (answer == searchForEntityByIdChoice && answer <= choices.length) {
-        searchById(Controller.ENTITY_TYPE)
+        searchById(Util.ENTITY_TYPE)
       } else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(inObjectType) && answer <= choices.length) {
-        val entity: Option[Entity] = askForNameAndWriteEntity(Controller.RELATION_TYPE_TYPE)
+        val entity: Option[Entity] = askForNameAndWriteEntity(Util.RELATION_TYPE_TYPE)
         if (entity.isEmpty) None
         else Some(new IdWrapper(entity.get.getId))
-      } else if (answer == createClassChoice && inObjectType == Controller.ENTITY_CLASS_TYPE && answer <= choices.length) {
+      } else if (answer == createClassChoice && inObjectType == Util.ENTITY_CLASS_TYPE && answer <= choices.length) {
         val result: Option[(Long, Long)] = askForAndWriteClassAndTemplateEntityName()
         if (result.isEmpty) None
         else {
@@ -1482,7 +1366,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (userChoseAlternate) {
           inObjectType match {
             // idea: replace this condition by use of a trait (the type of o, which has getId), or being smarter with scala's type system. attrTypeIn match {
-            case Controller.ENTITY_TYPE =>
+            case Util.ENTITY_TYPE =>
               new EntityMenu(ui, db, this).entityMenu(o.asInstanceOf[Entity])
             case _ =>
               // (choosing a group doesn't call this, it calls chooseOrCreateGroup)
@@ -1493,7 +1377,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         } else {
           if (evenMoreAttrTypeNames.contains(inObjectType))
             Some(o.asInstanceOf[Entity].getIdWrapper)
-          else if (inObjectType == Controller.ENTITY_CLASS_TYPE) Some(o.asInstanceOf[EntityClass].getIdWrapper)
+          else if (inObjectType == Util.ENTITY_CLASS_TYPE) Some(o.asInstanceOf[EntityClass].getIdWrapper)
           else throw new Exception("invalid inAttrType: " + inObjectType)
         }
       } else {
@@ -1505,19 +1389,19 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   }
 
   def askForNameAndSearchForEntity: Option[IdWrapper] = {
-    val ans = ui.askForString(Some(Array(searchPrompt(Controller.ENTITY_TYPE))))
+    val ans = ui.askForString(Some(Array(searchPrompt(Util.ENTITY_TYPE))))
     if (ans.isEmpty) {
       None
     } else {
       // Allow relation to self (eg, picking self as 2nd part of a RelationToEntity), so None in 3nd parm.
-      val e: Option[IdWrapper] = findExistingObjectByText(0, Controller.ENTITY_TYPE, None, ans.get)
+      val e: Option[IdWrapper] = findExistingObjectByText(0, Util.ENTITY_TYPE, None, ans.get)
       if (e.isEmpty) None
       else Some(new IdWrapper(e.get.getId))
     }
   }
 
   def searchById(typeNameIn: String): Option[IdWrapper] = {
-    require(typeNameIn == Controller.ENTITY_TYPE || typeNameIn == Controller.GROUP_TYPE)
+    require(typeNameIn == Util.ENTITY_TYPE || typeNameIn == Util.GROUP_TYPE)
     val ans = ui.askForString(Some(Array("Enter the " + typeNameIn + " ID to search for:")))
     if (ans.isEmpty) {
       None
@@ -1531,8 +1415,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         // (BTW, do allow relation to self, e.g., picking self as 2nd part of a RelationToEntity.)
         // (Also, the call to entityKeyExists should here include archived entities so the user can find out if the one
         // needed is archived, even if the hard way.)
-        if ((typeNameIn == Controller.ENTITY_TYPE && db.entityKeyExists(idString.toLong)) ||
-            (typeNameIn == Controller.GROUP_TYPE && db.groupKeyExists(idString.toLong))) {
+        if ((typeNameIn == Util.ENTITY_TYPE && db.entityKeyExists(idString.toLong)) ||
+            (typeNameIn == Util.GROUP_TYPE && db.groupKeyExists(idString.toLong))) {
           Some(new IdWrapper(idString.toLong))
         } else {
           ui.displayText("The " + typeNameIn + " ID " + ans.get + " was not found in the database.")
@@ -1559,7 +1443,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val leadingText: List[String] = List("SELECT A *UNIT* FOR THIS QUANTITY (i.e., centimeters, or quarts; ESC or blank to cancel):")
     val previousSelectionDesc = if (inEditing) Some(new Entity(db, inDH.unitId).getName) else None
     val previousSelectionId = if (inEditing) Some(inDH.unitId) else None
-    val unitSelection = chooseOrCreateObject(Some(leadingText), previousSelectionDesc, previousSelectionId, Controller.QUANTITY_TYPE)
+    val unitSelection = chooseOrCreateObject(Some(leadingText), previousSelectionDesc, previousSelectionId, Util.QUANTITY_TYPE)
     if (unitSelection.isEmpty) {
       ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystrokeIn = false)
       None
@@ -1620,7 +1504,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     val dateFormat = new java.text.SimpleDateFormat(dateFormatString)
     val defaultValue: String = {
       if (inEditing) dateFormat.format(new Date(inDH.date))
-      else Controller.DATEFORMAT.format(System.currentTimeMillis())
+      else Util.DATEFORMAT.format(System.currentTimeMillis())
     }
 
     def dateCriteria(date: String): Boolean = {
@@ -1717,7 +1601,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                     "Create new group (aka RelationToGroup)",
                                                     "Search for existing group by name...",
                                                     "Search for existing group by id...")
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choicesPreAdjustment.length, Controller.maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choicesPreAdjustment.length, Util.maxNameLength)
     val objectsToDisplay = db.getGroups(startingDisplayRowIndexIn, Some(numDisplayableItems), containingGroupIn)
     if (objectsToDisplay.size == 0) {
       val txt: String = TextUI.NEWLN + TextUI.NEWLN + "(None of the needed groups have been created in this model, yet."
@@ -1753,16 +1637,16 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           }
         }
       } else if (answer == 3 && answer <= choices.length) {
-        val ans = ui.askForString(Some(Array(searchPrompt(Controller.GROUP_TYPE))))
+        val ans = ui.askForString(Some(Array(searchPrompt(Util.GROUP_TYPE))))
         if (ans.isEmpty) None
         else {
           // Allow relation to self, so None in 2nd parm.
-          val g: Option[IdWrapper] = findExistingObjectByText(0, Controller.GROUP_TYPE, None, ans.get)
+          val g: Option[IdWrapper] = findExistingObjectByText(0, Util.GROUP_TYPE, None, ans.get)
           if (g.isEmpty) None
           else Some(new IdWrapper(g.get.getId))
         }
       } else if (answer == 4 && answer <= choices.length) {
-        searchById(Controller.GROUP_TYPE)
+        searchById(Util.GROUP_TYPE)
       } else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
         // those in that^ condition are 1-based, not 0-based.
         val index = answer - choices.length - 1
@@ -1796,7 +1680,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       if (!inEditing) None
       else Some(inDH.entityId2)
     }
-    val (id: Option[Long]) = chooseOrCreateObject_OrSaysCancelled("SELECT OTHER (RELATED) ENTITY FOR THIS RELATION", Controller.ENTITY_TYPE, previousSelectionDesc,
+    val (id: Option[Long]) = chooseOrCreateObject_OrSaysCancelled("SELECT OTHER (RELATED) ENTITY FOR THIS RELATION", Util.ENTITY_TYPE, previousSelectionDesc,
                                                    previousSelectionId)
     val outDH = inDH
     if (id.isEmpty) None
@@ -1812,7 +1696,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     //value to "blank/all time"!).
     val dateStrWithOptionalEra =
       if (dateStrIn.equalsIgnoreCase("now") || (blankMeansNOW && dateStrIn.trim.length() == 0)) {
-        val currentDateString: String = Controller.DATEFORMAT.format(new java.util.Date(System.currentTimeMillis()))
+        val currentDateString: String = Util.DATEFORMAT.format(new java.util.Date(System.currentTimeMillis()))
         currentDateString
       }
       else dateStrIn.trim
@@ -1865,17 +1749,17 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     try {
       val d: java.util.Date =
       try {
-        if (era.isEmpty) Controller.DATEFORMAT.parse(dateStrWithZeros)
-        else Controller.DATEFORMAT_WITH_ERA.parse(era + dateStrWithZeros)
+        if (era.isEmpty) Util.DATEFORMAT.parse(dateStrWithZeros)
+        else Util.DATEFORMAT_WITH_ERA.parse(era + dateStrWithZeros)
       } catch {
         case e: java.text.ParseException =>
           try {
-            if (era.isEmpty) Controller.DATEFORMAT2.parse(dateStrWithZeros)
-            else Controller.DATEFORMAT2_WITH_ERA.parse(era + dateStrWithZeros)
+            if (era.isEmpty) Util.DATEFORMAT2.parse(dateStrWithZeros)
+            else Util.DATEFORMAT2_WITH_ERA.parse(era + dateStrWithZeros)
           } catch {
             case e: java.text.ParseException =>
-              if (era.isEmpty) Controller.DATEFORMAT3.parse(dateStrWithZeros)
-              else Controller.DATEFORMAT3_WITH_ERA.parse(era + dateStrWithZeros)
+              if (era.isEmpty) Util.DATEFORMAT3.parse(dateStrWithZeros)
+              else Util.DATEFORMAT3_WITH_ERA.parse(era + dateStrWithZeros)
           }
       }
       (Some(d.getTime), false)
@@ -1938,14 +1822,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (dateTypeIn == VALID) {
           if (inEditing && oldValidOnDateIn.isDefined) {
             if (oldValidOnDateIn.get == 0) Some("0")
-            else Some(Controller.DATEFORMAT_WITH_ERA.format(new Date(oldValidOnDateIn.get)))
+            else Some(Util.DATEFORMAT_WITH_ERA.format(new Date(oldValidOnDateIn.get)))
           }
           else None
         } else if (dateTypeIn == OBSERVED) {
           if (inEditing) {
-            Some(Controller.DATEFORMAT_WITH_ERA.format(new Date(oldObservedDateIn)))
+            Some(Util.DATEFORMAT_WITH_ERA.format(new Date(oldObservedDateIn)))
           } else {
-            Some(Controller.DATEFORMAT_WITH_ERA.format(new Date(System.currentTimeMillis())))
+            Some(Util.DATEFORMAT_WITH_ERA.format(new Date(System.currentTimeMillis())))
           }
         } else throw new scala.Exception("unexpected type: " + dateTypeIn)
       }
@@ -2079,7 +1963,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (groupIn.getSize() == 0) {
           // adding 1st entity to this group, so:
           val leadingText = List("ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):")
-          val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Controller.ENTITY_TYPE,
+          val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Util.ENTITY_TYPE,
                                                                   containingGroupIn = Some(groupIn.getId))
           if (idWrapper.isDefined) {
             db.addEntityToGroup(groupIn.getId, idWrapper.get.getId)
@@ -2088,7 +1972,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         } else {
           // it's not the 1st entry in the group, so add an entity using the same class as those previously added (or None as case may be).
           val entityClassInUse = groupIn.getClassId
-          val idWrapper: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Controller.ENTITY_TYPE, 0, entityClassInUse, limitByClassIn = true,
+          val idWrapper: Option[IdWrapper] = chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE, 0, entityClassInUse, limitByClassIn = true,
                                                                   containingGroupIn = Some(groupIn.getId))
           if (idWrapper.isEmpty) None
           else {
@@ -2114,7 +1998,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         }
       } else {
         val leadingText = List("ADD ENTITY TO A (mixed-class) GROUP")
-        val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Controller.ENTITY_TYPE,
+        val idWrapper: Option[IdWrapper] = chooseOrCreateObject(Some(leadingText), None, None, Util.ENTITY_TYPE,
                                                                 containingGroupIn = Some(groupIn.getId))
         if (idWrapper.isDefined) {
           db.addEntityToGroup(groupIn.getId, idWrapper.get.getId)
@@ -2194,7 +2078,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
   @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String]): Option[Long] = {
     val leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt))
-    val default: String = defaultIn.getOrElse(Controller.DATEFORMAT.format(System.currentTimeMillis()))
+    val default: String = defaultIn.getOrElse(Util.DATEFORMAT.format(System.currentTimeMillis()))
     val ans = ui.askForString(Some(leadingText), None, Some(default))
     if (ans.isEmpty) None
     else {
@@ -2250,31 +2134,31 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         (0L, true)
       }
     }
-    if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.QUANTITY_TYPE)) {
+    if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Util.QUANTITY_TYPE)) {
       def addQuantityAttribute(dhIn: QuantityAttributeDataHolder): Option[QuantityAttribute] = {
         Some(entityIn.addQuantityAttribute(dhIn.attrTypeId, dhIn.unitId, dhIn.number, None, dhIn.validOnDate, dhIn.observationDate))
       }
-      askForInfoAndAddAttribute[QuantityAttributeDataHolder](new QuantityAttributeDataHolder(attrTypeId, None, 0, 0, 0), askForAttrTypeId, Controller.QUANTITY_TYPE,
+      askForInfoAndAddAttribute[QuantityAttributeDataHolder](new QuantityAttributeDataHolder(attrTypeId, None, 0, 0, 0), askForAttrTypeId, Util.QUANTITY_TYPE,
                                                              Some(quantityTypePrompt), askForQuantityAttributeNumberAndUnit, addQuantityAttribute)
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.DATE_TYPE)) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Util.DATE_TYPE)) {
       def addDateAttribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
         Some(entityIn.addDateAttribute(dhIn.attrTypeId, dhIn.date))
       }
-      askForInfoAndAddAttribute[DateAttributeDataHolder](new DateAttributeDataHolder(attrTypeId, 0), askForAttrTypeId, Controller.DATE_TYPE,
+      askForInfoAndAddAttribute[DateAttributeDataHolder](new DateAttributeDataHolder(attrTypeId, 0), askForAttrTypeId, Util.DATE_TYPE,
                                                          Some("SELECT TYPE OF DATE: "), askForDateAttributeValue, addDateAttribute)
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.BOOLEAN_TYPE)) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Util.BOOLEAN_TYPE)) {
       def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
         Some(entityIn.addBooleanAttribute(dhIn.attrTypeId, dhIn.boolean, None))
       }
       askForInfoAndAddAttribute[BooleanAttributeDataHolder](new BooleanAttributeDataHolder(attrTypeId, Some(0), 0, false), askForAttrTypeId,
-                                                            Controller.BOOLEAN_TYPE, Some("SELECT TYPE OF TRUE/FALSE VALUE: "),  askForBooleanAttributeValue,
+                                                            Util.BOOLEAN_TYPE, Some("SELECT TYPE OF TRUE/FALSE VALUE: "),  askForBooleanAttributeValue,
                                                             addBooleanAttribute)
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.FILE_TYPE)) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Util.FILE_TYPE)) {
       def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
         Some(entityIn.addFileAttribute(dhIn.attrTypeId, dhIn.description, new File(dhIn.originalFilePath)))
       }
       val result: Option[FileAttribute] = askForInfoAndAddAttribute[FileAttributeDataHolder](new FileAttributeDataHolder(attrTypeId, "", ""),
-                                                                                             askForAttrTypeId, Controller.FILE_TYPE,
+                                                                                             askForAttrTypeId, Util.FILE_TYPE,
                                                                                              Some("SELECT TYPE OF FILE: "), askForFileAttributeInfo,
                                                                                              addFileAttribute).asInstanceOf[Option[FileAttribute]]
       if (result.isDefined) {
@@ -2286,17 +2170,17 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         }
       }
       result
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.TEXT_TYPE)) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Util.TEXT_TYPE)) {
       def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
         Some(entityIn.addTextAttribute(dhIn.attrTypeId, dhIn.text, None, dhIn.validOnDate, dhIn.observationDate))
       }
-      askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(attrTypeId, Some(0), 0, ""), askForAttrTypeId, Controller.TEXT_TYPE,
+      askForInfoAndAddAttribute[TextAttributeDataHolder](new TextAttributeDataHolder(attrTypeId, Some(0), 0, ""), askForAttrTypeId, Util.TEXT_TYPE,
                                                          Some("SELECT TYPE OF " + textDescription + ": "), askForTextAttributeText, addTextAttribute)
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_ENTITY_TYPE)) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE)) {
       def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[RelationToEntity] = {
         Some(entityIn.addRelationToEntity(dhIn.attrTypeId, dhIn.entityId2, None, dhIn.validOnDate, dhIn.observationDate))
       }
-      askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(attrTypeId, None, 0, 0), askForAttrTypeId, Controller.RELATION_TYPE_TYPE,
+      askForInfoAndAddAttribute[RelationToEntityDataHolder](new RelationToEntityDataHolder(attrTypeId, None, 0, 0), askForAttrTypeId, Util.RELATION_TYPE_TYPE,
                                                             Some("CREATE OR SELECT RELATION TYPE: (" + mRelTypeExamples + ")"),
                                                             askForRelationEntityIdNumber2, addRelationToEntity)
     } else if (attrFormIn == 100) {
@@ -2307,7 +2191,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       } else {
         None
       }
-    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Controller.RELATION_TO_GROUP_TYPE)) {
+    } else if (attrFormIn == PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE)) {
       def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
         require(dhIn.entityId == entityIn.getId)
         val newRTG: RelationToGroup = entityIn.addRelationToGroup(dhIn.attrTypeId, dhIn.groupId, None, dhIn.validOnDate, dhIn.observationDate)
@@ -2315,7 +2199,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
       val result: Option[Attribute] = askForInfoAndAddAttribute[RelationToGroupDataHolder](new RelationToGroupDataHolder(entityIn.getId, attrTypeId, 0,
                                                                                                                          None, System.currentTimeMillis()),
-                                                                                           askForAttrTypeId, Controller.RELATION_TYPE_TYPE,
+                                                                                           askForAttrTypeId, Util.RELATION_TYPE_TYPE,
                                                                                            Some("CREATE OR SELECT RELATION TYPE: (" + mRelTypeExamples + ")" +
                                                                                                 "." + TextUI.NEWLN + "(Does anyone see a specific " +
                                                                                                 "reason to keep asking for these dates?)"),
@@ -2346,7 +2230,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       } else {
         val uriReady = ui.askYesNoQuestion("Put the url on the system clipboard, then Enter to continue (or hit ESC or answer 'n' to get out)", Some("y"))
         if (uriReady.isEmpty || !uriReady.get) return None
-        Controller.getClipboardContent
+        Util.getClipboardContent
       }
 
       val ans2 = ui.askWhich(Some(Array[String]("Do you want to enter a quote from it, via the keyboard (normal) or the" +
@@ -2362,7 +2246,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         } else {
           val clip = ui.askYesNoQuestion("Put a quote on the system clipboard, then Enter to continue (or answer 'n' to get out)", Some("y"))
           if (clip.isEmpty || !clip.get) return None
-          Some(Controller.getClipboardContent)
+          Some(Util.getClipboardContent)
         }
       }
       val quoteInfo = if (quote.isEmpty) "" else "For this text: \n  " + quote.get + "\n...and, "
@@ -2503,7 +2387,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                   if (allCopy || (whichRTEResponse.isDefined && whichRTEResponse.get == 1)) {
                     val templatesRelatedEntity: Entity = new Entity(db, a.getRelatedId2)
                     val oldName: String = templatesRelatedEntity.getName
-                    val newEntity = askForNameAndWriteEntity(Controller.ENTITY_TYPE, None, Some(oldName), None, None, templatesRelatedEntity.getClassId,
+                    val newEntity = askForNameAndWriteEntity(Util.ENTITY_TYPE, None, Some(oldName), None, None, templatesRelatedEntity.getClassId,
                                                              Some("EDIT THE ENTITY NAME:"), duplicateNameProbablyOK = true)
                     if (newEntity.isEmpty) {
                       None

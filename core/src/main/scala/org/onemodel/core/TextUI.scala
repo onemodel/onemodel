@@ -49,7 +49,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   lazy val controller: Controller = new Controller(this, forceUsernamePasswordPrompt, username, password)
   lazy val mTerminal: jline.Terminal = initializeTerminal()
   val jlineReader: ConsoleReader = initializeReader()
-  val howQuit: String = if (Controller.isWindows) "Close the window" else "Ctrl+C"
+  val howQuit: String = if (Util.isWindows) "Close the window" else "Ctrl+C"
 
   // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
   // the cleanup actually happens.
@@ -132,7 +132,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   }
 
   private def terminalWidth: Int = {
-    if (!Controller.isWindows) {
+    if (!Util.isWindows) {
       mTerminal.getWidth
     } else {
       // This is a not-ideal workaround to a bug when running on Windows, where OM thinks it has more terminal width than it does: in a 95-character-wide
@@ -246,10 +246,10 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     // idea: make this better by using features of or tweaking jline2? Or...? But at least make it easy to see when out of room!
     //val promptToShowStringSizeLimit = "(Max name length is  " + controller.maxNameLength
     val endPrompt = "(... which ends here: |)"
-    if (lastLineOfPrompt.length > 1 && lastLineOfPrompt.length + endPrompt.length - 1 <= Controller.maxNameLength) {
+    if (lastLineOfPrompt.length > 1 && lastLineOfPrompt.length + endPrompt.length - 1 <= Util.maxNameLength) {
       val spaces: StringBuilder = new StringBuilder("")
       // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker
-      val padLength: Int = Controller.maxNameLength - lastLineOfPrompt.length - endPrompt.length + 1
+      val padLength: Int = Util.maxNameLength - lastLineOfPrompt.length - endPrompt.length + 1
       for (x <- 0 until padLength) {
         spaces.append(" ")
       }
@@ -364,7 +364,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     // 'a' and go from there.
     require(choicesIn.length > 0)
 
-    val maxChoiceLength = Controller.maxNameLength
+    val maxChoiceLength = Util.maxNameLength
 
     val firstMenuChars: StringBuffer = {
       //up to: "123456789"

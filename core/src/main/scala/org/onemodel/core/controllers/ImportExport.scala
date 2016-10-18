@@ -12,8 +12,9 @@ package org.onemodel.core.controllers
 import java.io._
 import java.nio.file.{Files, Path, StandardCopyOption}
 
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core._
 import org.onemodel.core.model._
+import org.onemodel.core.database.PostgreSQLDatabase
 import org.onemodel.core.{OmException, TextUI}
 
 import scala.annotation.tailrec
@@ -208,7 +209,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
           importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                             makeThemPublicIn)
         } else {
-          if (line.length > Controller.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + Controller.maxNameLength + " characters " +
+          if (line.length > Util.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + Util.maxNameLength + " characters " +
                                                                " (has " + line.length + "): " + line)
           val indentationSpaceCount: Int = getFirstNonSpaceIndex(lineUntrimmed.getBytes, 0)
           if (indentationSpaceCount % spacesPerIndentLevel != 0) throw new OmException("# of spaces is off, on line " + lineNumber + ": '" + line + "'")
@@ -302,7 +303,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val prompt = "A name for the *type* of this text attribute was not provided; it would be the entire line content preceding the \"" +
                      beginningTagMarker + "\" " +
                      "(it has to match an existing entity, case-sensitively)"
-        val typeId = controller.chooseOrCreateObject_OrSaysCancelled(prompt + ", so please choose one or ESC to abort this import operation:", Controller.TEXT_TYPE, None, None)
+        val typeId = controller.chooseOrCreateObject_OrSaysCancelled(prompt + ", so please choose one or ESC to abort this import operation:", Util.TEXT_TYPE, None, None)
         if (typeId.isEmpty)
           throw new OmException(prompt + " or selected.")
         else
@@ -583,7 +584,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             printWriter.println("    </ul>")
           case textAttr: TextAttribute =>
             val typeName: String = getCachedEntity(textAttr.getAttrTypeId, cachedEntitiesIn).getName
-            if (typeName==Controller.HEADER_CONTENT_TAG || typeName == Controller.BODY_CONTENT_TAG || typeName==Controller.FOOTER_CONTENT_TAG) {
+            if (typeName==Util.HEADER_CONTENT_TAG || typeName == Util.BODY_CONTENT_TAG || typeName==Util.FOOTER_CONTENT_TAG) {
               //skip it: this is used to create the pages and should not be considered a normal kind of displayable content in them:
             } else {
               printWriter.println("    <li><pre>" + htmlEncode(textAttr.getDisplayString(0, None, None, simplify = true)) + "</pre></li>")

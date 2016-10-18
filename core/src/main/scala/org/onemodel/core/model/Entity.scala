@@ -18,7 +18,6 @@ package org.onemodel.core.model
 import java.io.{FileInputStream, PrintWriter, StringWriter}
 
 import org.onemodel.core._
-import org.onemodel.core.controllers.Controller
 import org.onemodel.core.database.PostgreSQLDatabase
 
 object Entity {
@@ -116,7 +115,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
   }
 
   def getCreationDateFormatted: String = {
-    Controller.DATEFORMAT.format(new java.util.Date(getCreationDate))
+    Util.DATEFORMAT.format(new java.util.Date(getCreationDate))
   }
 
   def getPublic: Option[Boolean] = {

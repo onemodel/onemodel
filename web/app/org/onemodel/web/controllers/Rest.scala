@@ -14,13 +14,15 @@ import akka.util.ByteString
 import play.api.mvc._
 import play.api.http.HttpEntity
 
+import org.onemodel.core._
 import org.onemodel.core.database.PostgreSQLDatabase
 import org.onemodel.core.model._
 
 class Rest extends play.api.mvc.Controller {
+  val (user, pass) = Util.getDefaultUserInfo
+  val db = new PostgreSQLDatabase(user, pass)
+
   def id: Action[AnyContent] = Action { implicit request =>
-    val (user, pass) = org.onemodel.core.controllers.Controller.getDefaultUserInfo
-    val db = new PostgreSQLDatabase(user, pass)
     val inst: OmInstance = db.getLocalOmInstanceData
     val msg = "Instance " + inst.getDisplayString
     Result(
@@ -30,10 +32,8 @@ class Rest extends play.api.mvc.Controller {
   }
 
   def entity(idIn: Long): Action[AnyContent] = Action { implicit request =>
-    val (user, pass) = org.onemodel.core.controllers.Controller.getDefaultUserInfo
-    val db = new PostgreSQLDatabase(user, pass)
     val exists: Boolean = db.entityOnlyKeyExists(idIn)
-    if (! exists) {
+    if (!exists) {
       val msg: String = "Entity " + idIn + " was not found."
       NotFound(msg)
     } else {

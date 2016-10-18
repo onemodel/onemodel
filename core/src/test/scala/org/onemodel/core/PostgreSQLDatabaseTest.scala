@@ -1113,7 +1113,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(allContainedWithName4.size == 1, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
 
     val editorCmd = mDB.getTextEditorCommand
-    if (Controller.isWindows) assert(editorCmd.contains("notepad"))
+    if (Util.isWindows) assert(editorCmd.contains("notepad"))
     else assert(editorCmd == "vi")
   }
 

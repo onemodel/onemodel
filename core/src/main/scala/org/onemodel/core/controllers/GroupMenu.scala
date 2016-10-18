@@ -63,7 +63,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
     // (idea: maybe this use of color on next line could be removed, if people don't rely on the color change.  I originally added it as a visual
     // cue to aid my transition to using entities more & groups less. Same thing is done in QuickGroupMenu.)
     val leadingText: Array[String] = Array(Color.yellow("ENTITY GROUP ") + "(regular menu: more complete, so slower for some things): " + displayDescription)
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Controller.maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength)
     val objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems))
     controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), displayStartingRowNumberIn)
     val statusesAndNames: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
@@ -153,7 +153,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                                                                              relationToGroupIn.get.getGroupId,
                                                                                              relationToGroupIn.get.getValidOnDate,
                                                                                              relationToGroupIn.get.getObservationDate)
-            controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupDH, askForAttrTypeId = true, Controller.RELATION_TO_GROUP_TYPE,
+            controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupDH, askForAttrTypeId = true, Util.RELATION_TO_GROUP_TYPE,
                                                                     "CHOOSE TYPE OF [correct me: or edit existing?] Relation to Entity:",
                                                                     controller.askForRelToGroupInfo, updateRelationToGroup)
             //force a reread from the DB so it shows the right info on the repeated menu:

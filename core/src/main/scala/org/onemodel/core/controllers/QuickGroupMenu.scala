@@ -10,6 +10,7 @@
 */
 package org.onemodel.core.controllers
 
+import org.onemodel.core._
 import org.onemodel.core.database.PostgreSQLDatabase
 import org.onemodel.core.model._
 import org.onemodel.core.{Color, OmException, TextUI}
@@ -137,7 +138,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           if (targetRtgCount > 1) {
             // can't guess which subgroup so just move it to the entity (idea: could ask whether to do that or go to which subgroup, perhaps...)
             db.moveEntityFromGroupToEntity(groupIn.getId, targetForMovesIn.get.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
-            val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
+            val entityToHighlight: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
                                                                                          highlightedIndexInObjListIn, highlightedEntry)
             quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
           } else {
@@ -157,7 +158,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                 db.moveEntityFromGroupToEntity(groupIn.getId, targetForMovesIn.get.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1,
                                                                                                                             highlightedObjId))
               }
-              val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
+              val entityToHighlight: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
                                                                                            highlightedIndexInObjListIn, highlightedEntry)
               quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
             }
@@ -204,13 +205,13 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
         if (targetEntity.isDefined) {
           require(targetGroupId.isEmpty)
           db.moveEntityFromGroupToEntity(groupIn.getId, containingEntityIn.get.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
-          val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
+          val entityToHighlight: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
                                                                                        highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         } else if (targetGroupId.isDefined) {
           require(targetEntity.isEmpty)
           db.moveEntityFromGroupToGroup(groupIn.getId, targetGroupId.get, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
-          val entityToHighlight: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
+          val entityToHighlight: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
                                                                                       highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         } else {
@@ -244,7 +245,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
     // (Idea: this color thing should probably be handled in the textui class instead, especially if there were multiple kinds of UI.)
     val leadingText: Array[String] = Array(Color.yellow("ENTITY GROUP") + " (quick menu: acts on (w/ #'s) OR selects (w/ letters...) an entity): "
                                            + displayDescription)
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Controller.maxNameLength)
+    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength)
     val objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(startingDisplayRowIndexIn, Some(numDisplayableItems))
     val objIds = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       entity.getId
@@ -326,7 +327,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
         if (answer == 1) {
           val (entryToHighlight:Option[Entity], displayStartingRowNumber: Int) = {
             // ask for less info when here in the quick menu, where want to add entity quickly w/ no fuss, like brainstorming.  User can always use long menu.
-            val ans: Option[Entity] = controller.askForNameAndWriteEntity(Controller.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
+            val ans: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
                                                                inClassId = groupIn.getClassId)
             if (ans.isDefined) {
               val newEntity = ans.get
@@ -374,7 +375,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                   } else {
                     val (rtgId: Long, relTypeId: Long, targetGroupId: Long) = createNewOrFindOneGroupOnEntity(groupIn, targetRtgCount, highlightedEntry)
                     // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
-                    val ans: Option[Entity] = controller.askForNameAndWriteEntity(Controller.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
+                    val ans: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
                                                                                   inClassId = groupIn.getClassId)
                     if (ans.isDefined) {
                       val newEntityId: Long = ans.get.getId
@@ -389,7 +390,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                     quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
                   }
                 } else {
-                  val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Controller.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
+                  val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
                                                                                       inClassId = groupIn.getClassId)
                   if (newEntity.isDefined) {
                     val newEntityId: Long = newEntity.get.getId
@@ -429,7 +430,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           new EntityMenu(ui, db, controller).entityMenu(highlightedEntry, containingGroupIn = Some(groupIn))
           // deal with entityMenu possibly having deleted the entity:
           val removedOne: Boolean = !db.isEntityInGroup(groupIn.getId, highlightedEntry.getId)
-          val entityToHighlightNext: Option[Entity] = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList,
+          val entityToHighlightNext: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList,
                                                                                highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlightNext, targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 6) {
@@ -444,8 +445,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
         } else if (answer == 7) {
           // NOTE: this code is similar (not identical) in EntityMenu as in QuickGroupMenu: if one changes,
           // THE OTHER MIGHT ALSO NEED MAINTENANCE!
-          val choices = Array[String](Controller.unselectMoveTargetPromptText)
-          val leadingText: Array[String] = Array(Controller.unselectMoveTargetLeadingText)
+          val choices = Array[String](Util.unselectMoveTargetPromptText)
+          val leadingText: Array[String] = Array(Util.unselectMoveTargetLeadingText)
           controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
 
           val response = ui.askWhich(Some(leadingText), choices, statusesAndNames, highlightIndexIn = Some(highlightedIndexInObjList),
@@ -522,7 +523,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
             if (groupId.isDefined && !moreThanOneGroupAvailable) {
               //idea: do something w/ this unused variable? Like, if the userSelection was deleted, then use this in its place in parms to
               // qGM just below? or what was it for originally?  Or, del this var around here?
-              entityToHighlightNext = Controller.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList, highlightedEntry)
+              entityToHighlightNext = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList, highlightedEntry)
             }
 
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
