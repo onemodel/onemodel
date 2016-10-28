@@ -428,9 +428,9 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           showSearchResults()
         }
       } else if (searchAnswer == 4) {
-        val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
+        val selection: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
         if (selection.isDefined) {
-          entityMenu(new Entity(db, selection.get.getId))
+          entityMenu(new Entity(db, selection.get._1.getId))
         }
       }
     }
@@ -661,6 +661,8 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         case 7 => PostgreSQLDatabase.getAttributeFormId(Util.TEXT_TYPE)
         case 8 => PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE)
         case 9 => 101
+        // next one seems to happen if one just presses Enter:
+        case 0 => PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE)
       }
       controller.addAttribute(entityIn, startingAttributeIndexIn, attrForm, None)
     } else {

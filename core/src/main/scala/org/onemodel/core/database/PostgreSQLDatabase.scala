@@ -56,6 +56,7 @@ object PostgreSQLDatabase {
   def relationTypeNameLength: Int = entityNameLength
 
   def classNameLength: Int = entityNameLength
+  def omInstanceAddressLength: Int = 261
 
 
   def destroyTables(inDbNameWithoutPrefix: String, username: String, password: String) {
@@ -203,6 +204,7 @@ object PostgreSQLDatabase {
       val warnings = st.getWarnings
       if (warnings != null
           && !warnings.toString.contains("NOTICE: CREATE TABLE / PRIMARY KEY will create implicit index")
+          && !warnings.toString.contains("NOTICE: drop cascades to 2 other objects")
           && !warnings.toString.contains("NOTICE: drop cascades to constraint valid_related_to_entity_id on table class")
       ) {
         throw new OmDatabaseException("Warnings from postgresql. Matters? Says: " + warnings)
@@ -708,13 +710,14 @@ class PostgreSQLDatabase(username: String, var password: String) {
        */
       dbAction("create table OmInstance (" +
                "id uuid PRIMARY KEY" +
+               // next field doesn't mean whether the instance is found on localhost, but rather whether the row is for *this* instance: the OneModel
+               // instance whose database we are connected to right now.
                ", local boolean NOT NULL" +
-               // Address and port could be an IPv4 or IPv6 address or a hostname to be checked in DNS; ":<port> is optional, or a default of 9000 is assumed?
-               // Examples include: localhost, 127.0.0.1:2345, ::1  (?), om.example.com, my.example.com:80, om.example.com:8080, xyz.example.com:9000 .
+               // See Controller.askForAndWriteOmInstanceInfo.askAndSave for more description for the address column.
                // Idea: Is it worth having to know future formats, to enforce validity in a constraint?  Problems seem likely to be infrequent & easy to fix.
                // (The DNS hostname max size seems to be 255 plus a null, but the ":<port>" part could add 6 more digits.
                // Maybe someday we will have to move to a larger size in case it changes or uses unicode or I don't know what.)
-               ", address varchar(261) NOT NULL" +
+               ", address varchar(" + PostgreSQLDatabase.omInstanceAddressLength + ") NOT NULL" +
                // See table entity for description:
                ", insertion_date bigint not null" +
                // To link to an entity with whatever details, such as a human-given name for familiarity, security settings, other adhoc info, etc.
@@ -862,9 +865,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ", address varchar(261) NOT NULL" + ", insertion_date bigint not null" +
                ", entity_id bigint REFERENCES entity (id) ON DELETE RESTRICT " + ") ")
       // (this, or with its successors in later such methods, should be same as the line in createBaseData)
-      createOmInstance(java.util.UUID.randomUUID().toString, isLocalIn = true, "localhost", None)
-      //When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION.
-      // (Do we really need the require statement that checks it though? Seems vaguely good to check, but it costs when forgetting, and what benefit? Hm.)
+      createOmInstance(java.util.UUID.randomUUID().toString, isLocalIn = true, "localhost", None, oldTableName = true)
       dbAction("UPDATE om_db_version SET (version) = (4)")
     }
     catch {
@@ -3561,13 +3562,16 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   ///** The inSelfIdToIgnore parameter is to avoid saying a class is a duplicate of itself: checks for all others only. */
-  def isDuplicateRow(possibleDuplicateIn: String, table: String, keyColumnToIgnoreOn: String, columnToCheckForDupValues: String, extraCondition: Option[String],
-                     inSelfIdToIgnore: Option[Long] = None): Boolean = {
+  def isDuplicateRow[T](possibleDuplicateIn: String, table: String, keyColumnToIgnoreOn: String, columnToCheckForDupValues: String, extraCondition: Option[String],
+                     inSelfIdToIgnore: Option[T] = None): Boolean = {
     val valueToCheck: String = escapeQuotesEtc(possibleDuplicateIn)
 
     val exception: String =
-      if (inSelfIdToIgnore.isEmpty) ""
-      else "and not " + keyColumnToIgnoreOn + "=" + inSelfIdToIgnore.get.toString
+      if (inSelfIdToIgnore.isEmpty) {
+        ""
+      } else {
+        "and not " + keyColumnToIgnoreOn + "=" + inSelfIdToIgnore.get.toString
+      }
 
     doesThisExist("SELECT count(" + keyColumnToIgnoreOn + ") from " + table + " where " +
                   (if (extraCondition.isDefined && extraCondition.get.nonEmpty) extraCondition.get else "true") +
@@ -3578,7 +3582,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
   /** The 2nd parameter is to avoid saying a class is a duplicate of itself: checks for all others only. */
   def isDuplicateClass(inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = {
-    isDuplicateRow(inName, "class", "id", "name", None, inSelfIdToIgnore)
+    isDuplicateRow[Long](inName, "class", "id", "name", None, inSelfIdToIgnore)
+  }
+
+  /** The 2nd parameter is to avoid saying an instance is a duplicate of itself: checks for all others only. */
+  def isDuplicateOmInstance(addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean = {
+    isDuplicateRow[String](addressIn, "omInstance", "id", "address", None,
+                           if (selfIdToIgnoreIn.isEmpty) None else Some("'" + selfIdToIgnoreIn.get + "'"))
   }
 
   /**
@@ -3690,6 +3700,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
     deleteObjects(inTableName, "where id=" + inID, callerManagesTransactions = callerManagesTransactions)
   }
 
+  private def deleteObjectById2(inTableName: String, inID: String, callerManagesTransactions: Boolean = false): Unit = {
+    deleteObjects(inTableName, "where id='" + inID + "'", callerManagesTransactions = callerManagesTransactions)
+  }
+
   /**
    * Although the next sequence value would be set automatically as the default for a column (at least the
    * way I have them defined so far in postgresql); we do it explicitly
@@ -3791,7 +3805,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
     extractRowCountFromCountQuery("SELECT count(1) from omInstance")
   }
 
-  def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[Long] = None): String = {
+  def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[Long] = None,
+                       oldTableName: Boolean = false): Long = {
     if (idIn == null || idIn.length == 0) throw new OmDatabaseException("ID must have a value.")
     if (addressIn == null || addressIn.length == 0) throw new OmDatabaseException("Address must have a value.")
     val id: String = escapeQuotesEtc(idIn)
@@ -3799,11 +3814,13 @@ class PostgreSQLDatabase(username: String, var password: String) {
     require(id == idIn, "Didn't expect quotes etc in the UUID provided: " + idIn)
     require(address == addressIn, "Didn't expect quotes etc in the address provided: " + address)
     val insertionDate: Long = System.currentTimeMillis()
-    val sql: String = "INSERT INTO omInstance (id, local, address, insertion_date, entity_id)" +
+    // next line is for the method upgradeDbFrom3to4 so it can work before upgrading 4to5:
+    val tableName: String = if (oldTableName) "om_instance" else "omInstance"
+    val sql: String = "INSERT INTO " + tableName + " (id, local, address, insertion_date, entity_id)" +
                       " VALUES ('" + id + "'," + (if (isLocalIn) "TRUE" else "FALSE") + ",'" + address + "'," + insertionDate +
                       ", " + (if (entityIdIn.isEmpty) "NULL" else entityIdIn.get) + ")"
     dbAction(sql)
-    id
+    insertionDate
   }
 
   def getOmInstanceData(idIn: String): Array[Option[Any]] = {
@@ -3853,6 +3870,23 @@ class PostgreSQLDatabase(username: String, var password: String) {
                                     "(See insert at end of createBaseData and upgradeDbFrom3to4.)  Total # of rows: " + total)
     }
     finalResults
+  }
+
+  def updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option[Long]) {
+    val address: String = escapeQuotesEtc(addressIn)
+    val sql = "UPDATE omInstance SET (address, entity_id)" +
+              " = ('" + address + "', " +
+              (if (entityIdIn.isDefined) {
+                entityIdIn.get
+              } else {
+                "NULL"
+              }) +
+              ") where id='" + idIn + "'"
+    dbAction(sql)
+  }
+
+  def deleteOmInstance(idIn: String): Unit = {
+    deleteObjectById2("omInstance", idIn)
   }
 
 }

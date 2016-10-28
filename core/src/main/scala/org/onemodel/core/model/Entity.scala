@@ -148,6 +148,16 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     }
   }
 
+  def getArchivedStatus: Boolean = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mArchived
+  }
+
+  def getInsertionDate: Long = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mInsertionDate
+  }
+
   def getArchivedStatusDisplayString: String = {
     if (!isArchived) {
       ""

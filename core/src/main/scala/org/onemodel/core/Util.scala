@@ -24,7 +24,7 @@ object Util {
 
   // Might not be the most familiar date form for us Americans, but it seems the most useful in the widest
   // variety of situations, and more readable than with the "T" embedded in place of
-  // the 1st space.  So, this approximates iso-9601.
+  // the 1st space.  So, this approximates iso-8601.
   // these are for input.
   val DATEFORMAT = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS zzz")
   val DATEFORMAT2 = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss zzz")
@@ -47,6 +47,7 @@ object Util {
   val RELATION_TO_GROUP_TYPE: String = "RelationToGroup"
   val GROUP_TYPE: String = "Group"
   val ENTITY_CLASS_TYPE: String = "Class"
+  val OM_INSTANCE_TYPE: String = "Instance"
 
   val ORPHANED_GROUP_MESSAGE: String = "There is no entity with a containing relation to the group (orphaned).  You might search for it" +
                                        " (by adding it as an attribute to some entity)," +

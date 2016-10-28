@@ -19,24 +19,18 @@ import org.onemodel.core._
 import org.onemodel.core.database.PostgreSQLDatabase
 
 object OmInstance {
-  def createOmInstance(inDB: PostgreSQLDatabase, idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[Long] = None): OmInstance = {
-    val id: String = inDB.createOmInstance(idIn, isLocalIn, addressIn, entityIdIn)
-    new OmInstance(inDB, id)
+  def addressLength: Int = PostgreSQLDatabase.omInstanceAddressLength
+
+  def isDuplicate(dbIn: PostgreSQLDatabase, addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean = {
+    dbIn.isDuplicateOmInstance(addressIn, selfIdToIgnoreIn)
   }
 
-//  def getEntityById(inDB: PostgreSQLDatabase, id: Long): Option[Entity] = {
-//    try Some(new Entity(inDB, id))
-//    catch {
-//      case e: java.lang.Exception =>
-//        //idea: change this to actually get an "OM_NonexistentEntityException" or such, not text, so it works
-//        // when we have multiple databases that might not throw the same string!
-//        if (e.toString.indexOf("does not exist in database.") >= 0) {
-//          None
-//        }
-//        else throw e
-//    }
-//  }
-
+  def create(inDB: PostgreSQLDatabase, idIn: String, addressIn: String, entityIdIn: Option[Long] = None): OmInstance = {
+    // Passing false for isLocalIn because the only time that should be true is when it is created at db creation, for this site, and that is done
+    // in the db class more directly.
+    val insertionDate: Long = inDB.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn)
+    new OmInstance(inDB, idIn, isLocalIn = false, addressIn = addressIn, insertionDateIn = insertionDate, entityIdIn = entityIdIn)
+  }
 }
 
 /** See table definition in the database class for details.
@@ -105,9 +99,11 @@ class OmInstance(mDB: PostgreSQLDatabase, mId: String) {
   }
 
   def getDisplayString: String = {
-    val result: String = mId + ":" + (if (mLocal) " (local)" else "") + " " + mAddress + ", created on " + getCreationDateFormatted
+    val result: String = mId + ":" + (if (mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted
     result
   }
+
+  def delete() = mDB.deleteOmInstance(mId)
 
   var mAlreadyReadData: Boolean = false
   var mLocal: Boolean = false

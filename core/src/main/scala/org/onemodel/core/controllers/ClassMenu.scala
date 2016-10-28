@@ -83,8 +83,8 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
             if (ans.isDefined && ans.get) {
               classIn.delete()
               ui.displayText("Deleted class \"" + name + "\"" + ".")
-              val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_CLASS_TYPE)
-              if (selection.isDefined) classMenu(new EntityClass(db, selection.get.getId))
+              val selection: Option[(IdWrapper, String)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_CLASS_TYPE)
+              if (selection.isDefined) classMenu(new EntityClass(db, selection.get._1.getId))
             } else {
               ui.displayText("Did not delete class.", waitForKeystrokeIn = false)
             }
@@ -94,10 +94,10 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
           new EntityMenu(ui, db, controller).entityMenu(new Entity(db, classIn.getTemplateEntityId))
           classMenu(new EntityClass(db, classIn.getId))
         } else if (answer == 6) {
-          val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, Some(classIn.getTemplateEntityId), Util.ENTITY_TYPE, 0,
+          val selection: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, Some(classIn.getTemplateEntityId), Util.ENTITY_TYPE, 0,
                                                                                Some(classIn.getId),
                                                                                limitByClassIn = true)
-          if (selection.isDefined) new EntityMenu(ui, db, controller).entityMenu(new Entity(db, selection.get.getId))
+          if (selection.isDefined) new EntityMenu(ui, db, controller).entityMenu(new Entity(db, selection.get._1.getId))
           classMenu(new EntityClass(db, classIn.getId))
         } else {
           //textui doesn't actually let the code get here, but:
@@ -105,8 +105,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
           classMenu(classIn)
         }
       }
-    }
-    catch {
+    } catch {
       case e: Exception =>
         controller.handleException(e)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))

@@ -13,6 +13,7 @@ package org.onemodel.web.controllers
 import akka.util.ByteString
 import play.api.mvc._
 import play.api.http.HttpEntity
+import play.api.libs.json._
 
 import org.onemodel.core._
 import org.onemodel.core.database.PostgreSQLDatabase
@@ -24,14 +25,26 @@ class Rest extends play.api.mvc.Controller {
 
   def id: Action[AnyContent] = Action { implicit request =>
     val inst: OmInstance = db.getLocalOmInstanceData
-    val msg = "Instance " + inst.getDisplayString
-    Result(
-            header = ResponseHeader(200, Map.empty),
-            body = HttpEntity.Strict(ByteString(msg), Some("text/plain"))
-          )
+    val msg = new JsString(inst.getId)
+    Ok(msg)
   }
 
-  def entity(idIn: Long): Action[AnyContent] = Action { implicit request =>
+  implicit val entityWrites = new Writes[Entity] {
+    def writes(entityIn: Entity) = Json.obj(
+      "id" -> entityIn.getId,
+      "name" -> entityIn.getName,
+      // This one says null (json has:  ...,"classId":null,... ) when the value is NULL in the db (as could "public" below, though currently the
+      // endpoint returns an error instead, if the entity has anything but TRUE for public in the db).
+      "classId" -> entityIn.getClassId,
+      // could add one that uses ISO8601 for other clients besides OM itself:
+      "insertionDate" -> entityIn.getInsertionDate,
+      "public" -> entityIn.getPublic,
+      "archived" -> entityIn.getArchivedStatus,
+      "newEntriesStickToTop" -> entityIn.getNewEntriesStickToTop
+    )
+  }
+
+  def entities(idIn: Long): Action[AnyContent] = Action { implicit request =>
     val exists: Boolean = db.entityOnlyKeyExists(idIn)
     if (!exists) {
       val msg: String = "Entity " + idIn + " was not found."
@@ -40,16 +53,16 @@ class Rest extends play.api.mvc.Controller {
       val entity = new Entity(db, idIn)
       val public: Option[Boolean] = entity.getPublic
       if (public.isDefined && public.get) {
-        val msg = "Entity info: " + entity.getDisplayString(withColor = false) +
-                  "\n\nGot request [" + request + "]"
-        Result(
-                header = ResponseHeader(200, Map.empty),
-                body = HttpEntity.Strict(ByteString(msg), Some("text/plain"))
-              )
+        val json = Json.toJson(entity)
+        // the ".as(JSON)" seems optional, but for reference:
+        Ok(json).as(JSON)
+//        Result(
+//                header = ResponseHeader(200, Map.empty),
+//                body = HttpEntity.Strict(ByteString(msg), Some("text/plain"))
+//              )
       } else {
         val msg: String = "Entity " + idIn + " is not public."
-        //idea: look in http response codes: is there one that makes more sense than this, here & in similar locations?
-        NotFound(msg)
+        Forbidden(msg)
       }
     }
   }
@@ -57,17 +70,11 @@ class Rest extends play.api.mvc.Controller {
   def defaultEntity = Action { implicit request =>
     var defaultEntityId: Option[Long] = db.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
     if (defaultEntityId.isDefined) {
-      /* idea: do something different if archived, or show more info about the entity & save a repeat call for that?:
-        val entity: Option[Entity] = Entity.getEntityById(db, defaultDisplayEntityId.get)
-        if (entity.isDefined && entity.get.isArchived) { ...
-       */
-      Result(
-              header = ResponseHeader(200, Map.empty),
-              body = HttpEntity.Strict(ByteString(defaultEntityId.get.toString), Some("text/plain"))
-            )
+      val entity = new Entity(db, defaultEntityId.get)
+      val json = Json.toJson(entity)
+      Ok(json).as(JSON)
     } else {
       val msg: String = "A default entity preference was not found."
-      //(idea: see similar location in entity method.)
       NotFound(msg)
     }
   }

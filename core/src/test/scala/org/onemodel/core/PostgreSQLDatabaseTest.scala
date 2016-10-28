@@ -91,6 +91,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   "getLocalOmInstanceData and friends" should "work" in {
     val oi: OmInstance = mDB.getLocalOmInstanceData
     val uuid: String = oi.getId
+    assert(oi.getLocal)
     assert(mDB.omInstanceKeyExists(uuid))
     assert(mDB.getOmInstanceCount == 1)
     val oiAgainAddress = mDB.getOmInstanceData(uuid)(1).get.asInstanceOf[String]
@@ -101,6 +102,38 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getOmInstances(Some(false)).size == 0)
     assert(! mDB.omInstanceKeyExists(java.util.UUID.randomUUID().toString))
     assert(new OmInstance(mDB, uuid).getAddress == "localhost")
+
+    val uuid2 = java.util.UUID.randomUUID().toString
+    mDB.createOmInstance(uuid2, isLocalIn = false, "om.example.com", Some(mDB.getSystemEntityId))
+    // should have the local one created at db creation, and now the one for this test:
+    assert(mDB.getOmInstanceCount == 2)
+    var i2: OmInstance = new OmInstance(mDB, uuid2)
+    assert(i2.getAddress == "om.example.com")
+    mDB.updateOmInstance(uuid2, "addr", None)
+    i2  = new OmInstance(mDB,uuid2)
+    assert(i2.getAddress == "addr")
+    assert(i2.getLocal == false)
+    assert(i2.getEntityId.isEmpty)
+    assert(i2.getCreationDate > 0)
+    assert(i2.getCreationDateFormatted.length > 0)
+    mDB.updateOmInstance(uuid2, "addr", Some(mDB.getSystemEntityId))
+    i2  = new OmInstance(mDB,uuid2)
+    assert(i2.getEntityId.get == mDB.getSystemEntityId)
+    assert(mDB.isDuplicateOmInstance("addr"))
+    assert(mDB.isDuplicateOmInstance("localhost"))
+    assert(!mDB.isDuplicateOmInstance("addr", Some(uuid2)))
+    assert(!mDB.isDuplicateOmInstance("localhost", Some(uuid)))
+    val uuid3 = java.util.UUID.randomUUID().toString
+    mDB.createOmInstance(uuid3, isLocalIn = false, "addr", Some(mDB.getSystemEntityId))
+    assert(mDB.isDuplicateOmInstance("addr", Some(uuid2)))
+    assert(mDB.isDuplicateOmInstance("addr", Some(uuid3)))
+    i2.delete()
+    assert(mDB.isDuplicateOmInstance("addr"))
+    assert(mDB.isDuplicateOmInstance("addr", Some(uuid2)))
+    assert(!mDB.isDuplicateOmInstance("addr", Some(uuid3)))
+    assert(intercept[Exception] {
+                                  new OmInstance(mDB, uuid2)
+                                }.getMessage.contains("does not exist"))
   }
 
   "escapeQuotesEtc" should "allow updating db with single-quotes" in {

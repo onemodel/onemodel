@@ -11,7 +11,7 @@
 package org.onemodel.core.controllers
 
 import org.onemodel.core._
-import org.onemodel.core.model.{IdWrapper, RelationType, EntityClass, Entity}
+import org.onemodel.core.model._
 import org.onemodel.core.database.PostgreSQLDatabase
 
 class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller)  {
@@ -37,9 +37,9 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
           answer match {
             case 1 => controller.showInEntityMenuThenMainMenu(controller.askForClassInfoAndNameAndCreateEntity())
             case 2 =>
-              val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
+              val selection: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
               if (selection.isDefined) {
-                controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get.getId)))
+                controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.getId)))
               }
             case _ => ui.displayText("unexpected: " + answer)
           }
@@ -60,11 +60,11 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
         val choices: List[String] = List[String](controller.menuText_createEntityOrAttrType,
                                                  controller.menuText_createRelationType,
                                                  controller.menuText_viewPreferences,
-                                                 "----" /*spacer for better consistency of options with other menus, for memory & navigation speed*/ ,
+                                                 "List existing relation types",
                                                  "Go to current entity (" + entity.getDisplayString() + "; or its sole subgroup, if present)",
                                                  controller.mainSearchPrompt,
                                                  "List existing classes",
-                                                 "List existing relation types")
+                                                 "List OneModel (OM) instances (local & remote)")
         val response =
           if (goDirectlyToChoice.isEmpty) ui.askWhich(Some(Array(leadingText)), choices.toArray, Array[String](), includeEscChoiceIn = true,
                                                       trailingTextIn = Some(ui.howQuit + " to quit (anytime)"), defaultChoiceIn = Some(5))
@@ -81,25 +81,32 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
               new EntityMenu(ui, db, controller).entityMenu(new Entity(db, db.getPreferencesContainerId))
               controller.refreshPublicPrivateStatusPreference()
               controller.refreshDefaultDisplayEntityId()
+            case 4 =>
+              val rtId: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.RELATION_TYPE_TYPE)
+              if (rtId.isDefined) {
+                controller.showInEntityMenuThenMainMenu(Some(new RelationType(db, rtId.get._1.getId)))
+              }
             case 5 =>
               val subEntitySelected: Option[Entity] = controller.goToEntityOrItsSoleGroupsMenu(entity)._1
               if (subEntitySelected.isDefined) mainMenu(subEntitySelected)
             case 6 =>
-              val selection: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
+              val selection: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
               if (selection.isDefined) {
-                controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get.getId)))
+                controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.getId)))
               }
             case 7 =>
-              val classId: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_CLASS_TYPE)
+              val classId: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_CLASS_TYPE)
               // (compare this to showInEntityMenuThenMainMenu)
               if (classId.isDefined) {
-                new ClassMenu(ui, db, controller).classMenu(new EntityClass(db, classId.get.getId))
+                new ClassMenu(ui, db, controller).classMenu(new EntityClass(db, classId.get._1.getId))
                 mainMenu(Some(entity))
               }
             case 8 =>
-              val rtId: Option[IdWrapper] = controller.chooseOrCreateObject(None, None, None, Util.RELATION_TYPE_TYPE)
-              if (rtId.isDefined) {
-                controller.showInEntityMenuThenMainMenu(Some(new RelationType(db, rtId.get.getId)))
+              val omInstanceKey: Option[(_, String)] = controller.chooseOrCreateObject(None, None, None, Util.OM_INSTANCE_TYPE)
+              // (compare this to showInEntityMenuThenMainMenu)
+              if (omInstanceKey.isDefined) {
+                new OmInstanceMenu(ui, db, controller).omInstanceMenu(new OmInstance(db, omInstanceKey.get._2))
+                mainMenu(Some(entity))
               }
             case _: Int =>
               ui.displayText("unexpected: " + answer)
