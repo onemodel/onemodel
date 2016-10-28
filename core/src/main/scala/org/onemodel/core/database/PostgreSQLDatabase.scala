@@ -56,7 +56,10 @@ object PostgreSQLDatabase {
   def relationTypeNameLength: Int = entityNameLength
 
   def classNameLength: Int = entityNameLength
-  def omInstanceAddressLength: Int = 261
+
+  // (See usages. The DNS hostname max size seems to be 255 plus 1 null, but the ":<port>" part could add 6 more chars (they seem to go up to :65535).
+  // Maybe someday we will have to move to a larger size in case it changes or uses unicode or I don't know what.)
+  def omInstanceAddressLength: Int = 262
 
 
   def destroyTables(inDbNameWithoutPrefix: String, username: String, password: String) {
@@ -715,8 +718,6 @@ class PostgreSQLDatabase(username: String, var password: String) {
                ", local boolean NOT NULL" +
                // See Controller.askForAndWriteOmInstanceInfo.askAndSave for more description for the address column.
                // Idea: Is it worth having to know future formats, to enforce validity in a constraint?  Problems seem likely to be infrequent & easy to fix.
-               // (The DNS hostname max size seems to be 255 plus a null, but the ":<port>" part could add 6 more digits.
-               // Maybe someday we will have to move to a larger size in case it changes or uses unicode or I don't know what.)
                ", address varchar(" + PostgreSQLDatabase.omInstanceAddressLength + ") NOT NULL" +
                // See table entity for description:
                ", insertion_date bigint not null" +
@@ -879,6 +880,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
     try {
       // doing this for consistency with the other tables.  Seems easier to type that way (slightly fewer keystrokes & shorter reach to them).
       dbAction("alter table om_instance rename to OmInstance")
+      // and fix a small math error I had made
+      dbAction("alter table omInstance alter column address type varchar(262) not null")
       //When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION.
       // (Do we really need the require statement that checks it though? Seems vaguely good to check, but it costs when forgetting, and what benefit? Hm.)
       dbAction("UPDATE om_db_version SET (version) = (5)")
