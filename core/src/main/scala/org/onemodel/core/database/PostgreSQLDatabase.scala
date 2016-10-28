@@ -31,7 +31,7 @@ import scala.util.Sorting
   */
 object PostgreSQLDatabase {
   // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
-  val CURRENT_DB_VERSION = 4
+  val CURRENT_DB_VERSION = 5
   val dbNamePrefix = "om_"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
@@ -95,7 +95,7 @@ object PostgreSQLDatabase {
     drop("table", "grupo", connIn)
     drop("table", Util.RELATION_TYPE_TYPE, connIn)
     drop("table", "AttributeSorting", connIn)
-    drop("table", "om_instance", connIn)
+    drop("table", "omInstance", connIn)
     drop("table", Util.ENTITY_TYPE, connIn)
     drop("table", "class", connIn)
     drop("sequence", "EntityKeySequence", connIn)
@@ -706,7 +706,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
 
       This might have some design overlap with the ".system" entity; maybe that should have been put here?
        */
-      dbAction("create table om_instance (" +
+      dbAction("create table OmInstance (" +
                "id uuid PRIMARY KEY" +
                ", local boolean NOT NULL" +
                // Address and port could be an IPv4 or IPv6 address or a hostname to be checked in DNS; ":<port> is optional, or a default of 9000 is assumed?
@@ -718,7 +718,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
                // See table entity for description:
                ", insertion_date bigint not null" +
                // To link to an entity with whatever details, such as a human-given name for familiarity, security settings, other adhoc info, etc.
-               // NULL values are intentionally allowed, in case user doesn't need to specify any extra info about an om_instance.
+               // NULL values are intentionally allowed, in case user doesn't need to specify any extra info about an omInstance.
                // Idea: require a certain class for this entity, created at startup/db initialization? or a shared one? Waiting until use cases become clearer.
                ", entity_id bigint REFERENCES entity (id) ON DELETE RESTRICT" +
                ") ")
@@ -754,6 +754,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
     if (dbVersion == 3) {
       dbVersion = upgradeDbFrom3to4()
+    }
+    if (dbVersion == 4) {
+      dbVersion = upgradeDbFrom4to5()
     }
     /* NOTE FOR FUTURE METHODS LIKE upgradeDbFrom0to1: methods like this should be designed carefully and very well-tested:
        0) make & test periodic backups of your live data to be safe!
@@ -869,6 +872,21 @@ class PostgreSQLDatabase(username: String, var password: String) {
     }
     commitTrans()
     4
+  }
+  private def upgradeDbFrom4to5(): Int = {
+    beginTrans()
+    try {
+      // doing this for consistency with the other tables.  Seems easier to type that way (slightly fewer keystrokes & shorter reach to them).
+      dbAction("alter table om_instance rename to OmInstance")
+      //When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION.
+      // (Do we really need the require statement that checks it though? Seems vaguely good to check, but it costs when forgetting, and what benefit? Hm.)
+      dbAction("UPDATE om_db_version SET (version) = (5)")
+    }
+    catch {
+      case e: Exception => throw rollbackWithCatch(e)
+    }
+    commitTrans()
+    5
   }
 
   def createAttributeSortingDeletionTrigger(): Long = {
@@ -3770,7 +3788,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getOmInstanceCount: Long = {
-    extractRowCountFromCountQuery("SELECT count(1) from om_instance")
+    extractRowCountFromCountQuery("SELECT count(1) from omInstance")
   }
 
   def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[Long] = None): String = {
@@ -3780,21 +3798,22 @@ class PostgreSQLDatabase(username: String, var password: String) {
     val address: String = escapeQuotesEtc(addressIn)
     require(id == idIn, "Didn't expect quotes etc in the UUID provided: " + idIn)
     require(address == addressIn, "Didn't expect quotes etc in the address provided: " + address)
-    val sql: String = "INSERT INTO om_instance (id, local, address, insertion_date, entity_id)" +
-                      " VALUES ('" + id + "'," + (if (isLocalIn) "TRUE" else "FALSE") + ",'" + address + "'," + System.currentTimeMillis() +
+    val insertionDate: Long = System.currentTimeMillis()
+    val sql: String = "INSERT INTO omInstance (id, local, address, insertion_date, entity_id)" +
+                      " VALUES ('" + id + "'," + (if (isLocalIn) "TRUE" else "FALSE") + ",'" + address + "'," + insertionDate +
                       ", " + (if (entityIdIn.isEmpty) "NULL" else entityIdIn.get) + ")"
     dbAction(sql)
     id
   }
 
   def getOmInstanceData(idIn: String): Array[Option[Any]] = {
-    val row: Array[Option[Any]] = dbQueryWrapperForOneRow("SELECT local, address, insertion_date, entity_id from om_instance" +
+    val row: Array[Option[Any]] = dbQueryWrapperForOneRow("SELECT local, address, insertion_date, entity_id from omInstance" +
                                                           " where id='" + idIn + "'", "Boolean,String,Long,Long")
     row
   }
 
   def getLocalOmInstanceData: OmInstance = {
-    val sql = "SELECT id, address, insertion_date, entity_id from om_instance where local=TRUE"
+    val sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE"
     val results = dbQuery(sql, "String,String,Long,Long")
     if (results.size != 1) throw new OmDatabaseException("Got " + results.size + " instead of 1 result from sql " + sql +
                                                          ".  Does the usage now warrant removing this check (ie, multiple locals stored)?")
@@ -3805,11 +3824,11 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def omInstanceKeyExists(inId: String): Boolean = {
-    doesThisExist("SELECT count(1) from om_instance where id='" + inId + "'")
+    doesThisExist("SELECT count(1) from omInstance where id='" + inId + "'")
   }
 
   def getOmInstances(localIn: Option[Boolean] = None): java.util.ArrayList[OmInstance] = {
-    val sql = "select id, local, address, insertion_date, entity_id from om_instance" +
+    val sql = "select id, local, address, insertion_date, entity_id from omInstance" +
               (if (localIn.isDefined) {
                 if (localIn.get) {
                   " where local=TRUE"
@@ -3830,7 +3849,7 @@ class PostgreSQLDatabase(username: String, var password: String) {
     require(finalResults.size == earlyResults.size)
     if (localIn.isDefined && localIn.get && finalResults.size == 0) {
       val total = getOmInstanceCount
-      throw new OmDatabaseException("Unexpected: the # of rows om_instance where local=TRUE is 0, and there should always be at least one." +
+      throw new OmDatabaseException("Unexpected: the # of rows omInstance where local=TRUE is 0, and there should always be at least one." +
                                     "(See insert at end of createBaseData and upgradeDbFrom3to4.)  Total # of rows: " + total)
     }
     finalResults
