@@ -200,7 +200,7 @@ all below steps, then again become root and run this command, substituting
 your username for the "<...>", removing the <>'s)
     psql om_<yourusername>
 ...then:
-    \password <newpassword>
+    \password <yourusername>
 ...then follow the prompts to enter the new password twice.)
 
 - Create the database with this command (substituting your username for
@@ -226,7 +226,7 @@ for the "<...>"'s, removing the <>'s, but *do keep* the single-quotes
   postgresql.
 
   (DEVELOPERS: during development or testing it might be convenient to
-  use a blank password as described above under "Choose a username and
+  use a password of 'x' as described above under "Choose a username and
   password", to avoid typing a longer password repeatedly, until you
   use real data; it can be changed with postgresql commands as described
   above, or you could set up a separate db/user/password combination for
