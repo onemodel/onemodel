@@ -212,7 +212,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
     val (nearNewNeighborSortingIndex: Option[Long], byHowManyEntriesMoving: Int) = {
       if (results.length == 0) {
         // It could be a new entry trying to be moved to the a first or last position, or a mistake with the current entity. Both seem OK if we
-        // just say we need to move from a slightly incr/decremented position.  Maybe the incr/decrement isn't even needed, but harmless & cheap.
+        // just say we need to move from a slightly incremented/decremented position.  Maybe the increment/decrement isn't even needed, but harmless & cheap.
         val newNearIndex = {
           if (forwardNotBackIn) movingFromPosition_sortingIndex + 1
           else movingFromPosition_sortingIndex - 1

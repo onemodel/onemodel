@@ -43,7 +43,7 @@ class ControllerTest extends FlatSpec with MockitoSugar {
 
     // (2nd parameter doesn't matter for this really)
     def check(s: String, d: Long) = {
-      val (date: Option[Long], problem: Boolean) = controller.finishAndParseTheDate(s)
+      val (date: Option[Long], problem: Boolean) = Util.finishAndParseTheDate(s, ui = ui)
       assert(!problem)
       assert(date.get == d)
     }
@@ -53,7 +53,7 @@ class ControllerTest extends FlatSpec with MockitoSugar {
     check("2013-01-02 00:00:00:000 MST", 1357110000000L)
     check("2013-01-02 00:00:00:000 GMT", 1357084800000L)
     // (see comment on that variable for purpose of setting to GMT)
-    controller.timezone = "GMT"
+    Util.timezone = "GMT"
     check("2013-01-02", 1357084800000L)
     check("2013-01-02 01", 1357088400000L)
     check("2013-01-02 00:02", 1357084920000L)

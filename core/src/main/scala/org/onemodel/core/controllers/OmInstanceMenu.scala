@@ -53,7 +53,7 @@ class OmInstanceMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Control
       }
     } catch {
       case e: Exception =>
-        controller.handleException(e)
+        org.onemodel.core.Util.handleException(e, controller.ui, controller.db)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
         if (ans.isDefined && ans.get) omInstanceMenu(omInstanceIn)
         else None

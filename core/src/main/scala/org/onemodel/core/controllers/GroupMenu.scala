@@ -29,7 +29,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
       groupMenu_helper(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     } catch {
       case e: Exception =>
-        controller.handleException(e)
+        Util.handleException(e, controller.ui, controller.db)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
         if (ans.isDefined && ans.get) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         else None
@@ -55,7 +55,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                 "Edit ...",
                                 "Delete...",
                                 "Go to...",
-                                controller.listNextItemsPrompt,
+                                Util.listNextItemsPrompt,
                                 "Filter (limit which are shown; unimplemented)",
                                 "(stub)" /*sort?*/ ,
                                 "Quick group menu")
@@ -65,7 +65,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
     val leadingText: Array[String] = Array(Color.yellow("ENTITY GROUP ") + "(regular menu: more complete, so slower for some things): " + displayDescription)
     val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength)
     val objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems))
-    controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), displayStartingRowNumberIn)
+    Util.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), displayStartingRowNumberIn)
     val statusesAndNames: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity.getId)
       val archivedStatus = entity.getArchivedStatusDisplayString
@@ -91,7 +91,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
         }
         groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 3) {
-        val editAnswer = ui.askWhich(Some(Array[String]{controller.groupMenuLeadingText(groupIn)}),
+        val editAnswer = ui.askWhich(Some(Array[String]{Util.groupMenuLeadingText(groupIn)}),
                                      Array("Edit group name",
 
                                            if (groupIn.getNewEntriesStickToTop) {
@@ -101,7 +101,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                            }))
         if (editAnswer.isDefined) {
           if (editAnswer.get == 1) {
-            val ans = controller.editGroupName(groupIn)
+            val ans = Util.editGroupName(groupIn, ui)
             if (ans.isDefined) {
               // reread the RTG to get the updated info:
               groupMenu(groupIn, displayStartingRowNumberIn,
@@ -239,7 +239,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                            groupDescrIn
     }
     val response = ui.askWhich(Some(Array("DELETION:  (This group contains " + totalInGroup + " entities, including " + numArchivedInGroup + " archived, and is " +
-                                          controller.getContainingEntitiesDescription(nonArchivedContainingCount, archivedContainingCount) + ")")),
+                                          Util.getContainingEntitiesDescription(nonArchivedContainingCount, archivedContainingCount) + ")")),
                                choices, Array[String]())
     if (response.isEmpty) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     else {
@@ -303,7 +303,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
     val (nonArchivedCount, archivedCount) = db.getCountOfEntitiesContainingGroup(relationToGroupIn.getGroupId)
     val ans = ui.askYesNoQuestion("REMOVE this group from being an attribute of the entity \'" + containingEntityIn.getName + "\": ARE YOU SURE? (This isn't " +
                                   "a deletion. It can still be found by searching, and is " +
-                                  controller.getContainingEntitiesDescription(nonArchivedCount, archivedCount) + ").", Some(""))
+                                  Util.getContainingEntitiesDescription(nonArchivedCount, archivedCount) + ").", Some(""))
     if (ans.isDefined && ans.get) {
       relationToGroupIn.delete()
       true

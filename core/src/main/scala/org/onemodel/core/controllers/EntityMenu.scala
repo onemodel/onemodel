@@ -78,7 +78,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) {
       require(numAttrsInEntity > 0 && attributeTuples.length > 0)
     }
-    controller.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
+    Util.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
     val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, relationSourceEntity, containingRelationToEntityIn,
                                              containingGroupIn)
     val (attributeDisplayStrings: Array[String], attributesToDisplay: util.ArrayList[Attribute]) = getItemDisplayStringsAndAttrs(attributeTuples)
@@ -133,7 +133,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
 
     choices(2) =
       // MAKE SURE this condition always matches the one in the edit handler below:
-      if (highlightedEntry.isDefined && controller.canEditAttributeOnSingleLine(highlightedEntry.get)) {
+      if (highlightedEntry.isDefined && Util.canEditAttributeOnSingleLine(highlightedEntry.get)) {
         // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
         "Edit the selected attribute's content (single line; go into attr for more)"
       } else "Edit entity name"
@@ -182,7 +182,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         entityMenu(entityIn, newStartingDisplayIndex, attrToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 3) {
         // MAKE SURE this next condition always matches the one in "choices(2) = ..." above
-        if (highlightedEntry.isDefined && controller.canEditAttributeOnSingleLine(highlightedEntry.get)) {
+        if (highlightedEntry.isDefined && Util.canEditAttributeOnSingleLine(highlightedEntry.get)) {
           controller.editAttributeOnSingleLine(highlightedEntry.get)
           entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
         } else {
@@ -224,7 +224,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         // THE OTHER MIGHT ALSO NEED MAINTENANCE!
         val choices = Array[String](Util.unselectMoveTargetPromptText)
         val leadingText: Array[String] = Array(Util.unselectMoveTargetLeadingText)
-        controller.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttrCount, attributeRowsStartingIndexIn)
+        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttrCount, attributeRowsStartingIndexIn)
 
         val response = ui.askWhich(Some(leadingText), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
                                    secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -257,7 +257,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         val choices = Array[String]("keep existing (same as ESC)")
         // says 'same screenful' because (see similar cmt elsewhere).
         val leadingText: Array[String] = Array("CHOOSE an attribute to highlight (*)")
-        controller.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttrCount, attributeRowsStartingIndexIn)
+        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttrCount, attributeRowsStartingIndexIn)
         val response = ui.askWhich(Some(leadingText), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
                                    secondaryHighlightIndexIn = moveTargetIndexInObjList)
         val entryToHighlight: Option[Attribute] = {
@@ -305,7 +305,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       // catching Throwable instead of Exception here, because sometimes depending on how I'm running X etc I might get the InternalError
       // "Can't connect to X11 window server ...", and it's better to recover from that than to abort the app (ie, when eventually calling
       // Controller.getClipboardContent)..
-      controller.handleException(e)
+      Util.handleException(e, controller.ui, controller.db)
       val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
       if (ans.isDefined && ans.get) entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedAttributeIn, targetForMovesIn,
                                                containingRelationToEntityIn, containingGroupIn)
@@ -361,10 +361,10 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
   def entitySearchSubmenu(entityIn: Entity, attributeRowsStartingIndexIn: Int, containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn:
   Option[Group], numAttrsInEntity: Long, attributeTuples: Array[(Long, Attribute)], highlightedEntry: Option[Attribute], targetForMoves: Option[Attribute],
                           answer: Int) {
-    val searchResponse = ui.askWhich(Some(Array("Choose a search option:")), Array(if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)",
-                                                                                   if (numAttrsInEntity > 0) controller.listPrevItemsPrompt else "(stub)",
+    val searchResponse = ui.askWhich(Some(Array("Choose a search option:")), Array(if (numAttrsInEntity > 0) Util.listNextItemsPrompt else "(stub)",
+                                                                                   if (numAttrsInEntity > 0) Util.listPrevItemsPrompt else "(stub)",
                                                                                    "Search related entities",
-                                                                                   controller.mainSearchPrompt))
+                                                                                   Util.mainSearchPrompt))
     if (searchResponse.isDefined) {
       val searchAnswer = searchResponse.get
       if (searchAnswer == 1) {
@@ -376,15 +376,15 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
         // Idea: could share some code or ideas between here and Controller.findExistingObjectByText, and perhaps others like them.  For example,
         // this doesn't yet have logic to page down through the results, but maybe for now there won't be many or it can be added later.
         // Idea: maybe we could use an abstraction to make this kind of UI work even simpler, since we do it often.
-        val ans = ui.askForString(Some(Array(controller.searchPromptPart(Util.ENTITY_TYPE))))
+        val ans = ui.askForString(Some(Array(Util.searchPromptPart(Util.ENTITY_TYPE))))
         if (ans.isDefined) {
           val searchString: String = ans.get
-          val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours)")), Some(controller.isNumeric),
+          val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours)")), Some(Util.isNumeric),
                                              Some("4"))
           val levels: Int = levelsAnswer.getOrElse("4").toInt
           val entityIds: Array[Long] = db.findContainedEntityIds(new mutable.TreeSet[Long], entityIn.getId, searchString, levels,
                                                                  stopAfterAnyFound = false).toArray
-          val leadingText2 = Array[String](controller.pickFromListPrompt)
+          val leadingText2 = Array[String](Util.pickFromListPrompt)
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
           val choices: Array[String] = Array("(stub)")
           val entityIdsTruncated: Array[Long] = {
@@ -591,7 +591,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
   def getLeadingText(leadingTextIn: Array[String], numAttributes: Int,
                      entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
                      relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Array[String] = {
-    leadingTextIn(0) = controller.entityMenuLeadingText(entityIn)
+    leadingTextIn(0) = Util.entityMenuLeadingText(entityIn)
     if (containingGroupIn.isDefined) {
       leadingTextIn(0) += ": found via group: " + containingGroupIn.get.getName
     }

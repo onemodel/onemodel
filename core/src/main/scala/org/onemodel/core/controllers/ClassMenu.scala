@@ -77,8 +77,8 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
             val groupCount: Long = db.getCountOfGroupsContainingEntity(classIn.getTemplateEntityId)
             val (entityCountNonArchived, entityCountArchived) = db.getCountOfEntitiesContainingEntity(classIn.getTemplateEntityId)
             val ans = ui.askYesNoQuestion("DELETE CLASS \"" + name + "\" AND its template ENTITY \"" + templateEntityName + "\" with " +
-                                          controller.entityPartsThatCanBeAffected + ".  **ARE YOU REALLY SURE?**  (The template entity is " +
-                                         controller.getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) + ", and " +
+                                          Util.entityPartsThatCanBeAffected + ".  **ARE YOU REALLY SURE?**  (The template entity is " +
+                                         Util.getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) + ", and " +
                                           groupCount + " groups.)")
             if (ans.isDefined && ans.get) {
               classIn.delete()
@@ -107,7 +107,7 @@ class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) 
       }
     } catch {
       case e: Exception =>
-        controller.handleException(e)
+        Util.handleException(e, controller.ui, controller.db)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
         if (ans.isDefined && ans.get) classMenu(classIn)
         else None

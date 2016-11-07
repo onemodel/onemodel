@@ -541,7 +541,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       val oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn)
       if (oldNameInTmpDir.getParentFile.canWrite && !oldNameInTmpDir.exists()) Some(oldNameInTmpDir)
       else {
-        val (baseName, extension) = controller.getReplacementFilename(originalPathIn)
+        val (baseName, extension) = Util.getReplacementFilename(originalPathIn)
         Some(File.createTempFile(baseName + "-", extension))
       }
     }

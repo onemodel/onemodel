@@ -43,7 +43,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
                                                           " can be indicated by surrounding a body of text thus, without quotes: '<ta>text</ta>';" +
                                                           " a URI similarly with a line " + uriLineExample + ")," +
                                                           " then press Enter; ESC to cancel")),
-                                               Some(controller.inputFileValid))
+                                               Some(Util.inputFileValid))
     if (ans1.isDefined) {
       val path = ans1.get
       val makeThemPublic: Option[Boolean] = ui.askYesNoQuestion("Do you want the entities imported to be marked as public?  Set it to the value the " +
@@ -422,7 +422,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
   // idea: see comment in EntityMenu about scoping.
   def export(entity: Entity, exportTypeIn: String, headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels to export (including this one; 0 = 'all'); ESC to cancel")),
-                                              Some(controller.isNumeric), Some("0"))
+                                              Some(Util.isNumeric), Some("0"))
     if (ans.isEmpty) return
     val levelsToExport: Int = ans.get.toInt
     val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")

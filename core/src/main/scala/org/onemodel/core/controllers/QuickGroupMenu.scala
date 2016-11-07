@@ -48,7 +48,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                                containingEntityIn)
     } catch {
       case e: Exception =>
-        controller.handleException(e)
+        Util.handleException(e, controller.ui, controller.db)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
         if (ans.isDefined && ans.get) quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn,
                                                      callingMenusRtgIn, containingEntityIn)
@@ -250,7 +250,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
     val objIds = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       entity.getId
     }
-    controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
+    Util.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
     val statusesAndNames: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
       val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity.getId)
       val archivedStatus = entity.getArchivedStatusDisplayString
@@ -447,7 +447,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           // THE OTHER MIGHT ALSO NEED MAINTENANCE!
           val choices = Array[String](Util.unselectMoveTargetPromptText)
           val leadingText: Array[String] = Array(Util.unselectMoveTargetLeadingText)
-          controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
+          Util.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
 
           val response = ui.askWhich(Some(leadingText), choices, statusesAndNames, highlightIndexIn = Some(highlightedIndexInObjList),
                                      secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -479,7 +479,7 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
           val choices = Array[String]("keep existing (same as ESC)")
           // says 'same screenful' because (see similar cmt elsewhere).
           val leadingText: Array[String] = Array("CHOOSE AN ENTRY to highlight (*)")
-          controller.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
+          Util.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
           val response = ui.askWhich(Some(leadingText), choices, statusesAndNames, highlightIndexIn = Some(highlightedIndexInObjList),
                                      secondaryHighlightIndexIn = moveTargetIndexInObjList)
           val (entityToHighlight, selectedTargetEntity): (Option[Entity], Option[Entity]) =

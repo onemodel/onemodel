@@ -27,7 +27,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
                       attributeTuplesIn: Array[(Long, Attribute)]) {
     try {
       require(entityIn != null)
-      val leadingText = Array[String]{ controller.entityMenuLeadingText(entityIn) }
+      val leadingText = Array[String]{ Util.entityMenuLeadingText(entityIn) }
       var choices = Array[String]("Edit public/nonpublic status",
                                   "Import/Export...",
                                   "Edit...",
@@ -90,7 +90,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         } else if (answer == 3) {
           val templateEntityId: Option[Long] = entityIn.getClassTemplateEntityId
           val templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(templateEntityId, attributeTuplesIn)
-          val editAnswer = ui.askWhich(Some(Array[String]{controller.entityMenuLeadingText(entityIn)}),
+          val editAnswer = ui.askWhich(Some(Array[String]{Util.entityMenuLeadingText(entityIn)}),
                                        Array("Edit entity name",
                                              "Change its class",
                                              if (templateAttributesToCopy.nonEmpty) "Add/edit missing class-defined fields (in other words, to make this " +
@@ -174,7 +174,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       }
     } catch {
       case e: Exception =>
-        controller.handleException(e)
+        Util.handleException(e, controller.ui, controller.db)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
         if (ans.isDefined && ans.get) {
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
@@ -258,7 +258,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
         ui.displayText(prompt1 + "html page \"<head>\" section contents" + prompt2 +
                        " (Title & 'meta name=\"description\"' tags are automatically filled in from the entity's name.)" +
                        prompt3 + "\"" + Util.HEADER_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
-        val s: String = controller.editMultilineText("")
+        val s: String = Util.editMultilineText("", ui)
         s
       })
     }
@@ -273,7 +273,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       savedAttrText.getOrElse({
         ui.displayText(prompt1 + "initial *body* content (like a common banner or header)" + prompt2 +
                        prompt3 + "\"" + Util.BODY_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
-        val beginBodyContentIn: String = controller.editMultilineText("")
+        val beginBodyContentIn: String = Util.editMultilineText("", ui)
         beginBodyContentIn
       })
     }
@@ -357,7 +357,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
       val goWhereAnswer = response.get
       if (goWhereAnswer == seeContainingEntities_choiceNumber && goWhereAnswer <= choices.length) {
         val leadingText = List[String]("Pick from menu, or an entity by letter")
-        val choices: Array[String] = Array(controller.listNextItemsPrompt)
+        val choices: Array[String] = Array(Util.listNextItemsPrompt)
         val numDisplayableItems: Long = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength)
         // This is partly set up so it could handle multiple screensful, but would need to be broken into a recursive method that
         // can specify dif't values on each call, for the startingIndexIn parm of getRelatingEntities.  I.e., could make it look more like
@@ -394,7 +394,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           viewContainingGroups(entityIn)
         }
       } else if (goWhereAnswer == goToRelation_choiceNumber && relationIn.isDefined && goWhereAnswer <= choices.length) {
-        def dummyMethod(inDH: RelationToEntityDataHolder, inEditing: Boolean): Option[RelationToEntityDataHolder] = {
+        def dummyMethod(inDH: RelationToEntityDataHolder, inEditing: Boolean, ui: TextUI): Option[RelationToEntityDataHolder] = {
           Some(inDH)
         }
         def updateRelationToEntity(dhInOut: RelationToEntityDataHolder) {
@@ -427,7 +427,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
   def viewContainingGroups(entityIn: Entity): Option[Entity] = {
     val leadingText = List[String]("Pick from menu, or a letter to (go to if one or) see the entities containing that group, or Alt+<letter> for the actual " +
                                    "*group* by letter")
-    val choices: Array[String] = Array(controller.listNextItemsPrompt)
+    val choices: Array[String] = Array(Util.listNextItemsPrompt)
     val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength)
     // (see comment in similar location just above where this is called, near "val containingEntities: util.ArrayList"...)
     val containingRelationToGroups: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn, 0, Some(numDisplayableItems))

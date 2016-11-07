@@ -28,7 +28,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
       val numEntities = db.getEntitiesOnlyCount()
       if (numEntities == 0 || entityIn.isEmpty) {
         val choices: List[String] = List[String]("Add new entity (such as yourself using your name, to start)",
-                                                 controller.mainSearchPrompt)
+                                                 Util.mainSearchPrompt)
         val response: Option[Int] = ui.askWhich(None, choices.toArray, Array[String](), includeEscChoiceIn = false,
                                                 trailingTextIn = Some(ui.howQuit + " to quit"))
         if (response.isDefined && response.get != 0) {
@@ -57,12 +57,12 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
         val entity: Entity = new Entity(db, entityIn.get.getId)
 
         val leadingText: String = "Main OM menu:"
-        val choices: List[String] = List[String](controller.menuText_createEntityOrAttrType,
-                                                 controller.menuText_createRelationType,
-                                                 controller.menuText_viewPreferences,
+        val choices: List[String] = List[String](Util.menuText_createEntityOrAttrType,
+                                                 Util.menuText_createRelationType,
+                                                 Util.menuText_viewPreferences,
                                                  "List existing relation types",
                                                  "Go to current entity (" + entity.getDisplayString() + "; or its sole subgroup, if present)",
-                                                 controller.mainSearchPrompt,
+                                                 Util.mainSearchPrompt,
                                                  "List existing classes",
                                                  "List OneModel (OM) instances (local & remote)")
         val response =
@@ -118,7 +118,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
     }
     catch {
       case e: Exception =>
-        controller.handleException(e)
+        Util.handleException(e, controller.ui, controller.db)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
         if (ans.isDefined && ans.get) mainMenu(entityIn, goDirectlyToChoice)
     }
