@@ -480,9 +480,9 @@ class PostgreSQLDatabase(username: String, var password: String) {
                "    NOT NULL CHECK (form_id=" + PostgreSQLDatabase.getAttributeFormId(Util.BOOLEAN_TYPE) + "), " +
                "id bigint DEFAULT nextval('BooleanAttributeKeySequence') PRIMARY KEY, " +
                "entity_id bigint NOT NULL, " +
-               // allowing nulls because a template might not have value, and a task might not have a "done/not" setting yet (if unknown)?
+               // Allowing nulls because a template might not have value, and a task might not have a "done/not" setting yet (if unknown)?
+               // E.g., isDone (where the task would be an entity).
                "booleanValue boolean, " +
-               //eg, isDone (which would be an entity)
                "attr_type_id bigint not null, " +
                // see "create table RelationToEntity" for comments about dates' meanings.
                "valid_on_date bigint, " +
@@ -3380,7 +3380,8 @@ class PostgreSQLDatabase(username: String, var password: String) {
     * then decide which ones to return.  Maybe instead we could do that smartly, on just the needed subset.  But it still need to gracefully handle it
     * when a given attribute (or all) is not found in the sorting table.
     */
-  def getSortedAttributes(inEntityId: Long, inStartingObjectIndex: Int = 0, maxValsIn: Int = 0): (Array[(Long, Attribute)], Int) = {
+  def getSortedAttributes(inEntityId: Long, inStartingObjectIndex: Int = 0, maxValsIn: Int = 0,
+                          onlyPublicEntitiesIn: Boolean = true): (Array[(Long, Attribute)], Int) = {
     val allResults: java.util.ArrayList[(Option[Long], Attribute)] = new java.util.ArrayList[(Option[Long], Attribute)]
     // First select the counts from each table, keep a running total so we know when to select attributes (compared to inStartingObjectIndex)
     // and when to stop.
@@ -3468,6 +3469,10 @@ class PostgreSQLDatabase(username: String, var password: String) {
           if (tableName == Util.RELATION_TO_ENTITY_TYPE && !includeArchivedEntities) {
             sql += " and not exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
                    " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.archived)"
+          }
+          if (tableName == Util.RELATION_TO_ENTITY_TYPE && onlyPublicEntitiesIn) {
+            sql += " and exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
+                   " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.public)"
           }
           sql += " order by " + tableName + "." + orderByClausesByTable(tableListIndex)
           val results = dbQuery(sql, typesByTable(tableListIndex))

@@ -74,7 +74,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
     val choices: Array[String] = getChoices(entityIn, numAttrsInEntity)
     val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength)
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
-      db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes)
+      db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes, onlyPublicEntitiesIn = false)
     if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) {
       require(numAttrsInEntity > 0 && attributeTuples.length > 0)
     }

@@ -770,7 +770,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     if (cachedInfo.isDefined) {
       cachedInfo.get
     } else {
-      val attrTuples = db.getSortedAttributes(entityIdIn, 0, 0)._1
+      val attrTuples = db.getSortedAttributes(entityIdIn, 0, 0, onlyPublicEntitiesIn = false)._1
       // record, so we don't create files more than once, calculate attributes more than once, etc.
       cachedAttrsIn.put(entityIdIn, attrTuples)
       attrTuples

@@ -414,6 +414,10 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     }
   }
 
+  def getAttributes(startingObjectIndexIn: Int = 0, maxValsIn: Int = 0, onlyPublicEntitiesIn: Boolean = true): (Array[(Long, Attribute)], Int) = {
+    mDB.getSortedAttributes(getId, startingObjectIndexIn, maxValsIn, onlyPublicEntitiesIn)
+  }
+
   var mAlreadyReadData: Boolean = false
   var mName: String = _
   var mClassId: Option[Long] = None

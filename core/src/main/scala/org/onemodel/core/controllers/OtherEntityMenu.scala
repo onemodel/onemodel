@@ -192,7 +192,7 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
   }
 
   def updateContainedEntitiesPublicStatus(entityIdIn: Long, newValueIn: Option[Boolean]): Int = {
-    val (attrTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(entityIdIn, 0, 0)
+    val (attrTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(entityIdIn, 0, 0, onlyPublicEntitiesIn = false)
     var count = 0
     for (attr <- attrTuples) {
       attr._2 match {

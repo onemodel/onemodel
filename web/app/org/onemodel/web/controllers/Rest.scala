@@ -10,14 +10,11 @@
 */
 package org.onemodel.web.controllers
 
-import akka.util.ByteString
-import play.api.mvc._
-import play.api.http.HttpEntity
-import play.api.libs.json._
-
 import org.onemodel.core._
 import org.onemodel.core.database.PostgreSQLDatabase
 import org.onemodel.core.model._
+import play.api.libs.json._
+import play.api.mvc._
 
 /*: IDEAS: stuff to do then delete these comments, from: http://www.vinaysahni.com/best-practices-for-a-pragmatic-restful-api :
 "Errors: Just like an HTML error page shows a useful error message to a visitor, an API should provide a useful error message in a known consumable format. The representation of an error should be no different than the representation of any resource, just with its own set of fields. "...with consumable JSON error representation.... A JSON error body should provide a few things for the developer - a useful error message, a unique error code (that can be looked up for more details in the docs) and possibly a detailed description. JSON output representation for something like this would look like:
@@ -76,18 +73,77 @@ class Rest extends play.api.mvc.Controller {
   }
 
   implicit val entityWrites = new Writes[Entity] {
-    def writes(entityIn: Entity) = Json.obj(
-      "id" -> entityIn.getId,
-      "name" -> entityIn.getName,
-      // This one says null (json has:  ...,"classId":null,... ) when the value is NULL in the db (as could "public" below, though currently the
-      // endpoint returns an error instead, if the entity has anything but TRUE for public in the db).
-      "classId" -> entityIn.getClassId,
-      // could add one that uses ISO8601 for other clients besides OM itself:
-      "insertionDate" -> entityIn.getInsertionDate,
-      "public" -> entityIn.getPublic,
-      "archived" -> entityIn.getArchivedStatus,
-      "newEntriesStickToTop" -> entityIn.getNewEntriesStickToTop
-    )
+    def writes(entityIn: Entity) = {
+      val attributeTuples: Array[(Long, Attribute)] = entityIn.getAttributes(onlyPublicEntitiesIn = true)._1
+      val attributes: Array[Attribute] = new Array[Attribute](attributeTuples.length)
+      var index = 0
+      for (attrTuple <- attributeTuples) {
+        val sortingIndex: Long = attrTuple._1
+        attributes(index) = attrTuple._2
+        val attribute = attributes(index)
+        require(attribute.getParentId == entityIn.getId,
+                "Unexpected: attribute that is supposed to be on entity " + entityIn.getId + " has parentId of " + attribute.getParentId + "?")
+        require(attribute.getSortingIndex == sortingIndex,
+                "Unexpected: attribute that is supposed to be on entity " + entityIn.getId + " has parentId of " + attribute.getParentId + ", and sorting" +
+                "indices don't match: " + sortingIndex + " (from getSortingIndex) and " + attribute.getSortingIndex + "(from attribute object)?")
+        index += 1
+      }
+
+      Json.obj(
+        "id" -> entityIn.getId,
+        "name" -> entityIn.getName,
+        // This one outputs null (i.e., the json has:  ...,"classId":null,... ) when the value is NULL in the db (as could "public" below, though currently the
+        // endpoint returns an error instead, if the entity has anything but TRUE for public in the db).
+        "classId" -> entityIn.getClassId,
+        // could instead or in addition use ISO8601 for dates, for benefit of other clients besides OM itself (see everywhere w/ this comment):
+        "insertionDate" -> entityIn.getInsertionDate,
+        "public" -> entityIn.getPublic,
+        "archived" -> entityIn.getArchivedStatus,
+        "newEntriesStickToTop" -> entityIn.getNewEntriesStickToTop,
+        "attributes" -> Json.arr(
+          attributes.map { attribute =>
+            var jsonObject: JsObject = Json.obj(
+                                       "sortingIndex" -> attribute.getSortingIndex,
+                                       "id" -> attribute.getId,
+                                       "formId" -> attribute.getFormId,
+                                       "formName" -> PostgreSQLDatabase.getAttributeFormName(attribute.getFormId),
+                                       "attrTypeId" -> attribute.getAttrTypeId
+                                     )
+            attribute match {
+              case a: QuantityAttribute =>
+                // Idea: for questions of possible data loss or improving how we transfer numbers into & out of OM instances, see
+                // http://www.scala-lang.org/api/current/index.html#scala.math.BigDecimal$
+                // ...but consider which documentation applies for the version of scala in use.
+                jsonObject = jsonObject + ("unitId" -> JsNumber(a.getUnitId))
+                jsonObject = jsonObject + ("number" -> JsNumber(BigDecimal.double2bigDecimal(a.getNumber)))
+              case a: DateAttribute =>
+                // could instead or in addition use ISO8601 for dates, for benefit of other clients besides OM itself (see everywhere w/ this comment):
+                jsonObject = jsonObject + ("date" -> JsNumber(a.getDate))
+              case a: BooleanAttribute =>
+                jsonObject = jsonObject + ("boolean" -> JsBoolean(a.getBoolean))
+              case a: FileAttribute =>
+                jsonObject = jsonObject + ("unstructuredForNow" -> JsString(a.getDisplayString(0)))
+              case a: TextAttribute =>
+              jsonObject = jsonObject + ("text" -> JsString("Not yet implemented: string needs to be escaped to/from json: a.getText"))
+              case a: RelationToEntity =>
+                val relType = new RelationType(db, a.getAttrTypeId)
+                jsonObject = jsonObject + ("relationTypeName" -> JsString(relType.getName))
+                jsonObject = jsonObject + ("entity2Id" -> JsNumber(a.getRelatedId2))
+                val entity2 = new Entity(db, a.getRelatedId2)
+                jsonObject = jsonObject + ("entity2Name" -> JsString(entity2.getName))
+              case a: RelationToGroup =>
+                val relType = new RelationType(db, a.getAttrTypeId)
+                jsonObject = jsonObject + ("relationTypeName" -> JsString(relType.getName))
+                jsonObject = jsonObject + ("groupId" -> JsNumber(a.getGroupId))
+                val group = new Group(db, a.getGroupId)
+                jsonObject = jsonObject + ("groupName" -> JsString(group.getName))
+              case _ => throw new OmException("Unexpected type: " + attribute.getClass.getCanonicalName)
+            }
+            jsonObject
+          }
+        )
+      )
+    }
   }
 
   def entities(idIn: Long): Action[AnyContent] = Action { implicit request =>
@@ -99,9 +155,9 @@ class Rest extends play.api.mvc.Controller {
       val entity = new Entity(db, idIn)
       val public: Option[Boolean] = entity.getPublic
       if (public.isDefined && public.get) {
-        val json = Json.toJson(entity)
+        val json: JsValue = Json.toJson(entity)
         // the ".as(JSON)" seems optional, but for reference:
-        Ok(json).as(JSON)
+        Ok(Json.prettyPrint(json)).as(JSON)
 //        Result(
 //                header = ResponseHeader(200, Map.empty),
 //                body = HttpEntity.Strict(ByteString(msg), Some("text/plain"))
@@ -114,11 +170,11 @@ class Rest extends play.api.mvc.Controller {
   }
 
   def defaultEntity = Action { implicit request =>
-    var defaultEntityId: Option[Long] = db.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
+    val defaultEntityId: Option[Long] = db.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
     if (defaultEntityId.isDefined) {
       val entity = new Entity(db, defaultEntityId.get)
       val json = Json.toJson(entity)
-      Ok(json).as(JSON)
+      Ok(Json.prettyPrint(json)).as(JSON)
     } else {
       val msg: String = "A default entity preference was not found."
       NotFound(msg)

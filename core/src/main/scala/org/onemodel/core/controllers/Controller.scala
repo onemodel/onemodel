@@ -1818,7 +1818,10 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   def defaultAttributeCopying(entityIn: Entity, attributeTuplesIn: Option[Array[(Long, Attribute)]] = None): Unit = {
     if (shouldTryAddingDefaultAttributes(entityIn)) {
-      val attributeTuples: Array[(Long, Attribute)] = if (attributeTuplesIn.isDefined) attributeTuplesIn.get else db.getSortedAttributes(entityIn.getId)._1
+      val attributeTuples: Array[(Long, Attribute)] = {
+        if (attributeTuplesIn.isDefined) attributeTuplesIn.get
+        else db.getSortedAttributes(entityIn.getId, onlyPublicEntitiesIn = false)._1
+      }
       val templateAttributesToCopy: ArrayBuffer[Attribute] = getMissingAttributes(entityIn.getClassTemplateEntityId, attributeTuples)
       copyAndEditAttributes(entityIn, templateAttributesToCopy)
     }
@@ -1990,7 +1993,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       val attributesToSuggestCopying_workingCopy: ArrayBuffer[Attribute] = new ArrayBuffer()
       if (classTemplateEntityIdIn.isDefined) {
         // ("cde" in name means "classDefiningEntity" (aka template))
-        val (cde_attributeTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(classTemplateEntityIdIn.get)
+        val (cde_attributeTuples: Array[(Long, Attribute)], _) = db.getSortedAttributes(classTemplateEntityIdIn.get, onlyPublicEntitiesIn = false)
         for (cde_attributeTuple <- cde_attributeTuples) {
           var attributeTypeFoundOnEntity = false
           val cde_attribute = cde_attributeTuple._2

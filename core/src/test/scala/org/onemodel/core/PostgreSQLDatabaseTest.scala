@@ -794,13 +794,23 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     createTestTextAttributeWithOneEntity(entityId)
     createTestQuantityAttributeWithTwoEntities(entityId)
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
-    createTestRelationToEntity_WithOneEntity(entityId, relTypeId)
+    val relatedEntityId: Long = createTestRelationToEntity_WithOneEntity(entityId, relTypeId)
     createAndAddTestRelationToGroup_ToEntity(entityId, relTypeId)
     createTestDateAttributeWithOneEntity(entityId)
     createTestBooleanAttributeWithOneEntity(entityId, valIn = false, None, 0)
     createTestFileAttributeAndOneEntity(new Entity(mDB, entityId), "desc", 2, verifyIn = false)
 
-    val (attrTuples: Array[(Long, Attribute)], totalAttrsAvailable) = mDB.getSortedAttributes(entityId, 0, 999)
+    mDB.updateEntityOnlyPublicStatus(relatedEntityId, None)
+    val onlyPublicTotalAttrsAvailable1 = mDB.getSortedAttributes(entityId, 0, 999, onlyPublicEntitiesIn = true)._2
+    mDB.updateEntityOnlyPublicStatus(relatedEntityId, Some(false))
+    val onlyPublicTotalAttrsAvailable2 = mDB.getSortedAttributes(entityId, 0, 999, onlyPublicEntitiesIn = true)._2
+    mDB.updateEntityOnlyPublicStatus(relatedEntityId, Some(true))
+    val onlyPublicTotalAttrsAvailable3 = mDB.getSortedAttributes(entityId, 0, 999, onlyPublicEntitiesIn = true)._2
+    assert(onlyPublicTotalAttrsAvailable1 == onlyPublicTotalAttrsAvailable2)
+    assert((onlyPublicTotalAttrsAvailable3 - 1) == onlyPublicTotalAttrsAvailable2)
+
+    val (attrTuples: Array[(Long, Attribute)], totalAttrsAvailable) = mDB.getSortedAttributes(entityId, 0, 999, onlyPublicEntitiesIn = false)
+    assert(totalAttrsAvailable > onlyPublicTotalAttrsAvailable1)
     val counter: Long = attrTuples.length
     // should be the same since we didn't create enough to span screens (requested them all):
     assert(counter == totalAttrsAvailable)

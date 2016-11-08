@@ -32,6 +32,11 @@ object Attribute {
     else DATEFORMAT_WITH_ERA.format(d)
   }
 
+  /**
+   * @param input
+   * @param lengthLimitIn If <= 0, no change.
+   * @return
+   */
   def limitDescriptionLength(input: String, lengthLimitIn: Int): String = {
     if (lengthLimitIn != 0 && input.length > lengthLimitIn) {
       input.substring(0, lengthLimitIn - 3) + "..."
