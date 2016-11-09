@@ -550,29 +550,29 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       writer = new java.io.FileWriter(uploadSourceFile)
       writer.write("<1 kB file from: " + uploadSourceFile.getCanonicalPath + ", created " + new java.util.Date())
       writer.close()
-      try {
-        inputStream = new java.io.FileInputStream(uploadSourceFile)
-        mDoDamageBuffer=true
-        intercept[OmFileTransferException] {
-                                              mDB.createFileAttribute(entityId, attrTypeId, "xyz", 0, 0, "/doesntmatter", readableIn = true,
-                                                                      writableIn = true, executableIn = false, uploadSourceFile.length(),
-                                                                      FileAttribute.md5Hash(uploadSourceFile), inputStream, Some(0))
-                                            }
-        mDoDamageBuffer = false
-        //so it should work now:
-        inputStream = new java.io.FileInputStream(uploadSourceFile)
-        val faId: Long = mDB.createFileAttribute(entityId, attrTypeId, "xyz", 0, 0, "/doesntmatter", readableIn = true, writableIn = true, executableIn = false,
-                                                 uploadSourceFile.length(), FileAttribute.md5Hash(uploadSourceFile), inputStream, None)
 
-        val fa: FileAttribute = new FileAttribute(mDB, faId)
-        mDoDamageBuffer = true
-        intercept[OmFileTransferException] {
-                                              fa.retrieveContent(downloadTargetFile)
-                                            }
-        mDoDamageBuffer = false
-        //so it should work now
-        fa.retrieveContent(downloadTargetFile)
-      }
+      inputStream = new java.io.FileInputStream(uploadSourceFile)
+      mDoDamageBuffer=true
+      intercept[OmFileTransferException] {
+                                            mDB.createFileAttribute(entityId, attrTypeId, "xyz", 0, 0, "/doesntmatter", readableIn = true,
+                                                                    writableIn = true, executableIn = false, uploadSourceFile.length(),
+                                                                    FileAttribute.md5Hash(uploadSourceFile), inputStream, Some(0))
+                                          }
+      mDoDamageBuffer = false
+      //so it should work now:
+      inputStream = new java.io.FileInputStream(uploadSourceFile)
+      val faId: Long = mDB.createFileAttribute(entityId, attrTypeId, "xyz", 0, 0,
+                                               "/doesntmatter", readableIn = true, writableIn = true, executableIn = false,
+                                               uploadSourceFile.length(), FileAttribute.md5Hash(uploadSourceFile), inputStream, None)
+
+      val fa: FileAttribute = new FileAttribute(mDB, faId)
+      mDoDamageBuffer = true
+      intercept[OmFileTransferException] {
+                                            fa.retrieveContent(downloadTargetFile)
+                                          }
+      mDoDamageBuffer = false
+      //so it should work now
+      fa.retrieveContent(downloadTargetFile)
     } finally {
       mDoDamageBuffer=false
       if (inputStream != null) inputStream.close()
