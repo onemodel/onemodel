@@ -2927,12 +2927,15 @@ class PostgreSQLDatabase(username: String, var password: String) {
   }
 
   def getEntitiesContainingEntity(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
-    val sql: String = "select rel_type_id, entity_id from relationtoentity where entity_id_2=" + entityIn.getId + " order by entity_id limit " +
-                      checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
+    val sql: String = "select rel_type_id, entity_id from relationtoentity rte, entity e where rte.entity_id=e.id and rte.entity_id_2=" + entityIn.getId +
+                      (if (!includeArchivedEntities) {
+                        " and (not e.archived)"
+                      } else {
+                        ""
+                      }) +
+                      " order by entity_id limit " + checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
     //note/idea: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id or
     // entity_id_2: helpfully returned; & in UI?)
-    //And, perhaps changed to account for whether something is archived.
-    // See getCountOfEntitiesContainingEntity for example.
     getContainingEntities_helper(sql)
   }
 
