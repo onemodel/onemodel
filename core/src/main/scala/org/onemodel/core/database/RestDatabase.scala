@@ -32,7 +32,7 @@ object RestDatabase {
   implicit val context = play.api.libs.concurrent.Execution.Implicits.defaultContext
 
   def restCall[T](urlIn: String,
-                  functionToCall: (WSResponse, Array[AnyVal]) => T,
+                  functionToCall: Option[(WSResponse, Array[AnyVal]) => T],
                   inputs: Array[AnyVal]): T = {
     restCallWithOptionalErrorHandling(urlIn, functionToCall, inputs, None).get
   }
@@ -42,7 +42,7 @@ object RestDatabase {
    * exception to the caller.  Either returns a Some(data), or shows the exception in the UI then returns None, or throws an exception.
    */
   def restCallWithOptionalErrorHandling[T](urlIn: String,
-                                           functionToCall: (WSResponse, Array[AnyVal]) => T,
+                                           functionToCall: Option[(WSResponse, Array[AnyVal]) => T],
                                            inputs: Array[AnyVal],
                                            uiIn: Option[TextUI]): Option[T] = {
     var responseText = ""
@@ -54,8 +54,12 @@ object RestDatabase {
       if (response.status >= 400) {
         throw new OmDatabaseException("Error code from server: " + response.status)
       }
-      val data: T = functionToCall(response, inputs)
-      Some(data)
+      if (functionToCall.isDefined) {
+        val data: T = functionToCall.get(response, inputs)
+        Some(data)
+      } else {
+        Some(response.json.as[T])
+      }
     } catch {
       case e: Exception =>
         if (uiIn.isDefined) {
@@ -109,10 +113,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
    */
   def getIdWithOptionalErrHandling(uiIn: Option[TextUI]): Option[String] = {
     val url = "http://" + mRemoteAddress + "/id"
-    RestDatabase.restCallWithOptionalErrorHandling[String](url, getId_asRightType, Array(), uiIn)
-  }
-  def getId_asRightType(responseIn: WSResponse, ignore: Array[AnyVal]): String = {
-    responseIn.json.as[String]
+    RestDatabase.restCallWithOptionalErrorHandling[String](url, None, Array(), uiIn)
   }
 
   def getDefaultEntity: Long = {
@@ -121,11 +122,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                                                                           " exception or returned an Option with data, but returned None"))
   }
   def getDefaultEntityWithOptionalErrHandling(uiIn: Option[TextUI]): Option[Long] = {
+    def getDefaultEntity_processed(response: WSResponse, ignore: Array[AnyVal]): Long = {
+      (response.json \ "id").as[Long]
+    }
     val url = "http://" + mRemoteAddress + "/entities"
-    RestDatabase.restCallWithOptionalErrorHandling[Long](url, getDefaultEntity_asRightType, Array(), uiIn)
-  }
-  def getDefaultEntity_asRightType(response: WSResponse, ignore: Array[AnyVal]): Long = {
-    (response.json \ "id").as[Long]
+    RestDatabase.restCallWithOptionalErrorHandling[Long](url, Some(getDefaultEntity_processed), Array(), uiIn)
   }
 
   def getEntity(id: Long): String = {
@@ -134,22 +135,22 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                                                                        " exception or returned an Option with data, but returned None"))
   }
   def getEntityWithOptionalErrHandling(uiIn: Option[TextUI], idIn: Long): Option[String] = {
-    val url = "http://" + mRemoteAddress + "/entities/" + idIn
-    RestDatabase.restCallWithOptionalErrorHandling[String](url, getEntity_asRightType, Array(), uiIn)
-  }
-  def getEntity_asRightType(response: WSResponse, ignore: Array[AnyVal]): String = {
-    /* Why doesn't next json line ("...as[String]") work but the following one does?  The first one gets:
-      Failed to retrieve remote info for http://localhost:9000/entities/-9223372036854745151 due to exception:
-       play.api.libs.json.JsResultException: JsResultException(errors:List((,List(ValidationError(List(error.expected.jsstring),WrappedArray())))))
-            ....
-            at play.api.libs.json.JsDefined.as(JsLookup.scala:132)
-            at org.onemodel.core.database.RestDatabase.getEntity_asRightType(RestDatabase.scala:157)
+    def getEntity_processed(response: WSResponse, ignore: Array[AnyVal]): String = {
+      /* Why doesn't next json line ("...as[String]") work but the following one does?  The first one gets:
+        Failed to retrieve remote info for http://localhost:9000/entities/-9223372036854745151 due to exception:
+         play.api.libs.json.JsResultException: JsResultException(errors:List((,List(ValidationError(List(error.expected.jsstring),WrappedArray())))))
+              ....
+              at play.api.libs.json.JsDefined.as(JsLookup.scala:132)
+              at org.onemodel.core.database.RestDatabase.getEntity_processed(RestDatabase.scala:157)
 
-    //  (response.json \ "id").as[String]
-    //  (response.json \ "id").get.toString
-    // But, didn't want to get just the id, anyway.
-    */
-    response.json.toString()
+      //  (response.json \ "id").as[String]
+      //  (response.json \ "id").get.toString
+      // But, didn't want to get just the id, anyway.
+      */
+      response.json.toString()
+    }
+    val url = "http://" + mRemoteAddress + "/entities/" + idIn
+    RestDatabase.restCallWithOptionalErrorHandling[String](url, Some(getEntity_processed), Array(), uiIn)
   }
 
   override def beginTrans(): Unit = ???
