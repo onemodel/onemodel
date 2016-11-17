@@ -8,10 +8,7 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core
 
@@ -19,7 +16,7 @@ import org.scalatest.FlatSpec
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
 import org.onemodel.core.model.{RelationToGroup, Group, Entity}
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 
 class RelationToGroupTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {
@@ -36,14 +33,14 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     val grpEntryCount = 9
     // arbitrary, in milliseconds:
     val date = 304
-    val relationTypeName: String = PostgreSQLDatabase.theHASrelationTypeName
+    val relationTypeName: String = Database.theHASrelationTypeName
     when(mockDB.groupKeyExists(groupId)).thenReturn(true)
     when(mockDB.relationTypeKeyExists(relTypeId)).thenReturn(true)
     when(mockDB.entityKeyExists(relTypeId)).thenReturn(true)
     when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, relTypeId, groupId)).thenReturn(true)
     when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true), Some(false)))
     when(mockDB.getGroupSize(groupId, 1)).thenReturn(grpEntryCount)
-    when(mockDB.getRelationTypeData(relTypeId)).thenReturn(Array[Option[Any]](Some(relationTypeName), Some(PostgreSQLDatabase.theIsHadByReverseName),
+    when(mockDB.getRelationTypeData(relTypeId)).thenReturn(Array[Option[Any]](Some(relationTypeName), Some(Database.theIsHadByReverseName),
                                                                               Some("xyz..")))
     // (using arbitrary numbers for the unnamed parameters):
     val relationToGroup = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0)

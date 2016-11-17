@@ -8,24 +8,22 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.Util
+import org.onemodel.core.database.Database
 
 /** Represents one String object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
 
     This constructor instantiates an existing object from the DB. You can use Entity.addTextAttribute() to
     create a new object.
   */
-class TextAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
-  if (!mDB.textAttributeKeyExists(mId)) {
-    // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code.
-    throw new Exception("Key " + mId + " does not exist in database.")
+class TextAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+  // (See comment at similar location in BooleanAttribute.)
+  if (!mDB.isRemote && !mDB.textAttributeKeyExists(mId)) {
+    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
 
@@ -33,11 +31,11 @@ class TextAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWithVal
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, inParentId: Long, inAttrTypeId: Long, inText: String, validOnDate: Option[Long], observationDate: Long,
+  def this(mDB: Database, mId: Long, parentIdIn: Long, attrTypeIdIn: Long, textIn: String, validOnDate: Option[Long], observationDate: Long,
            sortingIndexIn: Long) {
     this(mDB, mId)
-    assignCommonVars(inParentId, inAttrTypeId, validOnDate, observationDate, sortingIndexIn)
-    mText = inText
+    assignCommonVars(parentIdIn, attrTypeIdIn, validOnDate, observationDate, sortingIndexIn)
+    mText = textIn
   }
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
@@ -63,21 +61,21 @@ class TextAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWithVal
     super.assignCommonVars(taTypeData(0).get.asInstanceOf[Long], taTypeData(2).get.asInstanceOf[Long], taTypeData(3).asInstanceOf[Option[Long]], taTypeData(4).get.asInstanceOf[Long], taTypeData(5).get.asInstanceOf[Long])
   }
 
-  def update(inAttrTypeId: Long, inText: String, inValidOnDate: Option[Long], inObservationDate: Long) {
+  def update(attrTypeIdIn: Long, textIn: String, validOnDateIn: Option[Long], observationDateIn: Long) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    mDB.updateTextAttribute(mId, getParentId, inAttrTypeId, inText, inValidOnDate, inObservationDate)
-    mText = inText
-    mAttrTypeId = inAttrTypeId
-    mValidOnDate = inValidOnDate
-    mObservationDate = inObservationDate
+    mDB.updateTextAttribute(mId, getParentId, attrTypeIdIn, textIn, validOnDateIn, observationDateIn)
+    mText = textIn
+    mAttrTypeId = attrTypeIdIn
+    mValidOnDate = validOnDateIn
+    mObservationDate = observationDateIn
   }
 
   /** Removes this object from the system. */
   def delete() = mDB.deleteTextAttribute(mId)
 
   /** For descriptions of the meanings of these variables, see the comments
-    on PostgreSQLDatabase.createTextAttribute(...) or createTables().
+    on createTextAttribute(...) or createTables() in PostgreSQLDatabase or Database classes.
     */
   private var mText: String = null
 }

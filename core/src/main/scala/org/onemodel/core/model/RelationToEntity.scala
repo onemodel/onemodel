@@ -8,15 +8,12 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.Color
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.{OmException, Util, Color}
+import org.onemodel.core.database.Database
 
 /**
  * Represents one RelationToEntity object in the system (usually [always, as of 9/2003] used as an attribute on a Entity).
@@ -26,14 +23,18 @@ import org.onemodel.core.database.PostgreSQLDatabase
  * a PostgreSQLDatabase instance?).
  *
  */
-class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEntityId1: Long, mEntityId2: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
-  if (mDB.relationToEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mEntityId2)) {
-    // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:
-    mAttrTypeId = mRelTypeId
-  } else {
-    // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code. (should be a constant then, huh? same elsewhere. It's on the list.)
-    throw new Exception("Key id=" + mId + ", with multi-column key composed of:  rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
-                        " and entity_id_2=" + mEntityId2 + " do not exist in database.")
+class RelationToEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityId1: Long, mEntityId2: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+  // (See comment at similar location in BooleanAttribute.)
+
+  if (! this.isInstanceOf[RelationToRemoteEntity]) {
+    // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
+    if (mDB.isRemote || mDB.relationToEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mEntityId2)) {
+      // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:
+      mAttrTypeId = mRelTypeId
+    } else {
+      throw new OmException("Key id=" + mId + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
+                                " and entity_id_2=" + mEntityId2 + Util.DOES_NOT_EXIST)
+    }
   }
 
   /**
@@ -41,9 +42,13 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(mDB: PostgreSQLDatabase, idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long,
+  def this(mDB: Database, idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long,
            sortingIndexIn: Long) {
     this(mDB, idIn, relTypeIdIn, entityId1In, entityId2In)
+    if (this.isInstanceOf[RelationToRemoteEntity]) {
+      // idea: this test & exception feel awkward. What is the better approach?  Maybe using scala's type features?
+      throw new OmException("This constructor should not be called by the subclass.")
+    }
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
     assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
@@ -68,14 +73,14 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
   def getDisplayString(lengthLimitIn: Int, relatedEntityIn: Option[Entity], relationTypeIn: Option[RelationType], simplify: Boolean = false): String = {
     val relType: RelationType = {
       if (relationTypeIn.isDefined) {
-        if (relationTypeIn.get.getId != this.getAttrTypeId) {
+        if (relationTypeIn.get.getId != getAttrTypeId) {
           // It can be ignored, but in cases called generically (the same as other Attribute types) it should have the right value or that indicates a
           // misunderstanding in the caller's code. Also, if passed in and this were changed to use it again, it can save processing time re-instantiating one.
-          throw new scala.Exception("inRT parameter should be the same as the relationType on this relation.")
+          throw new OmException("inRT parameter should be the same as the relationType on this relation.")
         }
         relationTypeIn.get
       } else {
-        new RelationType(mDB, this.getAttrTypeId)
+        new RelationType(mDB, getAttrTypeId)
       }
     }
 
@@ -86,7 +91,7 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
         } else if (relatedEntityIn.get.getId == mEntityId1) {
           relType.getNameInReverseDirection
         }
-        else throw new scala.Exception("Unrelated parent entity parameter?: '" + relatedEntityIn.get.getId + "', '" + relatedEntityIn.get.getName + "'")
+        else throw new OmException("Unrelated parent entity parameter?: '" + relatedEntityIn.get.getId + "', '" + relatedEntityIn.get.getName + "'")
       } else {
         relType.getName
       }
@@ -95,13 +100,15 @@ class RelationToEntity(mDB: PostgreSQLDatabase, mId: Long, mRelTypeId: Long, mEn
     // (See method comment about the relatedEntityIn param.)
     val relatedEntity = relatedEntityIn.getOrElse(new Entity(mDB, mEntityId2))
     val result: String = if (simplify) {
-      if (rtName == PostgreSQLDatabase.theHASrelationTypeName) relatedEntity.getName
-      else rtName + ": " + relatedEntity.getName
+      if (rtName == Database.theHASrelationTypeName) relatedEntity.getName
+      else rtName + getRemoteDescription + ": " + relatedEntity.getName
     } else {
-      rtName + ": " + Color.blue(relatedEntity.getName) + "; " + getDatesDescription
+      rtName + getRemoteDescription + ": " + Color.blue(relatedEntity.getName) + "; " + getDatesDescription
     }
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
+
+  protected def getRemoteDescription = ""
 
   protected def readDataFromDB() {
     val relationData: Array[Option[Any]] = mDB.getRelationToEntityData(mAttrTypeId, mEntityId1, mEntityId2)

@@ -13,7 +13,7 @@ import org.scalatest.FlatSpec
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
 import org.onemodel.core.model.RelationType
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 
 class RelationTypeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "work with a populated entity or relationtype" in {
@@ -21,7 +21,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     val id = 0L
     val mockDB = mock[PostgreSQLDatabase]
     when(mockDB.entityKeyExists(id)).thenReturn(true)
-    val testRelTypeName = PostgreSQLDatabase.theHASrelationTypeName
+    val testRelTypeName = Database.theHASrelationTypeName
     val testNameReversed = "is had"
     val testDir = "BI"
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)

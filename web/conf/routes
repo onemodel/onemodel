@@ -16,6 +16,7 @@ GET   /                     org.onemodel.web.controllers.Application.index
 GET   /about                controllers.Default.redirect(to = "http://onemodel.org")
 GET   /index.html           org.onemodel.web.controllers.Application.index
 GET   /id                   org.onemodel.web.controllers.Rest.id
+GET   /entities            controllers.Default.redirect(to = "/entities/")
 GET   /entities/            org.onemodel.web.controllers.Rest.defaultEntity
 GET   /entities/:id         org.onemodel.web.controllers.Rest.entities(id: Long)
 

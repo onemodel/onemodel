@@ -14,7 +14,7 @@ import java.nio.file.{Files, Path, StandardCopyOption}
 
 import org.onemodel.core._
 import org.onemodel.core.model._
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 import org.onemodel.core.{OmException, TextUI}
 
 import scala.annotation.tailrec
@@ -82,7 +82,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               val keepAnswer: Option[Boolean] = {
                 //idea: look into how long that time is (see below same cmt):
                 val msg: String = "Group imported, but browse around to see if you want to keep it, " +
-                                  "then ESC back here to commit the changes....  (If you wait beyond some amount of time(?), " +
+                                  "then ESC back here to commit the changes....  (If you wait beyond some amount of time(?) or go beyond just viewing, " +
                                   "it seems that postgres will commit " +
                                   "the change whether you want it or not, even if the message at that time says 'rolled back...')"
                 ui.displayText(msg)
@@ -97,7 +97,8 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
               if (keepAnswer.isEmpty || !keepAnswer.get) {
                 db.rollbackTrans()
                 //idea: look into how long that time is (see above same cmt)
-                ui.displayText("Rolled back the import: no changes made (unless you waited too long and postgres committed it anyway...?).")
+                ui.displayText("Rolled back the import: no changes made (unless you browsed farther, into code that had another commit, or " +
+                               "waited too long and postgres committed it anyway...?).")
               } else {
                 db.commitTrans()
               }
@@ -303,11 +304,16 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
         val prompt = "A name for the *type* of this text attribute was not provided; it would be the entire line content preceding the \"" +
                      beginningTagMarker + "\" " +
                      "(it has to match an existing entity, case-sensitively)"
-        val typeId = controller.chooseOrCreateObject_OrSaysCancelled(prompt + ", so please choose one or ESC to abort this import operation:", Util.TEXT_TYPE, None, None)
-        if (typeId.isEmpty)
+        //IDEA: this used to call controller.chooseOrCreateObject_OrSaysCancelled instead. Removing it removes a prompt if the user pressed ESC during it,
+        //and this lacks a convenient way to test it, and I don't know that anyone uses it right now. So maybe add a test sometime:
+        val selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(Some(List(prompt + ", so please choose one or ESC to abort" +
+                                                                                                        " this import operation:")),
+                                                                                              None, None, Util.TEXT_TYPE)
+        if (selection.isEmpty) {
           throw new OmException(prompt + " or selected.")
-        else
-          typeId.get
+        } else {
+          selection.get._1.getId
+        }
       }
     }
     val text: String = restOfLine.trim + TextUI.NEWLN + {
@@ -673,14 +679,14 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     if (numSubEntries > 0) {
       val relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entityIn, ImportExport.HTML_EXPORT_TYPE)
       printHtmlListItemWithLink(printWriterIn,
-                                if (relationTypeIn.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationTypeIn.getName + ": ",
+                                if (relationTypeIn.getName == Database.theHASrelationTypeName) "" else relationTypeIn.getName + ": ",
                                 relatedEntitysFileNamePrefix + ".html",
                                 entityIn.getName)
                                 //removing next line until it matches better with what user can actually see: currently includes non-public stuff, so the #
                                 //might confuse a reader, or at least doesn't set fulfillable expectations on how much content there is.
 //                                Some("(" + numSubEntries + ")"))
     } else {
-      val line = (if (relationTypeIn.getName == PostgreSQLDatabase.theHASrelationTypeName) "" else relationTypeIn.getName + ": ") +
+      val line = (if (relationTypeIn.getName == Database.theHASrelationTypeName) "" else relationTypeIn.getName + ": ") +
                  entityIn.getName
       printWriterIn.println("<li>" + htmlEncode(line) + "</li>")
     }

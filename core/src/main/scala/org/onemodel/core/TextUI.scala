@@ -30,7 +30,7 @@ import org.apache.commons.io.FilenameUtils
   */
 
 object TextUI {
-  val NEWLN: String = System.getProperty("line.separator")
+  val NEWLN: String = Util.NEWLN
   val menuCharsList: String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
 
   def main(args: Array[String]) {

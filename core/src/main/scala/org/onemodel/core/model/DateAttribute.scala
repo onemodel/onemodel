@@ -8,23 +8,21 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.Util
+import org.onemodel.core.database.Database
 
 /** See TextAttribute etc for some comments.
   * Also, though this doesn't formally extend Attribute, it still belongs to the same group conceptually (just doesn't have the same date variables so code
   * not shared (idea: model that better, and in FileAttribute).
   */
-class DateAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, mId) {
-  if (!mDB.dateAttributeKeyExists(mId)) {
-    // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code.
-    throw new Exception("Key " + mId + " does not exist in database.")
+class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
+  // (See comment at similar location in BooleanAttribute.)
+  if (!mDB.isRemote && !mDB.dateAttributeKeyExists(mId)) {
+    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
 
@@ -33,7 +31,7 @@ class DateAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, inParentId: Long, attrTypeIdIn: Long, inDate: Long, sortingIndexIn: Long) {
+  def this(mDB: Database, mId: Long, inParentId: Long, attrTypeIdIn: Long, inDate: Long, sortingIndexIn: Long) {
     this(mDB, mId)
     mDate = inDate
     super.assignCommonVars(inParentId, attrTypeIdIn, sortingIndexIn)
@@ -69,7 +67,7 @@ class DateAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
   def delete() = mDB.deleteDateAttribute(mId)
 
   /** For descriptions of the meanings of these variables, see the comments
-    on PostgreSQLDatabase.createDateAttribute(...) or createTables().
+    on createDateAttribute(...) or createTables() in PostgreSQLDatabase or Database classes
     */
   private var mDate: Long = 0L
 }

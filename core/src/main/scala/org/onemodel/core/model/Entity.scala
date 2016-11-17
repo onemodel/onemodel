@@ -8,35 +8,32 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
 import java.io.{FileInputStream, PrintWriter, StringWriter}
 
 import org.onemodel.core._
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.Database
 
 object Entity {
-  def nameLength(inDB: PostgreSQLDatabase): Int = PostgreSQLDatabase.entityNameLength
+  def nameLength(inDB: Database): Int = Database.entityNameLength
 
-  def isDuplicate(inDB: PostgreSQLDatabase, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateEntity(inName, inSelfIdToIgnore)
+  def isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateEntity(inName, inSelfIdToIgnore)
 
-  def createEntity(inDB: PostgreSQLDatabase, inName: String, inClassId: Option[Long] = None, isPublicIn: Option[Boolean] = None): Entity = {
+  def createEntity(inDB: Database, inName: String, inClassId: Option[Long] = None, isPublicIn: Option[Boolean] = None): Entity = {
     val id: Long = inDB.createEntity(inName, inClassId, isPublicIn)
     new Entity(inDB, id, false)
   }
 
-  def getEntityById(inDB: PostgreSQLDatabase, id: Long): Option[Entity] = {
+  def getEntityById(inDB: Database, id: Long): Option[Entity] = {
     try Some(new Entity(inDB, id))
     catch {
       case e: java.lang.Exception =>
         //idea: change this to actually get an "OM_NonexistentEntityException" or such, not text, so it works
-        // when we have multiple databases that might not throw the same string!
-        if (e.toString.indexOf("does not exist in database.") >= 0) {
+        // when we have multiple databases that might not throw the same string! (& in similar places).
+        if (e.toString.indexOf(Util.DOES_NOT_EXIST) >= 0) {
           None
         }
         else throw e
@@ -56,10 +53,11 @@ object Entity {
   *   (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
   *   set... method to fix it.)
   */
-class Entity(mDB: PostgreSQLDatabase, mId: Long) {
-  if (!mDB.entityKeyExists(mId)) {
+class Entity(mDB: Database, mId: Long) {
+  // (See comment at similar location in BooleanAttribute.)
+  if (!mDB.isRemote && !mDB.entityKeyExists(mId)) {
     // DON'T CHANGE this msg unless you also change the trap for it in TextUI.java.
-    throw new Exception("Key " + mId + " does not exist in database.")
+    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
 
@@ -67,7 +65,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, nameIn: String, classIdIn: Option[Long] = None, insertionDateIn: Long, publicIn: Option[Boolean],
+  def this(mDB: Database, mId: Long, nameIn: String, classIdIn: Option[Long] = None, insertionDateIn: Long, publicIn: Option[Boolean],
            archivedIn: Boolean, newEntriesStickToTopIn: Boolean) {
     this(mDB, mId)
     mName = nameIn
@@ -79,12 +77,12 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     mAlreadyReadData = true
   }
 
-  /** Allows createEntity to return an instance without duplicating the database check that it Entity(long, PostgreSQLDatabase) does.
+  /** Allows createEntity to return an instance without duplicating the database check that it Entity(long, Database) does.
     * (The 3rd parameter "ignoreMe" is so it will have a different signature and avoid compile errors.)
     * */
   // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and EntityTest etc could be with mocks
   // instead of real db use.)  Does this really skip that other check though?
-  @SuppressWarnings(Array("unused")) def this(inDB: PostgreSQLDatabase, inID: Long, ignoreMe: Boolean) {
+  @SuppressWarnings(Array("unused")) def this(inDB: Database, inID: Long, ignoreMe: Boolean) {
     this(inDB, inID)
   }
 
@@ -312,14 +310,18 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
     }
   }
 
-  def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long, sortingIndexIn: Option[Long]): RelationToEntity = {
-    addRelationToEntity(inAttrTypeId, inEntityId2, sortingIndexIn, None, System.currentTimeMillis)
-  }
-
   def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long, sortingIndexIn: Option[Long],
-                          inValidOnDate: Option[Long], inObservationDate: Long): RelationToEntity = {
-    val rteId = mDB.createRelationToEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate, sortingIndexIn).getId
-    new RelationToEntity(mDB, rteId, inAttrTypeId, getId, inEntityId2)
+                          inValidOnDate: Option[Long] = None, inObservationDate: Long = System.currentTimeMillis, remoteIn: Boolean = false,
+                          remoteInstanceIdIn: Option[String] = None): RelationToEntity = {
+    require(remoteIn == remoteInstanceIdIn.isDefined)
+    if (!remoteIn) {
+      val rteId = mDB.createRelationToEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate, sortingIndexIn).getId
+      new RelationToEntity(mDB, rteId, inAttrTypeId, getId, inEntityId2)
+    } else {
+      val rteId = mDB.createRelationToRemoteEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate,
+                                                   remoteInstanceIdIn.get, sortingIndexIn).getId
+      new RelationToRemoteEntity(mDB, rteId, inAttrTypeId, getId, remoteInstanceIdIn.get, inEntityId2)
+    }
   }
 
   /** Creates then adds a particular kind of rtg to this entity.
@@ -329,7 +331,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
                                        callerManagesTransactionsIn: Boolean = false): (Group, RelationToGroup) = {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1))(0)
     val (group, rtg) = addGroupAndRelationToGroup(relationTypeId, newGroupNameIn, mixedClassesAllowedIn, None, observationDateIn,
                                                   None, callerManagesTransactionsIn)
     (group, rtg)
@@ -359,7 +361,7 @@ class Entity(mDB: PostgreSQLDatabase, mId: Long) {
                                         callerManagesTransactionsIn: Boolean = false): (Entity, RelationToEntity) = {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1))(0)
     val (entity, rte) = addEntityAndRelationToEntity(relationTypeId, newEntityNameIn, None, observationDateIn, isPublicIn,
                                                      callerManagesTransactionsIn)
     (entity, rte)

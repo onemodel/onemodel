@@ -37,7 +37,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
           answer match {
             case 1 => controller.showInEntityMenuThenMainMenu(controller.askForClassInfoAndNameAndCreateEntity())
             case 2 =>
-              val selection: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
+              val selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
               if (selection.isDefined) {
                 controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.getId)))
               }
@@ -82,7 +82,7 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
               controller.refreshPublicPrivateStatusPreference()
               controller.refreshDefaultDisplayEntityId()
             case 4 =>
-              val rtId: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.RELATION_TYPE_TYPE)
+              val rtId: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(None, None, None, Util.RELATION_TYPE_TYPE)
               if (rtId.isDefined) {
                 controller.showInEntityMenuThenMainMenu(Some(new RelationType(db, rtId.get._1.getId)))
               }
@@ -90,22 +90,22 @@ class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Contr
               val subEntitySelected: Option[Entity] = controller.goToEntityOrItsSoleGroupsMenu(entity)._1
               if (subEntitySelected.isDefined) mainMenu(subEntitySelected)
             case 6 =>
-              val selection: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
+              val selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
               if (selection.isDefined) {
                 controller.showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.getId)))
               }
             case 7 =>
-              val classId: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_CLASS_TYPE)
+              val classId: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_CLASS_TYPE)
               // (compare this to showInEntityMenuThenMainMenu)
               if (classId.isDefined) {
                 new ClassMenu(ui, db, controller).classMenu(new EntityClass(db, classId.get._1.getId))
                 mainMenu(Some(entity))
               }
             case 8 =>
-              val omInstanceKey: Option[(_, String)] = controller.chooseOrCreateObject(None, None, None, Util.OM_INSTANCE_TYPE)
+              val omInstanceKey: Option[(_, _, String)] = controller.chooseOrCreateObject(None, None, None, Util.OM_INSTANCE_TYPE)
               // (compare this to showInEntityMenuThenMainMenu)
               if (omInstanceKey.isDefined) {
-                new OmInstanceMenu(ui, db, controller).omInstanceMenu(new OmInstance(db, omInstanceKey.get._2))
+                new OmInstanceMenu(ui, db, controller).omInstanceMenu(new OmInstance(db, omInstanceKey.get._3))
                 mainMenu(Some(entity))
               }
             case _: Int =>

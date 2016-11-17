@@ -8,28 +8,25 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
 import org.onemodel.core._
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.Database
 
 object OmInstance {
-  def addressLength: Int = PostgreSQLDatabase.omInstanceAddressLength
+  def addressLength: Int = Database.omInstanceAddressLength
 
-  def isDuplicate(dbIn: PostgreSQLDatabase, addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean = {
+  def isDuplicate(dbIn: Database, addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean = {
     dbIn.isDuplicateOmInstance(addressIn, selfIdToIgnoreIn)
   }
 
-  def create(inDB: PostgreSQLDatabase, idIn: String, addressIn: String, entityIdIn: Option[Long] = None): OmInstance = {
+  def create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option[Long] = None): OmInstance = {
     // Passing false for isLocalIn because the only time that should be true is when it is created at db creation, for this site, and that is done
     // in the db class more directly.
-    val insertionDate: Long = inDB.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn)
-    new OmInstance(inDB, idIn, isLocalIn = false, addressIn = addressIn, insertionDateIn = insertionDate, entityIdIn = entityIdIn)
+    val insertionDate: Long = dbIn.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn)
+    new OmInstance(dbIn, idIn, isLocalIn = false, addressIn = addressIn, insertionDateIn = insertionDate, entityIdIn = entityIdIn)
   }
 }
 
@@ -38,10 +35,10 @@ object OmInstance {
   * This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
   * Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
   */
-class OmInstance(mDB: PostgreSQLDatabase, mId: String) {
-  if (!mDB.omInstanceKeyExists(mId)) {
-    // DON'T CHANGE this msg unless you also change the trap for it in TextUI.java.
-    throw new OmException("Key " + mId + " does not exist in database.")
+class OmInstance(mDB: Database, mId: String) {
+  // (See comment at similar location in BooleanAttribute.)
+  if (!mDB.isRemote && !mDB.omInstanceKeyExists(mId)) {
+    throw new OmException("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
 
@@ -49,7 +46,7 @@ class OmInstance(mDB: PostgreSQLDatabase, mId: String) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: String, isLocalIn: Boolean, addressIn: String, insertionDateIn: Long, entityIdIn: Option[Long] = None) {
+  def this(mDB: Database, mId: String, isLocalIn: Boolean, addressIn: String, insertionDateIn: Long, entityIdIn: Option[Long] = None) {
     this(mDB, mId)
     mLocal = isLocalIn
     mAddress = addressIn

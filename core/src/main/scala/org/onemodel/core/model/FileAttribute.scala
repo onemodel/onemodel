@@ -8,10 +8,7 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
@@ -19,7 +16,7 @@ import scala.annotation.tailrec
 import java.io.{File, FileOutputStream}
 import org.apache.commons.io.FilenameUtils
 import org.onemodel.core._
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.Database
 
 object FileAttribute {
   def md5Hash(fileIn: java.io.File): String = {
@@ -84,10 +81,10 @@ object FileAttribute {
   * not shared (idea: model that better, and in DateAttribute). (idea: IN FACT, ALL THE CODE RELATED TO THESE CLASSES COULD PROBABLY HAVE A LOT OF REDUNDANCY
   * REMOVED.)
   */
-class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, mId) {
-  if (!mDB.fileAttributeKeyExists(mId)) {
-    // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code.
-    throw new Exception("Key " + mId + " does not exist in database.")
+class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
+  // (See comment at similar location in BooleanAttribute.)
+  if (!mDB.isRemote && !mDB.fileAttributeKeyExists(mId)) {
+    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
 
@@ -95,19 +92,19 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
   that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
   one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, inParentId: Long, inAttrTypeId: Long, inDescription: String, inOriginalFileDate: Long, inStoredDate: Long,
-           inOriginalFilePath: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, inSize: Long, inMd5hash: String, sortingIndexIn: Long) {
+  def this(mDB: Database, mId: Long, parentIdIn: Long, attrTypeIdIn: Long, descriptionIn: String, originalFileDateIn: Long, storedDateIn: Long,
+           inOriginalFilePath: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: Long, md5hashIn: String, sortingIndexIn: Long) {
     this(mDB, mId)
-    mDescription = inDescription
-    mOriginalFileDate = inOriginalFileDate
-    mStoredDate = inStoredDate
+    mDescription = descriptionIn
+    mOriginalFileDate = originalFileDateIn
+    mStoredDate = storedDateIn
     mOriginalFilePath = inOriginalFilePath
     mReadable = readableIn
     mWritable = writableIn
     mExecutable = executableIn
-    mSize = inSize
-    mMd5hash = inMd5hash
-    assignCommonVars(inParentId, inAttrTypeId, sortingIndexIn)
+    mSize = sizeIn
+    mMd5hash = md5hashIn
+    assignCommonVars(parentIdIn, attrTypeIdIn, sortingIndexIn)
   }
 
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None, simplify: Boolean = false): String = {
@@ -154,11 +151,11 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
   // AND note that: The dates for a fileAttribute shouldn't ever be None/NULL like with other Attributes, because it is the file date in the filesystem
   // before it was
   // read into OM, and the current date; so they should be known whenever adding a document.
-  def update(inAttrTypeId: Option[Long] = None, inDescription: Option[String] = None) {
+  def update(attrTypeIdIn: Option[Long] = None, descriptionIn: Option[String] = None) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    val descr = if (inDescription.isDefined) inDescription.get else getDescription
-    val attrTypeId = if (inAttrTypeId.isDefined) inAttrTypeId.get else getAttrTypeId
+    val descr = if (descriptionIn.isDefined) descriptionIn.get else getDescription
+    val attrTypeId = if (attrTypeIdIn.isDefined) attrTypeIdIn.get else getAttrTypeId
     mDB.updateFileAttribute(getId, getParentId, attrTypeId, descr)
     mDescription = descr
     mAttrTypeId = attrTypeId
@@ -166,7 +163,7 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
 
   ///** Using Options for the parameters so caller can pass in only those desired (named), and other members will stay the same.
   //  */
-  //def update(inAttrTypeId: Option[Long] = None, inDescription: Option[String] = None, originalFileDateIn: Option[Long] = None,
+  //def update(attrTypeIdIn: Option[Long] = None, descriptionIn: Option[String] = None, originalFileDateIn: Option[Long] = None,
   //           storedDateIn: Option[Long] = None, originalFilePathIn: Option[String] = None, sizeIn: Option[Long] = None, md5hashIn: Option[String] = None) {
   //  // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
   //  // it all goes with
@@ -174,8 +171,8 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
   // stored date!) are untouched if unchanged if
   //  // not passed in!! And probably need to add the 3 boolean fields to it & test.
   //  mDB.updateFileAttribute(mId, mParentId,
-  //                          if (inAttrTypeId == None) getAttrTypeId else inAttrTypeId.get,
-  //                          if (inDescription == None) getDescription else inDescription.get,
+  //                          if (attrTypeIdIn == None) getAttrTypeId else inAttrTypeId.get,
+  //                          if (descriptionIn == None) getDescription else inDescription.get,
   //                          if (originalFileDateIn == None) getOriginalFileDate else originalFileDateIn.get,
   //                          if (storedDateIn == None) getStoredDate else storedDateIn.get,
   //                          if (originalFilePathIn == None) getOriginalFilePath else originalFilePathIn.get,
@@ -280,7 +277,7 @@ class FileAttribute(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, m
 
   /**
    * For descriptions of the meanings of these variables, see the comments
-   * on PostgreSQLDatabase.createTables(...), and examples in the database testing code.
+   * on createTables(...), and examples in the database testing code, for & in PostgreSQLDatabase or Database classes.
    */
   private var mDescription: String = null
   private var mOriginalFileDate: Long = 0

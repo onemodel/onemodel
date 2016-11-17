@@ -327,8 +327,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
         if (answer == 1) {
           val (entryToHighlight:Option[Entity], displayStartingRowNumber: Int) = {
             // ask for less info when here in the quick menu, where want to add entity quickly w/ no fuss, like brainstorming.  User can always use long menu.
-            val ans: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
-                                                               inClassId = groupIn.getClassId)
+            val ans: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"),
+                                                               classIdIn = groupIn.getClassId)
             if (ans.isDefined) {
               val newEntity = ans.get
               val newEntityId: Long = newEntity.getId
@@ -375,8 +375,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                   } else {
                     val (rtgId: Long, relTypeId: Long, targetGroupId: Long) = createNewOrFindOneGroupOnEntity(groupIn, targetRtgCount, highlightedEntry)
                     // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
-                    val ans: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
-                                                                                  inClassId = groupIn.getClassId)
+                    val ans: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"),
+                                                                                  classIdIn = groupIn.getClassId)
                     if (ans.isDefined) {
                       val newEntityId: Long = ans.get.getId
                       val newEntity: Entity = ans.get
@@ -390,8 +390,8 @@ class QuickGroupMenu(override val ui: TextUI, override val db: PostgreSQLDatabas
                     quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
                   }
                 } else {
-                  val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"),
-                                                                                      inClassId = groupIn.getClassId)
+                  val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"),
+                                                                                      classIdIn = groupIn.getClassId)
                   if (newEntity.isDefined) {
                     val newEntityId: Long = newEntity.get.getId
                     val newRte: RelationToEntity = highlightedEntry.addHASRelationToEntity(newEntityId, None, System.currentTimeMillis())

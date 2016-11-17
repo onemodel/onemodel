@@ -8,14 +8,11 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.Database
 
 
 object Attribute {
@@ -33,9 +30,9 @@ object Attribute {
   }
 
   /**
-   * @param input
+   * @param input The value to chop down in size.
    * @param lengthLimitIn If <= 0, no change.
-   * @return
+   * @return A value equal or shorter in length.
    */
   def limitDescriptionLength(input: String, lengthLimitIn: Int): String = {
     if (lengthLimitIn != 0 && input.length > lengthLimitIn) {
@@ -48,7 +45,7 @@ object Attribute {
  * Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
  * Originally created as a place to put common stuff between Relation/QuantityAttribute/TextAttribute.
  */
-abstract class Attribute(mDB: PostgreSQLDatabase, mId: Long) {
+abstract class Attribute(mDB: Database, mId: Long) {
   // idea: somehow use scala features better to make it cleaner, so we don't need these extra 2 vars, because they are
   // used in 1-2 instances, and ignored in the rest.  One thing is that RelationToEntity and RelationToGroup are Attributes. Should they be?
   def getDisplayString(inLengthLimit: Int, parentEntity: Option[Entity], inRTId: Option[RelationType], simplify: Boolean = false): String
@@ -66,7 +63,7 @@ abstract class Attribute(mDB: PostgreSQLDatabase, mId: Long) {
   }
 
   def getFormId: Int = {
-    PostgreSQLDatabase.getAttributeFormId(this.getClass.getSimpleName)
+    Database.getAttributeFormId(this.getClass.getSimpleName)
   }
 
   protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long, sortingIndexIn: Long) {
@@ -86,6 +83,10 @@ abstract class Attribute(mDB: PostgreSQLDatabase, mId: Long) {
     mSortingIndex
   }
 
+  def isRemote: Boolean = mDB.isRemote
+
+  def omInstanceKey: String = mDB.getId
+
   // idea: make the scope definitions (by whatever name: "private[onemodel] ") sensible and uniform
   private[onemodel] def getParentId: Long = {
     if (!mAlreadyReadData) readDataFromDB()
@@ -94,7 +95,7 @@ abstract class Attribute(mDB: PostgreSQLDatabase, mId: Long) {
 
   /**
    * For descriptions of the meanings of these variables, see the comments
-   * on PostgreSQLDatabase.createTables(...), and examples in the database testing code.
+   * on createTables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
    */
   protected var mParentId: Long = 0L
   protected var mAttrTypeId: Long = 0L

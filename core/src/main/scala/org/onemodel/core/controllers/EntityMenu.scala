@@ -13,7 +13,7 @@ package org.onemodel.core.controllers
 import java.util
 
 import org.onemodel.core._
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 import org.onemodel.core.model._
 
 import scala.annotation.tailrec
@@ -151,7 +151,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       if (answer == 1) {
         val (newAttributeToHighlight: Option[Attribute], displayStartingRowNumber: Int) = {
           // ask for less info when here, to add entity quickly w/ no fuss, like brainstorming. Like in QuickGroupMenu.  User can always use option 2.
-          val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, inLeadingText = Some("NAME THE ENTITY:"))
+          val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"))
           if (newEntity.isDefined) {
             val newAttribute: Attribute = entityIn.addHASRelationToEntity(newEntity.get.getId, None, System.currentTimeMillis())
             // The next 2 lines are so if adding a new entry on the 1st entry, and if the user so prefers, the new one becomes the
@@ -428,7 +428,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
           showSearchResults()
         }
       } else if (searchAnswer == 4) {
-        val selection: Option[(IdWrapper, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
+        val selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
         if (selection.isDefined) {
           entityMenu(new Entity(db, selection.get._1.getId))
         }
@@ -523,7 +523,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
             db.moveRelationToEntity(movingRte.getId, targetContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
             (startingDisplayRowIndexIn, true)
           } else if (highlightedAttributeIn.isInstanceOf[RelationToEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
-            require(targetForMovesIn.get.getFormId == PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE))
+            require(targetForMovesIn.get.getFormId == Database.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE))
             val targetGroupId = RelationToGroup.createRelationToGroup(db, targetForMovesIn.get.getId).getGroupId
             val rte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
             // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
@@ -652,17 +652,17 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       val attrForm: Int = whichKindOfAttribute.get match {
         // This is a bridge between the expected order for convenient UI above, and the parameter value expected by controller.addAttribute
         // (1-based, not 0-based.)
-        case 1 => PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE)
+        case 1 => Database.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE)
         case 2 => 100
-        case 3 => PostgreSQLDatabase.getAttributeFormId(Util.QUANTITY_TYPE)
-        case 4 => PostgreSQLDatabase.getAttributeFormId(Util.DATE_TYPE)
-        case 5 => PostgreSQLDatabase.getAttributeFormId(Util.BOOLEAN_TYPE)
-        case 6 => PostgreSQLDatabase.getAttributeFormId(Util.FILE_TYPE)
-        case 7 => PostgreSQLDatabase.getAttributeFormId(Util.TEXT_TYPE)
-        case 8 => PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE)
+        case 3 => Database.getAttributeFormId(Util.QUANTITY_TYPE)
+        case 4 => Database.getAttributeFormId(Util.DATE_TYPE)
+        case 5 => Database.getAttributeFormId(Util.BOOLEAN_TYPE)
+        case 6 => Database.getAttributeFormId(Util.FILE_TYPE)
+        case 7 => Database.getAttributeFormId(Util.TEXT_TYPE)
+        case 8 => Database.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE)
         case 9 => 101
         // next one seems to happen if one just presses Enter:
-        case 0 => PostgreSQLDatabase.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE)
+        case 0 => Database.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE)
       }
       controller.addAttribute(entityIn, startingAttributeIndexIn, attrForm, None)
     } else {

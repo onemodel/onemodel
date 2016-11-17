@@ -8,25 +8,22 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.{Color, OmException}
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.{Util, Color, OmException}
+import org.onemodel.core.database.Database
 
 /** See comments on similar methods in RelationToEntity. */
-class Group(mDB: PostgreSQLDatabase, mId: Long) {
-  if (!mDB.groupKeyExists(mId: Long)) {
-    // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code. (should be a constant then, huh? same elsewhere. It's on the list.)
-    throw new Exception("Key " + mId + " does not exist in database.")
+class Group(mDB: Database, mId: Long) {
+  // (See comment at similar location in BooleanAttribute.)
+  if (!mDB.isRemote && !mDB.groupKeyExists(mId: Long)) {
+    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
-  /** See comment about these 2 dates in PostgreSQLDatabase.createTables() */
-  def this(mDB: PostgreSQLDatabase, idIn: Long, nameIn: String, insertionDateIn: Long, mixedClassesAllowedIn: Boolean, newEntriesStickToTopIn: Boolean) {
+  /** See comment about these 2 dates in Database.createTables() */
+  def this(mDB: Database, idIn: Long, nameIn: String, insertionDateIn: Long, mixedClassesAllowedIn: Boolean, newEntriesStickToTopIn: Boolean) {
     this(mDB, idIn)
     mName = nameIn
     mInsertionDate = insertionDateIn
@@ -185,7 +182,7 @@ class Group(mDB: PostgreSQLDatabase, mId: Long) {
   }
 
   def getHighestSortingIndex: Long = {
-    mDB.getHighestSortingIndex(getId)
+    mDB.getHighestSortingIndexForGroup(getId)
   }
 
   private var mAlreadyReadData: Boolean = false

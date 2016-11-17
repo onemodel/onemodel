@@ -8,21 +8,20 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.Util
+import org.onemodel.core.database.Database
 
 /** See TextAttribute etc for some comments.
   */
-class BooleanAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
-  if (!mDB.booleanAttributeKeyExists(mId)) {
-    // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code.
-    throw new Exception("Key " + mId + " does not exist in database.")
+class BooleanAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+  // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
+  // wait for an error later to see if there is a problem (ie, assuming usually not).
+  if (!mDB.isRemote && !mDB.booleanAttributeKeyExists(mId)) {
+    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
 
@@ -30,11 +29,11 @@ class BooleanAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWith
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, inParentId: Long, inAttrTypeId: Long, inBoolean: Boolean, validOnDate: Option[Long], observationDate: Long,
+  def this(mDB: Database, mId: Long, parentIdIn: Long, attrTypeIdIn: Long, booleanIn: Boolean, validOnDate: Option[Long], observationDate: Long,
            sortingIndexIn: Long) {
     this(mDB, mId)
-    mBoolean = inBoolean
-    assignCommonVars(inParentId, inAttrTypeId, validOnDate, observationDate, sortingIndexIn)
+    mBoolean = booleanIn
+    assignCommonVars(parentIdIn, attrTypeIdIn, validOnDate, observationDate, sortingIndexIn)
   }
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
@@ -58,21 +57,21 @@ class BooleanAttribute(mDB: PostgreSQLDatabase, mId: Long) extends AttributeWith
                            baTypeData(4).get.asInstanceOf[Long], baTypeData(5).get.asInstanceOf[Long])
   }
 
-  def update(inAttrTypeId: Long, inBoolean: Boolean, inValidOnDate: Option[Long], inObservationDate: Long) {
+  def update(attrTypeIdIn: Long, booleanIn: Boolean, validOnDateIn: Option[Long], observationDateIn: Long) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    mDB.updateBooleanAttribute(mId, getParentId, inAttrTypeId, inBoolean, inValidOnDate, inObservationDate)
-    mAttrTypeId = inAttrTypeId
-    mBoolean = inBoolean
-    mValidOnDate = inValidOnDate
-    mObservationDate = inObservationDate
+    mDB.updateBooleanAttribute(mId, getParentId, attrTypeIdIn, booleanIn, validOnDateIn, observationDateIn)
+    mAttrTypeId = attrTypeIdIn
+    mBoolean = booleanIn
+    mValidOnDate = validOnDateIn
+    mObservationDate = observationDateIn
   }
 
   /** Removes this object from the system. */
   def delete() = mDB.deleteBooleanAttribute(mId)
 
   /** For descriptions of the meanings of these variables, see the comments
-    on PostgreSQLDatabase.createBooleanAttribute(...) or createTables().
+    on createBooleanAttribute(...) or createTables() in PostgreSQLDatabase or Database classes.
     */
   private var mBoolean: Boolean = false
 }

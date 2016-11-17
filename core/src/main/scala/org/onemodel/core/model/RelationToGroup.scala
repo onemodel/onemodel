@@ -15,14 +15,15 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.Util
+import org.onemodel.core.database.Database
 
 object RelationToGroup {
   // Old idea: could change this into a constructor if the "class" line's parameters are changed to be only mDB and mId, and a new constructor is created
   // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
   // new constructors just wasn't working out.
   // Idea: rename this to instantiateRelationToGroup, since create sounds like inserting a new row in the db. Not sure if there's a convention for that case.
-  def createRelationToGroup(mDB: PostgreSQLDatabase, idIn: Long): RelationToGroup = {
+  def createRelationToGroup(mDB: Database, idIn: Long): RelationToGroup = {
     val relationData: Array[Option[Any]] = mDB.getRelationToGroupDataById(idIn)
     new RelationToGroup(mDB, idIn, relationData(1).get.asInstanceOf[Long], relationData(2).get.asInstanceOf[Long], relationData(3).get.asInstanceOf[Long],
                      relationData(4).asInstanceOf[Option[Long]], relationData(5).get.asInstanceOf[Long], relationData(6).get.asInstanceOf[Long])
@@ -30,20 +31,20 @@ object RelationToGroup {
 }
 
 /** See comments on similar methods in RelationToEntity. */
-class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTypeId: Long, mGroupId:Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
-  if (mDB.relationToGroupKeysExistAndMatch(mId, mEntityId, mRelTypeId, mGroupId)) {
+class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long, mGroupId:Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+  // (See comment at similar location in BooleanAttribute.)
+  if (mDB.isRemote || mDB.relationToGroupKeysExistAndMatch(mId, mEntityId, mRelTypeId, mGroupId)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:
     mAttrTypeId = mRelTypeId
   } else {
-    // DON'T CHANGE this msg unless you also change the trap for it, if used, in other code. (should be a constant then, huh? same elsewhere. It's on the list.)
-    throw new Exception("Keys id=" + mId + ", with multi-column key composed of:  " + mEntityId + "/" + mRelTypeId + "/" + mGroupId + " do not exist in database.")
+    throw new Exception("Key id=" + mId + ", " + mEntityId + "/" + mRelTypeId + "/" + mGroupId + Util.DOES_NOT_EXIST)
   }
 
   /** See comment about these 2 dates in PostgreSQLDatabase.createTables() */
-  def this(mDB: PostgreSQLDatabase, idIn: Long, entityIdIn: Long, relTypeIdIn: Long, groupIdIn: Long, inValidOnDate: Option[Long], inObservationDate: Long,
+  def this(mDB: Database, idIn: Long, entityIdIn: Long, relTypeIdIn: Long, groupIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
            sortingIndexIn: Long) {
     this(mDB, idIn, entityIdIn, relTypeIdIn, groupIdIn)
-    assignCommonVars(entityIdIn, relTypeIdIn, inValidOnDate, inObservationDate, sortingIndexIn)
+    assignCommonVars(entityIdIn, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
   }
 
   def getGroupId: Long = mGroupId
@@ -55,7 +56,7 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTy
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, ignoredParameter: Option[RelationType] = None, simplify: Boolean = false): String = {
     val group = new Group(mDB, mGroupId)
     val rtName = new RelationType(mDB, this.getAttrTypeId).getName
-    var result: String = if (simplify && rtName == PostgreSQLDatabase.theHASrelationTypeName) "" else rtName + " "
+    var result: String = if (simplify && rtName == Database.theHASrelationTypeName) "" else rtName + " "
     result += group.getDisplayString(0, simplify)
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
@@ -68,12 +69,14 @@ class RelationToGroup(mDB: PostgreSQLDatabase, mId: Long, mEntityId:Long, mRelTy
                            relationData(5).get.asInstanceOf[Long], relationData(6).get.asInstanceOf[Long])
   }
 
-  def update(validOnDateIn:Option[Long], observationDateIn:Option[Long]) {
+  def update(newRelationTypeIdIn: Option[Long], newGroupIdIn: Option[Long], validOnDateIn:Option[Long], observationDateIn:Option[Long]) {
     //use validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
     //Idea/possible bug: see comment on similar method in RelationToEntity.
+    val newRelationTypeId: Long = if (newRelationTypeIdIn.isDefined) newRelationTypeIdIn.get else getAttrTypeId
+    val newGroupId: Long = if (newGroupIdIn.isDefined) newGroupIdIn.get else getGroupId
     val vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate
     val od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate
-    mDB.updateRelationToGroup(mEntityId, mRelTypeId, mGroupId, vod, od)
+    mDB.updateRelationToGroup(mEntityId, mRelTypeId, newRelationTypeId, mGroupId, newGroupId, vod, od)
     mValidOnDate = vod
     mObservationDate = od
   }

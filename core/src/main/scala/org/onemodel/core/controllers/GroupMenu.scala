@@ -146,7 +146,7 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
           if (ans == 1 && relationToGroupIn.isDefined) {
             def updateRelationToGroup(dhInOut: RelationToGroupDataHolder) {
               //idea: does this make sense, to only update the dates when we prompt for everything on initial add? change(or note2later) update everything?
-              relationToGroupIn.get.update(dhInOut.validOnDate, Some(dhInOut.observationDate))
+              relationToGroupIn.get.update(Some(dhInOut.attrTypeId), Some(dhInOut.groupId), dhInOut.validOnDate, Some(dhInOut.observationDate))
             }
             val relationToGroupDH: RelationToGroupDataHolder = new RelationToGroupDataHolder(relationToGroupIn.get.getParentId,
                                                                                              relationToGroupIn.get.getAttrTypeId,
@@ -157,9 +157,12 @@ class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Cont
                                                                     "CHOOSE TYPE OF [correct me: or edit existing?] Relation to Entity:",
                                                                     controller.askForRelToGroupInfo, updateRelationToGroup)
             //force a reread from the DB so it shows the right info on the repeated menu:
-            groupMenu(groupIn, displayStartingRowNumberIn,
-                      Some(new RelationToGroup(db, relationToGroupIn.get.getId, relationToGroupDH.entityId, relationToGroupDH.attrTypeId, relationToGroupDH.groupId)),
-                      callingMenusRtgIn, containingEntityIn)
+            groupMenu(groupIn,
+                      displayStartingRowNumberIn,
+                      Some(new RelationToGroup(db, relationToGroupIn.get.getId, relationToGroupDH.entityId, relationToGroupDH.attrTypeId,
+                                               relationToGroupDH .groupId)),
+                      callingMenusRtgIn,
+                      containingEntityIn)
           } else if (ans == 2 && ans <= choices.length) {
             val entity: Option[Entity] =
               if (numContainingEntities == 1) {

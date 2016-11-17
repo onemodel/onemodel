@@ -401,7 +401,8 @@ class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controlle
           relationIn.get.update(relationIn.get.getAttrTypeId, dhInOut.validOnDate, Some(dhInOut.observationDate), Some(dhInOut.attrTypeId))
         }
         val relationToEntityDH: RelationToEntityDataHolder = new RelationToEntityDataHolder(relationIn.get.getAttrTypeId, relationIn.get.getValidOnDate,
-                                                                                            relationIn.get.getObservationDate, relationIn.get.getRelatedId2)
+                                                                                            relationIn.get.getObservationDate, relationIn.get.getRelatedId2,
+                                                                                            relationIn.get.isRemote, relationIn.get.omInstanceKey)
         controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, askForAttrTypeId = true, Util.RELATION_TO_ENTITY_TYPE,
                                                                             "CHOOSE TYPE OF Relation to Entity:", dummyMethod, updateRelationToEntity)
         // force a reread from the DB so it shows the right info on the repeated menu (below):

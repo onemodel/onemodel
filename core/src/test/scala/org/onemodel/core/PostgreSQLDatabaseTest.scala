@@ -13,7 +13,7 @@ import java.io.File
 import java.util
 
 import org.onemodel.core.controllers.{Controller, ImportExport}
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 import org.onemodel.core.model._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Args, FlatSpec, Status}
@@ -95,13 +95,13 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.omInstanceKeyExists(uuid))
     assert(mDB.getOmInstanceCount == 1)
     val oiAgainAddress = mDB.getOmInstanceData(uuid)(1).get.asInstanceOf[String]
-    assert(oiAgainAddress == "localhost")
+    assert(oiAgainAddress == Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION)
     val omInstances: util.ArrayList[OmInstance] = mDB.getOmInstances()
     assert(omInstances.size == 1)
     assert(mDB.getOmInstances(Some(true)).size == 1)
     assert(mDB.getOmInstances(Some(false)).size == 0)
     assert(! mDB.omInstanceKeyExists(java.util.UUID.randomUUID().toString))
-    assert(new OmInstance(mDB, uuid).getAddress == "localhost")
+    assert(new OmInstance(mDB, uuid).getAddress == Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION)
 
     val uuid2 = java.util.UUID.randomUUID().toString
     mDB.createOmInstance(uuid2, isLocalIn = false, "om.example.com", Some(mDB.getSystemEntityId))
@@ -109,28 +109,28 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getOmInstanceCount == 2)
     var i2: OmInstance = new OmInstance(mDB, uuid2)
     assert(i2.getAddress == "om.example.com")
-    mDB.updateOmInstance(uuid2, "addr", None)
+    mDB.updateOmInstance(uuid2, "address", None)
     i2  = new OmInstance(mDB,uuid2)
-    assert(i2.getAddress == "addr")
-    assert(i2.getLocal == false)
+    assert(i2.getAddress == "address")
+    assert(!i2.getLocal)
     assert(i2.getEntityId.isEmpty)
     assert(i2.getCreationDate > 0)
     assert(i2.getCreationDateFormatted.length > 0)
-    mDB.updateOmInstance(uuid2, "addr", Some(mDB.getSystemEntityId))
+    mDB.updateOmInstance(uuid2, "address", Some(mDB.getSystemEntityId))
     i2  = new OmInstance(mDB,uuid2)
     assert(i2.getEntityId.get == mDB.getSystemEntityId)
-    assert(mDB.isDuplicateOmInstance("addr"))
-    assert(mDB.isDuplicateOmInstance("localhost"))
-    assert(!mDB.isDuplicateOmInstance("addr", Some(uuid2)))
-    assert(!mDB.isDuplicateOmInstance("localhost", Some(uuid)))
+    assert(mDB.isDuplicateOmInstance("address"))
+    assert(mDB.isDuplicateOmInstance(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION))
+    assert(!mDB.isDuplicateOmInstance("address", Some(uuid2)))
+    assert(!mDB.isDuplicateOmInstance(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION, Some(uuid)))
     val uuid3 = java.util.UUID.randomUUID().toString
-    mDB.createOmInstance(uuid3, isLocalIn = false, "addr", Some(mDB.getSystemEntityId))
-    assert(mDB.isDuplicateOmInstance("addr", Some(uuid2)))
-    assert(mDB.isDuplicateOmInstance("addr", Some(uuid3)))
+    mDB.createOmInstance(uuid3, isLocalIn = false, "address", Some(mDB.getSystemEntityId))
+    assert(mDB.isDuplicateOmInstance("address", Some(uuid2)))
+    assert(mDB.isDuplicateOmInstance("address", Some(uuid3)))
     i2.delete()
-    assert(mDB.isDuplicateOmInstance("addr"))
-    assert(mDB.isDuplicateOmInstance("addr", Some(uuid2)))
-    assert(!mDB.isDuplicateOmInstance("addr", Some(uuid3)))
+    assert(mDB.isDuplicateOmInstance("address"))
+    assert(mDB.isDuplicateOmInstance("address", Some(uuid2)))
+    assert(!mDB.isDuplicateOmInstance("address", Some(uuid3)))
     assert(intercept[Exception] {
                                   new OmInstance(mDB, uuid2)
                                 }.getMessage.contains("does not exist"))
@@ -695,7 +695,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     group.deleteWithEntities()
     assert(intercept[Exception] {
                                   new RelationToGroup(mDB, rtg.getId, rtg.getParentId, rtg.getAttrTypeId, rtg.getGroupId )
-                                }.getMessage.contains("do not exist"))
+                                }.getMessage.contains("does not exist"))
     assert(intercept[Exception] {
                                   new Entity(mDB, entityId2)
                                 }.getMessage.contains("does not exist"))
@@ -1100,9 +1100,9 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   "createBaseData, findEntityOnlyIdsByName, createClassTemplateEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
   "have worked right in earlier db setup and now" in {
-    val PERSON_TEMPLATE: String = "person" + PostgreSQLDatabase.TEMPLATE_NAME_SUFFIX
+    val PERSON_TEMPLATE: String = "person" + Database.TEMPLATE_NAME_SUFFIX
     val systemEntityId = mDB.getSystemEntityId
-    val groupIdOfClassTemplates = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classTemplateEntityGroupName))._3
+    val groupIdOfClassTemplates = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(Database.classTemplateEntityGroupName))._3
 
     // (Should be some value, but the activity on the test DB wouldn't have ids incremented to 0 yet,so that one would be invalid. Could use the
     // other method to find an unused id, instead of 0.)
@@ -1257,30 +1257,30 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     //should fail due to mismatched classId (a long):
     assert(intercept[Exception] {
                                   group.addEntity(entityId2)
-                                }.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
+                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
     // should succeed (same class now):
     mDB.updateEntitysClass(entityId2, Some(classId))
     group.addEntity(entityId2)
     // ...and for convenience while here, make sure we can't make mixed classes with changing the *entity* either:
     assert(intercept[Exception] {
                                   mDB.updateEntitysClass(entityId2, Some(classId2))
-                                }.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
+                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
     assert(intercept[Exception] {
                                   mDB.updateEntitysClass(entityId2, None)
-                                }.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
+                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
 
     //should fail due to mismatched classId (NULL):
     val entityId3 = mDB.createEntity(entityName + 3)
     assert(intercept[Exception] {
                                   group.addEntity(entityId3)
-                                }.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
+                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
 
     assert(!mDB.areMixedClassesAllowed(groupId))
 
 
     val systemEntityId = mDB.getSystemEntityId
     // idea: (noted at other use of this method)
-    val classGroupId = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(PostgreSQLDatabase.classTemplateEntityGroupName))._3
+    val classGroupId = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(Database.classTemplateEntityGroupName))._3
     assert(mDB.areMixedClassesAllowed(classGroupId.get))
 
     val groupSizeBeforeRemoval = mDB.getGroupSize(groupId)
@@ -1361,7 +1361,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val entityId5 = mDB.createEntity(entityName + 5, Some(classId))
     assert(intercept[Exception] {
                                   group.addEntity(entityId5)
-                                }.getMessage.contains(PostgreSQLDatabase.MIXED_CLASSES_EXCEPTION))
+                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
   }
 
   "getEntitiesOnlyCount" should "not count entities used as relation types or attribute types" in {

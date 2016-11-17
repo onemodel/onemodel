@@ -8,14 +8,11 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.Database
 
 object AttributeWithValidAndObservedDates {
   def getDatesDescription(mValidOnDate:Option[Long], mObservationDate:Long): String = {
@@ -28,7 +25,7 @@ object AttributeWithValidAndObservedDates {
   }
 }
 
-abstract class AttributeWithValidAndObservedDates(mDB: PostgreSQLDatabase, mId: Long) extends Attribute(mDB, mId) {
+abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long, sortingIndexIn: Long) {
     mValidOnDate = validOnDateIn
     // observationDate is not expected to be None, like mValidOnDate can be. See var def for more info.
@@ -52,7 +49,7 @@ abstract class AttributeWithValidAndObservedDates(mDB: PostgreSQLDatabase, mId: 
 
   /**
    * For descriptions of the meanings of these variables, see the comments
-   * on PostgreSQLDatabase.createTables(...), and examples in the database testing code.
+   * on createTables(...), and examples in the database testing code in PostgreSQLDatabase or Database classes.
    */
   protected var mValidOnDate: Option[Long] = None
   protected var mObservationDate: Long = 0L

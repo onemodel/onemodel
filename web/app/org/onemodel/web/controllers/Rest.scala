@@ -11,7 +11,7 @@
 package org.onemodel.web.controllers
 
 import org.onemodel.core._
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.{PostgreSQLDatabase, Database}
 import org.onemodel.core.model._
 import play.api.libs.json._
 import play.api.mvc._
@@ -67,9 +67,14 @@ class Rest extends play.api.mvc.Controller {
   val db = new PostgreSQLDatabase(user, pass)
 
   def id: Action[AnyContent] = Action { implicit request =>
-    val inst: OmInstance = db.getLocalOmInstanceData
-    val msg = new JsString(inst.getId)
-    Ok(msg)
+    // This puts quotes around it...
+    val localId: String = db.getId
+    val msg = new JsString(localId)
+    // ...but this one does not. Does it matter? could switch it, then in OM as the rest client try MM 8 then the remote instance check when editing &
+    // adding a port # or similar change so it tries the connection to test the difference.
+//    val inst: OmInstance = db.getLocalOmInstanceData
+//    val msg: String = inst.getId
+    Ok(msg).as(JSON)
   }
 
   implicit val entityWrites = new Writes[Entity] {
@@ -106,7 +111,7 @@ class Rest extends play.api.mvc.Controller {
                                        "sortingIndex" -> attribute.getSortingIndex,
                                        "id" -> attribute.getId,
                                        "formId" -> attribute.getFormId,
-                                       "formName" -> PostgreSQLDatabase.getAttributeFormName(attribute.getFormId),
+                                       "formName" -> Database.getAttributeFormName(attribute.getFormId),
                                        "attrTypeId" -> attribute.getAttrTypeId
                                      )
             attribute match {
@@ -156,8 +161,8 @@ class Rest extends play.api.mvc.Controller {
       val public: Option[Boolean] = entity.getPublic
       if (public.isDefined && public.get) {
         val json: JsValue = Json.toJson(entity)
-        // the ".as(JSON)" seems optional, but for reference:
         Ok(Json.prettyPrint(json)).as(JSON)
+        //another way, for future reference:
 //        Result(
 //                header = ResponseHeader(200, Map.empty),
 //                body = HttpEntity.Strict(ByteString(msg), Some("text/plain"))

@@ -8,33 +8,31 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
   ---------------------------------------------------
-  If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
-  An alternative method is to use jdbc escapes (but this actually might be even more work?):  http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-
+  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
 
 import java.io.{PrintWriter, StringWriter}
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.Util
+import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 
 object EntityClass {
-  def nameLength(inDB: PostgreSQLDatabase): Int = PostgreSQLDatabase.classNameLength
+  def nameLength(inDB: Database): Int = Database.classNameLength
 
   def isDuplicate(inDB: PostgreSQLDatabase, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateClass(inName, inSelfIdToIgnore)
 }
 
-class EntityClass(mDB: PostgreSQLDatabase, mId: Long) {
-  if (!mDB.classKeyExists(mId)) {
-    // DON'T CHANGE this msg unless you also change the trap for it in TextUI.java.
-    throw new Exception("Key " + mId + " does not exist in database.")
+class EntityClass(mDB: Database, mId: Long) {
+  // (See comment at similar location in BooleanAttribute.)
+  if (!mDB.isRemote && !mDB.classKeyExists(mId)) {
+    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
   /** This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: PostgreSQLDatabase, mId: Long, inName: String, inTemplateEntityId: Long, createDefaultAttributesIn: Option[Boolean] = None) {
+  def this(mDB: Database, mId: Long, inName: String, inTemplateEntityId: Long, createDefaultAttributesIn: Option[Boolean] = None) {
     this(mDB, mId)
     mName = inName
     mTemplateEntityId = inTemplateEntityId

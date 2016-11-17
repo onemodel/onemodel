@@ -13,7 +13,7 @@ import java.io.File
 import java.nio.file.{Files, Path}
 
 import org.onemodel.core.controllers.{ImportExport, Controller}
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 import org.onemodel.core.model.{Attribute, Entity}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Args, FlatSpec, Status}
@@ -147,7 +147,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt")
     assert(ids.get.nonEmpty)
     var foundIt = false
-    val relationTypeId = mDB.findRelationType(PostgreSQLDatabase.theHASrelationTypeName, Some(1))(0)
+    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1))(0)
     for (entityId <- ids.get) {
       // (could have used mDB.getContainingEntities1 here perhaps)
       if (mDB.relationToEntityExists(relationTypeId, mEntity.getId, entityId)) {

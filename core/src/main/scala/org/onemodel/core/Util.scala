@@ -16,7 +16,7 @@ import java.nio.file.{Files, Path}
 import java.util.Date
 
 import org.apache.commons.io.FilenameUtils
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 import org.onemodel.core.model._
 
 import scala.annotation.tailrec
@@ -26,9 +26,9 @@ import scala.annotation.tailrec
  */
 object Util {
   // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
-  def maxNameLength: Int = math.max(math.max(PostgreSQLDatabase.entityNameLength, PostgreSQLDatabase.relationTypeNameLength),
-                                    PostgreSQLDatabase.classNameLength)
-
+  def maxNameLength: Int = math.max(math.max(Database.entityNameLength, Database.relationTypeNameLength),
+                                    Database.classNameLength)
+  val NEWLN: String = System.getProperty("line.separator")
   // Might not be the most familiar date form for us Americans, but it seems the most useful in the widest
   // variety of situations, and more readable than with the "T" embedded in place of
   // the 1st space.  So, this approximates iso-8601.
@@ -39,6 +39,8 @@ object Util {
   val DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz")
   val DATEFORMAT2_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss zzz")
   val DATEFORMAT3_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm zzz")
+
+  val DOES_NOT_EXIST = " does not exist in database."
 
   //these are here to avoid colliding with use of the same names within other code inside the class.
   // idea: see what scala does with enums and/or constants; update this style?
@@ -52,6 +54,7 @@ object Util {
   val RELATION_TYPE_TYPE: String = "RelationType"
   val RELATION_TO_ENTITY_TYPE: String = "RelationToEntity"
   val RELATION_TO_GROUP_TYPE: String = "RelationToGroup"
+  val RELATION_TO_REMOTE_ENTITY_TYPE: String = "RelationToRemoteEntity"
   val GROUP_TYPE: String = "Group"
   val ENTITY_CLASS_TYPE: String = "Class"
   val OM_INSTANCE_TYPE: String = "Instance"
@@ -79,6 +82,8 @@ object Util {
   val HEADER_CONTENT_TAG = "htmlHeaderContent"
   val BODY_CONTENT_TAG = "htmlInitialBodyContent"
   val FOOTER_CONTENT_TAG = "htmlFooterContent"
+
+  val LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION = "(local: not for self-connection but to serve id to remotes)"
 
   def getClipboardContent: String = {
     val clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
