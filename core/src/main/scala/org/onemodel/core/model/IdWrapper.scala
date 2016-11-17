@@ -20,7 +20,6 @@ package org.onemodel.core.model
   */
 class IdWrapper(id: Long) {
   def getId: Long = {
-    //if (false) throw new Exception("");//just a stub so can throw one in the inherited method of RelationToEntityIdWrapper: better approach??
     id
   }
 }
