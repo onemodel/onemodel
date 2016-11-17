@@ -21,6 +21,7 @@ import java.sql.{Connection, DriverManager, ResultSet, Statement}
 import org.onemodel.core._
 import org.onemodel.core.model._
 import org.onemodel.core.{OmDatabaseException, OmFileTransferException}
+import org.onemodel.core.database.Database._
 import org.postgresql.largeobject.{LargeObject, LargeObjectManager}
 
 import scala.annotation.tailrec
@@ -1799,10 +1800,6 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     commitTrans()
   }
 
-  val UNUSED_GROUP_ERR1 = "No available index found which is not already used. How would so many be used?"
-  val UNUSED_GROUP_ERR2 = "Very unexpected, but could it be that you are running out of available sorting indexes!?" +
-                          " Have someone check, before you need to create, for example, a thousand more entities."
-
   // SEE ALSO METHOD findUnusedAttributeSortingIndex **AND DO MAINTENANCE IN BOTH PLACES**
   // idea: this needs a test, and/or combining with findIdWhichIsNotKeyOfAnyEntity.
   // **ABOUT THE SORTINGINDEX:  SEE the related comment on method addAttributeSortingRow.
@@ -3297,8 +3294,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   /** This one should explicitly NOT omit archived entities (unless parameterized for that later). See caller's comments for more, on purpose.
     */
-  def getNearestGroupEntrysSortingIndex(groupIdIn: Long, startingPointSortingIndexIn: Long, /* farNewNeighborSortingIndexIn: Long,*/
-                                        forwardNotBackIn: Boolean): Option[Long] = {
+  def getNearestGroupEntrysSortingIndex(groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
     val results = dbQuery("select sorting_index from entitiesinagroup where group_id=" + groupIdIn + " and sorting_index " +
                           (if (forwardNotBackIn) ">" else "<") + startingPointSortingIndexIn +
                           " order by sorting_index " + (if (forwardNotBackIn) "ASC" else "DESC") +
@@ -3711,16 +3707,6 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     mConn.commit()
     // so future work is auto- committed unless programmer explicitly opens another transaction
     mConn.setAutoCommit(true)
-  }
-
-  def maxIdValue: Long = {
-    // Max size for a Java long type, and for a postgresql 7.2.1 bigint type (which is being used, at the moment, for the id value in Entity table.
-    // (these values are from file:///usr/share/doc/postgresql-doc-9.1/html/datatype-numeric.html)
-    9223372036854775807L
-  }
-
-  def minIdValue: Long = {
-    -9223372036854775808L
   }
 
   protected override def finalize() {

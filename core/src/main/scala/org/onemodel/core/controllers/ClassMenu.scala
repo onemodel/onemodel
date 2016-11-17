@@ -13,9 +13,9 @@ package org.onemodel.core.controllers
 import org.onemodel.core._
 import org.onemodel.core.TextUI
 import org.onemodel.core.model.{IdWrapper, EntityClass, Entity}
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.Database
 
-class ClassMenu(val ui: TextUI, db: PostgreSQLDatabase, controller: Controller) {
+class ClassMenu(val ui: TextUI, db: Database, controller: Controller) {
   /** returns None if user wants out. */
   //@tailrec //see comment re this on EntityMenu
   //scoping idea: see idea at beginning of EntityMenu.entityMenu

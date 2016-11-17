@@ -841,6 +841,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       } else {
         // maybe not ever reached under current system logic. not certain.
         val (isRemote, remoteKey) = {
+          //noinspection TypeCheckCanBeMatch
           if (inoutDH.isInstanceOf[RelationToEntityDataHolder]) {
             (inoutDH.asInstanceOf[RelationToEntityDataHolder].isRemote, inoutDH.asInstanceOf[RelationToEntityDataHolder].remoteInstanceId)
           } else {
@@ -855,6 +856,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       None
     } else {
       inoutDH.attrTypeId = attrTypeId
+      //noinspection TypeCheckCanBeMatch
       if (inoutDH.isInstanceOf[RelationToEntityDataHolder]) {
         inoutDH.asInstanceOf[RelationToEntityDataHolder].isRemote = isRemote
         inoutDH.asInstanceOf[RelationToEntityDataHolder].remoteInstanceId = remoteKey
@@ -1340,7 +1342,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       // it's a long:
       val idString: String = ans.get
       if (!Util.isNumeric(idString)) {
-        ui.displayText("Invalid ID format.  An ID is a numeric value between " + db.minIdValue + " and " + db.maxIdValue)
+        ui.displayText("Invalid ID format.  An ID is a numeric value between " + Database.minIdValue + " and " + Database.maxIdValue)
         None
       } else {
         // (BTW, do allow relation to self, e.g., picking self as 2nd part of a RelationToEntity.)

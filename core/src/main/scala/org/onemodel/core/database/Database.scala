@@ -9,8 +9,10 @@
 */
 package org.onemodel.core.database
 
-import org.onemodel.core.model.{RelationToRemoteEntity, Entity, Attribute, RelationToEntity}
+import org.onemodel.core.model._
 import org.onemodel.core.{OmDatabaseException, Util}
+
+import scala.collection.mutable
 
 object Database {
   val dbNamePrefix = "om_"
@@ -27,6 +29,10 @@ object Database {
   val PREF_TYPE_BOOLEAN = "boolean"
   val PREF_TYPE_ENTITY_ID = "entityId"
   val TEMPLATE_NAME_SUFFIX: String = "-template"
+  val UNUSED_GROUP_ERR1 = "No available index found which is not already used. How would so many be used?"
+  val UNUSED_GROUP_ERR2 = "Very unexpected, but could it be that you are running out of available sorting indexes!?" +
+                          " Have someone check, before you need to create, for example, a thousand more entities."
+
 
   // where we create the table also calls this.
   // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
@@ -72,10 +78,22 @@ object Database {
     }
   }
 
+  def maxIdValue: Long = {
+    // Max size for a Java long type, and for a postgresql 7.2.1 bigint type (which is being used, at the moment, for the id value in Entity table.
+    // (these values are from file:///usr/share/doc/postgresql-doc-9.1/html/datatype-numeric.html)
+    9223372036854775807L
+  }
+
+  def minIdValue: Long = {
+    -9223372036854775808L
+  }
 
 }
 abstract class Database {
   def isRemote: Boolean
+  def beginTrans()
+  def rollbackTrans()
+  def commitTrans()
   def getId: String
 
   def createQuantityAttribute(parentIdIn: Long, attrTypeIdIn: Long, unitIdIn: Long, numberIn: Float, validOnDateIn: Option[Long],
@@ -104,8 +122,17 @@ abstract class Database {
                             sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false): (Long, Long)
   def addEntityToGroup(groupIdIn: Long, containedEntityIdIn: Long, sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false)
   def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[Long] = None, oldTableName: Boolean = false): Long
+  def addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: Long,
+                                   makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
+                                   quoteIn: Option[String] = None): (Entity, RelationToEntity)
+  def addHASRelationToEntity(fromEntityIdIn: Long, toEntityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
+                             sortingIndexIn: Option[Long] = None): RelationToEntity
+  def getOrCreateClassAndTemplateEntityIds(classNameIn: String, callerManagesTransactionsIn: Boolean): (Long, Long)
 
 
+  def attributeKeyExists(formIdIn: Long, idIn: Long): Boolean
+  def findContainedEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String,
+                             levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true): mutable.TreeSet[Long]
   def entityKeyExists(idIn: Long, includeArchived: Boolean = true): Boolean
   def relationTypeKeyExists(idIn: Long): Boolean
   def quantityAttributeKeyExists(idIn: Long): Boolean
@@ -143,20 +170,56 @@ abstract class Database {
   def getHighestSortingIndexForGroup(groupIdIn: Long): Long
   def getRelationToGroupData(entityId: Long, relTypeId: Long, groupId: Long): Array[Option[Any]]
   def getRelationToGroupDataById(idIn: Long): Array[Option[Any]]
+  def getGroupEntriesData(groupIdIn: Long, limitIn: Option[Long] = None, includeArchivedEntitiesIn: Boolean = true): List[Array[Option[Any]]]
+  def findRelationToAndGroup_OnEntity(entityIdIn: Long, groupNameIn: Option[String] = None): (Option[Long], Option[Long], Option[Long], Boolean)
+  def getEntitiesContainingGroup(groupIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)]
+  def getCountOfEntitiesContainingGroup(groupIdIn: Long): (Long, Long)
   def getClassData(idIn: Long): Array[Option[Any]]
   def getAttrCount(entityIdIn: Long, includeArchivedEntitiesIn: Boolean = false): Long
+  def getQuantityAttributeCount(entityIdIn: Long): Long
+  def getTextAttributeCount(entityIdIn: Long): Long
+  def getDateAttributeCount(entityIdIn: Long): Long
+  def getBooleanAttributeCount(entityIdIn: Long): Long
+  def getFileAttributeCount(entityIdIn: Long): Long
+  def getRelationToEntityCount(entityIdIn: Long, includeArchivedEntities: Boolean = true): Long
+  def getRelationToGroupCountByEntity(entityIdIn: Option[Long]): Long
   def getClassCount(entityIdIn: Option[Long] = None): Long
   def getClassName(idIn: Long): Option[String]
   def getOmInstanceData(idIn: String): Array[Option[Any]]
   def isDuplicateOmInstance(addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean
+  def getGroupsContainingEntitysGroupsIds(groupIdIn: Long, limitIn: Option[Long] = Some(5)): List[Array[Option[Any]]]
+  def isEntityInGroup(groupIdIn: Long, entityIdIn: Long): Boolean
+  def getAdjacentGroupEntriesSortingIndexes(groupIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long] = None,
+                                            forwardNotBackIn: Boolean): List[Array[Option[Any]]]
+  def getNearestGroupEntrysSortingIndex(groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
+  def getAdjacentAttributesSortingIndexes(entityIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long], forwardNotBackIn: Boolean): List[Array[Option[Any]]]
+  def getNearestAttributeEntrysSortingIndex(entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
+  def getEntityAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long): Long
+  def getGroupSortingIndex(groupIdIn: Long, entityIdIn: Long): Long
+  def groupEntrySortingIndexInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean
+  def attributeSortingIndexInUse(entityIdIn: Long, sortingIndexIn: Long): Boolean
+  def findUnusedAttributeSortingIndex(entityIdIn: Long, startingWithIn: Option[Long] = None): Long
+  def findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean = false): Option[List[Long]]
+  def findUnusedGroupSortingIndex(groupIdIn: Long, startingWithIn: Option[Long] = None): Long
+  def getTextAttributeByTypeId(parentEntityIdIn: Long, typeIdIn: Long, expectedRows: Option[Int] = None): Array[TextAttribute]
+  def getEntitiesContainingEntity(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)]
+  def getCountOfGroupsContainingEntity(entityIdIn: Long): Long
+  def getContainingGroupsIds(entityIdIn: Long): List[Long]
+  def getContainingRelationToGroups(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup]
+  def getClassCreateDefaultAttributes(classIdIn: Long): Option[Boolean]
+  def updateClassCreateDefaultAttributes(classIdIn: Long, value: Option[Boolean])
+  def getEntitiesOnlyCount(classIdIn: Option[Long] = None, limitByClass: Boolean = false,
+                           templateEntity: Option[Long] = None): Long
+  def getCountOfEntitiesContainingEntity(entityIdIn: Long): (Long, Long)
 
 
   def updateEntitysClass(entityId: Long, classId: Option[Long], callerManagesTransactions: Boolean = false)
   def updateEntityOnlyNewEntriesStickToTop(idIn: Long, newEntriesStickToTop: Boolean)
   def archiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false)
   def unarchiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false)
-  def addHASRelationToEntity(fromEntityIdIn: Long, toEntityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                             sortingIndexIn: Option[Long] = None): RelationToEntity
+  def setIncludeArchivedEntities(in: Boolean): Unit
+  def setUserPreference_EntityId(nameIn: String, entityIdIn: Long)
+  def updateEntityOnlyPublicStatus(idIn: Long, value: Option[Boolean])
   def updateQuantityAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, unitIdIn: Long, numberIn: Float, validOnDateIn: Option[Long],
                               inObservationDate: Long)
   def updateDateAttribute(idIn: Long, parentIdIn: Long, dateIn: Long, attrTypeIdIn: Long)
@@ -173,6 +236,14 @@ abstract class Database {
   def updateGroup(groupIdIn: Long, nameIn: String, allowMixedClassesInGroupIn: Boolean = false, newEntriesStickToTopIn: Boolean = false)
   def updateRelationToGroup(entityIdIn: Long, oldRelationTypeIdIn: Long, newRelationTypeIdIn: Long, oldGroupIdIn: Long, newGroupIdIn: Long,
                             validOnDateIn: Option[Long], observationDateIn: Long)
+  def moveRelationToEntity(relationToEntityIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): RelationToEntity
+  def moveEntityFromEntityToGroup(removingRelationToEntityIn: RelationToEntity, targetGroupIdIn: Long, sortingIndexIn: Long)
+  def moveRelationToGroup(relationToGroupIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): Long
+  def moveEntityFromGroupToEntity(fromGroupIdIn: Long, toEntityIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long)
+  def moveEntityFromGroupToGroup(fromGroupIdIn: Long, toGroupIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long)
+  def renumberSortingIndexes(entityIdOrGroupIdIn: Long, callerManagesTransactionsIn: Boolean = false, isEntityAttrsNotGroupEntries: Boolean = true)
+  def updateAttributeSorting(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Long)
+  def updateEntityInAGroup(groupIdIn: Long, entityIdIn: Long, sortingIndexIn: Long)
 
   def deleteEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false)
   def deleteQuantityAttribute(idIn: Long)
@@ -188,7 +259,6 @@ abstract class Database {
   def deleteClassAndItsTemplateEntity(classIdIn: Long)
   def deleteGroupRelationsToItAndItsEntries(groupidIn: Long)
   def deleteOmInstance(idIn: String): Unit
-
   def removeEntityFromGroup(groupIdIn: Long, containedEntityIdIn: Long, callerManagesTransactionsIn: Boolean = false)
 
 }

@@ -13,13 +13,13 @@ package org.onemodel.core.controllers
 import java.util
 
 import org.onemodel.core._
-import org.onemodel.core.database.{Database, PostgreSQLDatabase}
+import org.onemodel.core.database.Database
 import org.onemodel.core.model._
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, val controller: Controller) extends SortableEntriesMenu(ui, db) {
+class EntityMenu(override val ui: TextUI, val db: Database, val controller: Controller) extends SortableEntriesMenu(ui) {
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
   def getChoices(entityIn: Entity, numAttrsIn: Long): Array[String] = {
     // (idea: might be a little silly to do it this way, once this # gets very big?:)
@@ -57,6 +57,7 @@ class EntityMenu(override val ui: TextUI, override val db: PostgreSQLDatabase, v
       return None
     }
     if (containingRelationToEntityIn.isDefined) {
+      // (doesn't make sense to have both at the same time.)
       require(containingGroupIn.isEmpty)
       require(containingRelationToEntityIn.get.getRelatedId2 == entityIn.getId)
     }

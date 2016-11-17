@@ -14,7 +14,7 @@ import java.nio.file.{Files, Path, StandardCopyOption}
 
 import org.onemodel.core._
 import org.onemodel.core.model._
-import org.onemodel.core.database.{Database, PostgreSQLDatabase}
+import org.onemodel.core.database.Database
 import org.onemodel.core.{OmException, TextUI}
 
 import scala.annotation.tailrec
@@ -29,7 +29,7 @@ object ImportExport {
  * When adding features to this class, any eventual db call that creates a transaction needs to have the info 'callerManagesTransactionsIn = true' eventually
  * passed into it, from here, otherwise the rollback feature will fail.
  */
-class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Controller) {
+class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
   val uriLineExample: String = "'nameForTheLink <uri>http://somelink.org/index.html</uri>'"
 
   /**
@@ -280,7 +280,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
             val newGroup: Group = lastEntityAdded.get.createGroupAndAddHASRelationToIt(lastEntityAdded.get.getName, mixedClassesAllowed,
                                                                                        observationDateIn, callerManagesTransactionsIn = true)._1
             // since a new grp, start at beginning of sorting indexes
-            val newSortingIndex = db.minIdValue
+            val newSortingIndex = Database.minIdValue
             val newSubEntity: Entity = createAndAddEntityToGroup(line, newGroup, newSortingIndex, makeThemPublicIn)
             importRestOfLines(r, Some(newSubEntity), newIndentationLevel, newGroup :: containerList, newSortingIndex :: lastSortingIndexes,
                               observationDateIn, mixedClassesAllowedDefaultIn, makeThemPublicIn)
@@ -409,16 +409,16 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
       if (addingToExistingGroup && putEntriesAtEnd) {
         val containingGrp = containingEntry.asInstanceOf[Group]
         val nextSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
-        if (nextSortingIndex == db.minIdValue) {
+        if (nextSortingIndex == Database.minIdValue) {
           // we wrapped from the biggest to lowest Long value
           db.renumberSortingIndexes(containingGrp.getId, callerManagesTransactionsIn = true, isEntityAttrsNotGroupEntries = false)
           val nextTriedNewSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
-          if (nextSortingIndex == db.minIdValue) {
+          if (nextSortingIndex == Database.minIdValue) {
             throw new OmException("Huh? How did we get two wraparounds in a row?")
           }
           nextTriedNewSortingIndex
         } else nextSortingIndex
-      } else db.minIdValue
+      } else Database.minIdValue
     }
 
     importRestOfLines(r, None, 0, containingEntry :: Nil, startingSortingIndex :: Nil, dataSourceLastModifiedDate, mixedClassesAllowedDefaultIn,
@@ -997,7 +997,7 @@ class ImportExport(val ui: TextUI, val db: PostgreSQLDatabase, controller: Contr
     tmpCopy.toFile
   }
   // (see cmt on tryImporting method)
-  def tryExportingTxt_FOR_TESTS(ids: Option[List[Long]], dbIn: PostgreSQLDatabase): (String, File) = {
+  def tryExportingTxt_FOR_TESTS(ids: Option[List[Long]], dbIn: Database): (String, File) = {
     assert(ids.get.nonEmpty)
     val entityId: Long = ids.get.head
     val startingEntity: Entity = new Entity(dbIn, entityId)

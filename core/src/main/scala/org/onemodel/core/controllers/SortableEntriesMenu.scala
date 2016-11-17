@@ -9,10 +9,10 @@
 */
 package org.onemodel.core.controllers
 
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.Database
 import org.onemodel.core.{OmException, TextUI}
 
-abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
+abstract class SortableEntriesMenu(val ui: TextUI) {
 
   /** Returns the starting row number (in case the view window was adjusted to show other entries around the moved entity).
     *
@@ -41,7 +41,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
       } else {
         // could happen if it's the first entry (first attribute) in an entity, or if the caller (due to whatever reason including possibly a bug) did not
         // know what objectAtThatIndexIdIn value to use, so passed None: attempting to be resilient to that here.
-        db.minIdValue + 990
+        Database.minIdValue + 990
       }
     }
 
@@ -70,7 +70,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
               getSortingIndex(containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
             } else {
               // (reason for next line is in related comments above at "val movingFromPosition_sortingIndex: Long =".)
-              db.minIdValue + 990
+              Database.minIdValue + 990
             }
           }
           val (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option[Long], farNewNeighborSortingIndex2: Option[Long]) =
@@ -119,7 +119,7 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
             Some(findUnusedSortingIndex(containingObjectIdIn, newIndexIn))
         } catch {
           case e: Exception =>
-            if (e.getMessage == db.UNUSED_GROUP_ERR1 || e.getMessage == db.UNUSED_GROUP_ERR2) None
+            if (e.getMessage == Database.UNUSED_GROUP_ERR1 || e.getMessage == Database.UNUSED_GROUP_ERR2) None
             else throw e
         }
       } else
@@ -134,17 +134,17 @@ abstract class SortableEntriesMenu(val ui: TextUI, val db: PostgreSQLDatabase) {
           // do calculation as float or it wraps & gets wrong result, with inputs like this (idea: unit tests....)
           //     scala> -3074457345618258604L + ((9223372036854775807L - -3074457345618258604L) / 2)
           //     res2: Long = -6148914691236517206
-          val newIndex = (nearNewNeighborSortingIndex.get + ((db.maxIdValue.asInstanceOf[Float] - nearNewNeighborSortingIndex.get) / 2)).asInstanceOf[Long]
+          val newIndex = (nearNewNeighborSortingIndex.get + ((Database.maxIdValue.asInstanceOf[Float] - nearNewNeighborSortingIndex.get) / 2)).asInstanceOf[Long]
           val nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex)
           // leaving it to communicate intent, but won't be '>' because a Long would just wrap, so...
-          val trouble: Boolean = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get > db.maxIdValue ||
+          val trouble: Boolean = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get > Database.maxIdValue ||
                                  nonDuplicatedNewIndex.get <= movingFromPosition_sortingIndex || nonDuplicatedNewIndex.get <= nearNewNeighborSortingIndex.get
           (nonDuplicatedNewIndex.getOrElse(0L), trouble)
         } else {
           // Leaving it to communicate intent, but won't be '<' because a Long would just wrap, so...
-          val newIndex = nearNewNeighborSortingIndex.get - math.abs((math.abs(db.minIdValue) - math.abs(nearNewNeighborSortingIndex.get)) / 2)
+          val newIndex = nearNewNeighborSortingIndex.get - math.abs((math.abs(Database.minIdValue) - math.abs(nearNewNeighborSortingIndex.get)) / 2)
           val nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex)
-          val trouble: Boolean = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get < db.minIdValue ||
+          val trouble: Boolean = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get < Database.minIdValue ||
                                  nonDuplicatedNewIndex.get >= movingFromPosition_sortingIndex ||
                                  nonDuplicatedNewIndex.get >= nearNewNeighborSortingIndex.get
           (nonDuplicatedNewIndex.getOrElse(0L), trouble)

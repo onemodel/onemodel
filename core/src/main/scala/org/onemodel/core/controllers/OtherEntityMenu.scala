@@ -13,14 +13,14 @@ import java.util
 
 import org.onemodel.core._
 import org.onemodel.core.{OmException, TextUI}
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.Database
 import org.onemodel.core.model._
 
 import scala.collection.mutable.ArrayBuffer
 
 /** This is simply to hold less-used operations so the main EntityMenu can be the most-used stuff.
   */
-class OtherEntityMenu (val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
+class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Controller) {
 
   def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
                       containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],

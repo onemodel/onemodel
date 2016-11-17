@@ -11,10 +11,10 @@
 package org.onemodel.core.controllers
 
 import org.onemodel.core._
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.database.Database
 import org.onemodel.core.model._
 
-class GroupMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller) {
+class GroupMenu(val ui: TextUI, val db: Database, val controller: Controller) {
 
   /** Returns None if user wants out. The parameter callingMenusRtgIn exists only to preserve the value as may be used by quickGroupMenu, and passed
     * between it and here.
