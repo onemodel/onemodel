@@ -130,7 +130,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
                                                                  objectsToDisplay.size, -1, Some(-1))
         quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 7 && targetForMovesIn.isDefined) {
-        val targetRtgCount: Long = db.getRelationToGroupCountByEntity(Some(targetForMovesIn.get.getId))
+        val targetRtgCount: Long = db.getRelationToGroupCount(targetForMovesIn.get.getId)
         if (moveTargetIndexInObjList.isEmpty) {
           ui.displayText("Target must be selected (shows '+').")
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
@@ -252,7 +252,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
     }
     Util.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), startingDisplayRowIndexIn)
     val statusesAndNames: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
-      val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity.getId)
+      val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity)
       val archivedStatus = entity.getArchivedStatusDisplayString
       archivedStatus + numSubgroupsPrefix + entity.getName + " " + controller.getPublicStatusDisplayString(entity)
     }
@@ -544,7 +544,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
   }
 
   private def useSubgroup(highlightedEntry: Entity): (Long, Option[Boolean]) = {
-    val targetRtgCount: Long = db.getRelationToGroupCountByEntity(Some(highlightedEntry.getId))
+    val targetRtgCount: Long = db.getRelationToGroupCount(highlightedEntry.getId)
     val defaultToUsingSubgroup: Option[Boolean] = {
       if (targetRtgCount == 0) {
         // the user could create one manually if desired; another idea is in the commit where I added this line, in a removed comment/code.
@@ -580,7 +580,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
   }
 
   protected def indexIsInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean = {
-    db.groupEntrySortingIndexInUse(groupIdIn, sortingIndexIn)
+    db.isGroupEntrySortingIndexInUse(groupIdIn, sortingIndexIn)
   }
 
   protected def findUnusedSortingIndex(groupIdIn: Long, startingWithIn: Long): Long = {

@@ -754,7 +754,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           if (entityNameBeforeEdit != entityNameAfterEdit) {
             val (_, _, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(editedEntity.get.getId)
             if (groupId.isDefined && !moreThanOneAvailable) {
-              val attrCount = entityIn.getAttrCount
+              val attrCount = entityIn.getAttributeCount
               // for efficiency, if it's obvious which subgroup's name to change at the same time, offer to do so
               val defaultAnswer = if (attrCount > 1) Some("n") else Some("y")
               val ans = ui.askYesNoQuestion("There's a single subgroup" +
@@ -912,7 +912,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     } else {
       val objectNames: Array[String] = objectsToDisplay.toArray.map {
                                                                       case entity: Entity =>
-                                                                        val numSubgroupsPrefix: String = getEntityContentSizePrefix(entity.getId)
+                                                                        val numSubgroupsPrefix: String = getEntityContentSizePrefix(entity)
                                                                         numSubgroupsPrefix + entity.getArchivedStatusDisplayString + entity.getName
                                                                       case group: Group =>
                                                                         val numSubgroupsPrefix: String = getGroupContentSizePrefix(group.getId)
@@ -1098,8 +1098,8 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
       }
       val totalExisting: Long = {
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x ELSEWHERE ! (at similar comment)
-        if (nonRelationAttrTypeNames.contains(objectTypeIn)) db.getEntitiesOnlyCount(classIdIn, limitByClassIn, previousSelectionIdIn)
-        else if (objectTypeIn == Util.ENTITY_TYPE) db.getEntitiesOnlyCount(classIdIn, limitByClassIn, previousSelectionIdIn)
+        if (nonRelationAttrTypeNames.contains(objectTypeIn)) db.getEntitiesOnlyCount(limitByClassIn, classIdIn, previousSelectionIdIn)
+        else if (objectTypeIn == Util.ENTITY_TYPE) db.getEntitiesOnlyCount(limitByClassIn, classIdIn, previousSelectionIdIn)
         else if (relationAttrTypeNames.contains(objectTypeIn)) db.getRelationTypeCount
         else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) db.getClassCount()
         else if (objectTypeIn == Util.OM_INSTANCE_TYPE) db.getOmInstanceCount
@@ -1125,7 +1125,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x ABOVE ! (at similar comment)
           if (nonRelationAttrTypeNames.contains(objectTypeIn))
             db.getEntityCount
-          else if (objectTypeIn == Util.ENTITY_TYPE) db.getEntitiesOnlyCount(classIdIn, limitByClassIn)
+          else if (objectTypeIn == Util.ENTITY_TYPE) db.getEntitiesOnlyCount(limitByClassIn, classIdIn)
           else if (relationAttrTypeNames.contains(objectTypeIn))
             db.getRelationTypeCount
           else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) db.getClassCount()
@@ -1237,7 +1237,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                   else  Some(id.toLong)
                 }
               } else if (remoteEntityEntryTypeAnswer.get == 2) {
-                val defaultEntityId: Option[Long] = restDb.getDefaultEntityWithOptionalErrHandling(Some(ui))
+                val defaultEntityId: Option[Long] = restDb.getDefaultEntity(Some(ui))
                 if (defaultEntityId.isEmpty) None
                 else defaultEntityId
               } else {
@@ -1246,7 +1246,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
             }
             if (remoteEntityId.isEmpty) None
             else {
-              val entityInJson: Option[String] = restDb.getEntityWithOptionalErrHandling(Some(ui), remoteEntityId.get)
+              val entityInJson: Option[String] = restDb.getEntityJson_WithOptionalErrHandling(Some(ui), remoteEntityId.get)
               if (entityInJson.isEmpty) {
                 None
               } else {
@@ -1513,7 +1513,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                               containingGroupIn: Option[Group] = None): (Option[Entity], Option[Long], Boolean) = {
     val (rtgid, rtid, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(userSelection.getId)
     val subEntitySelected: Option[Entity] = None
-    if (groupId.isDefined && !moreThanOneAvailable && db.getAttrCount(userSelection.getId) == 1) {
+    if (groupId.isDefined && !moreThanOneAvailable && db.getAttributeCount(userSelection.getId) == 1) {
       // In quick menu, for efficiency of some work like brainstorming, if it's obvious which subgroup to go to, just go there.
       // We DON'T want @tailrec on this method for this call, so that we can ESC back to the current menu & list! (so what balance/best? Maybe move this
       // to its own method, so it doesn't try to tail optimize it?)  See also the comment with 'tailrec', mentioning why to have it, above.
@@ -1530,28 +1530,28 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     (subEntitySelected, groupId, moreThanOneAvailable)
   }
 
-  /** see comments for getContentSizePrefix. */
+  /** see comments for Entity.getContentSizePrefix. */
   def getGroupContentSizePrefix(groupId: Long): String = {
     val grpSize = db.getGroupSize(groupId, 1)
     if (grpSize == 0) ""
     else ">"
   }
 
-  /** Shows ">" in front of an entity or group if it contains exactly one attribute or a subgroup which has at least one entry; shows ">>" if contains 
+  /** Shows ">" in front of an entity or group if it contains exactly one attribute or a subgroup which has at least one entry; shows ">>" if contains
     * multiple subgroups or attributes, and "" if contains no subgroups or the one subgroup is empty.
     * Idea: this might better be handled in the textui class instead, and the same for all the other color stuff.
     */
-  def getEntityContentSizePrefix(entityId: Long): String = {
+  def getEntityContentSizePrefix(entity: Entity): String = {
     // attrCount counts groups also, so account for the overlap in the below.
-    val attrCount = db.getAttrCount(entityId)
+    val attrCount = entity.getAttributeCount
     // This is to not show that an entity contains more things (">" prefix...) if it only has one group which has no *non-archived* entities:
     val hasOneEmptyGroup: Boolean = {
-      val numGroups: Long = db.getRelationToGroupCountByEntity(Some(entityId))
+      val numGroups: Long = entity.getRelationToGroupCount
       if (numGroups != 1) false
       else {
-        val (_, _, gid: Option[Long], moreAvailable) = db.findRelationToAndGroup_OnEntity(entityId)
+        val (_, _, gid: Option[Long], moreAvailable) = entity.findRelationToAndGroup
         if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
-                                                                        "there should be exactly one group in entity " + entityId + " .")
+                                                                        "there should be exactly one group in entity " + entity.getId + " .")
         val groupSize = db.getGroupSize(gid.get, 1)
         groupSize == 0
       }
@@ -2005,7 +2005,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                   } else if (allKeepReference || (whichRTEResponse.isDefined && whichRTEResponse.get == keepSameReferenceAsInTemplateChoiceNum)) {
                     val relation = entityIn.addRelationToEntity(a.getAttrTypeId, a.getRelatedId2, Some(a.getSortingIndex), None, System.currentTimeMillis(),
                                                                 a.isRemote,
-                                                                if (a.isRemote) Some(a.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceIdIn) else None)
+                                                                if (a.isRemote) Some(a.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId) else None)
                     Some(relation)
                   } else {
                     ui.displayText("Unexpected answer: " + whichRTEResponse.get)
@@ -2078,14 +2078,14 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
     if (entityIn.getClassId.isEmpty) {
       false
     } else {
-      val createAttributes: Option[Boolean] = db.getClassCreateDefaultAttributes(entityIn.getClassId.get)
+      val createAttributes: Option[Boolean] = db.getShouldCreateDefaultAttributes(entityIn.getClassId.get)
       if (createAttributes.isDefined) {
         createAttributes.get
       } else {
         if (entityIn.getClassTemplateEntityId.isEmpty) {
           false
         } else {
-          val attrCount = new Entity(db, entityIn.getClassTemplateEntityId.get).getAttrCount
+          val attrCount = new Entity(db, entityIn.getClassTemplateEntityId.get).getAttributeCount
           if (attrCount == 0) {
             false
           } else {

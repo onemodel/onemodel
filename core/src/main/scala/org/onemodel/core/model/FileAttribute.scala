@@ -46,7 +46,7 @@ object FileAttribute {
     //so then in scala REPL (interpreter) you set "val d..." as above, "d.update(ba)", and the below:
     // outputs same as command 'md5sum <file>':
     val md5sum: String = {
-      //noinspection LanguageFeature  //left for reading clarify: (the '&' use is an 'advanced feature' style violation but it's the way i found to do it ...)
+      //noinspection LanguageFeature  // (the '&' use on next line is an 'advanced feature' style violation but it's the way i found to do it ...)
       d.digest.map(0xFF &).map {"%02x".format(_)}.foldLeft("") {_ + _}
     }
     md5sum
@@ -54,11 +54,11 @@ object FileAttribute {
 
   val filenameFiller = "aaa"
 
-  /** Returns a prefix and suffix (like, "filename" and ".ext") which will not collide with an existing name in System.getProperty("java.io.tmpdir").
-    * I.e., for use with java.io.File.createTempFile.  Calling this likely presumes that the caller has already decided not to use the old path,
-    * or the old filename in the temp directory.
+  /** Returns a prefix and suffix (like, "filename" and ".ext").
+    * I.e., for use with java.nio.file.Files.createTempFile (which makes sure it will not collide with existing names).
+    * Calling this likely presumes that the caller has already decided not to use the old path, or at least the old filename in the temp directory.
     */
-  def getReplacementFilename(originalFilePathIn: String): (String, String) = {
+  def getUsableFilename(originalFilePathIn: String): (String, String) = {
     val originalName = FilenameUtils.getBaseName(originalFilePathIn)
 
     // baseName has to be at least 3 chars, for createTempFile:
@@ -133,6 +133,9 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
 
   protected def readDataFromDB() {
     val faTypeData = mDB.getFileAttributeData(mId)
+    if (faTypeData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mDescription = faTypeData(1).get.asInstanceOf[String]
     mOriginalFileDate = faTypeData(3).get.asInstanceOf[Long]
     mStoredDate = faTypeData(4).get.asInstanceOf[Long]
@@ -243,7 +246,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
     }
   }
 
-  // idea: how make hte 2nd parameter an option with None as default, instead of null as default?
+  // Idea: how make the 2nd parameter an option with None as default, instead of null as default?
   def retrieveContent(fileIn: File, damageFileForTesting: (File) => Unit = null) {
     var outputStream: FileOutputStream = null
     try {
@@ -258,7 +261,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
       // (as does mDB.verifyFileAttributeContent).
 
       // this is a hook so tests can verify that we do fail if the file isn't intact
-      // (huh? This next line does nothing. Noted in tasks to see what is meant & make it do that. or at least more clear.)
+      // (Idea:  huh?? This next line does nothing. Noted in tasks to see what is meant & make it do that. or at least more clear.)
       //noinspection ScalaUselessExpression  //left intentionally for reading clarify
       if (damageFileForTesting != null) damageFileForTesting
 

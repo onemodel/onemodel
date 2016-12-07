@@ -12,7 +12,7 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.Util
+import org.onemodel.core.{OmException, Util}
 import org.onemodel.core.database.Database
 
 /** See TextAttribute etc for some comments.
@@ -52,6 +52,9 @@ class BooleanAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndOb
 
   protected def readDataFromDB() {
     val baTypeData = mDB.getBooleanAttributeData(mId)
+    if (baTypeData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mBoolean = baTypeData(1).get.asInstanceOf[Boolean]
     super.assignCommonVars(baTypeData(0).get.asInstanceOf[Long], baTypeData(2).get.asInstanceOf[Long], baTypeData(3).asInstanceOf[Option[Long]],
                            baTypeData(4).get.asInstanceOf[Long], baTypeData(5).get.asInstanceOf[Long])

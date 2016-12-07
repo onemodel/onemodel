@@ -32,7 +32,21 @@ object Database {
   val UNUSED_GROUP_ERR1 = "No available index found which is not already used. How would so many be used?"
   val UNUSED_GROUP_ERR2 = "Very unexpected, but could it be that you are running out of available sorting indexes!?" +
                           " Have someone check, before you need to create, for example, a thousand more entities."
-
+  val getClassData_resultTypes = "String,Long,Boolean"
+  val getRelationTypeData_resultTypes = "String,String,String"
+  val getOmInstanceData_resultTypes = "Boolean,String,Long,Long"
+  val getQuantityAttributeData_resultTypes = "Long,Long,Float,Long,Long,Long,Long"
+  val getDateAttributeData_resultTypes = "Long,Long,Long,Long"
+  val getBooleanAttributeData_resultTypes = "Long,Boolean,Long,Long,Long,Long"
+  val getFileAttributeData_resultTypes = "Long,String,Long,Long,Long,String,Boolean,Boolean,Boolean,Long,String,Long"
+  val getTextAttributeData_resultTypes = "Long,String,Long,Long,Long,Long"
+  val getRelationToGroupDataById_resultTypes = "Long,Long,Long,Long,Long,Long,Long"
+  val getRelationToGroupDataByKeys_resultTypes = "Long,Long,Long,Long,Long,Long,Long"
+  val getRelationToEntity_resultTypes = "Long,Long,Long,Long"
+  val getRelationToRemoteEntity_resultTypes = "Long,Long,Long,Long"
+  val getGroupData_resultTypes = "String,Long,Boolean,Boolean"
+  val getEntityData_resultTypes = "String,Long,Long,Boolean,Boolean,Boolean"
+  val getGroupEntriesData_resultTypes = "Long,Long"
 
   // where we create the table also calls this.
   // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
@@ -49,7 +63,8 @@ object Database {
   def omInstanceAddressLength: Int = 262
 
   def getAttributeFormId(key: String): Int = {
-    //MAKE SURE THESE MATCH WITH THOSE IN attributeKeyExists and getAttributeFormName, and the range in the db constraint valid_attribute_form_id !
+    //MAKE SURE THESE MATCH WITH THOSE IN attributeKeyExists and getAttributeFormName, and the range in the db constraint valid_attribute_form_id ,
+    // and in RestDatabase.processArrayOfTuplesAndInt !
     key match {
       case Util.QUANTITY_TYPE => 1
       case Util.DATE_TYPE => 2
@@ -148,10 +163,10 @@ abstract class Database {
   def getEntityData(idIn: Long): Array[Option[Any]]
   def includeArchivedEntities: Boolean
   def getEntityName(idIn: Long): Option[String]
-  def isDuplicateEntity(nameIn: String, selfIdToIgnoreIn: Option[Long] = None): Boolean
+  def isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[Long] = None): Boolean
   def getSortedAttributes(entityIdIn: Long, startingObjectIndexIn: Int = 0, maxValsIn: Int = 0,
                           onlyPublicEntitiesIn: Boolean = true): (Array[(Long, Attribute)], Int)
-  def findRelationType(typeNameIn: String, expectedRows: Option[Int] = Some(1)): Array[Long]
+  def findRelationType(typeNameIn: String, expectedRows: Option[Int] = Some(1)): java.util.ArrayList[Long]
   def getRelationTypeData(idIn: Long): Array[Option[Any]]
   def getQuantityAttributeData(idIn: Long): Array[Option[Any]]
   def getDateAttributeData(idIn: Long): Array[Option[Any]]
@@ -167,26 +182,22 @@ abstract class Database {
   def getGroupData(idIn: Long): Array[Option[Any]]
   def getGroupEntryObjects(groupIdIn: Long, startingObjectIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[Entity]
   def getGroupSize(groupIdIn: Long, includeWhichEntitiesIn: Int = 3): Long
+
   def getHighestSortingIndexForGroup(groupIdIn: Long): Long
-  def getRelationToGroupData(entityId: Long, relTypeId: Long, groupId: Long): Array[Option[Any]]
-  def getRelationToGroupDataById(idIn: Long): Array[Option[Any]]
+  def getRelationToGroupDataByKeys(entityId: Long, relTypeId: Long, groupId: Long): Array[Option[Any]]
+  def getRelationToGroupData(idIn: Long): Array[Option[Any]]
   def getGroupEntriesData(groupIdIn: Long, limitIn: Option[Long] = None, includeArchivedEntitiesIn: Boolean = true): List[Array[Option[Any]]]
   def findRelationToAndGroup_OnEntity(entityIdIn: Long, groupNameIn: Option[String] = None): (Option[Long], Option[Long], Option[Long], Boolean)
   def getEntitiesContainingGroup(groupIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)]
   def getCountOfEntitiesContainingGroup(groupIdIn: Long): (Long, Long)
   def getClassData(idIn: Long): Array[Option[Any]]
-  def getAttrCount(entityIdIn: Long, includeArchivedEntitiesIn: Boolean = false): Long
-  def getQuantityAttributeCount(entityIdIn: Long): Long
-  def getTextAttributeCount(entityIdIn: Long): Long
-  def getDateAttributeCount(entityIdIn: Long): Long
-  def getBooleanAttributeCount(entityIdIn: Long): Long
-  def getFileAttributeCount(entityIdIn: Long): Long
-  def getRelationToEntityCount(entityIdIn: Long, includeArchivedEntities: Boolean = true): Long
-  def getRelationToGroupCountByEntity(entityIdIn: Option[Long]): Long
+  def getAttributeCount(entityIdIn: Long, includeArchivedEntitiesIn: Boolean = false): Long
+  def getRelationToEntityCount(entityIdIn: Long, includeArchivedEntities: Boolean = false): Long
+  def getRelationToGroupCount(entityIdIn: Long): Long
   def getClassCount(entityIdIn: Option[Long] = None): Long
   def getClassName(idIn: Long): Option[String]
   def getOmInstanceData(idIn: String): Array[Option[Any]]
-  def isDuplicateOmInstance(addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean
+  def isDuplicateOmInstanceAddress(addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean
   def getGroupsContainingEntitysGroupsIds(groupIdIn: Long, limitIn: Option[Long] = Some(5)): List[Array[Option[Any]]]
   def isEntityInGroup(groupIdIn: Long, entityIdIn: Long): Boolean
   def getAdjacentGroupEntriesSortingIndexes(groupIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long] = None,
@@ -196,20 +207,19 @@ abstract class Database {
   def getNearestAttributeEntrysSortingIndex(entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
   def getEntityAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long): Long
   def getGroupSortingIndex(groupIdIn: Long, entityIdIn: Long): Long
-  def groupEntrySortingIndexInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean
-  def attributeSortingIndexInUse(entityIdIn: Long, sortingIndexIn: Long): Boolean
+  def isGroupEntrySortingIndexInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean
+  def isAttributeSortingIndexInUse(entityIdIn: Long, sortingIndexIn: Long): Boolean
   def findUnusedAttributeSortingIndex(entityIdIn: Long, startingWithIn: Option[Long] = None): Long
-  def findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean = false): Option[List[Long]]
+  def findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean = false): java.util.ArrayList[Long]
   def findUnusedGroupSortingIndex(groupIdIn: Long, startingWithIn: Option[Long] = None): Long
-  def getTextAttributeByTypeId(parentEntityIdIn: Long, typeIdIn: Long, expectedRows: Option[Int] = None): Array[TextAttribute]
-  def getEntitiesContainingEntity(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)]
+  def getTextAttributeByTypeId(parentEntityIdIn: Long, typeIdIn: Long, expectedRows: Option[Int] = None): java.util.ArrayList[TextAttribute]
+  def getEntitiesContainingEntity(entityIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)]
   def getCountOfGroupsContainingEntity(entityIdIn: Long): Long
-  def getContainingGroupsIds(entityIdIn: Long): List[Long]
-  def getContainingRelationToGroups(entityIn: Entity, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup]
-  def getClassCreateDefaultAttributes(classIdIn: Long): Option[Boolean]
+  def getContainingGroupsIds(entityIdIn: Long): java.util.ArrayList[Long]
+  def getContainingRelationToGroups(entityIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup]
+  def getShouldCreateDefaultAttributes(classIdIn: Long): Option[Boolean]
   def updateClassCreateDefaultAttributes(classIdIn: Long, value: Option[Boolean])
-  def getEntitiesOnlyCount(classIdIn: Option[Long] = None, limitByClass: Boolean = false,
-                           templateEntity: Option[Long] = None): Long
+  def getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option[Long] = None, templateEntity: Option[Long] = None): Long
   def getCountOfEntitiesContainingEntity(entityIdIn: Long): (Long, Long)
 
 

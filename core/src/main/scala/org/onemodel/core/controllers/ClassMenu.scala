@@ -50,7 +50,7 @@ class ClassMenu(val ui: TextUI, db: Database, controller: Controller) {
             val prompt = "Do you want the program to create all the attributes by default, when creating a new entity in this class, using " +
                          "the class defining entity's attributes as a template?  Enter a yes/no value (or a space for 'unknown/unspecified', i.e., to " +
                          "ask every time)"
-            val valueBefore: Option[Boolean] = db.getClassCreateDefaultAttributes(classIn.getId)
+            val valueBefore: Option[Boolean] = db.getShouldCreateDefaultAttributes(classIn.getId)
             val defaultValue: String = valueBefore match {
               case Some(true) => "y"
               case Some(false) => "n"
@@ -68,7 +68,7 @@ class ClassMenu(val ui: TextUI, db: Database, controller: Controller) {
           }
         }
         else if (answer == 4) {
-          val entitiesCount: Long = db.getEntitiesOnlyCount(Some(classIn.getId), limitByClass = true, Some(classIn.getTemplateEntityId))
+          val entitiesCount: Long = db.getEntitiesOnlyCount(limitByClass = true, Some(classIn.getId), Some(classIn.getTemplateEntityId))
           if (entitiesCount > 0) {
             ui.displayText("Can not delete class, because it is the class of " + entitiesCount + " entities.")
           } else {

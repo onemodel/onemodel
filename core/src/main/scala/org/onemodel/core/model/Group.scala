@@ -33,6 +33,9 @@ class Group(mDB: Database, mId: Long) {
 
   def readDataFromDB() {
     val relationData: Array[Option[Any]] = mDB.getGroupData(mId)
+    if (relationData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mName = relationData(0).get.asInstanceOf[String]
     mInsertionDate = relationData(1).get.asInstanceOf[Long]
     mMixedClassesAllowed = relationData(2).get.asInstanceOf[Boolean]

@@ -13,7 +13,7 @@
 package org.onemodel.core.model
 
 import java.io.{PrintWriter, StringWriter}
-import org.onemodel.core.Util
+import org.onemodel.core.{OmException, Util}
 import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 
 object EntityClass {
@@ -57,6 +57,9 @@ class EntityClass(mDB: Database, mId: Long) {
 
   protected def readDataFromDB() {
     val classData: Array[Option[Any]] = mDB.getClassData(mId)
+    if (classData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mName = classData(0).get.asInstanceOf[String]
     mTemplateEntityId = classData(1).get.asInstanceOf[Long]
     mCreateDefaultAttributes = classData(2).asInstanceOf[Option[Boolean]]

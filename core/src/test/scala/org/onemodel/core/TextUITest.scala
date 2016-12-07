@@ -22,11 +22,11 @@ class TextUITest extends FlatSpec {
   //    maxLines=in
   //  }
   //  def terminalHeight: Int = { // # of items to try to display on the screen at one time.
-  //    System.out.println(new java.text.SimpleDateFormat("yyyy-dd-mm HH:mm:ss:SSSZ").format(new java.util.Date())+": testtextui.terminalheight");
+  //    System.out.println(new java.text.SimpleDateFormat("yyyy-mm-dd HH:mm:ss:SSSZ").format(new java.util.Date())+": testtextui.terminalheight");
   //    return maxLines
   //  }
   //  def terminalWidth: Int = { // # of items to try to display on the screen at one time.
-  //    System.out.println((new java.text.SimpleDateFormat("yyyy-dd-mm HH:mm:ss:SSSZ")).format(new java.util.Date())+": testtextui.terminalwidth");
+  //    System.out.println((new java.text.SimpleDateFormat("yyyy-mm-dd HH:mm:ss:SSSZ")).format(new java.util.Date())+": testtextui.terminalwidth");
   //    return termWidth
   //  }
   //}

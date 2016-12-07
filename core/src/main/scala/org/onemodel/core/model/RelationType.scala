@@ -12,7 +12,7 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.Util
+import org.onemodel.core.{OmException, Util}
 import org.onemodel.core.database.Database
 
 /** Represents one RelationType object in the system.
@@ -79,6 +79,9 @@ class RelationType(mDB: Database, mId: Long) extends Entity(mDB, mId) {
 
   protected override def readDataFromDB() {
     val relationTypeData: Array[Option[Any]] = mDB.getRelationTypeData(mId)
+    if (relationTypeData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mName = relationTypeData(0).get.asInstanceOf[String]
     mNameInReverseDirection = relationTypeData(1).get.asInstanceOf[String]
     mDirectionality = relationTypeData(2).get.asInstanceOf[String].trim

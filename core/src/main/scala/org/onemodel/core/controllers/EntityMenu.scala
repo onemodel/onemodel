@@ -13,7 +13,7 @@ package org.onemodel.core.controllers
 import java.util
 
 import org.onemodel.core._
-import org.onemodel.core.database.Database
+import org.onemodel.core.database.{RestDatabase, Database}
 import org.onemodel.core.model._
 
 import scala.annotation.tailrec
@@ -62,7 +62,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
       require(containingRelationToEntityIn.get.getRelatedId2 == entityIn.getId)
     }
     if (containingGroupIn.isDefined) require(containingRelationToEntityIn.isEmpty)
-    val numAttrsInEntity: Long = entityIn.getAttrCount
+    val numAttrsInEntity: Long = entityIn.getAttributeCount
     val leadingText: Array[String] = new Array[String](2)
     val relationSourceEntity: Option[Entity] = {
       // (checking if exists also, because it could have been removed in another menu option)
@@ -159,7 +159,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
             val goingBackward: Boolean = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop
             val forward = !goingBackward
-            val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBackIn = forward,
+            val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.getId, entityIn.getAttributeCount, 0, forwardNotBackIn = forward,
                                                                      attributeRowsStartingIndexIn, newAttribute.getId,
                                                                      highlightedIndexInObjList.getOrElse(0),
                                                                      if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
@@ -198,7 +198,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
           // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
           val goingBackward: Boolean = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop
           val forward = !goingBackward
-          placeEntryInPosition(entityIn.getId, entityIn.getAttrCount, 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
+          placeEntryInPosition(entityIn.getId, entityIn.getAttributeCount, 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
                                newAttribute.get.getId, highlightedIndexInObjList.getOrElse(0),
                                if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
                                numDisplayableAttributes, newAttribute.get.getFormId,
@@ -225,7 +225,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
         // THE OTHER MIGHT ALSO NEED MAINTENANCE!
         val choices = Array[String](Util.unselectMoveTargetPromptText)
         val leadingText: Array[String] = Array(Util.unselectMoveTargetLeadingText)
-        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttrCount, attributeRowsStartingIndexIn)
+        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttributeCount, attributeRowsStartingIndexIn)
 
         val response = ui.askWhich(Some(leadingText), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
                                    secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -258,7 +258,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
         val choices = Array[String]("keep existing (same as ESC)")
         // says 'same screenful' because (see similar cmt elsewhere).
         val leadingText: Array[String] = Array("CHOOSE an attribute to highlight (*)")
-        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttrCount, attributeRowsStartingIndexIn)
+        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttributeCount, attributeRowsStartingIndexIn)
         val response = ui.askWhich(Some(leadingText), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
                                    secondaryHighlightIndexIn = moveTargetIndexInObjList)
         val entryToHighlight: Option[Attribute] = {
@@ -609,11 +609,21 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
         val attribute = attributeTuple._2
         attributes.add(attribute)
         attribute match {
+          case relation: RelationToRemoteEntity =>
+            // NOTE: the RelationToRemoteEntity case MUST come (in this and similar places) BEFORE the RelationToEntity
+            // case, since the former extends the latter and we want to hit both.
+            val remoteDb = new RestDatabase(relation.getRemoteAddress)
+            val toEntity: Entity = new Entity(remoteDb, relation.getRelatedId2)
+            val relationType = new RelationType(db, relation.getAttrTypeId)
+            val desc = attribute.getDisplayString(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
+            val prefix = controller.getEntityContentSizePrefix(toEntity)
+            val archivedStatus: String = toEntity.getArchivedStatusDisplayString
+            prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
           case relation: RelationToEntity =>
             val toEntity: Entity = new Entity(db, relation.getRelatedId2)
             val relationType = new RelationType(db, relation.getAttrTypeId)
             val desc = attribute.getDisplayString(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
-            val prefix = controller.getEntityContentSizePrefix(relation.getRelatedId2)
+            val prefix = controller.getEntityContentSizePrefix(toEntity)
             val archivedStatus: String = toEntity.getArchivedStatusDisplayString
             prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
           case relation: RelationToGroup =>
@@ -705,7 +715,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
   }
 
   protected def indexIsInUse(entityIdIn: Long, sortingIndexIn: Long): Boolean = {
-    db.attributeSortingIndexInUse(entityIdIn, sortingIndexIn)
+    db.isAttributeSortingIndexInUse(entityIdIn, sortingIndexIn)
   }
 
   protected def findUnusedSortingIndex(entityIdIn: Long, startingWithIn: Long): Long = {

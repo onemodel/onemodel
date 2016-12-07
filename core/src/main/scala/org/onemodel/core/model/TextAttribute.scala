@@ -12,7 +12,7 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.Util
+import org.onemodel.core.{OmException, Util}
 import org.onemodel.core.database.Database
 
 /** Represents one String object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
@@ -57,6 +57,9 @@ class TextAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObser
 
   protected def readDataFromDB() {
     val taTypeData = mDB.getTextAttributeData(mId)
+    if (taTypeData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mText = taTypeData(1).get.asInstanceOf[String]
     super.assignCommonVars(taTypeData(0).get.asInstanceOf[Long], taTypeData(2).get.asInstanceOf[Long], taTypeData(3).asInstanceOf[Option[Long]], taTypeData(4).get.asInstanceOf[Long], taTypeData(5).get.asInstanceOf[Long])
   }

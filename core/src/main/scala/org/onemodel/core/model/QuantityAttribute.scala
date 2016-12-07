@@ -12,7 +12,7 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.Util
+import org.onemodel.core.{OmException, Util}
 import org.onemodel.core.database.Database
 
 /** Represents one quantity object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
@@ -66,6 +66,9 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
 
   protected def readDataFromDB() {
     val quantityData = mDB.getQuantityAttributeData(mId)
+    if (quantityData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mUnitId = quantityData(1).get.asInstanceOf[Long]
     mNumber = quantityData(2).get.asInstanceOf[Float]
     assignCommonVars(quantityData(0).get.asInstanceOf[Long], quantityData(3).get.asInstanceOf[Long], quantityData(4).asInstanceOf[Option[Long]],

@@ -17,7 +17,7 @@ import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 import org.onemodel.core.model.{Attribute, Entity}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Args, FlatSpec, Status}
-
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
@@ -62,9 +62,9 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 
-  def tryExportingHtml(ids: Option[List[Long]]): (String, Array[String]) = {
-    assert(ids.get.nonEmpty)
-    val entityId: Long = ids.get.head
+  def tryExportingHtml(ids: java.util.ArrayList[Long]): (String, Array[String]) = {
+    assert(ids.size > 0)
+    val entityId: Long = ids.get(0)
     val startingEntity: Entity = new Entity(mDB, entityId)
 
     // see comments in ImportExport.export() method for explanation of the next few lines:
@@ -111,7 +111,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testImportAndExportOfSimpleTxt" should "work" in {
     val importFile: File = mImportExport.tryImporting_FOR_TESTS("testImportFile0.txt", mEntity)
-    val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db")
+    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db")
 
     val (fileContents: String, outputFile: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB)
 
@@ -144,11 +144,11 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
 
     // make sure it actually imported something expected:
-    val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt")
-    assert(ids.get.nonEmpty)
+    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt")
+    assert(ids.size > 0)
     var foundIt = false
-    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1))(0)
-    for (entityId <- ids.get) {
+    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
+    for (entityId: Long <- ids) {
       // (could have used mDB.getContainingEntities1 here perhaps)
       if (mDB.relationToEntityExists(relationTypeId, mEntity.getId, entityId)) {
         foundIt = true
@@ -159,7 +159,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testExportHtml" should "work" in {
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
-    val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("vsgeer4")
+    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("vsgeer4")
     val (firstNewFileContents: String, newFiles: Array[String]) = tryExportingHtml(ids)
 
     assert(firstNewFileContents.contains("<a href=\"e-"), "unexpected file contents: no href?:  " + firstNewFileContents)
@@ -172,7 +172,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testImportAndExportOfUri" should "work" in {
     mImportExport.tryImporting_FOR_TESTS("testImportFile5.txt", mEntity)
-    val ids: Option[List[Long]] = mDB.findAllEntityIdsByName("import-file-5")
+    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("import-file-5")
     val firstNewFileContents: String = tryExportingHtml(ids)._1
     assert(firstNewFileContents.contains("<a href=\"http://www.onemodel.org/downloads/testfile.txt\">test file download</a>"), "unexpected file contents:  " + firstNewFileContents)
   }

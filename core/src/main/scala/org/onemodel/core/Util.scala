@@ -194,7 +194,7 @@ object Util {
     ! attributeIn.isInstanceOf[FileAttribute]
   }
 
-  def getReplacementFilename(originalFilePathIn: String): (String, String) = FileAttribute.getReplacementFilename(originalFilePathIn)
+  def getUsableFilename(originalFilePathIn: String): (String, String) = FileAttribute.getUsableFilename(originalFilePathIn)
 
   val entityPartsThatCanBeAffected: String = "ALL its attributes, actions, and relations, but not entities or groups the relations refer to"
 

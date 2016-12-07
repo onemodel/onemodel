@@ -50,7 +50,7 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
           val valueBeforeEntry: Option[Boolean] = entityIn.getPublic
           val valueAfterEntry: Option[Boolean] = controller.askForPublicNonpublicStatus(valueBeforeEntry)
           val rteCount: Long= db.getRelationToEntityCount(entityIn.getId, includeArchivedEntities = false)
-          val rtgCount: Long = db.getRelationToGroupCountByEntity(Some(entityIn.getId))
+          val rtgCount: Long = db.getRelationToGroupCount(entityIn.getId)
           val publicMenuResponse = ui.askWhich(None, Array("...for this entity (\"" + entityIn.getName + "\")",
                                                            "...for its " + rteCount + " contained entities (one level), and all the" +
                                                            " entities contained in its " + rtgCount + " groups (one level)",
@@ -222,34 +222,32 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
     // (Wrote "lines" plural, to clarify when this is presented with the "SINGLE LINE" copyright prompt below.)
     val prompt4 = ", and put the relevant lines of html (or nothing) in the value for that attribute.  Or just press Enter to skip through this each time.)"
 
-    val headerTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Util.HEADER_CONTENT_TAG, caseSensitive = true)
-    val bodyContentTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Util.BODY_CONTENT_TAG, caseSensitive = true)
-    val footerTypeIds: Option[List[Long]] = db.findAllEntityIdsByName(Util.FOOTER_CONTENT_TAG, caseSensitive = true)
-    if ((headerTypeIds.isDefined && headerTypeIds.get.size > 1) || (bodyContentTypeIds.isDefined && bodyContentTypeIds.get.size > 1)
-        || (footerTypeIds.isDefined && footerTypeIds.get.size > 1)) {
+    val headerTypeIds: java.util.ArrayList[Long] = db.findAllEntityIdsByName(Util.HEADER_CONTENT_TAG, caseSensitive = true)
+    val bodyContentTypeIds: java.util.ArrayList[Long] = db.findAllEntityIdsByName(Util.BODY_CONTENT_TAG, caseSensitive = true)
+    val footerTypeIds: java.util.ArrayList[Long] = db.findAllEntityIdsByName(Util.FOOTER_CONTENT_TAG, caseSensitive = true)
+    if ((headerTypeIds.size > 1) || (bodyContentTypeIds.size > 1) || (footerTypeIds.size > 1)) {
       throw new OmException("Expected at most one entity (as typeId) each, with the names " + Util.HEADER_CONTENT_TAG + ", " +
                             Util.BODY_CONTENT_TAG + ", or " + Util.FOOTER_CONTENT_TAG + ", but found respectively " +
-                            headerTypeIds.getOrElse(List()).size + ", " +
-                            bodyContentTypeIds.getOrElse(List()).size + ", and " + headerTypeIds.getOrElse(List()).size + ".  Could change" +
+                            headerTypeIds.size + ", " + bodyContentTypeIds.size + ", and " + headerTypeIds.size + ".  Could change" +
                             " the app to just take the first one found perhaps.... Anyway you'll need to fix in the data, that before proceeding " +
                             "with the export.")
 
     }
 
     def getAttrText(entityIdIn: Long, typeIdIn: Long): Option[String] = {
-      val attrs: Array[TextAttribute] = db.getTextAttributeByTypeId(entityIdIn, typeIdIn)
-      if (attrs.length == 0) None
-      else if (attrs.length > 1) throw new OmException("The program doesn't know what to do with > 1 textAttributes with this type on the same " +
+      val attrs: java.util.ArrayList[TextAttribute] = db.getTextAttributeByTypeId(entityIdIn, typeIdIn)
+      if (attrs.size == 0) None
+      else if (attrs.size > 1) throw new OmException("The program doesn't know what to do with > 1 textAttributes with this type on the same " +
                                                        "entity, for entity " + entityIdIn + ", and typeId " + typeIdIn)
-      else Some(attrs(0).getText)
+      else Some(attrs.get(0).getText)
     }
 
     // (Idea: combine the next 3 val definitions' code into one method with the "else" part as a parameter, but it should still be clear to most beginner
     // scala programmers.)
     val headerContent: String = {
       val savedAttrText: Option[String] = {
-        if (headerTypeIds.isDefined && headerTypeIds.get.nonEmpty) {
-          getAttrText(entityIn.getId, headerTypeIds.get.head)
+        if (headerTypeIds.size > 0) {
+          getAttrText(entityIn.getId, headerTypeIds.get(0))
         } else {
           None
         }
@@ -264,8 +262,8 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
     }
     val beginBodyContent: String = {
       val savedAttrText: Option[String] = {
-        if (bodyContentTypeIds.isDefined && bodyContentTypeIds.get.nonEmpty) {
-          getAttrText(entityIn.getId, bodyContentTypeIds.get.head)
+        if (bodyContentTypeIds.size > 0) {
+          getAttrText(entityIn.getId, bodyContentTypeIds.get(0))
         } else {
           None
         }
@@ -280,8 +278,8 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
     // (This value is an Option so that if None, it tells the program that the user wants out. The others haven't been set up that way (yet?).)
     val footerContent: Option[String] = {
       val savedAttrText: Option[String] = {
-        if (headerTypeIds.isDefined && headerTypeIds.get.nonEmpty) {
-          getAttrText(entityIn.getId, footerTypeIds.get.head)
+        if (headerTypeIds.size > 0) {
+          getAttrText(entityIn.getId, footerTypeIds.get(0))
         } else {
           None
         }
@@ -313,18 +311,18 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
     // The next 2 values are 3 & 4 in case the previous 2 are unused.  If the previous 2 are used, the next 2 will be += 2, below.
     var goToTemplateEntity_choiceNumber: Int = 3
     var goToClass_choiceNumber: Int = 4
-    val numContainingEntities = db.getEntitiesContainingEntity(entityIn, 0).size
+    val numContainingEntities = db.getEntitiesContainingEntity(entityIn.getId, 0).size
     // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
     val numContainingGroups = db.getCountOfGroupsContainingEntity(entityIn.getId)
     var containingGroup: Option[Group] = None
     var containingRtg: Option[RelationToGroup] = None
     if (numContainingGroups == 1) {
-      val containingGroupsIds: List[Long] = db.getContainingGroupsIds(entityIn.getId)
+      val containingGroupsIds: java.util.ArrayList[Long] = db.getContainingGroupsIds(entityIn.getId)
       // (Next line is just confirming the consistency of logic that got us here: see 'if' just above.)
       require(containingGroupsIds.size == 1)
-      containingGroup = Some(new Group(db, containingGroupsIds.head))
+      containingGroup = Some(new Group(db, containingGroupsIds.get(0)))
 
-      val containingRtgList: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn, 0, Some(1))
+      val containingRtgList: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn.getId, 0, Some(1))
       if (containingRtgList.size < 1) {
         ui.displayText("There is a group containing the entity (" + entityIn.getName + "), but:  " + Util.ORPHANED_GROUP_MESSAGE)
       } else {
@@ -363,7 +361,7 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
         // can specify dif't values on each call, for the startingIndexIn parm of getRelatingEntities.  I.e., could make it look more like
         // searchForExistingObject or such ? IF needed.  But to be needed means the user is putting the same object related by multiple
         // entities: enough to fill > 1 screen when listed.
-        val containingEntities: util.ArrayList[(Long, Entity)] = db.getEntitiesContainingEntity(entityIn, 0, Some(numDisplayableItems))
+        val containingEntities: util.ArrayList[(Long, Entity)] = db.getEntitiesContainingEntity(entityIn.getId, 0, Some(numDisplayableItems))
         val containingEntitiesStatusAndNames: Array[String] = containingEntities.toArray.map {
                                                                                       case relTypeIdAndEntity: (Long, Entity) =>
                                                                                         val entity: Entity = relTypeIdAndEntity._2
@@ -431,7 +429,7 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
     val choices: Array[String] = Array(Util.listNextItemsPrompt)
     val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength)
     // (see comment in similar location just above where this is called, near "val containingEntities: util.ArrayList"...)
-    val containingRelationToGroups: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn, 0, Some(numDisplayableItems))
+    val containingRelationToGroups: util.ArrayList[RelationToGroup] = db.getContainingRelationToGroups(entityIn.getId, 0, Some(numDisplayableItems))
     val containingRtgDescriptions: Array[String] = containingRelationToGroups.toArray.map {
                                                                                             case rtg: (RelationToGroup) =>
                                                                                               val entityName: String = new Entity(db, rtg.getParentId).getName

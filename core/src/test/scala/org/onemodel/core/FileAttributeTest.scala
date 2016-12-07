@@ -63,27 +63,27 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
 
     var originalName = ""
     val fa: FileAttribute = new FileAttribute(mockDB, fileAttributeId) {override def getOriginalFilePath: String = originalName}
-    val (basename, extension) = FileAttribute.getReplacementFilename(fa.getOriginalFilePath)
+    val (basename, extension) = FileAttribute.getUsableFilename(fa.getOriginalFilePath)
     assert(basename == FileAttribute.filenameFiller && extension == "")
 
     originalName = "something.txt"
-    val (basename2, extension2) = FileAttribute.getReplacementFilename(fa.getOriginalFilePath)
+    val (basename2, extension2) = FileAttribute.getUsableFilename(fa.getOriginalFilePath)
     assert(basename2 == "something" && extension2 == ".txt")
 
     originalName = "someFilename"
-    val (basename3, extension3) = FileAttribute.getReplacementFilename(fa.getOriginalFilePath)
+    val (basename3, extension3) = FileAttribute.getUsableFilename(fa.getOriginalFilePath)
     assert(basename3 == "someFilename" && extension3 == "")
 
     originalName = ".hidden"
-    val (basename4, extension4) = FileAttribute.getReplacementFilename(fa.getOriginalFilePath)
+    val (basename4, extension4) = FileAttribute.getUsableFilename(fa.getOriginalFilePath)
     assert(basename4 == ".hidden" && extension4 == "")
 
     originalName = "1.txt"
-    val (basename5, extension5) = FileAttribute.getReplacementFilename(fa.getOriginalFilePath)
+    val (basename5, extension5) = FileAttribute.getUsableFilename(fa.getOriginalFilePath)
     assert(basename5 == "1aa" && extension5 == ".txt")
 
     originalName = "some.long.thing"
-    val (basename6, extension6) = FileAttribute.getReplacementFilename(fa.getOriginalFilePath)
+    val (basename6, extension6) = FileAttribute.getUsableFilename(fa.getOriginalFilePath)
     assert(basename6 == "some.long" && extension6 == ".thing")
   }
 

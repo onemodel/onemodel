@@ -99,11 +99,15 @@ class RelationToEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityId1: L
 
     // (See method comment about the relatedEntityIn param.)
     val relatedEntity = relatedEntityIn.getOrElse(new Entity(mDB, mEntityId2))
-    val result: String = if (simplify) {
-      if (rtName == Database.theHASrelationTypeName) relatedEntity.getName
-      else rtName + getRemoteDescription + ": " + relatedEntity.getName
-    } else {
-      rtName + getRemoteDescription + ": " + Color.blue(relatedEntity.getName) + "; " + getDatesDescription
+    var result: String =
+      if (simplify) {
+        if (rtName == Database.theHASrelationTypeName) relatedEntity.getName
+        else rtName + getRemoteDescription + ": " + relatedEntity.getName
+      } else {
+        rtName + getRemoteDescription + ": " + Color.blue(relatedEntity.getName) + "; " + getDatesDescription
+      }
+    if (this.isInstanceOf[RelationToRemoteEntity]) {
+      result = "[remote] " + result
     }
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
@@ -112,6 +116,9 @@ class RelationToEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityId1: L
 
   protected def readDataFromDB() {
     val relationData: Array[Option[Any]] = mDB.getRelationToEntityData(mAttrTypeId, mEntityId1, mEntityId2)
+    if (relationData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mAttrTypeId + ", " + mEntityId1 + ", " + mEntityId2)
+    }
     // No other local variables to assign.  All are either in the superclass or the primary key.
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)

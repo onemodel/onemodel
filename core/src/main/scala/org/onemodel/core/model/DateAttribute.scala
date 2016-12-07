@@ -12,7 +12,7 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.Util
+import org.onemodel.core.{OmException, Util}
 import org.onemodel.core.database.Database
 
 /** See TextAttribute etc for some comments.
@@ -51,6 +51,9 @@ class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
 
   protected def readDataFromDB() {
     val daTypeData = mDB.getDateAttributeData(mId)
+    if (daTypeData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mDate = daTypeData(1).get.asInstanceOf[Long]
     assignCommonVars(daTypeData(0).get.asInstanceOf[Long], daTypeData(2).get.asInstanceOf[Long], daTypeData(3).get.asInstanceOf[Long])
   }

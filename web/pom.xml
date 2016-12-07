@@ -73,6 +73,22 @@
       <artifactId>core</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.scalatestplus.play</groupId>
+      <artifactId>scalatestplus-play_2.11</artifactId>
+      <version>1.5.1</version>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.5</version>
+    </dependency>
   </dependencies>
 
   <build>

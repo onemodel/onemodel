@@ -17,10 +17,13 @@ lazy val root = (project in file(".")).
     version := projectVersion,
     scalaVersion := "2.11.8",
     resolvers += Resolver.mavenLocal,
-    libraryDependencies += "org.onemodel" % "core" % projectVersion
+    libraryDependencies += "org.onemodel" % "core" % projectVersion,
+    libraryDependencies += "org.scalatestplus.play" % "scalatestplus-play_2.11" % "1.5.1" % "test",
+    libraryDependencies += "commons-io" % "commons-io" % "2.5",
+    libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.5"
   ).
   enablePlugins(PlayScala)
 
 // cached resolution for performance on multiple subprojects. Docs said
 // is experimental.  If issues, remove, and/or ck http://www.scala-sbt.org/1.0/docs/Cached-Resolution.html .
-updateOptions := updateOptions.value.withCachedResolution(true)
+//updateOptions := updateOptions.value.withCachedResolution(true)

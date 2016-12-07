@@ -19,7 +19,7 @@ object OmInstance {
   def addressLength: Int = Database.omInstanceAddressLength
 
   def isDuplicate(dbIn: Database, addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean = {
-    dbIn.isDuplicateOmInstance(addressIn, selfIdToIgnoreIn)
+    dbIn.isDuplicateOmInstanceAddress(addressIn, selfIdToIgnoreIn)
   }
 
   def create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option[Long] = None): OmInstance = {
@@ -88,6 +88,9 @@ class OmInstance(mDB: Database, mId: String) {
 
   protected def readDataFromDB() {
     val omInstanceData = mDB.getOmInstanceData(mId)
+    if (omInstanceData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mLocal = omInstanceData(0).get.asInstanceOf[Boolean]
     mAddress = omInstanceData(1).get.asInstanceOf[String]
     mInsertionDate = omInstanceData(2).get.asInstanceOf[Long]

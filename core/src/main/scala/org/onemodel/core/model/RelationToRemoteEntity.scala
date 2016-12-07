@@ -14,7 +14,7 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.Util
+import org.onemodel.core.{OmException, Util}
 import org.onemodel.core.database.Database
 
 /**
@@ -26,6 +26,11 @@ import org.onemodel.core.database.Database
  * This 1st constructor instantiates an existing object from the DB. You can use Entity.addRelationToEntity() to
  * create a new object. Assumes caller just read it from the DB and the info is accurate (i.e., this may only ever need to be called by
  * a PostgreSQLDatabase instance?).
+ *
+   **NOTE**: it does make sense to instantiate a RelationToRemoteEntity with a db parameter being for a *local* (e.g., postgresql) database,
+   because the local db contains references to remote ones.  Then, when creating for example an Entity for one at the remote site, that
+   would have a db parameter which is remote (i.e., an instance of RestDatabase).
+
  */
 class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityId1: Long, mRemoteInstanceId: String,
                        mEntityId2: Long) extends RelationToEntity(mDB, mId, mRelTypeId, mEntityId1, mEntityId2) {
@@ -41,16 +46,29 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
   }
 
 
-  // NOTE: it does make sense to instantiate a RelationToRemoteEntity without the db parameter being for a remote database, because the local db contains
-  // references to remote ones.
+  /**
+   * This  one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
+   * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
+   * one that already exists.
+   */
+  def this(mDB: Database, idIn: Long, relTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long,
+           validOnDateIn: Option[Long], observationDateIn: Long, sortingIndexIn: Long) {
+    this(mDB, idIn, relTypeIdIn, entityId1In, remoteInstanceIdIn, entityId2In)
+    // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
+    // the class hierarchy which wants it. Improve...?)
+    assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
+  }
 
-  def getRemoteInstanceIdIn: String = mRemoteInstanceId
+  def getRemoteInstanceId: String = mRemoteInstanceId
 
   protected override def readDataFromDB() {
     val relationData: Array[Option[Any]] = mDB.getRelationToRemoteEntityData(mAttrTypeId, mEntityId1, mRemoteInstanceId, mEntityId2)
     // No other local variables to assign.  All are either in the superclass or the primary key.
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
+    if (relationData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mAttrTypeId + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)
+    }
     super.assignCommonVars(mEntityId1, mAttrTypeId,
                            relationData(1).asInstanceOf[Option[Long]],
                            relationData(2).get.asInstanceOf[Long], relationData(3).get.asInstanceOf[Long])
@@ -72,9 +90,15 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
   /** Removes this object from the system. */
   override def delete() = mDB.deleteRelationToRemoteEntity(getAttrTypeId, getRelatedId1, mRemoteInstanceId, getRelatedId2)
 
-  override protected def getRemoteDescription = {
-    val remoteOmInstance = new OmInstance(mDB, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceIdIn)
+  override def getRemoteDescription = {
+    val remoteOmInstance = new OmInstance(mDB, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId)
     " (at " + remoteOmInstance.getAddress + ")"
   }
+
+  def getRemoteAddress: String = {
+    mRemoteAddress
+  }
+
+  lazy private val mRemoteAddress = new OmInstance(mDB, getRemoteInstanceId).getAddress
 
 }

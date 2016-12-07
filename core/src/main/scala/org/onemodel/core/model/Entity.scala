@@ -20,7 +20,7 @@ import org.onemodel.core.database.Database
 object Entity {
   def nameLength(inDB: Database): Int = Database.entityNameLength
 
-  def isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateEntity(inName, inSelfIdToIgnore)
+  def isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateEntityName(inName, inSelfIdToIgnore)
 
   def createEntity(inDB: Database, inName: String, inClassId: Option[Long] = None, isPublicIn: Option[Boolean] = None): Entity = {
     val id: Long = inDB.createEntity(inName, inClassId, isPublicIn)
@@ -151,6 +151,16 @@ class Entity(mDB: Database, mId: Long) {
     mArchived
   }
 
+  def isArchived: Boolean = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mArchived
+  }
+
+  def getNewEntriesStickToTop: Boolean = {
+    if (!mAlreadyReadData) readDataFromDB()
+    mNewEntriesStickToTop
+  }
+
   def getInsertionDate: Long = {
     if (!mAlreadyReadData) readDataFromDB()
     mInsertionDate
@@ -172,6 +182,9 @@ class Entity(mDB: Database, mId: Long) {
 
   protected def readDataFromDB() {
     val entityData = mDB.getEntityData(mId)
+    if (entityData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mId)
+    }
     mName = entityData(0).get.asInstanceOf[String]
     mClassId = entityData(1).asInstanceOf[Option[Long]]
     mInsertionDate = entityData(2).get.asInstanceOf[Long]
@@ -185,7 +198,9 @@ class Entity(mDB: Database, mId: Long) {
 
   def getId: Long = mId
 
-  def getAttrCount: Long = mDB.getAttrCount(mId, mDB.includeArchivedEntities)
+  def getAttributeCount: Long = mDB.getAttributeCount(mId, mDB.includeArchivedEntities)
+
+  def getRelationToGroupCount: Long = mDB.getRelationToGroupCount(mId)
 
   def getDisplayString_helper(withColor: Boolean): String = {
     var displayString: String = {
@@ -331,7 +346,7 @@ class Entity(mDB: Database, mId: Long) {
                                        callerManagesTransactionsIn: Boolean = false): (Group, RelationToGroup) = {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1))(0)
+    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
     val (group, rtg) = addGroupAndRelationToGroup(relationTypeId, newGroupNameIn, mixedClassesAllowedIn, None, observationDateIn,
                                                   None, callerManagesTransactionsIn)
     (group, rtg)
@@ -361,7 +376,7 @@ class Entity(mDB: Database, mId: Long) {
                                         callerManagesTransactionsIn: Boolean = false): (Entity, RelationToEntity) = {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1))(0)
+    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
     val (entity, rte) = addEntityAndRelationToEntity(relationTypeId, newEntityNameIn, None, observationDateIn, isPublicIn,
                                                      callerManagesTransactionsIn)
     (entity, rte)
@@ -390,16 +405,6 @@ class Entity(mDB: Database, mId: Long) {
     new RelationToGroup(mDB, newRtgId, getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn, sortingIndex)
   }
 
-  def isArchived: Boolean = {
-    if (!mAlreadyReadData) readDataFromDB()
-    mArchived
-  }
-
-  def getNewEntriesStickToTop: Boolean = {
-    if (!mAlreadyReadData) readDataFromDB()
-    mNewEntriesStickToTop
-  }
-
   def updateClass(classIdIn: Option[Long]): Unit = {
     if (!mAlreadyReadData) readDataFromDB()
     if (classIdIn != mClassId) {
@@ -418,6 +423,10 @@ class Entity(mDB: Database, mId: Long) {
 
   def getAttributes(startingObjectIndexIn: Int = 0, maxValsIn: Int = 0, onlyPublicEntitiesIn: Boolean = true): (Array[(Long, Attribute)], Int) = {
     mDB.getSortedAttributes(getId, startingObjectIndexIn, maxValsIn, onlyPublicEntitiesIn)
+  }
+
+  def findRelationToAndGroup = {
+    mDB.findRelationToAndGroup_OnEntity(getId)
   }
 
   var mAlreadyReadData: Boolean = false

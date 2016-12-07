@@ -296,9 +296,9 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     if (restOfLine.toLowerCase.contains(endTaMarker)) throw new OmException("\"Unsupported format at line " + r.getLineNumber + ": beginning and ending " +
                                                                             "markers must NOT be on the same line.")
     val attrTypeId: Long = {
-      val idsByName: Option[List[Long]] = db.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true)
-      if (idsByName.isDefined && idsByName.get.size == 1)
-        idsByName.get.head
+      val idsByName: java.util.ArrayList[Long] = db.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true)
+      if (idsByName.size == 1)
+        idsByName.get(0)
       else {
         // idea: alternatively, could use a generic one in this case?  Optionally?
         val prompt = "A name for the *type* of this text attribute was not provided; it would be the entire line content preceding the \"" +
@@ -911,7 +911,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
 
   def getNumSubEntries(entityIn: Entity): Long = {
     val numSubEntries = {
-      val numAttrs = db.getAttrCount(entityIn.getId)
+      val numAttrs = db.getAttributeCount(entityIn.getId)
       if (numAttrs == 1) {
         val (_, _, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(entityIn.getId)
         if (groupId.isDefined && !moreThanOneAvailable) {
@@ -997,9 +997,9 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     tmpCopy.toFile
   }
   // (see cmt on tryImporting method)
-  def tryExportingTxt_FOR_TESTS(ids: Option[List[Long]], dbIn: Database): (String, File) = {
-    assert(ids.get.nonEmpty)
-    val entityId: Long = ids.get.head
+  def tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[Long], dbIn: Database): (String, File) = {
+    assert(ids.size > 0)
+    val entityId: Long = ids.get(0)
     val startingEntity: Entity = new Entity(dbIn, entityId)
 
     // see comments in ImportExport.export() method for explanation of these 3

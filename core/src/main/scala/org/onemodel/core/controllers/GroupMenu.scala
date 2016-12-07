@@ -67,7 +67,7 @@ class GroupMenu(val ui: TextUI, val db: Database, val controller: Controller) {
     val objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems))
     Util.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), displayStartingRowNumberIn)
     val statusesAndNames: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
-      val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity.getId)
+      val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity)
       val archivedStatus = entity.getArchivedStatusDisplayString
       numSubgroupsPrefix + archivedStatus + entity.getName + " " + controller.getPublicStatusDisplayString(entity)
     }

@@ -15,7 +15,7 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.Util
+import org.onemodel.core.{OmException, Util}
 import org.onemodel.core.database.Database
 
 object RelationToGroup {
@@ -24,7 +24,10 @@ object RelationToGroup {
   // new constructors just wasn't working out.
   // Idea: rename this to instantiateRelationToGroup, since create sounds like inserting a new row in the db. Not sure if there's a convention for that case.
   def createRelationToGroup(mDB: Database, idIn: Long): RelationToGroup = {
-    val relationData: Array[Option[Any]] = mDB.getRelationToGroupDataById(idIn)
+    val relationData: Array[Option[Any]] = mDB.getRelationToGroupData(idIn)
+    if (relationData.length == 0) {
+      throw new OmException("No results returned from data request for: " + idIn)
+    }
     new RelationToGroup(mDB, idIn, relationData(1).get.asInstanceOf[Long], relationData(2).get.asInstanceOf[Long], relationData(3).get.asInstanceOf[Long],
                      relationData(4).asInstanceOf[Option[Long]], relationData(5).get.asInstanceOf[Long], relationData(6).get.asInstanceOf[Long])
   }
@@ -63,7 +66,10 @@ class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long
   }
 
   protected def readDataFromDB() {
-    val relationData: Array[Option[Any]] = mDB.getRelationToGroupData(mEntityId, mRelTypeId, mGroupId)
+    val relationData: Array[Option[Any]] = mDB.getRelationToGroupDataByKeys(mEntityId, mRelTypeId, mGroupId)
+    if (relationData.length == 0) {
+      throw new OmException("No results returned from data request for: " + mEntityId + ", " + mRelTypeId + ", " + mGroupId)
+    }
     super.assignCommonVars(mEntityId, mRelTypeId,
                            relationData(4).asInstanceOf[Option[Long]],
                            relationData(5).get.asInstanceOf[Long], relationData(6).get.asInstanceOf[Long])
