@@ -12,8 +12,8 @@
 */
 package org.onemodel.core.model
 
+import org.onemodel.core.model.Database
 import org.onemodel.core.{Util, Color, OmException}
-import org.onemodel.core.database.Database
 
 /** See comments on similar methods in RelationToEntity. */
 class Group(mDB: Database, mId: Long) {

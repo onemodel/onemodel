@@ -15,8 +15,8 @@
 */
 package org.onemodel.core.model
 
+import org.onemodel.core.model.Database
 import org.onemodel.core.{OmException, Util}
-import org.onemodel.core.database.Database
 
 object RelationToGroup {
   // Old idea: could change this into a constructor if the "class" line's parameters are changed to be only mDB and mId, and a new constructor is created

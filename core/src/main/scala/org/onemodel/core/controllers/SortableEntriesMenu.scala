@@ -9,7 +9,7 @@
 */
 package org.onemodel.core.controllers
 
-import org.onemodel.core.database.Database
+import org.onemodel.core.model.Database
 import org.onemodel.core.{OmException, TextUI}
 
 abstract class SortableEntriesMenu(val ui: TextUI) {

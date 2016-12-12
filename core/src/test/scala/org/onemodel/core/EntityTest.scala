@@ -18,7 +18,6 @@ import org.scalatest.mock.MockitoSugar
 import org.mockito.Mockito._
 import org.onemodel.core.model._
 import org.scalatest.Args
-import org.onemodel.core.database.PostgreSQLDatabase
 
 class EntityTest extends FlatSpec with MockitoSugar {
   // ABOUT the last attempt at CHANGING VARS TO VALS: see comment ("NOTE", farther down) that was removed when the last part of this sentence was added.

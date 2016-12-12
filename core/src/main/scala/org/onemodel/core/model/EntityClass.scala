@@ -14,7 +14,7 @@ package org.onemodel.core.model
 
 import java.io.{PrintWriter, StringWriter}
 import org.onemodel.core.{OmException, Util}
-import org.onemodel.core.database.{Database, PostgreSQLDatabase}
+import org.onemodel.core.database.Database
 
 object EntityClass {
   def nameLength(inDB: Database): Int = Database.classNameLength

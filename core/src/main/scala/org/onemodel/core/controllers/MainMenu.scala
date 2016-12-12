@@ -12,7 +12,6 @@ package org.onemodel.core.controllers
 
 import org.onemodel.core._
 import org.onemodel.core.model._
-import org.onemodel.core.database.PostgreSQLDatabase
 
 class MainMenu(val ui: TextUI, val db: PostgreSQLDatabase, val controller: Controller)  {
   /** See caller in start() for description of the 2nd parameter. */

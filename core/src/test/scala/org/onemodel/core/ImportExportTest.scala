@@ -13,8 +13,7 @@ import java.io.File
 import java.nio.file.{Files, Path}
 
 import org.onemodel.core.controllers.{ImportExport, Controller}
-import org.onemodel.core.database.{Database, PostgreSQLDatabase}
-import org.onemodel.core.model.{Attribute, Entity}
+import org.onemodel.core.model.{Database, PostgreSQLDatabase, Attribute, Entity}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Args, FlatSpec, Status}
 import scala.collection.JavaConversions._

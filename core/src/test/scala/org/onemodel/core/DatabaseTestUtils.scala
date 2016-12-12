@@ -11,8 +11,7 @@
 */
 package org.onemodel.core
 
-import org.onemodel.core.database.Database
-import org.onemodel.core.model.{Entity, Group, RelationToGroup}
+import org.onemodel.core.model.{Database, Entity, Group, RelationToGroup}
 
 object DatabaseTestUtils {
   /** Returns the groupId, and the RTG.

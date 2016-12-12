@@ -15,7 +15,6 @@ import java.util
 import java.util.Date
 
 import org.onemodel.core.controllers.{Controller, ImportExport}
-import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 import org.onemodel.core.model._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{Args, FlatSpec, Status}
@@ -1096,7 +1095,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
         val s = sw.toString
         assert(s.contains(originalErrMsg))
         assert(s.contains("See the chained messages for ALL: the cause of rollback failure, AND"))
-        assert(s.contains("at org.onemodel.core.database.PostgreSQLDatabase.rollbackTrans"))
+        assert(s.contains("at org.onemodel.core.model.PostgreSQLDatabase.rollbackTrans"))
     }
     assert(found)
   }

@@ -12,8 +12,7 @@ package org.onemodel.core
 import org.scalatest.FlatSpec
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
-import org.onemodel.core.model.RelationType
-import org.onemodel.core.database.{Database, PostgreSQLDatabase}
+import org.onemodel.core.model.{Database, PostgreSQLDatabase, RelationType}
 
 class RelationTypeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "work with a populated entity or relationtype" in {

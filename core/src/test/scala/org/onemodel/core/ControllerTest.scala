@@ -9,7 +9,7 @@
 */
 package org.onemodel.core
 
-import org.onemodel.core.database.Database
+import org.onemodel.core.model.Database
 import org.scalatest.FlatSpec
 import org.scalatest.mock.MockitoSugar
 import org.onemodel.core.controllers.Controller

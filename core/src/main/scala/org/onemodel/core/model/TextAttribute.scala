@@ -12,8 +12,8 @@
 */
 package org.onemodel.core.model
 
+import org.onemodel.core.model.Database
 import org.onemodel.core.{OmException, Util}
-import org.onemodel.core.database.Database
 
 /** Represents one String object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
 

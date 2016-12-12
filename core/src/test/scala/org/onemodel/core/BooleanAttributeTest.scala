@@ -16,8 +16,7 @@ package org.onemodel.core
 import org.scalatest.FlatSpec
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
-import org.onemodel.core.model.BooleanAttribute
-import org.onemodel.core.database.PostgreSQLDatabase
+import org.onemodel.core.model.{PostgreSQLDatabase, BooleanAttribute}
 
 class BooleanAttributeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {

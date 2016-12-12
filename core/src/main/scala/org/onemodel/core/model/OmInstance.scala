@@ -13,7 +13,7 @@
 package org.onemodel.core.model
 
 import org.onemodel.core._
-import org.onemodel.core.database.Database
+import org.onemodel.core.model.Database
 
 object OmInstance {
   def addressLength: Int = Database.omInstanceAddressLength

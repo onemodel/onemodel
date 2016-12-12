@@ -10,11 +10,8 @@
 package org.onemodel.core
 
 import java.io.{File, FileOutputStream}
-import java.text.SimpleDateFormat
 import java.util
-import java.util.Date
 
-import org.onemodel.core.database.{Database, PostgreSQLDatabase, RestDatabase}
 import org.onemodel.core.model._
 import org.scalatest.{Status, Args, FlatSpec}
 import org.scalatest.mock._

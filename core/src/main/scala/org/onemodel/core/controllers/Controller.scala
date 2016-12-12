@@ -14,7 +14,6 @@ import java.io._
 import java.util
 
 import org.onemodel.core._
-import org.onemodel.core.database.{Database, RestDatabase, PostgreSQLDatabase}
 import org.onemodel.core.model._
 import org.postgresql.util.PSQLException
 

@@ -12,8 +12,8 @@
 */
 package org.onemodel.core.model
 
+import org.onemodel.core.model.Database
 import org.onemodel.core.{OmException, Util}
-import org.onemodel.core.database.Database
 
 /** See TextAttribute etc for some comments.
   */

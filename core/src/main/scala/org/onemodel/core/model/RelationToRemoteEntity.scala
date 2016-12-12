@@ -14,8 +14,8 @@
 */
 package org.onemodel.core.model
 
+import org.onemodel.core.model.Database
 import org.onemodel.core.{OmException, Util}
-import org.onemodel.core.database.Database
 
 /**
  * Represents one RelationToRemoteEntity object in the system, used as an attribute on a Entity.

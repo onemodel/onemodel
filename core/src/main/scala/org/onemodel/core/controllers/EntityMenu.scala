@@ -13,7 +13,6 @@ package org.onemodel.core.controllers
 import java.util
 
 import org.onemodel.core._
-import org.onemodel.core.database.{RestDatabase, Database}
 import org.onemodel.core.model._
 
 import scala.annotation.tailrec

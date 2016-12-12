@@ -12,11 +12,12 @@
 */
 package org.onemodel.core.model
 
+import org.onemodel.core.model.Database
+
 import scala.annotation.tailrec
 import java.io.{File, FileOutputStream}
 import org.apache.commons.io.FilenameUtils
 import org.onemodel.core._
-import org.onemodel.core.database.Database
 
 object FileAttribute {
   def md5Hash(fileIn: java.io.File): String = {

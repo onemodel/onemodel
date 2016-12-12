@@ -16,7 +16,6 @@ import java.nio.file.{Files, Path}
 import java.util.Date
 
 import org.apache.commons.io.FilenameUtils
-import org.onemodel.core.database.{RestDatabase, Database, PostgreSQLDatabase}
 import org.onemodel.core.model._
 
 import scala.annotation.tailrec

@@ -16,7 +16,6 @@ import java.util.ArrayList
 
 import org.apache.commons.io.FilenameUtils
 import org.onemodel.core._
-import org.onemodel.core.database.{Database, PostgreSQLDatabase}
 import org.onemodel.core.model._
 import play.api.libs.json._
 import play.api.mvc._

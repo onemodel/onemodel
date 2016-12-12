@@ -13,17 +13,14 @@
   Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
   (The above comment is referenced in many files that say: "See comment in this place in PostgreSQLDatabase.scala about ....")
 */
-package org.onemodel.core.database
+package org.onemodel.core.model
 
 import java.io.{PrintWriter, StringWriter}
 import java.sql.{Connection, DriverManager, ResultSet, Statement}
-import java.text.SimpleDateFormat
-import java.util.{Date, ArrayList}
+import java.util.ArrayList
 
 import org.onemodel.core._
-import org.onemodel.core.model._
-import org.onemodel.core.{OmDatabaseException, OmFileTransferException}
-import org.onemodel.core.database.Database._
+import org.onemodel.core.model.Database._
 import org.postgresql.largeobject.{LargeObject, LargeObjectManager}
 
 import scala.annotation.tailrec
@@ -2411,8 +2408,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     if (!includeArchivedEntities && !includeArchivedEntities) sql += " and (not eContained.archived)"
     val locals = extractRowCountFromCountQuery(sql)
 
-    var sql2 = "select count(1) from entity eContaining, RelationToRemoteEntity rtre " +
-              " where eContaining.id=rtre.entity_id and rtre.entity_id=" + entityIdIn
+    val sql2 = "select count(1) from entity eContaining, RelationToRemoteEntity rtre " +
+               " where eContaining.id=rtre.entity_id and rtre.entity_id=" + entityIdIn
     val remotes = extractRowCountFromCountQuery(sql2)
 
     locals + remotes

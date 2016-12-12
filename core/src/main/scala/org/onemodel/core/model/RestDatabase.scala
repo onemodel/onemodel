@@ -7,27 +7,26 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core.database
+package org.onemodel.core.model
 
-import java.io.{InputStream, FileInputStream, OutputStream}
+import java.io.{FileInputStream, InputStream, OutputStream}
 import java.net.URL
 import java.util
 import java.util.ArrayList
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import org.onemodel.core.model._
-import org.onemodel.core.{OmException, OmDatabaseException, TextUI, Util}
+import org.onemodel.core.{OmDatabaseException, OmException, TextUI, Util}
 import play.api.libs.json._
-import play.api.libs.ws.{WSResponse, WSClient}
-import play.api.libs.ws.ahc.{AhcWSResponse, AhcWSClient}
+import play.api.libs.ws.ahc.{AhcWSClient, AhcWSResponse}
+import play.api.libs.ws.{WSClient, WSResponse}
 import play.utils.UriEncoding
+
 import scala.annotation.tailrec
-import scala.collection.immutable.IndexedSeq
 import scala.collection.JavaConversions._
+import scala.collection.immutable.IndexedSeq
 import scala.collection.mutable
 import scala.concurrent.duration._
-
 import scala.concurrent.{Await, Future}
 
 object RestDatabase {
@@ -289,7 +288,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
          play.api.libs.json.JsResultException: JsResultException(errors:List((,List(ValidationError(List(error.expected.jsstring),WrappedArray())))))
               ....
               at play.api.libs.json.JsDefined.as(JsLookup.scala:132)
-              at org.onemodel.core.database.RestDatabase.getEntity_processed(RestDatabase.scala:157)
+              at org.onemodel.core.model.RestDatabase.getEntity_processed(RestDatabase.scala:157)
 
       //  (response.json \ "id").as[String]
       //  (response.json \ "id").get.toString

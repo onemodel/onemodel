@@ -14,7 +14,6 @@ import java.nio.file.{Files, Path, StandardCopyOption}
 
 import org.onemodel.core._
 import org.onemodel.core.model._
-import org.onemodel.core.database.Database
 import org.onemodel.core.{OmException, TextUI}
 
 import scala.annotation.tailrec

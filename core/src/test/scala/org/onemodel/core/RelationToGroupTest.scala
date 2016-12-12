@@ -15,8 +15,7 @@ package org.onemodel.core
 import org.scalatest.FlatSpec
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
-import org.onemodel.core.model.{RelationToGroup, Group, Entity}
-import org.onemodel.core.database.{Database, PostgreSQLDatabase}
+import org.onemodel.core.model._
 
 class RelationToGroupTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {

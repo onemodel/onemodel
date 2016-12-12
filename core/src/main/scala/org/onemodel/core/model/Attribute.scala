@@ -12,7 +12,7 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.database.Database
+import org.onemodel.core.model.Database
 
 
 object Attribute {

@@ -13,7 +13,6 @@ import java.util
 
 import org.onemodel.core._
 import org.onemodel.core.{OmException, TextUI}
-import org.onemodel.core.database.Database
 import org.onemodel.core.model._
 
 import scala.collection.mutable.ArrayBuffer

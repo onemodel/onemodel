@@ -12,8 +12,7 @@ package org.onemodel.core.controllers
 
 import org.onemodel.core._
 import org.onemodel.core.TextUI
-import org.onemodel.core.model.{IdWrapper, EntityClass, Entity}
-import org.onemodel.core.database.Database
+import org.onemodel.core.model.{Database, IdWrapper, EntityClass, Entity}
 
 class ClassMenu(val ui: TextUI, db: Database, controller: Controller) {
   /** returns None if user wants out. */
