@@ -107,7 +107,7 @@ class RelationToEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityId1: L
         rtName + getRemoteDescription + ": " + Color.blue(relatedEntity.getName) + "; " + getDatesDescription
       }
     if (this.isInstanceOf[RelationToRemoteEntity]) {
-      result = "[remote] " + result
+      result = "[remote]" + result
     }
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }

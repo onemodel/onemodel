@@ -429,6 +429,10 @@ class Entity(mDB: Database, mId: Long) {
     mDB.findRelationToAndGroup_OnEntity(getId)
   }
 
+  def updatePublicStatus(newValueIn: Option[Boolean]) {
+    mDB.updateEntityOnlyPublicStatus(getId, newValueIn)
+  }
+
   var mAlreadyReadData: Boolean = false
   var mName: String = _
   var mClassId: Option[Long] = None

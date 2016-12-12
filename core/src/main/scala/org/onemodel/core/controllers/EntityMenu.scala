@@ -80,8 +80,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
       require(numAttrsInEntity > 0 && attributeTuples.length > 0)
     }
     Util.addRemainingCountToPrompt(choices, attributeTuples.length, totalAttrsAvailable, attributeRowsStartingIndexIn)
-    val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, relationSourceEntity, containingRelationToEntityIn,
-                                             containingGroupIn)
+    val leadingTextModified = getLeadingText(leadingText, attributeTuples.length, entityIn, containingGroupIn)
     val (attributeDisplayStrings: Array[String], attributesToDisplay: util.ArrayList[Attribute]) = getItemDisplayStringsAndAttrs(attributeTuples)
 
     // The variable highlightedIndexInObjList means: of the sorted attributes selected *for display* (potentially fewer than all existing attributes),
@@ -280,8 +279,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
         } else {
           val listEntryIsGoneNow: Boolean = highlightedEntry.isDefined && !db.attributeKeyExists(highlightedEntry.get.getFormId, highlightedEntry.get.getId)
           val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
-          val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
-                                                                                 containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
+          val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributesToDisplay,
                                                                                  listEntryIsGoneNow, defaultEntryToHighlight, highlightedIndexInObjList)
           entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
                      containingRelationToEntityIn, containingGroupIn)
@@ -331,7 +329,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
           case fa: FileAttribute => controller.attributeEditMenu(fa)
           case ta: TextAttribute => controller.attributeEditMenu(ta)
           case relToEntity: RelationToEntity =>
-            entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
+            entityMenu(new Entity(Util.currentOrRemoteDb(relToEntity, db), relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
             val wasRemoved: Boolean = !(db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false)
                                         && db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId))
             wasRemoved
@@ -351,8 +349,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
     } else {
       // check this, given that while in the goToSelectedAttribute method, the previously highlighted one could have been removed from the list:
       val defaultEntryToHighlight: Option[Attribute] = Some(attributeTuples(choicesIndex)._2)
-      val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributeRowsStartingIndexIn, targetForMovesIn,
-                                                                             containingRelationToEntityIn, containingGroupIn, attributesToDisplay,
+      val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributesToDisplay,
                                                                              entryIsGoneNow, defaultEntryToHighlight, Some(choicesIndex))
       entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
                  containingRelationToEntityIn, containingGroupIn)
@@ -437,9 +434,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
     }
   }
 
-  def determineNextEntryToHighlight(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
-                                    containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn: Option[Group],
-                                    attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: Boolean,
+  def determineNextEntryToHighlight(entityIn: Entity, attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: Boolean,
                                     defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]): Option[Attribute] = {
     // The entity or an attribute could have been removed or changed by navigating around various menus, so before trying to view it again,
     // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
@@ -589,9 +584,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
     }
   }
 
-  def getLeadingText(leadingTextIn: Array[String], numAttributes: Int,
-                     entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
-                     relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Array[String] = {
+  def getLeadingText(leadingTextIn: Array[String], numAttributes: Int, entityIn: Entity, containingGroupIn: Option[Group] = None): Array[String] = {
     leadingTextIn(0) = Util.entityMenuLeadingText(entityIn)
     if (containingGroupIn.isDefined) {
       leadingTextIn(0) += ": found via group: " + containingGroupIn.get.getName
@@ -609,18 +602,8 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
         val attribute = attributeTuple._2
         attributes.add(attribute)
         attribute match {
-          case relation: RelationToRemoteEntity =>
-            // NOTE: the RelationToRemoteEntity case MUST come (in this and similar places) BEFORE the RelationToEntity
-            // case, since the former extends the latter and we want to hit both.
-            val remoteDb = new RestDatabase(relation.getRemoteAddress)
-            val toEntity: Entity = new Entity(remoteDb, relation.getRelatedId2)
-            val relationType = new RelationType(db, relation.getAttrTypeId)
-            val desc = attribute.getDisplayString(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
-            val prefix = controller.getEntityContentSizePrefix(toEntity)
-            val archivedStatus: String = toEntity.getArchivedStatusDisplayString
-            prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
           case relation: RelationToEntity =>
-            val toEntity: Entity = new Entity(db, relation.getRelatedId2)
+            val toEntity: Entity = new Entity(Util.currentOrRemoteDb(relation, db), relation.getRelatedId2)
             val relationType = new RelationType(db, relation.getAttrTypeId)
             val desc = attribute.getDisplayString(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
             val prefix = controller.getEntityContentSizePrefix(toEntity)

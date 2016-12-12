@@ -49,7 +49,7 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
         if (answer == 1) {
           val valueBeforeEntry: Option[Boolean] = entityIn.getPublic
           val valueAfterEntry: Option[Boolean] = controller.askForPublicNonpublicStatus(valueBeforeEntry)
-          val rteCount: Long= db.getRelationToEntityCount(entityIn.getId, includeArchivedEntities = false)
+          val rteCount: Long = db.getRelationToEntityCount(entityIn.getId, includeArchivedEntities = false)
           val rtgCount: Long = db.getRelationToGroupCount(entityIn.getId)
           val publicMenuResponse = ui.askWhich(None, Array("...for this entity (\"" + entityIn.getName + "\")",
                                                            "...for its " + rteCount + " contained entities (one level), and all the" +
@@ -157,7 +157,7 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
           }
         } else if (answer == 5) {
           val templateEntityId: Option[Long] = entityIn.getClassTemplateEntityId
-          goToRelatedPlaces(attributeRowsStartingIndexIn, entityIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn, templateEntityId)
+          goToRelatedPlaces(entityIn, relationSourceEntityIn, containingRelationToEntityIn, templateEntityId)
           //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
           if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
             new EntityMenu(ui, db, controller).entityMenu(entityIn, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
@@ -198,7 +198,8 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
       attr._2 match {
         case attribute: RelationToEntity =>
           require(attribute.getRelatedId1 == entityIdIn, "Unexpected value: " + attribute.getRelatedId1)
-          db.updateEntityOnlyPublicStatus(attribute.getRelatedId2, newValueIn)
+          val e: Entity = new Entity(Util.currentOrRemoteDb(attribute, db), attribute.getRelatedId2)
+          e.updatePublicStatus(newValueIn)
           count += 1
         case attribute: RelationToGroup =>
           val groupId: Long = attribute.getGroupId
@@ -299,9 +300,8 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
     (headerContent, beginBodyContent, footerContent)
   }
 
-  def goToRelatedPlaces(startingAttributeRowsIndexIn: Int, entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
-                        relationIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None,
-                        templateEntityId: Option[Long]) {
+  def goToRelatedPlaces(entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
+                        relationIn: Option[RelationToEntity] = None, templateEntityId: Option[Long]) {
     //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
     val leadingText = Some(Array("Go to..."))
     val seeContainingEntities_choiceNumber: Int = 1
@@ -348,7 +348,8 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
       choices = choices ++ Array[String]("Go to template entity")
       choices = choices ++ Array[String]("Go to class")
     }
-    var relationToEntity: Option[RelationToEntity] = relationIn
+    // (Here for reference, for now. See cmt re one possible usage below.)
+    //var relationToEntity: Option[RelationToEntity] = relationIn
 
     val response = ui.askWhich(leadingText, choices, Array[String]())
     if (response.isDefined) {
@@ -403,9 +404,10 @@ class OtherEntityMenu (val ui: TextUI, val db: Database, val controller: Control
                                                                                             relationIn.get.isRemote, relationIn.get.omInstanceKey)
         controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationToEntityDH, askForAttrTypeId = true, Util.RELATION_TO_ENTITY_TYPE,
                                                                             "CHOOSE TYPE OF Relation to Entity:", dummyMethod, updateRelationToEntity)
-        // force a reread from the DB so it shows the right info on the repeated menu (below):
-        relationToEntity = Some(new RelationToEntity(db, relationIn.get.getId, relationIn.get.getAttrTypeId, relationIn.get.getRelatedId1,
-                                                     relationIn.get.getRelatedId2))
+        // Force a reread from the DB so it shows the right info SO THIS IS NOT FORGOTTEN, IN CASE we add later a call a menu which
+        // needs it as a parameter.
+        //relationToEntity = Some(new RelationToEntity(db, relationIn.get.getId, relationIn.get.getAttrTypeId, relationIn.get.getRelatedId1,
+        //                                             relationIn.get.getRelatedId2))
       } else if (goWhereAnswer == goToRelationType_choiceNumber && relationIn.isDefined && goWhereAnswer <= choices.length) {
         new EntityMenu(ui, db, controller).entityMenu(new Entity(db, relationIn.get.getAttrTypeId))
       } else if (goWhereAnswer == goToTemplateEntity_choiceNumber && templateEntityId.isDefined && goWhereAnswer <= choices.length) {

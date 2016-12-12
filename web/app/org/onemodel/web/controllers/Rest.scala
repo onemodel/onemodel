@@ -57,8 +57,8 @@ class Rest extends play.api.mvc.Controller {
   // (Idea, also tracked in tasks: how best to properly automate this, so it works for testing in the test db or manual use as needed?)
   // This one is when testing manually from a client that wants to connect to the main DB via rest:
 //  val db = new PostgreSQLDatabase(user, pass)
-  // This one is for when running the tests in the core module's RestDatabaseTest.
-  val db = new PostgreSQLDatabase("testrunner", "testrunner")
+//   This one is for when running the tests in the core module's RestDatabaseTest:
+  val db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_USER)
 
   def id: Action[AnyContent] = Action { implicit request =>
     // This puts quotes around it...

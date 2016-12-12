@@ -52,7 +52,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     mDB.createRelationType("a test relation type","","UNI")
     // idea: fix the bad smell: shouldn't need a ui (& maybe not a controller?) to run tests of logic.  Noted in tasks to fix.
     //(ALSO FIX SIMILAR USAGE IN PostgreSQLDatabaseTest.)
-    mImportExport = new ImportExport(ui, mDB, new Controller(ui, false, Some(PostgreSQLDatabaseTest.TEST_USER), Some(PostgreSQLDatabaseTest.TEST_USER)))
+    mImportExport = new ImportExport(ui, mDB, new Controller(ui, false, Some(Database.TEST_USER), Some(Database.TEST_USER)))
 
     val entityId: Long = mDB.createEntity("test object")
     mEntity = new Entity(mDB, entityId)

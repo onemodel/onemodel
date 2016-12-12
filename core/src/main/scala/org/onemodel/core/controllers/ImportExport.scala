@@ -553,7 +553,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
         attribute match {
           case relation: RelationToEntity =>
             val relationType = new RelationType(db, relation.getAttrTypeId)
-            val entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn)
+            val entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, Util.currentOrRemoteDb(relation, db))
             if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                                   levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
               if (entity2.getClassId.isDefined && entity2.getClassId.get == uriClassIdIn) {
@@ -589,7 +589,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
             }
             printWriter.println("    </ul>")
           case textAttr: TextAttribute =>
-            val typeName: String = getCachedEntity(textAttr.getAttrTypeId, cachedEntitiesIn).getName
+            val typeName: String = getCachedEntity(textAttr.getAttrTypeId, cachedEntitiesIn, db).getName
             if (typeName==Util.HEADER_CONTENT_TAG || typeName == Util.BODY_CONTENT_TAG || typeName==Util.FOOTER_CONTENT_TAG) {
               //skip it: this is used to create the pages and should not be considered a normal kind of displayable content in them:
             } else {
@@ -724,7 +724,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
       val attribute: Attribute = attributeTuple._2
       attribute match {
         case relation: RelationToEntity =>
-          val entity2: Entity = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn)
+          val entity2: Entity = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, Util.currentOrRemoteDb(relation, db))
           if (entity2.getClassId.isEmpty || entity2.getClassId.get != uriClassIdIn) {
             // that means it's not a URI but an actual traversable thing to follow when exporting children:
             exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
@@ -736,7 +736,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
         case relation: RelationToGroup =>
           val entityIds: Array[Long] = getCachedGroupData(relation.getGroupId, cachedGroupInfoIn)
           for (entityIdInGrp <- entityIds) {
-            val entityInGrp: Entity = getCachedEntity(entityIdInGrp, cachedEntitiesIn)
+            val entityInGrp: Entity = getCachedEntity(entityIdInGrp, cachedEntitiesIn, db)
             exportHtml(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                        outputDirectoryIn, exportedEntityIdsIn, cachedEntitiesIn,
                        cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
@@ -783,12 +783,12 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     }
   }
 
-  def getCachedEntity(entityIdIn: Long, cachedEntitiesIn: mutable.HashMap[Long, Entity]): Entity = {
+  def getCachedEntity(entityIdIn: Long, cachedEntitiesIn: mutable.HashMap[Long, Entity], dbIn: Database): Entity = {
     val cachedInfo: Option[Entity] = cachedEntitiesIn.get(entityIdIn)
     if (cachedInfo.isDefined) {
       cachedInfo.get
     } else {
-      val entity = new Entity(db, entityIdIn)
+      val entity = new Entity(dbIn, entityIdIn)
       cachedEntitiesIn.put(entityIdIn, entity)
       entity
     }
@@ -844,7 +844,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
           attribute match {
             case relation: RelationToEntity =>
               val relationType = new RelationType(db, relation.getAttrTypeId)
-              val entity2 = new Entity(db, relation.getRelatedId2)
+              val entity2 = new Entity(Util.currentOrRemoteDb(relation, db), relation.getRelatedId2)
               if (includeMetadataIn) {
                 printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
                 printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))

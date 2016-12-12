@@ -10,7 +10,9 @@
 package org.onemodel.core
 
 import java.io.{File, FileOutputStream}
+import java.text.SimpleDateFormat
 import java.util
+import java.util.Date
 
 import org.onemodel.core.database.{Database, PostgreSQLDatabase, RestDatabase}
 import org.onemodel.core.model._
@@ -19,7 +21,7 @@ import org.scalatest.mock._
 import scala.collection._
 
 class RestDatabaseTest extends FlatSpec with MockitoSugar {
-  private val mPG: PostgreSQLDatabase = new PostgreSQLDatabase(PostgreSQLDatabaseTest.TEST_USER, PostgreSQLDatabaseTest.TEST_USER)
+  private val mPG: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_USER)
   // mRD will access mPG via REST, in the tests, so this tests both web module code and core code.
   private val mRD: RestDatabase = new RestDatabase("localhost:9000")
 
@@ -509,145 +511,144 @@ class RestDatabaseTest extends FlatSpec with MockitoSugar {
     assert(!moreRowsAvailable4)
   }
 
-  "entity stuff" should "work" in {
-    val testEntityId1: Long = mPG.createEntity("test entity for multiple tests1")
-    val testEntity1: Entity = new Entity(mPG, testEntityId1)
-    val testEntityId2: Long = mPG.createEntity("test entity for multiple tests2")
-    val qa: QuantityAttribute = testEntity1.addQuantityAttribute(testEntityId2, testEntityId2, 0, None)
-    val da = testEntity1.addDateAttribute(testEntityId2, 0)
-    val ba = testEntity1.addBooleanAttribute(testEntityId2, inBoolean = false, None)
-    val ta = testEntity1.addTextAttribute(testEntityId2, "asdf", None)
+    "entity stuff" should "work" in {
+      val testEntityId1: Long = mPG.createEntity("test entity for multiple tests1")
+      val testEntity1: Entity = new Entity(mPG, testEntityId1)
+      val testEntityId2: Long = mPG.createEntity("test entity for multiple tests2")
+      val qa: QuantityAttribute = testEntity1.addQuantityAttribute(testEntityId2, testEntityId2, 0, None)
+      val da = testEntity1.addDateAttribute(testEntityId2, 0)
+      val ba = testEntity1.addBooleanAttribute(testEntityId2, inBoolean = false, None)
+      val ta = testEntity1.addTextAttribute(testEntityId2, "asdf", None)
 
-    assert(intercept[Exception] {
-                                  mRD.getEntityJson_WithOptionalErrHandling(None, testEntityId1)
-                                }.getMessage.contains("is not public"))
-    mPG.updateEntityOnlyPublicStatus(testEntityId1, Some(true))
-    val entityOverview = mRD.getEntityJson_WithOptionalErrHandling(None, testEntityId1)
-    assert(entityOverview.get.contains("insertionDate"))
-    assert(entityOverview.get.contains("boolean"))
-    assert(entityOverview.get.contains("unitId"))
-    assert(entityOverview.get.contains("text"))
+      assert(intercept[Exception] {
+                                    mRD.getEntityJson_WithOptionalErrHandling(None, testEntityId1)
+                                  }.getMessage.contains("is not public"))
+      mPG.updateEntityOnlyPublicStatus(testEntityId1, Some(true))
+      val entityOverview = mRD.getEntityJson_WithOptionalErrHandling(None, testEntityId1)
+      assert(entityOverview.get.contains("insertionDate"))
+      assert(entityOverview.get.contains("boolean"))
+      assert(entityOverview.get.contains("unitId"))
+      assert(entityOverview.get.contains("text"))
 
-    val entityData = mRD.getEntityData(testEntityId1)
-    assert(entityData(0).get.asInstanceOf[String] == testEntity1.getName)
-    assert(entityData(1) == testEntity1.getClassId)
-    assert(entityData(2).get.asInstanceOf[Long] == testEntity1.getInsertionDate)
-    assert(entityData(3) == testEntity1.getPublic)
-    assert(entityData(4).get.asInstanceOf[Boolean] == testEntity1.isArchived)
-    assert(entityData(5).get.asInstanceOf[Boolean] == testEntity1.getNewEntriesStickToTop)
-    assert(entityData.length == 6)
+      val entityData = mRD.getEntityData(testEntityId1)
+      assert(entityData(0).get.asInstanceOf[String] == testEntity1.getName)
+      assert(entityData(1) == testEntity1.getClassId)
+      assert(entityData(2).get.asInstanceOf[Long] == testEntity1.getInsertionDate)
+      assert(entityData(3) == testEntity1.getPublic)
+      assert(entityData(4).get.asInstanceOf[Boolean] == testEntity1.isArchived)
+      assert(entityData(5).get.asInstanceOf[Boolean] == testEntity1.getNewEntriesStickToTop)
+      assert(entityData.length == 6)
 
-    val adjacentAttributesSortingIndexes: List[Array[Option[Any]]] = mRD.getAdjacentAttributesSortingIndexes(testEntityId1, qa.getSortingIndex,
-                                                                                                             None, forwardNotBackIn = true)
-    assert(adjacentAttributesSortingIndexes.size == 3)
-    val adjacentAttributesSortingIndexes2 = mRD.getAdjacentAttributesSortingIndexes(testEntityId1, ta.getSortingIndex, Some(1), forwardNotBackIn = false)
-    assert(adjacentAttributesSortingIndexes2.size == 1)
-  }
-
-  "getSortedAttributes" should "work" in {
-    val testEntityId1: Long = mPG.createEntity("test entity for multiple tests1")
-    val testEntity1: Entity = new Entity(mPG, testEntityId1)
-    val attributeTypeId: Long = mPG.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
-    val qa: QuantityAttribute = testEntity1.addQuantityAttribute(attributeTypeId, attributeTypeId, 0, None)
-    val da = testEntity1.addDateAttribute(attributeTypeId, 0)
-    val ba = testEntity1.addBooleanAttribute(attributeTypeId, inBoolean = false, None)
-    val x: (File, FileAttribute) = createFileAttribute(testEntity1, attributeTypeId)
-    val fa = x._2
-    val attrText = "asdfjkl;"
-    val ta = testEntity1.addTextAttribute(attributeTypeId, attrText, None)
-    val rte = testEntity1.addRelationToEntity(attributeTypeId, testEntityId1, None)
-    val uuid = java.util.UUID.randomUUID().toString
-    val omInstance: OmInstance = OmInstance.create(mPG, uuid, "test: relation stuff-" + uuid)
-    val rtre = testEntity1.addRelationToEntity(attributeTypeId, 0, None, remoteIn = true, remoteInstanceIdIn = Some(omInstance.getId))
-    val (groupId, rtgId) = mPG.createGroupAndRelationToGroup(testEntityId1, attributeTypeId, "test relation to group stuff", allowMixedClassesInGroupIn = true,
-                                                             Some(System.currentTimeMillis()), 12345L, None)
-    val rtg = new RelationToGroup(mPG, rtgId, testEntityId1, attributeTypeId, groupId)
-
-    val attributes: (Array[(Long, Attribute)], Int) = mRD.getSortedAttributes(testEntityId1, 0, 0, onlyPublicEntitiesIn = false)
-    assert(attributes._1.length == 8)
-    assert(attributes._2 == 8)
-    mPG.updateEntityOnlyPublicStatus(testEntityId1, Some(false))
-
-    for (tuple <- attributes._1) {
-      val attribute = tuple._2
-      assert(testEntityId1 == attribute.getParentId)
-      assert(attributeTypeId == attribute.getAttrTypeId)
-      attribute match {
-        case a: QuantityAttribute =>
-          assert(qa.getId == a.getId)
-          assert(qa.getFormId == a.getFormId)
-          assert(qa.getSortingIndex == a.getSortingIndex)
-          assert(qa.getValidOnDate == a.getValidOnDate)
-          assert(qa.getObservationDate == a.getObservationDate)
-          assert(qa.getUnitId == a.getUnitId)
-          assert(qa.getNumber == a.getNumber)
-        case a: DateAttribute =>
-          assert(da.getId == a.getId)
-          assert(da.getFormId == a.getFormId)
-          assert(da.getSortingIndex == a.getSortingIndex)
-          assert(da.getDate == a.getDate)
-        case a: BooleanAttribute =>
-          assert(ba.getId == a.getId)
-          assert(ba.getFormId == a.getFormId)
-          assert(ba.getSortingIndex == a.getSortingIndex)
-          assert(ba.getValidOnDate == a.getValidOnDate)
-          assert(ba.getObservationDate == a.getObservationDate)
-          assert(ba.getBoolean == a.getBoolean)
-        case a: FileAttribute =>
-          assert(fa.getId == a.getId)
-          assert(fa.getFormId == a.getFormId)
-          assert(fa.getSortingIndex == a.getSortingIndex)
-          assert(fa.getDescription == a.getDescription)
-          assert(fa.getOriginalFileDate == a.getOriginalFileDate)
-          assert(fa.getStoredDate == a.getStoredDate)
-          assert(fa.getOriginalFilePath == a.getOriginalFilePath)
-          assert(fa.getReadable == a.getReadable)
-          assert(fa.getWritable == a.getWritable)
-          assert(fa.getExecutable == a.getExecutable)
-          assert(fa.getSize == a.getSize)
-          assert(fa.getMd5Hash == a.getMd5Hash)
-        case a: TextAttribute =>
-          assert(ta.getId == a.getId)
-          assert(ta.getFormId == a.getFormId)
-          assert(ta.getSortingIndex == a.getSortingIndex)
-          assert(ta.getValidOnDate == a.getValidOnDate)
-          assert(ta.getObservationDate == a.getObservationDate)
-          assert(ta.getValidOnDate == a.getValidOnDate)
-          assert(ta.getObservationDate == a.getObservationDate)
-          assert(ta.getText == a.getText)
-        case a: RelationToRemoteEntity =>
-          assert(rtre.getId == a.getId)
-          assert(rtre.getFormId == a.getFormId)
-          assert(rtre.getSortingIndex == a.getSortingIndex)
-          assert(rtre.getValidOnDate == a.getValidOnDate)
-          assert(rtre.getObservationDate == a.getObservationDate)
-          assert(rtre.getRelatedId1 == a.getRelatedId1)
-          assert(rtre.getRelatedId2 == a.getRelatedId2)
-          assert(rtre.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId == a.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId)
-        case a: RelationToEntity =>
-          // NOTE: this case should come *after* that for RelationToRemoteEntity above, because RelationToRemoteEntity is a subtype of RTE and we don't want
-          // to skip either one.
-          assert(rte.getId == a.getId)
-          assert(rte.getFormId == a.getFormId)
-          assert(rte.getSortingIndex == a.getSortingIndex)
-          assert(rte.getValidOnDate == a.getValidOnDate)
-          assert(rte.getObservationDate == a.getObservationDate)
-          assert(rte.getRelatedId1 == a.getRelatedId1)
-          assert(rte.getRelatedId2 == a.getRelatedId2)
-        case a: RelationToGroup =>
-          assert(rtg.getId == a.getId)
-          assert(rtg.getFormId == a.getFormId)
-          assert(rtg.getSortingIndex == a.getSortingIndex)
-          assert(rtg.getValidOnDate == a.getValidOnDate)
-          assert(rtg.getObservationDate == a.getObservationDate)
-          assert(rtg.getParentId == a.getParentId)
-          assert(rtg.getGroupId == a.getGroupId)
-        case _ => throw new OmException("Unexpected type: " + attribute.getClass.getCanonicalName)
-      }
+      val adjacentAttributesSortingIndexes: List[Array[Option[Any]]] = mRD.getAdjacentAttributesSortingIndexes(testEntityId1, qa.getSortingIndex,
+                                                                                                               None, forwardNotBackIn = true)
+      assert(adjacentAttributesSortingIndexes.size == 3)
+      val adjacentAttributesSortingIndexes2 = mRD.getAdjacentAttributesSortingIndexes(testEntityId1, ta.getSortingIndex, Some(1), forwardNotBackIn = false)
+      assert(adjacentAttributesSortingIndexes2.size == 1)
     }
 
-    val attributes2: (Array[(Long, Attribute)], Int) = mRD.getSortedAttributes(testEntityId1, 0, 0, onlyPublicEntitiesIn = true)
-    assert(attributes2._1.length == 7)
-  }
+    "getSortedAttributes" should "work" in {
+      val testEntityId1: Long = mPG.createEntity("test entity for multiple tests1")
+      val testEntity1: Entity = new Entity(mPG, testEntityId1)
+      val attributeTypeId: Long = mPG.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
+      val qa: QuantityAttribute = testEntity1.addQuantityAttribute(attributeTypeId, attributeTypeId, 0, None)
+      val da = testEntity1.addDateAttribute(attributeTypeId, 0)
+      val ba = testEntity1.addBooleanAttribute(attributeTypeId, inBoolean = false, None)
+      val x: (File, FileAttribute) = createFileAttribute(testEntity1, attributeTypeId)
+      val fa = x._2
+      val attrText = "asdfjkl;"
+      val ta = testEntity1.addTextAttribute(attributeTypeId, attrText, None)
+      val rte = testEntity1.addRelationToEntity(attributeTypeId, testEntityId1, None)
+      val uuid = java.util.UUID.randomUUID().toString
+      val omInstance: OmInstance = OmInstance.create(mPG, uuid, "test: relation stuff-" + uuid)
+      val rtre = testEntity1.addRelationToEntity(attributeTypeId, 0, None, remoteIn = true, remoteInstanceIdIn = Some(omInstance.getId))
 
+      val (groupId, rtgId) = mPG.createGroupAndRelationToGroup(testEntityId1, attributeTypeId, "test relation to group stuff", allowMixedClassesInGroupIn = true, Some(System.currentTimeMillis()), 12345L, None)
+      val rtg = new RelationToGroup(mPG, rtgId, testEntityId1, attributeTypeId, groupId)
+
+      val attributes: (Array[(Long, Attribute)], Int) = mRD.getSortedAttributes(testEntityId1, 0, 0, onlyPublicEntitiesIn = false)
+      assert(attributes._1.length == 8)
+      assert(attributes._2 == 8)
+      mPG.updateEntityOnlyPublicStatus(testEntityId1, Some(false))
+
+      for (tuple <- attributes._1) {
+        val attribute = tuple._2
+        assert(testEntityId1 == attribute.getParentId)
+        assert(attributeTypeId == attribute.getAttrTypeId)
+        attribute match {
+          case a: QuantityAttribute =>
+            assert(qa.getId == a.getId)
+            assert(qa.getFormId == a.getFormId)
+            assert(qa.getSortingIndex == a.getSortingIndex)
+            assert(qa.getValidOnDate == a.getValidOnDate)
+            assert(qa.getObservationDate == a.getObservationDate)
+            assert(qa.getUnitId == a.getUnitId)
+            assert(qa.getNumber == a.getNumber)
+          case a: DateAttribute =>
+            assert(da.getId == a.getId)
+            assert(da.getFormId == a.getFormId)
+            assert(da.getSortingIndex == a.getSortingIndex)
+            assert(da.getDate == a.getDate)
+          case a: BooleanAttribute =>
+            assert(ba.getId == a.getId)
+            assert(ba.getFormId == a.getFormId)
+            assert(ba.getSortingIndex == a.getSortingIndex)
+            assert(ba.getValidOnDate == a.getValidOnDate)
+            assert(ba.getObservationDate == a.getObservationDate)
+            assert(ba.getBoolean == a.getBoolean)
+          case a: FileAttribute =>
+            assert(fa.getId == a.getId)
+            assert(fa.getFormId == a.getFormId)
+            assert(fa.getSortingIndex == a.getSortingIndex)
+            assert(fa.getDescription == a.getDescription)
+            assert(fa.getOriginalFileDate == a.getOriginalFileDate)
+            assert(fa.getStoredDate == a.getStoredDate)
+            assert(fa.getOriginalFilePath == a.getOriginalFilePath)
+            assert(fa.getReadable == a.getReadable)
+            assert(fa.getWritable == a.getWritable)
+            assert(fa.getExecutable == a.getExecutable)
+            assert(fa.getSize == a.getSize)
+            assert(fa.getMd5Hash == a.getMd5Hash)
+          case a: TextAttribute =>
+            assert(ta.getId == a.getId)
+            assert(ta.getFormId == a.getFormId)
+            assert(ta.getSortingIndex == a.getSortingIndex)
+            assert(ta.getValidOnDate == a.getValidOnDate)
+            assert(ta.getObservationDate == a.getObservationDate)
+            assert(ta.getValidOnDate == a.getValidOnDate)
+            assert(ta.getObservationDate == a.getObservationDate)
+            assert(ta.getText == a.getText)
+          case a: RelationToRemoteEntity =>
+            assert(rtre.getId == a.getId)
+            assert(rtre.getFormId == a.getFormId)
+            assert(rtre.getSortingIndex == a.getSortingIndex)
+            assert(rtre.getValidOnDate == a.getValidOnDate)
+            assert(rtre.getObservationDate == a.getObservationDate)
+            assert(rtre.getRelatedId1 == a.getRelatedId1)
+            assert(rtre.getRelatedId2 == a.getRelatedId2)
+            assert(rtre.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId == a.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId)
+          case a: RelationToEntity =>
+            // NOTE: this case should come *after* that for RelationToRemoteEntity above, because RelationToRemoteEntity is a subtype of RTE and we don't want
+            // to skip either one.
+            assert(rte.getId == a.getId)
+            assert(rte.getFormId == a.getFormId)
+            assert(rte.getSortingIndex == a.getSortingIndex)
+            assert(rte.getValidOnDate == a.getValidOnDate)
+            assert(rte.getObservationDate == a.getObservationDate)
+            assert(rte.getRelatedId1 == a.getRelatedId1)
+            assert(rte.getRelatedId2 == a.getRelatedId2)
+          case a: RelationToGroup =>
+            assert(rtg.getId == a.getId)
+            assert(rtg.getFormId == a.getFormId)
+            assert(rtg.getSortingIndex == a.getSortingIndex)
+            assert(rtg.getValidOnDate == a.getValidOnDate)
+            assert(rtg.getObservationDate == a.getObservationDate)
+            assert(rtg.getParentId == a.getParentId)
+            assert(rtg.getGroupId == a.getGroupId)
+          case _ => throw new OmException("Unexpected type: " + attribute.getClass.getCanonicalName)
+        }
+      }
+
+      val attributes2: (Array[(Long, Attribute)], Int) = mRD.getSortedAttributes(testEntityId1, 0, 0, onlyPublicEntitiesIn = true)
+      assert(attributes2._1.length == 7)
+    }
 }

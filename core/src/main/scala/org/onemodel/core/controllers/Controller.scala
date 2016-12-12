@@ -626,7 +626,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
         if (outDH.isDefined) booleanAttribute.update(outDH.get.attrTypeId, outDH.get.boolean, outDH.get.validOnDate, outDH.get.observationDate)
         outDH.isEmpty
       case rte: RelationToEntity =>
-        val editedEntity: Option[Entity] = editEntityName(new Entity(db, rte.getRelatedId2))
+        val editedEntity: Option[Entity] = editEntityName(new Entity(Util.currentOrRemoteDb(rte, db), rte.getRelatedId2))
         editedEntity.isEmpty
       case rtg: RelationToGroup =>
         val editedGroupName: Option[String] = Util.editGroupName(new Group(db, rtg.getGroupId), ui)
@@ -1692,7 +1692,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
 
   /**
    * @param attrFormIn Contains the result of passing the right Controller.<string constant> to db.getAttributeFormId (SEE ALSO COMMENTS IN
-   *                   EntityMenu.addAttribute).  BUT, there are also cases
+   *                   EntityMenu.addAttribute which passes in "other" formIds).  BUT, there are also cases
    *                   where it is a # higher than those found in db.getAttributeFormId, and in that case is handled specially here.
    * @return None if user wants out (or attrFormIn parm was an abortive mistake?), and the created Attribute if successful.
    */
@@ -1767,7 +1767,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
                                                             Some("CREATE OR SELECT RELATION TYPE: (" + Util.mRelTypeExamples + ")"),
                                                             askForRelationEntityIdNumber2, addRelationToEntity)
     } else if (attrFormIn == 100) {
-      // re "100": see comments at attrFormIn above
+      // re "100": see javadoc comments above re attrFormIn
       val eId: Option[IdWrapper] = askForNameAndSearchForEntity
       if (eId.isDefined) {
         Some(entityIn.addHASRelationToEntity(eId.get.getId, None, System.currentTimeMillis))
@@ -1800,7 +1800,7 @@ class Controller(val ui: TextUI, forceUserPassPromptIn: Boolean = false, default
           None
         }
       }
-    } else if (attrFormIn == 101  /*re "101": see comments at attrFormIn above*/) {
+    } else if (attrFormIn == 101  /*re "101": an "external web page"; for details see comments etc at javadoc above for attrFormIn.*/) {
       val newEntityName: Option[String] = ui.askForString(Some(Array {"Enter a name (or description) for this web page or other URI"}))
       if (newEntityName.isEmpty || newEntityName.get.isEmpty) return None
 

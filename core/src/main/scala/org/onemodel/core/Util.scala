@@ -16,7 +16,7 @@ import java.nio.file.{Files, Path}
 import java.util.Date
 
 import org.apache.commons.io.FilenameUtils
-import org.onemodel.core.database.{Database, PostgreSQLDatabase}
+import org.onemodel.core.database.{RestDatabase, Database, PostgreSQLDatabase}
 import org.onemodel.core.model._
 
 import scala.annotation.tailrec
@@ -732,4 +732,13 @@ object Util {
     }
   }
 
+  def currentOrRemoteDb(relationToEntityIn: RelationToEntity, currentDb: Database): Database = {
+    // Can't use ".isRemote" here because a RelationToRemoteEntity is stored locally (so would say false),
+    // but refers to an entity which is remote (so we want the next line to be true in that case):
+    if (relationToEntityIn.isInstanceOf[RelationToRemoteEntity]) {
+      new RestDatabase(relationToEntityIn.asInstanceOf[RelationToRemoteEntity].getRemoteAddress)
+    } else {
+      currentDb
+    }
+  }
 }

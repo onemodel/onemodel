@@ -2409,7 +2409,13 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
               " where eContaining.id=rte.entity_id and rte.entity_id=" + entityIdIn +
               " and rte.entity_id_2=eContained.id"
     if (!includeArchivedEntities && !includeArchivedEntities) sql += " and (not eContained.archived)"
-    extractRowCountFromCountQuery(sql)
+    val locals = extractRowCountFromCountQuery(sql)
+
+    var sql2 = "select count(1) from entity eContaining, RelationToRemoteEntity rtre " +
+              " where eContaining.id=rtre.entity_id and rtre.entity_id=" + entityIdIn
+    val remotes = extractRowCountFromCountQuery(sql2)
+
+    locals + remotes
   }
 
   /** if 1st parm is None, gets all. */

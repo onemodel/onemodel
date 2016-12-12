@@ -16,6 +16,7 @@ import scala.collection.mutable
 
 object Database {
   val dbNamePrefix = "om_"
+  val TEST_USER: String = "testrunner"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
   val systemEntityName = ".system-use-only"

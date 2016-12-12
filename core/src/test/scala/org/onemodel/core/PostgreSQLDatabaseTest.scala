@@ -10,7 +10,9 @@
 package org.onemodel.core
 
 import java.io.File
+import java.text.SimpleDateFormat
 import java.util
+import java.util.Date
 
 import org.onemodel.core.controllers.{Controller, ImportExport}
 import org.onemodel.core.database.{Database, PostgreSQLDatabase}
@@ -26,7 +28,7 @@ object PostgreSQLDatabaseTest {
     // This is part of the singleton object, in part so that it can be called even before we have a Database object: this is to avoid
     // doing setup (at first db instantiation for a new system), then immediately another teardown/setup for the tests.
     try {
-      PostgreSQLDatabase.destroyTables(TEST_USER, TEST_USER, TEST_USER)
+      PostgreSQLDatabase.destroyTables(Database.TEST_USER, Database.TEST_USER, Database.TEST_USER)
     }
     catch {
       case e: java.sql.SQLException =>
@@ -40,8 +42,6 @@ object PostgreSQLDatabaseTest {
     }
   }
 
-  val TEST_USER: String = "testrunner"
-
 }
 
 class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
@@ -51,7 +51,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   private var mDoDamageBuffer = false
 
   // instantiation does DB setup (creates tables, default data, etc):
-  private val mDB: PostgreSQLDatabase = new PostgreSQLDatabase(PostgreSQLDatabaseTest.TEST_USER, PostgreSQLDatabaseTest.TEST_USER) {
+  private val mDB: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_USER) {
     override def damageBuffer(buffer: Array[Byte]): Unit = {
       if (mDoDamageBuffer) {
         if (buffer.length < 1 || buffer(0) == '0') throw new OmException("Nothing to damage here")
@@ -605,7 +605,6 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val checkRelation = mDB.getRelationToEntityData(relTypeId, entityId, relatedEntityId)
     val checkValidOnDate = checkRelation(1)
     assert(checkValidOnDate.isEmpty) // should get back None when created with None: see description for table's field in createTables method.
-
     assert(mDB.getRelationToEntityCount(entityId) == 1)
 
     val newName = "test: org.onemodel.PSQLDbTest.relationupdate..."
@@ -861,18 +860,30 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(foundQA && foundTA && foundRTE && foundRTG && foundDA && foundBA && foundFA)
   }
 
-  "entity deletion" should "also delete RelationToEntity attributes" in {
+  "entity deletion" should "also delete RelationToEntity attributes (and getRelationToRemoteEntityCount should work)" in {
     val entityId = mDB.createEntity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()")
     val relTypeId: Long = mDB.createRelationType("is sitting next to", "", RelationType.UNIDIRECTIONAL)
+    val startingCount = mDB.getRelationToEntityCount(entityId)
     val relatedEntityId: Long = createTestRelationToEntity_WithOneEntity(entityId, relTypeId)
-    assert(mDB.getRelationToEntityCount(entityId) == 1)
+    assert(mDB.getRelationToEntityCount(entityId) == startingCount + 1)
+
+    val oi: OmInstance = mDB.getLocalOmInstanceData
+    val uuid: String = oi.getId
+    val remoteEntityId = 1234
+    mDB.createRelationToRemoteEntity(relTypeId, entityId, remoteEntityId, None, 0, oi.getId)
+    assert(mDB.getRelationToEntityCount(entityId) == startingCount + 2)
+    assert(mDB.getRelationToRemoteEntityData(relTypeId, entityId, oi.getId, remoteEntityId).length > 0)
+
     mDB.deleteEntity(entityId)
     if (mDB.getRelationToEntityCount(entityId) != 0) {
-      fail("Deleting the model entity should also have deleted its RelationToEntity objects. getRelationToEntityCount(entityIdInNewTransaction) is " + mDB
-                                                                                                                                                       .getRelationToEntityCount(entityId) + ".")
+      fail("Deleting the model entity should also have deleted its RelationToEntity objects. " +
+           "getRelationToEntityCount(entityIdInNewTransaction) is " + mDB.getRelationToEntityCount(entityId) + ".")
     }
     assert(intercept[Exception] {
                                   mDB.getRelationToEntityData(relTypeId, entityId, relatedEntityId)
+                                }.getMessage.contains("Got 0 instead of 1 result"))
+    assert(intercept[Exception] {
+                                  mDB.getRelationToRemoteEntityData(relTypeId, entityId, oi.getId, relatedEntityId)
                                 }.getMessage.contains("Got 0 instead of 1 result"))
 
     mDB.deleteRelationType(relTypeId)
@@ -1419,7 +1430,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val entityId: Long = mDB.createEntity("test object")
     val entity: Entity = new Entity(mDB, entityId)
     // (idea: next line should be fixed: see cmt at similar usage in ImportExportTest.scala:)
-    val importExport = new ImportExport(null, mDB, new Controller(null, false, Some(PostgreSQLDatabaseTest.TEST_USER), Some(PostgreSQLDatabaseTest.TEST_USER)))
+    val importExport = new ImportExport(null, mDB, new Controller(null, false, Some(Database.TEST_USER), Some(Database.TEST_USER)))
     val importFile: File = importExport.tryImporting_FOR_TESTS("testImportFile0.txt", entity)
     val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db")
     val (fileContents: String, outputFile: File) = importExport.tryExportingTxt_FOR_TESTS(ids, mDB)
