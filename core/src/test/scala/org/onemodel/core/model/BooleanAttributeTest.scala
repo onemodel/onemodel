@@ -11,35 +11,35 @@
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 
 */
-package org.onemodel.core
+package org.onemodel.core.model
 
-import org.scalatest.FlatSpec
 import org.mockito.Mockito._
-import org.scalatest.mock.MockitoSugar
-import org.onemodel.core.model.{PostgreSQLDatabase, DateAttribute}
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.FlatSpec
 
-class DateAttributeTest extends FlatSpec with MockitoSugar {
+class BooleanAttributeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {
     val mockDB = mock[PostgreSQLDatabase]
     val entityId = 0
+    val booleanValue = true
     val otherEntityId = 1
-    val dateAttributeId = 0
+    val booleanAttributeId = 0
     //arbitrary, in milliseconds:
     val date = 304
-    val attrTypeName = "aDateTypeName"
+    val attrTypeName = "description"
     when(mockDB.getEntityName(otherEntityId)).thenReturn(Some(attrTypeName))
-    when(mockDB.dateAttributeKeyExists(dateAttributeId)).thenReturn(true)
+    when(mockDB.booleanAttributeKeyExists(booleanAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    val dateAttribute = new DateAttribute(mockDB, dateAttributeId, entityId, otherEntityId, date, 0)
+    val booleanAttribute = new BooleanAttribute(mockDB, booleanAttributeId, entityId, otherEntityId, booleanValue, None, date, 0)
     val smallLimit = 35
-    val display1: String = dateAttribute.getDisplayString(smallLimit)
-    val wholeThing: String = attrTypeName + ": Wed 1969-12-31 17:00:00:"+date+" MST"
+    val display1: String = booleanAttribute.getDisplayString(smallLimit, None, None)
+    val wholeThing: String = attrTypeName + ": true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:"+date+" MST"
     val expected:String = wholeThing.substring(0, smallLimit - 3) + "..." // put the real string here instead of dup logic?
     assert(display1 == expected)
 
     val unlimited=0
-    val display2: String = dateAttribute.getDisplayString(unlimited)
+    val display2: String = booleanAttribute.getDisplayString(unlimited, None, None)
     assert(display2 == wholeThing)
   }
 }

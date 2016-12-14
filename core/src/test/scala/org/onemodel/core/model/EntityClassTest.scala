@@ -11,13 +11,11 @@
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 
 */
-package org.onemodel.core
+package org.onemodel.core.model
 
-import org.scalatest.{Status, FlatSpec}
-import org.scalatest.mock.MockitoSugar
 import org.mockito.Mockito._
-import org.scalatest.Args
-import org.onemodel.core.model.{PostgreSQLDatabase, EntityClass}
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{Args, FlatSpec, Status}
 
 class EntityClassTest extends FlatSpec with MockitoSugar {
   // ABOUT the last attempt at CHANGING VARS TO VALS: see comment ("NOTE", farther down) that was removed when the last part of this sentence was added.

@@ -9,10 +9,10 @@
 */
 package org.onemodel.core
 
-import org.onemodel.core.model.Database
-import org.scalatest.FlatSpec
-import org.scalatest.mock.MockitoSugar
+import org.onemodel.core.model._
 import org.onemodel.core.controllers.Controller
+import org.scalatest.FlatSpec
+import org.scalatest.mockito.MockitoSugar
 
 class ControllerTest extends FlatSpec with MockitoSugar {
   //val mockUI = mock[TextUI] {

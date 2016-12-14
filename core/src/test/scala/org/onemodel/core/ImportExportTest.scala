@@ -12,10 +12,11 @@ package org.onemodel.core
 import java.io.File
 import java.nio.file.{Files, Path}
 
-import org.onemodel.core.controllers.{ImportExport, Controller}
-import org.onemodel.core.model.{Database, PostgreSQLDatabase, Attribute, Entity}
-import org.scalatest.mock.MockitoSugar
+import org.onemodel.core.controllers.{Controller, ImportExport}
+import org.onemodel.core.model._
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Args, FlatSpec, Status}
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 

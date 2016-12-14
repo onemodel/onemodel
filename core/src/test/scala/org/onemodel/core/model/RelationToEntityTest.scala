@@ -7,12 +7,11 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core
+package org.onemodel.core.model
 
-import org.scalatest.FlatSpec
 import org.mockito.Mockito._
-import org.scalatest.mock.MockitoSugar
-import org.onemodel.core.model.{PostgreSQLDatabase, RelationType, RelationToEntity, Entity}
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.FlatSpec
 
 class RelationToEntityTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {

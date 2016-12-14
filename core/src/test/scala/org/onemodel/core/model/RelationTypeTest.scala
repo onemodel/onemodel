@@ -7,12 +7,11 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core
+package org.onemodel.core.model
 
-import org.scalatest.FlatSpec
 import org.mockito.Mockito._
-import org.scalatest.mock.MockitoSugar
-import org.onemodel.core.model.{Database, PostgreSQLDatabase, RelationType}
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.FlatSpec
 
 class RelationTypeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "work with a populated entity or relationtype" in {
@@ -24,7 +23,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     val testNameReversed = "is had"
     val testDir = "BI"
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
-    val reltype: RelationType = new RelationType(mockDB, id, testRelTypeName, testNameReversed, testDir)
+    /*val reltype: RelationType = */new RelationType(mockDB, id, testRelTypeName, testNameReversed, testDir)
     // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
     //val testName = "thisIsAName"
     //val entity = new Entity(mockDB, id, testName, Some(1L), 2L, Some(true), false)

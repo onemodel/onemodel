@@ -7,16 +7,14 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core
+package org.onemodel.core.model
 
+import org.scalatest.mockito.MockitoSugar
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util
-import java.util.Date
 
 import org.onemodel.core.controllers.{Controller, ImportExport}
-import org.onemodel.core.model._
-import org.scalatest.mock.MockitoSugar
+import org.onemodel.core.{OmDatabaseException, OmException, OmFileTransferException, Util}
 import org.scalatest.{Args, FlatSpec, Status}
 
 import scala.collection.mutable
@@ -867,7 +865,6 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getRelationToEntityCount(entityId) == startingCount + 1)
 
     val oi: OmInstance = mDB.getLocalOmInstanceData
-    val uuid: String = oi.getId
     val remoteEntityId = 1234
     mDB.createRelationToRemoteEntity(relTypeId, entityId, remoteEntityId, None, 0, oi.getId)
     assert(mDB.getRelationToEntityCount(entityId) == startingCount + 2)
@@ -1417,9 +1414,9 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
     val groupName = "someRelToGroupName"
-    val (group, rtg) = entity1.addGroupAndRelationToGroup(relTypeId, groupName, allowMixedClassesInGroupIn = false, None, 1234L,
+    /*val (group, rtg) = */entity1.addGroupAndRelationToGroup(relTypeId, groupName, allowMixedClassesInGroupIn = false, None, 1234L,
                                        None, callerManagesTransactionsIn = false)
-    assert(mDB.getMatchingGroups(0, None, None, "somexyz-not a grp name").size == 0)
+    assert(mDB.getMatchingGroups(0, None, None, "some-xyz-not a grp name").size == 0)
     assert(mDB.getMatchingGroups(0, None, None, groupName).size > 0)
   }
 

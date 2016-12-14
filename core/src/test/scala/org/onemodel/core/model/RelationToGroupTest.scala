@@ -10,12 +10,11 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
-package org.onemodel.core
+package org.onemodel.core.model
 
-import org.scalatest.FlatSpec
 import org.mockito.Mockito._
-import org.scalatest.mock.MockitoSugar
-import org.onemodel.core.model._
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.FlatSpec
 
 class RelationToGroupTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {

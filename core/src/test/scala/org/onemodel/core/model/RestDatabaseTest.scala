@@ -7,14 +7,15 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core
+package org.onemodel.core.model
 
 import java.io.{File, FileOutputStream}
 import java.util
 
-import org.onemodel.core.model._
-import org.scalatest.{Status, Args, FlatSpec}
-import org.scalatest.mock._
+import org.onemodel.core.{OmException, Util}
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{Args, FlatSpec, Status}
+
 import scala.collection._
 
 class RestDatabaseTest extends FlatSpec with MockitoSugar {
@@ -242,7 +243,7 @@ class RestDatabaseTest extends FlatSpec with MockitoSugar {
   }
 
 //  "setIncludeArchivedEntities and check" should "work" in {
-    // idea: can put these back when (some decisions and) code are in place for *write* access (at least for this nonpersistent variable).
+    // idea: can put these back when (some decisions and) code are in place for *write* access (at least for this non-persistent variable).
     // Maybe it should be stateless, ie, a parm on every request, instead, or just not provide this via REST?:
 //    mRD.setIncludeArchivedEntities(in = true)
 //    assert(mRD.includeArchivedEntities)
@@ -437,7 +438,7 @@ class RestDatabaseTest extends FlatSpec with MockitoSugar {
     // as a little elsewhere, this tests the local db rather than the remote, but better than not doing that anywhere:
     val rtreDesc = rtre.getRemoteDescription
     assert(rtreDesc.indexOf("at") > -1)
-    val idOfLocalReferenceToRemote = rtre.getId
+    /*val idOfLocalReferenceToRemote = */rtre.getId
     rtre.delete()
     assert(intercept[Exception] {
                                   new RelationToRemoteEntity(mPG, rtreData(0).get.asInstanceOf[Long], relTypeId, testEntityId1, omInstance.getId, 0)
@@ -513,8 +514,8 @@ class RestDatabaseTest extends FlatSpec with MockitoSugar {
       val testEntity1: Entity = new Entity(mPG, testEntityId1)
       val testEntityId2: Long = mPG.createEntity("test entity for multiple tests2")
       val qa: QuantityAttribute = testEntity1.addQuantityAttribute(testEntityId2, testEntityId2, 0, None)
-      val da = testEntity1.addDateAttribute(testEntityId2, 0)
-      val ba = testEntity1.addBooleanAttribute(testEntityId2, inBoolean = false, None)
+      testEntity1.addDateAttribute(testEntityId2, 0)
+      testEntity1.addBooleanAttribute(testEntityId2, inBoolean = false, None)
       val ta = testEntity1.addTextAttribute(testEntityId2, "asdf", None)
 
       assert(intercept[Exception] {

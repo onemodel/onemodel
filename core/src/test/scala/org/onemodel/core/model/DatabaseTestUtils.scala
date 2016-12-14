@@ -9,9 +9,7 @@
 
     (Some code was moved to here from PostgreSQLDatabaseTest.scala, but the above year range for copyrights derived therefrom is a wild guess.)
 */
-package org.onemodel.core
-
-import org.onemodel.core.model.{Database, Entity, Group, RelationToGroup}
+package org.onemodel.core.model
 
 object DatabaseTestUtils {
   /** Returns the groupId, and the RTG.
