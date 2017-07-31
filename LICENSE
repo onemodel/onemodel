@@ -1,7 +1,7 @@
 Some license information for third-party components is at the end of this file.
 ----------------------------------------------------
  -- OneModel version 0.2.0-SNAPSHOT: a program to manage & share knowledge. --
- Copyright in each year of 2004 and 2008-2016 inclusive, Luke A. Call.
+ Copyright in each year of 2004 and 2008-2017 inclusive, Luke A. Call.
  Downloads & info at http://www.onemodel.org or http://www.onemodel.biz.
 *This exists to do the most good: to help live, learn, serve others, & seek joy.
  It is licensed to you under the GNU AGPL* (see below), AND these requests:
@@ -14,7 +14,7 @@ Some license information for third-party components is at the end of this file.
  planned improvements, etc.    *To buy other terms, ask licensing@onemodel.org.)
 *This program is free software: you can redistribute it and/or modify it under 
  the terms of of the GNU Affero General Public License ("GNU AGPL") Version 3,
- as published by the Free Software Foundation. This program is distributed in
+ as published by the Free Software Foundation.  This program is distributed in
  the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See 
  the GNU Affero General Public License for more details. You should have 
@@ -26,6 +26,9 @@ may not use  the names of authors and/or contributors of this work without
 their specific prior written permission, for any kind of publicity,
 endorsement, or promotion purposes.  This does not grant the right to use any
 trade names, trademarks, or service marks except to identify this work as such.
+
+(See the proposed agreement in the file CONTRIBUTING for moving to new 
+versions of the license.)
 
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007

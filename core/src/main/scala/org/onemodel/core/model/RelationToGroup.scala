@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2016 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2013-2017 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -15,7 +15,6 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.model.Database
 import org.onemodel.core.{OmException, Util}
 
 object RelationToGroup {
@@ -33,9 +32,9 @@ object RelationToGroup {
   }
 }
 
-/** See comments on similar methods in RelationToEntity. */
-class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long, mGroupId:Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
-  // (See comment at similar location in BooleanAttribute.)
+/** See comments on similar methods in RelationToEntity (or maybe its subclasses). */
+class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long, mGroupId: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (mDB.isRemote || mDB.relationToGroupKeysExistAndMatch(mId, mEntityId, mRelTypeId, mGroupId)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:
     mAttrTypeId = mRelTypeId
@@ -75,9 +74,13 @@ class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long
                            relationData(5).get.asInstanceOf[Long], relationData(6).get.asInstanceOf[Long])
   }
 
+  def move(newContainingEntityIdIn: Long, sortingIndexIn: Long): Long = {
+    mDB.moveRelationToGroup(getId, newContainingEntityIdIn, sortingIndexIn)
+  }
+
   def update(newRelationTypeIdIn: Option[Long], newGroupIdIn: Option[Long], validOnDateIn:Option[Long], observationDateIn:Option[Long]) {
     //use validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
-    //Idea/possible bug: see comment on similar method in RelationToEntity.
+    //Idea/possible bug: see comment on similar method in RelationToEntity (or maybe in its subclasses).
     val newRelationTypeId: Long = if (newRelationTypeIdIn.isDefined) newRelationTypeIdIn.get else getAttrTypeId
     val newGroupId: Long = if (newGroupIdIn.isDefined) newGroupIdIn.get else getGroupId
     val vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate

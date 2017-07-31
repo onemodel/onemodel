@@ -1,9 +1,9 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2016 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2017 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -18,7 +18,7 @@ import org.onemodel.core.model._
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-class EntityMenu(override val ui: TextUI, val db: Database, val controller: Controller) extends SortableEntriesMenu(ui) {
+class EntityMenu(override val ui: TextUI, val controller: Controller) extends SortableEntriesMenu(ui) {
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
   def getChoices(entityIn: Entity, numAttrsIn: Long): Array[String] = {
     // (idea: might be a little silly to do it this way, once this # gets very big?:)
@@ -35,7 +35,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
     choices = choices :+ "Select target (entry move destination: gets a '+' marker)"
     // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
     choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; type a letter to go to its attr menu)" else "(stub)")
-    choices = choices :+ (if (controller.getDefaultEntity.isEmpty) "****TRY ME---> " else "") + "Other entity operations..."
+    choices = choices :+ (if (controller.getDefaultEntity.isEmpty  && !entityIn.mDB.isRemote) "****TRY ME---> " else "") + "Other entity operations..."
     choices
   }
 
@@ -48,33 +48,50 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
   def entityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, highlightedAttributeIn: Option[Attribute] = None,
                  targetForMovesIn: Option[Attribute] = None,
                  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                 containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Entity] = try {
+                 containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates] = None,
+                 containingGroupIn: Option[Group] = None): Option[Entity] = try {
+    require(containingRelationToEntityIn.isEmpty ||
+            containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
     require(entityIn != null)
-    if (!db.entityKeyExists(entityIn.getId, includeArchived = db.includeArchivedEntities)) {
+    if (!entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = entityIn.mDB.includeArchivedEntities)) {
       ui.displayText("The desired entity, " + entityIn.getId + ", has been deleted or archived, probably while browsing other entities via menu options," +
                      "and so cannot be displayed here.  Exiting to the next menu.")
       return None
     }
+    val (containingRelationToEntityIn_relatedId1: Option[Long], containingRelationToEntityIn_relatedId2: Option[Long]) = {
+      if (containingRelationToEntityIn.isDefined) {
+        //noinspection TypeCheckCanBeMatch
+        if (containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity]) {
+          val rtre = containingRelationToEntityIn.get.asInstanceOf[RelationToRemoteEntity]
+          (Some(rtre.getRelatedId1), Some(rtre.getRelatedId2))
+        } else {
+          val rtle = containingRelationToEntityIn.get.asInstanceOf[RelationToLocalEntity]
+          (Some(rtle.getRelatedId1), Some(rtle.getRelatedId2))
+        }
+      } else {
+        (None, None)
+      }
+    }
     if (containingRelationToEntityIn.isDefined) {
       // (doesn't make sense to have both at the same time.)
       require(containingGroupIn.isEmpty)
-      require(containingRelationToEntityIn.get.getRelatedId2 == entityIn.getId)
+      require(containingRelationToEntityIn_relatedId2.get == entityIn.getId)
     }
     if (containingGroupIn.isDefined) require(containingRelationToEntityIn.isEmpty)
     val numAttrsInEntity: Long = entityIn.getAttributeCount
     val leadingText: Array[String] = new Array[String](2)
     val relationSourceEntity: Option[Entity] = {
       // (checking if exists also, because it could have been removed in another menu option)
-      if (containingRelationToEntityIn.isEmpty || !db.entityKeyExists(containingRelationToEntityIn.get.getRelatedId1)) {
+      if (containingRelationToEntityIn.isEmpty || !containingRelationToEntityIn.get.mDB.entityKeyExists(containingRelationToEntityIn_relatedId1.get)) {
         None
       } else {
-        Some(new Entity(db, containingRelationToEntityIn.get.getParentId))
+        Some(new Entity(containingRelationToEntityIn.get.mDB, containingRelationToEntityIn.get.getParentId))
       }
     }
     val choices: Array[String] = getChoices(entityIn, numAttrsInEntity)
     val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength)
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
-      db.getSortedAttributes(entityIn.getId, attributeRowsStartingIndexIn, numDisplayableAttributes, onlyPublicEntitiesIn = false)
+      entityIn.getSortedAttributes(attributeRowsStartingIndexIn, numDisplayableAttributes, onlyPublicEntitiesIn = false)
     if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) {
       require(numAttrsInEntity > 0 && attributeTuples.length > 0)
     }
@@ -150,14 +167,14 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
       if (answer == 1) {
         val (newAttributeToHighlight: Option[Attribute], displayStartingRowNumber: Int) = {
           // ask for less info when here, to add entity quickly w/ no fuss, like brainstorming. Like in QuickGroupMenu.  User can always use option 2.
-          val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"))
+          val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(entityIn.mDB, Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"))
           if (newEntity.isDefined) {
-            val newAttribute: Attribute = entityIn.addHASRelationToEntity(newEntity.get.getId, None, System.currentTimeMillis())
+            val newAttribute: Attribute = entityIn.addHASRelationToLocalEntity(newEntity.get.getId, None, System.currentTimeMillis())
             // The next 2 lines are so if adding a new entry on the 1st entry, and if the user so prefers, the new one becomes the
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
             val goingBackward: Boolean = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop
             val forward = !goingBackward
-            val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.getId, entityIn.getAttributeCount, 0, forwardNotBackIn = forward,
+            val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount, 0, forwardNotBackIn = forward,
                                                                      attributeRowsStartingIndexIn, newAttribute.getId,
                                                                      highlightedIndexInObjList.getOrElse(0),
                                                                      if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
@@ -190,13 +207,12 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
                      attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
         }
       } else if (answer == 4) {
-        val newAttribute: Option[Attribute] = addAttribute(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves,
-                                                           containingRelationToEntityIn, containingGroupIn)
+        val newAttribute: Option[Attribute] = addAttribute(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingGroupIn)
         if (newAttribute.isDefined && highlightedEntry.isDefined) {
           // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
           val goingBackward: Boolean = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop
           val forward = !goingBackward
-          placeEntryInPosition(entityIn.getId, entityIn.getAttributeCount, 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
+          placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount, 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
                                newAttribute.get.getId, highlightedIndexInObjList.getOrElse(0),
                                if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
                                numDisplayableAttributes, newAttribute.get.getFormId,
@@ -270,17 +286,18 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
         }
         entityMenu(entityIn, attributeRowsStartingIndexIn, entryToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 9 && answer <= choices.length) {
-        new OtherEntityMenu(ui, db, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
+        new OtherEntityMenu(ui, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
                                                                 containingGroupIn, attributeTuples)
-        if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+        if (!entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
           // entity could have been deleted by some operation in OtherEntityMenu
           None
         } else {
-          val listEntryIsGoneNow: Boolean = highlightedEntry.isDefined && !db.attributeKeyExists(highlightedEntry.get.getFormId, highlightedEntry.get.getId)
+          val listEntryIsGoneNow: Boolean = highlightedEntry.isDefined &&
+                                            !highlightedEntry.get.mDB.attributeKeyExists(highlightedEntry.get.getFormId, highlightedEntry.get.getId)
           val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
           val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributesToDisplay,
                                                                                  listEntryIsGoneNow, defaultEntryToHighlight, highlightedIndexInObjList)
-          entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
+          entityMenu(new Entity(entityIn.mDB, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
                      containingRelationToEntityIn, containingGroupIn)
         }
       } else if (answer > choices.length && answer <= (choices.length + attributeTuples.length)) {
@@ -303,16 +320,20 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
       // catching Throwable instead of Exception here, because sometimes depending on how I'm running X etc I might get the InternalError
       // "Can't connect to X11 window server ...", and it's better to recover from that than to abort the app (ie, when eventually calling
       // Controller.getClipboardContent)..
-      Util.handleException(e, controller.ui, controller.db)
+      // Idea: somehow make this handle it right, even if the exception came from a remote db (rest)?
+      Util.handleException(e, ui, entityIn.mDB)
       val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
       if (ans.isDefined && ans.get) entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedAttributeIn, targetForMovesIn,
                                                containingRelationToEntityIn, containingGroupIn)
       else None
   }
 
-  def goToAttributeThenRedisplayHere(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute], containingRelationToEntityIn:
-  Option[RelationToEntity], containingGroupIn: Option[Group], attributeTuples: Array[(Long, Attribute)], attributesToDisplay: util.ArrayList[Attribute],
+  def goToAttributeThenRedisplayHere(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
+                                     containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates], containingGroupIn: Option[Group],
+                                     attributeTuples: Array[(Long, Attribute)], attributesToDisplay: util.ArrayList[Attribute],
                                      answer: Int, choicesIndex: Int): Option[Entity] = {
+    require(containingRelationToEntityIn.isEmpty ||
+            containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
     val entryIsGoneNow = {
       // user typed a letter to select an attribute (now 0-based)
       if (choicesIndex >= attributeTuples.length) {
@@ -327,22 +348,30 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
           case ba: BooleanAttribute => controller.attributeEditMenu(ba)
           case fa: FileAttribute => controller.attributeEditMenu(fa)
           case ta: TextAttribute => controller.attributeEditMenu(ta)
-          case relToEntity: RelationToEntity =>
-            entityMenu(new Entity(Util.currentOrRemoteDb(relToEntity, db), relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
-            val wasRemoved: Boolean = !(db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false)
-                                        && db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId))
-            wasRemoved
+          case relToEntity: RelationToLocalEntity =>
+            val db = relToEntity.mDB
+            entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
+            val stillThere: Boolean = db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false) &&
+                                      db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId)
+            !stillThere
+          case relToRemoteEntity: RelationToRemoteEntity =>
+            // (An entity can be remote, but referred to by a local RelationToLocalEntity:)
+            val remoteDb: Database = relToRemoteEntity.getRemoteDatabase
+            entityMenu(new Entity(remoteDb, relToRemoteEntity.getRelatedId2), 0, None, None, Some(relToRemoteEntity))
+            val stillThere: Boolean = remoteDb.entityKeyExists(relToRemoteEntity.getRelatedId2, includeArchived = false) &&
+                                      remoteDb.attributeKeyExists(relToRemoteEntity.getFormId, relToRemoteEntity.getId)
+            !stillThere
           case relToGroup: RelationToGroup =>
-            new QuickGroupMenu(ui, db, controller).quickGroupMenu(new Group(db, relToGroup.getGroupId), 0, Some(relToGroup), containingEntityIn = Some
-                                                                                                                                                  (entityIn))
-            if (!db.groupKeyExists(relToGroup.getGroupId)) true
+            new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(relToGroup.mDB, relToGroup.getGroupId),
+                                                                              0, Some(relToGroup), containingEntityIn = Some(entityIn))
+            if (!relToGroup.mDB.groupKeyExists(relToGroup.getGroupId)) true
             else false
           case _ => throw new Exception("Unexpected choice has class " + o.getClass.getName + "--what should we do here?")
         }
       }
     }
 
-    if (!db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+    if (!entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
       // (entity could have been deleted or archived while browsing among containers via submenus)
       None
     } else {
@@ -350,14 +379,16 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
       val defaultEntryToHighlight: Option[Attribute] = Some(attributeTuples(choicesIndex)._2)
       val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributesToDisplay,
                                                                              entryIsGoneNow, defaultEntryToHighlight, Some(choicesIndex))
-      entityMenu(new Entity(db, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
+      entityMenu(new Entity(entityIn.mDB, entityIn.getId), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
                  containingRelationToEntityIn, containingGroupIn)
     }
   }
 
-  def entitySearchSubmenu(entityIn: Entity, attributeRowsStartingIndexIn: Int, containingRelationToEntityIn: Option[RelationToEntity], containingGroupIn:
-  Option[Group], numAttrsInEntity: Long, attributeTuples: Array[(Long, Attribute)], highlightedEntry: Option[Attribute], targetForMoves: Option[Attribute],
-                          answer: Int) {
+  def entitySearchSubmenu(entityIn: Entity, attributeRowsStartingIndexIn: Int, containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates],
+                          containingGroupIn: Option[Group], numAttrsInEntity: Long, attributeTuples: Array[(Long, Attribute)],
+                          highlightedEntry: Option[Attribute], targetForMoves: Option[Attribute], answer: Int) {
+    require(containingRelationToEntityIn.isEmpty ||
+            containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
     val searchResponse = ui.askWhich(Some(Array("Choose a search option:")), Array(if (numAttrsInEntity > 0) Util.listNextItemsPrompt else "(stub)",
                                                                                    if (numAttrsInEntity > 0) Util.listPrevItemsPrompt else "(stub)",
                                                                                    "Search related entities",
@@ -376,11 +407,11 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
         val ans = ui.askForString(Some(Array(Util.searchPromptPart(Util.ENTITY_TYPE))))
         if (ans.isDefined) {
           val searchString: String = ans.get
-          val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours)")), Some(Util.isNumeric),
-                                             Some("4"))
+          val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours; currently only searches locally)")),
+                                             Some(Util.isNumeric), Some("5"))
           val levels: Int = levelsAnswer.getOrElse("4").toInt
-          val entityIds: Array[Long] = db.findContainedEntityIds(new mutable.TreeSet[Long], entityIn.getId, searchString, levels,
-                                                                 stopAfterAnyFound = false).toArray
+          val entityIdsTreeSet: mutable.TreeSet[Long] = entityIn.findContainedLocalEntityIds(new mutable.TreeSet[Long], searchString, levels, stopAfterAnyFoundIn = false)
+          val entityIds = entityIdsTreeSet.toArray
           val leadingText2 = Array[String](Util.pickFromListPrompt)
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
           val choices: Array[String] = Array("(stub)")
@@ -401,7 +432,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
           }
           val entityStatusesAndNames: Array[String] = entityIdsTruncated.toArray.map {
                                                                                        case id: Long =>
-                                                                                         val entity = new Entity(db, id)
+                                                                                         val entity = new Entity(entityIn.mDB, id)
                                                                                          entity.getArchivedStatusDisplayString + entity.getName
                                                                                      }
           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
@@ -417,7 +448,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
                 // those in the condition on the previous line are 1-based, not 0-based.
                 val index = relatedEntitiesAnswer - choices.length - 1
                 val id: Long = entityIds(index)
-                entityMenu(new Entity(db, id))
+                entityMenu(new Entity(entityIn.mDB, id))
               }
               showSearchResults()
             }
@@ -425,9 +456,9 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
           showSearchResults()
         }
       } else if (searchAnswer == 4) {
-        val selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(None, None, None, Util.ENTITY_TYPE)
+        val selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(entityIn.mDB, None, None, None, Util.ENTITY_TYPE)
         if (selection.isDefined) {
-          entityMenu(new Entity(db, selection.get._1.getId))
+          entityMenu(new Entity(entityIn.mDB, selection.get._1.getId))
         }
       }
     }
@@ -437,10 +468,9 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
                                     defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]): Option[Attribute] = {
     // The entity or an attribute could have been removed or changed by navigating around various menus, so before trying to view it again,
     // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
-    if (db.entityKeyExists(entityIn.getId, includeArchived = false)) {
+    if (entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
       if (highlightingIndex.isDefined && entryIsGoneNow) {
-        Util.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight
-                                                                                                                                      .get)
+        Util.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight.get)
       } else {
         defaultEntryToHighlight
       }
@@ -455,11 +485,16 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
   def moveSelectedEntry(entityIn: Entity, startingDisplayRowIndexIn: Int, totalAttrsAvailable: Int, targetForMovesIn: Option[Attribute] = None,
                         highlightedIndexInObjListIn: Int, highlightedAttributeIn: Attribute, numObjectsToDisplayIn: Int,
                         relationSourceEntityIn: Option[Entity] = None,
-                        containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): (Int, Boolean) = {
+                        containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates] = None,
+                        containingGroupIn: Option[Group] = None): (Int, Boolean) = {
+    require(containingRelationToEntityIn.isEmpty ||
+            containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
+
     if (relationSourceEntityIn.isDefined || containingRelationToEntityIn.isDefined) {
       require(relationSourceEntityIn.isDefined && containingRelationToEntityIn.isDefined,
               (if (relationSourceEntityIn.isEmpty) "relationSourceEntityIn is empty; " else "") +
               (if (containingRelationToEntityIn.isEmpty) "containingRelationToEntityIn is empty." else ""))
+
       require(relationSourceEntityIn.get.getId == containingRelationToEntityIn.get.getParentId, "relationSourceEntityIn: " + relationSourceEntityIn.get.getId +
                                                                                                 " doesn't match containingRelationToEntityIn.get.getParentId:" +
                                                                                                 " " + containingRelationToEntityIn.get.getParentId + ".")
@@ -496,79 +531,109 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
           numRowsToMove = 20
           forwardNotBack = true
         }
-        val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.getId, totalAttrsAvailable, numRowsToMove, forwardNotBackIn = forwardNotBack,
-                                                                 startingDisplayRowIndexIn, highlightedAttributeIn.getId,
-                                                                 highlightedIndexInObjListIn,
-                                                                 Some(highlightedAttributeIn.getId),
+        val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.mDB, entityIn.getId, totalAttrsAvailable, numRowsToMove,
+                                                                 forwardNotBackIn = forwardNotBack, startingDisplayRowIndexIn, highlightedAttributeIn.getId,
+                                                                 highlightedIndexInObjListIn, Some(highlightedAttributeIn.getId),
                                                                  numObjectsToDisplayIn, highlightedAttributeIn.getFormId,
                                                                  Some(highlightedAttributeIn.getFormId))
         (displayStartingRowNumber, false)
       } else if (answer == 7 && targetForMovesIn.isDefined) {
-        if (!((highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup]) &&
-              (targetForMovesIn.get.isInstanceOf[RelationToEntity] || targetForMovesIn.get.isInstanceOf[RelationToGroup]))) {
+        if (! (
+              (highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] ||
+               highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] ||
+               highlightedAttributeIn.isInstanceOf[RelationToGroup])
+              &&
+              (targetForMovesIn.get.isInstanceOf[RelationToLocalEntity] ||
+               targetForMovesIn.get.isInstanceOf[RelationToRemoteEntity] ||
+               targetForMovesIn.get.isInstanceOf[RelationToGroup])
+              )) {
           ui.displayText("Currently, you can only move an Entity or a Group, to an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [1]")
           (startingDisplayRowIndexIn, false)
         } else {
           //noinspection TypeCheckCanBeMatch
-          if (highlightedAttributeIn.isInstanceOf[RelationToEntity] && targetForMovesIn.get.isInstanceOf[RelationToEntity]) {
-            val movingRte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
-            val targetContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToEntity].getRelatedId2
-            require(movingRte.getParentId == entityIn.getId)
-            db.moveRelationToEntity(movingRte.getId, targetContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
+          if (highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
+            val movingRtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity]
+            val targetEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2
+            require(movingRtle.getParentId == entityIn.getId)
+            movingRtle.move(targetEntityId, getSortingIndex(entityIn.mDB, entityIn.getId, movingRtle.getFormId, movingRtle.getId))
             (startingDisplayRowIndexIn, true)
-          } else if (highlightedAttributeIn.isInstanceOf[RelationToEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
+          } else if (highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
+            val movingRtre: RelationToRemoteEntity = highlightedAttributeIn.asInstanceOf[RelationToRemoteEntity]
+            val targetEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2
+            require(movingRtre.getParentId == entityIn.getId)
+            movingRtre.move(targetEntityId, getSortingIndex(entityIn.mDB, entityIn.getId, movingRtre.getFormId, movingRtre.getId))
+            (startingDisplayRowIndexIn, true)
+          } else if (highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             require(targetForMovesIn.get.getFormId == Database.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE))
-            val targetGroupId = RelationToGroup.createRelationToGroup(db, targetForMovesIn.get.getId).getGroupId
-            val rte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
+            val targetGroupId = RelationToGroup.createRelationToGroup(targetForMovesIn.get.mDB, targetForMovesIn.get.getId).getGroupId
+            val rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity]
             // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-            db.moveEntityFromEntityToGroup(rte, targetGroupId, getSortingIndex(entityIn.getId, rte.getFormId, rte.getId))
+            rtle.moveEntityFromEntityToGroup(targetGroupId, getSortingIndex(entityIn.mDB, entityIn.getId, rtle.getFormId, rtle.getId))
             (startingDisplayRowIndexIn, true)
-          } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToEntity]) {
+          } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             val movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup]
-            val newContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToEntity].getRelatedId2
+            val newContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2
             require(movingRtg.getParentId == entityIn.getId)
-            db.moveRelationToGroup(movingRtg.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRtg.getFormId, movingRtg.getId))
+            movingRtg.move(newContainingEntityId, getSortingIndex(entityIn.mDB, entityIn.getId, movingRtg.getFormId, movingRtg.getId))
             (startingDisplayRowIndexIn, true)
           } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
-            ui.displayText("Can't do this: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
+            ui.displayText("Unsupported: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
                            " other attributes. [1]")
             (startingDisplayRowIndexIn, false)
           } else {
+            ui.displayText("Not yet supported.")
             (startingDisplayRowIndexIn, false)
           }
         }
       } else if (answer == 8) {
-        if (!(highlightedAttributeIn.isInstanceOf[RelationToEntity] || highlightedAttributeIn.isInstanceOf[RelationToGroup])) {
+        if (! (highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] ||
+              highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] ||
+              highlightedAttributeIn.isInstanceOf[RelationToGroup]) ) {
           ui.displayText("Currently, you can only move an Entity or a Group, *to* an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [2]")
           (startingDisplayRowIndexIn, false)
         } else {
           if (containingRelationToEntityIn.isDefined) {
             require(containingGroupIn.isEmpty)
-            val newContainingEntityId = containingRelationToEntityIn.get.getRelatedId1
+            val newContainingEntityId = {
+              //noinspection TypeCheckCanBeMatch  // as in some (not all) other places, just a guess as to what is more readable for non-scala-experts.
+              if (containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity]) {
+                containingRelationToEntityIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId1
+              } else if (containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity]) {
+                containingRelationToEntityIn.get.asInstanceOf[RelationToRemoteEntity].getRelatedId1
+              } else throw new OmException("unexpected type: " + containingRelationToEntityIn.getClass.getCanonicalName)
+            }
             //noinspection TypeCheckCanBeMatch
-            if (highlightedAttributeIn.isInstanceOf[RelationToEntity]) {
-              val movingRte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
-              db.moveRelationToEntity(movingRte.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRte.getFormId, movingRte.getId))
+            if (highlightedAttributeIn.isInstanceOf[RelationToLocalEntity]) {
+              val movingRtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity]
+              movingRtle.move(newContainingEntityId, getSortingIndex(entityIn.mDB, entityIn.getId, movingRtle.getFormId, movingRtle.getId))
+              (startingDisplayRowIndexIn, true)
+            } else if (highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
+              val movingRtre = highlightedAttributeIn.asInstanceOf[RelationToRemoteEntity]
+              movingRtre.move(newContainingEntityId, getSortingIndex(entityIn.mDB, entityIn.getId, movingRtre.getFormId, movingRtre.getId))
               (startingDisplayRowIndexIn, true)
             } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup]) {
               val movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup]
-              db.moveRelationToGroup(movingRtg.getId, newContainingEntityId, getSortingIndex(entityIn.getId, movingRtg.getFormId, movingRtg.getId))
+              movingRtg.move(newContainingEntityId, getSortingIndex(entityIn.mDB, entityIn.getId, movingRtg.getFormId, movingRtg.getId))
               (startingDisplayRowIndexIn, true)
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [1]")
           } else if (containingGroupIn.isDefined) {
             require(containingRelationToEntityIn.isEmpty)
             //noinspection TypeCheckCanBeMatch
-            if (highlightedAttributeIn.isInstanceOf[RelationToEntity]) {
+            if (highlightedAttributeIn.isInstanceOf[RelationToLocalEntity]) {
               val targetGroupId = containingGroupIn.get.getId
-              val rte = highlightedAttributeIn.asInstanceOf[RelationToEntity]
+              val rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity]
               // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-              db.moveEntityFromEntityToGroup(rte, targetGroupId, getSortingIndex(entityIn.getId, rte.getFormId, rte.getId))
+              rtle.moveEntityFromEntityToGroup(targetGroupId, getSortingIndex(entityIn.mDB, entityIn.getId, rtle.getFormId, rtle.getId))
               (startingDisplayRowIndexIn, true)
+            } else if (highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
+              ui.displayText("Unsupported: groups cannot directly contain remote entities.  Only local entities can contain relations" +
+                             " to remote entities (currently at least).")
+              (startingDisplayRowIndexIn, false)
             } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup]) {
-              ui.displayText("Can't do this: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
-                             " other attributes. [2]")
+              ui.displayText("Unsupported: groups can't directly contain groups or relations to remote entities.  But groups can contain entities, " +
+                             "and entities can contain groups and other attributes. [2]")
               (startingDisplayRowIndexIn, false)
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [2]")
           } else {
@@ -601,17 +666,27 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
         val attribute = attributeTuple._2
         attributes.add(attribute)
         attribute match {
-          case relation: RelationToEntity =>
-            val toEntity: Entity = new Entity(Util.currentOrRemoteDb(relation, db), relation.getRelatedId2)
-            val relationType = new RelationType(db, relation.getAttrTypeId)
+          case relation: RelationToLocalEntity =>
+            val toEntity: Entity = new Entity(relation.mDB, relation.getRelatedId2)
+
+            val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
+            val desc = attribute.getDisplayString(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
+            val prefix = controller.getEntityContentSizePrefix(toEntity)
+            val archivedStatus: String = toEntity.getArchivedStatusDisplayString
+            prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
+          case relation: RelationToRemoteEntity =>
+            val remoteDb = relation.getRemoteDatabase
+            val toEntity: Entity = new Entity(remoteDb, relation.getRelatedId2)
+
+            val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
             val desc = attribute.getDisplayString(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true)
             val prefix = controller.getEntityContentSizePrefix(toEntity)
             val archivedStatus: String = toEntity.getArchivedStatusDisplayString
             prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
           case relation: RelationToGroup =>
-            val relationType = new RelationType(db, relation.getAttrTypeId)
+            val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
             val desc = attribute.getDisplayString(Util.maxNameLength, None, Some(relationType), simplify = true)
-            val prefix = controller.getGroupContentSizePrefix(relation.getGroupId)
+            val prefix = controller.getGroupContentSizePrefix(relation.mDB, relation.getGroupId)
             prefix + "group: " + desc
           case _ =>
             attribute.getDisplayString(Util.maxNameLength, None, None)
@@ -621,7 +696,7 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
   }
 
   def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, highlightedAttributeIn: Option[Attribute], targetForMovesIn: Option[Attribute] = None,
-                   containingRelationToEntityIn: Option[RelationToEntity] = None, containingGroupIn: Option[Group] = None): Option[Attribute] = {
+                   containingGroupIn: Option[Group] = None): Option[Attribute] = {
     val whichKindOfAttribute =
       ui.askWhich(Some(Array("Choose which kind of attribute to add:")),
                   // THESE ARRAY INDICES (after being converted by askWhich to 1-based) MUST MATCH THOSE LISTED IN THE MATCH STATEMENT
@@ -645,7 +720,10 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
       val attrForm: Int = whichKindOfAttribute.get match {
         // This is a bridge between the expected order for convenient UI above, and the parameter value expected by controller.addAttribute
         // (1-based, not 0-based.)
-        case 1 => Database.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE)
+
+        // (Using RELATION_TO_LOCAL_ENTITY_TYPE on next line even though it actually will work for either local or remote.  There wasn't room in the menu
+        // to list them separately.)
+        case 1 => Database.getAttributeFormId(Util.RELATION_TO_LOCAL_ENTITY_TYPE)
         case 2 => 100
         case 3 => Database.getAttributeFormId(Util.QUANTITY_TYPE)
         case 4 => Database.getAttributeFormId(Util.DATE_TYPE)
@@ -654,8 +732,8 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
         case 7 => Database.getAttributeFormId(Util.TEXT_TYPE)
         case 8 => Database.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE)
         case 9 => 101
-        // next one seems to happen if one just presses Enter:
-        case 0 => Database.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE)
+        // next one seems to happen if the user just presses Enter:
+        case 0 => Database.getAttributeFormId(Util.RELATION_TO_LOCAL_ENTITY_TYPE)
       }
       controller.addAttribute(entityIn, startingAttributeIndexIn, attrForm, None)
     } else {
@@ -675,33 +753,40 @@ class EntityMenu(override val ui: TextUI, val db: Database, val controller: Cont
     startingIndex
   }
 
-  protected def getAdjacentEntriesSortingIndexes(entityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
+  protected def getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
                                                  forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
-    db.getAdjacentAttributesSortingIndexes(entityIdIn, movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
+    val entity = new Entity(dbIn, entityIdIn)
+    entity.getAdjacentAttributesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected def getNearestEntrysSortingIndex(entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
-    db.getNearestAttributeEntrysSortingIndex(entityIdIn, startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
+  protected def getNearestEntrysSortingIndex(dbIn: Database, entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+    val entity = new Entity(dbIn, entityIdIn)
+    entity.getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }
 
-  protected def renumberSortingIndexes(entityIdIn: Long): Unit = {
-    db.renumberSortingIndexes(entityIdIn)
+  protected def renumberSortingIndexes(dbIn: Database, entityIdIn: Long): Unit = {
+    val entity = new Entity(dbIn, entityIdIn)
+    entity.renumberSortingIndexes()
   }
 
-  protected def updateSortedEntry(entityIdIn: Long, movingAttributeFormIdIn: Int, movingAttributeIdIn: Long, sortingIndexIn: Long): Unit = {
-    db.updateAttributeSorting(entityIdIn, movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
+  protected def updateSortedEntry(dbIn: Database, entityIdIn: Long, movingAttributeFormIdIn: Int, movingAttributeIdIn: Long, sortingIndexIn: Long): Unit = {
+    val entity = new Entity(dbIn, entityIdIn)
+    entity.updateAttributeSortingIndex(movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
   }
 
-  protected def getSortingIndex(entityIdIn: Long, attributeFormIdIn: Int, attributeIdIn: Long): Long = {
-    db.getEntityAttributeSortingIndex(entityIdIn, attributeFormIdIn, attributeIdIn)
+  protected def getSortingIndex(dbIn: Database, entityIdIn: Long, attributeFormIdIn: Int, attributeIdIn: Long): Long = {
+    val entity = new Entity(dbIn, entityIdIn)
+    entity.getAttributeSortingIndex(attributeFormIdIn, attributeIdIn)
   }
 
-  protected def indexIsInUse(entityIdIn: Long, sortingIndexIn: Long): Boolean = {
-    db.isAttributeSortingIndexInUse(entityIdIn, sortingIndexIn)
+  protected def indexIsInUse(dbIn: Database, entityIdIn: Long, sortingIndexIn: Long): Boolean = {
+    val entity = new Entity(dbIn, entityIdIn)
+    entity.isAttributeSortingIndexInUse(sortingIndexIn)
   }
 
-  protected def findUnusedSortingIndex(entityIdIn: Long, startingWithIn: Long): Long = {
-    db.findUnusedAttributeSortingIndex(entityIdIn, Some(startingWithIn))
+  protected def findUnusedSortingIndex(dbIn: Database, entityIdIn: Long, startingWithIn: Long): Long = {
+    val entity = new Entity(dbIn, entityIdIn)
+    entity.findUnusedAttributeSortingIndex(Some(startingWithIn))
   }
 
 }

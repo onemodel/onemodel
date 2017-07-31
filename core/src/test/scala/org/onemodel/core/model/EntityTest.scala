@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2016 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2017 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -28,6 +28,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
   var mDateAttrTypeId = 0L
   var mBooleanAttrTypeId = 0L
   var mFileAttrTypeId = 0L
+  var mRelationTypeId = 0L
 
   override def runTests(testName: Option[String], args: Args): Status = {
     setUp()
@@ -41,7 +42,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
 
     // instantiation does DB setup (creates tables, default data, etc):
-    mDB = new PostgreSQLDatabase("testrunner", "testrunner")
+    mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_USER)
 
     mUnitId = mDB.createEntity("centimeters")
     mQuantityAttrTypeId = mDB.createEntity("length")
@@ -49,6 +50,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     mDateAttrTypeId = mDB.createEntity("someName")
     mBooleanAttrTypeId = mDB.createEntity("someName")
     mFileAttrTypeId = mDB.createEntity("someName")
+    mRelationTypeId = mDB.createRelationType("someRelationType", "reversedName", "NON")
     val id: Long = mDB.createEntity("test object")
     mEntity = new Entity(mDB, id)
   }
@@ -58,6 +60,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
   }
 
   "testAddQuantityAttribute" should "work" in {
+    mDB.beginTrans()
     System.out.println("starting testAddQuantityAttribute")
     val id: Long = mEntity.addQuantityAttribute(mQuantityAttrTypeId, mUnitId, 100, None).getId
     val qo: QuantityAttribute = mEntity.getQuantityAttribute(id)
@@ -65,9 +68,11 @@ class EntityTest extends FlatSpec with MockitoSugar {
       fail("addQuantityAttribute then getQuantityAttribute returned null")
     }
     assert(qo.getId == id)
+    mDB.rollbackTrans()
   }
 
   "testAddTextAttribute" should "also work" in {
+    mDB.beginTrans()
     System.out.println("starting testAddTextAttribute")
     val id: Long = mEntity.addTextAttribute(mTextAttrTypeId, "This is someName given to an object", None).getId
     val t: TextAttribute = mEntity.getTextAttribute(id)
@@ -75,9 +80,11 @@ class EntityTest extends FlatSpec with MockitoSugar {
       fail("addTextAttribute then getTextAttribute returned null")
     }
     assert(t.getId == id)
+    mDB.rollbackTrans()
   }
 
   "testAddDateAttribute" should "also work" in {
+    mDB.beginTrans()
     System.out.println("starting testAddDateAttribute")
     val id: Long = mEntity.addDateAttribute(mDateAttrTypeId, 2).getId
     val t: DateAttribute = mEntity.getDateAttribute(id)
@@ -85,9 +92,11 @@ class EntityTest extends FlatSpec with MockitoSugar {
     assert(t.getId == id)
     assert(t.getAttrTypeId == mDateAttrTypeId)
     assert(t.getDate == 2)
+    mDB.rollbackTrans()
   }
 
   "testAddBooleanAttribute" should "also work" in {
+    mDB.beginTrans()
     System.out.println("starting testAddBooleanAttribute")
     val startTime = System.currentTimeMillis()
     val id: Long = mEntity.addBooleanAttribute(mBooleanAttrTypeId, inBoolean = true, None).getId
@@ -98,9 +107,11 @@ class EntityTest extends FlatSpec with MockitoSugar {
     assert(t.getParentId == mEntity.getId)
     assert(t.getValidOnDate.isEmpty)
     assert(t.getObservationDate > (startTime - 1) && t.getObservationDate < (System.currentTimeMillis() + 1))
+    mDB.rollbackTrans()
   }
 
   "testAddFileAttribute" should "also work" in {
+    mDB.beginTrans()
     var file: java.io.File = null
     var fw: java.io.FileWriter = null
     System.out.println("starting testAddFileAttribute")
@@ -135,6 +146,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
       if (fw != null) fw.close()
       if (file != null) file.delete()
     }
+    mDB.rollbackTrans()
   }
 
   "getDisplayString" should "return a useful stack trace string, when called with a nonexistent entity" in {
@@ -145,6 +157,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     val mockDB = mock[PostgreSQLDatabase]
     when(mockDB.entityKeyExists(id)).thenReturn(true)
     when(mockDB.getEntityData(id)).thenThrow(new RuntimeException("some exception"))
+    when(mockDB.getRemoteAddress).thenReturn(None)
     val entity = new Entity(mockDB, id)
     val se = entity.getDisplayString()
     assert(se.contains("Unable to get entity description due to"))
@@ -198,5 +211,71 @@ class EntityTest extends FlatSpec with MockitoSugar {
     when(mockDB.getClassData(classId)).thenReturn(Array[Option[Any]](Some(className), Some(templateEntityId)))
     assert(e2.getClassTemplateEntityId.get == templateEntityId)
   }
+
+  "updateContainedEntitiesPublicStatus" should "work" in {
+    val e1Id: Long = mDB.createEntity("test object1")
+    val e1 = new Entity(mDB, e1Id)
+    mEntity.addHASRelationToLocalEntity(e1.getId, Some(0), 0)
+    val (group: Group, _/*rtg: RelationToGroup*/) = mEntity.addGroupAndRelationToGroup(mRelationTypeId, "grpName",
+                                                                                    allowMixedClassesInGroupIn = true, Some(0), 0, None)
+    val e2Id: Long = mDB.createEntity("test object2")
+    val e2 = new Entity(mDB, e1Id)
+    group.addEntity(e2Id)
+
+    assert(e1.getPublic.isEmpty)
+    assert(e2.getPublic.isEmpty)
+    mEntity.updateContainedEntitiesPublicStatus(Some(true))
+    val e1reRead = new Entity(mDB, e1Id)
+    val e2reRead = new Entity(mDB, e2Id)
+    assert(e1reRead.getPublic.get)
+    assert(e2reRead.getPublic.get)
+  }
+
+  "getCountOfContainingLocalEntities etc" should "work" in {
+    val e1 = Entity.createEntity(mDB, "e1")
+    val (e2id: Long, rteId: Long) = mDB.createEntityAndRelationToLocalEntity(e1.getId, mRelationTypeId, "e2", None, None, 0L)
+    val e2: Option[Entity] = Entity.getEntity(mDB, e2id)
+    assert(e2.get.getCountOfContainingLocalEntities._1 == 1)
+    assert(e2.get.getLocalEntitiesContainingEntity().size == 1)
+    /*val (e3id: Long, rte2id: Long) = */mDB.createEntityAndRelationToLocalEntity(e1.getId, mRelationTypeId, "e3", None, None, 0L)
+    assert(e1.getAdjacentAttributesSortingIndexes(Database.minIdValue).nonEmpty)
+    val nearestSortingIndex = e1.getNearestAttributeEntrysSortingIndex(Database.minIdValue).get
+    assert(nearestSortingIndex > Database.minIdValue)
+    e1.renumberSortingIndexes()
+    val nearestSortingIndex2 = e1.getNearestAttributeEntrysSortingIndex(Database.minIdValue).get
+    assert(nearestSortingIndex2 > nearestSortingIndex)
+
+    val rte = RelationToLocalEntity.getRelationToLocalEntity(mDB, rteId).get
+    assert(! e1.isAttributeSortingIndexInUse(Database.maxIdValue))
+    e1.updateAttributeSortingIndex(rte.getFormId, rte.getId, Database.maxIdValue)
+    assert(e1.getAttributeSortingIndex(rte.getFormId, rte.getId) == Database.maxIdValue)
+    assert(e1.isAttributeSortingIndexInUse(Database.maxIdValue))
+    assert(e1.findUnusedAttributeSortingIndex() != Database.maxIdValue)
+    assert(e1.getRelationToLocalEntityCount() == 2)
+    e2.get.archive()
+    assert(e1.getRelationToLocalEntityCount(includeArchivedEntitiesIn = false) == 1)
+    assert(e1.getRelationToLocalEntityCount(includeArchivedEntitiesIn = true) == 2)
+    assert(e1.getTextAttributeByTypeId(mRelationTypeId).size == 0)
+    e1.addTextAttribute(mRelationTypeId, "abc", None)
+    assert(e1.getTextAttributeByTypeId(mRelationTypeId).size == 1)
+
+    assert(Entity.getEntity(mDB, e1.getId).get.getName != "updated")
+    e1.updateName("updated")
+    assert(Entity.getEntity(mDB, e1.getId).get.getName == "updated")
+    assert(Entity.isDuplicate(mDB, "updated"))
+    assert(! Entity.isDuplicate(mDB, "xyzNOTANAMEupdated"))
+
+    val g1 = Group.createGroup(mDB, "g1")
+    g1.addEntity(e1.getId)
+    assert(e1.getContainingGroupsIds.size == 1)
+    assert(e1.getCountOfContainingGroups == 1)
+    e2.get.addRelationToGroup(mRelationTypeId, g1.getId, None)
+    assert(e1.getContainingRelationsToGroup().size == 1)
+    assert(e1.getContainingRelationToGroupDescriptions().size == 0)
+    e2.get.unarchive()
+    assert(e1.getContainingRelationToGroupDescriptions().size == 1)
+  }
+
+
 
 }

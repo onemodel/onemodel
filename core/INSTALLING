@@ -1,11 +1,10 @@
 This file is part of OneModel, a program to manage knowledge.
-Copyright in each year of 2003 and 2010-2016 inclusive, Luke A Call;
+Copyright in each year of 2003 and 2010-2017 inclusive, Luke A Call;
 all rights reserved.  OneModel is free software, distributed under
 a license that includes honesty, the Golden Rule, guidelines around
 binary distribution, and the GNU Affero General Public License as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.  See the file LICENSE
-for details.  OneModel is distributed in the hope that it will be
+published by the Free Software Foundation; see the file LICENSE
+for license version and details.  OneModel is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty
 of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU Affero General Public License for more details.  You should
@@ -13,7 +12,7 @@ have received a copy of the GNU Affero General Public License along
 with OneModel.  If not, see <http://www.gnu.org/licenses/>
 --------------------------------------------------------------------------------
 
-This file has details. For simpler instructions see
+This file has details of installation. For simpler instructions see
 http://onemodel.org/1/e-9223372036854624134.html .
 
 Compiling, Installing and Running OneModel
@@ -40,7 +39,7 @@ Compiling before installing is optional, but developers should have java
 & maven.
 
 First you'll need a java SDK, at least openJDK 1.8 (likely minimum).  Then 
-install maven (mvn).  These versions are known to work, on debian 8 
+install maven (mvn).  These versions are known to work, on debian 8
 (jessie) as of 2016-9:
     Apache Maven 3.0.5.
     Java version: OpenJDK 1.8.0_102.
@@ -196,8 +195,8 @@ requires a password to log in under your own username.	If you choose a
 different username, or a strong password (which is a good idea sometimes),
 you will be prompted each time.
 (Note: If needed, you can change your password later on, after completing
-all below steps, then again become root and run this command, substituting
-your username for the "<...>", removing the <>'s)
+all below steps, then again become the postgres user as above and run this 
+command, substituting your username for the "<...>", removing the <>'s):
     psql om_<yourusername>
 ...then:
     \password <yourusername>
@@ -276,12 +275,29 @@ does everything without need for manual setup.)
 Verifying
 ---------
 Developers: if you (checked out source and) installed maven (under
-Compiling, above), you can verify that the installation was successful
-by running this from the project directory:
-  mvn clean test
-...or if you change any code then instead run
-  mvn clean package
-...then make sure that was successful and no tests reported failure.
+Compiling, above), you can:
+  1) verify that the installation was successful
+  by running this from the project directory:
+    mvn clean test
+  ...or if you change any code then instead run
+    mvn clean package
+  ...then make sure that was successful and no tests reported failure.
+
+  2) Then also run integration tests (for Linux at least; details just below), 
+     by:
+    a) Installing dejagnu (details in the file core/testsuite/README).
+    b) Making sure that the om core/bin directory is in the path, for running of
+       scripts like "c" and "oet" etc. (Most of these scripts
+       have only been written for Linux, and tested on Debian. For other 
+       platforms,
+       patches are welcome: pls see the file CONTRIBUTING and send in
+       questions.)
+    c) Make sure psql (from the postgreSQL installation) is in the path 
+       (this is true by default on debian).
+    d) Then you can run
+         mvn verify
+       ...which runs integration tests against the .jar file built above
+       by "mvn clean package".
 
 
 Running
@@ -293,7 +309,7 @@ similar to this for Linux/Unix:
   bin/om
 
 ...or for Windows (let me know if this works; feel free to fix it &
-send the pull request):
+send a pull request):
 
   bin\om.bat
 
@@ -319,6 +335,9 @@ which suddenly doesn't look right (has too few entries or something),
 then you can see the right entries by ESCaping from the incorrectly
 displayed group then going back into it.  It's an infrequent bug.
 If you learn a way to reproduce it consistently, let me know.
+
+See the http://onemodel.org web site for the latest usage documentation.
+
 
 Troubleshooting
 ---------------

@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2016 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2017 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -10,9 +10,9 @@
 package org.onemodel.core.controllers
 
 import org.onemodel.core.TextUI
-import org.onemodel.core.model.{Database, OmInstance}
+import org.onemodel.core.model.OmInstance
 
-class OmInstanceMenu(val ui: TextUI, db: Database, controller: Controller) {
+class OmInstanceMenu(val ui: TextUI, controller: Controller) {
   /** returns None if user wants out. */
   //@tailrec //see comment re this on EntityMenu
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
@@ -30,9 +30,10 @@ class OmInstanceMenu(val ui: TextUI, db: Database, controller: Controller) {
       else {
         val answer = response.get
         if (answer == 3) {
-          val id: Option[String] = controller.askForAndWriteOmInstanceInfo(Some(omInstanceIn.getId), Some(omInstanceIn.getAddress))
+          val id: Option[String] = controller.askForAndWriteOmInstanceInfo(omInstanceIn.mDB, Some(omInstanceIn))
           if (id.isDefined) {
-            omInstanceMenu(new OmInstance(db, id.get))
+            // possible was some modification; reread from db to get new values:
+            omInstanceMenu(new OmInstance(omInstanceIn.mDB, id.get))
           } else {
             omInstanceMenu(omInstanceIn)
           }
@@ -52,7 +53,7 @@ class OmInstanceMenu(val ui: TextUI, db: Database, controller: Controller) {
       }
     } catch {
       case e: Exception =>
-        org.onemodel.core.Util.handleException(e, controller.ui, controller.db)
+        org.onemodel.core.Util.handleException(e, ui, omInstanceIn.mDB)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
         if (ans.isDefined && ans.get) omInstanceMenu(omInstanceIn)
         else None

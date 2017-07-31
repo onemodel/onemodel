@@ -1,15 +1,17 @@
-set -eu
-#doesn't work on machines w/ different paths:  #!/bin/bash -eu
-
+#!/bin/bash 
 #    This file is part of OneModel, a program to manage knowledge.
-#    Copyright in each year of 2010-2015 inclusive, Luke A Call; all rights reserved.
+#    Copyright in each year of 2010-2017 inclusive, Luke A Call; all rights reserved.
 #    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-#    of the License, or (at your option) any later version.  See the file LICENSE for details.
+#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+#    see the file LICENSE for license version and details.
 #    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
 #    You should have received a copy of the GNU Affero General Public License along with OneModel.  If 
 #    not, see http://www.gnu.org/licenses/  .
+
+set -eu
+#doesn't work on machines w/ different paths:  #!/bin/bash -eu
+#...BUT: I put it back because otherwise running under testrun (of dejagnu) gets an error.
 
 #useful to debug or observe scripts if uncommented:
 #set -x
@@ -17,12 +19,12 @@ set -eu
 THIS_SCRIPT_DIR=$(dirname $(readlink -fn $0))
 cd "$THIS_SCRIPT_DIR"/..
 
+# similar DEBUG setting code in "c" script
 DEBUG=""
 if [[ $# -gt 0 && $1 == 'd' ]]; then
   shift
   echo $#
   if [[ $# -gt 0  && $1 == 's' ]]; then
-    echo $#
     shift
     SUSPEND='y'
   else

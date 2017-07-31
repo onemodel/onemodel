@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2016 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2017 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -18,11 +18,11 @@ import org.onemodel.core.{OmException, Util}
 object EntityClass {
   def nameLength(inDB: Database): Int = Database.classNameLength
 
-  def isDuplicate(inDB: PostgreSQLDatabase, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateClass(inName, inSelfIdToIgnore)
+  def isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateClassName(inName, inSelfIdToIgnore)
 }
 
-class EntityClass(mDB: Database, mId: Long) {
-  // (See comment at similar location in BooleanAttribute.)
+class EntityClass(val mDB: Database, mId: Long) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.classKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
@@ -48,6 +48,7 @@ class EntityClass(mDB: Database, mId: Long) {
     if (!mAlreadyReadData) readDataFromDB()
     mTemplateEntityId
   }
+
 
   def getCreateDefaultAttributes: Option[Boolean] = {
     if (!mAlreadyReadData) readDataFromDB()
@@ -87,6 +88,18 @@ class EntityClass(mDB: Database, mId: Long) {
         }
     }
     result
+  }
+
+  def updateClassAndTemplateEntityName(nameIn: String): Long = {
+    val templateEntityId = mDB.updateClassAndTemplateEntityName(this.getId, nameIn)
+    mName = nameIn
+    require(templateEntityId == getTemplateEntityId)
+    templateEntityId
+  }
+
+  def updateCreateDefaultAttributes(valueIn: Option[Boolean]): Unit = {
+    mDB.updateClassCreateDefaultAttributes(getId, valueIn)
+    mCreateDefaultAttributes = valueIn
   }
 
   /** Removes this object etc from the system. */

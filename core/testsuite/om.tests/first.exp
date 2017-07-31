@@ -1,0 +1,1581 @@
+#    This file is part of OneModel, a program to manage knowledge.
+#    Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
+#    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+#    see the file LICENSE for license version and details.
+#    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#    You should have received a copy of the GNU Affero General Public License along with OneModel.  If
+#    not, see http://www.gnu.org/licenses/  .
+
+# See the README file in this file's parent directory.
+
+# NOTE: It is intended to keep this script in a style where all actions that
+# write # to the db in a way that could be done either against a local or
+# remote OM instance # are separated into functions that can be used for either
+# case.  This does not apply, for example, to actions that hit the main menu
+# primarily.
+
+# ALSO NOTE: the intent here is not just to check features with "myexpect"
+# etc., but to cover code and make sure things do not blow up.
+
+# (The next 2 lines are for times when send with "-h" is needed (maybe it
+# isn't anymore?) to allow OM to be ready for typing. Also used in sleep commands,
+# to delay before a first keystroke (since it seems that the -h in "send -h"
+# doesn't wait before the first key, only subsequent ones).
+# If there are erratic timeouts, might want to bump it by .1 or more.
+# Substituting the var in the 2nd "set" didn't seem to work?)
+# (.3 worked, but .2 didn't always, so playing it safer with .4 in case running
+# on a different system has problems.)
+set human_keystroke_wait .4
+set send_human {.4 .4 9999 .4 .4}
+set timeout 3
+set test_name "OneModel startup"
+set test_user "testrunner"
+
+# PICK JUST *ONE* OF NEXT 2 LINES:
+# Useful during testing to make sure we hit all new breakpoints for changed code. BUT
+# BUT WHEN (temporarily) REVERSING THIS, SEE ALSO THE COMMENTS in EntityMenuIT.java under "For some debugging",
+# if running from there!
+set using_debugger "false"
+#set using_debugger "true"
+
+# PICK JUST *ONE* OF NEXT 2 LINES:
+# ALWAYS USE FIRST LINE OF NEXT 2, FOR REGULAR AUTOMATIC INTEGRATION TESTS! Next line can be faster turnaround for manual testing, not building jar each time.
+set test_against_already_built_jar "true"
+#set test_against_already_built_jar "false"
+
+# PICK JUST *ONE* OF NEXT 2 LINES:
+# A convenient change if **during development only** one sometimes wants to run only
+# the stuff outside relevant "if" statements, for faster test turnaround:
+set testing_newest_code_only "false"
+#set testing_newest_code_only "true"
+
+#here just for for reference, though it didn't seem to work yet:
+#expect_background {
+#  -nocase ERROR {abort "Error encountered.\n"}
+#  -nocase WARNING {abort "Warning encountered.\n"}
+#  -nocase exception {abort "Exception encountered.\n"}
+
+  # The next line is maintained, though redundant with "ERROR" one just above, because the above one
+  # seems likely to change in which case the next line is needed and I don't want have to look up the wording again:
+  # (WAS experimentally using "abort" instead of "fail" because .. being undefined, it actually causes the script to abort
+  # instead of going on and trying other checks when the program is already in an unexpected state.
+  # What's the better way?)
+#  "An error occurred" {abort "Exception encountered.\n"}
+#}
+# (WAS experimentally Using "abort" instead of "fail" because .. being undefined, it actually causes the script to abort
+# instead of going on and trying other checks when the program is already in an unexpected state.
+# What's the better way?)
+
+
+proc my_simple_expect {expectation} {
+  # (Useful when code emits *desired* "ERROR" messages, which proc myexpect would detect and incorrectly fail.)
+  expect {
+    # per "man expect", the "default" keyword matches on either "timeout" or "eof" so we don't have to specify both:
+    default {
+      #using error instead of "exit 1", to generate a tcl stack trace:
+      error
+    }
+    # (The "\n" in the next line is so "found" can always be eyeballed in logs at the beginning of a line, even if "PASS: " cannot.
+    # AND SIMILARLY ELSEWHERE.)
+    -re $expectation {pass "\nfound $expectation"}
+  }
+}
+proc myexpect {expectation} {
+  # *** MAINTAIN THIS IN COORDINATION WITH "my_not_expect" below! ***
+  expect {
+    "simple instructions to reproduce it consistently, maybe it can be fixed - 1" {
+      # in this case OM is offering to provide a stack trace, so display it...
+      global human_keystroke_wait
+      sleep $human_keystroke_wait
+      # (backspace:)
+      send \x08\x08
+      send y\n
+      # ...then wait for the next prompt so the stack is shown, before expect closes OM.
+      myexpect "Press any key to continue..."
+      # (can be useful for debugging; not sure why it won't show the actual java stack trace emitted, except in the log:)
+      #send_user "\Buffer including error stack trace was:\n$expect_out(buffer) \n"
+      #using error instead of "exit 1", to generate a tcl stack trace:
+      error
+    }
+    # The last part of the next line is maintained, though redundant with "error" also in it, because the first one
+    # seems more likely to change in which case the last one is needed and I don't want have to look up the wording again:
+    -re "error|exception|An error occurred" {
+      send_user "\nERROR: Some error or exception was detected in the text which is shown here:\n"
+      #(using error instead of next few lines, to generate a tcl stack trace:)
+      #send_user "\Buffer including error stack trace was:\n$expect_out(buffer) \n"
+      #exit 1
+      error "\Buffer including error stack trace was:\n$expect_out(buffer)"
+    }
+    # (The "\n" in the next line is so "found" can always be eyeballed in logs at the beginning of a line, even if "PASS: " cannot.
+    # AND SIMILARLY ELSEWHERE.)
+    -re $expectation {pass "\nfound $expectation"}
+    default {
+      #(using error instead of next few lines, to generate a tcl stack trace:)
+      #send_user "ERROR: timeout or eof while expecting: \"$expectation\". \n"
+      #exit 1
+      global timeout
+      error "ERROR: timeout or eof while expecting: \"$expectation\", with timeout set to \"$timeout\"."
+    }
+  }
+}
+proc my_not_expect {not_expectation} {
+  # *** MAINTAIN THIS IN COORDINATION WITH "myexpect" above! ***
+  # This waits briefly sec to confirm something won't show up.  The wait_time amount is debatable.
+  set wait_time 2
+  expect {
+    "simple instructions to reproduce it consistently, maybe it can be fixed - 1" {
+      # in this case OM is offering to provide a stack trace, so display it...
+      global human_keystroke_wait
+      sleep $human_keystroke_wait
+      send \x08\x08
+      send y\n
+      # ...then wait for the next prompt so the stack is shown, before expect closes OM.
+      myexpect "Press any key to continue..."
+      # (can be useful for debugging; not sure why it won't show the actual stack trace emitted:)
+      #send_user "\Buffer including error stack trace was:\n$expect_out(buffer) \n"
+      #(using error instead of "exit 1", to generate a tcl stack trace:)
+      #exit 1
+      error
+    }
+    # The last part of the next line is maintained, though redundant with "error" also in it, because the first one
+    # seems more likely to change in which case the last one is needed and I don't want have to look up the wording again:
+    -re "error|exception|An error occurred" {
+      send_user "\nERROR: Some error or exception was detected in the text which is shown here:\n"
+      #(using error instead of next few lines, to generate a tcl stack trace:)
+      #send_user "\Buffer including error stack trace was:\n$expect_out(buffer) \n"
+      #exit 1
+      error "\Buffer including error stack trace was:\n$expect_out(buffer)"
+    }
+    -timeout $wait_time -re $not_expectation {
+      #(using error instead of next few lines, to generate a tcl stack trace:)
+      #send_user "ERROR: found value that should not be there: \"$not_expectation\". \n"
+      #exit 1
+      error "ERROR: found value that should not be there: \"$not_expectation\"."
+    }
+    default {pass "\nNot found, correctly: $not_expectation"}
+  }
+}
+proc allow_debugger_attachment {using_debugger debugger_attachment_required} {
+  if {$using_debugger == "true"} {
+    set wait_time 25
+    if {$debugger_attachment_required == "true"} {
+      set required_msg " (ATTACHING W/ DEBUGGER IS *REQUIRED* FOR THIS PART, since \$using_debugger==\"true\" and \$debugger_attachment_required==\"true\""
+    } else {
+      set required_msg ""
+    }
+    send_user "*** PAUSING ${wait_time}s: to give time to attach the IDE debugger${required_msg}; Enter skips wait)..."
+    expect_user {
+      -timeout ${wait_time} -re ".*\n" {
+        send_user "\n"
+      }
+    }
+  }
+}
+proc edit_entity_name_and_restore {containing_name new_name menu_letter} {
+  startproc edit_entity_name_and_restore false
+  # ONLY call this to edit the name of a highlighted entity that has no
+  # attributes, because it also tests the edit option specifically to that
+  # case, where OM edits the entity whose menu it is, instead of the
+  # highlighted attribute, if there are no highlighted attributes.
+  # (Next line just sends a space ("unknown choice"), to cause the menu to
+  # redisplay so we can reliably check its contents as provided by the caller.)
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_name}"
+  send 3
+  global human_keystroke_wait
+  sleep $human_keystroke_wait
+  send "edited\n"
+  myexpect "CURRENT ENTITY.*${containing_name}"
+  myexpect "${menu_letter}-${new_name}edited"
+
+  send $menu_letter
+  myexpect "3-Edit entity name"
+  send 3
+  myexpect "Enter Entity name"
+  sleep $human_keystroke_wait
+  myexpect "${new_name}edited"
+  # (backspace:)
+  send \x08\x08\x08\x08\x08\x08\n
+  myexpect "CURRENT ENTITY.*${new_name}"
+  send 0
+  endproc edit_entity_name_and_restore false
+}
+proc create_relation_to_entity_by_quick_search {fromname toname} {
+  startproc create_relation_to_entity_by_quick_search false
+  send " "
+  myexpect "CURRENT ENTITY"
+  send 42
+  global human_keystroke_wait
+  sleep $human_keystroke_wait
+  send ${toname}\n
+  sleep $human_keystroke_wait
+  send a
+  myexpect "CURRENT ENTITY.*${fromname}.*${toname}"
+  endproc create_relation_to_entity_by_quick_search false
+}
+proc create_relation_to_entity_quick {containing_name name} {
+  startproc create_relation_to_entity_quick false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_name}"
+  send 1
+  myexpect "NAME THE ENTITY"
+  sleep $human_keystroke_wait
+  send ${name}\n
+  myexpect "CURRENT ENTITY.*${containing_name}.*-${name}"
+  endproc create_relation_to_entity_quick false
+}
+proc go_from_mm_to_entity1 {} {
+  startproc go_from_mm_to_entity1 true
+  global human_keystroke_wait
+
+  # (testing send Enter key on MM; \n didn't work so send a CR, aka \x0D)
+  send "\r"
+  myexpect "CURRENT ENTITY.*testrunner"
+  send a
+  myexpect "CURRENT ENTITY.*entity1name.*created"
+
+  endproc go_from_mm_to_entity1 false
+}
+proc edit_public_status {} {
+  startproc edit_public_status true
+  global human_keystroke_wait
+  # maybe should genericize this so it goes to $containing_entity_name instead (via a search?) and similarly elsewhere.
+  go_from_mm_to_entity1
+
+  # (go to OtherEntityMenu)
+  send 9
+  myexpect "CURRENT ENTITY.*entity1name"
+  myexpect "1-Edit public/nonpublic status"
+  send 1
+  sleep $human_keystroke_wait
+  send y\n1
+  myexpect "CURRENT ENTITY.*\\\[PUBLIC.*entity1name.*created"
+  send 91
+  sleep $human_keystroke_wait
+  send \x08n\n1
+  myexpect "CURRENT ENTITY.*\\\[NON-PUBLIC.*entity1name.*created"
+  send 91
+  sleep $human_keystroke_wait
+  send \x08n\n2
+  myexpect "Updated . contained entities with new status."
+  send x
+  myexpect "CURRENT ENTITY.*\\\[NON-PUBLIC.*entity1name.*created"
+  send 91
+  sleep $human_keystroke_wait
+  send "\x08 \n3"
+  myexpect "Updated this entity and . contained entities with new status.*any key to continue"
+  send x
+  # back at an entity menu:
+  myexpect "CURRENT ENTITY.*entity1name.*created"
+  endproc edit_public_status true
+}
+proc import {entity_name_to_confirm_right_menu} {
+  startproc import false
+  global human_keystroke_wait
+  upvar 1 env env
+  # (go to OtherEntityMenu)
+  send 9
+  myexpect "2-Import/Export"
+  send 21
+  myexpect "Enter file path.*must exist"
+  send "$env(SCRIPT_DIR)/../src/test/resources/testImportFile0.txt\n"
+  myexpect "Do you want.*marked as public"
+  sleep $human_keystroke_wait
+  send y\n
+  myexpect "Keep the filename as the top level of the imported list"
+  sleep $human_keystroke_wait
+  # (defaults to "no", which is what this gets:)
+  send \n
+  myexpect "browse around.*any key"
+  send x
+  myexpect ".->vsgeer-testing"
+  send 0
+  myexpect "want to commit"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  # (The next line is hex for ESC/27, so it is tested, like 0, to go to
+  # the previous menu.)
+  send \x1B
+  # back at an entity menu:
+  myexpect "CURRENT ENTITY.*${entity_name_to_confirm_right_menu}.*created"
+  endproc import false
+}
+proc export_txt {entity_name_to_confirm_right_menu} {
+  startproc export_txt false
+  global human_keystroke_wait
+  # (go to OtherEntityMenu)
+  send 9
+  sleep $human_keystroke_wait
+  send 22
+  sleep $human_keystroke_wait
+  myexpect "Enter number of levels to export"
+  sleep $human_keystroke_wait
+  send \n
+  myexpect "Include metadata"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Include public data"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Include.*non-public"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Include.*not specified"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Exported to file: "
+  send x
+  send 0
+  # back at an entity menu:
+  myexpect "CURRENT ENTITY.*${entity_name_to_confirm_right_menu}.*created"
+  endproc export_txt false
+}
+proc export_html {entity_name_to_confirm_right_menu} {
+  startproc export_html false
+  global human_keystroke_wait
+  # create some header content so it will use that code
+  send 1
+  sleep $human_keystroke_wait
+  # (next line should match the constant Util.HEADER_CONTENT_TAG)
+  send htmlHeaderContent\n
+  myexpect "CURRENT ENTITY.*${entity_name_to_confirm_right_menu}.*created"
+  send 26
+
+  # (go to OtherEntityMenu)
+  send 9
+  sleep $human_keystroke_wait
+  send 23
+  send \n\n
+  sleep $human_keystroke_wait
+  send "2017 john doe\n"
+  sleep $human_keystroke_wait
+  send \n
+  myexpect "Include metadata"
+  sleep $human_keystroke_wait
+  send \n
+  myexpect "Include public data"
+  sleep $human_keystroke_wait
+  send \n
+  myexpect "Include.*non-public"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Include.*not specified"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Exported to directory: "
+  send x
+  send 0
+  # back at an entity menu:
+  myexpect "CURRENT ENTITY.*${entity_name_to_confirm_right_menu}.*created"
+  endproc export_html false
+}
+proc edit_class {} {
+  startproc edit_class true
+  global human_keystroke_wait
+  # maybe should genericize this so it goes to $containing_entity_name instead (via a search?) and similarly elsewhere.
+  go_from_mm_to_entity1
+
+  # (go to OtherEntityMenu)
+  send 9
+  myexpect "3-Edit..."
+  send 32b0
+  # back at an entity menu:
+  myexpect "CURRENT ENTITY.*entity1name.*class: testclass1.*created"
+  endproc edit_class false
+}
+proc archive_and_unarchive {} {
+  startproc archive_and_unarchive false
+  global human_keystroke_wait
+  # (go to OtherEntityMenu)
+  send 9
+  myexpect "Delete or Archive"
+  send 4
+  myexpect "Choose a deletion or archiving.*option"
+  send 4942
+  sleep $human_keystroke_wait
+  send y\n
+  myexpect "ARCHIVED.*entity1name"
+  send a942
+  sleep $human_keystroke_wait
+  send y\n
+  myexpect ">>entity1name"
+  send 94
+  myexpect "4-Do not show archived entities"
+  send 494
+  myexpect "4-Show archived entities"
+  send 0
+  # back at an entity menu:
+  myexpect "CURRENT ENTITY.*entity1name.*class: testclass1.*created"
+  endproc archive_and_unarchive false
+}
+proc create_html_link_RTE {containing_entity_name new_name new_url new_content} {
+  startproc create_html_link_RTE false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created"
+  send 49
+  sleep $human_keystroke_wait
+  send $new_name\n
+  send 1
+  sleep $human_keystroke_wait
+  send $new_url\n
+  send 1
+  sleep $human_keystroke_wait
+  send $new_content\n
+  myexpect "do you want to save them?"
+  sleep $human_keystroke_wait
+  send \n
+  myexpect "CURRENT ENTITY.*class: URI.*created"
+  send 0
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*->>${new_name}"
+  endproc create_html_link_RTE false
+}
+proc edit_entity_name_on_otherEntityMenu {old_entity_name new_entity_name class_name} {
+  startproc edit_entity_name_on_otherEntityMenu false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${old_entity_name}.*created"
+  send 9
+  myexpect "CURRENT ENTITY.*${old_entity_name}.*class: $class_name"
+  send 31
+  sleep $human_keystroke_wait
+  # (Ctrl-U or the key to clear preceding characters in the edit line:)
+  send \x15
+  send ${new_entity_name}\n
+  myexpect "single subgroup.*Also change.*"
+  sleep $human_keystroke_wait
+  send \x08n\n
+  send 0
+  myexpect "CURRENT ENTITY.*${new_entity_name}.*class: $class_name.*created"
+  endproc edit_entity_name_on_otherEntityMenu false
+}
+proc edit_add_class_defined_attributes {containing_entity_name} {
+  startproc edit_add_class_defined_attributes false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created"
+  send 933
+  myexpect "The template has relations to entities.  How would you like the equivalent to be provided for this new entity being created?"
+  send 1
+  myexpect "EDIT THE ENTITY NAME"
+  sleep $human_keystroke_wait
+  send edited\n
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*a-.*edited"
+  endproc edit_add_class_defined_attributes false
+}
+proc delete_highlighted_entity {deleted_entity_name} {
+  startproc delete_highlighted_entity false
+  global human_keystroke_wait
+  # send Enter to select the newly created attribute
+  send \x0D
+  send 941
+  myexpect "ARE YOU REALLY SURE"
+  sleep $human_keystroke_wait
+  send \x08n\n
+  myexpect "Did not delete entity.*CURRENT ENTITY"
+  send 941
+  myexpect "ARE YOU REALLY SURE"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Deleted entity.*${deleted_entity_name}.*any key to cont"
+  sleep $human_keystroke_wait
+  send x
+  endproc delete_highlighted_entity false
+}
+proc create_and_delete_entity {containing_entity_name deleted_entity_name} {
+  startproc create_and_delete_entity false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created"
+  create_relation_to_entity_quick entity1name test-deleteme
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*test-deleteme"
+  delete_highlighted_entity $deleted_entity_name
+  myexpect "CURRENT ENTITY.*${containing_entity_name}"
+  endproc create_and_delete_entity false
+}
+proc remove_link_to_container {containing_entity_name} {
+  startproc remove_link_to_container false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created"
+  set entity_name_to_remove test-deleteme
+  create_relation_to_entity_quick entity1name $entity_name_to_remove
+  # send Enter to select the newly created attribute
+  send \x0D
+  myexpect "CURRENT ENTITY.*${entity_name_to_remove}.*created"
+  send 943
+  myexpect "ARE YOU SURE"
+  sleep $human_keystroke_wait
+  send \x08n\n
+  myexpect "Did not delete relation"
+  send 943
+  myexpect "ARE YOU SURE"
+  sleep $human_keystroke_wait
+  send \x08y\n
+
+  # also make sure its menu displays after the removal
+  myexpect "CURRENT ENTITY.*${entity_name_to_remove}.*created.*"
+  send 0
+  # and confirm actually gone (negation of "test-deleteme")
+  set last_attr_in_menu ">>someUrl"
+  my_not_expect "CURRENT ENTITY.*${containing_entity_name}.*created.*${entity_name_to_remove}.*${last_attr_in_menu}"
+  send " "
+  # and that the right thing really is there
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*${last_attr_in_menu}"
+
+  endproc remove_link_to_container false
+}
+proc go_to_related_entity {entity_name containing_entity_name} {
+  startproc go_to_related_entity false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${entity_name}.*created"
+  send 95
+  myexpect "Go to....*1-See entities that directly relate to this entity .2"
+  send 1a
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created"
+  send 0
+  myexpect "CURRENT ENTITY.*${entity_name}.*created"
+  endproc go_to_related_entity false
+}
+proc go_to_related_in_group {group_name entity_name} {
+  startproc go_to_related_in_group false
+  global human_keystroke_wait
+  send " "
+  myexpect "ENTITY GROUP.*${group_name}.*class.*valid.*obsv.*${entity_name}"
+  send \x0d
+  send 95
+  myexpect "Go to....*2-Go to group.*${group_name}"
+  send 2
+  myexpect "ENTITY GROUP.*${group_name}.*class.*valid.*obsv.*${entity_name}"
+  send 0953
+  myexpect "CURRENT ENTITY.*template"
+  send 0954
+  myexpect "CLASS:"
+  # (More than ideal # of zeros, but maybe will be fixed when @tailrec is used
+  # better in the code, per some comments there:)
+  send 00000
+  myexpect "ENTITY GROUP.*${group_name}.*class.*valid.*obsv.*${entity_name}"
+  endproc go_to_related_in_group false
+}
+proc expect_and_enter_default_valid_and_observed_dates {} {
+  startproc expect_and_enter_default_valid_and_observed_dates false
+  global human_keystroke_wait
+
+  myexpect "the date when this was first VALID"
+  #not sure why next sleep line seems optional:
+  #sleep $human_keystroke_wait
+  send \n
+  myexpect "WHEN OBSERVED"
+  sleep $human_keystroke_wait
+  send \n
+  myexpect "Dates are.*right.*y/n"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  endproc expect_and_enter_default_valid_and_observed_dates false
+}
+proc initial_main_menu_prefs_add_default {test_user_name} {
+  # MainMenu on OM instance with no data: add new
+
+  startproc initial_main_menu_prefs_add_default false
+  global human_keystroke_wait
+
+  myexpect "To get started, you probably want to find or create an entity"
+  myexpect "any key to continue..."
+  send x
+  myexpect "1-Add new entity.*to start"
+  myexpect "2-Search all / list existing"
+  send 2
+  myexpect "ENTITIES: Pick from"
+  myexpect "a-.system-use-only"
+  myexpect "b-existence"
+  myexpect "c-editorInfo"
+  myexpect "f-User preferences"
+  send f
+  myexpect "CURRENT ENTITY.*User preferences"
+  myexpect "0/ESC.*previous menu"
+  send 0
+  #(next line is hex for ESC (27))
+  send \x1B
+  myexpect "Add new entity.*to start"
+  send 1
+  myexpect "CHOOSE ENTITY.S CLASS"
+  myexpect "a-person"
+  send a
+  send "${test_user_name} - user entity\n"
+  myexpect "CURRENT ENTITY"
+  myexpect "9.*TRY ME.*Other entity operations"
+  send 9
+  myexpect "Set current entity as default"
+  send 7
+  myexpect "CURRENT ENTITY"
+  myexpect "9-Other entity operations"
+  send 0
+  myexpect "Main OM menu:.*5/Enter-.*testrunner"
+
+  endproc initial_main_menu_prefs_add_default true
+}
+proc mm_create_relationtype_parentchild {relation_type_name relation_type_name_inreverse} {
+  startproc mm_create_relationtype_parentchild true
+  global human_keystroke_wait
+
+  send 2
+  myexpect "Enter RelationType name.*:"
+  send "${relation_type_name}\nbi\n"
+  myexpect "name when direction is reversed"
+  send "${relation_type_name_inreverse}\n"
+  myexpect "Is this the correct name"
+  send 1
+  myexpect "CURRENT ENTITY.*${relation_type_name}"
+
+  endproc mm_create_relationtype_parentchild true
+}
+proc mm_user_preferences {} {
+  startproc mm_user_preferences true
+  global human_keystroke_wait
+
+  send 3
+  myexpect "User preferences"
+  myexpect "Which entity should be displayed as default"
+
+  endproc mm_user_preferences true
+}
+proc mm_relation_types {relation_type_name} {
+  startproc mm_relation_types true
+  global human_keystroke_wait
+
+  send 4
+  myexpect "RELATION TYPES"
+  myexpect "a-has"
+  myexpect "${relation_type_name}"
+  send a
+  myexpect "CURRENT ENTITY.*has"
+
+  endproc mm_relation_types true
+}
+proc mm_search {test_user_name} {
+  startproc mm_search true
+  global human_keystroke_wait
+
+  send 0
+  myexpect "6-Search all / list existing entities"
+  send 6
+  myexpect "3-.*by name"
+  send 3
+  send "${test_user_name}\n"
+  myexpect "SEARCH RESULTS"
+  myexpect "${test_user_name}"
+  send a
+  myexpect "CURRENT ENTITY.*${test_user_name}"
+  send 06a
+  myexpect "existence"
+
+  endproc mm_search true
+}
+proc mm_om_instance_menu {} {
+  startproc mm_om_instance_menu true
+  global human_keystroke_wait
+
+  send 8
+  myexpect "OneModel INSTANCES.*a-.*local.*created"
+  send a
+  myexpect "OneModel Instance.*local"
+  send 3
+  myexpect "Enter the internet address"
+  sleep $human_keystroke_wait
+  send \n
+
+  my_simple_expect "Unable to retrieve"
+  sleep $human_keystroke_wait
+  send \n
+  my_simple_expect "Failed to retrieve remote info.*any key to cont"
+  sleep $human_keystroke_wait
+  send x
+
+  endproc mm_om_instance_menu true
+}
+proc class_menu {} {
+  startproc class_menu true
+  global human_keystroke_wait
+
+  send 7
+  myexpect "CLASSES: Pick from menu, or an item by letter"
+  myexpect "a-person"
+  send 2
+  sleep $human_keystroke_wait
+  send testclass\n
+  myexpect "Do you want to add attributes"
+  # (allow time for the text to be displayed:)
+  sleep $human_keystroke_wait
+  send \n
+  myexpect "CURRENT ENTITY.*testclass-template"
+  send 031
+  # (allow time for the text to be displayed:)
+  sleep $human_keystroke_wait
+  send 1\n
+  myexpect "CLASS: testclass1"
+  send 3
+  myexpect "2-Edit.*default.*currently unset"
+  send 2
+  # (backspace:)
+  send \x08
+  send y\n3
+  myexpect "Edit.*default.*currently true"
+  send 07b
+  myexpect "CLASS: testclass1"
+  send 5
+  myexpect "CURRENT ENTITY.*testclass1-template"
+  create_relation_to_entity_quick testclass1-template testclass1-template-1stattributeRTE-entityname
+  send 0
+  myexpect "List all entities in this class"
+  send 6
+  myexpect "None of the needed entities have been created in this model, yet"
+  send 04
+  # (backspaces--a little timing trouble or something here to get the user input right:)
+  sleep $human_keystroke_wait
+  send \x08\x08\x08
+  #sleep $human_keystroke_wait
+  send n\n
+  myexpect "Did not delete class."
+  send 0
+
+  # now create *and* delete a test class:
+  send 72
+  sleep $human_keystroke_wait
+  send testclass2\n
+  myexpect "Do you want to add attributes to the newly created template entity for this class"
+  # (allow time for the default answer text to be displayed:)
+  sleep $human_keystroke_wait
+  send \n
+  myexpect "CURRENT ENTITY.*testclass2-template"
+  send 0
+  myexpect "CLASS: testclass2"
+  send 4
+  # (backspaces--a little timing trouble or something here to get the user input right:)
+  send -h \x08\x08\x08
+  send -h y\n
+  myexpect "Deleted class.*testclass2"
+  myexpect "any key to continue"
+  send xb
+  myexpect "testclass1"
+
+  endproc class_menu true
+}
+proc entity_menu_create_entity1_rte_entity2_and_html_link {test_user_name} {
+  startproc entity_menu_create_entity1_rte_entity2_and_html_link true
+  global human_keystroke_wait
+
+  #sleep $human_keystroke_wait
+  #send " "
+  #myexpect "Main OM menu:.*5/Enter-.*testrunner"
+  send \r
+  create_relation_to_entity_quick ${test_user_name} entity1name
+  edit_entity_name_and_restore $test_user_name entity1name a
+  myexpect "CURRENT ENTITY.*${test_user_name}"
+  send a
+  myexpect "CURRENT ENTITY.*entity1name"
+  create_relation_to_entity_by_quick_search entity1name entity1name
+  send 000
+  myexpect "Main OM menu:.*5/Enter-.*testrunner"
+  send 5
+  create_relation_to_entity_quick $test_user_name entity2name
+  send a
+  myexpect "CURRENT ENTITY.*entity1name"
+  create_relation_to_entity_by_quick_search entity1name entity2name
+  send " "
+  myexpect "CURRENT ENTITY.*entity1name.*a->>entity1name.*b.*entity2name"
+  create_html_link_RTE entity1name someUrl "http://www.example.com" abcdefg
+
+  endproc entity_menu_create_entity1_rte_entity2_and_html_link true
+}
+proc go_to_related_multiple_containing_groups {old_entity_name old_group_name new_group_name add_entity_name} {
+  startproc go_to_related_multiple_containing_groups false
+  global human_keystroke_wait
+  send " "
+  myexpect "ENTITY GROUP.*${old_group_name}.*class.*valid.*obsv"
+  send 0
+  create_new_group $new_group_name
+  send " "
+  myexpect "CURRENT ENTITY.*${old_entity_name}.*group.*${old_group_name}.*group.*${new_group_name}"
+  send \x0d
+  myexpect "ENTITY GROUP.*group2name.*class.*valid.*obsv"
+  # add new entity via search
+  send 13
+  sleep $human_keystroke_wait
+  send $add_entity_name\n
+  sleep $human_keystroke_wait
+  send a
+  send \x0d
+  send 95
+  myexpect "2-See groups containing this entity.*2"
+  send 2
+  myexpect "Pick from menu, or a letter.*a-entity.*has grp.*group1name.*b-entity.*has grp.*group2name"
+  send b
+  send 000
+  myexpect "ENTITY GROUP.*${new_group_name}.*class.*valid.*obsv.*${add_entity_name}"
+  endproc go_to_related_multiple_containing_groups false
+}
+proc check_entity_relations_etc {self_containing_entity_name at_menu_letter} {
+  startproc check_entity_relations_etc false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${self_containing_entity_name}.*created.*${at_menu_letter}->>${self_containing_entity_name}"
+  send ${at_menu_letter}953a
+  expect_and_enter_default_valid_and_observed_dates
+  myexpect "1-Save this RelationToEntity attribute"
+  send 1
+  myexpect "CURRENT ENTITY.*${self_containing_entity_name}.*created.*${at_menu_letter}->>${self_containing_entity_name}"
+  endproc check_entity_relations_etc false
+}
+proc add_and_remove_entity_from_group {containing_entity_name group_name} {
+  startproc add_and_remove_entity_from_group false
+  global human_keystroke_wait
+
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created"
+  create_new_group ${group_name}
+  # (Enter key go back into the new group)
+  send \x0D
+  myexpect "ENTITY GROUP"
+  send 12b
+  myexpect "DEFINE THE ENTITY"
+  sleep $human_keystroke_wait
+  send entity3name\n
+  myexpect "The template has relations.*0/ESC - back"
+  send 0
+
+  go_to_related_in_group $group_name entity3name
+  go_to_related_multiple_containing_groups $containing_entity_name $group_name group2name entity3name
+
+  # test adding an entity then just removing from the group
+  sleep $human_keystroke_wait
+  send 1
+  sleep $human_keystroke_wait
+  send deleteme\n
+  myexpect "ENTITY GROUP.*group2name.*class.*-deleteme"
+  sleep $human_keystroke_wait
+  send \x0D
+  myexpect "CURRENT ENTITY.*deleteme.*created"
+  send 943
+  myexpect "REMOVE this entity from that group"
+  sleep $human_keystroke_wait
+  send y\n0
+  my_not_expect "ENTITY GROUP.*group2name.*-entity3name.*deleteme"
+  send " "
+  myexpect "ENTITY GROUP.*group2name.*-entity3name"
+
+  # now test adding an entity and deleting it (not just removing from the group)
+  send 1
+  sleep $human_keystroke_wait
+  send deleteme2\n
+  myexpect "ENTITY GROUP.*group2name.*class.*-deleteme2"
+  sleep $human_keystroke_wait
+  send \x0D
+  myexpect "CURRENT ENTITY.*deleteme2.*created"
+  send 941
+  myexpect "DELETE ENTITY.*including.*${containing_entity_name}-.group2name.*ARE YOU REALLY SURE"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Deleted entity.*deleteme2.*any key to cont"
+  send x
+  my_not_expect "ENTITY GROUP.*group2name.*-entity3name.*deleteme2"
+  send " "
+  myexpect "ENTITY GROUP.*group2name.*-entity3name"
+
+  # go back to known state for next test
+  send 0
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created"
+  endproc add_and_remove_entity_from_group false
+}
+proc create_new_group {new_group_name} {
+  startproc create_new_group false
+  global human_keystroke_wait
+
+  send " "
+  myexpect "===.*CURRENT ENTITY.*created.*4-Add attribute"
+
+  send 48a2
+  myexpect "name for this group"
+  sleep $human_keystroke_wait
+  send "${new_group_name}\n"
+  myexpect "allow.*mixed classes"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  expect_and_enter_default_valid_and_observed_dates
+  myexpect "ENTITY GROUP.*${new_group_name}.*class"
+  send 0
+
+  myexpect "===.*CURRENT ENTITY.*created.*4-Add attribute.*group. ${new_group_name}"
+  endproc create_new_group false
+}
+proc move_group_entry_helper {} {
+  startproc move_group_entry_helper false
+  myexpect "ENTITY GROUP.*group2name.*class.*a-entity3name.*b.*entity2name"
+  send 7a2
+  myexpect "7-Move.*to selected target"
+  send 7
+  myexpect "ENTITY GROUP.*group2name.*class.*a-.entity3name"
+  send " "
+  my_not_expect "b.*entity2name"
+  endproc move_group_entry_helper false
+}
+proc move_group_entries {containing_entity_name group_menu_letter} {
+  startproc move_group_entries false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*${group_menu_letter}-.group. group2name"
+
+  send $group_menu_letter
+  myexpect "ENTITY GROUP.*group2name.*class.*a-entity3name"
+  send 42
+  myexpect "Entity name to search for"
+  sleep $human_keystroke_wait
+  send entity2name\n
+  myexpect "SEARCH RESULTS.*a.*entity2name"
+  send a
+  myexpect "ENTITY GROUP.*group2name.*class.*a-entity3name.*b.*entity2name"
+  send a
+  create_new_group group3name
+  send 0
+  move_group_entry_helper
+  # move the moved thing, back up
+  send a282
+  myexpect "ENTITY GROUP.*2-Other"
+  # del that new group just used above
+  send 241
+  myexpect "DELETE this group definition"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Deleted group.*any key to cont"
+  sleep $human_keystroke_wait
+  send x
+  # move again but to hit different code (no subgroup in target)...
+  move_group_entry_helper
+  # ...then back
+  send a280
+  # ...then around
+  send 24
+  myexpect "ENTITY GROUP.*group2name.*class.*a.*entity2name.*b-entity3name"
+  send 2808
+  myexpect "CHOOSE an attribute to highlight.*h-entity3name"
+  send h7c
+  myexpect "CURRENT ENTITY.*entity1name.*created.*group1name.*"
+  myexpect "\\\+.*c-.group: group2name.*e2-g0"
+  myexpect "\\\*.*h-entity3name"
+  send 27c
+  myexpect "ENTITY GROUP.*group2name.*class.*a.*entity2name.*b-entity3name"
+  send 0
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*"
+  # ...and alone via search:
+  send 643
+  myexpect "Enter part of the Entity name to search for"
+  sleep $human_keystroke_wait
+  send entity2name\n
+  myexpect "SEARCH RESULTS.*a.*entity2name"
+  send a
+  myexpect "CURRENT ENTITY.*entity2name.*created"
+  send 95228
+  myexpect "Unable to find any containing groups.*any key"
+  send x
+  myexpect "ENTITY GROUP.*group2name.*class"
+  # ...and more moving things around
+  send a
+  myexpect "CURRENT ENTITY.*entity2name.*created"
+  create_new_group "e2-g1"
+  create_new_group "e2-g2"
+  send 07
+  myexpect "CHOOSE AN ENTRY.*FOR THE TARGET OF MOVES"
+  send a8
+  myexpect "CHOOSE AN ENTRY to highlight"
+  send b2
+  myexpect "7-Move.*to selected target"
+  send 7
+  myexpect "ENTITY GROUP.*group2name.*class.*a-.*entity2name"
+  send " "
+  my_not_expect "b-entity3name"
+  # and back:
+  send a8g280
+  # ...and creating new entity in unusual situation:
+  myexpect "ENTITY GROUP.*group2name.*class.*a-.*entity2name.*b-entity3name"
+  send 41
+  myexpect "There are multiple subgroups on this entity.*any key"
+  send x
+  myexpect "NAME THE ENTITY"
+  sleep $human_keystroke_wait
+  send "entity4name\n"
+  myexpect "CURRENT ENTITY.*entity4name.*created"
+
+  # and creating a new entity again, but with one less subgroup in the target entity
+  send 0ab
+  myexpect "ENTITY GROUP.*e2-g1.*class"
+  send 24
+  myexpect "contains 0 entities.*0 archived.*contained in 1 entities.*and in 0 archived"
+  send 1
+  myexpect "DELETE this group"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Deleted group.*any key"
+  send x041
+  myexpect "NAME THE ENTITY"
+  sleep $human_keystroke_wait
+  send "entity5name\n"
+  myexpect "ENTITY GROUP.*e2-g2.*class.*a-entity5name"
+  send 0
+  myexpect "ENTITY GROUP.*group2name.*class.*a-.*entity2name.*b-entity3name"
+  send 000
+
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*"
+  endproc move_group_entries false
+}
+proc go_to_relation_type {containing_entity_name checked_entity_menu_letter checked_entity_menu_name} {
+  startproc go_to_relation_type false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*${checked_entity_menu_letter}-${checked_entity_menu_name}"
+
+  send ${checked_entity_menu_letter}95
+  myexpect "4-Go to the type"
+  send 4
+  myexpect "CURRENT ENTITY.*has.*created"
+  send 000
+
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*${checked_entity_menu_letter}-${checked_entity_menu_name}"
+  endproc go_to_relation_type false
+}
+proc edit_group_entry_name {containing_entity_name group_menu_letter} {
+  startproc edit_group_entry_name false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*${group_menu_letter}-.group. group1name"
+
+  send $group_menu_letter
+  myexpect "ENTITY GROUP.*group1name.*class.*a-entity3name"
+  send " "
+  my_not_expect "edited"
+  send 3
+  myexpect "Enter Entity name"
+  sleep $human_keystroke_wait
+  send "edited\n"
+  myexpect "ENTITY GROUP.*group1name.*class.*a-entity3nameedited"
+  send 3
+  myexpect "Enter Entity name"
+  sleep $human_keystroke_wait
+  send \x08\x08\x08\x08\x08\x08\n
+  myexpect "ENTITY GROUP.*group1name.*class.*a-entity3name"
+  send " "
+  my_not_expect "edited"
+
+  send 0
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*"
+  endproc edit_group_entry_name false
+}
+proc check_group_menu {containing_entity_name group_menu_letter} {
+  startproc check_group_menu false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*${group_menu_letter}-.group. group2name"
+
+  send $group_menu_letter
+  send 9
+  myexpect "ENTITY GROUP.*regular menu.*group2name.*class"
+  send 21
+  myexpect "Enter file path"
+  # ESC (that is far enough for this test for now):
+  send \x1B
+  myexpect "ENTITY GROUP.*regular menu.*group2name.*class"
+
+  send 31
+  myexpect "Type a name"
+  sleep $human_keystroke_wait
+  send "edited\n"
+  myexpect "ENTITY GROUP.*regular menu.*group2nameedited.*class"
+  send 31
+  myexpect "Type a name"
+  sleep $human_keystroke_wait
+  send "\x08\x08\x08\x08\x08\x08\n"
+  myexpect "ENTITY GROUP.*regular menu.*group2name.*class"
+
+  send 51b0
+  myexpect "Blank, so assuming you want to cancel"
+  send 51bd
+  expect_and_enter_default_valid_and_observed_dates
+  myexpect "1-Save this RelationToGroup"
+  send 1
+  myexpect "ENTITY GROUP.*regular menu.*group2name.*class"
+  send 51b2
+  myexpect "Type a name for this group"
+  sleep $human_keystroke_wait
+  send group4name\n
+  myexpect "Should.*allow.*mixed classes"
+  sleep $human_keystroke_wait
+  send \n
+  expect_and_enter_default_valid_and_observed_dates
+  myexpect "1-Save this RelationToGroup"
+  send 1
+  myexpect "ENTITY GROUP.*regular menu.*group4name.*class"
+  send " "
+  my_not_expect "entity2name"
+
+  send 5
+  myexpect "2-Go to entity containing"
+  send 20
+  myexpect "ENTITY GROUP.*regular menu.*is parent to.*group4name.*class"
+  send 5
+  myexpect "3-.*stub.*no template entity to go to"
+  send 3
+  myexpect "invalid response.*any key"
+  send x
+  send 51a
+  myexpect "d-group2name"
+  send d
+  expect_and_enter_default_valid_and_observed_dates
+  #myexpect
+  send 1
+  myexpect "ENTITY GROUP.*regular menu.*group2name.*class"
+  send b
+  myexpect "CURRENT ENTITY.*entity3name.*created"
+  send 0
+  myexpect "ENTITY GROUP.*regular menu.*group2name.*class"
+  send 00
+
+  send 0
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*"
+  endproc check_group_menu false
+}
+proc group_menu_deletion {containing_entity_name} {
+  startproc check_group_menu false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*"
+
+  create_new_group group6name
+  # Enter to reselect the newly created group
+  send \x0D
+  send 243
+  myexpect "REMOVE.*from.*entity.*ARE YOU SURE.*contained in 1 entities.*0 archived"
+  sleep $human_keystroke_wait
+  send y\n
+
+  send 0
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*"
+  endproc check_group_menu false
+}
+proc entity_create_search_delete {containing_entity_name} {
+  startproc entity_create_search_delete true
+  global human_keystroke_wait
+  # maybe should genericize this so it goes to $containing_entity_name instead (via a search?) and similarly elsewhere.
+  go_from_mm_to_entity1
+
+  send 61
+  myexpect "End of attribute list.*any key"
+  send x
+  send b
+  myexpect "CURRENT ENTITY.*entity2name.*created"
+  create_relation_to_entity_quick entity2name entity4name
+  send 063
+  myexpect "name to search for"
+  sleep $human_keystroke_wait
+  send 4na\n
+  myexpect "levels to search"
+  sleep $human_keystroke_wait
+  send \n
+  myexpect "a-entity4name"
+  send a
+  myexpect "CURRENT ENTITY.*entity4name.*created"
+  send 941
+  myexpect "ARE YOU REALLY SURE"
+  sleep $human_keystroke_wait
+  send \x08y\n
+  myexpect "Deleted entity.*any key"
+  send x0
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*b.*entity2name"
+
+  endproc entity_create_search_delete false
+}
+proc entity_create_relation_to_group_and_move_it_into_entity {containing_entity_name tmpgrpname} {
+  startproc entity_create_relation_to_group_and_move_it_into_entity false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*${containing_entity_name}.*created.*b.*entity2name"
+
+  send b
+  myexpect "CURRENT ENTITY.*entity2name.*created"
+  create_relation_to_entity_quick entity2name entity7name
+  send 21
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name"
+  create_new_group $tmpgrpname
+  send " "
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name.*b-group. ${tmpgrpname}"
+  send 7a2
+  myexpect "7-Move"
+  send 7
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name"
+  send " "
+  my_not_expect "${tmpgrpname}"
+
+  endproc entity_create_relation_to_group_and_move_it_into_entity false
+}
+proc entity_create_boolean_attribute {} {
+  startproc entity_create_boolean_attribute false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name"
+
+  send 4520
+  myexpect "Enter Entity name"
+  sleep $human_keystroke_wait
+  send booleanType\n
+  myexpect "new value to true now.*n$"
+  send \n
+  expect_and_enter_default_valid_and_observed_dates
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name.*b-booleanType. false"
+
+  endproc entity_create_boolean_attribute false
+}
+proc entity_move_things_see_failures {tmpgrpname} {
+  startproc entity_move_things_see_failures false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name.*b-booleanType. false"
+
+  send 7b8a27
+  myexpect "not yet implemented.*any key"
+  send x
+  send 7a8b27
+  myexpect "not yet implemented.*any key"
+  send x
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name.*b-booleanType. false"
+  send a2
+  myexpect "8-Move"
+  send 80
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name.*b-booleanType. false.*c-group. ${tmpgrpname}"
+  send 8c2
+  myexpect "8-Move"
+  send 8
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name.*b-booleanType. false"
+  send " "
+  my_not_expect "${tmpgrpname}"
+  send 8b28
+  myexpect "not yet implemented.*any key"
+  send x
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name.*b-booleanType. false"
+
+  endproc entity_move_things_see_failures false
+}
+proc entity_create_relation_to_existence_entity {} {
+  startproc entity_create_relation_to_existence_entity false
+  global human_keystroke_wait
+  send " "
+  myexpect "CURRENT ENTITY.*entity2name.*created.*a-entity7name.*b-booleanType. false"
+
+  send 41ab
+  expect_and_enter_default_valid_and_observed_dates
+  myexpect "CURRENT ENTITY.*entity2name.*created.*-existence"
+  # (to make sure Enter works as expected:)
+  send 4\r
+  myexpect "CREATE OR SELECT RELATION TYPE"
+  send ac
+  expect_and_enter_default_valid_and_observed_dates
+  myexpect "CURRENT ENTITY.*entity2name.*created.*-existence.*editorInfo"
+
+  endproc entity_create_relation_to_existence_entity false
+}
+proc entity_create_and_edit_quantity_attribute {} {
+  startproc entity_create_and_edit_quantity_attribute true
+  global human_keystroke_wait
+  go_from_mm_to_entity1
+
+  send 43
+  myexpect "SELECT TYPE OF QUANTITY.*2-Add new entity"
+  send 20
+  myexpect "Enter Entity name"
+  sleep $human_keystroke_wait
+  send length\n
+  myexpect "SELECT A .UNIT. FOR THIS QUANTITY.*2-Add new entity"
+  send 20
+  myexpect "Enter Entity name"
+  sleep $human_keystroke_wait
+  send meters\n
+  myexpect "ENTER THE NUMBER FOR THE QUANTITY"
+  sleep $human_keystroke_wait
+  send \n
+  expect_and_enter_default_valid_and_observed_dates
+  myexpect "CURRENT ENTITY.*entity1name.*created.*length: 0.0 meters"
+
+  send \n3
+  myexpect "ENTER THE NUMBER"
+  sleep $human_keystroke_wait
+  send \x08
+  send 1\n
+  myexpect "CURRENT ENTITY.*entity1name.*created.*length: 0.1 meters"
+
+  # move it to end because some other later procs expect certain letters
+  # for positions of other attrs:
+  send 26
+
+  endproc entity_create_and_edit_quantity_attribute true
+}
+proc entity_create_and_edit_text_attribute {} {
+  startproc entity_create_and_edit_text_attribute true
+  global human_keystroke_wait
+  go_from_mm_to_entity1
+
+  send 47
+  myexpect "SELECT TYPE OF TEXT.*2-Add new entity"
+  send 20
+  myexpect "Enter Entity name"
+  sleep $human_keystroke_wait
+  set type "entity_create_and_edit_text_attribute-textAttrType"
+  send ${type}\n
+  myexpect "Type or paste"
+  sleep $human_keystroke_wait
+  set content entity_create_and_edit_text_attribute-sometext
+  send ${content}\n
+  expect_and_enter_default_valid_and_observed_dates
+  myexpect "CURRENT ENTITY.*entity1name.*created.*${type}: .${content}."
+
+  send \n3
+  myexpect "Type or paste"
+  sleep $human_keystroke_wait
+  set addition xyz
+  set content ${content}${addition}
+  send ${addition}\n
+  myexpect "CURRENT ENTITY.*entity1name.*created.*${type}: .${content}."
+
+  # move it to end because some other later procs expect certain letters
+  # for positions of other attrs:
+  send 26
+  endproc entity_create_and_edit_text_attribute true
+}
+proc startproc {proc_name start_at_MM} {
+  send_user "Starting proc: ${proc_name}\n"
+  if {$start_at_MM == "true"} {
+    # for when we need to know we start in a predictable spot:
+    send 0
+    myexpect "Main OM menu:.*5/Enter-.*testrunner"
+  }
+}
+proc endproc {proc_name end_at_MM} {
+  if {$end_at_MM == "true"} {
+    # for when we need to know we end in a consistent spot, for the next logic:
+    send 000
+    myexpect "Main OM menu"
+  }
+  send_user "Ending proc: ${proc_name}\n"
+}
+# A naively canonical procedure, to copy when starting new procs that check an OM feature from the main menu.  Fix at the "updateme" marks:
+#proc updateme {updateme} {
+#  startproc updateme updateme
+#  global human_keystroke_wait
+
+  #updateme: the logic goes here...
+
+  #(delete this comment line: next line is for copying when needed to save time vs hunting for it)
+  #sleep $human_keystroke_wait
+#  endproc updateme updateme
+#}
+
+# First, try startup that does not assume user/pass from cli, but instead gets default username/password
+# (assumes that om has been installed with current user as an OM user; let's talk about fixing, if test needs to
+# run where that is not so.)
+# (This first part shouldn't care about the database (just testing login stuff), so no purge yet. That comes later.)
+# *** NOTE ***: when maintaining these "if" statements etc, DO SAME CHANGES TO SIMILAR CODE JUST BELOW
+if {$using_debugger == "false"} {
+  if {$test_against_already_built_jar == "true"} {
+    spawn om
+  } else {
+    # (note: $env(SCRIPT_DIR) yields the directory within the project that
+    # contains the om-runtest script, i.e., the full path up to and
+    # including core/bin .)
+    spawn $env(SCRIPT_DIR)/c
+    # allow time for recompile
+    set timeout 60
+  }
+} else {
+  if {$test_against_already_built_jar == "true"} {
+    # The d is for debug, s means to wait for it to attach.
+    # The reason it is required to attach the debugger as next line says, is that otherwise the test doesn't stop long enough to ever attach
+    # and I couldn't verify that it was hitting the needed breakpoints.
+    spawn om d s
+  } else {
+    spawn $env(SCRIPT_DIR)/c d s
+  }
+  # Allow extra time (a compromise between too short to work in the debugger, and infinite which ~hangs instead of failing)
+  # for long pauses at a breakpoint in the debugger.  So, 2 min:
+  set timeout 120
+}
+# (See cmt a little above for why next line says it is required=true.)
+allow_debugger_attachment $using_debugger true
+myexpect "Using default user info"
+send_user "Closing the 1st om started."
+close
+
+
+if {$testing_newest_code_only == "false"} {
+  spawn $env(SCRIPT_DIR)/purge-om-test-database
+  # (Not using myexpect for the next check because the purge script emits non-failure "ERROR" messages which myexpect
+  # will detect and in this case incorrectly fail, which is not wanted in this case. See the purge script called above, for details.)
+  my_simple_expect "OM db purge success."
+}
+
+# **NOTE**: See above for comments on this next similar "if" block.  This is the same
+# but starts a different instance of OM with a different login.
+# *** NOTE ***: when maintaining these "if" statements etc, DO SAME CHANGES TO SIMILAR CODE JUST ABOVE.
+if {$using_debugger == "false"} {
+  if {$test_against_already_built_jar == "true"} {
+    # (x means to prompt for a username/password.)
+    spawn om x
+  } else {
+    spawn $env(SCRIPT_DIR)/c x
+  }
+} else {
+  if {$test_against_already_built_jar == "true"} {
+    # The d is for debug, x means to prompt for a username/password.
+    spawn om d x
+  } else {
+    spawn $env(SCRIPT_DIR)/c d x
+  }
+}
+
+
+myexpect "Username:"
+send "${test_user}\n"
+# (This comes after the myexpect "Username:", to be sure the app actually launched, including time if we called "c" script so its recompile is finished:)
+allow_debugger_attachment $using_debugger false
+myexpect "Password:"
+send "${test_user}\n"
+# next line is to give app startup time which it seems to need when running "mvn install":
+sleep 2
+myexpect "a program to manage \\\& share knowledge"
+myexpect "If you agree to those terms: Press any key to continue..."
+send x
+
+if {$using_debugger == "false"} {
+  # script startup above set, using "if" conditions, set timeout to certain values, but needs change
+  # at this point in the tests, so:
+  if {$test_against_already_built_jar == "true"} {
+    # timeout can be left as is as per similar conditions in script startup above
+  } else {
+    # now that recompile and app startup are done, set timeout back to something reasonable
+    set timeout 3
+  }
+}
+
+if {$testing_newest_code_only == "false"} {
+  # MainMenu, with initial startup
+  initial_main_menu_prefs_add_default $test_user
+  set relation_type_name "is parent to - test"
+  set relation_type_name_inreverse "is child of - test"
+  mm_create_relationtype_parentchild $relation_type_name $relation_type_name_inreverse
+  mm_user_preferences
+  mm_relation_types $relation_type_name
+  mm_search $test_user
+  mm_om_instance_menu
+
+
+  # ClassMenu (creates a class for subsequent use in entityMenu farther below)
+  class_menu
+
+
+  # EntityMenu
+  entity_menu_create_entity1_rte_entity2_and_html_link $test_user
+  entity_create_search_delete entity1name
+  set tmpgrpname "e2-g0"
+  entity_create_relation_to_group_and_move_it_into_entity entity1name $tmpgrpname
+  entity_create_boolean_attribute
+  entity_move_things_see_failures $tmpgrpname
+  entity_create_relation_to_existence_entity
+
+  send 00
+  myexpect "CURRENT ENTITY.*entity1name.*created.*-group. ${tmpgrpname}"
+  send 000
+  myexpect "Main OM menu"
+
+  entity_create_and_edit_quantity_attribute
+  entity_create_and_edit_text_attribute
+
+
+  # OtherEntityMenu
+  edit_public_status
+  edit_class
+  edit_entity_name_on_otherEntityMenu entity1name entity1nameX testclass1
+  edit_entity_name_on_otherEntityMenu entity1nameX entity1name testclass1
+  edit_add_class_defined_attributes entity1name
+  create_and_delete_entity entity1name test-deleteme
+  archive_and_unarchive
+  remove_link_to_container entity1name
+  go_to_related_entity entity1name testrunner
+  # (IDEA for future maintainability, also in tasks under: "write something to find menu letter of an entry" ... so it is not hard coded & less fragile.):
+  check_entity_relations_etc entity1name a
+
+
+  # QuickGroupMenu
+  send 000000
+  # maybe should genericize this so it goes to $containing_entity_name instead (via a search?) and similarly elsewhere.
+  go_from_mm_to_entity1
+  add_and_remove_entity_from_group entity1name group1name
+  move_group_entries entity1name c
+  go_to_relation_type entity1name d testclass1-template-1stattributeRTE-entitynameedited
+  edit_group_entry_name entity1name b
+
+
+  # GroupMenu
+  send 000
+  # maybe should genericize this so it goes to $containing_entity_name instead (via a search?) and similarly elsewhere.
+  go_from_mm_to_entity1
+  check_group_menu entity1name c
+  group_menu_deletion entity1name
+
+
+  # ImportExport
+  # first start back at top, then get to a known location & state:
+  send 00000
+  myexpect "Main OM menu:.*5/Enter-.*testrunner"
+  send 5
+  myexpect "CURRENT ENTITY.*testrunner.*created.*a-..entity1name"
+  send a
+  set group_menu_letter c
+  myexpect "CURRENT ENTITY.*created.*${group_menu_letter}-.group. group2name"
+
+  import entity1name
+  export_txt entity1name
+  export_html entity1name
+
+
+  send 00
+  myexpect "Main OM menu:.*5/Enter-.*testrunner"
+}
+
+# example of a date/time output (see also "timestamp" in "man expect"):
+send_user "\ndone at: [clock format [clock seconds]]\n"
+
+
+# Raise this # as tests are added--the test output says what the # is.
+# The check is here because ^C (or other interruptions?)
+# caused runtest to exit but it returned a 0 (success) code to om-runtest, and so
+# a failure could be missed.  This makes sure it runs to completion.
+# (If you dont know what # to use, comment the line out, check the testrun.log that was just
+# updated, and update the #, then uncomment the line. Or just uncomment it, but don't commit that.)
+
+
+# Was a test to confirm: tried a search and attribute display on my regular db (not testrunner), with very
+# long output (> 2000 bytes! see "man expect" for that # for why wondering if it would find things before the 2000 bytes went by).
+#send "063Exception\nNa"
+#expect {
+#  ERROR {abort "Error encountered.\n"}
+#  WARNING {abort "Warning encountered.\n"}
+#  -nocase exception {abort "Exception encountered.\n"}
+#  timeout  {abort "didn't find this program is free software; timed out\n";}
+#  -nocase "this program is free software" { pass "found" }
+#}
+#expect {
+#  ERROR {abort "Error encountered.\n"}
+#  WARNING {abort "Warning encountered.\n"}
+#  -nocase exception {abort "Exception encountered.\n"}
+#  timeout  {abort "didn't find org.postgresql.jdbc; timed out\n";}
+#  "org.postgresql.jdbc" { pass "found" }
+#}

@@ -2,7 +2,7 @@ import org.scalatestplus.play._
 
 import scala.collection.mutable
 
-class StackSpec extends PlaySpec {
+class FirstTest extends PlaySpec {
 
   //for now these are just tests copied verbatim from the play 2.5 docs:
   "A Stack" must {

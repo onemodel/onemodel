@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2016 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -40,6 +40,8 @@ object PostgreSQLDatabase {
   }
 
   private def destroyTables_helper(connIn: Connection) {
+    /**** WHEN MAINTAINING THIS METHOD, SIMILARLY MAINTAIN THE SCRIPT core/bin/purge-om-test-database* SO IT DOES THE SAME WORK. ****/
+
     // Doing these individually so that if one fails (not previously existing, such as testing or a new installation), the others can proceed (drop method
     // ignores that exception).
 
@@ -62,7 +64,7 @@ object PostgreSQLDatabase {
     drop("table", "FileAttributeContent", connIn)
     drop("table", Util.FILE_TYPE, connIn)
     drop("table", Util.TEXT_TYPE, connIn)
-    drop("table", Util.RELATION_TO_ENTITY_TYPE, connIn)
+    drop("table", Util.RELATION_TO_LOCAL_ENTITY_TYPE, connIn)
     drop("table", Util.RELATION_TO_REMOTE_ENTITY_TYPE, connIn)
     drop("table", "EntitiesInAGroup", connIn)
     drop("table", Util.RELATION_TO_GROUP_TYPE, connIn)
@@ -238,13 +240,13 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val HASrelationTypeId = findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
 
     val preferencesContainerId: Long = {
-      val preferencesEntityId: Option[Long] = getRelationToEntityByName(getSystemEntityId, Util.USER_PREFERENCES)
+      val preferencesEntityId: Option[Long] = getRelationToLocalEntityByName(getSystemEntityId, Util.USER_PREFERENCES)
       if (preferencesEntityId.isDefined) {
         preferencesEntityId.get
       } else {
         // Since necessary, also create the entity that contains all the preferences:
-        val newEntityId: Long = createEntityAndRelationToEntity(systemEntityId, HASrelationTypeId, Util.USER_PREFERENCES, None,
-                                                                Some(System.currentTimeMillis), System.currentTimeMillis)._1
+        val newEntityId: Long = createEntityAndRelationToLocalEntity(systemEntityId, HASrelationTypeId, Util.USER_PREFERENCES, None,
+                                                                     Some(System.currentTimeMillis), System.currentTimeMillis)._1
         newEntityId
       }
     }
@@ -535,8 +537,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       // --Luke Call 8/2003.
       dbAction("create table RelationToEntity (" +
                // see comment for this column under "create table RelationToGroup", below:
-               "form_id smallint DEFAULT " + Database.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE) +
-               "    NOT NULL CHECK (form_id=" + Database.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE) + "), " +
+               "form_id smallint DEFAULT " + Database.getAttributeFormId(Util.RELATION_TO_LOCAL_ENTITY_TYPE) +
+               "    NOT NULL CHECK (form_id=" + Database.getAttributeFormId(Util.RELATION_TO_LOCAL_ENTITY_TYPE) + "), " +
                //this can be treated like a primary key (with the advantages of being artificial) but the real one is a bit farther down. This one has the
                //slight or irrelevant disadvantage that it artificially limits the # of rows in this table, but it's still a big #.
                "id bigint DEFAULT nextval('RelationToEntityKeySequence') UNIQUE NOT NULL, " +
@@ -864,7 +866,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       // doing this for consistency with the other tables.  Seems easier to type that way (slightly fewer keystrokes & shorter reach to them).
       dbAction("alter table om_instance rename to OmInstance")
       // and fix a small math error I had made
-      dbAction("alter table omInstance alter column address type varchar(262) not null")
+      dbAction("alter table omInstance alter column address type varchar(262)")
       dbAction("UPDATE om_db_version SET (version) = (5)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
@@ -1007,12 +1009,12 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   /** @param searchStringIn is case-insensitive.
     * @param stopAfterAnyFound is to prevent a serious performance problem when searching for the default entity at startup, if that default entity
     *                          eventually links to 1000's of others.  Alternatives included specifying a different levelsRemaining parameter in that
-    *                          case, or not following any RelationToEntity links (which defeats the ability to organize the preferences in a hierarchy),
+    *                          case, or not following any RelationTo[Local|Remote]Entity links (which defeats the ability to organize the preferences in a hierarchy),
     *                          or flagging certain ones to skip by marking them as a preference (not a link to follow in the preferences hierarchy), but
     *                          those all seemed more complicated.
     * */
-  def findContainedEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String,
-                             levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true): mutable.TreeSet[Long] = {
+  def findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String,
+                                  levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true): mutable.TreeSet[Long] = {
     // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two places).  But that has other complexities: see
     // comments on ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of levels total, it might not matter anyway
     // (ie, probably the current code is not optimized but is simpler and good enough for now).
@@ -1038,7 +1040,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
           // have to do the name check here because we need to traverse all contained entities, so we need all those back from the sql, not just name matches.
           resultsInOut.add(id)
         }
-        findContainedEntityIds(resultsInOut, id, searchStringIn, levelsRemaining - 1, stopAfterAnyFound)
+        findContainedLocalEntityIds(resultsInOut, id, searchStringIn, levelsRemaining - 1, stopAfterAnyFound)
       }
       if (! (stopAfterAnyFound && resultsInOut.nonEmpty)) {
         val sql2 = "select eiag.entity_id, e.name from RelationToGroup rtg, EntitiesInAGroup eiag, entity e where rtg.entity_id=" + fromEntityIdIn +
@@ -1056,7 +1058,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
             // have to do the name check here because we need to traverse all contained entities, so we need all those back from the sql, not just name matches.
             resultsInOut.add(id)
           }
-          findContainedEntityIds(resultsInOut, id, searchStringIn, levelsRemaining - 1, stopAfterAnyFound)
+          findContainedLocalEntityIds(resultsInOut, id, searchStringIn, levelsRemaining - 1, stopAfterAnyFound)
         }
       }
       // this part is doing a regex now:
@@ -1093,14 +1095,14 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val existenceEntityId = createEntity("existence", isPublicIn = Some(false))
     //idea: as probably mentioned elsewhere, this "BI" (and other strings?) should be replaced with a constant somewhere (or enum?)!
     val hasRelTypeId = createRelationType(Database.theHASrelationTypeName, Database.theIsHadByReverseName, "BI")
-    createRelationToEntity(hasRelTypeId, systemEntityId, existenceEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    createRelationToLocalEntity(hasRelTypeId, systemEntityId, existenceEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
 
     val editorInfoEntityId = createEntity(Database.EDITOR_INFO_ENTITY_NAME, isPublicIn = Some(false))
-    createRelationToEntity(hasRelTypeId, systemEntityId, editorInfoEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    createRelationToLocalEntity(hasRelTypeId, systemEntityId, editorInfoEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
     val textEditorInfoEntityId = createEntity(Database.TEXT_EDITOR_INFO_ENTITY_NAME, isPublicIn = Some(false))
-    createRelationToEntity(hasRelTypeId, editorInfoEntityId, textEditorInfoEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    createRelationToLocalEntity(hasRelTypeId, editorInfoEntityId, textEditorInfoEntityId, Some(System.currentTimeMillis()), System.currentTimeMillis())
     val textEditorCommandAttributeTypeId = createEntity(Database.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME, isPublicIn = Some(false))
-    createRelationToEntity(hasRelTypeId, textEditorInfoEntityId, textEditorCommandAttributeTypeId, Some(System.currentTimeMillis()), System.currentTimeMillis())
+    createRelationToLocalEntity(hasRelTypeId, textEditorInfoEntityId, textEditorCommandAttributeTypeId, Some(System.currentTimeMillis()), System.currentTimeMillis())
     val editorCommand: String = {
       if (Util.isWindows) "notepad"
       else "vi"
@@ -1191,11 +1193,12 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     commitTrans()
   }
 
-  /** Returns at most 1 row's info (id, relationTypeId, groupId), and a boolean indicating if more were available.
+  /** Returns at most 1 row's info (id, relationTypeId, groupId, name), and a boolean indicating if more were available.
     * If 0 rows are found, returns (None, None, None, false), so this expects the caller
     * to know there is only one or deal with the None.
     */
-  def findRelationToAndGroup_OnEntity(entityIdIn: Long, groupNameIn: Option[String] = None): (Option[Long], Option[Long], Option[Long], Boolean) = {
+  def findRelationToAndGroup_OnEntity(entityIdIn: Long,
+                                      groupNameIn: Option[String] = None): (Option[Long], Option[Long], Option[Long], Option[String], Boolean) = {
     val nameCondition = if (groupNameIn.isDefined) {
       val name = escapeQuotesEtc(groupNameIn.get)
       "g.name='" + name + "'"
@@ -1203,27 +1206,29 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       "true"
 
     // "limit 2", so we know and can return whether more were available:
-    val rows = dbQuery("select rtg.id, rtg.rel_type_id, g.id from relationtogroup rtg, grupo g where rtg.group_id=g.id and rtg.entity_id=" + entityIdIn +
-                       " and " + nameCondition + " order by rtg.id limit 2", "Long,Long,Long")
+    val rows = dbQuery("select rtg.id, rtg.rel_type_id, g.id, g.name from relationtogroup rtg, grupo g where rtg.group_id=g.id" +
+                       " and rtg.entity_id=" + entityIdIn +
+                       " and " + nameCondition + " order by rtg.id limit 2", "Long,Long,Long,String")
     // there could be none found, or more than one, but:
     if (rows.isEmpty)
-      (None, None, None, false)
+      (None, None, None, None, false)
     else {
       val row = rows.head
       val id: Option[Long] = Some(row(0).get.asInstanceOf[Long])
       val relTypeId: Option[Long] = Some(row(1).get.asInstanceOf[Long])
       val groupId: Option[Long] = Some(row(2).get.asInstanceOf[Long])
-      (id, relTypeId, groupId, rows.size > 1)
+      val name: Option[String] = Some(row(3).get.asInstanceOf[String])
+      (id, relTypeId, groupId, name, rows.size > 1)
     }
   }
 
   /**
    * @return the id of the new RTE
    */
-  def addHASRelationToEntity(fromEntityIdIn: Long, toEntityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                             sortingIndexIn: Option[Long] = None): RelationToEntity = {
+  def addHASRelationToLocalEntity(fromEntityIdIn: Long, toEntityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
+                                  sortingIndexIn: Option[Long] = None): RelationToLocalEntity = {
     val relationTypeId = findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
-    val newRte = createRelationToEntity(relationTypeId, fromEntityIdIn, toEntityIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
+    val newRte = createRelationToLocalEntity(relationTypeId, fromEntityIdIn, toEntityIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
     newRte
   }
 
@@ -1562,12 +1567,12 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
-  def createRelationToEntity(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                             sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false): RelationToEntity = {
+  def createRelationToLocalEntity(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long,
+                                  sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false): RelationToLocalEntity = {
     val rteId: Long = getNewKey("RelationToEntityKeySequence")
     if (!callerManagesTransactionsIn) beginTrans()
     try {
-      addAttributeSortingRow(entityId1In, Database.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE), rteId, sortingIndexIn)
+      addAttributeSortingRow(entityId1In, Database.getAttributeFormId(Util.RELATION_TO_LOCAL_ENTITY_TYPE), rteId, sortingIndexIn)
       dbAction("INSERT INTO RelationToEntity (id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date) " +
                "VALUES (" + rteId + "," + relationTypeIdIn + "," + entityId1In + ", " + entityId2In + ", " +
                "" + (if (validOnDateIn.isEmpty) "NULL" else validOnDateIn.get) + "," + observationDateIn + ")")
@@ -1578,7 +1583,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         throw e
     }
     if (!callerManagesTransactionsIn) commitTrans()
-    new RelationToEntity(this, rteId, relationTypeIdIn, entityId1In, entityId2In)
+    new RelationToLocalEntity(this, rteId, relationTypeIdIn, entityId1In, entityId2In)
   }
 
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
@@ -1604,7 +1609,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
-  def updateRelationToEntity(oldRelationTypeIdIn: Long, entityId1In: Long, entityId2In: Long,
+  def updateRelationToLocalEntity(oldRelationTypeIdIn: Long, entityId1In: Long, entityId2In: Long,
                              newRelationTypeIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long) {
     // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
     // in memory when the db updates, and the behavior gets weird.
@@ -1625,27 +1630,51 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   /**
+   * Takes an RTLE and unlinks it from one local entity, and links it under another instead.
    * @param sortingIndexIn Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
-   * @return the new RelationToEntity
+   * @return the new RelationToLocalEntity
    */
-  def moveRelationToEntity(relationToEntityIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): RelationToEntity = {
+  def moveRelationToLocalEntityToLocalEntity(rtleIdIn: Long, toContainingEntityIdIn: Long, sortingIndexIn: Long): RelationToLocalEntity = {
     beginTrans()
     try {
-      val rteData: Array[Option[Any]] = getAllRelationToEntityDataById(relationToEntityIdIn)
+      val rteData: Array[Option[Any]] = getAllRelationToLocalEntityDataById(rtleIdIn)
       val oldRteRelType: Long = rteData(2).get.asInstanceOf[Long]
       val oldRteEntity1: Long = rteData(3).get.asInstanceOf[Long]
       val oldRteEntity2: Long = rteData(4).get.asInstanceOf[Long]
       val validOnDate: Option[Long] = rteData(5).asInstanceOf[Option[Long]]
       val observedDate: Long = rteData(6).get.asInstanceOf[Long]
-      deleteRelationToEntity(oldRteRelType, oldRteEntity1, oldRteEntity2)
-      val newRTE: RelationToEntity = createRelationToEntity(oldRteRelType, newContainingEntityIdIn, oldRteEntity2, validOnDate, observedDate,
-                                                            Some(sortingIndexIn), callerManagesTransactionsIn = true)
-
+      deleteRelationToLocalEntity(oldRteRelType, oldRteEntity1, oldRteEntity2)
+      val newRTE: RelationToLocalEntity = createRelationToLocalEntity(oldRteRelType, toContainingEntityIdIn, oldRteEntity2, validOnDate, observedDate,
+                                                                      Some(sortingIndexIn), callerManagesTransactionsIn = true)
       //Something like the next line might have been more efficient than the above code to run, but not to write, given that it adds a complexity about updating
       //the attributesorting table, which might be more tricky in future when something is added to prevent those from being orphaned. The above avoids that or
       //centralizes the question to one place in the code.
-      //dbAction("UPDATE RelationToEntity SET (entity_id) = (" + newContainingEntityIdIn + ")" + " where id=" + relationToEntityIdIn)
+      //dbAction("UPDATE RelationToEntity SET (entity_id) = (" + newContainingEntityIdIn + ")" + " where id=" + relationToLocalEntityIdIn)
 
+      commitTrans()
+      newRTE
+    } catch {
+      case e: Exception => throw rollbackWithCatch(e)
+    }
+  }
+
+  /**
+   * See comments on & in method moveRelationToLocalEntityToLocalEntity.  Only this one takes an RTRE (stored locally), and instead of linking it inside one local
+   * entity, links it inside another local entity.
+   */
+  def moveRelationToRemoteEntityToLocalEntity(remoteInstanceIdIn: String, relationToRemoteEntityIdIn: Long, toContainingEntityIdIn: Long,
+                                              sortingIndexIn: Long): RelationToRemoteEntity = {
+    beginTrans()
+    try {
+      val rteData: Array[Option[Any]] = getAllRelationToRemoteEntityDataById(relationToRemoteEntityIdIn)
+      val oldRteRelType: Long = rteData(2).get.asInstanceOf[Long]
+      val oldRteEntity1: Long = rteData(3).get.asInstanceOf[Long]
+      val oldRteEntity2: Long = rteData(4).get.asInstanceOf[Long]
+      val validOnDate: Option[Long] = rteData(5).asInstanceOf[Option[Long]]
+      val observedDate: Long = rteData(6).get.asInstanceOf[Long]
+      deleteRelationToRemoteEntity(oldRteRelType, oldRteEntity1, remoteInstanceIdIn, oldRteEntity2)
+      val newRTE: RelationToRemoteEntity = createRelationToRemoteEntity(oldRteRelType, toContainingEntityIdIn, oldRteEntity2, validOnDate, observedDate,
+                                                                      remoteInstanceIdIn, Some(sortingIndexIn), callerManagesTransactionsIn = true)
       commitTrans()
       newRTE
     } catch {
@@ -1678,13 +1707,13 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   /** I.e., make it so the entity has a relation to a new entity in it.
     * Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
     */
-  def createEntityAndRelationToEntity(entityIdIn: Long, relationTypeIdIn: Long, newEntityNameIn: String, isPublicIn: Option[Boolean],
-                                      validOnDateIn: Option[Long], observationDateIn: Long, callerManagesTransactionsIn: Boolean = false): (Long, Long) = {
+  def createEntityAndRelationToLocalEntity(entityIdIn: Long, relationTypeIdIn: Long, newEntityNameIn: String, isPublicIn: Option[Boolean],
+                                           validOnDateIn: Option[Long], observationDateIn: Long, callerManagesTransactionsIn: Boolean = false): (Long, Long) = {
     val name: String = escapeQuotesEtc(newEntityNameIn)
     if (!callerManagesTransactionsIn) beginTrans()
     val newEntityId: Long = createEntity(name, isPublicIn = isPublicIn)
-    val newRte: RelationToEntity = createRelationToEntity(relationTypeIdIn, entityIdIn, newEntityId, validOnDateIn, observationDateIn, None,
-                                                          callerManagesTransactionsIn)
+    val newRte: RelationToLocalEntity = createRelationToLocalEntity(relationTypeIdIn, entityIdIn, newEntityId, validOnDateIn, observationDateIn, None,
+                                                                    callerManagesTransactionsIn)
     if (!callerManagesTransactionsIn) commitTrans()
     (newEntityId, newRte.getId)
   }
@@ -1752,7 +1781,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       val (newRtgId: Long,_) = createRelationToGroup(newContainingEntityIdIn, oldRtgRelType, oldRtgGroupId, validOnDate, observedDate, Some(sortingIndexIn),
                                                  callerManagesTransactionsIn = true)
 
-      // (see comment at similar commented line in moveRelationToEntity)
+      // (see comment at similar commented line in moveRelationToLocalEntityToLocalEntity)
       //dbAction("UPDATE RelationToGroup SET (entity_id) = (" + newContainingEntityIdIn + ")" + " where id=" + relationToGroupIdIn)
 
       commitTrans()
@@ -1765,7 +1794,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   /** Trying it out with the entity's previous sortingIndex (or whatever is passed in) in case it's more convenient, say, when brainstorming a
     * list then grouping them afterward, to keep them in the same order.  Might be better though just to put them all at the beginning or end; can see....
     */
-  def moveEntityFromGroupToGroup(fromGroupIdIn: Long, toGroupIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long) {
+  def moveLocalEntityFromGroupToGroup(fromGroupIdIn: Long, toGroupIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long) {
     beginTrans()
     addEntityToGroup(toGroupIdIn, moveEntityIdIn, Some(sortingIndexIn), callerManagesTransactionsIn = true)
     removeEntityFromGroup(fromGroupIdIn, moveEntityIdIn, callerManagesTransactionsIn = true)
@@ -1778,19 +1807,19 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   /** (See comments on moveEntityFromGroupToGroup.)
     */
-  def moveEntityFromGroupToEntity(fromGroupIdIn: Long, toEntityIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long) {
+  def moveEntityFromGroupToLocalEntity(fromGroupIdIn: Long, toEntityIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long) {
     beginTrans()
-    addHASRelationToEntity(toEntityIdIn, moveEntityIdIn, None, System.currentTimeMillis(), Some(sortingIndexIn))
+    addHASRelationToLocalEntity(toEntityIdIn, moveEntityIdIn, None, System.currentTimeMillis(), Some(sortingIndexIn))
     removeEntityFromGroup(fromGroupIdIn, moveEntityIdIn, callerManagesTransactionsIn = true)
     commitTrans()
   }
 
   /** (See comments on moveEntityFromGroupToGroup.)
     */
-  def moveEntityFromEntityToGroup(removingRelationToEntityIn: RelationToEntity, targetGroupIdIn: Long, sortingIndexIn: Long) {
+  def moveLocalEntityFromLocalEntityToGroup(removingRtleIn: RelationToLocalEntity, targetGroupIdIn: Long, sortingIndexIn: Long) {
     beginTrans()
-    addEntityToGroup(targetGroupIdIn, removingRelationToEntityIn.getRelatedId2, Some(sortingIndexIn), callerManagesTransactionsIn = true)
-    deleteRelationToEntity(removingRelationToEntityIn.getAttrTypeId, removingRelationToEntityIn.getRelatedId1, removingRelationToEntityIn.getRelatedId2)
+    addEntityToGroup(targetGroupIdIn, removingRtleIn.getRelatedId2, Some(sortingIndexIn), callerManagesTransactionsIn = true)
+    deleteRelationToLocalEntity(removingRtleIn.getAttrTypeId, removingRtleIn.getRelatedId1, removingRtleIn.getRelatedId2)
     commitTrans()
   }
 
@@ -1997,8 +2026,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def deleteFileAttribute(idIn: Long) = deleteObjectById(Util.FILE_TYPE, idIn)
 
-  def deleteRelationToEntity(relTypeIdIn: Long, entityId1In: Long, entityId2In: Long) {
-    deleteObjects(Util.RELATION_TO_ENTITY_TYPE, "where rel_type_id=" + relTypeIdIn + " and entity_id=" + entityId1In + " and entity_id_2=" + entityId2In)
+  def deleteRelationToLocalEntity(relTypeIdIn: Long, entityId1In: Long, entityId2In: Long) {
+    deleteObjects(Util.RELATION_TO_LOCAL_ENTITY_TYPE, "where rel_type_id=" + relTypeIdIn + " and entity_id=" + entityId1In + " and entity_id_2=" + entityId2In)
   }
 
   def deleteRelationToRemoteEntity(relTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long) {
@@ -2092,8 +2121,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       updateBooleanAttribute(attribute.getId, attribute.getParentId, attribute.getAttrTypeId, valueIn, attribute.getValidOnDate, attribute.getObservationDate)
     } else {
       val HASrelationTypeId = findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
-      val preferenceEntityId: Long = createEntityAndRelationToEntity(preferencesContainerId, HASrelationTypeId, nameIn, None,
-                                                                     Some(System.currentTimeMillis()), System.currentTimeMillis())._1
+      val preferenceEntityId: Long = createEntityAndRelationToLocalEntity(preferencesContainerId, HASrelationTypeId, nameIn, None,
+                                                                          Some(System.currentTimeMillis()), System.currentTimeMillis())._1
       // (For about the attr_type_id value (2nd parm), see comment about that field, in method getUserPreference_Boolean2 below.)
       createBooleanAttribute(preferenceEntityId, preferenceEntityId, valueIn, Some(System.currentTimeMillis()), System.currentTimeMillis())
     }
@@ -2119,15 +2148,15 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       val entityId2: Long = preferenceInfo.get._3
       // didn't bother to put these 2 calls in a transaction because this is likely to be so rarely used and easily fixed by user if it fails (from default
       // entity setting on any entity menu)
-      deleteRelationToEntity(relationTypeId, entityId1, entityId2)
+      deleteRelationToLocalEntity(relationTypeId, entityId1, entityId2)
       // (Using entityId1 instead of (the likely identical) preferencesContainerId, in case this RTE was originally found down among some
       // nested preferences (organized for user convenience) under here, in order to keep that organization.)
-      createRelationToEntity(relationTypeId, entityId1, entityIdIn, Some(System.currentTimeMillis()), System.currentTimeMillis())
+      createRelationToLocalEntity(relationTypeId, entityId1, entityIdIn, Some(System.currentTimeMillis()), System.currentTimeMillis())
     } else {
       val HASrelationTypeId = findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
-      val preferenceEntityId: Long = createEntityAndRelationToEntity(preferencesContainerId, HASrelationTypeId, nameIn, None,
-                                                                     Some(System.currentTimeMillis()), System.currentTimeMillis())._1
-      createRelationToEntity(HASrelationTypeId, preferenceEntityId, entityIdIn, Some(System.currentTimeMillis()), System.currentTimeMillis())
+      val preferenceEntityId: Long = createEntityAndRelationToLocalEntity(preferencesContainerId, HASrelationTypeId, nameIn, None,
+                                                                          Some(System.currentTimeMillis()), System.currentTimeMillis())._1
+      createRelationToLocalEntity(HASrelationTypeId, preferenceEntityId, entityIdIn, Some(System.currentTimeMillis()), System.currentTimeMillis())
     }
   }
 
@@ -2145,7 +2174,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     // have a default entity set at the *top* level of the preferences under the system entity, and there are links there to entities with many links
     // to others, then it still won't take too long to traverse them all at startup when searching for the default entity.  But still allowing for
     // preferences to be nested up to that many levels (3 as of this writing).
-    val foundPreferences: mutable.TreeSet[Long] = findContainedEntityIds(new mutable.TreeSet[Long], preferencesContainerIdIn, preferenceNameIn, 3)
+    val foundPreferences: mutable.TreeSet[Long] = findContainedLocalEntityIds(new mutable.TreeSet[Long], preferencesContainerIdIn, preferenceNameIn, 3)
     if (foundPreferences.isEmpty) {
       None
     } else {
@@ -2203,7 +2232,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     }
   }
 
-  def getRelationToEntityByName(containingEntityIdIn: Long, nameIn: String): Option[Long] = {
+  def getRelationToLocalEntityByName(containingEntityIdIn: Long, nameIn: String): Option[Long] = {
     val sql = "select rte.entity_id_2 from relationtoentity rte, entity e where rte.entity_id=" + containingEntityIdIn +
               (if (!includeArchivedEntities) {
                 " and (not e.archived)"
@@ -2224,7 +2253,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   /** This should never return None, except when method createExpectedData is called for the first time in a given database. */
   def getPreferencesContainerId: Long = {
-    val relatedEntityId = getRelationToEntityByName(getSystemEntityId, Util.USER_PREFERENCES)
+    val relatedEntityId = getRelationToLocalEntityByName(getSystemEntityId, Util.USER_PREFERENCES)
     if (relatedEntityId.isEmpty) {
       throw new OmDatabaseException("This should never happen: method createExpectedData should be run at startup to create this part of the data.")
     }
@@ -2244,7 +2273,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     extractRowCountFromCountQuery("SELECT count(1) from class" + whereClause)
   }
 
-  def getGroupSortingIndex(groupIdIn: Long, entityIdIn: Long): Long = {
+  def getGroupEntrySortingIndex(groupIdIn: Long, entityIdIn: Long): Long = {
     val row = dbQueryWrapperForOneRow("select sorting_index from EntitiesInAGroup where group_id=" + groupIdIn + " and entity_id=" + entityIdIn, "Long")
     row(0).get.asInstanceOf[Long]
   }
@@ -2303,10 +2332,10 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
           if (isEntityAttrsNotGroupEntries) {
             val formId: Long = entry(0).get.asInstanceOf[Int]
             val attributeId: Long = entry(1).get.asInstanceOf[Long]
-            updateAttributeSorting(entityIdOrGroupIdIn, formId, attributeId, next)
+            updateAttributeSortingIndex(entityIdOrGroupIdIn, formId, attributeId, next)
           } else {
             val id: Long = entry(0).get.asInstanceOf[Long]
-            updateEntityInAGroup(entityIdOrGroupIdIn, id, next)
+            updateSortingIndexInAGroup(entityIdOrGroupIdIn, id, next)
           }
           previous = next
           next += increment
@@ -2372,7 +2401,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     getDateAttributeCount(entityIdIn) +
     getBooleanAttributeCount(entityIdIn) +
     getFileAttributeCount(entityIdIn) +
-    getRelationToEntityCount(entityIdIn, includeArchivedEntitiesIn) +
+    getRelationToLocalEntityCount(entityIdIn, includeArchivedEntitiesIn) +
+    getRelationToRemoteEntityCount(entityIdIn) +
     getRelationToGroupCount(entityIdIn)
   }
 
@@ -2401,18 +2431,18 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     extractRowCountFromCountQuery("select count(1) from FileAttribute where entity_id=" + entityIdIn)
   }
 
-  def getRelationToEntityCount(entityIdIn: Long, includeArchivedEntities: Boolean = true): Long = {
+  def getRelationToLocalEntityCount(entityIdIn: Long, includeArchivedEntities: Boolean = true): Long = {
     var sql = "select count(1) from entity eContaining, RelationToEntity rte, entity eContained " +
               " where eContaining.id=rte.entity_id and rte.entity_id=" + entityIdIn +
               " and rte.entity_id_2=eContained.id"
     if (!includeArchivedEntities && !includeArchivedEntities) sql += " and (not eContained.archived)"
-    val locals = extractRowCountFromCountQuery(sql)
+    extractRowCountFromCountQuery(sql)
+  }
 
-    val sql2 = "select count(1) from entity eContaining, RelationToRemoteEntity rtre " +
+  def getRelationToRemoteEntityCount(entityIdIn: Long): Long = {
+    val sql = "select count(1) from entity eContaining, RelationToRemoteEntity rtre " +
                " where eContaining.id=rtre.entity_id and rtre.entity_id=" + entityIdIn
-    val remotes = extractRowCountFromCountQuery(sql2)
-
-    locals + remotes
+    extractRowCountFromCountQuery(sql)
   }
 
   /** if 1st parm is None, gets all. */
@@ -2424,7 +2454,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     extractRowCountFromCountQuery("select count(1) from relationtogroup where group_id=" + groupIdIn)
   }
 
-  def getRelationToGroupsByGroup(groupIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup] = {
+  // Idea: make maxValsIn do something here.  How was that missed?  Is it needed?
+  def getRelationsToGroupContainingThisGroup(groupIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup] = {
     val sql: String = "select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, asort.sorting_index" +
                       " from RelationToGroup rtg, AttributeSorting asort where group_id=" + groupIdIn +
                       " and rtg.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE) +
@@ -2477,7 +2508,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     * This is useful for example when one is about
     * to delete an entity and we want to warn first, showing where it is contained.
     */
-  def getContainingRelationToGroupDescriptions(entityIdIn: Long, limitIn: Option[Long] = None): Array[String] = {
+  def getContainingRelationToGroupDescriptions(entityIdIn: Long, limitIn: Option[Long] = None): ArrayList[String] = {
     val rows: List[Array[Option[Any]]] = dbQuery("select e.name, grp.name, grp.id from entity e, relationtogroup rtg, " +
                                                  "grupo grp where " +
                                                  (if (!includeArchivedEntities) {
@@ -2489,17 +2520,16 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                                                  " and rtg.group_id = grp.id and rtg.group_id in (SELECT group_id from entitiesinagroup where entity_id=" +
                                                  entityIdIn + ")" +
                                                  " order by grp.id limit " + checkIfShouldBeAllResults(limitIn), "String,String,Long")
-    var results: List[String] = Nil
+    val results: ArrayList[String] = new ArrayList(rows.size)
     for (row <- rows) {
       val entityName = row(0).get.asInstanceOf[String]
       val groupName = row(1).get.asInstanceOf[String]
-      results = entityName + "->" + groupName :: results
+      results.add(entityName + "->" + groupName)
     }
-
-    results.reverse.toArray
+    results
   }
 
-  /** For a given group, find all the RelationToGroup's that contain entities that contain the provided group id, and return their groupIds.
+  /** For a given group, find all the RelationsToGroup that contain entities that contain the provided group id, and return their groupIds.
     * What is really the best name for this method (concise but clear on what it does)?
     */
   def getGroupsContainingEntitysGroupsIds(groupIdIn: Long, limitIn: Option[Long] = Some(5)): List[Array[Option[Any]]] = {
@@ -2525,23 +2555,23 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   /** Intended to show something like an activity log. Could be used for someone to show their personal journal or for other reporting.
     */
-  def findJournalEntries(startTimeIn: Long, endTimeIn: Long, limitIn: Option[Long] = None): Array[(Long, String, Long)] = {
+  def findJournalEntries(startTimeIn: Long, endTimeIn: Long, limitIn: Option[Long] = None): ArrayList[(Long, String, Long)] = {
     val rows: List[Array[Option[Any]]] = dbQuery("select insertion_date, 'Added: ' || name, id from entity where insertion_date >= " + startTimeIn +
                                                         " and insertion_date <= " + endTimeIn +
                                                  " UNION " +
                                                  "select archived_date, 'Archived: ' || name, id from entity where archived and archived_date >= " + startTimeIn +
                                                         " and archived_date <= " + endTimeIn +
                                                  " order by 1 limit " + checkIfShouldBeAllResults(limitIn), "Long,String,Long")
-    val results = new Array[(Long, String, Long)](rows.size)
+    val results = new ArrayList[(Long, String, Long)]
     var n = 0
     for (row <- rows) {
-      results(n) = (row(0).get.asInstanceOf[Long], row(1).get.asInstanceOf[String], row(2).get.asInstanceOf[Long])
+      results.add((row(0).get.asInstanceOf[Long], row(1).get.asInstanceOf[String], row(2).get.asInstanceOf[Long]))
       n += 1
     }
     results
   }
 
-  def getCountOfGroupsContainingEntity(entityIdIn: Long): Long = {
+  override def getCountOfGroupsContainingEntity(entityIdIn: Long): Long = {
     extractRowCountFromCountQuery("select count(1) from EntitiesInAGroup where entity_id=" + entityIdIn)
   }
 
@@ -2643,13 +2673,22 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                             getQuantityAttributeData_resultTypes)
   }
 
-  def getRelationToEntityData(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Array[Option[Any]] = {
+  def getRelationToLocalEntityData(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Array[Option[Any]] = {
     dbQueryWrapperForOneRow("select rte.id, rte.valid_on_date, rte.observation_date, asort.sorting_index" +
                             " from RelationToEntity rte, AttributeSorting asort" +
                             " where rte.rel_type_id=" + relationTypeIdIn + " and rte.entity_id=" + entityId1In + " and rte.entity_id_2=" + entityId2In +
-                            " and rte.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.getAttributeFormId(Util.RELATION_TO_ENTITY_TYPE) +
+                            " and rte.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.getAttributeFormId(Util.RELATION_TO_LOCAL_ENTITY_TYPE) +
                             " and rte.id=asort.attribute_id",
-                            Database.getRelationToEntity_resultTypes)
+                            Database.getRelationToLocalEntity_resultTypes)
+  }
+
+  def getRelationToLocalEntityDataById(idIn: Long): Array[Option[Any]] = {
+    dbQueryWrapperForOneRow("select rte.rel_type_id, rte.entity_id, rte.entity_id_2, rte.valid_on_date, rte.observation_date, asort.sorting_index" +
+                            " from RelationToEntity rte, AttributeSorting asort" +
+                            " where rte.id=" + idIn +
+                            " and rte.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.getAttributeFormId(Util.RELATION_TO_LOCAL_ENTITY_TYPE) +
+                            " and rte.id=asort.attribute_id",
+                            "Long,Long," + Database.getRelationToLocalEntity_resultTypes)
   }
 
   def getRelationToRemoteEntityData(relationTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long): Array[Option[Any]] = {
@@ -2662,9 +2701,15 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                             getRelationToRemoteEntity_resultTypes)
   }
 
-  def getAllRelationToEntityDataById(idIn: Long): Array[Option[Any]] = {
+  def getAllRelationToLocalEntityDataById(idIn: Long): Array[Option[Any]] = {
     dbQueryWrapperForOneRow("select form_id, id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date from RelationToEntity where id=" + idIn,
                             "Int,Long,Long,Long,Long,Long,Long")
+  }
+
+  def getAllRelationToRemoteEntityDataById(idIn: Long): Array[Option[Any]] = {
+    dbQueryWrapperForOneRow("select form_id, id, rel_type_id, entity_id, remote_instance_id, entity_id_2, valid_on_date, observation_date" +
+                            " from RelationToRemoteEntity where id=" + idIn,
+                            "Int,Long,Long,Long,String,Long,Long,Long")
   }
 
   def getGroupData(idIn: Long): Array[Option[Any]] = {
@@ -2752,12 +2797,12 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     (fileSize, md5hash)
   }
 
-  def updateEntityInAGroup(groupIdIn: Long, entityIdIn: Long, sortingIndexIn: Long) {
+  def updateSortingIndexInAGroup(groupIdIn: Long, entityIdIn: Long, sortingIndexIn: Long) {
     dbAction("update EntitiesInAGroup set (sorting_index) = (" + sortingIndexIn + ") where group_id=" + groupIdIn + " and  " +
              "entity_id=" + entityIdIn)
   }
 
-  def updateAttributeSorting(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Long) {
+  def updateAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Long) {
     dbAction("update AttributeSorting set (sorting_index) = (" + sortingIndexIn + ") where entity_id=" + entityIdIn + " and  " +
              "attribute_form_id=" + attributeFormIdIn + " and attribute_id=" + attributeIdIn)
   }
@@ -2767,6 +2812,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   def verifyFileAttributeContentIntegrity(fileAttributeIdIn: Long): (Boolean, Option[String]) = {
     // Idea: combine w/ similar logic in FileAttribute.md5Hash?
     // Idea: compare actual/stored file sizes also? or does the check of md5 do enough as is?
+    // Idea (tracked in tasks): switch to some SHA algorithm since they now say md5 is weaker?
     val messageDigest = java.security.MessageDigest.getInstance("MD5")
     def action(bufferIn: Array[Byte], startingIndexIn: Int, numBytesIn: Int) {
       messageDigest.update(bufferIn, startingIndexIn, numBytesIn)
@@ -2854,7 +2900,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def fileAttributeKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from FileAttribute where id=" + idIn)
 
-  def relationToEntityKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from RelationToEntity where id=" + idIn)
+  def relationToLocalEntityKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from RelationToEntity where id=" + idIn)
 
   def relationToRemoteEntityKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from RelationToRemoteEntity where id=" + idIn)
 
@@ -2871,7 +2917,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         case 3 => booleanAttributeKeyExists(idIn)
         case 4 => fileAttributeKeyExists(idIn)
         case 5 => textAttributeKeyExists(idIn)
-        case 6 => relationToEntityKeyExists(idIn)
+        case 6 => relationToLocalEntityKeyExists(idIn)
         case 7 => relationToGroupKeyExists(idIn)
         case 8 => relationToRemoteEntityKeyExists(idIn)
         case _ => throw new OmDatabaseException("unexpected")
@@ -2905,7 +2951,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def relationTypeKeyExists(idIn: Long): Boolean = doesThisExist("SELECT count(1) from RelationType where entity_id=" + idIn)
 
-  def relationToEntityKeysExistAndMatch(idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Boolean = {
+  def relationToLocalEntityKeysExistAndMatch(idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Boolean = {
     doesThisExist("SELECT count(1) from RelationToEntity where id=" + idIn + " and rel_type_id=" + relTypeIdIn + " and entity_id=" + entityId1In +
                   " and entity_id_2=" + entityId2In)
   }
@@ -2915,7 +2961,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                   " and remote_instance_id='" + remoteInstanceIdIn + "' and entity_id_2=" + entityId2In)
   }
 
-  def relationToEntityExists(relTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Boolean = {
+  def relationToLocalEntityExists(relTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Boolean = {
     doesThisExist("SELECT count(1) from RelationToEntity where rel_type_id=" + relTypeIdIn + " and entity_id=" + entityId1In +
                   " and entity_id_2=" + entityId2In)
   }
@@ -3032,7 +3078,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     finalResults
   }
 
-  def getEntitiesContainingEntity(entityIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
+  def getLocalEntitiesContainingLocalEntity(entityIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
     val sql: String = "select rel_type_id, entity_id from relationtoentity rte, entity e where rte.entity_id=e.id and rte.entity_id_2=" + entityIdIn +
                       (if (!includeArchivedEntities) {
                         " and (not e.archived)"
@@ -3059,7 +3105,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   /**
    * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this entity (IN *ONE* DIRECTION ONLY).
    */
-  def getCountOfEntitiesContainingEntity(entityIdIn: Long): (Long, Long) = {
+  def getCountOfLocalEntitiesContainingLocalEntity(entityIdIn: Long): (Long, Long) = {
     val nonArchived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and not e.archived" +
                                                      " and e.id=" + entityIdIn)
     val archived2 = extractRowCountFromCountQuery("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and e.archived" +
@@ -3079,7 +3125,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     (nonArchived, archived)
   }
 
-  def getContainingRelationToGroups(entityIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup] = {
+  def getContainingRelationsToGroup(entityIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup] = {
     // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
     // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
     // So, could: see the expectation of the place(s) calling this method, if uniform, make these 2 methods more uniform in what they do in meeting that,
@@ -3154,12 +3200,12 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       groupIdResults.add(result(0).get.asInstanceOf[Long])
     }
     require(groupIdResults.size == earlyResults.size)
-    val containingRelationToGroups: java.util.ArrayList[RelationToGroup] = new java.util.ArrayList[RelationToGroup]
+    val containingRelationsToGroup: java.util.ArrayList[RelationToGroup] = new java.util.ArrayList[RelationToGroup]
     for (gid <- groupIdResults.toArray) {
-      val rtgs = getRelationToGroupsByGroup(gid.asInstanceOf[Long], 0)
-      for (rtg <- rtgs.toArray) containingRelationToGroups.add(rtg.asInstanceOf[RelationToGroup])
+      val rtgs = getRelationsToGroupContainingThisGroup(gid.asInstanceOf[Long], 0)
+      for (rtg <- rtgs.toArray) containingRelationsToGroup.add(rtg.asInstanceOf[RelationToGroup])
     }
-    containingRelationToGroups
+    containingRelationsToGroup
   }
 
   // 1st parm is 0-based index to start with, 2nd parm is # of obj's to return (if None, means no limit).
@@ -3224,7 +3270,15 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     * 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
     */
   def getGroups(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None, groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Group] = {
+    val omissionExpression: String = {
+      if (groupToOmitIdIn.isEmpty) {
+        "true"
+      } else {
+        "(not id=" + groupToOmitIdIn.get + ")"
+      }
+    }
     val sql = "SELECT id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo " +
+              " where " + omissionExpression +
               " order by id limit " + checkIfShouldBeAllResults(maxValsIn) + " offset " + startingObjectIndexIn
     val earlyResults = dbQuery(sql, "Long,String,Long,Boolean,Boolean")
     val finalResults = new java.util.ArrayList[Group]
@@ -3395,14 +3449,13 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     else name.asInstanceOf[Option[String]]
   }
 
-  /**
-   * @return the create_default_attributes boolean value from a given class.
-   */
-  def getShouldCreateDefaultAttributes(classIdIn: Long): Option[Boolean] = {
-    val value: Option[Any]= getClassData(classIdIn)(2)
-    if (value.isEmpty) None
-    else value.asInstanceOf[Option[Boolean]]
-  }
+//   * @return the create_default_attributes boolean value from a given class.
+//   */
+//  def getShouldCreateDefaultAttributes(classIdIn: Long): Option[Boolean] = {
+//    val value: Option[Any]= getClassData(classIdIn)(2)
+//    if (value.isEmpty) None
+//    else value.asInstanceOf[Option[Boolean]]
+//  }
 
   /**
    * @return the create_default_attributes boolean value from a given class.
@@ -3416,19 +3469,19 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   def getTextEditorCommand: String = {
     val systemEntityId = getSystemEntityId
     val hasRelationTypeId: Long = findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
-    val editorInfoSystemEntity: Entity = getEntitiesFromRelationsToEntity(systemEntityId, Database.EDITOR_INFO_ENTITY_NAME,
+    val editorInfoSystemEntity: Entity = getEntitiesFromRelationsToLocalEntity(systemEntityId, Database.EDITOR_INFO_ENTITY_NAME,
                                                                           Some(hasRelationTypeId), Some(1))(0)
-    val textEditorInfoSystemEntity: Entity = getEntitiesFromRelationsToEntity(editorInfoSystemEntity.getId,
+    val textEditorInfoSystemEntity: Entity = getEntitiesFromRelationsToLocalEntity(editorInfoSystemEntity.getId,
                                                                               Database.TEXT_EDITOR_INFO_ENTITY_NAME, Some(hasRelationTypeId),
                                                                               Some(1))(0)
-    val textEditorCommandNameAttrType: Entity = getEntitiesFromRelationsToEntity(textEditorInfoSystemEntity.getId,
+    val textEditorCommandNameAttrType: Entity = getEntitiesFromRelationsToLocalEntity(textEditorInfoSystemEntity.getId,
                                                                          Database.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME, Some(hasRelationTypeId),
                                                                          Some(1))(0)
     val ta: TextAttribute = getTextAttributeByTypeId(textEditorInfoSystemEntity.getId, textEditorCommandNameAttrType.getId, Some(1)).get(0)
     ta.getText
   }
 
-  def getEntitiesFromRelationsToEntity(parentEntityIdIn: Long, nameIn: String, relTypeIdIn: Option[Long] = None,
+  def getEntitiesFromRelationsToLocalEntity(parentEntityIdIn: Long, nameIn: String, relTypeIdIn: Option[Long] = None,
                                      expectedRows: Option[Int] = None): Array[Entity] = {
     // (not getting all the attributes in this case, and doing another query to the entity table (less efficient), to save programming
     // time for the case that the entity table changes, we don't have to carefully update all the columns selected here & the mappings.  This is a more
@@ -3491,7 +3544,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val allResults: java.util.ArrayList[(Option[Long], Attribute)] = new java.util.ArrayList[(Option[Long], Attribute)]
     // First select the counts from each table, keep a running total so we know when to select attributes (compared to inStartingObjectIndex)
     // and when to stop.
-    val tables: Array[String] = Array(Util.QUANTITY_TYPE, Util.BOOLEAN_TYPE, Util.DATE_TYPE, Util.TEXT_TYPE, Util.FILE_TYPE, Util.RELATION_TO_ENTITY_TYPE,
+    val tables: Array[String] = Array(Util.QUANTITY_TYPE, Util.BOOLEAN_TYPE, Util.DATE_TYPE, Util.TEXT_TYPE, Util.FILE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE,
                                       Util.RELATION_TO_GROUP_TYPE, Util.RELATION_TO_REMOTE_ENTITY_TYPE)
     val columnsSelectedByTable: Array[String] = Array("id,entity_id,attr_type_id,unit_id,quantity_number,valid_on_date,observation_date",
                                                       "id,entity_id,attr_type_id,booleanValue,valid_on_date,observation_date",
@@ -3574,11 +3627,11 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                               ""
                             }) +
                             whereClausesByTable(tableListIndex)
-          if (tableName == Util.RELATION_TO_ENTITY_TYPE && !includeArchivedEntities) {
+          if (tableName == Util.RELATION_TO_LOCAL_ENTITY_TYPE && !includeArchivedEntities) {
             sql += " and not exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
                    " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.archived)"
           }
-          if (tableName == Util.RELATION_TO_ENTITY_TYPE && onlyPublicEntitiesIn) {
+          if (tableName == Util.RELATION_TO_LOCAL_ENTITY_TYPE && onlyPublicEntitiesIn) {
             sql += " and exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
                    " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.public)"
           }
@@ -3619,9 +3672,9 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                                              result(7).get.asInstanceOf[String], result(8).get.asInstanceOf[Boolean], result(9).get.asInstanceOf[Boolean],
                                              result(10).get.asInstanceOf[Boolean], result(11).get.asInstanceOf[Long], result(12).get.asInstanceOf[String],
                                              result(0).get.asInstanceOf[Long])))
-              } else if (tableName == Util.RELATION_TO_ENTITY_TYPE) {
+              } else if (tableName == Util.RELATION_TO_LOCAL_ENTITY_TYPE) {
                 allResults.add((if (result(0).isEmpty) None else Some(result(0).get.asInstanceOf[Long]),
-                           new RelationToEntity(this, result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
+                           new RelationToLocalEntity(this, result(1).get.asInstanceOf[Long], result(2).get.asInstanceOf[Long], result(3).get.asInstanceOf[Long],
                                                 result(4).get.asInstanceOf[Long],
                                                 if (result(5).isEmpty) None else Some(result(5).get.asInstanceOf[Long]), result(6).get.asInstanceOf[Long],
                                                 result(0).get.asInstanceOf[Long])))
@@ -3705,7 +3758,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
 
   /** The 2nd parameter is to avoid saying a class is a duplicate of itself: checks for all others only. */
-  def isDuplicateClass(nameIn: String, selfIdToIgnoreIn: Option[Long] = None): Boolean = {
+  def isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[Long] = None): Boolean = {
     isDuplicateRow[Long](nameIn, "class", "id", "name", None, selfIdToIgnoreIn)
   }
 
@@ -3856,7 +3909,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
   def addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: Long,
                                    makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
-                                   quoteIn: Option[String] = None): (Entity, RelationToEntity) = {
+                                   quoteIn: Option[String] = None): (Entity, RelationToLocalEntity) = {
     if (quoteIn.isDefined) require(!quoteIn.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
     if (!callerManagesTransactionsIn) beginTrans()
     try {
@@ -3864,9 +3917,9 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       // those in the same package? It was in Controller, but moved here
       // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
 
-      val (uriClassId: Long, uriClassTemplateId: Long) = getOrCreateClassAndTemplateEntityIds("URI", callerManagesTransactionsIn)
-      val (_, quotationClassTemplateId: Long) = getOrCreateClassAndTemplateEntityIds("quote", callerManagesTransactionsIn)
-      val (newEntity: Entity, newRTE: RelationToEntity) = containingEntityIn.createEntityAndAddHASRelationToIt(newEntityNameIn, observationDateIn,
+      val (uriClassId: Long, uriClassTemplateId: Long) = getOrCreateClassAndTemplateEntity("URI", callerManagesTransactionsIn)
+      val (_, quotationClassTemplateId: Long) = getOrCreateClassAndTemplateEntity("quote", callerManagesTransactionsIn)
+      val (newEntity: Entity, newRTLE: RelationToLocalEntity) = containingEntityIn.createEntityAndAddHASLocalRelationToIt(newEntityNameIn, observationDateIn,
                                                                                                                makeThemPublicIn, callerManagesTransactionsIn)
       updateEntitysClass(newEntity.getId, Some(uriClassId), callerManagesTransactionsIn)
       newEntity.addTextAttribute(uriClassTemplateId, uriIn, None, None, observationDateIn, callerManagesTransactionsIn)
@@ -3874,7 +3927,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         newEntity.addTextAttribute(quotationClassTemplateId, quoteIn.get, None, None, observationDateIn, callerManagesTransactionsIn)
       }
       if (!callerManagesTransactionsIn) commitTrans()
-      (newEntity, newRTE)
+      (newEntity, newRTLE)
     } catch {
       case e: Exception =>
         if (!callerManagesTransactionsIn) rollbackTrans()
@@ -3882,7 +3935,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     }
   }
 
-  def getOrCreateClassAndTemplateEntityIds(classNameIn: String, callerManagesTransactionsIn: Boolean): (Long, Long) = {
+  def getOrCreateClassAndTemplateEntity(classNameIn: String, callerManagesTransactionsIn: Boolean): (Long, Long) = {
     //(see note above re 'bad smell' in method addUriEntityWithUriAttribute.)
     if (!callerManagesTransactionsIn) beginTrans()
     try {
@@ -3943,7 +3996,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     row
   }
 
-  def getId: String = {
+  lazy val id: String = {
     getLocalOmInstanceData.getId
   }
 

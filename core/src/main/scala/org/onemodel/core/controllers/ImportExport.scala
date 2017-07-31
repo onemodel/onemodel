@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2016 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2017 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -28,7 +28,7 @@ object ImportExport {
  * When adding features to this class, any eventual db call that creates a transaction needs to have the info 'callerManagesTransactionsIn = true' eventually
  * passed into it, from here, otherwise the rollback feature will fail.
  */
-class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
+class ImportExport(val ui: TextUI, controller: Controller) {
   val uriLineExample: String = "'nameForTheLink <uri>http://somelink.org/index.html</uri>'"
 
   /**
@@ -37,6 +37,14 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
   def importCollapsibleOutlineAsGroups(firstContainingEntryIn: AnyRef) {
     //noinspection ComparingUnrelatedTypes
     require(firstContainingEntryIn.isInstanceOf[Entity] || firstContainingEntryIn.isInstanceOf[Group])
+    val db: Database = {
+      //noinspection ComparingUnrelatedTypes,TypeCheckCanBeMatch
+      if (firstContainingEntryIn.isInstanceOf[Entity]) {
+        firstContainingEntryIn.asInstanceOf[Entity].mDB
+      } else {
+        firstContainingEntryIn.asInstanceOf[Group].mDB
+      }
+    }
     val ans1: Option[String] = ui.askForString(Some(Array("Enter file path (must exist, be readable, AND a text file with lines spaced in the form of a" +
                                                           " collapsible outline where each level change is marked by 1 tab or 2 spaces; textAttribute content" +
                                                           " can be indicated by surrounding a body of text thus, without quotes: '<ta>text</ta>';" +
@@ -46,7 +54,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     if (ans1.isDefined) {
       val path = ans1.get
       val makeThemPublic: Option[Boolean] = ui.askYesNoQuestion("Do you want the entities imported to be marked as public?  Set it to the value the " +
-                                                      "majority of imported data should have; you can then edit the individual exceptions afterward as " +
+                                                      "majority of imported data should have; you can then edit the individual settings afterward as " +
                                                       "needed.  Enter y for public, n for nonpublic, or a space for 'unknown/unspecified', aka decide later.",
                                                       Some(""), allowBlankAnswer = true)
       val ans3 = ui.askYesNoQuestion("Keep the filename as the top level of the imported list? (Answering no will put the top level entries from inside" +
@@ -86,8 +94,8 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
                                   "the change whether you want it or not, even if the message at that time says 'rolled back...')"
                 ui.displayText(msg)
                 firstContainingEntryIn match {
-                  case entity: Entity => new EntityMenu(ui, db, controller).entityMenu(entity)
-                  case group: Group => new QuickGroupMenu(ui, db, controller).quickGroupMenu(firstContainingEntryIn.asInstanceOf[Group], 0,
+                  case entity: Entity => new EntityMenu(ui, controller).entityMenu(entity)
+                  case group: Group => new QuickGroupMenu(ui, controller).quickGroupMenu(firstContainingEntryIn.asInstanceOf[Group], 0,
                                                                                              containingEntityIn = None)
                   case _ => throw new OmException("??")
                 }
@@ -154,9 +162,9 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
   }
 
   def createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: Long, isPublicIn: Option[Boolean]): Entity = {
-    val entityId: Long = db.createEntity(line.trim, group.getClassId, isPublicIn)
-    db.addEntityToGroup(group.getId, entityId, Some(newSortingIndex), callerManagesTransactionsIn = true)
-    new Entity(db, entityId)
+    val entityId: Long = group.mDB.createEntity(line.trim, group.getClassId, isPublicIn)
+    group.addEntity(entityId, Some(newSortingIndex), callerManagesTransactionsIn = true)
+    new Entity(group.mDB, entityId)
   }
 
   /* The parameter lastEntityIdAdded means the one to which a new subgroup will be added, such as in a series of entities
@@ -192,7 +200,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
 
       if (lineUntrimmed.toLowerCase.contains(beginTaMarker)) {
         // we have a section of text marked for importing into a single TextAttribute:
-        importTextAttributeContent(lineUntrimmed, r, lastEntityAdded.get.getId, beginTaMarker, endTaMarker)
+        importTextAttributeContent(lineUntrimmed, r, lastEntityAdded.get, beginTaMarker, endTaMarker)
         importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
                           makeThemPublicIn)
       } else if (lineUntrimmed.toLowerCase.contains(beginUriMarker)) {
@@ -221,7 +229,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
             val newEntity: Entity = {
               containerList.head match {
                 case entity: Entity =>
-                  entity.createEntityAndAddHASRelationToIt(line, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)._1
+                  entity.createEntityAndAddHASLocalRelationToIt(line, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)._1
                 case group: Group =>
                   createAndAddEntityToGroup(line, containerList.head.asInstanceOf[Group], newSortingIndex, makeThemPublicIn)
                 case _ => throw new OmException("??")
@@ -241,7 +249,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
             val newEntity: Entity = {
               newContainerList.head match {
                 case entity: Entity =>
-                  entity.createEntityAndAddHASRelationToIt(line, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)._1
+                  entity.createEntityAndAddHASLocalRelationToIt(line, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)._1
                 case group: Group =>
                   createAndAddEntityToGroup(line, group, newSortingIndex, makeThemPublicIn)
                 case _ => throw new OmException("??")
@@ -289,13 +297,13 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     }
   }
 
-  def importTextAttributeContent(lineUntrimmedIn: String, r: LineNumberReader, entityId: Long, beginningTagMarker: String, endTaMarker: String) {
+  def importTextAttributeContent(lineUntrimmedIn: String, r: LineNumberReader, entityIn: Entity, beginningTagMarker: String, endTaMarker: String) {
     val lineContentBeforeMarker = lineUntrimmedIn.substring(0, lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarker)).trim
     val restOfLine = lineUntrimmedIn.substring(lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarker) + beginningTagMarker.length).trim
     if (restOfLine.toLowerCase.contains(endTaMarker)) throw new OmException("\"Unsupported format at line " + r.getLineNumber + ": beginning and ending " +
                                                                             "markers must NOT be on the same line.")
     val attrTypeId: Long = {
-      val idsByName: java.util.ArrayList[Long] = db.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true)
+      val idsByName: java.util.ArrayList[Long] = entityIn.mDB.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true)
       if (idsByName.size == 1)
         idsByName.get(0)
       else {
@@ -305,7 +313,8 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
                      "(it has to match an existing entity, case-sensitively)"
         //IDEA: this used to call controller.chooseOrCreateObject_OrSaysCancelled instead. Removing it removes a prompt if the user pressed ESC during it,
         //and this lacks a convenient way to test it, and I don't know that anyone uses it right now. So maybe add a test sometime:
-        val selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(Some(List(prompt + ", so please choose one or ESC to abort" +
+        val selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(entityIn.mDB, 
+                                                                                              Some(List(prompt + ", so please choose one or ESC to abort" +
                                                                                                         " this import operation:")),
                                                                                               None, None, Util.TEXT_TYPE)
         if (selection.isEmpty) {
@@ -341,7 +350,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
       val builder = getRestOfLines(r, new mutable.StringBuilder)
       builder.toString()
     }
-    db.createTextAttribute(entityId, attrTypeId, text, callerManagesTransactionsIn = true)
+    entityIn.createTextAttribute(attrTypeId, text, callerManagesTransactionsIn = true)
   }
 
   def importUriContent(lineUntrimmedIn: String, beginningTagMarkerIn: String, endMarkerIn: String, lineNumberIn: Int,
@@ -364,7 +373,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     if (name.isEmpty || uri.isEmpty) throw new OmException("\"Unsupported format at line " + lineNumberIn +
                                                            ": A URI line must be in the format (without quotes): " + uriLineExample)
     // (see note above on this being better in the class and action *tables*, but here for now until those features are ready)
-    db.addUriEntityWithUriAttribute(lastEntityAddedIn, name, uri, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)
+    lastEntityAddedIn.addUriEntityWithUriAttribute(name, uri, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)
   }
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
@@ -387,14 +396,14 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
         case containingGroup: Group =>
           if (creatingNewStartingGroupFromTheFilenameIn) {
             val name = dataSourceFullPath
-            val newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, db.findUnusedGroupSortingIndex(containingGroup.getId), makeThemPublicIn)
+            val newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, containingGroup.findUnusedSortingIndex(), makeThemPublicIn)
             val newGroup: Group = newEntity.createGroupAndAddHASRelationToIt(name, containingGroup.getMixedClassesAllowed, System.currentTimeMillis,
                                                                              callerManagesTransactionsIn = true)._1
             newGroup
           } else {
             assert(addingToExistingGroup)
             // importing the new entries to an existing group
-            new Group(db, containingGroup.getId)
+            new Group(containingGroup.mDB, containingGroup.getId)
           }
         case _ => throw new OmException("??")
       }
@@ -410,7 +419,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
         val nextSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
         if (nextSortingIndex == Database.minIdValue) {
           // we wrapped from the biggest to lowest Long value
-          db.renumberSortingIndexes(containingGrp.getId, callerManagesTransactionsIn = true, isEntityAttrsNotGroupEntries = false)
+          containingGrp.renumberSortingIndexes(callerManagesTransactionsIn = true)
           val nextTriedNewSortingIndex: Long = containingGrp.getHighestSortingIndex + 1
           if (nextSortingIndex == Database.minIdValue) {
             throw new OmException("Huh? How did we get two wraparounds in a row?")
@@ -425,7 +434,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
   }
 
   // idea: see comment in EntityMenu about scoping.
-  def export(entity: Entity, exportTypeIn: String, headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
+  def export(entityIn: Entity, exportTypeIn: String, headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels to export (including this one; 0 = 'all'); ESC to cancel")),
                                               Some(Util.isNumeric), Some("0"))
     if (ans.isEmpty) return
@@ -446,21 +455,21 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
       val spacesPerIndentLevel = 2
 
       // To track what's been done so we don't repeat it:
-      val exportedEntityIds = new mutable.TreeSet[Long]
+      val exportedEntityIds = new mutable.TreeSet[String]
 
       // The caches are to reduce the expensive repeated queries of attribute lists & entity objects (not all of which are known at the time we write to
       // exportedEntityIds).
       // Html exports were getting very slow before this caching logic was added.)
-      val cachedEntities = new mutable.HashMap[Long, Entity]
+      val cachedEntities = new mutable.HashMap[String, Entity]
       // (The key is the entityId, and the value contains the attributes (w/ id & attr) as returned from db.getSortedAttributes.)
       val cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]]
       val cachedGroupInfo = new mutable.HashMap[Long, Array[Long]]
 
-      val prefix: String = getExportFileNamePrefix(entity, exportTypeIn)
+      val prefix: String = getExportFileNamePrefix(entityIn, exportTypeIn)
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
         val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, None)
         try {
-          exportToSingleTxtFile(entity, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntityIds, cachedEntities, cachedAttrs,
+          exportToSingleTxtFile(entityIn, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntityIds, cachedEntities, cachedAttrs,
                                 spacesPerIndentLevel, includePublicData.get, includeNonPublicData.get, includeUnspecifiedData.get)
           // flush before we report 'done' to the user:
           outputWriter.close()
@@ -477,10 +486,10 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
       } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
         val outputDirectory:Path = createOutputDir(prefix)
         // see note about this usage, in method importUriContent:
-        val uriClassId: Long = db.getOrCreateClassAndTemplateEntityIds("URI", callerManagesTransactionsIn = true)._1
-        val quoteClassId = db.getOrCreateClassAndTemplateEntityIds("quote", callerManagesTransactionsIn = true)._1
+        val uriClassId: Long = entityIn.mDB.getOrCreateClassAndTemplateEntity("URI", callerManagesTransactionsIn = true)._1
+        val quoteClassId = entityIn.mDB.getOrCreateClassAndTemplateEntity("quote", callerManagesTransactionsIn = true)._1
 
-        exportHtml(entity, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
+        exportHtml(entityIn, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                    cachedGroupInfo, mutable.TreeSet[Long](), uriClassId, quoteClassId,
                    includePublicData.get, includeNonPublicData.get, includeUnspecifiedData.get, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
         ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
@@ -492,7 +501,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
 
   // This exists for the reasons commented in exportItsChildrenToHtmlFiles, and so that not all callers have to explicitly call both (ie, duplication of code).
   def exportHtml(entity: Entity, levelsToExportIsInfinite: Boolean, levelsToExport: Int,
-                 outputDirectory: Path, exportedEntityIdsIn: mutable.TreeSet[Long], cachedEntitiesIn: mutable.HashMap[Long, Entity],
+                 outputDirectory: Path, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
                  cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]],
                  entitiesAlreadyProcessedInThisRefChain: mutable.TreeSet[Long],
                  uriClassId: Long, quoteClassId: Long,
@@ -512,7 +521,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     *
     */
   def exportEntityToHtmlFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
-                             outputDirectoryIn: Path, exportedEntityIdsIn: mutable.TreeSet[Long], cachedEntitiesIn: mutable.HashMap[Long, Entity],
+                             outputDirectoryIn: Path, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
                              cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]],
                              uriClassIdIn: Long, quoteClassIdIn: Long,
                              includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
@@ -524,7 +533,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
                            levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
       return
     }
-    if (exportedEntityIdsIn.contains(entityIn.getId)) {
+    if (exportedEntityIdsIn.contains(entityIn.uniqueIdentifier)) {
       // no need to recreate this entity's html file, so return
       return
     }
@@ -532,7 +541,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     val entitysFileNamePrefix: String = getExportFileNamePrefix(entityIn, ImportExport.HTML_EXPORT_TYPE)
     val printWriter = createOutputFile(entitysFileNamePrefix, ImportExport.HTML_EXPORT_TYPE, Some(outputDirectoryIn))._2
     //record, so we don't create duplicate files:
-    exportedEntityIdsIn.add(entityIn.getId)
+    exportedEntityIdsIn.add(entityIn.uniqueIdentifier)
     try {
       printWriter.println("<html><head>")
       printWriter.println("  <title>" + entityIn.getName + "</title>")
@@ -545,14 +554,14 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
       printWriter.println("  " + beginBodyContentIn.getOrElse(""))
       printWriter.println("  <h1>" + htmlEncode(entityIn.getName) + "</h1>")
 
-      val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn.getId, cachedAttrsIn)
+      val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn)
       printWriter.println("  <ul>")
       for (attrTuple <- attrTuples) {
         val attribute:Attribute = attrTuple._2
         attribute match {
-          case relation: RelationToEntity =>
-            val relationType = new RelationType(db, relation.getAttrTypeId)
-            val entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, Util.currentOrRemoteDb(relation, db))
+          case relation: RelationToLocalEntity =>
+            val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
+            val entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, relation.mDB)
             if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                                   levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
               if (entity2.getClassId.isDefined && entity2.getClassId.get == uriClassIdIn) {
@@ -563,9 +572,27 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
                 printListItemForEntity(printWriter, relationType, entity2)
               }
             }
+          case relation: RelationToRemoteEntity =>
+            val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
+            // Idea: The next line doesn't currently internally do caching for DBs like we do for entities in getCachedEntity, but that could be added if it is
+            // used often enough to be a performance problem (and at similar comment elsewhere in this file)
+            val remoteDb: Database = relation.getRemoteDatabase
+            val entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, remoteDb)
+            if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                  levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+              // The classId and uriClassIdIn probably won't match because entity2 n all its data comes from a different (remote) db, so not checking that, at
+              // least until that sort of cross-db check is supported, so skipping this condition for now (as elsewhere):
+//              if (entity2.getClassId.isDefined && entity2.getClassId.get == uriClassIdIn) {
+//                printListItemForUriEntity(uriClassIdIn, quoteClassIdIn, printWriter, entity2, cachedAttrsIn)
+//              } else {
+                // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
+                // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
+                printListItemForEntity(printWriter, relationType, entity2)
+//              }
+            }
           case relation: RelationToGroup =>
-            val relationType = new RelationType(db, relation.getAttrTypeId)
-            val group = new Group(db, relation.getGroupId)
+            val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
+            val group = new Group(relation.mDB, relation.getGroupId)
             // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
             printWriter.println("    <li>" + htmlEncode(relation.getDisplayString(0, None, Some(relationType), simplify = true)) + "</li>")
             printWriter.println("    <ul>")
@@ -588,7 +615,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
             }
             printWriter.println("    </ul>")
           case textAttr: TextAttribute =>
-            val typeName: String = getCachedEntity(textAttr.getAttrTypeId, cachedEntitiesIn, db).getName
+            val typeName: String = getCachedEntity(textAttr.getAttrTypeId, cachedEntitiesIn, textAttr.mDB).getName
             if (typeName==Util.HEADER_CONTENT_TAG || typeName == Util.BODY_CONTENT_TAG || typeName==Util.FOOTER_CONTENT_TAG) {
               //skip it: this is used to create the pages and should not be considered a normal kind of displayable content in them:
             } else {
@@ -638,13 +665,13 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     }
   }
 
-  def printListItemForUriEntity(uriClassIdIn: Long, quoteClassIdIn: Long, printWriter: PrintWriter, entity2: Entity,
+  def printListItemForUriEntity(uriClassIdIn: Long, quoteClassIdIn: Long, printWriter: PrintWriter, uriEntity: Entity,
                                 cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]]): Unit = {
     // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
     // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
     def findUriAttribute(): Option[TextAttribute] = {
-      val attributesOnEntity2: Array[(Long, Attribute)] = getCachedAttributes(entity2.getId, cachedAttrsIn)
-      val uriTemplateId: Long = new EntityClass(db, uriClassIdIn).getTemplateEntityId
+      val attributesOnEntity2: Array[(Long, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn)
+      val uriTemplateId: Long = new EntityClass(uriEntity.mDB, uriClassIdIn).getTemplateEntityId
       for (attrTuple <- attributesOnEntity2) {
         val attr2: Attribute = attrTuple._2
         if (attr2.getAttrTypeId == uriTemplateId && attr2.isInstanceOf[TextAttribute]) {
@@ -654,8 +681,8 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
       None
     }
     def findQuoteText(): Option[String] = {
-      val attributesOnEntity2: Array[(Long, Attribute)] = getCachedAttributes(entity2.getId, cachedAttrsIn)
-      val quoteClassTemplateId: Long = new EntityClass(db, quoteClassIdIn).getTemplateEntityId
+      val attributesOnEntity2: Array[(Long, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn)
+      val quoteClassTemplateId: Long = new EntityClass(uriEntity.mDB, quoteClassIdIn).getTemplateEntityId
       for (attrTuple <- attributesOnEntity2) {
         val attr2: Attribute = attrTuple._2
         if (attr2.getAttrTypeId == quoteClassTemplateId && attr2.isInstanceOf[TextAttribute]) {
@@ -666,11 +693,11 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     }
     val uriAttribute: Option[TextAttribute] = findUriAttribute()
     if (uriAttribute.isEmpty) {
-      throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassIdIn + ") for entity " + entity2.getId)
+      throw new OmException("Unable to find TextAttribute of type URI (classId=" + uriClassIdIn + ") for entity " + uriEntity.getId)
     }
     // this one can be None and it's no surprise:
     val quoteText: Option[String] = findQuoteText()
-    printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, entity2.getName, None, quoteText)
+    printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, uriEntity.getName, None, quoteText)
   }
 
   def printListItemForEntity(printWriterIn: PrintWriter, relationTypeIn: RelationType, entityIn: Entity): Unit = {
@@ -704,7 +731,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     * If parameter levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
     */
   def exportItsChildrenToHtmlFiles(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
-                                   outputDirectoryIn: Path, exportedEntityIdsIn: mutable.TreeSet[Long], cachedEntitiesIn: mutable.HashMap[Long, Entity],
+                                   outputDirectoryIn: Path, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
                                    cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]],
                                    entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[Long], uriClassIdIn: Long, quoteClassId: Long,
                                    includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
@@ -718,12 +745,12 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     }
 
     entitiesAlreadyProcessedInThisRefChainIn.add(entityIn.getId)
-    val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn.getId, cachedAttrsIn)
+    val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn)
     for (attributeTuple <- attrTuples) {
       val attribute: Attribute = attributeTuple._2
       attribute match {
-        case relation: RelationToEntity =>
-          val entity2: Entity = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, Util.currentOrRemoteDb(relation, db))
+        case relation: RelationToLocalEntity =>
+          val entity2: Entity = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, relation.mDB)
           if (entity2.getClassId.isEmpty || entity2.getClassId.get != uriClassIdIn) {
             // that means it's not a URI but an actual traversable thing to follow when exporting children:
             exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
@@ -732,10 +759,25 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
                        includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                        headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
           }
+        case relation: RelationToRemoteEntity =>
+          // Idea: The next line doesn't currently internally do caching for DBs like we do for entities in getCachedEntity, but that could be added if it is
+          // used often enough to be a performance problem (and at similar comment elsewhere in this file)
+          val remoteDb = relation.getRemoteDatabase
+          val entity2: Entity = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, remoteDb)
+          // The classId and uriClassIdIn probably won't match because entity2 n all its data comes from a different (remote) db, so not checking that, at
+          // least until that sort of cross-db check is supported, so skipping this condition for now (as elsewhere):
+//          if (entity2.getClassId.isEmpty || entity2.getClassId.get != uriClassIdIn) {
+//            // that means it's not a URI but an actual traversable thing to follow when exporting children:
+            exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                       outputDirectoryIn, exportedEntityIdsIn, cachedEntitiesIn,
+                       cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
+                       includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                       headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
+//          }
         case relation: RelationToGroup =>
-          val entityIds: Array[Long] = getCachedGroupData(relation.getGroupId, cachedGroupInfoIn)
+          val entityIds: Array[Long] = getCachedGroupData(relation, cachedGroupInfoIn)
           for (entityIdInGrp <- entityIds) {
-            val entityInGrp: Entity = getCachedEntity(entityIdInGrp, cachedEntitiesIn, db)
+            val entityInGrp: Entity = getCachedEntity(entityIdInGrp, cachedEntitiesIn, relation.mDB)
             exportHtml(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                        outputDirectoryIn, exportedEntityIdsIn, cachedEntitiesIn,
                        cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
@@ -751,13 +793,12 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     entitiesAlreadyProcessedInThisRefChainIn.remove(entityIn.getId)
   }
 
-  def getCachedGroupData(groupIdIn: Long, cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]]): Array[Long] = {
-    val cachedIds: Option[Array[Long]] = cachedGroupInfoIn.get(groupIdIn)
+  def getCachedGroupData(rtg: RelationToGroup, cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]]): Array[Long] = {
+    val cachedIds: Option[Array[Long]] = cachedGroupInfoIn.get(rtg.getGroupId)
     if (cachedIds.isDefined) {
       cachedIds.get
     } else {
-      val group = new Group(db, groupIdIn)
-      val data: List[Array[Option[Any]]] = db.getGroupEntriesData(group.getId, None, includeArchivedEntitiesIn = false)
+      val data: List[Array[Option[Any]]] = rtg.mDB.getGroupEntriesData(rtg.getGroupId, None, includeArchivedEntitiesIn = false)
       val entityIds = new Array[Long](data.size)
       var count = 0
       for (entry <- data) {
@@ -765,30 +806,31 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
         entityIds(count) = entityIdInGroup
         count += 1
       }
-      cachedGroupInfoIn.put(groupIdIn, entityIds)
+      cachedGroupInfoIn.put(rtg.getGroupId, entityIds)
       entityIds
     }
   }
 
-  def getCachedAttributes(entityIdIn: Long, cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]]): Array[(Long, Attribute)] = {
-    val cachedInfo: Option[Array[(Long, Attribute)]] = cachedAttrsIn.get(entityIdIn)
+  def getCachedAttributes(entityIn: Entity, cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]]): Array[(Long, Attribute)] = {
+    val cachedInfo: Option[Array[(Long, Attribute)]] = cachedAttrsIn.get(entityIn.getId)
     if (cachedInfo.isDefined) {
       cachedInfo.get
     } else {
-      val attrTuples = db.getSortedAttributes(entityIdIn, 0, 0, onlyPublicEntitiesIn = false)._1
+      val attrTuples = entityIn.getSortedAttributes(0, 0, onlyPublicEntitiesIn = false)._1
       // record, so we don't create files more than once, calculate attributes more than once, etc.
-      cachedAttrsIn.put(entityIdIn, attrTuples)
+      cachedAttrsIn.put(entityIn.getId, attrTuples)
       attrTuples
     }
   }
 
-  def getCachedEntity(entityIdIn: Long, cachedEntitiesIn: mutable.HashMap[Long, Entity], dbIn: Database): Entity = {
-    val cachedInfo: Option[Entity] = cachedEntitiesIn.get(entityIdIn)
+  def getCachedEntity(entityIdIn: Long, cachedEntitiesIn: mutable.HashMap[String, Entity], dbIn: Database): Entity = {
+    val key: String = dbIn.id + entityIdIn.toString
+    val cachedInfo: Option[Entity] = cachedEntitiesIn.get(key)
     if (cachedInfo.isDefined) {
       cachedInfo.get
     } else {
       val entity = new Entity(dbIn, entityIdIn)
-      cachedEntitiesIn.put(entityIdIn, entity)
+      cachedEntitiesIn.put(key, entity)
       entity
     }
   }
@@ -811,14 +853,14 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     */
   def exportToSingleTxtFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int,
                             printWriterIn: PrintWriter,
-                            includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.TreeSet[Long], cachedEntitiesIn: mutable.HashMap[Long, Entity],
+                            includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
                             cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], spacesPerIndentLevelIn: Int,
                             //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                             includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean) {
     // useful while debugging:
     //out.flush()
 
-    if (exportedEntityIdsIn.contains(entityIn.getId)) {
+    if (exportedEntityIdsIn.contains(entityIn.uniqueIdentifier)) {
       printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
       if (includeMetadataIn) printWriterIn.print("(duplicate: EN --> " + entityIn.getId + ": ")
       printWriterIn.print(entityIn.getName)
@@ -829,7 +871,7 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
                                                        levelsToExportIsInfiniteIn, levelsRemainingToExportIn)
       if (allowedToExport) {
         //record, so we don't create duplicate files:
-        exportedEntityIdsIn.add(entityIn.getId)
+        exportedEntityIdsIn.add(entityIn.uniqueIdentifier)
 
         val entityName: String = entityIn.getName
         printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
@@ -837,13 +879,24 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
         if (includeMetadataIn) printWriterIn.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString())
         else printWriterIn.println(entityName)
 
-        val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn.getId, cachedAttrsIn)
+        val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn)
         for (attributeTuple <- attrTuples) {
           val attribute:Attribute = attributeTuple._2
           attribute match {
-            case relation: RelationToEntity =>
-              val relationType = new RelationType(db, relation.getAttrTypeId)
-              val entity2 = new Entity(Util.currentOrRemoteDb(relation, db), relation.getRelatedId2)
+            case relation: RelationToLocalEntity =>
+              val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
+              val entity2 = new Entity(relation.mDB, relation.getRelatedId2)
+              if (includeMetadataIn) {
+                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+                printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
+              }
+              exportToSingleTxtFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1, currentIndentationLevelsIn + 1, printWriterIn,
+                                    includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
+                                    includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
+            case relation: RelationToRemoteEntity =>
+              val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
+              val remoteDb: Database = relation.getRemoteDatabase
+              val entity2 = new Entity(remoteDb, relation.getRelatedId2)
               if (includeMetadataIn) {
                 printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
                 printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
@@ -852,8 +905,8 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
                                     includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
                                     includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
             case relation: RelationToGroup =>
-              val relationType = new RelationType(db, relation.getAttrTypeId)
-              val group = new Group(db, relation.getGroupId)
+              val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
+              val group = new Group(relation.mDB, relation.getGroupId)
               val grpName = group.getName
               // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
               if (entityName != grpName) {
@@ -910,11 +963,11 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
 
   def getNumSubEntries(entityIn: Entity): Long = {
     val numSubEntries = {
-      val numAttrs = db.getAttributeCount(entityIn.getId)
+      val numAttrs = entityIn.getAttributeCount
       if (numAttrs == 1) {
-        val (_, _, groupId, moreThanOneAvailable) = db.findRelationToAndGroup_OnEntity(entityIn.getId)
+        val (_, _, groupId, _, moreThanOneAvailable) = entityIn.findRelationToAndGroup
         if (groupId.isDefined && !moreThanOneAvailable) {
-          db.getGroupSize(groupId.get, 4)
+          entityIn.mDB.getGroupSize(groupId.get, 4)
         } else numAttrs
       } else numAttrs
     }
@@ -928,15 +981,23 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
   }
 
   def getExportFileNamePrefix(entity: Entity, exportTypeIn: String): String = {
+    val entityIdentifier: String = {
+      if (entity.mDB.isRemote) {
+        require(entity.mDB.getRemoteAddress.isDefined)
+        "remote-" + entity.readableIdentifier
+      } else {
+        entity.getId.toString
+      }
+    }
     if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
       // (The 'e' is for "entity"; for explanation see cmts in methods createOutputDir and createOutputFile.)
-      "e" + entity.getId.toString
+      "e" + entityIdentifier
     } else {
       //idea (also in task list): change this to be a reliable filename (incl no backslashes? limit it to a whitelist of chars? a simple fn for that?
       var fixedEntityName = entity.getName.replace(" ", "")
       fixedEntityName = fixedEntityName.replace("/", "-")
       //fixedEntityName = fixedEntityName.replace("\\","-")
-      "onemodel-export_" + entity.getId + "_" + fixedEntityName + "-"
+      "onemodel-export_" + entityIdentifier + "_" + fixedEntityName + "-"
     }
   }
 
@@ -1002,8 +1063,8 @@ class ImportExport(val ui: TextUI, val db: Database, controller: Controller) {
     val startingEntity: Entity = new Entity(dbIn, entityId)
 
     // see comments in ImportExport.export() method for explanation of these 3
-    val exportedEntityIds = new mutable.TreeSet[Long]
-    val cachedEntities = new mutable.HashMap[Long, Entity]
+    val exportedEntityIds = new mutable.TreeSet[String]
+    val cachedEntities = new mutable.HashMap[String, Entity]
     val cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]]
 
     val prefix: String = getExportFileNamePrefix(startingEntity, ImportExport.TEXT_EXPORT_TYPE)

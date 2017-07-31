@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, and 2010-2016 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -13,7 +13,6 @@
 package org.onemodel.core.model
 
 import org.onemodel.core._
-import org.onemodel.core.model.Database
 
 object OmInstance {
   def addressLength: Int = Database.omInstanceAddressLength
@@ -35,8 +34,9 @@ object OmInstance {
   * This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
   * Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
   */
-class OmInstance(mDB: Database, mId: String) {
-  // (See comment at similar location in BooleanAttribute.)
+class OmInstance(val mDB: Database, mId: String) {
+  //Idea: make mId *etc* private in all model classes? and rename mDB to just db ("uniform access principle")?
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.omInstanceKeyExists(mId)) {
     throw new OmException("Key " + mId + Util.DOES_NOT_EXIST)
   }
@@ -87,7 +87,7 @@ class OmInstance(mDB: Database, mId: String) {
   }
 
   protected def readDataFromDB() {
-    val omInstanceData = mDB.getOmInstanceData(mId)
+    val omInstanceData: Array[Option[Any]] = mDB.getOmInstanceData(mId)
     if (omInstanceData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
@@ -101,6 +101,10 @@ class OmInstance(mDB: Database, mId: String) {
   def getDisplayString: String = {
     val result: String = mId + ":" + (if (mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted
     result
+  }
+
+  def update(newAddress: String): Unit = {
+    mDB.updateOmInstance(getId, newAddress, getEntityId)
   }
 
   def delete() = mDB.deleteOmInstance(mId)

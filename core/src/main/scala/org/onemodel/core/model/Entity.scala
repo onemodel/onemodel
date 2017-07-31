@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, and 2010-2016 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, and 2010-2017 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -13,21 +13,28 @@
 package org.onemodel.core.model
 
 import java.io.{FileInputStream, PrintWriter, StringWriter}
+import java.util
+import java.util.ArrayList
 
 import org.onemodel.core._
-import org.onemodel.core.model.Database
+
+import scala.collection.mutable
 
 object Entity {
-  def nameLength(inDB: Database): Int = Database.entityNameLength
-
-  def isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateEntityName(inName, inSelfIdToIgnore)
-
   def createEntity(inDB: Database, inName: String, inClassId: Option[Long] = None, isPublicIn: Option[Boolean] = None): Entity = {
     val id: Long = inDB.createEntity(inName, inClassId, isPublicIn)
-    new Entity(inDB, id, false)
+    new Entity(inDB, id)
   }
 
-  def getEntityById(inDB: Database, id: Long): Option[Entity] = {
+  def nameLength: Int = Database.entityNameLength
+
+  def isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = {
+    inDB.isDuplicateEntityName(inName, inSelfIdToIgnore)
+  }
+
+  /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
+    */
+  def getEntity(inDB: Database, id: Long): Option[Entity] = {
     try Some(new Entity(inDB, id))
     catch {
       case e: java.lang.Exception =>
@@ -53,8 +60,8 @@ object Entity {
   *   (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
   *   set... method to fix it.)
   */
-class Entity(mDB: Database, mId: Long) {
-  // (See comment at similar location in BooleanAttribute.)
+class Entity(val mDB: Database, mId: Long) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.entityKeyExists(mId)) {
     // DON'T CHANGE this msg unless you also change the trap for it in TextUI.java.
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
@@ -198,6 +205,28 @@ class Entity(mDB: Database, mId: Long) {
 
   def getId: Long = mId
 
+  /** Intended as a temporarily unique string to distinguish an entity, across OM Instances.  NOT intended as a permanent unique ID (since
+    * the remote address for a given OM instance can change! and the local address is displayed as blank!), see uniqueIdentifier
+    * for that.  This one is like that other in a way, but more for human consumption (eg data export for human reading, not for re-import -- ?).
+    */
+  lazy val readableIdentifier: String = {
+    val remotePrefix =
+      if (mDB.getRemoteAddress.isEmpty) {
+        ""
+      } else {
+        mDB.getRemoteAddress.get + "_"
+      }
+    remotePrefix + getId.toString
+  }
+
+  /** Intended as a unique string to distinguish an entity, even across OM Instances.  Compare to getHumanIdentifier.
+    * Idea: would any (future?) use cases be better served by including *both* the human-readable address (as in
+    * getHumanIdentifier) and the instance id? Or, just combine the methods into one?
+    */
+  val uniqueIdentifier: String = {
+    mDB.id + "_" + getId
+  }
+
   def getAttributeCount: Long = mDB.getAttributeCount(mId, mDB.includeArchivedEntities)
 
   def getRelationToGroupCount: Long = mDB.getRelationToGroupCount(mId)
@@ -232,19 +261,6 @@ class Entity(mDB: Database, mId: Long) {
     result
   }
 
-  /** Removes this object from the system. */
-  def delete() = mDB.deleteEntity(mId)
-
-  def archive() = {
-    mDB.archiveEntity(mId)
-    mArchived = true
-  }
-
-  def unarchive() = {
-    mDB.unarchiveEntity(mId)
-    mArchived = false
-  }
-
   /** Also for convenience */
   def addQuantityAttribute(inAttrTypeId: Long, inUnitId: Long, inNumber: Float, sortingIndexIn: Option[Long]): QuantityAttribute = {
     addQuantityAttribute(inAttrTypeId, inUnitId, inNumber, sortingIndexIn, None, System.currentTimeMillis())
@@ -273,6 +289,113 @@ class Entity(mDB: Database, mId: Long) {
   def getBooleanAttribute(inKey: Long): BooleanAttribute = new BooleanAttribute(mDB, inKey)
 
   def getFileAttribute(inKey: Long): FileAttribute = new FileAttribute(mDB, inKey)
+
+  def getCountOfContainingGroups: Long = {
+    mDB.getCountOfGroupsContainingEntity(getId)
+  }
+
+  def getContainingGroupsIds: ArrayList[Long] = {
+    mDB.getContainingGroupsIds(getId)
+  }
+
+  def getContainingRelationsToGroup(startingIndexIn: Long = 0, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup] = {
+    mDB.getContainingRelationsToGroup(getId, startingIndexIn, maxValsIn)
+  }
+
+  def getContainingRelationToGroupDescriptions(limitIn: Option[Long] = None): util.ArrayList[String] = {
+    mDB.getContainingRelationToGroupDescriptions(getId, limitIn)
+  }
+
+  def findRelationToAndGroup: (Option[Long], Option[Long], Option[Long], Option[String], Boolean) = {
+    mDB.findRelationToAndGroup_OnEntity(getId)
+  }
+
+  def findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[Long], searchStringIn: String, levelsRemainingIn: Int = 20,
+                             stopAfterAnyFoundIn: Boolean = true): mutable.TreeSet[Long] = {
+    mDB.findContainedLocalEntityIds(resultsInOut, getId, searchStringIn, levelsRemainingIn, stopAfterAnyFoundIn)
+  }
+
+  def getCountOfContainingLocalEntities: (Long, Long) = {
+    mDB.getCountOfLocalEntitiesContainingLocalEntity(getId)
+  }
+
+  def getLocalEntitiesContainingEntity(startingIndexIn: Long = 0, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
+    mDB.getLocalEntitiesContainingLocalEntity(getId, startingIndexIn, maxValsIn)
+  }
+
+  def getAdjacentAttributesSortingIndexes(sortingIndexIn: Long, limitIn: Option[Long] = None, forwardNotBackIn: Boolean = true): List[Array[Option[Any]]] = {
+    mDB.getAdjacentAttributesSortingIndexes(getId, sortingIndexIn, limitIn, forwardNotBackIn = forwardNotBackIn)
+  }
+
+  def getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean = true): Option[Long] = {
+    mDB.getNearestAttributeEntrysSortingIndex(getId, startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
+  }
+
+  def renumberSortingIndexes(callerManagesTransactionsIn: Boolean = false): Unit = {
+    mDB.renumberSortingIndexes(getId, callerManagesTransactionsIn, isEntityAttrsNotGroupEntries = true)
+  }
+
+  def updateAttributeSortingIndex(attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Long): Unit = {
+    mDB.updateAttributeSortingIndex(getId, attributeFormIdIn, attributeIdIn, sortingIndexIn)
+  }
+
+  def getAttributeSortingIndex(attributeFormIdIn: Long, attributeIdIn: Long): Long = {
+    mDB.getEntityAttributeSortingIndex(getId, attributeFormIdIn, attributeIdIn)
+  }
+
+  def isAttributeSortingIndexInUse(sortingIndexIn: Long): Boolean = {
+    mDB.isAttributeSortingIndexInUse(getId, sortingIndexIn)
+  }
+
+  def findUnusedAttributeSortingIndex(startingWithIn: Option[Long] = None): Long = {
+    mDB.findUnusedAttributeSortingIndex(getId, startingWithIn)
+  }
+
+  def getRelationToLocalEntityCount(includeArchivedEntitiesIn: Boolean = true): Long = {
+    mDB.getRelationToLocalEntityCount(getId, includeArchivedEntities = includeArchivedEntitiesIn)
+  }
+
+  def getTextAttributeByTypeId(typeIdIn: Long, expectedRowsIn: Option[Int] = None): ArrayList[TextAttribute] = {
+    mDB.getTextAttributeByTypeId(getId, typeIdIn, expectedRowsIn)
+  }
+
+  def addUriEntityWithUriAttribute(newEntityNameIn: String, uriIn: String, observationDateIn: Long, makeThemPublicIn: Option[Boolean],
+                                   callerManagesTransactionsIn: Boolean, quoteIn: Option[String] = None): (Entity, RelationToLocalEntity) = {
+    mDB.addUriEntityWithUriAttribute(this, newEntityNameIn, uriIn, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn, quoteIn)
+  }
+
+  def createTextAttribute(attrTypeIdIn: Long, textIn: String, validOnDateIn: Option[Long] = None,
+                          observationDateIn: Long = System.currentTimeMillis(), callerManagesTransactionsIn: Boolean = false,
+                          sortingIndexIn: Option[Long] = None): /*id*/ Long = {
+    mDB.createTextAttribute(getId, attrTypeIdIn, textIn, validOnDateIn, observationDateIn, callerManagesTransactionsIn, sortingIndexIn)
+  }
+
+  def updateContainedEntitiesPublicStatus(newValueIn: Option[Boolean]): Int = {
+    val (attrTuples: Array[(Long, Attribute)], _) = getSortedAttributes(0, 0, onlyPublicEntitiesIn = false)
+    var count = 0
+    for (attr <- attrTuples) {
+      attr._2 match {
+        case attribute: RelationToEntity =>
+          // Using RelationToEntity here because it actually makes sense. But usually it is best to make sure to use either RelationToLocalEntity
+          // or RelationToRemoteEntity, to be clearer about the logic.
+          require(attribute.getRelatedId1 == getId, "Unexpected value: " + attribute.getRelatedId1)
+          val e: Entity = new Entity(Database.currentOrRemoteDb(attribute, mDB), attribute.getRelatedId2)
+          e.updatePublicStatus(newValueIn)
+          count += 1
+        case attribute: RelationToGroup =>
+          val groupId: Long = attribute.getGroupId
+          val entries: List[Array[Option[Any]]] = mDB.getGroupEntriesData(groupId, None, includeArchivedEntitiesIn = false)
+          for (entry <- entries) {
+            val entityId = entry(0).get.asInstanceOf[Long]
+            mDB.updateEntityOnlyPublicStatus(entityId, newValueIn)
+            count += 1
+          }
+        case _ =>
+        // do nothing
+      }
+    }
+    count
+  }
 
   /** See addQuantityAttribute(...) methods for comments. */
   def addTextAttribute(inAttrTypeId: Long, inText: String, sortingIndexIn: Option[Long]): TextAttribute = {
@@ -325,18 +448,18 @@ class Entity(mDB: Database, mId: Long) {
     }
   }
 
-  def addRelationToEntity(inAttrTypeId: Long, inEntityId2: Long, sortingIndexIn: Option[Long],
-                          inValidOnDate: Option[Long] = None, inObservationDate: Long = System.currentTimeMillis, remoteIn: Boolean = false,
-                          remoteInstanceIdIn: Option[String] = None): RelationToEntity = {
-    require(remoteIn == remoteInstanceIdIn.isDefined)
-    if (!remoteIn) {
-      val rteId = mDB.createRelationToEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate, sortingIndexIn).getId
-      new RelationToEntity(mDB, rteId, inAttrTypeId, getId, inEntityId2)
-    } else {
-      val rteId = mDB.createRelationToRemoteEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate,
-                                                   remoteInstanceIdIn.get, sortingIndexIn).getId
-      new RelationToRemoteEntity(mDB, rteId, inAttrTypeId, getId, remoteInstanceIdIn.get, inEntityId2)
-    }
+  def addRelationToLocalEntity(inAttrTypeId: Long, inEntityId2: Long, sortingIndexIn: Option[Long],
+                          inValidOnDate: Option[Long] = None, inObservationDate: Long = System.currentTimeMillis): RelationToLocalEntity = {
+    val rteId = mDB.createRelationToLocalEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate, sortingIndexIn).getId
+    new RelationToLocalEntity(mDB, rteId, inAttrTypeId, getId, inEntityId2)
+  }
+
+  def addRelationToRemoteEntity(inAttrTypeId: Long, inEntityId2: Long, sortingIndexIn: Option[Long],
+                          inValidOnDate: Option[Long] = None, inObservationDate: Long = System.currentTimeMillis,
+                          remoteInstanceIdIn: String): RelationToRemoteEntity = {
+    val rteId = mDB.createRelationToRemoteEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate,
+                                                 remoteInstanceIdIn, sortingIndexIn).getId
+    new RelationToRemoteEntity(mDB, rteId, inAttrTypeId, getId, remoteInstanceIdIn, inEntityId2)
   }
 
   /** Creates then adds a particular kind of rtg to this entity.
@@ -365,30 +488,28 @@ class Entity(mDB: Database, mId: Long) {
   /**
    * @return the id of the new RTE
    */
-  def addHASRelationToEntity(entityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): RelationToEntity = {
-    mDB.addHASRelationToEntity(getId, entityIdIn, validOnDateIn, observationDateIn)
+  def addHASRelationToLocalEntity(entityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): RelationToLocalEntity = {
+    mDB.addHASRelationToLocalEntity(getId, entityIdIn, validOnDateIn, observationDateIn)
   }
 
   /** Creates new entity then adds it a particular kind of rte to this entity.
-    * Returns new entity's id, and the new RelationToEntity object
     * */
-  def createEntityAndAddHASRelationToIt(newEntityNameIn: String, observationDateIn: Long, isPublicIn: Option[Boolean],
-                                        callerManagesTransactionsIn: Boolean = false): (Entity, RelationToEntity) = {
+  def createEntityAndAddHASLocalRelationToIt(newEntityNameIn: String, observationDateIn: Long, isPublicIn: Option[Boolean],
+                                        callerManagesTransactionsIn: Boolean = false): (Entity, RelationToLocalEntity) = {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
     val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
-    val (entity, rte) = addEntityAndRelationToEntity(relationTypeId, newEntityNameIn, None, observationDateIn, isPublicIn,
-                                                     callerManagesTransactionsIn)
+    val (entity: Entity, rte: RelationToLocalEntity) = addEntityAndRelationToLocalEntity(relationTypeId, newEntityNameIn, None, observationDateIn,
+                                                                                         isPublicIn, callerManagesTransactionsIn)
     (entity, rte)
   }
 
-  /** Like others, returns the new things' IDs. */
-  def addEntityAndRelationToEntity(relTypeIdIn: Long, newEntityNameIn: String, validOnDateIn: Option[Long], inObservationDate: Long,
-                                   isPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean = false): (Entity, RelationToEntity) = {
-    val (entityId, rteId) = mDB.createEntityAndRelationToEntity(getId, relTypeIdIn, newEntityNameIn, isPublicIn, validOnDateIn, inObservationDate,
+  def addEntityAndRelationToLocalEntity(relTypeIdIn: Long, newEntityNameIn: String, validOnDateIn: Option[Long], inObservationDate: Long,
+                                   isPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean = false): (Entity, RelationToLocalEntity) = {
+    val (entityId, rteId) = mDB.createEntityAndRelationToLocalEntity(getId, relTypeIdIn, newEntityNameIn, isPublicIn, validOnDateIn, inObservationDate,
                                                                 callerManagesTransactionsIn)
     val entity = new Entity(mDB, entityId)
-    val rte = new RelationToEntity(mDB, rteId, relTypeIdIn, mId, entityId)
+    val rte = new RelationToLocalEntity(mDB, rteId, relTypeIdIn, mId, entityId)
     (entity, rte)
   }
 
@@ -403,6 +524,10 @@ class Entity(mDB: Database, mId: Long) {
                          validOnDateIn: Option[Long], observationDateIn: Long): RelationToGroup = {
     val (newRtgId, sortingIndex) = mDB.createRelationToGroup(getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
     new RelationToGroup(mDB, newRtgId, getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn, sortingIndex)
+  }
+
+  def getSortedAttributes(startingObjectIndexIn: Int = 0, maxValsIn: Int = 0, onlyPublicEntitiesIn: Boolean = true): (Array[(Long, Attribute)], Int) = {
+    mDB.getSortedAttributes(getId, startingObjectIndexIn, maxValsIn, onlyPublicEntitiesIn = onlyPublicEntitiesIn)
   }
 
   def updateClass(classIdIn: Option[Long]): Unit = {
@@ -421,17 +546,35 @@ class Entity(mDB: Database, mId: Long) {
     }
   }
 
-  def getAttributes(startingObjectIndexIn: Int = 0, maxValsIn: Int = 0, onlyPublicEntitiesIn: Boolean = true): (Array[(Long, Attribute)], Int) = {
-    mDB.getSortedAttributes(getId, startingObjectIndexIn, maxValsIn, onlyPublicEntitiesIn)
-  }
-
-  def findRelationToAndGroup = {
-    mDB.findRelationToAndGroup_OnEntity(getId)
-  }
-
   def updatePublicStatus(newValueIn: Option[Boolean]) {
-    mDB.updateEntityOnlyPublicStatus(getId, newValueIn)
+    if (!mAlreadyReadData) readDataFromDB()
+    if (newValueIn != mPublic) {
+      // The condition for this (when it was part of EntityMenu) used to include " && !entityIn.isInstanceOf[RelationType]", but maybe it's better w/o that.
+      mDB.updateEntityOnlyPublicStatus(getId, newValueIn)
+      mPublic = newValueIn
+    }
   }
+
+  def updateName(nameIn: String): Unit = {
+    if (!mAlreadyReadData) readDataFromDB()
+    if (nameIn != mName) {
+      mDB.updateEntityOnlyName(getId, nameIn)
+      mName = nameIn
+    }
+  }
+
+  def archive() = {
+    mDB.archiveEntity(mId)
+    mArchived = true
+  }
+
+  def unarchive() = {
+    mDB.unarchiveEntity(mId)
+    mArchived = false
+  }
+
+  /** Removes this object from the system. */
+  def delete() = mDB.deleteEntity(mId)
 
   var mAlreadyReadData: Boolean = false
   var mName: String = _

@@ -1,9 +1,9 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2016 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2017 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -16,7 +16,7 @@ import org.onemodel.core.{Color, OmException, TextUI}
 
 /** Allows sorting of group entries, quick work like for brainstorming.
   */
-class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: Controller) extends SortableEntriesMenu(ui) {
+class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extends SortableEntriesMenu(ui) {
   // The @tailrec is desired when possible,
   // because it seems that otherwise we might try to ESC back to a menu instance which is attempting to view a deleted entity, & crash!  But see the comment
   // mentioning why not to have it, below.  Maybe we need to use a loop around the menu instead of tail recursion in this case, if there is not a
@@ -47,7 +47,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
                                containingEntityIn)
     } catch {
       case e: Exception =>
-        Util.handleException(e, controller.ui, controller.db)
+        Util.handleException(e, ui, groupIn.mDB)
         val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?", Some("y"))
         if (ans.isDefined && ans.get) quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn,
                                                      callingMenusRtgIn, containingEntityIn)
@@ -60,7 +60,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
     */
   def createNewOrFindOneGroupOnEntity(groupIn: Group, targetEntitysRtgCount: Long, targetEntityIn: Entity): (Long, Long, Long) = {
     // if there is 1 (obvious) destination, or no RTG on the selected entity (1 can be created), then add new entry there
-    val (targetRtgId: Long, targetRelTypeId: Long, targetGroupId: Long) = {
+    val (targetRelationToGroupId: Long, targetRelationTypeId: Long, targetGroupId: Long) = {
       if (targetEntitysRtgCount == 0) {
         val name: String = targetEntityIn.getName
         val (newGroup: Group, newRTG: RelationToGroup) = targetEntityIn.createGroupAndAddHASRelationToIt(name, groupIn.getMixedClassesAllowed,
@@ -68,7 +68,9 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
         (newRTG.getId, newRTG.getAttrTypeId, newGroup.getId)
       } else {
         // given above conditions (w/ moveTargetIndexInObjList, and rtgCount twice), there must be exactly one, or there's a bug:
-        val (rtgId, relTypeId, gid, moreAvailable) = db.findRelationToAndGroup_OnEntity(targetEntityIn.getId)
+        val (rtgId, relTypeId, gid, _, moreAvailable): (Option[Long], Option[Long],
+          Option[Long], Option[String], Boolean) = targetEntityIn.findRelationToAndGroup
+
         if (gid.isEmpty || relTypeId.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier " +
                                                                                      "checks, " +
                                                                                      "there should be exactly one group in entity " + targetEntityIn.getId
@@ -77,7 +79,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
         (rtgId.get, relTypeId.get, gid.get)
       }
     }
-    (targetRtgId, targetRelTypeId, targetGroupId)
+    (targetRelationToGroupId, targetRelationTypeId, targetGroupId)
   }
 
   def moveSelectedEntry(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup], targetForMovesIn: Option[Entity],
@@ -124,19 +126,19 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
           numRowsToMove = 20
           forwardNotBack = true
         }
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize(4), numRowsToMove, forwardNotBack, startingDisplayRowIndexIn,
-                                                                 highlightedObjId, highlightedIndexInObjListIn, Some(highlightedObjId),
-                                                                 objectsToDisplay.size, -1, Some(-1))
+        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), numRowsToMove, forwardNotBack,
+                                                                 startingDisplayRowIndexIn, highlightedObjId, highlightedIndexInObjListIn,
+                                                                 Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
         quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 7 && targetForMovesIn.isDefined) {
-        val targetRtgCount: Long = db.getRelationToGroupCount(targetForMovesIn.get.getId)
+        val targetRtgCount: Long = targetForMovesIn.get.getRelationToGroupCount
         if (moveTargetIndexInObjList.isEmpty) {
           ui.displayText("Target must be selected (shows '+').")
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         } else {
           if (targetRtgCount > 1) {
             // can't guess which subgroup so just move it to the entity (idea: could ask whether to do that or go to which subgroup, perhaps...)
-            db.moveEntityFromGroupToEntity(groupIn.getId, targetForMovesIn.get.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
+            groupIn.moveEntityFromGroupToLocalEntity(targetForMovesIn.get.getId, highlightedObjId, getSortingIndex(groupIn.mDB, groupIn.getId, -1, highlightedObjId))
             val entityToHighlight: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
                                                                                          highlightedIndexInObjListIn, highlightedEntry)
             quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
@@ -151,11 +153,11 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
                 // if there is 1 (obvious) destination, or no RTG on the selected entity (1 can be created), then move it there
                 val (_, _, targetGroupId) = createNewOrFindOneGroupOnEntity(groupIn, targetRtgCount, targetForMovesIn.get)
                 // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
-                db.moveEntityFromGroupToGroup(groupIn.getId, targetGroupId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
+                groupIn.moveEntityToDifferentGroup(targetGroupId, highlightedObjId, getSortingIndex(groupIn.mDB, groupIn.getId, -1, highlightedObjId))
               } else {
-                // getting here means to just create a RelationToEntity on the containing entity, not a subgroup:
-                db.moveEntityFromGroupToEntity(groupIn.getId, targetForMovesIn.get.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1,
-                                                                                                                            highlightedObjId))
+                // getting here means to just create a RelationToLocalEntity on the entity, not a subgroup:
+                groupIn.moveEntityFromGroupToLocalEntity(targetForMovesIn.get.getId, highlightedObjId, getSortingIndex(groupIn.mDB, groupIn.getId,
+                                                                                                                  -1, highlightedObjId))
               }
               val entityToHighlight: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
                                                                                            highlightedIndexInObjListIn, highlightedEntry)
@@ -171,7 +173,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
           if (callingMenusRtgIn.isDefined && containingEntityIn.isDefined) {
             val answer = ui.askWhich(None,
                         Array("Move it to the containing entity: " + containingEntityIn.get.getName,
-                              "Move it to the containing group: " + new Group(db, callingMenusRtgIn.get.getGroupId).getName))
+                              "Move it to the containing group: " + new Group(callingMenusRtgIn.get.mDB, callingMenusRtgIn.get.getGroupId).getName))
             if (answer.isEmpty) {
               (None, None)
             } else if (answer.get == 1) {
@@ -187,7 +189,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
             // none provided, so see if it's guessable
             // (Idea: if useful, could also try guessing the entity if there's just one, then if both are there let user choose which as just above.
             // And if > 1 of either or both groups/entities, ask to which of them to move it?)
-            val containingGroupsIds: List[Array[Option[Any]]] = db.getGroupsContainingEntitysGroupsIds(groupIn.getId)
+            val containingGroupsIds: List[Array[Option[Any]]] = groupIn.getGroupsContainingEntitysGroupsIds()
             if (containingGroupsIds.isEmpty) {
               ui.displayText("Unable to find any containing groups, for the group \"" + groupIn.getName + "\" (ie, nowhere \"up\" found, to move it to).")
               (None, None)
@@ -203,13 +205,13 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
         }
         if (targetEntity.isDefined) {
           require(targetGroupId.isEmpty)
-          db.moveEntityFromGroupToEntity(groupIn.getId, containingEntityIn.get.getId, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
+          groupIn.moveEntityFromGroupToLocalEntity(containingEntityIn.get.getId, highlightedObjId, getSortingIndex(groupIn.mDB, groupIn.getId, -1, highlightedObjId))
           val entityToHighlight: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
                                                                                        highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         } else if (targetGroupId.isDefined) {
           require(targetEntity.isEmpty)
-          db.moveEntityFromGroupToGroup(groupIn.getId, targetGroupId.get, highlightedObjId, getSortingIndex(groupIn.getId, -1, highlightedObjId))
+          groupIn.moveEntityToDifferentGroup(targetGroupId.get, highlightedObjId, getSortingIndex(groupIn.mDB, groupIn.getId, -1, highlightedObjId))
           val entityToHighlight: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOneIn = true,
                                                                                       highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
@@ -265,7 +267,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
           controller.addEntityToGroup(groupIn)
           quickGroupMenu(groupIn, 0, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn, containingEntityIn = containingEntityIn)
         } else if (answer == 2 && answer <= choices.length) {
-          new GroupMenu(ui, db, controller).groupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+          new GroupMenu(ui, controller).groupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 0) None
         else {
           // expected to be unreachable based on askWhich behavior (doesn't allow answers beyond the list of choices available), but for the compiler:
@@ -326,20 +328,20 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
         if (answer == 1) {
           val (entryToHighlight:Option[Entity], displayStartingRowNumber: Int) = {
             // ask for less info when here in the quick menu, where want to add entity quickly w/ no fuss, like brainstorming.  User can always use long menu.
-            val ans: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"),
+            val ans: Option[Entity] = controller.askForNameAndWriteEntity(groupIn.mDB, Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"),
                                                                classIdIn = groupIn.getClassId)
             if (ans.isDefined) {
               val newEntity = ans.get
               val newEntityId: Long = newEntity.getId
-              db.addEntityToGroup(groupIn.getId, newEntityId)
+              groupIn.addEntity(newEntityId)
               // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
               val goingBackward: Boolean = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop
               val forwardNotBack = !goingBackward
-              val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize(4), 0,
+              val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), 0,
                                                                        forwardNotBackIn = forwardNotBack, startingDisplayRowIndexIn, newEntityId,
                                                                        highlightedIndexInObjList, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
               controller.defaultAttributeCopying(newEntity)
-              (Some(new Entity(db, newEntityId)), displayStartingRowNumber)
+              (Some(new Entity(groupIn.mDB, newEntityId)), displayStartingRowNumber)
             }
             else (Some(highlightedEntry), startingDisplayRowIndexIn)
           }
@@ -374,28 +376,29 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
                   } else {
                     val (rtgId: Long, relTypeId: Long, targetGroupId: Long) = createNewOrFindOneGroupOnEntity(groupIn, targetRtgCount, highlightedEntry)
                     // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
-                    val ans: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"),
+                    val ans: Option[Entity] = controller.askForNameAndWriteEntity(groupIn.mDB, Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"),
                                                                                   classIdIn = groupIn.getClassId)
                     if (ans.isDefined) {
                       val newEntityId: Long = ans.get.getId
                       val newEntity: Entity = ans.get
-                      db.addEntityToGroup(targetGroupId, newEntityId)
+                      val targetGroup = new Group(groupIn.mDB, targetGroupId)
+                      targetGroup.addEntity(newEntityId)
 
                       controller.defaultAttributeCopying(newEntity)
 
-                      val newRtg: RelationToGroup = new RelationToGroup(db, rtgId, highlightedEntry.getId, relTypeId, targetGroupId)
-                      quickGroupMenu(new Group(db, targetGroupId), 0, Some(newRtg), None, None, containingEntityIn = Some(highlightedEntry))
+                      val newRtg: RelationToGroup = new RelationToGroup(groupIn.mDB, rtgId, highlightedEntry.getId, relTypeId, targetGroup.getId)
+                      quickGroupMenu(new Group(targetGroup.mDB, targetGroup.getId), 0, Some(newRtg), None, None, containingEntityIn = Some(highlightedEntry))
                     }
                     quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
                   }
                 } else {
-                  val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"),
+                  val newEntity: Option[Entity] = controller.askForNameAndWriteEntity(groupIn.mDB, Util.ENTITY_TYPE, leadingTextIn = Some("NAME THE ENTITY:"),
                                                                                       classIdIn = groupIn.getClassId)
                   if (newEntity.isDefined) {
                     val newEntityId: Long = newEntity.get.getId
-                    val newRte: RelationToEntity = highlightedEntry.addHASRelationToEntity(newEntityId, None, System.currentTimeMillis())
+                    val newRte: RelationToLocalEntity = highlightedEntry.addHASRelationToLocalEntity(newEntityId, None, System.currentTimeMillis())
                     require(newRte.getParentId == highlightedEntry.getId)
-                    new EntityMenu(ui, db, controller).entityMenu(newEntity.get, containingRelationToEntityIn = Some(newRte))
+                    new EntityMenu(ui, controller).entityMenu(newEntity.get, containingRelationToEntityIn = Some(newRte))
                   }
                   quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, newEntity, targetForMoves, callingMenusRtgIn, containingEntityIn)
                 }
@@ -403,18 +406,18 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
                 quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
               }
             } else if (addEntryAnswer == 2) {
-              val entityChosen: Option[IdWrapper] = controller.askForNameAndSearchForEntity
+              val entityChosen: Option[IdWrapper] = controller.askForNameAndSearchForEntity(groupIn.mDB)
               val (entryToHighlight:Option[Entity], displayStartingRowNumber: Int) = {
                 if (entityChosen.isDefined) {
                   val entityChosenId: Long = entityChosen.get.getId
-                  db.addEntityToGroup(groupIn.getId, entityChosenId)
+                  groupIn.addEntity(entityChosenId)
                   // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
                   val goingBackward: Boolean = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop
                   val forward = !goingBackward
-                  val newDisplayStartingRowNumber: Int = placeEntryInPosition(groupIn.getId, groupIn.getSize(4), 0, forwardNotBackIn = forward,
+                  val newDisplayStartingRowNumber: Int = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), 0, forwardNotBackIn = forward,
                                                                               startingDisplayRowIndexIn, entityChosenId, highlightedIndexInObjList,
                                                                               Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
-                  (Some(new Entity(db, entityChosenId)), newDisplayStartingRowNumber)
+                  (Some(new Entity(groupIn.mDB, entityChosenId)), newDisplayStartingRowNumber)
                 } else (Some(highlightedEntry), startingDisplayRowIndexIn)
               }
               quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn, containingEntityIn)
@@ -426,9 +429,9 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
             quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
           }
         } else if (answer == 5) {
-          new EntityMenu(ui, db, controller).entityMenu(highlightedEntry, containingGroupIn = Some(groupIn))
+          new EntityMenu(ui, controller).entityMenu(highlightedEntry, containingGroupIn = Some(groupIn))
           // deal with entityMenu possibly having deleted the entity:
-          val removedOne: Boolean = !db.isEntityInGroup(groupIn.getId, highlightedEntry.getId)
+          val removedOne: Boolean = !groupIn.isEntityInGroup(highlightedEntry.getId)
           val entityToHighlightNext: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList,
                                                                                highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlightNext, targetForMoves, callingMenusRtgIn, containingEntityIn)
@@ -497,7 +500,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
             }
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, selectedTargetEntity, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 9 && answer <= choices.length) {
-          new GroupMenu(ui, db, controller).groupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+          new GroupMenu(ui, controller).groupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else if (false /*can this be changed so that if they hit Enter it makes it to here ?*/ ) {
           // do something with enter: do a quick text edit & update the dates. Or quickAddEntry ?
           ui.displayText("not yet implemented")
@@ -517,7 +520,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
             val (_ /*subEntitySelected:Option[Entity]*/ , groupId: Option[Long], moreThanOneGroupAvailable) =
               controller.goToEntityOrItsSoleGroupsMenu(userSelection, relationToGroupIn, Some(groupIn))
 
-            val removedOne: Boolean = !db.isEntityInGroup(groupIn.getId, userSelection.getId)
+            val removedOne: Boolean = !groupIn.isEntityInGroup(userSelection.getId)
             var entityToHighlightNext: Option[Entity] = Some(userSelection)
             if (groupId.isDefined && !moreThanOneGroupAvailable) {
               //idea: do something w/ this unused variable? Like, if the userSelection was deleted, then use this in its place in parms to
@@ -526,7 +529,7 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
             }
 
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
-            if (db.groupKeyExists(groupIn.getId)) {
+            if (groupIn.mDB.groupKeyExists(groupIn.getId)) {
               if (choicesIndex == moveTargetIndexInObjList.getOrElse(None)) {
                 quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(userSelection), None, callingMenusRtgIn, containingEntityIn)
               } else {
@@ -542,48 +545,56 @@ class QuickGroupMenu(override val ui: TextUI, val db: Database, val controller: 
     }
   }
 
-  private def useSubgroup(highlightedEntry: Entity): (Long, Option[Boolean]) = {
-    val targetRtgCount: Long = db.getRelationToGroupCount(highlightedEntry.getId)
+  private def useSubgroup(targetEntry: Entity): (Long, Option[Boolean]) = {
+    val targetRtgCount: Long = targetEntry.getRelationToGroupCount
     val defaultToUsingSubgroup: Option[Boolean] = {
       if (targetRtgCount == 0) {
-        // the user could create one manually if desired; another idea is in the commit where I added this line, in a removed comment/code.
         Some(false)
       } else if (targetRtgCount == 1) {
         Some(true)
       } else {
-        throw new OmException("Didn't expect to get to this point.")
+        ui.displayText("There are multiple subgroups on this entity, so for now OM will just move the one entry to be contained by the" +
+                       " other entity, to which you can then manually go and move it further to a subgroup as needed.")
+        Some(false)
       }
     }
     (targetRtgCount, defaultToUsingSubgroup)
   }
 
-  protected def getAdjacentEntriesSortingIndexes(groupIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
+  protected def getAdjacentEntriesSortingIndexes(dbIn: Database, groupIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
                                         forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
-    db.getAdjacentGroupEntriesSortingIndexes(groupIdIn, movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
+    val group = new Group(dbIn, groupIdIn)
+    group.getAdjacentGroupEntriesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected def getNearestEntrysSortingIndex(groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
-    db.getNearestGroupEntrysSortingIndex(groupIdIn, startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
+  protected def getNearestEntrysSortingIndex(dbIn: Database, groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+    val group = new Group(dbIn, groupIdIn)
+    group.getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }
 
-  protected def renumberSortingIndexes(groupIdIn: Long): Unit = {
-    db.renumberSortingIndexes(groupIdIn, isEntityAttrsNotGroupEntries = false)
+  protected def renumberSortingIndexes(dbIn: Database, groupIdIn: Long): Unit = {
+    val group = new Group(dbIn, groupIdIn)
+    group.renumberSortingIndexes()
   }
 
-  protected def updateSortedEntry(groupIdIn: Long, ignoredParameter: Int, movingEntityIdIn: Long, sortingIndexIn: Long): Unit = {
-    db.updateEntityInAGroup(groupIdIn, movingEntityIdIn, sortingIndexIn)
+  protected def updateSortedEntry(dbIn: Database, groupIdIn: Long, ignoredParameter: Int, movingEntityIdIn: Long, sortingIndexIn: Long): Unit = {
+    val group = new Group(dbIn, groupIdIn)
+    group.updateSortingIndex(movingEntityIdIn, sortingIndexIn)
   }
 
-  protected def getSortingIndex(groupIdIn: Long, ignoredParameter: Int, entityIdIn: Long): Long = {
-    db.getGroupSortingIndex(groupIdIn, entityIdIn)
+  protected def getSortingIndex(dbIn: Database, groupIdIn: Long, ignoredParameter: Int, entityIdIn: Long): Long = {
+    val group = new Group(dbIn, groupIdIn)
+    group.getEntrySortingIndex(entityIdIn)
   }
 
-  protected def indexIsInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean = {
-    db.isGroupEntrySortingIndexInUse(groupIdIn, sortingIndexIn)
+  protected def indexIsInUse(dbIn: Database, groupIdIn: Long, sortingIndexIn: Long): Boolean = {
+    val group = new Group(dbIn, groupIdIn)
+    group.isGroupEntrySortingIndexInUse(sortingIndexIn)
   }
 
-  protected def findUnusedSortingIndex(groupIdIn: Long, startingWithIn: Long): Long = {
-    db.findUnusedGroupSortingIndex(groupIdIn, Some(startingWithIn))
+  protected def findUnusedSortingIndex(dbIn: Database, groupIdIn: Long, startingWithIn: Long): Long = {
+    val group = new Group(dbIn, groupIdIn)
+    group.findUnusedSortingIndex(Some(startingWithIn))
   }
 
 }

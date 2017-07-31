@@ -1,7 +1,24 @@
-# just a convenience to most quickly run changes from the cli
+
+#!/bin/bash -eux
+# (I was skipping the "bin/bash" line above so it would run the same on openbsd, but then it doesn't run from dejagnu,
+# so I put it back.)
+
+#    This file is part of OneModel, a program to manage knowledge.
+#    Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
+#    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+#    see the file LICENSE for license version and details.
+#    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#    You should have received a copy of the GNU Affero General Public License along with OneModel.  If
+#    not, see http://www.gnu.org/licenses/  .
+
+# This is just a convenience to most quickly run changes from the cli
 # without taking the time to build a jar first.
 
 set -eux
+SCRIPT_DIR="$(dirname $(readlink -e $0))"
+pushd $SCRIPT_DIR/..
 
 if [[ $(uname -a|grep -i openbsd|wc -l) -eq 1 ]]; then
   STAT_CMD="stat -f %m"
@@ -28,9 +45,17 @@ if [[ $LATEST_SOURCE_FILE_DATE -gt $LATEST_CLASS_FILE_DATE ]]; then
   mvn compile
 fi
 
-#export MAVEN_OPTS="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,address=5005,suspend=y"
-if [[ $# -gt 0 && $1=="d" ]]; then
+# similar DEBUG setting code in "om" script
+DEBUG=""
+if [[ $# -gt 0 && $1 == 'd' ]]; then
   shift
-  export MAVEN_OPTS="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,address=5005,suspend=n" 
+  echo $#
+  if [[ $# -gt 0  && $1 == 's' ]]; then
+    shift
+    SUSPEND='y'
+  else
+    SUSPEND='n'
+  fi
+  export MAVEN_OPTS="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,address=5005,suspend=$SUSPEND"
 fi
 mvn exec:java -Dexec.args="$*"

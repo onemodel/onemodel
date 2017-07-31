@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2016 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2017 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -380,7 +380,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
                                                                                (choicesIn.length + moreChoicesIn.length) + ") than the menu can handle" +
                                                                                possibleMenuChars.length)
 
-    var alreadyFull = false
+    val alreadyFull = false
     var lineCounter: Int = 0
     val allAllowedAnswers = new StringBuffer
 
@@ -402,9 +402,13 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
       } else if ((!alreadyFull) && lineCounter > terminalHeight) {
         // (+ 1 above to leave room for the error message line, below)
         val unshownCount: Int = choicesIn.length + moreChoicesIn.length - lineCounter - 1
-        println("Unable to show remaining " + unshownCount + " items in the available screen space(!?). Consider code change to pass the " +
-                "right number of them, relaunching w/ larger terminal, or grouping things?")
-        alreadyFull = true
+        println("==============================")
+        println("FYI: Unable to show remaining " + unshownCount + " items in the available screen space(!?). Consider code change to pass the " +
+        "right number of them, relaunching w/ larger terminal, or grouping things?  (ref: " + alreadyFull + "/" + lineCounter + "/" +
+                terminalHeight + "/" + terminalWidth + "/" + mTerminal.getClass.getCanonicalName + ")")
+        println("Not going to fail over this, but it might be fixed, especially if you can reproduce it consistently.")
+        println("==============================")
+        //alreadyFull = true //not failing after all (setting this to false causes ExpectIt tests to fail when run in IDE)
         alreadyFull
       } else false
     }
@@ -493,7 +497,8 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     val (answer: Char, userChoseAlternate: Boolean) = getUserInputChar
     if (answer != 27 && answer != '0' && answer != 13 && (!allAllowedAnswers.toString.contains(answer.toChar))) {
       println("unknown choice: " + answer)
-      askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn)
+      askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn,
+                                   defaultChoiceIn)
     } else if (answer == 13 && (defaultChoiceIn.isDefined || highlightIndexIn.isDefined)) {
       // user hit Enter ie '\r', so take the one that was passed in as default, or highlighted
       if (defaultChoiceIn.isDefined) {

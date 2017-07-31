@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2016 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2017 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -23,6 +23,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     val testNameReversed = "is had"
     val testDir = "BI"
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
+    when(mockDB.getRemoteAddress).thenReturn(None)
     /*val reltype: RelationType = */new RelationType(mockDB, id, testRelTypeName, testNameReversed, testDir)
     // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
     //val testName = "thisIsAName"
@@ -39,6 +40,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     val mockDB = mock[PostgreSQLDatabase]
     when(mockDB.entityKeyExists(id)).thenReturn(true)
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
+    when(mockDB.getRemoteAddress).thenReturn(None)
     val relationType = new RelationType(mockDB, id)
     val sr = relationType.getDisplayString()
     assert(sr.contains("Unable to get entity description due to"))

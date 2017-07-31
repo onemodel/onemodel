@@ -1,22 +1,20 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2016 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 package org.onemodel.core.model
 
+import org.onemodel.core.controllers.{Controller, ImportExport}
 import org.scalatest.mockito.MockitoSugar
 import java.io.File
 import java.util
-
-import org.onemodel.core.controllers.{Controller, ImportExport}
-import org.onemodel.core.{OmDatabaseException, OmException, OmFileTransferException, Util}
+import org.onemodel.core._
 import org.scalatest.{Args, FlatSpec, Status}
-
 import scala.collection.mutable
 
 object PostgreSQLDatabaseTest {
@@ -196,7 +194,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(!mDB.entityKeyExists(mDB.findIdWhichIsNotKeyOfAnyEntity))
   }
 
-  "entityOnlyKeyExists" should "not find RelationToEntity record" in {
+  "entityOnlyKeyExists" should "not find RelationToLocalEntity record" in {
     mDB.beginTrans()
     val tempRelTypeId: Long = mDB.createRelationType(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL)
     assert(!mDB.entityOnlyKeyExists(tempRelTypeId))
@@ -223,7 +221,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     //whatever, just need some relation type to go with:
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
-    createTestRelationToEntity_WithOneEntity(id, relTypeId)
+    createTestRelationToLocalEntity_WithOneEntity(id, relTypeId)
     assert(mDB.getAttributeCount(id) == 4)
     assert(mDB.getAttributeSortingRowsCount(Some(id)) == 4)
 
@@ -232,8 +230,11 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getAttributeSortingRowsCount(Some(id)) == 5)
 
     mDB.rollbackTrans()
-    //idea: find out: WHY do the next lines fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
-    // Do I not understand rollback?
+    //idea: (tracked in tasks): find out: WHY do the next lines fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
+    // Do I not understand rollback?  But it does seem to work as expected in "entity creation/update and transaction rollback" test above.  See also
+    // in EntityTest's "updateClassAndTemplateEntityName", at the last 2 commented lines which fail for unknown reason.  Maybe something obvious i'm just
+    // missing, or maybe it's in the postgresql or jdbc transaction docs.  Could also ck in other places calling db.rollbackTrans to see what's to learn from
+    // current use (risk) & behaviors to compare.
 //    assert(mDB.getAttrCount(id) == 0)
 //    assert(mDB.getAttributeSortingRowsCount(Some(id)) == 0)
   }
@@ -597,12 +598,12 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getEntitiesOnlyCount() == startingEntityOnlyCount + 1)
 
     assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
-    val relatedEntityId: Long = createTestRelationToEntity_WithOneEntity(entityId, relTypeId)
+    val relatedEntityId: Long = createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId)
     assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
-    val checkRelation = mDB.getRelationToEntityData(relTypeId, entityId, relatedEntityId)
+    val checkRelation = mDB.getRelationToLocalEntityData(relTypeId, entityId, relatedEntityId)
     val checkValidOnDate = checkRelation(1)
     assert(checkValidOnDate.isEmpty) // should get back None when created with None: see description for table's field in createTables method.
-    assert(mDB.getRelationToEntityCount(entityId) == 1)
+    assert(mDB.getRelationToLocalEntityCount(entityId) == 1)
 
     val newName = "test: org.onemodel.PSQLDbTest.relationupdate..."
     val nameInReverse = "nameinreverse;!@#$%^&*()-_=+{}[]:\"'<>?,./`~" //and verify can handle some variety of chars
@@ -613,8 +614,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(updatedRelationType.getNameInReverseDirection == nameInReverse)
     assert(updatedRelationType.getDirectionality == RelationType.BIDIRECTIONAL)
 
-    mDB.deleteRelationToEntity(relTypeId, entityId, relatedEntityId)
-    assert(mDB.getRelationToEntityCount(entityId) == 0)
+    mDB.deleteRelationToLocalEntity(relTypeId, entityId, relatedEntityId)
+    assert(mDB.getRelationToLocalEntityCount(entityId) == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
     assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
 
@@ -725,7 +726,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val entityId5 = mDB.createEntity(entityName + 5)
     group2.addEntity(entityId5)
     // (at least make sure next method runs:)
-    mDB.getGroupSortingIndex(groupId2, entityId5)
+    mDB.getGroupEntrySortingIndex(groupId2, entityId5)
     assert(group2.getSize() == 3)
     assert(mDB.getGroupEntryObjects(group2.getId, 0).size() == 3)
 
@@ -753,6 +754,15 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     //assert(mDB.getRelationToGroupCount(entityId) == 0)
   }
 
+  "getGroups" should "work" in {
+    val group3id = mDB.createGroup("g3")
+    val number = mDB.getGroups(0).size
+    val number2 = mDB.getGroups(0, None, Some(group3id)).size
+    assert(number == number2 + 1)
+    val number3 = mDB.getGroups(1).size
+    assert(number == number3 + 1)
+  }
+
   "deleting entity" should "work even if entity is in a relationtogroup" in {
     val startingEntityCount = mDB.getEntitiesOnlyCount()
     val relToGroupName = "test:PSQLDbTest.testDelEntity_InGroup"
@@ -774,14 +784,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getGroupSize(groupId) == 2)
     assert(mDB.getCountOfGroupsContainingEntity(entityId2) == 1)
     val descriptions = mDB.getContainingRelationToGroupDescriptions(entityId2, Some(9999))
-    assert(descriptions.length == 1)
-    assert(descriptions(0) == entityName + "->" + relToGroupName)
+    assert(descriptions.size == 1)
+    assert(descriptions.get(0) == entityName + "->" + relToGroupName)
 
     //doesn't get an error:
     mDB.deleteEntity(entityId2)
 
     val descriptions2 = mDB.getContainingRelationToGroupDescriptions(entityId2, Some(9999))
-    assert(descriptions2.length == 0)
+    assert(descriptions2.size == 0)
     assert(mDB.getCountOfGroupsContainingEntity(entityId2) == 0)
     assert(mDB.getEntitiesOnlyCount() == startingEntityCount + 2)
     assert(intercept[Exception] {
@@ -804,7 +814,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     createTestTextAttributeWithOneEntity(entityId)
     createTestQuantityAttributeWithTwoEntities(entityId)
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
-    val relatedEntityId: Long = createTestRelationToEntity_WithOneEntity(entityId, relTypeId)
+    val relatedEntityId: Long = createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId)
     DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(mDB, entityId, relTypeId)
     createTestDateAttributeWithOneEntity(entityId)
     createTestBooleanAttributeWithOneEntity(entityId, valIn = false, None, 0)
@@ -825,7 +835,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     // should be the same since we didn't create enough to span screens (requested them all):
     assert(counter == totalAttrsAvailable)
     if (counter != 7) {
-      fail("We added attributes (RelationToEntity, quantity & text, date,bool,file,RTG), but getAttributeIdsAndAttributeTypeIds() returned " + counter + "?")
+      fail("We added attributes (RelationToLocalEntity, quantity & text, date,bool,file,RTG), but getAttributeIdsAndAttributeTypeIds() returned " + counter + "?")
     }
 
     var (foundQA, foundTA, foundRTE, foundRTG, foundDA, foundBA, foundFA) = (false, false, false, false, false, false, false)
@@ -839,7 +849,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
           // the cli does.
           assert(attribute.getText == "some test text")
           foundTA = true
-        case attribute: RelationToEntity =>
+        case attribute: RelationToLocalEntity =>
           assert(attribute.getAttrTypeId == relTypeId)
           foundRTE = true
         case attribute: RelationToGroup =>
@@ -857,26 +867,28 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(foundQA && foundTA && foundRTE && foundRTG && foundDA && foundBA && foundFA)
   }
 
-  "entity deletion" should "also delete RelationToEntity attributes (and getRelationToRemoteEntityCount should work)" in {
+  "entity deletion" should "also delete RelationToLocalEntity attributes (and getRelationToRemoteEntityCount should work)" in {
     val entityId = mDB.createEntity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()")
     val relTypeId: Long = mDB.createRelationType("is sitting next to", "", RelationType.UNIDIRECTIONAL)
-    val startingCount = mDB.getRelationToEntityCount(entityId)
-    val relatedEntityId: Long = createTestRelationToEntity_WithOneEntity(entityId, relTypeId)
-    assert(mDB.getRelationToEntityCount(entityId) == startingCount + 1)
+    val startingLocalCount = mDB.getRelationToLocalEntityCount(entityId)
+    val startingRemoteCount = mDB.getRelationToRemoteEntityCount(entityId)
+    val relatedEntityId: Long = createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId)
+    assert(mDB.getRelationToLocalEntityCount(entityId) == startingLocalCount + 1)
 
     val oi: OmInstance = mDB.getLocalOmInstanceData
     val remoteEntityId = 1234
     mDB.createRelationToRemoteEntity(relTypeId, entityId, remoteEntityId, None, 0, oi.getId)
-    assert(mDB.getRelationToEntityCount(entityId) == startingCount + 2)
+    assert(mDB.getRelationToLocalEntityCount(entityId) == startingLocalCount + 1)
+    assert(mDB.getRelationToRemoteEntityCount(entityId) == startingRemoteCount + 1)
     assert(mDB.getRelationToRemoteEntityData(relTypeId, entityId, oi.getId, remoteEntityId).length > 0)
 
     mDB.deleteEntity(entityId)
-    if (mDB.getRelationToEntityCount(entityId) != 0) {
-      fail("Deleting the model entity should also have deleted its RelationToEntity objects. " +
-           "getRelationToEntityCount(entityIdInNewTransaction) is " + mDB.getRelationToEntityCount(entityId) + ".")
+    if (mDB.getRelationToLocalEntityCount(entityId) != 0) {
+      fail("Deleting the model entity should also have deleted its RelationToLocalEntity objects. " +
+           "getRelationToLocalEntityCount(entityIdInNewTransaction) is " + mDB.getRelationToLocalEntityCount(entityId) + ".")
     }
     assert(intercept[Exception] {
-                                  mDB.getRelationToEntityData(relTypeId, entityId, relatedEntityId)
+                                  mDB.getRelationToLocalEntityData(relTypeId, entityId, relatedEntityId)
                                 }.getMessage.contains("Got 0 instead of 1 result"))
     assert(intercept[Exception] {
                                   mDB.getRelationToRemoteEntityData(relTypeId, entityId, oi.getId, relatedEntityId)
@@ -890,8 +902,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val relTypeId = mDB.createRelationType(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL)
     // create attributes & read back / other values (None alr done above) as entered (confirms read back correctly)
     // (these methods do the checks, internally)
-    createTestRelationToEntity_WithOneEntity(entityId, relTypeId, Some(0L))
-    createTestRelationToEntity_WithOneEntity(entityId, relTypeId, Some(System.currentTimeMillis()))
+    createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId, Some(0L))
+    createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId, Some(System.currentTimeMillis()))
     createTestQuantityAttributeWithTwoEntities(entityId)
     createTestQuantityAttributeWithTwoEntities(entityId, Some(0))
     createTestTextAttributeWithOneEntity(entityId)
@@ -1041,23 +1053,23 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     }
   }
 
-  private def createTestRelationToEntity_WithOneEntity(inEntityId: Long, inRelTypeId: Long, inValidOnDate: Option[Long] = None): Long = {
-    // idea: could use here instead: db.createEntityAndRelationToEntity
+  private def createTestRelationToLocalEntity_WithOneEntity(inEntityId: Long, inRelTypeId: Long, inValidOnDate: Option[Long] = None): Long = {
+    // idea: could use here instead: db.createEntityAndRelationToLocalEntity
     val relatedEntityId: Long = mDB.createEntity(RELATED_ENTITY_NAME)
     val validOnDate: Option[Long] = if (inValidOnDate.isEmpty) None else inValidOnDate
     val observationDate: Long = System.currentTimeMillis
-    val id = mDB.createRelationToEntity(inRelTypeId, inEntityId, relatedEntityId, validOnDate, observationDate).getId
+    val id = mDB.createRelationToLocalEntity(inRelTypeId, inEntityId, relatedEntityId, validOnDate, observationDate).getId
 
     // and verify it:
-    val rel: RelationToEntity = new RelationToEntity(mDB, id, inRelTypeId, inEntityId, relatedEntityId)
+    val rtle: RelationToLocalEntity = new RelationToLocalEntity(mDB, id, inRelTypeId, inEntityId, relatedEntityId)
     if (inValidOnDate.isEmpty) {
-      assert(rel.getValidOnDate.isEmpty)
+      assert(rtle.getValidOnDate.isEmpty)
     } else {
       val inDt: Long = inValidOnDate.get
-      val gotDt: Long = rel.getValidOnDate.get
+      val gotDt: Long = rtle.getValidOnDate.get
       assert(inDt == gotDt)
     }
-    assert(rel.getObservationDate == observationDate)
+    assert(rtle.getObservationDate == observationDate)
     relatedEntityId
   }
 
@@ -1121,14 +1133,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     // make sure the other approach also works, even with deeply nested data:
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
-    val te1 = createTestRelationToEntity_WithOneEntity(personTemplateEntityId, relTypeId)
-    val te2 = createTestRelationToEntity_WithOneEntity(te1, relTypeId)
-    val te3 = createTestRelationToEntity_WithOneEntity(te2, relTypeId)
-    val te4 = createTestRelationToEntity_WithOneEntity(te3, relTypeId)
-    val foundIds: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, PERSON_TEMPLATE, 4,
+    val te1 = createTestRelationToLocalEntity_WithOneEntity(personTemplateEntityId, relTypeId)
+    val te2 = createTestRelationToLocalEntity_WithOneEntity(te1, relTypeId)
+    val te3 = createTestRelationToLocalEntity_WithOneEntity(te2, relTypeId)
+    val te4 = createTestRelationToLocalEntity_WithOneEntity(te3, relTypeId)
+    val foundIds: mutable.TreeSet[Long] = mDB.findContainedLocalEntityIds(new mutable.TreeSet[Long](), systemEntityId, PERSON_TEMPLATE, 4,
                                                                      stopAfterAnyFound = false)
     assert(foundIds.contains(personTemplateEntityId), "Value not found in query: " + personTemplateEntityId)
-    val allContainedWithName: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
+    val allContainedWithName: mutable.TreeSet[Long] = mDB.findContainedLocalEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
                                                                                  stopAfterAnyFound = false)
     // (see idea above about making more scala-like)
     var allContainedIds = ""
@@ -1138,18 +1150,18 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(allContainedWithName.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     val te4Entity: Entity = new Entity(mDB, te4)
     te4Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, None, 0)
-    val allContainedWithName2: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
+    val allContainedWithName2: mutable.TreeSet[Long] = mDB.findContainedLocalEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
                                                                                   stopAfterAnyFound = false)
     // should be no change yet (added it outside the # of levels to check):
     assert(allContainedWithName2.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     val te2Entity: Entity = new Entity(mDB, te2)
     te2Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, None, 0)
-    val allContainedWithName3: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
+    val allContainedWithName3: mutable.TreeSet[Long] = mDB.findContainedLocalEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,
                                                                                   stopAfterAnyFound = false)
     // should be no change yet (the entity was already in the return set, so the TA addition didn't add anything)
     assert(allContainedWithName3.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     te2Entity.addTextAttribute(te1/*not really but whatever*/, "otherText", None, None, 0)
-    val allContainedWithName4: mutable.TreeSet[Long] = mDB.findContainedEntityIds(new mutable.TreeSet[Long](), systemEntityId, "otherText", 4,
+    val allContainedWithName4: mutable.TreeSet[Long] = mDB.findContainedLocalEntityIds(new mutable.TreeSet[Long](), systemEntityId, "otherText", 4,
                                                                                   stopAfterAnyFound = false)
     // now there should be a change:
     assert(allContainedWithName4.size == 1, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
@@ -1223,19 +1235,20 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     mDB.updateClassName(classId, name)
 
     mDB.updateClassCreateDefaultAttributes(classId, Some(false))
-    val should1: Option[Boolean] = mDB.getShouldCreateDefaultAttributes(classId)
+    val should1: Option[Boolean] = new EntityClass(mDB, classId).getCreateDefaultAttributes
     assert(!should1.get)
     mDB.updateClassCreateDefaultAttributes(classId, None)
-    val should2: Option[Boolean] = mDB.getShouldCreateDefaultAttributes(classId)
+    val should2: Option[Boolean] = new EntityClass(mDB, classId).getCreateDefaultAttributes
     assert(should2.isEmpty)
     mDB.updateClassCreateDefaultAttributes(classId, Some(true))
-    val should3: Option[Boolean] = mDB.getShouldCreateDefaultAttributes(classId)
+    val should3: Option[Boolean] = new EntityClass(mDB, classId).getCreateDefaultAttributes
     assert(should3.get)
 
     mDB.updateEntitysClass(entityId, None)
     mDB.deleteClassAndItsTemplateEntity(classId)
     assert(!EntityClass.isDuplicate(mDB, name, Some(classId)))
     assert(!EntityClass.isDuplicate(mDB, name))
+
   }
 
   "EntitiesInAGroup and getclasses/classcount methods" should "work, and should enforce class_id uniformity within a group of entities" in {
@@ -1381,7 +1394,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getEntitiesOnlyCount() == c1)
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
     assert(mDB.getEntitiesOnlyCount() == c1)
-    createTestRelationToEntity_WithOneEntity(entityId, relTypeId)
+    createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId)
     val c2 = c1 + 1
     assert(mDB.getEntitiesOnlyCount() == c2)
 
@@ -1414,7 +1427,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     val relTypeId: Long = mDB.createRelationType("contains", "", RelationType.UNIDIRECTIONAL)
     val groupName = "someRelToGroupName"
-    /*val (group, rtg) = */entity1.addGroupAndRelationToGroup(relTypeId, groupName, allowMixedClassesInGroupIn = false, None, 1234L,
+    entity1.addGroupAndRelationToGroup(relTypeId, groupName, allowMixedClassesInGroupIn = false, None, 1234L,
                                        None, callerManagesTransactionsIn = false)
     assert(mDB.getMatchingGroups(0, None, None, "some-xyz-not a grp name").size == 0)
     assert(mDB.getMatchingGroups(0, None, None, groupName).size > 0)
@@ -1425,8 +1438,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val startDataSetupTime = System.currentTimeMillis()
     val entityId: Long = mDB.createEntity("test object")
     val entity: Entity = new Entity(mDB, entityId)
-    // (idea: next line should be fixed: see cmt at similar usage in ImportExportTest.scala:)
-    val importExport = new ImportExport(null, mDB, new Controller(null, false, Some(Database.TEST_USER), Some(Database.TEST_USER)))
+    val importExport = new ImportExport(null, new Controller(null, false, Some(Database.TEST_USER), Some(Database.TEST_USER)))
     val importFile: File = importExport.tryImporting_FOR_TESTS("testImportFile0.txt", entity)
     val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db")
     val (fileContents: String, outputFile: File) = importExport.tryExportingTxt_FOR_TESTS(ids, mDB)
@@ -1439,15 +1451,32 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     mDB.archiveEntity(entityId)
     val endDataSetupTime = System.currentTimeMillis()
 
-    val results: Array[(Long, String, Long)] = mDB.findJournalEntries(startDataSetupTime, endDataSetupTime)
-    assert(results.length > 0)
+    val results: util.ArrayList[(Long, String, Long)] = mDB.findJournalEntries(startDataSetupTime, endDataSetupTime)
+    assert(results.size > 0)
   }
 
   "getTextAttributeByNameForEntity" should "fail when no rows found" in {
-    intercept[OmDatabaseException] {
+    intercept[org.onemodel.core.OmDatabaseException] {
                                      val systemEntityId = mDB.getSystemEntityId
                                      mDB.getTextAttributeByTypeId(systemEntityId, 1L, Some(1))
                                    }
+  }
+
+  "getRelationsToGroupContainingThisGroup and getContainingRelationsToGroup" should "work" in {
+    val entityId: Long = mDB.createEntity("test: getRelationsToGroupContainingThisGroup...")
+    val entityId2: Long = mDB.createEntity("test: getRelationsToGroupContainingThisGroup2...")
+    val relTypeId: Long = mDB.createRelationType("contains in getRelationsToGroupContainingThisGroup", "", RelationType.UNIDIRECTIONAL)
+    val (groupId, rtg) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(mDB, entityId, relTypeId,
+                                                                                    "some group name in getRelationsToGroupContainingThisGroup")
+    val group = new Group(mDB, groupId)
+    group.addEntity(entityId2)
+    val rtgs = mDB.getRelationsToGroupContainingThisGroup(groupId, 0)
+    assert(rtgs.size == 1)
+    assert(rtgs.get(0).getId == rtg.getId)
+
+    val sameRtgs = mDB.getContainingRelationsToGroup(entityId2, 0)
+    assert(sameRtgs.size == 1)
+    assert(sameRtgs.get(0).getId == rtg.getId)
   }
 
 }

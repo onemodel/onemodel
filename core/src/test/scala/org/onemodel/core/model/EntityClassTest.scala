@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2014 inclusive and 2016, Luke A Call; all rights reserved.
+    Copyright in each year of 2013-2014 inclusive and 2017, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -20,6 +20,7 @@ import org.scalatest.{Args, FlatSpec, Status}
 class EntityClassTest extends FlatSpec with MockitoSugar {
   // ABOUT the last attempt at CHANGING VARS TO VALS: see comment ("NOTE", farther down) that was removed when the last part of this sentence was added.
 
+  var mTemplateEntity: Entity = null
   var mEntityClass: EntityClass = null
   var mDB: PostgreSQLDatabase = null
 
@@ -35,10 +36,11 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
 
     // instantiation does DB setup (creates tables, default data, etc):
-    mDB = new PostgreSQLDatabase("testrunner", "testrunner")
+    mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_USER)
 
     val name = "name of test class and its template entity"
-    val (classId, _): (Long, Long) = mDB.createClassAndItsTemplateEntity(name, name)
+    val (classId, entityId): (Long, Long) = mDB.createClassAndItsTemplateEntity(name, name)
+    mTemplateEntity = new Entity(mDB, entityId)
     mEntityClass = new EntityClass(mDB, classId)
   }
 
@@ -73,6 +75,29 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     val entityClass = new EntityClass(mockDB, id)
     val ds = entityClass.getDisplayString
     assert(ds == "class1Name")
+  }
+
+  "updateClassAndTemplateEntityName" should "work" in {
+    //about begintrans: see comment farther below.
+//    mDB.beginTrans()
+    val tmpName = "garbage-temp"
+    mEntityClass.updateClassAndTemplateEntityName(tmpName)
+    assert(mEntityClass.mName == tmpName)
+    // have to reread to see the change:
+    assert(new EntityClass(mDB, mEntityClass.getId).getName == tmpName)
+    assert(new Entity(mDB, mTemplateEntity.getId).getName == tmpName + "-template")
+    // See comment about next 3 lines, at the rollbackTrans call at the end of the PostgreSQLDatabaseTest.scala test
+    // "getAttrCount, getAttributeSortingRowsCount".
+//    mDB.rollbackTrans()
+//    assert(new EntityClass(mDB, mEntityClass.getId).getName != tmpName)
+//    assert(new Entity(mDB, mTemplateEntity.getId).getName != tmpName + "-template")
+  }
+
+  "updateCreateDefaultAttributes" should "work" in {
+    assert(mEntityClass.getCreateDefaultAttributes.isEmpty)
+    mEntityClass.updateCreateDefaultAttributes(Some(true))
+    assert(mEntityClass.getCreateDefaultAttributes.get)
+    assert(new EntityClass(mDB, mEntityClass.getId).getCreateDefaultAttributes.get)
   }
 
 }

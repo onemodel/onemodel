@@ -1,0 +1,55 @@
+--  This file is part of OneModel, a program to manage knowledge.
+--  Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
+--  OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+--  distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+--  see the file LICENSE for license version and details.
+--  OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+--  You should have received a copy of the GNU Affero General Public License along with OneModel.  If
+--  not, see http://www.gnu.org/licenses/  .
+
+-- Called by dejagnu tests: see their README for details on how it is used.
+
+-- For more comments about and within this script, see PostgreSQLDatabase.scala in the call from destroyTables to destroyTables_helper.
+
+-- Not using "\set ON_ERROR_STOP" so that this will run even if tables are already dropped.  (Verifying
+-- success by checking output of "\d" command near the end.)
+
+\echo "NOTE: ERRORs in this psql script are not necessarily errors for the overall process (this can run repeatedly w/ or w/o data)."
+drop table om_db_version cascade;
+drop table QuantityAttribute cascade;
+drop table DateAttribute cascade;
+drop table BooleanAttribute cascade;
+delete from FileAttributeContent;
+drop table FileAttributeContent cascade;
+drop table fileAttribute cascade;
+drop table textAttribute cascade;
+drop table RelationToEntity cascade;
+drop table RelationToRemoteEntity cascade;
+drop table EntitiesInAGroup cascade;
+drop table RelationToGroup cascade;
+drop table action cascade;
+drop table grupo cascade;
+drop table RelationType cascade;
+drop table AttributeSorting cascade;
+drop table omInstance cascade;
+drop table Entity cascade;
+drop table class cascade;
+drop sequence EntityKeySequence cascade;
+drop sequence ClassKeySequence cascade;
+drop sequence TextAttributeKeySequence cascade;
+drop sequence QuantityAttributeKeySequence cascade;
+drop sequence RelationTypeKeySequence cascade;
+drop sequence ActionKeySequence cascade;
+drop sequence RelationToEntityKeySequence cascade;
+drop sequence RelationToRemoteEntityKeySequence cascade;
+drop sequence RelationToGroupKeySequence cascade;
+drop sequence RelationToGroupKeySequence2 cascade;
+drop sequence DateAttributeKeySequence cascade;
+drop sequence BooleanAttributeKeySequence cascade;
+drop sequence FileAttributeKeySequence cascade;
+
+-- next line should emit "No relations found.", which will be checked by the caller
+\d
+-- next line exits.  Exit code > 0 can be OK (see previous comment, and at top about non-use of "ON_ERROR_STOP").
+\q

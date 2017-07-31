@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2016 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2017 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -12,12 +12,35 @@
 */
 package org.onemodel.core.model
 
-import org.onemodel.core.model.Database
 import org.onemodel.core.{Util, Color, OmException}
 
-/** See comments on similar methods in RelationToEntity. */
-class Group(mDB: Database, mId: Long) {
-  // (See comment at similar location in BooleanAttribute.)
+object Group {
+  def createGroup(inDB: Database, inName: String, allowMixedClassesInGroupIn: Boolean = false): Group = {
+    val id: Long = inDB.createGroup(inName, allowMixedClassesInGroupIn)
+    new Group(inDB, id)
+  }
+
+  /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
+    */
+  def getGroup(inDB: Database, id: Long): Option[Group] = {
+    try Some(new Group(inDB, id))
+    catch {
+      case e: java.lang.Exception =>
+        //idea: see comment here in Entity.scala.
+        if (e.toString.indexOf(Util.DOES_NOT_EXIST) >= 0) {
+          None
+        }
+        else throw e
+    }
+  }
+}
+
+/** See comments on similar methods in RelationToEntity (or maybe its subclasses).
+  *
+  * Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
+  * */
+class Group(val mDB: Database, mId: Long) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.groupKeyExists(mId: Long)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
@@ -29,6 +52,7 @@ class Group(mDB: Database, mId: Long) {
     mInsertionDate = insertionDateIn
     mMixedClassesAllowed = mixedClassesAllowedIn
     mNewEntriesStickToTop = newEntriesStickToTopIn
+    mAlreadyReadData = true
   }
 
   def readDataFromDB() {
@@ -97,8 +121,8 @@ class Group(mDB: Database, mId: Long) {
     mDB.getGroupEntryObjects(mId, startingIndexIn, maxValsIn)
   }
 
-  def addEntity(inEntityId: Long) {
-    mDB.addEntityToGroup(mId, inEntityId)
+  def addEntity(inEntityId: Long, sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false) {
+    mDB.addEntityToGroup(getId, inEntityId, sortingIndexIn, callerManagesTransactionsIn)
   }
 
   def getId: Long = mId
@@ -186,6 +210,62 @@ class Group(mDB: Database, mId: Long) {
 
   def getHighestSortingIndex: Long = {
     mDB.getHighestSortingIndexForGroup(getId)
+  }
+
+  def getContainingRelationsToGroup(startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup] = {
+    mDB.getRelationsToGroupContainingThisGroup(getId, startingIndexIn, maxValsIn)
+  }
+
+  def getCountOfEntitiesContainingGroup: (Long, Long) = {
+    mDB.getCountOfEntitiesContainingGroup(getId)
+  }
+
+  def getEntitiesContainingGroup(startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)] = {
+    mDB.getEntitiesContainingGroup(getId, startingIndexIn, maxValsIn)
+  }
+
+  def findUnusedSortingIndex(startingWithIn: Option[Long] = None): Long = {
+    mDB.findUnusedGroupSortingIndex(getId, startingWithIn)
+  }
+
+  def getGroupsContainingEntitysGroupsIds(limitIn: Option[Long] = Some(5)): List[Array[Option[Any]]] = {
+    mDB.getGroupsContainingEntitysGroupsIds(getId, limitIn)
+  }
+
+  def isEntityInGroup(entityIdIn: Long): Boolean = {
+    mDB.isEntityInGroup(getId, entityIdIn)
+  }
+
+  def getAdjacentGroupEntriesSortingIndexes(sortingIndexIn: Long, limitIn: Option[Long] = None, forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
+    mDB.getAdjacentGroupEntriesSortingIndexes(getId, sortingIndexIn, limitIn, forwardNotBackIn)
+  }
+
+  def getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+    mDB.getNearestGroupEntrysSortingIndex(getId, startingPointSortingIndexIn, forwardNotBackIn)
+  }
+
+  def getEntrySortingIndex(entityIdIn: Long): Long = {
+    mDB.getGroupEntrySortingIndex(getId, entityIdIn)
+  }
+
+  def isGroupEntrySortingIndexInUse(sortingIndexIn: Long): Boolean = {
+    mDB.isGroupEntrySortingIndexInUse(getId, sortingIndexIn)
+  }
+
+  def updateSortingIndex(entityIdIn: Long, sortingIndexIn: Long): Unit = {
+    mDB.updateSortingIndexInAGroup(getId, entityIdIn, sortingIndexIn)
+  }
+
+  def renumberSortingIndexes(callerManagesTransactionsIn: Boolean = false): Unit = {
+    mDB.renumberSortingIndexes(getId, callerManagesTransactionsIn, isEntityAttrsNotGroupEntries = false)
+  }
+
+  def moveEntityFromGroupToLocalEntity(toEntityIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long): Unit = {
+    mDB.moveEntityFromGroupToLocalEntity(getId, toEntityIdIn, moveEntityIdIn, sortingIndexIn)
+  }
+
+  def moveEntityToDifferentGroup(toGroupIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long): Unit = {
+    mDB.moveLocalEntityFromGroupToGroup(getId, toGroupIdIn, moveEntityIdIn, sortingIndexIn)
   }
 
   private var mAlreadyReadData: Boolean = false

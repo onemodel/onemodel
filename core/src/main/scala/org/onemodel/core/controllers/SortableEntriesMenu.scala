@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2016 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2017 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -16,6 +16,9 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
 
   /** Returns the starting row number (in case the view window was adjusted to show other entries around the moved entity).
     *
+    * The dbIn should represent the *same* database as where containingObjectIdIn is stored!  (See details in comments at similar location
+    * about containingObjectIdIn.)
+    *
     * Note that if the goal
     * is to place a newly created object in the right spot in the list, then the parameters movingObjIdIn doesn't have to refer to the same object as
     * (moveFromIndexInObjListIn and objectIdAtThatIndex which are the same)!  But if it is to move an existing object, they should all be the same.
@@ -26,7 +29,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     * feature such that) the user inserts a new attribute after an existing one (ie specifying its position immediately instead of just moving it later) and
     * therefore the attribute already in that position, and the  one added at that position are different.
     */
-  protected def placeEntryInPosition(containingObjectIdIn: Long, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: Long,
+  protected def placeEntryInPosition(dbIn: Database, containingObjectIdIn: Long, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: Long,
                                      numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: Boolean,
                                      startingDisplayRowIndexIn: Int, movingObjIdIn: Long, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option[Long],
                                      numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]): Int = {
@@ -37,7 +40,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
 
     val movingFromPosition_sortingIndex: Long = {
       if (objectAtThatIndexIdIn.isDefined) {
-        getSortingIndex(containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
+        getSortingIndex(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
       } else {
         // could happen if it's the first entry (first attribute) in an entity, or if the caller (due to whatever reason including possibly a bug) did not
         // know what objectAtThatIndexIdIn value to use, so passed None: attempting to be resilient to that here.
@@ -46,7 +49,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     }
 
     val (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long]) =
-      findNewNeighbors(containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex)
+      findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex)
 
     var displayStartingRowNumber = startingDisplayRowIndexIn
 
@@ -55,28 +58,28 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     } else {
       val (newSortingIndex: Long, trouble: Boolean) = {
         var (newSortingIndex: Long, trouble: Boolean, newStartingRowNum: Int) = {
-          getNewSortingIndex(containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In, startingDisplayRowIndexIn, nearNewNeighborSortingIndex,
-                             farNewNeighborSortingIndex, forwardNotBackIn,
+          getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In, startingDisplayRowIndexIn,
+                             nearNewNeighborSortingIndex, farNewNeighborSortingIndex, forwardNotBackIn,
                              byHowManyEntriesActuallyMoving, movingFromPosition_sortingIndex, moveFromIndexInObjListIn, numDisplayLinesIn)
         }
         displayStartingRowNumber = newStartingRowNum
         if (trouble) {
-          renumberSortingIndexes(containingObjectIdIn)
+          renumberSortingIndexes(dbIn, containingObjectIdIn)
 
           // Get the sortingIndex of the entry right before the one being placed, increment (since just renumbered; or not?), then use that as the "old
           // position" moving from.  (Getting a new value because the old movingFromPosition_sortingIndex value is now invalid, since we just renumbered above.)
           val movingFromPosition_sortingIndex2: Long = {
             if (objectAtThatIndexIdIn.isDefined) {
-              getSortingIndex(containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
+              getSortingIndex(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
             } else {
               // (reason for next line is in related comments above at "val movingFromPosition_sortingIndex: Long =".)
               Database.minIdValue + 990
             }
           }
           val (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option[Long], farNewNeighborSortingIndex2: Option[Long]) =
-            findNewNeighbors(containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex2)
+            findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex2)
           // (for some reason, can't reassign the results directly to the vars like this "(newSortingIndex, trouble, newStartingRowNum) = ..."?
-          val (a: Long, b: Boolean, c: Int) = getNewSortingIndex(containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,
+          val (a: Long, b: Boolean, c: Int) = getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,
                                                                  startingDisplayRowIndexIn, nearNewNeighborSortingIndex2,
                                                                  farNewNeighborSortingIndex2, forwardNotBackIn,
                                                                  byHowManyEntriesMoving2, movingFromPosition_sortingIndex2, moveFromIndexInObjListIn,
@@ -94,15 +97,19 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
                               "still conflicts with something.")
       }
       else {
-        updateSortedEntry(containingObjectIdIn, movingObjsAttributeFormIdIn, movingObjIdIn, newSortingIndex)
+        updateSortedEntry(dbIn, containingObjectIdIn, movingObjsAttributeFormIdIn, movingObjIdIn, newSortingIndex)
       }
     }
     displayStartingRowNumber
   }
 
-  protected def getSortingIndex(containingObjectIdIn: Long, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: Long): Long
+  protected def getSortingIndex(dbIn: Database, containingObjectIdIn: Long, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: Long): Long
 
-  protected def getNewSortingIndex(containingObjectIdIn: Long, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: Long, startingDisplayRowIndexIn: Int,
+  /** The dbIn should represent the *same* database as where containingObjectIdIn is stored!  (Idea: enforce that by passing in a containingObject instead
+    * of a containingObjectIdIn (ie an Entity or Group, using scala's type system), or a boolean saying which it is, then get the db from it instead of
+    * passing it as a parm?  Same in location(s) w/ similar comment about containingObjectIdIn.)
+    */
+  protected def getNewSortingIndex(dbIn: Database, containingObjectIdIn: Long, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: Long, startingDisplayRowIndexIn: Int,
                                    nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long], forwardNotBack: Boolean,
                                    byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: Long, moveFromIndexInObjListIn: Int,
                                    numDisplayLines: Int): (Long, Boolean, Int) = {
@@ -114,9 +121,9 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       // At this point we might have as newIndexIn, the dup of an archived entity's sorting index, since archived entities are ignored the in
       // logic that calculated our *NewNeighborSortingIndex variable
       // values.  If so, find another candidate (feels like a kludge and knowledge scattered across code, but not sure of a better algorithm right now).
-      if (indexIsInUse(groupOrEntityIdIn, newIndexIn)) {
+      if (indexIsInUse(dbIn, groupOrEntityIdIn, newIndexIn)) {
         try {
-            Some(findUnusedSortingIndex(containingObjectIdIn, newIndexIn))
+            Some(findUnusedSortingIndex(dbIn, containingObjectIdIn, newIndexIn))
         } catch {
           case e: Exception =>
             if (e.getMessage == Database.UNUSED_GROUP_ERR1 || e.getMessage == Database.UNUSED_GROUP_ERR2) None
@@ -192,7 +199,10 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     (newIndex, trouble, newDisplayRowsStartingWithCounter)
   }
 
-  protected def findNewNeighbors(groupOrEntityIdIn: Long, movingDistanceIn: Int, forwardNotBackIn: Boolean,
+  /** The dbIn should represent the *same* database as where groupOrEntityIdIn is stored!  (See details in comments at similar location
+    * about containingObjectIdIn.)
+    */
+  protected def findNewNeighbors(dbIn: Database, groupOrEntityIdIn: Long, movingDistanceIn: Int, forwardNotBackIn: Boolean,
                                  movingFromPosition_sortingIndex: Long): (Int, Option[Long], Option[Long]) = {
 
     // (idea: this could probably be made more efficient by combining the 2nd part of the (fixed) algorithm (the call to mDB.getNearestEntry)
@@ -202,7 +212,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     // get enough data to represent the new location in the sort order: movingDistanceIn entries away, and one beyond, and place this entity between them:
     val queryLimit = movingDistanceIn + 1
 
-    val results: Array[Array[Option[Any]]] = getAdjacentEntriesSortingIndexes(groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),
+    val results: Array[Array[Option[Any]]] = getAdjacentEntriesSortingIndexes(dbIn, groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),
                                                                      forwardNotBackIn = forwardNotBackIn).toArray
     require(results.length <= queryLimit)
     // (get the last result's sortingIndex, if possible; 0-based of course; i.e., that of the first entry beyond where we're moving to):
@@ -243,23 +253,23 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       if (nearNewNeighborSortingIndex.isEmpty || farNewNeighborSortingIndex.isEmpty)
         None
       else
-        getNearestEntrysSortingIndex(groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forwardNotBackIn = forwardNotBackIn)
+        getNearestEntrysSortingIndex(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forwardNotBackIn = forwardNotBackIn)
     }
 
     (byHowManyEntriesMoving, nearNewNeighborSortingIndex, adjustedFarNewNeighborSortingIndex)
   }
 
-  protected def getAdjacentEntriesSortingIndexes(groupOrEntityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
+  protected def getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
                                                  forwardNotBackIn: Boolean): List[Array[Option[Any]]]
 
-  protected def getNearestEntrysSortingIndex(containingIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
+  protected def getNearestEntrysSortingIndex(dbIn: Database, containingIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
 
-  protected def renumberSortingIndexes(containingObjectIdIn: Long)
+  protected def renumberSortingIndexes(dbIn: Database, containingObjectIdIn: Long)
 
-  protected def updateSortedEntry(containingObjectIdIn: Long, movingObjsAttributeFormIdIn: Int, movingObjIdIn: Long, sortingIndexIn: Long)
+  protected def updateSortedEntry(dbIn: Database, containingObjectIdIn: Long, movingObjsAttributeFormIdIn: Int, movingObjIdIn: Long, sortingIndexIn: Long)
 
-  protected def indexIsInUse(groupOrEntityIdIn: Long, sortingIndexIn: Long): Boolean
+  protected def indexIsInUse(dbIn: Database, groupOrEntityIdIn: Long, sortingIndexIn: Long): Boolean
 
-  protected def findUnusedSortingIndex(groupOrEntityIdIn: Long, startingWithIn: Long): Long
+  protected def findUnusedSortingIndex(dbIn: Database, groupOrEntityIdIn: Long, startingWithIn: Long): Long
 
 }

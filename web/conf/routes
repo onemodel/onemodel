@@ -1,8 +1,8 @@
 #    This file is part of OneModel, a program to manage knowledge.
-#    Copyright in each year of 2016-2016 inclusive, Luke A. Call; all rights reserved.
+#    Copyright in each year of 2016-2017 inclusive, Luke A. Call; all rights reserved.
 #    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-#    of the License, or (at your option) any later version.  See the file LICENSE for details.
+#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+#    see the file LICENSE for license version and details.
 #    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
 #    You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -24,6 +24,9 @@ GET   /entities            controllers.Default.redirect(to = "/entities/")
 GET   /entities/            org.onemodel.web.controllers.Rest.defaultEntity
 GET   /entities/includeArchived         org.onemodel.web.controllers.Rest.includeArchivedEntities
 GET   /entities/includeArchived/         org.onemodel.web.controllers.Rest.includeArchivedEntities
+GET   /entities/all/:startingObjectIndex         org.onemodel.web.controllers.Rest.getEntities(startingObjectIndex: Long, maxVals: Option[Long])
+GET   /entities/search/:regex/:startingObjectIndex         org.onemodel.web.controllers.Rest.getMatchingEntities(startingObjectIndex: Long, maxVals: Option[Long], omitEntityId: Option[Long], regex: String)
+GET   /entities/count         org.onemodel.web.controllers.Rest.getEntityCount
 GET   /entities/:id         org.onemodel.web.controllers.Rest.getEntityData(id: Long)
 GET   /entities/:id/overview         org.onemodel.web.controllers.Rest.getEntityOverview(id: Long)
 GET   /entities/:id/exists         org.onemodel.web.controllers.Rest.entityKeyExists(id: Long, includeArchivedEntities: Boolean = false)
@@ -31,8 +34,8 @@ GET   /entities/:id/exists/:includeArchivedEntities         org.onemodel.web.con
 GET   /entities/isDuplicate/:name         org.onemodel.web.controllers.Rest.isDuplicateEntityName(name: String)
 GET   /entities/isDuplicate/:name/         org.onemodel.web.controllers.Rest.isDuplicateEntityName(name: String)
 GET   /entities/isDuplicate/:name/:idToIgnore         org.onemodel.web.controllers.Rest.isDuplicateEntityName2(name: String, idToIgnore: Long)
-GET   /entities/:id/countOfRelationsToEntity         org.onemodel.web.controllers.Rest.getRelationToEntityCount(id: Long, includeArchivedEntities: Boolean = false)
-GET   /entities/:id/countOfRelationsToEntity/:includeArchivedEntities         org.onemodel.web.controllers.Rest.getRelationToEntityCount(id: Long, includeArchivedEntities: Boolean)
+GET   /entities/:id/countOfRelationsToEntity         org.onemodel.web.controllers.Rest.getRelationToLocalEntityCount(id: Long, includeArchivedEntities: Boolean = false)
+GET   /entities/:id/countOfRelationsToEntity/:includeArchivedEntities         org.onemodel.web.controllers.Rest.getRelationToLocalEntityCount(id: Long, includeArchivedEntities: Boolean)
 GET   /entities/:id/countOfRelationsToGroup         org.onemodel.web.controllers.Rest.getRelationToGroupCount(id: Long)
 GET   /entities/:id/attributeCount         org.onemodel.web.controllers.Rest.getAttributeCount(id: Long, includeArchivedEntities: Boolean = false)
 GET   /entities/:id/attributeCount/:includeArchivedEntities         org.onemodel.web.controllers.Rest.getAttributeCount(id: Long, includeArchivedEntities: Boolean)
@@ -51,13 +54,20 @@ GET   /entities/entitiesOnlyCount/:limitByClass/:classId/:templateEntity        
 GET   /entities/:id/isAttributeSortingIndexInUse/:sortingIndex         org.onemodel.web.controllers.Rest.isAttributeSortingIndexInUse(id: Long, sortingIndex: Long)
 GET   /entities/:id/nearestAttributeSortingIndex/:startingPointSortingIndex/:forwardNotBack         org.onemodel.web.controllers.Rest.getNearestAttributeEntrysSortingIndex(id: Long, startingPointSortingIndex: Long, forwardNotBack: Boolean)
 GET   /entities/:id/sortedAttributes/:startingObjectIndex/:maxVals/:onlyPublicEntities         org.onemodel.web.controllers.Rest.getSortedAttributes(id: Long, startingObjectIndex: Int, maxVals: Int, onlyPublicEntities: Boolean)
-GET   /entities/:id/containingRelationToGroups/:startingIndex         org.onemodel.web.controllers.Rest.getContainingRelationToGroups(id: Long, startingIndex: Long, limit: Option[Long])
-GET   /entities/:id/findContainedIds/:searchStringIn/:levelsRemaining/:stopAfterAnyFound         org.onemodel.web.controllers.Rest.findContainedEntityIds(id: Long, searchStringIn: String, levelsRemaining: Int, stopAfterAnyFound: Boolean)
+GET   /entities/:id/containingRelationsToGroup/:startingIndex         org.onemodel.web.controllers.Rest.getContainingRelationsToGroup(id: Long, startingIndex: Long, limit: Option[Long])
+GET   /entities/:id/findContainedIds/:searchString/:levelsRemaining/:stopAfterAnyFound         org.onemodel.web.controllers.Rest.findContainedLocalEntityIds(id: Long, searchString: String, levelsRemaining: Int, stopAfterAnyFound: Boolean)
 GET   /entities/:id/name         org.onemodel.web.controllers.Rest.getEntityName(id: Long)
 GET   /entities/:id/findRelationToAndGroup         org.onemodel.web.controllers.Rest.findRelationToAndGroup_OnEntity(id: Long, groupName: Option[String])
 GET   /entities/findAllByName/:searchString/:caseSensitive         org.onemodel.web.controllers.Rest.findAllEntityIdsByName(searchString: String, caseSensitive: Boolean)
-GET   /entities/:id/containingEntities/:startingIndex         org.onemodel.web.controllers.Rest.getEntitiesContainingEntity(id: Long, startingIndex: Long, maxVals: Option[Long])
-GET   /entities/:id/countOfContainingEntities         org.onemodel.web.controllers.Rest.getCountOfEntitiesContainingEntity(id: Long)
+GET   /entities/:id/containingEntities/:startingIndex         org.onemodel.web.controllers.Rest.getLocalEntitiesContainingLocalEntity(id: Long, startingIndex: Long, maxVals: Option[Long])
+GET   /entities/:id/containingRelationsToGroupDescriptions     org.onemodel.web.controllers.Rest.getContainingRelationToGroupDescriptions(id: Long, limit: Option[Long])
+GET   /entities/:id/countOfContainingEntities         org.onemodel.web.controllers.Rest.getCountOfLocalEntitiesContainingLocalEntity(id: Long)
+GET   /entities/:startingObjectIndex/:limitByClass         org.onemodel.web.controllers.Rest.getEntitiesOnly(startingObjectIndex: Long, limitByClass: Boolean, maxVals: Option[Long], classId: Option[Long], templateEntity: Option[Long], groupToOmitId: Option[Long])
+# Next 2 are identical. 2nd one provided since not sure which name will make more sense to people:
+GET   /entities/addedAndArchivedByDate/:startTime/:endTime    org.onemodel.web.controllers.Rest.findJournalEntries(startTime: Long, endTime: Long, limit: Option[Long])
+GET           /entities/journalEntries/:startTime/:endTime    org.onemodel.web.controllers.Rest.findJournalEntries(startTime: Long, endTime: Long, limit: Option[Long])
+GET   /relationTypes/count         org.onemodel.web.controllers.Rest.getRelationTypeCount
+GET   /relationTypes/all/:startingObjectIndex         org.onemodel.web.controllers.Rest.getRelationTypes(startingObjectIndex: Long, maxVals: Option[Long])
 GET   /relationTypes/:id         org.onemodel.web.controllers.Rest.getRelationTypeData(id: Long)
 GET   /relationTypes/:id/exists         org.onemodel.web.controllers.Rest.relationTypeKeyExists(id: Long)
 GET   /relationTypes/find/:typeName         org.onemodel.web.controllers.Rest.findRelationType(typeName: String, expectedRows: Option[Int])
@@ -72,16 +82,20 @@ GET   /fileAttributes/:id/exists         org.onemodel.web.controllers.Rest.fileA
 GET   /fileAttributes/:id/content         org.onemodel.web.controllers.Rest.getFileAttributeContent(id: Long)
 GET   /textAttributes/:id         org.onemodel.web.controllers.Rest.getTextAttributeData(id: Long)
 GET   /textAttributes/:id/exists         org.onemodel.web.controllers.Rest.textAttributeKeyExists(id: Long)
-GET   /relationsToEntity/:relationTypeId/:entityId1/:entityId2         org.onemodel.web.controllers.Rest.getRelationToEntityData(relationTypeId: Long, entityId1: Long, entityId2: Long)
-GET   /relationsToEntity/:id/exists         org.onemodel.web.controllers.Rest.relationToEntityKeyExists(id: Long)
-GET   /relationsToEntity/:id/existsWith/:relationTypeId/:entityId1/:entityId2         org.onemodel.web.controllers.Rest.relationToEntityKeysExistAndMatch(id: Long, relationTypeId: Long, entityId1: Long, entityId2: Long)
+GET   /relationsToEntity/:relationTypeId/:entityId1/:entityId2         org.onemodel.web.controllers.Rest.getRelationToLocalEntityData(relationTypeId: Long, entityId1: Long, entityId2: Long)
+GET   /relationsToEntity/:id/exists         org.onemodel.web.controllers.Rest.relationToLocalEntityKeyExists(id: Long)
+GET   /relationsToEntity/:id/existsWith/:relationTypeId/:entityId1/:entityId2         org.onemodel.web.controllers.Rest.relationToLocalEntityKeysExistAndMatch(id: Long, relationTypeId: Long, entityId1: Long, entityId2: Long)
 GET   /relationsToRemoteEntity/:relationTypeId/:entityId1/:remoteInstanceId/:entityId2         org.onemodel.web.controllers.Rest.getRelationToRemoteEntityData(relationTypeId: Long, entityId1: Long, remoteInstanceId: String, entityId2: Long)
 GET   /relationsToRemoteEntity/:id/exists         org.onemodel.web.controllers.Rest.relationToRemoteEntityKeyExists(id: Long)
 GET   /relationsToRemoteEntity/:id/existsWith/:relationTypeId/:entityId1/:remoteInstanceId/:entityId2         org.onemodel.web.controllers.Rest.relationToRemoteEntityKeysExistAndMatch(id: Long, relationTypeId: Long, entityId1: Long, remoteInstanceId: String, entityId2: Long)
 GET   /attributes/:formId/:id/exists         org.onemodel.web.controllers.Rest.attributeKeyExists(formId: Long, id: Long)
 GET   /relationsToGroup/:id         org.onemodel.web.controllers.Rest.getRelationToGroupData(id: Long)
+GET   /relationsToGroup/:id/exists         org.onemodel.web.controllers.Rest.relationToGroupKeyExists(id: Long)
 GET   /relationsToGroup/byKeys/:entityId/:relationTypeId/:groupId         org.onemodel.web.controllers.Rest.getRelationToGroupDataByKeys(entityId: Long, relationTypeId: Long, groupId: Long)
 GET   /relationsToGroup/:id/existsWith/:entityId/:relationTypeId/:groupId         org.onemodel.web.controllers.Rest.relationToGroupKeysExistAndMatch(id: Long, entityId: Long, relationTypeId: Long, groupId: Long)
+GET   /groups/search/:regex/:startingObjectIndex         org.onemodel.web.controllers.Rest.getMatchingGroups(startingObjectIndex: Long, maxVals: Option[Long], omitGroupId: Option[Long], regex: String)
+GET   /groups/count         org.onemodel.web.controllers.Rest.getGroupCount
+GET   /groups/all/:startingObjectIndex         org.onemodel.web.controllers.Rest.getGroups(startingObjectIndex: Long, maxVals: Option[Long], groupToOmitId: Option[Long])
 GET   /groups/:id         org.onemodel.web.controllers.Rest.getGroupData(id: Long)
 GET   /groups/:id/size         org.onemodel.web.controllers.Rest.getGroupSize(id: Long, includeWhichEntities: Int = 3)
 GET   /groups/:id/size/:includeWhichEntities         org.onemodel.web.controllers.Rest.getGroupSize(id: Long, includeWhichEntities: Int)
@@ -92,20 +106,25 @@ GET   /groups/:id/highestSortingIndex         org.onemodel.web.controllers.Rest.
 GET   /groups/:id/sortingIndex/:entityId         org.onemodel.web.controllers.Rest.getGroupSortingIndex(id: Long, entityId: Long)
 GET   /groups/:id/isEntrySortingIndexInUse/:sortingIndex         org.onemodel.web.controllers.Rest.isGroupEntrySortingIndexInUse(id: Long, sortingIndex: Long)
 GET   /groups/:id/nearestEntrysSortingIndex/:startingPointSortingIndex/:forwardNotBack         org.onemodel.web.controllers.Rest.getNearestGroupEntrysSortingIndex(id: Long, startingPointSortingIndex: Long, forwardNotBack: Boolean)
-GET   /groups/:id/adjacentEntriesSortingIndexes/:adjacentToEntrySortingIndexIn/:forwardNotBack         org.onemodel.web.controllers.Rest.getAdjacentGroupEntriesSortingIndexes(id: Long, adjacentToEntrySortingIndexIn: Long, forwardNotBack: Boolean, limit: Option[Long])
+GET   /groups/:id/adjacentEntriesSortingIndexes/:adjacentToEntrySortingIndex/:forwardNotBack         org.onemodel.web.controllers.Rest.getAdjacentGroupEntriesSortingIndexes(id: Long, adjacentToEntrySortingIndex: Long, forwardNotBack: Boolean, limit: Option[Long])
 GET   /groups/:id/containingEntitysGroupsIds         org.onemodel.web.controllers.Rest.getGroupsContainingEntitysGroupsIds(id: Long, limit: Option[Long])
 GET   /groups/:id/entriesData/:includeArchivedEntities         org.onemodel.web.controllers.Rest.getGroupEntriesData(id: Long, includeArchivedEntities: Boolean, limit: Option[Long])
 GET   /groups/:id/containsEntity/:entityId         org.onemodel.web.controllers.Rest.isEntityInGroup(id: Long, entityId: Long)
 GET   /groups/:id/containingEntities/:startingIndex         org.onemodel.web.controllers.Rest.getEntitiesContainingGroup(id: Long, startingIndex: Long, maxVals: Option[Long])
 GET   /groups/:id/entries/:startingObjectIndex         org.onemodel.web.controllers.Rest.getGroupEntryObjects(id: Long, startingObjectIndex: Long, maxVals: Option[Long])
 GET   /groups/:id/countOfContainingEntities         org.onemodel.web.controllers.Rest.getCountOfEntitiesContainingGroup(id: Long)
+GET   /groups/:id/relationsToGroupContainingThisGroup/:startingIndex         org.onemodel.web.controllers.Rest.getRelationsToGroupContainingThisGroup(id: Long, startingIndex: Long, limit: Option[Long])
+GET   /classes/all/:startingObjectIndex         org.onemodel.web.controllers.Rest.getClasses(startingObjectIndex: Long, maxVals: Option[Long])
 GET   /classes/:id         org.onemodel.web.controllers.Rest.getClassData(id: Long)
 GET   /classes/:id/exists         org.onemodel.web.controllers.Rest.classKeyExists(id: Long)
 GET   /classes/:id/name         org.onemodel.web.controllers.Rest.getClassName(id: Long)
-GET   /classes/:id/shouldCreateDefaultAttributes         org.onemodel.web.controllers.Rest.getShouldCreateDefaultAttributes(id: Long)
 GET   /classes/count         org.onemodel.web.controllers.Rest.getClassCount()
 GET   /classes/count/         org.onemodel.web.controllers.Rest.getClassCount()
 GET   /classes/count/:templateEntityId         org.onemodel.web.controllers.Rest.getClassCount2(templateEntityId: Long)
+GET   /classes/isDuplicate/:name         org.onemodel.web.controllers.Rest.isDuplicateClassName(name: String)
+GET   /classes/isDuplicate/:name/         org.onemodel.web.controllers.Rest.isDuplicateClassName(name: String)
+GET   /classes/isDuplicate/:name/:selfIdToIgnore         org.onemodel.web.controllers.Rest.isDuplicateClassName2(name: String, selfIdToIgnore: Long)
+GET   /omInstances/count         org.onemodel.web.controllers.Rest.getOmInstanceCount
 GET   /omInstances/:id         org.onemodel.web.controllers.Rest.getOmInstanceData(id: String)
 GET   /omInstances/:id/exists         org.onemodel.web.controllers.Rest.omInstanceKeyExists(id: String)
 GET   /omInstances/isDuplicate/:address/         org.onemodel.web.controllers.Rest.isDuplicateOmInstanceAddress(address: String)

@@ -1,8 +1,8 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2016 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation, either version 3
-    of the License, or (at your option) any later version.  See the file LICENSE for details.
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
@@ -11,9 +11,6 @@
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 package org.onemodel.core.model
-
-import org.onemodel.core.model.Database
-
 
 object Attribute {
   // unlike in Controller, these are intentionally a little different, for displaying also the day of the week:
@@ -45,9 +42,9 @@ object Attribute {
  * Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
  * Originally created as a place to put common stuff between Relation/QuantityAttribute/TextAttribute.
  */
-abstract class Attribute(mDB: Database, mId: Long) {
+abstract class Attribute(val mDB: Database, mId: Long) {
   // idea: somehow use scala features better to make it cleaner, so we don't need these extra 2 vars, because they are
-  // used in 1-2 instances, and ignored in the rest.  One thing is that RelationToEntity and RelationToGroup are Attributes. Should they be?
+  // used in 1-2 instances, and ignored in the rest.  One thing is that RelationTo[Local|Remote]Entity and RelationToGroup are Attributes. Should they be?
   def getDisplayString(inLengthLimit: Int, parentEntity: Option[Entity], inRTId: Option[RelationType], simplify: Boolean = false): String
 
   protected def readDataFromDB()
@@ -82,10 +79,6 @@ abstract class Attribute(mDB: Database, mId: Long) {
     if (!mAlreadyReadData) readDataFromDB()
     mSortingIndex
   }
-
-  def isRemote: Boolean = mDB.isRemote
-
-  def omInstanceKey: String = mDB.getId
 
   // idea: make the scope definitions (by whatever name: "private[onemodel] ") sensible and uniform
   private[onemodel] def getParentId: Long = {
