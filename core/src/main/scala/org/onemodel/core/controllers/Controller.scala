@@ -877,8 +877,8 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
    * @return None if user wants out, otherwise: a relevant id, a Boolean indicating if the id is for an object in a remote OM instance,
    *         and if the object selected represents the key of a remote instance, that key as a String.
    *
-    * Idea: the inAttrType parm: do like in java & make it some kind of enum for type-safety? What's the scala idiom for that? (see also other
-    * mentions of inAttrType for others to fix as well.)
+    * Idea: the objectTypeIn parm: do like in java & make it some kind of enum for type-safety? What's the scala idiom for that? (see also other
+    * mentions of objectTypeIn (or still using old name, inAttrType) for others to fix as well.)
     */
   /*@tailrec  //idea (and is tracked):  putting this back gets compiler error on line 1218 call to chooseOrCreateObject. */
   final def chooseOrCreateObject(dbIn: Database, leadingTextIn: Option[List[String]], previousSelectionDescIn: Option[String],
@@ -948,7 +948,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       } else if (objectTypeIn == Util.OM_INSTANCE_TYPE) {
         choiceList = choiceList :+ "Create new OM instance (a remote data store for lookup, linking, etc.)"
         createInstanceChoiceNum += 1
-      } else throw new Exception("invalid inAttrType: " + objectTypeIn)
+      } else throw new Exception("invalid objectTypeIn: " + objectTypeIn)
 
       (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityByNameChoiceNum, searchForEntityByIdChoiceNum, showJournalChoiceNum, createRelationTypeChoiceNum, createClassChoiceNum, createInstanceChoiceNum, linkToRemoteInstanceChoiceNum)
     }
@@ -985,7 +985,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         }
         else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) dbIn.getClasses(startingDisplayRowIndexIn, Some(numDisplayableItems))
         else if (objectTypeIn == Util.OM_INSTANCE_TYPE) dbIn.getOmInstances()
-        else throw new Exception("invalid inAttrType: " + objectTypeIn)
+        else throw new Exception("invalid objectTypeIn: " + objectTypeIn)
       }
       if (objectsToDisplay.size == 0) {
         // IF THIS CHANGES: change the guess at the 1st parameter to maxColumnarChoicesToDisplayAfter, JUST ABOVE!
@@ -1000,7 +1000,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         else if (relationAttrTypeNames.contains(objectTypeIn)) dbIn.getRelationTypeCount
         else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) dbIn.getClassCount()
         else if (objectTypeIn == Util.OM_INSTANCE_TYPE) dbIn.getOmInstanceCount
-        else throw new Exception("invalid inAttrType: " + objectTypeIn)
+        else throw new Exception("invalid objectTypeIn: " + objectTypeIn)
       }
       Util.addRemainingCountToPrompt(choicesIn, objectsToDisplay.size, totalExisting, startingDisplayRowIndexIn)
       val objectStatusesAndNames: Array[String] = objectsToDisplay.toArray.map {
@@ -1027,7 +1027,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
             dbIn.getRelationTypeCount
           else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) dbIn.getClassCount()
           else if (objectTypeIn == Util.OM_INSTANCE_TYPE) dbIn.getOmInstanceCount
-          else throw new Exception("invalid inAttrType: " + objectTypeIn)
+          else throw new Exception("invalid objectTypeIn: " + objectTypeIn)
         if (x >= numObjectsInModel) {
           ui.displayText("End of list found; starting over from the beginning.")
           0 // start over
@@ -1209,7 +1209,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
           else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) Some(o.asInstanceOf[EntityClass].getIdWrapper,false,  "")
           // using null on next line was easier than the visible alternatives (same in one other place w/ this comment)
           else if (objectTypeIn == Util.OM_INSTANCE_TYPE) Some(null, false, o.asInstanceOf[OmInstance].getId)
-          else throw new Exception("invalid inAttrType: " + objectTypeIn)
+          else throw new Exception("invalid objectTypeIn: " + objectTypeIn)
         }
       } else {
         ui.displayText("unknown response in chooseOrCreateObject")
