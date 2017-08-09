@@ -996,6 +996,10 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCall[(Array[(Long, Attribute)], Int), Any]("http://" + mRemoteAddress + path, processSortedAttributes, None, Array())
   }
 
+  def getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): Long = ???
+  def getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: Long, maxValsIn: Option[Long] = None,
+                                      quantitySeeksUnitNotTypeIn: Boolean): java.util.ArrayList[Entity] = ???
+
 
   // Below are methods that WRITE to the DATABASE.
   //

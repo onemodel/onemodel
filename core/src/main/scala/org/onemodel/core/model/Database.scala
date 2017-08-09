@@ -16,7 +16,7 @@ import scala.collection.mutable
 object Database {
   val dbNamePrefix = "om_"
   // If next line ever changes, search the code for other places that also have it hard-coded, to change also
-  // (e.g., INSTALLING, first.exp or its successors, any .psql scripts, ....
+  // (ex., INSTALLING, first.exp or its successors, any .psql scripts, ....
   val TEST_USER: String = "testrunner"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
@@ -278,6 +278,9 @@ abstract class Database {
   def getEntitiesOnly(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None, classIdIn: Option[Long] = None,
                       limitByClass: Boolean = false, templateEntity: Option[Long] = None,
                       groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Entity]
+  def getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): Long
+  def getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: Long, maxValsIn: Option[Long] = None,
+                                      quantitySeeksUnitNotTypeIn: Boolean): java.util.ArrayList[Entity]
   def getRelationTypes(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[Entity]
   def getClasses(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[EntityClass]
   def getRelationTypeCount: Long

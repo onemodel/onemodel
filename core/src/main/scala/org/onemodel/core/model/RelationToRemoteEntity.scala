@@ -25,7 +25,7 @@ import org.onemodel.core.{OmException, Util}
  * This 1st constructor instantiates an existing object from the DB and is rarely needed. You can use Entity.addRelationTo[Local|Remote]Entity() to
  * create a new persistent record.
  *
-   **NOTE**: it *yes does* make sense to instantiate a RelationToRemoteEntity with a db parameter being for a *local* (e.g., postgresql) database,
+   **NOTE**: it *yes does* make sense to instantiate a RelationToRemoteEntity with a db parameter being for a *local* (ex., postgresql) database,
    because the local db contains references to remote ones.  Then, when creating for example an Entity for a record at a remote site, that
    would have a db parameter which is remote (i.e., an instance of RestDatabase; see Entity.addRelationToRemoteEntity).
 

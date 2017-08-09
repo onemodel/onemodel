@@ -52,7 +52,7 @@ public class EntityMenuIT {
       .withOutput(process.getOutputStream())
         // For some debugging, can change the the next line.  Details in first.exp under "Useful during testing". Or better yet, debug
         // by calling the om-expect-tests script directly.  Also, this test as of 2017-7-31 takes ~100 seconds on my laptop.
-      .withTimeout(5, TimeUnit.MINUTES)
+      .withTimeout(3, TimeUnit.MINUTES)
       .withAutoFlushEcho(true)
       .withExceptionOnFailure()
       .withAutoFlushEcho(true)
@@ -67,10 +67,18 @@ public class EntityMenuIT {
       # a failure could be missed.  This makes sure it runs to completion.
       # (If you don't know what # to use, comment the line out, check the testrun.log that was just
       # updated, and update the #, then uncomment the line. Or just uncomment it, but don't commit that.) */
-      // IDEA (also in tracked tasks): check for *the* # of passes here, and a 0 return code.  Having problems with expectit and might try its
+      // IDEA (also in tracked tasks): check for the string "# of expected passes            476"
+      // here (for some reason putting in that full text
+      // causes the check to fail, even when I tried a regex, vs. just the "476" which works), and check
+      // for a ~"Return code from dejagnu tests: 0" (which I think I tried but failed when it was in addition to the "476",
+      // and didn't want to use alone because it seemed like could possible pass even when less than the full # of tests
+      // were run.  Having problems with expectit and might try its
       // docs again or a different toolkit for this purpose:
 //      result = expect.expect(contains("# of expected passes"));
+      //NOTE: I did confirm that the next line will fail when necessary:
       result = expect.expect(contains("476"));
+//      result = expect.expect(contains("# of expected passes            476"));
+
 
       /* ***************************
       (Idea to fix) FOR SOME REASON, when running in the IDE (as opposed to running "om-expect-tests" or "oet" from the command-line), this class test fails
@@ -83,21 +91,11 @@ public class EntityMenuIT {
         Press any key to continue...
         x
 
-
-
-
-
-
         ==============================================
         1-Add new entity (such as yourself using your name, to start)
         2-Search all / list existing entities (except quantity units, attr types, & relation types)
         Ctrl+C to quit
         2
-
-
-
-
-
 
         ==============================================
         ENTITIES: Pick from menu, or an item by letter; Alt+<letter> to go to the item & later come back)

@@ -432,7 +432,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                "id bigint DEFAULT nextval('BooleanAttributeKeySequence') PRIMARY KEY, " +
                "entity_id bigint NOT NULL, " +
                // Allowing nulls because a template might not have value, and a task might not have a "done/not" setting yet (if unknown)?
-               // E.g., isDone (where the task would be an entity).
+               // Ex., isDone (where the task would be an entity).
                "booleanValue boolean, " +
                "attr_type_id bigint not null, " +
                // see "create table RelationToEntity" for comments about dates' meanings.
@@ -2374,7 +2374,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     * The parameter limitByClass decides whether any limiting is done at all: if true, the query is
     * limited to entities having the class specified by inClassId (even if that is None).
     *
-    * The parameter templateEntity *further* limits, if limitByClass is true, by omitting the templateEntity from the results (e.g., to help avoid
+    * The parameter templateEntity *further* limits, if limitByClass is true, by omitting the templateEntity from the results (ex., to help avoid
     * counting that one when deciding whether it is OK to delete the class).
     * */
   def getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option[Long] = None,
@@ -3008,11 +3008,21 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     getEntitiesGeneric(startingObjectIndexIn, maxValsIn, Util.RELATION_TYPE_TYPE)
   }
 
+  val selectEntityStart = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public, e.archived, e.new_entries_stick_to_top "
+
+  def addNewEntityToResults(finalResults: java.util.ArrayList[Entity], intermediateResultIn: Array[Option[Any]]) = {
+    val result = intermediateResultIn
+    // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
+    finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
+                                result(3).get.asInstanceOf[Long], result(4).asInstanceOf[Option[Boolean]], result(5).get.asInstanceOf[Boolean],
+                                result(6).get.asInstanceOf[Boolean]))
+  }
+
   def getMatchingEntities(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None, omitEntityIdIn: Option[Long],
                           nameRegexIn: String): java.util.ArrayList[Entity] = {
     val nameRegex = escapeQuotesEtc(nameRegexIn)
     val omissionExpression: String = if (omitEntityIdIn.isEmpty) "true" else "(not id=" + omitEntityIdIn.get + ")"
-    val sql: String = "select id, name, class_id, insertion_date, public, archived, new_entries_stick_to_top from entity where " +
+    val sql: String = selectEntityStart + " from entity e where " +
                       (if (!includeArchivedEntities) {
                         "not archived and "
                       } else {
@@ -3035,10 +3045,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val finalResults = new java.util.ArrayList[Entity]
     // idea: (see getEntitiesGeneric for idea, see if applies here)
     for (result <- earlyResults) {
-      // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-      finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
-                                  result(3).get.asInstanceOf[Long], result(4).asInstanceOf[Option[Boolean]], result(5).get.asInstanceOf[Boolean],
-                                  result(6).get.asInstanceOf[Boolean]))
+      addNewEntityToResults(finalResults, result)
     }
     require(finalResults.size == earlyResults.size)
     finalResults
@@ -3150,10 +3157,6 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         4
 
 
-
-
-
-
         ==============================================
         Choose a deletion or archiving option:
         1-Delete this entity
@@ -3162,10 +3165,6 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         1
         An error occurred: "java.lang.StringIndexOutOfBoundsException: String index out of range: -2".  If you can provide simple instructions to reproduce it consistently, maybe it can be fixed.  Do you want to see the detailed output? (y/n):
           y
-
-
-
-
 
 
         ==============================================
@@ -3208,12 +3207,57 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     containingRelationsToGroup
   }
 
+  def getEntitiesUsedAsAttributeTypes_sql(attributeTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): String = {
+    var sql: String = " from Entity e where " +
+                      // whether it is archived doesn't seem relevant in the use case, but, it is debatable:
+                      //              (if (!includeArchivedEntities) {
+                      //                "(not archived) and "
+                      //              } else {
+                      //                ""
+                      //              }) +
+                      " e.id in (select " +
+                      {
+                        // IN MAINTENANCE: compare to logic in method limitToEntitiesOnly.
+                        if (Util.QUANTITY_TYPE == attributeTypeIn && quantitySeeksUnitNotTypeIn) "unit_id"
+                        else if (Util.nonRelationAttrTypeNames.contains(attributeTypeIn)) "attr_type_id"
+                        else if (Util.RELATION_TYPE_TYPE == attributeTypeIn) "entity_id"
+                        else if (Util.relationAttrTypeNames.contains(attributeTypeIn)) "rel_type_id"
+                        else throw new Exception("unexpected attributeTypeIn: " + attributeTypeIn)
+                      } +
+                      " from "
+    if (Util.nonRelationAttrTypeNames.contains(attributeTypeIn) || Util.relationAttrTypeNames.contains(attributeTypeIn)) {
+      // it happens to match the table name, which is convenient:
+      sql = sql + attributeTypeIn + ")"
+    } else {
+      throw new Exception("unexpected attributeTypeIn: " + attributeTypeIn)
+    }
+    sql
+  }
+
+  def getCountOfEntitiesUsedAsAttributeTypes(attributeTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): Long = {
+    val sql = "SELECT count(1) " + getEntitiesUsedAsAttributeTypes_sql(attributeTypeIn, quantitySeeksUnitNotTypeIn)
+    extractRowCountFromCountQuery(sql)
+  }
+
+  def getEntitiesUsedAsAttributeTypes(attributeTypeIn: String, startingObjectIndexIn: Long, maxValsIn: Option[Long] = None,
+                                      quantitySeeksUnitNotTypeIn: Boolean): java.util.ArrayList[Entity] = {
+    val sql: String = selectEntityStart + getEntitiesUsedAsAttributeTypes_sql(attributeTypeIn, quantitySeeksUnitNotTypeIn)
+    val earlyResults = dbQuery(sql, "Long,String,Long,Long,Boolean,Boolean,Boolean")
+    val finalResults = new java.util.ArrayList[Entity]
+    // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+    // dependencies; is a cleaner design.)  (and similar ones)
+    for (result <- earlyResults) {
+      addNewEntityToResults(finalResults, result)
+    }
+    require(finalResults.size == earlyResults.size)
+    finalResults
+  }
+
   // 1st parm is 0-based index to start with, 2nd parm is # of obj's to return (if None, means no limit).
   private def getEntitiesGeneric(startingObjectIndexIn: Long, maxValsIn: Option[Long], tableNameIn: String,
                                  classIdIn: Option[Long] = None, limitByClass: Boolean = false,
                                  templateEntity: Option[Long] = None, groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Entity] = {
-    val ENTITY_SELECT_PART: String = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public, e.archived, e.new_entries_stick_to_top"
-    val sql: String = ENTITY_SELECT_PART +
+    val sql: String = selectEntityStart +
                       (if (tableNameIn.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) ", r.name_in_reverse_direction, r.directionality " else "") +
                       " from Entity e " +
                       (if (tableNameIn.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) {
@@ -3235,8 +3279,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                         // for which a RelationType row also exists.
                         " and e.id = r.entity_id "
                       } else "") +
-                      (if (tableNameIn.compareToIgnoreCase("EntityOnly") == 0) limitToEntitiesOnly(ENTITY_SELECT_PART) else "") +
-                      (if (groupToOmitIdIn.isDefined) " except (" + ENTITY_SELECT_PART + " from entity e, " +
+                      (if (tableNameIn.compareToIgnoreCase("EntityOnly") == 0) limitToEntitiesOnly(selectEntityStart) else "") +
+                      (if (groupToOmitIdIn.isDefined) " except (" + selectEntityStart + " from entity e, " +
                                                     "EntitiesInAGroup eiag where e.id=eiag.entity_id and " +
                                                     "group_id=" + groupToOmitIdIn.get + ")"
                       else "") +
@@ -3249,19 +3293,16 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                                })
     val finalResults = new java.util.ArrayList[Entity]
     // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-    // dependencies; is a cleaner design.)
+    // dependencies; is a cleaner design.)  (and similar ones)
     for (result <- earlyResults) {
       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
       if (tableNameIn.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) {
         finalResults.add(new RelationType(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(6).get.asInstanceOf[String],
                                           result(7).get.asInstanceOf[String]))
       } else {
-        finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
-                                    result(3).get.asInstanceOf[Long], result(4).asInstanceOf[Option[Boolean]], result(5).get.asInstanceOf[Boolean],
-                                    result(6).get.asInstanceOf[Boolean]))
+        addNewEntityToResults(finalResults, result)
       }
     }
-
     require(finalResults.size == earlyResults.size)
     finalResults
   }
@@ -3417,14 +3458,17 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   private def limitToEntitiesOnly(selectColumnNames: String): String = {
+    // IN MAINTENANCE: compare to logic in method getEntitiesUsedAsAttributeTypes_sql, and related/similar logic near the top of
+    // Controller.chooseOrCreateObject (if it is still there; as of
+    // 2017-8-21 starts with "val (numObjectsAvailable: Long, showOnlyAttributeTypes: Boolean) = {".
     val sql: StringBuilder = new StringBuilder
     sql.append("except (").append(selectColumnNames).append(" from entity e, quantityattribute q where e.id=q.unit_id) ")
     sql.append("except (").append(selectColumnNames).append(" from entity e, quantityattribute q where e.id=q.attr_type_id) ")
-    sql.append("except (").append(selectColumnNames).append(" from entity e, textattribute t where e.id=t.attr_type_id) ")
-    sql.append("except (").append(selectColumnNames).append(" from entity e, relationtype t where e.id=t.entity_id) ")
     sql.append("except (").append(selectColumnNames).append(" from entity e, dateattribute t where e.id=t.attr_type_id) ")
     sql.append("except (").append(selectColumnNames).append(" from entity e, booleanattribute t where e.id=t.attr_type_id) ")
     sql.append("except (").append(selectColumnNames).append(" from entity e, fileattribute t where e.id=t.attr_type_id) ")
+    sql.append("except (").append(selectColumnNames).append(" from entity e, textattribute t where e.id=t.attr_type_id) ")
+    sql.append("except (").append(selectColumnNames).append(" from entity e, relationtype t where e.id=t.entity_id) ")
     sql.toString()
   }
 

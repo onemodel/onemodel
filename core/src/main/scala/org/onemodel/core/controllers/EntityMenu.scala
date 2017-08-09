@@ -35,7 +35,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
     choices = choices :+ "Select target (entry move destination: gets a '+' marker)"
     // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
     choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; type a letter to go to its attr menu)" else "(stub)")
-    choices = choices :+ (if (controller.getDefaultEntity.isEmpty  && !entityIn.mDB.isRemote) "****TRY ME---> " else "") + "Other entity operations..."
+    choices = choices :+ (if (controller.getDefaultEntity.isEmpty && !entityIn.mDB.isRemote) "****TRY ME---> " else "") + "Other entity operations..."
     choices
   }
 
@@ -194,7 +194,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
                                                                                      relationSourceEntity,
                                                                                      containingRelationToEntityIn, containingGroupIn)
         val attrToHighlight: Option[Attribute] = Util.findAttributeToHighlightNext(attributeTuples.length, attributesToDisplay, removedOne = movedOneOut,
-                                                                                         highlightedIndexInObjList.get, highlightedEntry.get)
+                                                                                   highlightedIndexInObjList.get, highlightedEntry.get)
         entityMenu(entityIn, newStartingDisplayIndex, attrToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 3) {
         // MAKE SURE this next condition always matches the one in "choices(2) = ..." above
@@ -287,7 +287,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
         entityMenu(entityIn, attributeRowsStartingIndexIn, entryToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (answer == 9 && answer <= choices.length) {
         new OtherEntityMenu(ui, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
-                                                                containingGroupIn, attributeTuples)
+                                                            containingGroupIn, attributeTuples)
         if (!entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
           // entity could have been deleted by some operation in OtherEntityMenu
           None
@@ -363,7 +363,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
             !stillThere
           case relToGroup: RelationToGroup =>
             new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(relToGroup.mDB, relToGroup.getGroupId),
-                                                                              0, Some(relToGroup), containingEntityIn = Some(entityIn))
+                                                              0, Some(relToGroup), containingEntityIn = Some(entityIn))
             if (!relToGroup.mDB.groupKeyExists(relToGroup.getGroupId)) true
             else false
           case _ => throw new Exception("Unexpected choice has class " + o.getClass.getName + "--what should we do here?")
@@ -410,7 +410,8 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours; currently only searches locally)")),
                                              Some(Util.isNumeric), Some("5"))
           val levels: Int = levelsAnswer.getOrElse("4").toInt
-          val entityIdsTreeSet: mutable.TreeSet[Long] = entityIn.findContainedLocalEntityIds(new mutable.TreeSet[Long], searchString, levels, stopAfterAnyFoundIn = false)
+          val entityIdsTreeSet: mutable.TreeSet[Long] = entityIn.findContainedLocalEntityIds(new mutable.TreeSet[Long], searchString, levels,
+                                                                                             stopAfterAnyFoundIn = false)
           val entityIds = entityIdsTreeSet.toArray
           val leadingText2 = Array[String](Util.pickFromListPrompt)
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
@@ -538,15 +539,15 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
                                                                  Some(highlightedAttributeIn.getFormId))
         (displayStartingRowNumber, false)
       } else if (answer == 7 && targetForMovesIn.isDefined) {
-        if (! (
-              (highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] ||
-               highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] ||
-               highlightedAttributeIn.isInstanceOf[RelationToGroup])
-              &&
-              (targetForMovesIn.get.isInstanceOf[RelationToLocalEntity] ||
-               targetForMovesIn.get.isInstanceOf[RelationToRemoteEntity] ||
-               targetForMovesIn.get.isInstanceOf[RelationToGroup])
-              )) {
+        if (!(
+             (highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] ||
+              highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] ||
+              highlightedAttributeIn.isInstanceOf[RelationToGroup])
+             &&
+             (targetForMovesIn.get.isInstanceOf[RelationToLocalEntity] ||
+              targetForMovesIn.get.isInstanceOf[RelationToRemoteEntity] ||
+              targetForMovesIn.get.isInstanceOf[RelationToGroup])
+             )) {
           ui.displayText("Currently, you can only move an Entity or a Group, to an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [1]")
           (startingDisplayRowIndexIn, false)
@@ -587,9 +588,9 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           }
         }
       } else if (answer == 8) {
-        if (! (highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] ||
+        if (!(highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] ||
               highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] ||
-              highlightedAttributeIn.isInstanceOf[RelationToGroup]) ) {
+              highlightedAttributeIn.isInstanceOf[RelationToGroup])) {
           ui.displayText("Currently, you can only move an Entity or a Group, *to* an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [2]")
           (startingDisplayRowIndexIn, false)

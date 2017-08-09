@@ -720,7 +720,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
 
   /** Returns data, or None if user wants to cancel/get out.
     * @param attrType Constant referring to Attribute subtype, as used by the inObjectType parameter to the chooseOrCreateObject method
-    *                 (e.g., Controller.QUANTITY_TYPE).  See comment on that method, for that parm.
+    *                 (ex., Controller.QUANTITY_TYPE).  See comment on that method, for that parm.
     * */
   def askForAttributeData[T <: AttributeDataHolder](dbIn: Database, inoutDH: T, alsoAskForAttrTypeId: Boolean, attrType: String, attrTypeInputPrompt: Option[String],
                                                     inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[Long],
@@ -877,34 +877,63 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
    * @return None if user wants out, otherwise: a relevant id, a Boolean indicating if the id is for an object in a remote OM instance,
    *         and if the object selected represents the key of a remote instance, that key as a String.
    *
-    * Idea: the objectTypeIn parm: do like in java & make it some kind of enum for type-safety? What's the scala idiom for that? (see also other
-    * mentions of objectTypeIn (or still using old name, inAttrType) for others to fix as well.)
+   * Idea: the objectTypeIn parm: do like in java & make it some kind of enum for type-safety? What's the scala idiom for that? (see also other
+   * mentions of objectTypeIn (or still using old name, inAttrType) for others to fix as well.)
+   *
+   * Idea: this should be refactored for simplicity, perhaps putting logic now conditional on objectTypeIn in a trait & types that have it (tracked in tasks).
     */
   /*@tailrec  //idea (and is tracked):  putting this back gets compiler error on line 1218 call to chooseOrCreateObject. */
   final def chooseOrCreateObject(dbIn: Database, leadingTextIn: Option[List[String]], previousSelectionDescIn: Option[String],
-                                          previousSelectionIdIn: Option[Long], objectTypeIn: String, startingDisplayRowIndexIn: Long = 0,
-                                          classIdIn: Option[Long] = None, limitByClassIn: Boolean = false,
-                                          containingGroupIn: Option[Long] = None,
-                                          //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                                          markPreviousSelectionIn: Boolean = false): Option[(IdWrapper, Boolean, String)] = {
+                                 previousSelectionIdIn: Option[Long], objectTypeIn: String, startingDisplayRowIndexIn: Long = 0,
+                                 classIdIn: Option[Long] = None, limitByClassIn: Boolean = false,
+                                 containingGroupIn: Option[Long] = None,
+                                 markPreviousSelectionIn: Boolean = false,
+                                 showOnlyAttributeTypesIn: Option[Boolean] = None,
+                                 quantitySeeksUnitNotTypeIn: Boolean = false
+                                 //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method! (not
+                                 // necessary if calling for a separate object type, but just when intended to ~"start over with the same thing").
+                                 ): Option[(IdWrapper, Boolean, String)] = {
     if (classIdIn.isDefined) require(objectTypeIn == Util.ENTITY_TYPE)
-    val nonRelationAttrTypeNames = Array(Util.TEXT_TYPE, Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE, Util.FILE_TYPE)
-    val mostAttrTypeNames = Array(Util.ENTITY_TYPE, Util.TEXT_TYPE, Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE,
-                                  Util.FILE_TYPE)
-    val relationAttrTypeNames = Array(Util.RELATION_TYPE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE, Util.RELATION_TO_GROUP_TYPE)
+    if (quantitySeeksUnitNotTypeIn) require(objectTypeIn == Util.QUANTITY_TYPE)
+    val entityAndMostAttrTypeNames = Array(Util.ENTITY_TYPE, Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE,
+                                  Util.FILE_TYPE, Util.TEXT_TYPE)
     val evenMoreAttrTypeNames = Array(Util.ENTITY_TYPE, Util.TEXT_TYPE, Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE,
                                       Util.FILE_TYPE, Util.RELATION_TYPE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE,
                                       Util.RELATION_TO_GROUP_TYPE)
     val listNextItemsChoiceNum = 1
 
+    val (numObjectsAvailable: Long, showOnlyAttributeTypes: Boolean) = {
+      // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 1x ELSEWHERE ! (at similar comment):
+      if (Util.nonRelationAttrTypeNames.contains(objectTypeIn)) {
+        if (showOnlyAttributeTypesIn.isEmpty) {
+          val countOfEntitiesUsedAsThisAttrType: Long = dbIn.getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn, quantitySeeksUnitNotTypeIn)
+          if (countOfEntitiesUsedAsThisAttrType > 0L) {
+            (countOfEntitiesUsedAsThisAttrType, true)
+          } else {
+            (dbIn.getEntityCount, false)
+          }
+        } else if (showOnlyAttributeTypesIn.get) {
+          (dbIn.getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn, quantitySeeksUnitNotTypeIn), true)
+        } else {
+          (dbIn.getEntityCount, false)
+        }
+      }
+      else if (objectTypeIn == Util.ENTITY_TYPE) (dbIn.getEntitiesOnlyCount(limitByClassIn, classIdIn, previousSelectionIdIn), false)
+      else if (Util.relationAttrTypeNames.contains(objectTypeIn)) (dbIn.getRelationTypeCount, false)
+      else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) (dbIn.getClassCount(), false)
+      else if (objectTypeIn == Util.OM_INSTANCE_TYPE) (dbIn.getOmInstanceCount, false)
+      else throw new Exception("invalid objectTypeIn: " + objectTypeIn)
+    }
+
     // Attempt to keep these straight even though the size of the list, hence their option #'s on the menu,
     // is conditional:
-    def getChoiceList: (Array[String], Int, Int, Int, Int, Int, Int, Int, Int, Int) = {
+    def getChoiceList: (Array[String], Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = {
       var keepPreviousSelectionChoiceNum = 1
       var createAttrTypeChoiceNum = 1
       var searchForEntityByNameChoiceNum = 1
       var searchForEntityByIdChoiceNum = 1
       var showJournalChoiceNum = 1
+      var swapObjectsToDisplayChoiceNum = 1
       var linkToRemoteInstanceChoiceNum = 1
       var createRelationTypeChoiceNum = 1
       var createClassChoiceNum = 1
@@ -913,16 +942,20 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       if (previousSelectionDescIn.isDefined) {
         choiceList = choiceList :+ "Keep previous selection (" + previousSelectionDescIn.get + ")."
         keepPreviousSelectionChoiceNum += 1
+        // inserted a menu option, so add 1 to all the others' indexes.
         createAttrTypeChoiceNum += 1
         searchForEntityByNameChoiceNum += 1
         searchForEntityByIdChoiceNum += 1
         showJournalChoiceNum += 1
+        swapObjectsToDisplayChoiceNum += 1
+        linkToRemoteInstanceChoiceNum += 1
         createRelationTypeChoiceNum += 1
         createClassChoiceNum += 1
         createInstanceChoiceNum += 1
       }
       //idea: use match instead of if: can it do || ?
-      if (mostAttrTypeNames.contains(objectTypeIn)) {
+      if (entityAndMostAttrTypeNames.contains(objectTypeIn)) {
+        // insert the several other menu options, and add the right # to the index of each.
         choiceList = choiceList :+ Util.menuText_createEntityOrAttrType
         createAttrTypeChoiceNum += 1
         choiceList = choiceList :+ "Search for existing entity by name and text attribute content..."
@@ -931,16 +964,17 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         searchForEntityByIdChoiceNum += 3
         choiceList = choiceList :+ "Show journal (changed entities) by date range..."
         showJournalChoiceNum += 4
+        if (showOnlyAttributeTypes) {
+          choiceList = choiceList :+ "show all entities " + "(not only those already used as a type of " + objectTypeIn
+        } else {
+          choiceList = choiceList :+ "show only entities ALREADY used as a type of " + objectTypeIn
+        }
+        swapObjectsToDisplayChoiceNum += 5
         choiceList = choiceList :+ "Link to entity in a separate (REMOTE) OM instance..."
-        linkToRemoteInstanceChoiceNum += 5
-        createRelationTypeChoiceNum += 5
-        createClassChoiceNum += 5
-        createInstanceChoiceNum += 5
-      } else if (relationAttrTypeNames.contains(objectTypeIn)) {
+        linkToRemoteInstanceChoiceNum += 6
+      } else if (Util.relationAttrTypeNames.contains(objectTypeIn)) {
+        // These choice #s are only hit by the conditions below, when they should be...:
         choiceList = choiceList :+ Util.menuText_createRelationType
-        //idea: consider how to clarify how these next "...choiceNum"s work, & maybe see how to refactor this so is cleaner. Maybe fix per
-        // Fowler's Refactoring book?
-        // Note that these 3 are managed together and it works because they have different other criteria below for choosing a code block based on them.
         createRelationTypeChoiceNum += 1
       } else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) {
         choiceList = choiceList :+ "Create new class (template for new entities)"
@@ -950,7 +984,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         createInstanceChoiceNum += 1
       } else throw new Exception("invalid objectTypeIn: " + objectTypeIn)
 
-      (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityByNameChoiceNum, searchForEntityByIdChoiceNum, showJournalChoiceNum, createRelationTypeChoiceNum, createClassChoiceNum, createInstanceChoiceNum, linkToRemoteInstanceChoiceNum)
+      (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityByNameChoiceNum, searchForEntityByIdChoiceNum, showJournalChoiceNum, createRelationTypeChoiceNum, createClassChoiceNum, createInstanceChoiceNum, swapObjectsToDisplayChoiceNum, linkToRemoteInstanceChoiceNum)
     }
 
     def getLeadTextAndObjectList(choicesIn: Array[String]): (List[String],
@@ -960,27 +994,32 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       val prefix: String = objectTypeIn match {
         case Util.ENTITY_TYPE => "ENTITIES: "
         case Util.QUANTITY_TYPE => "QUANTITIES (entities): "
-        case Util.TEXT_TYPE => "TEXT ATTRIBUTES (entities): "
         case Util.DATE_TYPE => "DATE ATTRIBUTES (entities): "
         case Util.BOOLEAN_TYPE => "TRUE/FALSE ATTRIBUTES (entities): "
         case Util.FILE_TYPE => "FILE ATTRIBUTES (entities): "
+        case Util.TEXT_TYPE => "TEXT ATTRIBUTES (entities): "
         case Util.RELATION_TYPE_TYPE => "RELATION TYPES: "
-        case Util.ENTITY_CLASS_TYPE => "CLASSES: "
-        case Util.OM_INSTANCE_TYPE => "OneModel INSTANCES: "
         case Util.RELATION_TO_LOCAL_ENTITY_TYPE => "RELATION TYPES: "
         case Util.RELATION_TO_GROUP_TYPE => "RELATION TYPES: "
+        case Util.ENTITY_CLASS_TYPE => "CLASSES: "
+        case Util.OM_INSTANCE_TYPE => "OneModel INSTANCES: "
         case _ => ""
       }
       var leadingText = leadingTextIn.getOrElse(List[String](prefix + "Pick from menu, or an item by letter; Alt+<letter> to go to the item & later come back)"))
       val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size + 3 /* up to: see more of leadingText below .*/ , choicesIn.length,
                                                                     Util.maxNameLength)
       val objectsToDisplay = {
-        // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x BELOW ! (at similar comment)
-        if (nonRelationAttrTypeNames.contains(objectTypeIn)) dbIn.getEntities(startingDisplayRowIndexIn, Some(numDisplayableItems))
+        // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 1x ELSEWHERE ! (at similar comment):
+        if (Util.nonRelationAttrTypeNames.contains(objectTypeIn)) {
+          if (showOnlyAttributeTypes) {
+            dbIn.getEntitiesUsedAsAttributeTypes(objectTypeIn, startingDisplayRowIndexIn, Some(numDisplayableItems), quantitySeeksUnitNotTypeIn)
+          } else {
+            dbIn.getEntities(startingDisplayRowIndexIn, Some(numDisplayableItems))
+          }
+        }
         else if (objectTypeIn == Util.ENTITY_TYPE) dbIn.getEntitiesOnly(startingDisplayRowIndexIn, Some(numDisplayableItems), classIdIn, limitByClassIn,
-                                                                           previousSelectionIdIn,
-                                                                           containingGroupIn)
-        else if (relationAttrTypeNames.contains(objectTypeIn)) {
+                                                                        previousSelectionIdIn, containingGroupIn)
+        else if (Util.relationAttrTypeNames.contains(objectTypeIn)) {
           dbIn.getRelationTypes(startingDisplayRowIndexIn, Some(numDisplayableItems)).asInstanceOf[java.util.ArrayList[RelationType]]
         }
         else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) dbIn.getClasses(startingDisplayRowIndexIn, Some(numDisplayableItems))
@@ -993,16 +1032,9 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
                           " have been created in this model, yet."
         leadingText = leadingText ::: List(txt)
       }
-      val totalExisting: Long = {
-        // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x ELSEWHERE ! (at similar comment)
-        if (nonRelationAttrTypeNames.contains(objectTypeIn)) dbIn.getEntitiesOnlyCount(limitByClassIn, classIdIn, previousSelectionIdIn)
-        else if (objectTypeIn == Util.ENTITY_TYPE) dbIn.getEntitiesOnlyCount(limitByClassIn, classIdIn, previousSelectionIdIn)
-        else if (relationAttrTypeNames.contains(objectTypeIn)) dbIn.getRelationTypeCount
-        else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) dbIn.getClassCount()
-        else if (objectTypeIn == Util.OM_INSTANCE_TYPE) dbIn.getOmInstanceCount
-        else throw new Exception("invalid objectTypeIn: " + objectTypeIn)
-      }
-      Util.addRemainingCountToPrompt(choicesIn, objectsToDisplay.size, totalExisting, startingDisplayRowIndexIn)
+      Util.addRemainingCountToPrompt(choicesIn, objectsToDisplay.size, numObjectsAvailable, startingDisplayRowIndexIn)
+      //alternative approach for UI, but will remove because "alt-N" is already used by my custom config in konsole:
+//      Util.addAltKeyTextToPrompt(choicesIn, objectsToDisplay.size, numObjectsAvailable, startingDisplayRowIndexIn, objectTypeIn, showOnlyAttributeTypes)
       val objectStatusesAndNames: Array[String] = objectsToDisplay.toArray.map {
                                                                       case entity: Entity => entity.getArchivedStatusDisplayString + entity.getName
                                                                       case clazz: EntityClass => clazz.getName
@@ -1013,22 +1045,12 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       (leadingText, objectsToDisplay, objectStatusesAndNames)
     }
 
-    def getNextStartingObjectIndex(previousListLength: Long, nonRelationAttrTypeNames: Array[String], relationAttrTypeNames: Array[String]): Long = {
+    def getNextStartingObjectIndex(previousListLength: Long, numObjectsAvailableIn: Long): Long = {
       val index = {
         val x = startingDisplayRowIndexIn + previousListLength
         // ask Model for list of obj's w/ count desired & starting index (or "first") (in a sorted map, w/ id's as key, and names)
         //idea: should this just reuse the "totalExisting" value alr calculated in above in getLeadTextAndObjectList just above?
-        val numObjectsInModel =
-        // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 2x ABOVE ! (at similar comment)
-          if (nonRelationAttrTypeNames.contains(objectTypeIn))
-            dbIn.getEntityCount
-          else if (objectTypeIn == Util.ENTITY_TYPE) dbIn.getEntitiesOnlyCount(limitByClassIn, classIdIn)
-          else if (relationAttrTypeNames.contains(objectTypeIn))
-            dbIn.getRelationTypeCount
-          else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) dbIn.getClassCount()
-          else if (objectTypeIn == Util.OM_INSTANCE_TYPE) dbIn.getOmInstanceCount
-          else throw new Exception("invalid objectTypeIn: " + objectTypeIn)
-        if (x >= numObjectsInModel) {
+        if (x >= numObjectsAvailableIn) {
           ui.displayText("End of list found; starting over from the beginning.")
           0 // start over
         } else x
@@ -1036,8 +1058,8 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       index
     }
 
-    val (choices, keepPreviousSelectionChoice, createEntityOrAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, createRelationTypeChoice, createClassChoice, createInstanceChoice, linkToRemoteInstanceChoice): (Array[String],
-      Int, Int, Int, Int, Int, Int, Int, Int, Int) = getChoiceList
+    val (choices, keepPreviousSelectionChoice, createEntityOrAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, createRelationTypeChoice, createClassChoice, createInstanceChoice, swapObjectsToDisplayChoice, linkToRemoteInstanceChoice): (Array[String],
+      Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = getChoiceList
 
     val (leadingText, objectsToDisplay, statusesAndNames) = getLeadTextAndObjectList(choices)
     val ans = ui.askWhichChoiceOrItsAlternate(Some(leadingText.toArray), choices, statusesAndNames)
@@ -1046,11 +1068,28 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     else {
       val answer = ans.get._1
       val userChoseAlternate = ans.get._2
-      if (answer == listNextItemsChoiceNum && answer <= choices.length) {
+      if (answer == listNextItemsChoiceNum && answer <= choices.length && !userChoseAlternate) {
+        //alternative approach for UI, but will remove because "alt-N" is already used by my custom config in konsole:
+//      if (answer == listNextItemsChoiceNum && answer <= choices.length && !userChoseAlternate) {
         // (For reason behind " && answer <= choices.length", see comment where it is used in entityMenu.)
-        val index: Long = getNextStartingObjectIndex(objectsToDisplay.size, nonRelationAttrTypeNames, relationAttrTypeNames)
+        val index: Long = getNextStartingObjectIndex(objectsToDisplay.size, numObjectsAvailable)
         chooseOrCreateObject(dbIn, leadingTextIn, previousSelectionDescIn, previousSelectionIdIn, objectTypeIn, index, classIdIn, limitByClassIn,
-                             containingGroupIn, markPreviousSelectionIn)
+                             containingGroupIn, markPreviousSelectionIn, Some(showOnlyAttributeTypes), quantitySeeksUnitNotTypeIn)
+
+//        //alternative approach for UI, but will remove because "alt-N" is already used by my custom config in konsole:
+//      } else if (answer == listNextItemsChoiceNum && answer <= choices.length && userChoseAlternate) {
+//        val switchedChoices: Boolean = {
+//          // KEEP THIS CONDITION & LOGIC SYNCHRONIZED WITH THE ONE IN Util.addAltKeyTextToPrompt and the use of showOnlyAttributeTypesIn in calling
+//          // this method.
+//          if (showOnlyAttributeTypes) {
+//            false
+//          } else {
+//            true
+//          }
+//        }
+//        chooseOrCreateObject(dbIn, leadingTextIn, previousSelectionDescIn, previousSelectionIdIn, objectTypeIn, 0, classIdIn, limitByClassIn,
+//                             containingGroupIn, markPreviousSelectionIn, Some(switchedChoices), quantitySeeksUnitNotTypeIn)
+
       } else if (answer == keepPreviousSelectionChoice && answer <= choices.length) {
         // Such as if editing several fields on an attribute and doesn't want to change the first one.
         // Not using "get out" option for this because it would exit from a few levels at once and
@@ -1065,6 +1104,13 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         }
       } else if (answer == searchForEntityByNameChoice && answer <= choices.length) {
         val result = askForNameAndSearchForEntity(dbIn)
+        if (result.isEmpty) {
+          None
+        } else {
+          Some(result.get, false, "")
+        }
+      } else if (answer == searchForEntityByIdChoice && answer <= choices.length) {
+        val result = searchById(dbIn, Util.ENTITY_TYPE)
         if (result.isEmpty) {
           None
         } else {
@@ -1103,15 +1149,10 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
             None
           }
         }
-
-      } else if (answer == searchForEntityByIdChoice && answer <= choices.length) {
-        val result = searchById(dbIn, Util.ENTITY_TYPE)
-        if (result.isEmpty) {
-          None
-        } else {
-          Some(result.get, false, "")
-        }
-      } else if (answer == linkToRemoteInstanceChoice && mostAttrTypeNames.contains(objectTypeIn) && answer <= choices.length) {
+      } else if (answer == swapObjectsToDisplayChoice && entityAndMostAttrTypeNames.contains(objectTypeIn) && answer <= choices.length) {
+        chooseOrCreateObject(dbIn, leadingTextIn, previousSelectionDescIn, previousSelectionIdIn, objectTypeIn, 0, classIdIn, limitByClassIn,
+                             containingGroupIn, markPreviousSelectionIn, Some(!showOnlyAttributeTypes), quantitySeeksUnitNotTypeIn)
+      } else if (answer == linkToRemoteInstanceChoice && entityAndMostAttrTypeNames.contains(objectTypeIn) && answer <= choices.length) {
         val omInstanceIdOption: Option[(_, _, String)] = chooseOrCreateObject(dbIn, None, None, None, Util.OM_INSTANCE_TYPE)
         if (omInstanceIdOption.isEmpty) {
           None
@@ -1159,7 +1200,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
             }
           }
         }
-      } else if (answer == createRelationTypeChoice && relationAttrTypeNames.contains(objectTypeIn) && answer <= choices.length) {
+      } else if (answer == createRelationTypeChoice && Util.relationAttrTypeNames.contains(objectTypeIn) && answer <= choices.length) {
         val entity: Option[Entity] = askForNameAndWriteEntity(dbIn, Util.RELATION_TYPE_TYPE)
         if (entity.isEmpty) None
         else Some(new IdWrapper(entity.get.getId), false, "")
@@ -1203,7 +1244,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
           }
           chooseOrCreateObject(dbIn, leadingTextIn, previousSelectionDescIn, previousSelectionIdIn, objectTypeIn,
                                startingDisplayRowIndexIn, classIdIn, limitByClassIn,
-                               containingGroupIn, markPreviousSelectionIn)
+                               containingGroupIn, markPreviousSelectionIn, Some(showOnlyAttributeTypes), quantitySeeksUnitNotTypeIn)
         } else {
           if (evenMoreAttrTypeNames.contains(objectTypeIn)) Some(o.asInstanceOf[Entity].getIdWrapper, false, "")
           else if (objectTypeIn == Util.ENTITY_CLASS_TYPE) Some(o.asInstanceOf[EntityClass].getIdWrapper,false,  "")
@@ -1214,7 +1255,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       } else {
         ui.displayText("unknown response in chooseOrCreateObject")
         chooseOrCreateObject(dbIn, leadingTextIn, previousSelectionDescIn, previousSelectionIdIn, objectTypeIn, startingDisplayRowIndexIn, classIdIn,
-                             limitByClassIn, containingGroupIn, markPreviousSelectionIn)
+                             limitByClassIn, containingGroupIn, markPreviousSelectionIn, Some(showOnlyAttributeTypes), quantitySeeksUnitNotTypeIn)
       }
     }
   }
@@ -1243,7 +1284,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         ui.displayText("Invalid ID format.  An ID is a numeric value between " + Database.minIdValue + " and " + Database.maxIdValue)
         None
       } else {
-        // (BTW, do allow relation to self, e.g., picking self as 2nd part of a RelationToLocalEntity.)
+        // (BTW, do allow relation to self, ex., picking self as 2nd part of a RelationToLocalEntity.)
         // (Also, the call to entityKeyExists should here include archived entities so the user can find out if the one
         // needed is archived, even if the hard way.)
         if ((typeNameIn == Util.ENTITY_TYPE && dbIn.entityKeyExists(idString.toLong)) ||
@@ -1263,7 +1304,8 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     val leadingText: List[String] = List("SELECT A *UNIT* FOR THIS QUANTITY (i.e., centimeters, or quarts; ESC or blank to cancel):")
     val previousSelectionDesc = if (editingIn) Some(new Entity(dbIn, dhIn.unitId).getName) else None
     val previousSelectionId = if (editingIn) Some(dhIn.unitId) else None
-    val unitSelection: Option[(IdWrapper, _, _)] = chooseOrCreateObject(dbIn, Some(leadingText), previousSelectionDesc, previousSelectionId, Util.QUANTITY_TYPE)
+    val unitSelection: Option[(IdWrapper, _, _)] = chooseOrCreateObject(dbIn, Some(leadingText), previousSelectionDesc, previousSelectionId,
+                                                                        Util.QUANTITY_TYPE, quantitySeeksUnitNotTypeIn = true)
     if (unitSelection.isEmpty) {
       ui.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystrokeIn = false)
       None

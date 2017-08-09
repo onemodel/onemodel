@@ -316,7 +316,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   /** The parm "choices" are shown in a single-column list; the "moreChoices" are shown in columns as space allows.
     *
     * The return value is either None (if user just wants out), or Some(the # of the result chosen) (1-based, where the index is
-    * against the *combined* choices and moreChoices).  E.g., if the choices parameter has 3 elements, and moreChoices has 5, the
+    * against the *combined* choices and moreChoices).  Ex., if the choices parameter has 3 elements, and moreChoices has 5, the
     * return value can range from 1-8 (1-based, not 0-based!).
     *
     * If calling methods are kept small, it should be easy for them to visually determine which 'choice's go with the return value;

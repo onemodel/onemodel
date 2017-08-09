@@ -279,7 +279,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                 case _ => throw new OmException("??")
               }
             }
-            // E.g., if "3" is the last entity created in the series of lines '1', '2', and '3' (which has indented under it '4'), and so '4' is the
+            // Ex., if "3" is the last entity created in the series of lines '1', '2', and '3' (which has indented under it '4'), and so '4' is the
             // current line, create a subgroup on '3' called '3' (the subgroup that entity sort of represents), and it becomes the new container. If the
             // user preferred this to be a relation to entity instead of to group to contain the sub-things,
             // oh well they can add it to the entity as such,
@@ -568,7 +568,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                 printListItemForUriEntity(uriClassIdIn, quoteClassIdIn, printWriter, entity2, cachedAttrsIn)
               } else {
                 // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
-                // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
+                // info in the link itself (the entity name) that has been restricted (ex., made nonpublic).
                 printListItemForEntity(printWriter, relationType, entity2)
               }
             }
@@ -586,7 +586,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 //                printListItemForUriEntity(uriClassIdIn, quoteClassIdIn, printWriter, entity2, cachedAttrsIn)
 //              } else {
                 // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
-                // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
+                // info in the link itself (the entity name) that has been restricted (ex., made nonpublic).
                 printListItemForEntity(printWriter, relationType, entity2)
 //              }
             }
@@ -602,7 +602,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             if (levelsToExportIsInfiniteIn || levelsRemainingToExportIn - 1 > 0) {
               for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
                 // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
-                // info in the link itself (the entity name) that has been restricted (e.g., made nonpublic).
+                // info in the link itself (the entity name) that has been restricted (ex., made nonpublic).
                 if (isAllowedToExport(entityInGrp, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                                       levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
                   if (entityInGrp.getClassId.isDefined && entityInGrp.getClassId.get == uriClassIdIn) {

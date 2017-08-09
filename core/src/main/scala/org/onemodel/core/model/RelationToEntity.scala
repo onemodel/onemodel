@@ -35,7 +35,7 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: Long, mRelTy
   def getRelatedId2: Long = mEntityId2
 
   /**
-   * @param relatedEntityIn, could be either mEntityId2 or 1: it is always *not* the entity from whose perspective the result will be returned, e.g.,
+   * @param relatedEntityIn, could be either mEntityId2 or 1: it is always *not* the entity from whose perspective the result will be returned, ex.,
    * 'x contains y' OR 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
    * If left None here, the code will make a guess but might output confusing (backwards) info.
    *

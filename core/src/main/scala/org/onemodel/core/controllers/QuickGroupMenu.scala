@@ -34,7 +34,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
    * @param callingMenusRtgIn Only applies if a we were at a QuickGroupMenu and went directly to an entity's sole subgroup: this parm holds
    *                          the RelationToGroup for the group that was being displayed by that prior menu.
    * @param containingEntityIn Since every group was once contained by an entity, this can usually be filled in, but would not if we were viewing an orphaned
-   *                           group (e.g., if its containing entity was deleted?, or cases where we came to the group some other way, not via the entity.)
+   *                           group (ex., if its containing entity was deleted?, or cases where we came to the group some other way, not via the entity.)
    * @return None if user wants out.
    */
   //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation or having all the parms here, but not having to fill them all in.

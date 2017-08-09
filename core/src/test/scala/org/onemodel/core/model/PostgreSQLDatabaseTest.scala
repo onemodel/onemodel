@@ -1403,8 +1403,20 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(mDB, entityId, relTypeId2)
     assert(mDB.getEntitiesOnlyCount() == c2)
 
-    createTestDateAttributeWithOneEntity(entityId)
+    val prevEntitiesUsedAsAttributeTypes = mDB.getCountOfEntitiesUsedAsAttributeTypes(Util.DATE_TYPE, quantitySeeksUnitNotTypeIn = false)
+    val dateAttributeId = createTestDateAttributeWithOneEntity(entityId)
+    val dateAttribute = new DateAttribute(mDB, dateAttributeId)
+    assert(mDB.getCountOfEntitiesUsedAsAttributeTypes(Util.DATE_TYPE, quantitySeeksUnitNotTypeIn = false) == prevEntitiesUsedAsAttributeTypes + 1)
     assert(mDB.getEntitiesOnlyCount() == c2)
+    val dateAttributeTypeEntities: Array[Entity] = mDB.getEntitiesUsedAsAttributeTypes(Util.DATE_TYPE, 0, quantitySeeksUnitNotTypeIn = false)
+                                                   .toArray(new Array[Entity](0 ))
+    var found = false
+    for (dateAttributeType: Entity <- dateAttributeTypeEntities.toArray) {
+      if (dateAttributeType.getId == dateAttribute.getAttrTypeId) {
+        found = true
+      }
+    }
+    assert(found)
 
     createTestBooleanAttributeWithOneEntity(entityId, valIn = false, None, 0)
     assert(mDB.getEntitiesOnlyCount() == c2)

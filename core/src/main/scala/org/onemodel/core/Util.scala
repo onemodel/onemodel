@@ -49,12 +49,15 @@ object Util {
   val DATE_TYPE: String = "DateAttribute"
   val BOOLEAN_TYPE: String = "BooleanAttribute"
   val FILE_TYPE: String = "FileAttribute"
+  val nonRelationAttrTypeNames = Array(Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE, Util.FILE_TYPE, Util.TEXT_TYPE)
   //i.e., "relationTypeType", or the thing that we sometimes put in an attribute type parameter, though not exactly an attribute type, which is "RelationType":
   val RELATION_TYPE_TYPE: String = "RelationType"
   // IF/WHEN EVER UPDATING THESE TABLE NAMES, also update in cleanTestAccount.psql:
   val RELATION_TO_LOCAL_ENTITY_TYPE: String = "RelationToEntity"
   val RELATION_TO_GROUP_TYPE: String = "RelationToGroup"
   val RELATION_TO_REMOTE_ENTITY_TYPE: String = "RelationToRemoteEntity"
+  val relationAttrTypeNames = Array(Util.RELATION_TYPE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE, Util.RELATION_TO_REMOTE_ENTITY_TYPE,
+                                    Util.RELATION_TO_GROUP_TYPE)
   val GROUP_TYPE: String = "Group"
   val ENTITY_CLASS_TYPE: String = "Class"
   val OM_INSTANCE_TYPE: String = "Instance"
@@ -188,7 +191,7 @@ object Util {
 
   val quantityTypePrompt: String = "SELECT TYPE OF QUANTITY (type is like length or volume, but not the measurement unit); ESC or leave both blank to cancel; " +
                                    "cancel if you need to create the needed type before selecting): "
-  val textDescription: String = "TEXT (e.g., serial #)"
+  val textDescription: String = "TEXT (ex., serial #)"
 
   def canEditAttributeOnSingleLine(attributeIn: Attribute): Boolean = {
     ! attributeIn.isInstanceOf[FileAttribute]
@@ -200,7 +203,7 @@ object Util {
 
   val listNextItemsPrompt = "List next items"
   val listPrevItemsPrompt = "List previous items"
-  val relationToGroupNamePrompt = "Type a name for this group (e.g., \"xyz list\"), then press Enter; blank or ESC to cancel"
+  val relationToGroupNamePrompt = "Type a name for this group (ex., \"xyz list\"), then press Enter; blank or ESC to cancel"
 
   def addRemainingCountToPrompt(choicesIn: Array[String], numDisplayedObjects: Long, totalRowsAvailableIn: Long,
                                 startingDisplayRowIndexIn: Long): Array[String] = {
@@ -211,6 +214,25 @@ object Util {
     }
     choicesIn
   }
+
+/*
+  //alternative approach, but will remove because "alt-N" is already used by my custom config in konsole:
+  def addAltKeyTextToPrompt(choicesIn: Array[String], numDisplayedObjects: Long, totalRowsAvailableIn: Long, startingDisplayRowIndexIn: Long,
+                            objectTypeIn: String, showOnlyAttributeTypesIn: Boolean): Array[String] = {
+    val indexOfPrompt = choicesIn.indexOf(listNextItemsPrompt)
+    if (indexOfPrompt >= 0) {
+      // KEEP THIS CONDITION & LOGIC SYNCHRONIZED WITH THE ONE IN Util.addAltKeyTextToPrompt. (really, with the one in Controller that has the part before
+      // these parentheses, as a comment)
+      if (showOnlyAttributeTypesIn) {
+        choicesIn(indexOfPrompt) = choicesIn(indexOfPrompt) + ", OR with Alt key (ex. Alt+1): " + "show all entities " +
+                                   "(not only those already used as a type of " + objectTypeIn
+      } else {
+        choicesIn(indexOfPrompt) = choicesIn(indexOfPrompt) + ", OR with Alt key (ex. Alt+1): " + "show only entities ALREADY used as a type of " + objectTypeIn
+      }
+    }
+    choicesIn
+  }
+*/
 
   def getContainingEntitiesDescription(entityCountNonArchivedIn: Long, entityCountArchivedIn: Long): String = {
     "contained in " + entityCountNonArchivedIn + " entities, and in " + entityCountArchivedIn + " archived entities"

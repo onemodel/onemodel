@@ -1,4 +1,3 @@
-
 #!/bin/bash -eux
 # (I was skipping the "bin/bash" line above so it would run the same on openbsd, but then it doesn't run from dejagnu,
 # so I put it back.)

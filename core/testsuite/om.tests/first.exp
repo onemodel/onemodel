@@ -47,7 +47,7 @@ set test_against_already_built_jar "true"
 
 # PICK JUST *ONE* OF NEXT 2 LINES:
 # A convenient change if **during development only** one sometimes wants to run only
-# the stuff outside relevant "if" statements, for faster test turnaround:
+# the tests outside the relevant "if" statements, for faster test turnaround:
 set testing_newest_code_only "false"
 #set testing_newest_code_only "true"
 
@@ -97,7 +97,7 @@ proc myexpect {expectation} {
       # (can be useful for debugging; not sure why it won't show the actual java stack trace emitted, except in the log:)
       #send_user "\Buffer including error stack trace was:\n$expect_out(buffer) \n"
       #using error instead of "exit 1", to generate a tcl stack trace:
-      error
+      error "Got a java stack trace: see log(s)"
     }
     # The last part of the next line is maintained, though redundant with "error" also in it, because the first one
     # seems more likely to change in which case the last one is needed and I don't want have to look up the wording again:
@@ -161,11 +161,14 @@ proc allow_debugger_attachment {using_debugger debugger_attachment_required} {
   if {$using_debugger == "true"} {
     set wait_time 25
     if {$debugger_attachment_required == "true"} {
-      set required_msg " (ATTACHING W/ DEBUGGER IS *REQUIRED* FOR THIS PART, since \$using_debugger==\"true\" and \$debugger_attachment_required==\"true\""
+      set required_msg ".  ATTACHING W/ DEBUGGER IS *REQUIRED* FOR THIS PART, \
+        since \$using_debugger==\"true\" and \$debugger_attachment_required==\
+        \"true\".  (Note: it might take a bit for the app to be ready to \
+        attach, if it has to complete some mvn logic first.  Sometimes for some reason you might have to hit Enter *then* attach the debugger.)"
     } else {
       set required_msg ""
     }
-    send_user "*** PAUSING ${wait_time}s: to give time to attach the IDE debugger${required_msg}; Enter skips wait)..."
+    send_user "*** PAUSING ${wait_time}s: to give time to attach the IDE debugger${required_msg}; Enter ends the wait)..."
     expect_user {
       -timeout ${wait_time} -re ".*\n" {
         send_user "\n"
@@ -1400,8 +1403,10 @@ if {$using_debugger == "false"} {
     # The d is for debug, s means to wait for it to attach.
     # The reason it is required to attach the debugger as next line says, is that otherwise the test doesn't stop long enough to ever attach
     # and I couldn't verify that it was hitting the needed breakpoints.
+    send_user "starting:  om d s\n"
     spawn om d s
   } else {
+    send_user "starting:  c d s\n"
     spawn $env(SCRIPT_DIR)/c d s
   }
   # Allow extra time (a compromise between too short to work in the debugger, and infinite which ~hangs instead of failing)
