@@ -10,7 +10,7 @@ You should have received a copy of the GNU Affero General Public License along w
 not, see http://www.gnu.org/licenses/  .
 ------------------------
 
-This directory is for dejagnu tests, mainly intended for testing the Text UI / controller / menu features that did not seem to lend themselves to testing with testNG as easily as other classes did.
+This directory is for dejagnu (expect) tests, mainly intended for testing the Text UI / controller / menu features that did not seem to lend themselves to testing with testNG as easily as other classes did.
 
 To run these tests, you can install dejagnu, cd into the testsuite directory, and run the program: runtest, or the convenience
 script in the om project's core/bin/om-expect-tests (or its convenience helper, oet).  They are also run automatically by "mvn verify" (the failsafe plugin), by EntityMenuIT.java and probably others.
