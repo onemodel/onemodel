@@ -215,25 +215,6 @@ object Util {
     choicesIn
   }
 
-/*
-  //alternative approach, but will remove because "alt-N" is already used by my custom config in konsole:
-  def addAltKeyTextToPrompt(choicesIn: Array[String], numDisplayedObjects: Long, totalRowsAvailableIn: Long, startingDisplayRowIndexIn: Long,
-                            objectTypeIn: String, showOnlyAttributeTypesIn: Boolean): Array[String] = {
-    val indexOfPrompt = choicesIn.indexOf(listNextItemsPrompt)
-    if (indexOfPrompt >= 0) {
-      // KEEP THIS CONDITION & LOGIC SYNCHRONIZED WITH THE ONE IN Util.addAltKeyTextToPrompt. (really, with the one in Controller that has the part before
-      // these parentheses, as a comment)
-      if (showOnlyAttributeTypesIn) {
-        choicesIn(indexOfPrompt) = choicesIn(indexOfPrompt) + ", OR with Alt key (ex. Alt+1): " + "show all entities " +
-                                   "(not only those already used as a type of " + objectTypeIn
-      } else {
-        choicesIn(indexOfPrompt) = choicesIn(indexOfPrompt) + ", OR with Alt key (ex. Alt+1): " + "show only entities ALREADY used as a type of " + objectTypeIn
-      }
-    }
-    choicesIn
-  }
-*/
-
   def getContainingEntitiesDescription(entityCountNonArchivedIn: Long, entityCountArchivedIn: Long): String = {
     "contained in " + entityCountNonArchivedIn + " entities, and in " + entityCountArchivedIn + " archived entities"
   }

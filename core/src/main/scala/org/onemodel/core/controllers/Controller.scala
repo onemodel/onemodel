@@ -1033,8 +1033,6 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         leadingText = leadingText ::: List(txt)
       }
       Util.addRemainingCountToPrompt(choicesIn, objectsToDisplay.size, numObjectsAvailable, startingDisplayRowIndexIn)
-      //alternative approach for UI, but will remove because "alt-N" is already used by my custom config in konsole:
-//      Util.addAltKeyTextToPrompt(choicesIn, objectsToDisplay.size, numObjectsAvailable, startingDisplayRowIndexIn, objectTypeIn, showOnlyAttributeTypes)
       val objectStatusesAndNames: Array[String] = objectsToDisplay.toArray.map {
                                                                       case entity: Entity => entity.getArchivedStatusDisplayString + entity.getName
                                                                       case clazz: EntityClass => clazz.getName
@@ -1069,27 +1067,10 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       val answer = ans.get._1
       val userChoseAlternate = ans.get._2
       if (answer == listNextItemsChoiceNum && answer <= choices.length && !userChoseAlternate) {
-        //alternative approach for UI, but will remove because "alt-N" is already used by my custom config in konsole:
-//      if (answer == listNextItemsChoiceNum && answer <= choices.length && !userChoseAlternate) {
         // (For reason behind " && answer <= choices.length", see comment where it is used in entityMenu.)
         val index: Long = getNextStartingObjectIndex(objectsToDisplay.size, numObjectsAvailable)
         chooseOrCreateObject(dbIn, leadingTextIn, previousSelectionDescIn, previousSelectionIdIn, objectTypeIn, index, classIdIn, limitByClassIn,
                              containingGroupIn, markPreviousSelectionIn, Some(showOnlyAttributeTypes), quantitySeeksUnitNotTypeIn)
-
-//        //alternative approach for UI, but will remove because "alt-N" is already used by my custom config in konsole:
-//      } else if (answer == listNextItemsChoiceNum && answer <= choices.length && userChoseAlternate) {
-//        val switchedChoices: Boolean = {
-//          // KEEP THIS CONDITION & LOGIC SYNCHRONIZED WITH THE ONE IN Util.addAltKeyTextToPrompt and the use of showOnlyAttributeTypesIn in calling
-//          // this method.
-//          if (showOnlyAttributeTypes) {
-//            false
-//          } else {
-//            true
-//          }
-//        }
-//        chooseOrCreateObject(dbIn, leadingTextIn, previousSelectionDescIn, previousSelectionIdIn, objectTypeIn, 0, classIdIn, limitByClassIn,
-//                             containingGroupIn, markPreviousSelectionIn, Some(switchedChoices), quantitySeeksUnitNotTypeIn)
-
       } else if (answer == keepPreviousSelectionChoice && answer <= choices.length) {
         // Such as if editing several fields on an attribute and doesn't want to change the first one.
         // Not using "get out" option for this because it would exit from a few levels at once and

@@ -163,14 +163,6 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     } else {
       Some(response.json.as[Boolean])
     }
-    /*For future reference, here is a possible alternative approach to determining if something in JSON is null and responding accordingly:
-    try {
-      // next line gets an exception if it is not null?:
-      response.json.as[Null]
-      None
-    } catch {
-      case e: Exception => Some(response.json.as[Boolean])
-    } */
   }
 
   def getOptionBoolean(pathIn: String): Option[Boolean] = {
