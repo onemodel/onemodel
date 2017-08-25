@@ -619,15 +619,6 @@ class Rest extends play.api.mvc.Controller {
     }
   }
 
-//  def getShouldCreateDefaultAttributes(classIdIn: Long): Action[AnyContent] = Action { implicit request =>
-//    val shouldCreate: Option[Boolean] = db.getShouldCreateDefaultAttributes(classIdIn: Long)
-//    if (shouldCreate.isDefined) {
-//      Ok(new JsBoolean(shouldCreate.get)).as(JSON)
-//    } else {
-//      Ok(JsNull).as(JSON)
-//    }
-//  }
-
   // (About this json conversion: see comment on "implicit val entityWrites".)
   implicit val classWrites = new Writes[EntityClass] {
     def writes(classIn: EntityClass) = {

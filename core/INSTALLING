@@ -53,6 +53,11 @@ are complete.
 
 Installing
 ----------
+(Note: wherever this document refers to documentation at postgresql.org,
+remember you can check the specific document for your version by starting
+at  https://www.postgresql.org/docs/ , or just change the provided link to
+reflect your version, or find it.)
+
 Before installing postgresql, decide whether you want data checksums
 (checksums requires postgresql 9.3 or higher; I haven't tested with
 checksums but they seem to provide a storage integrity feature).
@@ -105,6 +110,7 @@ the username you want to use to access your OneModel data (usually the
 same as your username on the computer; I don't know if spaces will work
 so omit them if your username has any):
 
+#This works for postgresql 9.1 - 9.6, and probably higher:
 host	om_<username>	<username>    127.0.0.1/32    md5
 local	om_<username>	<username>    md5
 host	om_testrunner	testrunner    127.0.0.1/32    password
@@ -116,7 +122,8 @@ local	om_testrunner	testrunner    password
   ...but see the postgresql docs if you have specific configuration
   needs outside of what OM requires.  The "host" lines are necessary
   even if you are only using OM from your own computer, because of how
-  jdbc makes connections.
+  jdbc makes connections.  More at:
+  https://www.postgresql.org/docs/9.6/static/client-authentication.html
 
 - Restart postgresql (as root: "/etc/init.d/postgresql restart").
 
@@ -125,7 +132,8 @@ local	om_testrunner	testrunner    password
 
 
 
-INITIAL POSTGRES CONFIGURATION UNDER OPENBSD, tested with 5.7 and 5.8:
+INITIAL POSTGRES CONFIGURATION UNDER OPENBSD, tested
+with OpenBSD 5.7 and 5.8: --------------------------
 (Corrections solicited as with everything here, but doing this with
 OpenBSD seemed more complicated.)
 As root, run commands one at a time (not as a script), reading each line fully first:
@@ -246,7 +254,7 @@ for the "<...>"'s, removing the <>'s, but *do keep* the single-quotes
   ...(and Enter) to exit psql.
 
 - Developers: still as the postgres user, run the command:
-    createdb om_testrunner -O testrunner
+    createdb om_testrunner --owner testrunner
   ...which is also to enable unit tests.
 
 - Developers: re-enter psql as before but in the om_testrunner database

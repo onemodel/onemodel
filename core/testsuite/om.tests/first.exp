@@ -51,23 +51,6 @@ set test_against_already_built_jar "true"
 set testing_newest_code_only "false"
 #set testing_newest_code_only "true"
 
-#here just for for reference, though it didn't seem to work yet:
-#expect_background {
-#  -nocase ERROR {abort "Error encountered.\n"}
-#  -nocase WARNING {abort "Warning encountered.\n"}
-#  -nocase exception {abort "Exception encountered.\n"}
-
-  # The next line is maintained, though redundant with "ERROR" one just above, because the above one
-  # seems likely to change in which case the next line is needed and I don't want have to look up the wording again:
-  # (WAS experimentally using "abort" instead of "fail" because .. being undefined, it actually causes the script to abort
-  # instead of going on and trying other checks when the program is already in an unexpected state.
-  # What's the better way?)
-#  "An error occurred" {abort "Exception encountered.\n"}
-#}
-# (WAS experimentally Using "abort" instead of "fail" because .. being undefined, it actually causes the script to abort
-# instead of going on and trying other checks when the program is already in an unexpected state.
-# What's the better way?)
-
 
 proc my_simple_expect {expectation} {
   # (Useful when code emits *desired* "ERROR" messages, which proc myexpect would detect and incorrectly fail.)
@@ -1558,29 +1541,3 @@ if {$testing_newest_code_only == "false"} {
 # example of a date/time output (see also "timestamp" in "man expect"):
 send_user "\ndone at: [clock format [clock seconds]]\n"
 
-
-# Raise this # as tests are added--the test output says what the # is.
-# The check is here because ^C (or other interruptions?)
-# caused runtest to exit but it returned a 0 (success) code to om-runtest, and so
-# a failure could be missed.  This makes sure it runs to completion.
-# (If you dont know what # to use, comment the line out, check the testrun.log that was just
-# updated, and update the #, then uncomment the line. Or just uncomment it, but don't commit that.)
-
-
-# Was a test to confirm: tried a search and attribute display on my regular db (not testrunner), with very
-# long output (> 2000 bytes! see "man expect" for that # for why wondering if it would find things before the 2000 bytes went by).
-#send "063Exception\nNa"
-#expect {
-#  ERROR {abort "Error encountered.\n"}
-#  WARNING {abort "Warning encountered.\n"}
-#  -nocase exception {abort "Exception encountered.\n"}
-#  timeout  {abort "didn't find this program is free software; timed out\n";}
-#  -nocase "this program is free software" { pass "found" }
-#}
-#expect {
-#  ERROR {abort "Error encountered.\n"}
-#  WARNING {abort "Warning encountered.\n"}
-#  -nocase exception {abort "Exception encountered.\n"}
-#  timeout  {abort "didn't find org.postgresql.jdbc; timed out\n";}
-#  "org.postgresql.jdbc" { pass "found" }
-#}

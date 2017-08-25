@@ -504,9 +504,6 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getOptionLongFromRest("/entities/" + entityIdIn + "/nearestAttributeSortingIndex/" + startingPointSortingIndexIn + "/" + forwardNotBackIn)
   }
 
-  //  override def getShouldCreateDefaultAttributes(classIdIn: Long): Option[Boolean] = {
-  //    getOptionBoolean("/classes/" + classIdIn + "/shouldCreateDefaultAttributes")
-  //  }
   override def getClassData(idIn: Long): Array[Option[Any]] = {
     getArrayOptionAny("/classes/" + idIn, Array(Database.getClassData_resultTypes))
   }

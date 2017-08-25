@@ -3493,14 +3493,6 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     else name.asInstanceOf[Option[String]]
   }
 
-//   * @return the create_default_attributes boolean value from a given class.
-//   */
-//  def getShouldCreateDefaultAttributes(classIdIn: Long): Option[Boolean] = {
-//    val value: Option[Any]= getClassData(classIdIn)(2)
-//    if (value.isEmpty) None
-//    else value.asInstanceOf[Option[Boolean]]
-//  }
-
   /**
    * @return the create_default_attributes boolean value from a given class.
    */
