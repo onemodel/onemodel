@@ -16,8 +16,10 @@ import scala.collection.mutable
 object Database {
   val dbNamePrefix = "om_"
   // If next line ever changes, search the code for other places that also have it hard-coded, to change also
-  // (ex., INSTALLING, first.exp or its successors, any .psql scripts, ....
-  val TEST_USER: String = "testrunner"
+  // (ex., INSTALLING, first.exp or its successors, any .psql scripts, ....  "t1/x" is shorter to type
+  // during manual testing than "testrunner/testrunner".
+  val TEST_USER: String = "t1"
+  val TEST_PASS: String = "x"
   val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
   // so named to make it unlikely to collide by name with anything else:
   val systemEntityName = ".system-use-only"

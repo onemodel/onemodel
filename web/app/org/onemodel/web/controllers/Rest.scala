@@ -56,7 +56,7 @@ class Rest extends play.api.mvc.Controller {
 //  val db = new PostgreSQLDatabase(user, pass)
 //   This one is for when running the tests in the core module's RestDatabaseTest:
   // (Getting a PostgreSQLDatabase not a Database here, because it actually does need to hit the real data: is not a call to another REST endpoint.)
-  val db: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_USER)
+  val db: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
 
   def id: Action[AnyContent] = Action { implicit request =>
     // This puts quotes around it...

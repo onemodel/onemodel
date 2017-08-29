@@ -12,7 +12,8 @@
 
 set timeout 5
 set test_name "OneModel startup"
-set test_user "testrunner"
+set test_user "t1"
+set test_pass "x"
 
 # diagnostics?:
 # (set next line to 0 to turn off)
@@ -22,8 +23,8 @@ set test_user "testrunner"
 
 # (The other "launch" commands are exec and system)
 # (diagnostics added to commented next line)
-#spawn psql --echo-all --echo-queries -f ${script_dir}/purge-om-test-database.psql --username=${test_user} --password --dbname=om_testrunner
-spawn psql -f ${script_dir}/purge-om-test-database.psql --username=${test_user} --password --dbname=om_testrunner
+#spawn psql --echo-all --echo-queries -f ${script_dir}/purge-om-test-database.psql --username=${test_user} --password --dbname=om_${test_user}
+spawn psql -f ${script_dir}/purge-om-test-database.psql --username=${test_user} --password --dbname=om_${test_user}
 
 set expectation "Password for user ${test_user}:"
 expect {
@@ -33,7 +34,7 @@ expect {
   $expectation
 }
 
-send "testrunner\n"
+send "${test_pass}\n"
 
 set expectation "No relations found."
 expect {

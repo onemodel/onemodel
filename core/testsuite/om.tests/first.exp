@@ -31,7 +31,8 @@ set human_keystroke_wait .4
 set send_human {.4 .4 9999 .4 .4}
 set timeout 3
 set test_name "OneModel startup"
-set test_user "testrunner"
+set test_user "t1"
+set test_pass "x"
 
 # PICK JUST *ONE* OF NEXT 2 LINES:
 # Useful during testing to make sure we hit all new breakpoints for changed code. BUT
@@ -58,7 +59,7 @@ proc my_simple_expect {expectation} {
     # per "man expect", the "default" keyword matches on either "timeout" or "eof" so we don't have to specify both:
     default {
       #using error instead of "exit 1", to generate a tcl stack trace:
-      error
+      error "Got an error looking for \"${expectation}\}."
     }
     # (The "\n" in the next line is so "found" can always be eyeballed in logs at the beginning of a line, even if "PASS: " cannot.
     # AND SIMILARLY ELSEWHERE.)
@@ -216,10 +217,11 @@ proc create_relation_to_entity_quick {containing_name name} {
 proc go_from_mm_to_entity1 {} {
   startproc go_from_mm_to_entity1 true
   global human_keystroke_wait
+  global test_user
 
   # (testing send Enter key on MM; \n didn't work so send a CR, aka \x0D)
   send "\r"
-  myexpect "CURRENT ENTITY.*testrunner"
+  myexpect "CURRENT ENTITY.*${test_user}"
   send a
   myexpect "CURRENT ENTITY.*entity1name.*created"
 
@@ -601,7 +603,7 @@ proc initial_main_menu_prefs_add_default {test_user_name} {
   myexpect "CURRENT ENTITY"
   myexpect "9-Other entity operations"
   send 0
-  myexpect "Main OM menu:.*5/Enter-.*testrunner"
+  myexpect "Main OM menu:.*5/Enter-.*${test_user_name}"
 
   endproc initial_main_menu_prefs_add_default true
 }
@@ -757,7 +759,7 @@ proc entity_menu_create_entity1_rte_entity2_and_html_link {test_user_name} {
 
   #sleep $human_keystroke_wait
   #send " "
-  #myexpect "Main OM menu:.*5/Enter-.*testrunner"
+  #myexpect "Main OM menu:.*5/Enter-.*${test_user}"
   send \r
   create_relation_to_entity_quick ${test_user_name} entity1name
   edit_entity_name_and_restore $test_user_name entity1name a
@@ -766,7 +768,7 @@ proc entity_menu_create_entity1_rte_entity2_and_html_link {test_user_name} {
   myexpect "CURRENT ENTITY.*entity1name"
   create_relation_to_entity_by_quick_search entity1name entity1name
   send 000
-  myexpect "Main OM menu:.*5/Enter-.*testrunner"
+  myexpect "Main OM menu:.*5/Enter-.*${test_user_name}"
   send 5
   create_relation_to_entity_quick $test_user_name entity2name
   send a
@@ -1338,11 +1340,12 @@ proc entity_create_and_edit_text_attribute {} {
   endproc entity_create_and_edit_text_attribute true
 }
 proc startproc {proc_name start_at_MM} {
+  global test_user
   send_user "Starting proc: ${proc_name}\n"
   if {$start_at_MM == "true"} {
     # for when we need to know we start in a predictable spot:
     send 0
-    myexpect "Main OM menu:.*5/Enter-.*testrunner"
+    myexpect "Main OM menu:.*5/Enter-.*${test_user}"
   }
 }
 proc endproc {proc_name end_at_MM} {
@@ -1435,7 +1438,7 @@ send "${test_user}\n"
 # (This comes after the myexpect "Username:", to be sure the app actually launched, including time if we called "c" script so its recompile is finished:)
 allow_debugger_attachment $using_debugger false
 myexpect "Password:"
-send "${test_user}\n"
+send "${test_pass}\n"
 # next line is to give app startup time which it seems to need when running "mvn install":
 sleep 2
 myexpect "a program to manage \\\& share knowledge"
@@ -1496,7 +1499,7 @@ if {$testing_newest_code_only == "false"} {
   create_and_delete_entity entity1name test-deleteme
   archive_and_unarchive
   remove_link_to_container entity1name
-  go_to_related_entity entity1name testrunner
+  go_to_related_entity entity1name ${test_user}
   # (IDEA for future maintainability, also in tasks under: "write something to find menu letter of an entry" ... so it is not hard coded & less fragile.):
   check_entity_relations_etc entity1name a
 
@@ -1522,9 +1525,9 @@ if {$testing_newest_code_only == "false"} {
   # ImportExport
   # first start back at top, then get to a known location & state:
   send 00000
-  myexpect "Main OM menu:.*5/Enter-.*testrunner"
+  myexpect "Main OM menu:.*5/Enter-.*${test_user}"
   send 5
-  myexpect "CURRENT ENTITY.*testrunner.*created.*a-..entity1name"
+  myexpect "CURRENT ENTITY.*${test_user}.*created.*a-..entity1name"
   send a
   set group_menu_letter c
   myexpect "CURRENT ENTITY.*created.*${group_menu_letter}-.group. group2name"
@@ -1535,7 +1538,7 @@ if {$testing_newest_code_only == "false"} {
 
 
   send 00
-  myexpect "Main OM menu:.*5/Enter-.*testrunner"
+  myexpect "Main OM menu:.*5/Enter-.*${test_user}"
 }
 
 # example of a date/time output (see also "timestamp" in "man expect"):

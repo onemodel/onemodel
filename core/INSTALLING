@@ -113,10 +113,12 @@ so omit them if your username has any):
 #This works for postgresql 9.1 - 9.6, and probably higher:
 host	om_<username>	<username>    127.0.0.1/32    md5
 local	om_<username>	<username>    md5
-host	om_testrunner	testrunner    127.0.0.1/32    password
-local	om_testrunner	testrunner    password
+host	om_t1	t1    127.0.0.1/32    password
+local	om_t1	t1    password
 
-  (Details for the interested:	There must be no conflicting lines above
+  (Details for the interested:	"t1" (that is a "one" not lowercase "L")
+  is for running tests (and shorter
+  to type than "testrunner"). There must be no conflicting lines above
   or below these, because when postgresql interprets the file there is
   no drop-through or default behavior, so the first matching line wins.
   ...but see the postgresql docs if you have specific configuration
@@ -157,15 +159,17 @@ your username (the user that will use OM) for the 4 instances of <username>:
 local	all		_postgresql	 peer
 host	om_<username>	<username>    127.0.0.1/32    md5
 local	om_<username>	<username>	  md5
-host	om_testrunner	testrunner    127.0.0.1/32    password
-local	om_testrunner	testrunner	password
+host	om_t1	t1    127.0.0.1/32    password
+local	om_t1	t1	password
 
   Make sure those 5 are the only un-commented lines, or that you
   understand the others and what they do & whether you want that.
 
-  (Details for the interested:	There must be no conflicting lines
-  above or below these, because when postgresql interprets the file
-  there is no drop-through or default behavior, so the first matching
+  (Details for the interested:	"t1" (that is a "one" not lowercase "L")
+  is for running tests (and shorter
+  to type than "testrunner"). There must be no conflicting lines above
+  or below these, because when postgresql interprets the file there
+  is no drop-through or default behavior, so the first matching
   line wins.  Also I commented out all other lines below "Put your actual
   configuration here" except the one that says
     local   all		    postgres
@@ -240,7 +244,7 @@ for the "<...>"'s, removing the <>'s, but *do keep* the single-quotes
   "real" data.)
 
 - Developers: also run this command (with the semicolon):
-    create role testrunner with createdb login encrypted password 'testrunner';
+    create role t1 with login encrypted password 'x';
   ...which is to enable unit tests.
 
 - Run this command (with the semicolon):
@@ -254,11 +258,11 @@ for the "<...>"'s, removing the <>'s, but *do keep* the single-quotes
   ...(and Enter) to exit psql.
 
 - Developers: still as the postgres user, run the command:
-    createdb om_testrunner --owner testrunner
+    createdb om_t1
   ...which is also to enable unit tests.
 
-- Developers: re-enter psql as before but in the om_testrunner database
-    psql om_testrunner
+- Developers: re-enter psql as before but in the om_t1 database
+    psql om_t1
   ...and in it run the command:
     create extension lo;
   ...and

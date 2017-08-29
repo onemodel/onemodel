@@ -35,7 +35,7 @@ class RestDatabaseTest extends FlatSpec with MockitoSugar {
 //  project for the first time has an overall guide for a good dev on-boarding experience.
   /*
 
-  private val mPG: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_USER)
+  private val mPG: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
   // mRD will access mPG via REST, in the tests, so this tests both web module code and core code.
   private val mRD: RestDatabase = new RestDatabase("localhost:9000")
 

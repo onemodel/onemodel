@@ -42,7 +42,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
 
     // instantiation does DB setup (creates tables, default data, etc):
-    mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_USER)
+    mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
 
     mUnitId = mDB.createEntity("centimeters")
     mQuantityAttrTypeId = mDB.createEntity("length")

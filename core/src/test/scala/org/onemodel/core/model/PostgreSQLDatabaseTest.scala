@@ -23,7 +23,7 @@ object PostgreSQLDatabaseTest {
     // This is part of the singleton object, in part so that it can be called even before we have a Database object: this is to avoid
     // doing setup (at first db instantiation for a new system), then immediately another teardown/setup for the tests.
     try {
-      PostgreSQLDatabase.destroyTables(Database.TEST_USER, Database.TEST_USER, Database.TEST_USER)
+      PostgreSQLDatabase.destroyTables(Database.TEST_USER, Database.TEST_USER, Database.TEST_PASS)
     }
     catch {
       case e: java.sql.SQLException =>
@@ -46,7 +46,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   private var mDoDamageBuffer = false
 
   // instantiation does DB setup (creates tables, default data, etc):
-  private val mDB: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_USER) {
+  private val mDB: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS) {
     override def damageBuffer(buffer: Array[Byte]): Unit = {
       if (mDoDamageBuffer) {
         if (buffer.length < 1 || buffer(0) == '0') throw new OmException("Nothing to damage here")
@@ -1450,7 +1450,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     val startDataSetupTime = System.currentTimeMillis()
     val entityId: Long = mDB.createEntity("test object")
     val entity: Entity = new Entity(mDB, entityId)
-    val importExport = new ImportExport(null, new Controller(null, false, Some(Database.TEST_USER), Some(Database.TEST_USER)))
+    val importExport = new ImportExport(null, new Controller(null, false, Some(Database.TEST_USER), Some(Database.TEST_PASS)))
     val importFile: File = importExport.tryImporting_FOR_TESTS("testImportFile0.txt", entity)
     val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db")
     val (fileContents: String, outputFile: File) = importExport.tryExportingTxt_FOR_TESTS(ids, mDB)

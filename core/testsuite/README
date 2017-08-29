@@ -23,7 +23,7 @@ To reproduce dejagnu test problems in debug mode, you can call OM like:
   "om d x"
 or
   "c d x"
-...depending on which version of the variables is used at the top of the first.exp file.  See that file, and the ../core/bin/c and om scripts, for details.  Then when OM launches you can enter the test username and password (per the postgresql installation details you have probably already used, but as of 2017-7-31 the test user AND password are "testrunner").  Then you can attach with a java debugger.  (As of 2017-7-31 it sometimes takes more than one run to get through all the breakpoints--failing with an expect error then getting beyond it the next time; I don't yet know why.).
+...depending on which version of the variables is used at the top of the first.exp file.  See that file, and the ../core/bin/c and om scripts, for details.  Then when OM launches you can enter the test username and password (per the postgresql installation details you have probably already used, but as of 2017-7-31 the test user is "t1" and password is "x" (without quotes).  Then you can attach with a java debugger.  (As of 2017-7-31 it sometimes takes more than one run to get through all the breakpoints--failing with an expect error then getting beyond it the next time; I don't yet know why.).
 
 More info on dejagnu etc for these tests is at:
   man dejagnu

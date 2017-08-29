@@ -276,11 +276,7 @@ fi
 
 # create postgres user account with the right password
 if [[ $USER_TYPE == "test" ]]; then
-  if [[ $USER_NAME == "testrunner" ]]; then
-    PASSWORD="testrunner"
-  else
-    PASSWORD="x"
-  fi
+  PASSWORD="x"
 else
   # will prompt for it via a psql command instead.
   PASSWORD=""

@@ -25,7 +25,7 @@ public class EntityMenuIT {
   @BeforeClass
   protected void setUp() {
     // start w/ a very clean environment so can test that scenario also
-    PostgreSQLDatabase db = new PostgreSQLDatabase(Database.TEST_USER(), Database.TEST_USER());
+    PostgreSQLDatabase db = new PostgreSQLDatabase(Database.TEST_USER(), Database.TEST_PASS());
     db.destroyTables();
   }
   @AfterClass
