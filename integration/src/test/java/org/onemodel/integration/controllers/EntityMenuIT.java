@@ -7,7 +7,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core.controllers;
+package org.onemodel.integration.controllers;
 
 import net.sf.expectit.*;
 import static net.sf.expectit.matcher.Matchers.*;
@@ -19,7 +19,9 @@ import java.lang.Exception;
 import java.util.concurrent.TimeUnit;
 
 @Test
-/** Integration test ("...IT").
+/** Integration test ("...IT").  This is "integration testing", but could be either in the "integration" module,
+ * or in the core module, because (as of 2017-8-30) it doesn't test other modules, just core. That might change soon,
+ * to also test core making web calls, so the web server will need to be started, so it will make sense in "integration".
  */
 public class EntityMenuIT {
   @BeforeClass

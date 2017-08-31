@@ -6,6 +6,9 @@
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
+
+    This file is in the integration module because it exercises code that spans other modules (currently the core module as exposed via the web module,
+    and confirming some operations by hitting the core module directly.).
 */
 package org.onemodel.core.model
 
@@ -33,7 +36,7 @@ class RestDatabaseTest extends FlatSpec with MockitoSugar {
 //  NOTE: WHEN MAKING THESE AUTOMATICALLY RUN AS PART OF "mvn install" OR "mvn verify", BE SURE TO UPDATE THE "INSTALLING" DOCUMENT(s),
 //  AND when updating those docs, keep in mind what EntityMenuIT.java says about the testsuite/README file, so that one coming to the
 //  project for the first time has an overall guide for a good dev on-boarding experience.
-  /*
+/*
 
   private val mPG: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
   // mRD will access mPG via REST, in the tests, so this tests both web module code and core code.
