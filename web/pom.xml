@@ -48,15 +48,6 @@
       <version>${play2.version}</version>
     </dependency>
 
-    <!-- default SLF4J logging implementation, can be replaced by other -->
-    <!-- see https://www.playframework.com/documentation/2.5.x/SettingsLogger for more info -->
-    <dependency>
-      <groupId>com.typesafe.play</groupId>
-      <artifactId>play-logback_2.11</artifactId>
-      <version>${play2.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-
     <!-- required for: "run", "start" and "dist" -->
     <dependency>
       <groupId>com.typesafe.play</groupId>

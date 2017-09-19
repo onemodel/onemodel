@@ -24,6 +24,10 @@ function maven() {
   #rm $LOG
 }
 
+echo "Temporary note: fix this script to handle the new directory structure, & also to update the core/bin/om script"
+echo "so that it also gets the new version.  See/mimic/test the part 'cat LICENSE' below."
+exit 1
+
 echo "Have you done a gp, and had a quiet period to make sure the latest version is working very well?";read
 echo "Have you tested it on a new system (eg an account where OM has never been run) to make sure the startup, initial creation, & setting default entity work right?";read
 

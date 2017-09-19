@@ -28,10 +28,10 @@
     <scala.version>2.11.8</scala.version>
     <scalatest-maven-plugin.version>1.0</scalatest-maven-plugin.version>
     <scalatest_2_11.version>3.0.0</scalatest_2_11.version>
+    <play2.version>2.5.9</play2.version>
   </properties>
   <build>
-    <plugins>
-    </plugins>
+    <defaultGoal>clean install</defaultGoal>
   </build>
   <dependencies>
   </dependencies>

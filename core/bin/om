@@ -38,7 +38,7 @@ fi
 #ulimit -c 1
 #
 set +e
-java $DEBUG -Djline.keybindings="$THIS_SCRIPT_DIR/../jlinebindings.properties" -jar target/onemodel-*.jar $*
+java $DEBUG -jar target/onemodel-core-0.2.0-SNAPSHOT.jar $*
 RESULT=$?
 set -e
 reset #see cmt just below for why. If adapting for other OSes, make sure that cmd doesn't do something drastic. 
