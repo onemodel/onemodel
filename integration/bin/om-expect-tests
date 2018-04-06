@@ -1,4 +1,4 @@
-#!/bin/bash -eux
+#!/usr/local/bin/bash -eux
 
 #    This file is part of OneModel, a program to manage knowledge.
 #    Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
