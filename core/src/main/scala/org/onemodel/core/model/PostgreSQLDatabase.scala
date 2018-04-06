@@ -109,11 +109,11 @@ object PostgreSQLDatabase {
     /*
     //both of these seem to work to embed a ' (single quote) in interactive testing w/ psql: the SQL standard
     //way (according to http://www.postgresql.org/docs/9.1/interactive/sql-syntax-lexical.html#SQL-SYNTAX-STRINGS )
-    //    update entity set (name) = ('len''gth4') where id=-9223372036854775807;
+    //    update entity set (name) = ROW('len''gth4') where id=-9223372036854775807;
     //...or the postgresql extension way (also works for: any char (\a is a), c-like (\b, \f, \n, \r, \t), or
     //hex (eg \x27), or "\u0027 (?) , \U0027 (?)  (x = 0 - 9, A - F)  16 or 32-bit
     //hexadecimal Unicode character value"; see same url above):
-    //    update entity set (name) = (E'len\'gth4') where id=-9223372036854775807;
+    //    update entity set (name) = ROW(E'len\'gth4') where id=-9223372036854775807;
     */
     // we don't have to do much: see the odd string that works ok, searching for "!@#$%" etc in PostgreSQLDatabaseTest.
     result = result.replaceAll("'", "\39")
@@ -709,7 +709,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
 
-      dbAction("UPDATE om_db_version SET (version) = (" + PostgreSQLDatabase.CURRENT_DB_VERSION + ")")
+      dbAction("UPDATE om_db_version SET (version) = ROW(" + PostgreSQLDatabase.CURRENT_DB_VERSION + ")")
       commitTrans()
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
@@ -815,7 +815,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
       dbAction("CREATE TRIGGER rtg_attribute_sorting_cleanup BEFORE DELETE ON RelationToGroup " +
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
-      dbAction("UPDATE om_db_version SET (version) = (1)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(1)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -826,7 +826,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     beginTrans()
     try {
       dbAction("ALTER TABLE class ADD COLUMN create_default_attributes boolean")
-      dbAction("UPDATE om_db_version SET (version) = (2)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(2)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -838,7 +838,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     try {
       dbAction("ALTER TABLE entity ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
       dbAction("ALTER TABLE grupo ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
-      dbAction("UPDATE om_db_version SET (version) = (3)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(3)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -853,7 +853,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                ", entity_id bigint REFERENCES entity (id) ON DELETE RESTRICT " + ") ")
       // (this, or with its successors in later such methods, should be same as the line in createBaseData)
       createOmInstance(java.util.UUID.randomUUID().toString, isLocalIn = true, Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION, None, oldTableName = true)
-      dbAction("UPDATE om_db_version SET (version) = (4)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(4)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -867,7 +867,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       dbAction("alter table om_instance rename to OmInstance")
       // and fix a small math error I had made
       dbAction("alter table omInstance alter column address type varchar(262)")
-      dbAction("UPDATE om_db_version SET (version) = (5)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(5)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -901,7 +901,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       dbAction("CREATE TRIGGER rtre_attribute_sorting_cleanup BEFORE DELETE ON RelationToRemoteEntity " +
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
-      dbAction("UPDATE om_db_version SET (version) = (6)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(6)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -918,7 +918,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
       // When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION and val newVersion in
       // a newly created method!
-      dbAction("UPDATE om_db_version SET (version) = (" + newVersion + ")")
+      dbAction("UPDATE om_db_version SET (version) = ROW(" + newVersion + ")")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -1143,7 +1143,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       // constraint?: (see file:///usr/share/doc/postgresql-doc-9.1/html/sql-createtable.html).
       dbAction("INSERT INTO Entity (id, insertion_date, name, class_id) VALUES (" + entityId + "," + System.currentTimeMillis() + ",'" + entityNameIn + "', NULL)")
       dbAction("INSERT INTO Class (id, name, defining_entity_id) VALUES (" + classId + ",'" + classNameIn + "', " + entityId + ")")
-      dbAction("update Entity set (class_id) = (" + classId + ") where id=" + entityId)
+      dbAction("update Entity set (class_id) = ROW(" + classId + ") where id=" + entityId)
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -1375,17 +1375,17 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def updateEntityOnlyName(idIn: Long, nameIn: String) {
     val name: String = escapeQuotesEtc(nameIn)
-    dbAction("update Entity set (name) = ('" + name + "') where id=" + idIn)
+    dbAction("update Entity set (name) = ROW('" + name + "') where id=" + idIn)
   }
 
   def updateEntityOnlyPublicStatus(idIn: Long, value: Option[Boolean]) {
-    dbAction("update Entity set (public) = (" +
+    dbAction("update Entity set (public) = ROW(" +
              (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
              ") where id=" + idIn)
   }
 
   def updateEntityOnlyNewEntriesStickToTop(idIn: Long, newEntriesStickToTop: Boolean) {
-    dbAction("update Entity set (new_entries_stick_to_top) = ('" + newEntriesStickToTop + "') where id=" + idIn)
+    dbAction("update Entity set (new_entries_stick_to_top) = ROW('" + newEntriesStickToTop + "') where id=" + idIn)
   }
 
   def updateClassAndTemplateEntityName(classIdIn: Long, name: String): Long = {
@@ -1405,12 +1405,12 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def updateClassName(idIn: Long, nameIn: String) {
     val name: String = escapeQuotesEtc(nameIn)
-    dbAction("update class set (name) = ('" + name + "') where id=" + idIn)
+    dbAction("update class set (name) = ROW('" + name + "') where id=" + idIn)
   }
 
   def updateEntitysClass(entityId: Long, classId: Option[Long], callerManagesTransactions: Boolean = false) {
     if (!callerManagesTransactions) beginTrans()
-    dbAction("update Entity set (class_id) = (" +
+    dbAction("update Entity set (class_id) = ROW(" +
              (if (classId.isEmpty) "NULL" else classId.get) +
              ") where id=" + entityId)
     val groupIds = dbQuery("select group_id from EntitiesInAGroup where entity_id=" + entityId, "Long")
@@ -1436,8 +1436,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val directionality: String = escapeQuotesEtc(directionalityIn)
     beginTrans()
     try {
-      dbAction("update Entity set (name) = ('" + name + "') where id=" + idIn)
-      dbAction("update RelationType set (name_in_reverse_direction, directionality) = ('" + nameInReverseDirection + "', " +
+      dbAction("update Entity set (name) = ROW('" + name + "') where id=" + idIn)
+      dbAction("update RelationType set (name_in_reverse_direction, directionality) = ROW('" + nameInReverseDirection + "', " +
                "'" + directionality + "') where entity_id=" + idIn)
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
@@ -1651,7 +1651,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       //Something like the next line might have been more efficient than the above code to run, but not to write, given that it adds a complexity about updating
       //the attributesorting table, which might be more tricky in future when something is added to prevent those from being orphaned. The above avoids that or
       //centralizes the question to one place in the code.
-      //dbAction("UPDATE RelationToEntity SET (entity_id) = (" + newContainingEntityIdIn + ")" + " where id=" + relationToLocalEntityIdIn)
+      //dbAction("UPDATE RelationToEntity SET (entity_id) = ROW(" + newContainingEntityIdIn + ")" + " where id=" + relationToLocalEntityIdIn)
 
       commitTrans()
       newRTE
@@ -1784,7 +1784,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                                                  callerManagesTransactionsIn = true)
 
       // (see comment at similar commented line in moveRelationToLocalEntityToLocalEntity)
-      //dbAction("UPDATE RelationToGroup SET (entity_id) = (" + newContainingEntityIdIn + ")" + " where id=" + relationToGroupIdIn)
+      //dbAction("UPDATE RelationToGroup SET (entity_id) = ROW(" + newContainingEntityIdIn + ")" + " where id=" + relationToGroupIdIn)
 
       commitTrans()
       newRtgId
@@ -2820,12 +2820,12 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def updateSortingIndexInAGroup(groupIdIn: Long, entityIdIn: Long, sortingIndexIn: Long) {
-    dbAction("update EntitiesInAGroup set (sorting_index) = (" + sortingIndexIn + ") where group_id=" + groupIdIn + " and  " +
+    dbAction("update EntitiesInAGroup set (sorting_index) = ROW(" + sortingIndexIn + ") where group_id=" + groupIdIn + " and  " +
              "entity_id=" + entityIdIn)
   }
 
   def updateAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Long) {
-    dbAction("update AttributeSorting set (sorting_index) = (" + sortingIndexIn + ") where entity_id=" + entityIdIn + " and  " +
+    dbAction("update AttributeSorting set (sorting_index) = ROW(" + sortingIndexIn + ") where entity_id=" + entityIdIn + " and  " +
              "attribute_form_id=" + attributeFormIdIn + " and attribute_id=" + attributeIdIn)
   }
 
@@ -3519,7 +3519,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
    * @return the create_default_attributes boolean value from a given class.
    */
   def updateClassCreateDefaultAttributes(classIdIn: Long, value: Option[Boolean]) {
-    dbAction("update class set (create_default_attributes) = (" +
+    dbAction("update class set (create_default_attributes) = ROW(" +
              (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
              ") where id=" + classIdIn)
   }
