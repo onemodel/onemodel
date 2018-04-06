@@ -2108,6 +2108,10 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def getSystemEntityId: Long = {
     val ids: Option[List[Long]] = findEntityOnlyIdsByName(Database.systemEntityName)
+    if (ids == None) {
+      throw new OmDatabaseException("No system entity id (named \"" + Database.systemEntityName + "\") was" +
+                                    " found in the entity table.  Did a new data import fail partway through or something?")
+    }
     require(ids.get.size == 1)
     ids.get.head
   }
