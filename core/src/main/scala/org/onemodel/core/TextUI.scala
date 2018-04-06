@@ -291,14 +291,17 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
   }
 
   private def linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int): Int = {
-    val linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 3 // 3 as described in one caller
+    val linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 5 // 5 as described in one caller
     terminalHeight - linesUsedBeforeMoreChoices
   }
 
   /** The # of attributes ("moreChoices" elsewhere) that will likely fit in the space available on the
-    * screen AFTER the preceding leadingText lines + menu size + 3: 1 line added by askWhich(...) (for the 0/ESC menu option), 1 line for the visual separator,
-    * and 1 line for the cursor at the bottom to not push things off the top.
+    * screen AFTER the preceding leadingText lines + menu size + 5: 1 line added by askWhich(...) (for the 0/ESC menu option), 1 line for the visual separator,
+    * and 1 line for the cursor at the bottom to not push things off the top, and 2 more because entity/group names and the line that shows them at the
+    * top of a menu are long & wrap, so they were still pushing things off the top of the visual space (could have made it 3 more for small windows, but that
+    * might make the list of data too short in some cases, and 2 is probably usually enough if windows aren't too narrow).
     * based on # of available columns and a possible max column width.
+    * SEE ALSO the method linesLeft, which actually has/uses the number.
     */
   def maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int): Int = {
     val maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + objectChooserMenuPrefixLength)
@@ -482,6 +485,7 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
         }
       }
     }
+
 
     displayVisualSeparator()
     if (leadingTextIn.isDefined && leadingTextIn.get.length > 0) {
