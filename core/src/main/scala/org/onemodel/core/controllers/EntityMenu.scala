@@ -19,26 +19,6 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 
 class EntityMenu(override val ui: TextUI, val controller: Controller) extends SortableEntriesMenu(ui) {
-  // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
-  def getChoices(entityIn: Entity, numAttrsIn: Long): Array[String] = {
-    // (idea: might be a little silly to do it this way, once this # gets very big?:)
-    var choices = Array[String]("Add entry quickly (creates a \"has\" relation to a new Entity)",
-                                if (numAttrsIn > 0) "Move selection (*) up/down" else "(stub)",
-
-                                "[app will fill this one in just a bit later, at \"choices (3) = \" below.  KEEP IT IN THIS RELATIVE POSITION OR CHANGE THE" +
-                                " CODE NEAR THE TOP OF entityMenu THAT CHECKS FOR A VALUE IN highlightedAttributeIn]",
-
-                                "Add attribute (add entry with detailed options)",
-                                "Go to selected attribute",
-                                "Search / List next ...")
-    // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
-    choices = choices :+ "Select target (entry move destination: gets a '+' marker)"
-    // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
-    choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; type a letter to go to its attr menu)" else "(stub)")
-    choices = choices :+ (if (controller.getDefaultEntity.isEmpty && !entityIn.mDB.isRemote) "****TRY ME---> " else "") + "Other entity operations..."
-    choices
-  }
-
   /** The parameter attributeRowsStartingIndexIn means: of all the sorted attributes of entityIn, which one is to be displayed first (since we can only display
     * so many at a time with finite screen size).
     * Returns None if user wants out (or if entity was deleted so we should exit to containing menu).
@@ -100,7 +80,8 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
     val (attributeDisplayStrings: Array[String], attributesToDisplay: util.ArrayList[Attribute]) = getItemDisplayStringsAndAttrs(attributeTuples)
 
     // The variable highlightedIndexInObjList means: of the sorted attributes selected *for display* (potentially fewer than all existing attributes),
-    // this is the zero-based index of the one that is marked for possible moving around in the sorted order (in the UI, marked as selected).
+    // this is the zero-based index of the one that is marked for possible moving around in the sorted order (in the UI, marked as selected, relative
+    // to those displayed, not to all).
     val (highlightedIndexInObjList: Option[Int], highlightedEntry: Option[Attribute], moveTargetIndexInObjList: Option[Int],
     targetForMoves: Option[Attribute]) = {
       if (attributeTuples.length == 0) {
@@ -328,6 +309,26 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
       else None
   }
 
+  // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
+  def getChoices(entityIn: Entity, numAttrsIn: Long): Array[String] = {
+    // (idea: might be a little silly to do it this way, once this # gets very big?:)
+    var choices = Array[String]("Add entry quickly (creates a \"has\" relation to a new Entity)",
+                                if (numAttrsIn > 0) "Move selection (*) up/down" else "(stub)",
+
+                                "[app will fill this one in just a bit later, at \"choices (3) = \" below.  KEEP IT IN THIS RELATIVE POSITION OR CHANGE THE" +
+                                " CODE NEAR THE TOP OF entityMenu THAT CHECKS FOR A VALUE IN highlightedAttributeIn]",
+
+                                "Add attribute (add entry with detailed options)",
+                                "Go to selected attribute",
+                                "Search / List next ...")
+    // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
+    choices = choices :+ "Select target (entry move destination: gets a '+' marker)"
+    // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
+    choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; type a letter to go to its attr menu)" else "(stub)")
+    choices = choices :+ (if (controller.getDefaultEntity.isEmpty && !entityIn.mDB.isRemote) "****TRY ME---> " else "") + "Other entity operations..."
+    choices
+  }
+
   def goToAttributeThenRedisplayHere(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
                                      containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates], containingGroupIn: Option[Group],
                                      attributeTuples: Array[(Long, Attribute)], attributesToDisplay: util.ArrayList[Attribute],
@@ -501,9 +502,9 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
                                                                                                 " " + containingRelationToEntityIn.get.getParentId + ".")
     }
     val choices = Array[String](// (see comments at similar location in same-named method of QuickGroupMenu.)
-                                "Move up 25",
+                                "Move up " + controller.moveFartherCount,
                                 "Move up 5", "Move up 1", "Move down 1", "Move down 5",
-                                "Move down 25",
+                                "Move down " + controller.moveFartherCount,
 
                                 if (targetForMovesIn.isDefined) "Move (*) to selected target (+, if any)"
                                 else "(stub: have to choose a target before you can move entries into it)",
@@ -517,7 +518,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
       var forwardNotBack = false
       if (answer >= 1 && answer <= 6) {
         if (answer == 1) {
-          numRowsToMove = 20
+          numRowsToMove = controller.moveFartherCount
         } else if (answer == 2) {
           numRowsToMove = 5
         } else if (answer == 3) {
@@ -529,7 +530,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           numRowsToMove = 5
           forwardNotBack = true
         } else if (answer == 6) {
-          numRowsToMove = 20
+          numRowsToMove = controller.moveFartherCount
           forwardNotBack = true
         }
         val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.mDB, entityIn.getId, totalAttrsAvailable, numRowsToMove,

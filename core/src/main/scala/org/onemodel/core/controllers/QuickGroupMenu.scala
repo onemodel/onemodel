@@ -89,9 +89,9 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
     val choices = Array[String](// these are ordered for convenience in doing them w/ the left hand: by frequency of use, and what seems easiest to remember
                                 // for common operations with the 4 fingers sitting on the '1234' keys.  Using LH more in this because my RH gets tired more,
                                 // and it seems like often people have their RH on the mouse.
-                                "Move up 25",
+                                "Move up " + controller.moveFartherCount,
                                 "Move up 5", "Move up 1", "Move down 1", "Move down 5",
-                                "Move down 25",
+                                "Move down " + controller.moveFartherCount,
 
                                 if (targetForMovesIn.isDefined) "Move (*) to selected target (+, if any)"
                                 else "(stub: have to choose a target before you can move entries into it)",
@@ -111,7 +111,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
 
       if (answer >= 1 && answer <= 6) {
         if (answer == 1) {
-          numRowsToMove = 20
+          numRowsToMove = controller.moveFartherCount
         } else if (answer == 2) {
           numRowsToMove = 5
         } else if (answer == 3) {
@@ -123,7 +123,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
           numRowsToMove = 5
           forwardNotBack = true
         } else if (answer == 6) {
-          numRowsToMove = 20
+          numRowsToMove = controller.moveFartherCount
           forwardNotBack = true
         }
         val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), numRowsToMove, forwardNotBack,

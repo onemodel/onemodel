@@ -38,6 +38,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   // This should *not* be passed around as a parameter to everything, but rather those places in the code should get the DB instance from the
   // entity (or other model object) being processed.
   private val localDb: Database = tryLogins(forceUserPassPromptIn, defaultUsernameIn, defaultPasswordIn)
+  val moveFartherCount = 25
 
   /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
   def getDefaultEntity: Option[(Long, Entity)] = {
