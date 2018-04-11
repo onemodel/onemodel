@@ -509,14 +509,15 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
                                 if (targetForMovesIn.isDefined) "Move (*) to selected target (+, if any)"
                                 else "(stub: have to choose a target before you can move entries into it)",
 
-                                "Move (*) to calling menu (up one)")
+                                "Move (*) to calling menu (up one)",
+                                "Move down " + controller.moveFarthestCount + " but keep data display position ")
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn))
     if (response.isEmpty) (startingDisplayRowIndexIn, false)
     else {
       val answer = response.get
       var numRowsToMove = 0
       var forwardNotBack = false
-      if (answer >= 1 && answer <= 6) {
+      if ((answer >= 1 && answer <= 6) || answer == 9) {
         if (answer == 1) {
           numRowsToMove = controller.moveFartherCount
         } else if (answer == 2) {
@@ -532,12 +533,25 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
         } else if (answer == 6) {
           numRowsToMove = controller.moveFartherCount
           forwardNotBack = true
+        } else if (answer == 9) {
+          numRowsToMove = controller.moveFarthestCount
+          forwardNotBack = true
         }
-        val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.mDB, entityIn.getId, totalAttrsAvailable, numRowsToMove,
-                                                                 forwardNotBackIn = forwardNotBack, startingDisplayRowIndexIn, highlightedAttributeIn.getId,
-                                                                 highlightedIndexInObjListIn, Some(highlightedAttributeIn.getId),
-                                                                 numObjectsToDisplayIn, highlightedAttributeIn.getFormId,
-                                                                 Some(highlightedAttributeIn.getFormId))
+        val displayStartingRowNumber: Int = {
+          val possibleDisplayStartingRowNumber = placeEntryInPosition(entityIn.mDB, entityIn.getId, totalAttrsAvailable, numRowsToMove,
+                               forwardNotBackIn = forwardNotBack, startingDisplayRowIndexIn, highlightedAttributeIn.getId,
+                               highlightedIndexInObjListIn, Some(highlightedAttributeIn.getId),
+                               numObjectsToDisplayIn, highlightedAttributeIn.getFormId,
+                               Some(highlightedAttributeIn.getFormId))
+          if (answer != 9) {
+            possibleDisplayStartingRowNumber
+          } else {
+            // (This will keep the starting index in place, AND the highlight parameter in the menu on the old object,
+            // so for now that will make the default, 1st, entry highlighted, but if you page forward in the UI, the
+            // previously highlighted just-moved entry, still will be highlighted.  An accidental and awkward but helpful effect.)
+            startingDisplayRowIndexIn
+          }
+        }
         (displayStartingRowNumber, false)
       } else if (answer == 7 && targetForMovesIn.isDefined) {
         if (!(

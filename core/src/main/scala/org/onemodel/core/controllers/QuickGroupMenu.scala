@@ -96,9 +96,11 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
                                 if (targetForMovesIn.isDefined) "Move (*) to selected target (+, if any)"
                                 else "(stub: have to choose a target before you can move entries into it)",
 
-                                "Move (*) to calling menu (up one)"
-                                // idea: make an option #9 here which is a "quick archive"? (for removing completed tasks: maybe only after showing
+                                "Move (*) to calling menu (up one)",
+                                "Move down " + controller.moveFarthestCount + " but keep data display position "
+                                // idea: make an option here which is a "quick archive"? (for removing completed tasks: maybe only after showing
                                 // archived things and "undo" works well, or use 9 for the 'cut' part of a logical 'cut/paste' operation to move something?)
+                                // But, would have to start using alt keys to distinguish between options chosen when there are that many?
                                )
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn),
                                secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -109,7 +111,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
       var numRowsToMove = 0
       var forwardNotBack = false
 
-      if (answer >= 1 && answer <= 6) {
+      if ((answer >= 1 && answer <= 6) || answer == 9) {
         if (answer == 1) {
           numRowsToMove = controller.moveFartherCount
         } else if (answer == 2) {
@@ -125,10 +127,21 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
         } else if (answer == 6) {
           numRowsToMove = controller.moveFartherCount
           forwardNotBack = true
+        } else if (answer == 9) {
+          numRowsToMove = controller.moveFarthestCount
+          forwardNotBack = true
         }
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), numRowsToMove, forwardNotBack,
-                                                                 startingDisplayRowIndexIn, highlightedObjId, highlightedIndexInObjListIn,
-                                                                 Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
+        val displayStartingRowNumber: Int = {
+          val possibleDisplayStartingRowNumber = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), numRowsToMove, forwardNotBack,
+                               startingDisplayRowIndexIn, highlightedObjId, highlightedIndexInObjListIn,
+                               Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
+          if (answer != 9) {
+            possibleDisplayStartingRowNumber
+          } else {
+            // (see note at same place in EntityMenu, re the position and the highlight)
+            startingDisplayRowIndexIn
+          }
+        }
         quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 7 && targetForMovesIn.isDefined) {
         val targetRtgCount: Long = targetForMovesIn.get.getRelationToGroupCount

@@ -39,6 +39,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   // entity (or other model object) being processed.
   private val localDb: Database = tryLogins(forceUserPassPromptIn, defaultUsernameIn, defaultPasswordIn)
   val moveFartherCount = 25
+  val moveFarthestCount = 50
 
   /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
   def getDefaultEntity: Option[(Long, Entity)] = {
