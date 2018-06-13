@@ -1,0 +1,15 @@
+version: '3'
+services:
+  db:
+    image: postgres
+    volumes:
+      - ./other-untracked/db:/var/lib/postgresql/data:z
+  om:
+    build: .
+    volumes:
+      - .:/onemodel:z
+    environment:
+      - PGHOST=db
+      - PGUSER=postgres
+    depends_on:
+      - db

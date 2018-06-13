@@ -26,6 +26,7 @@ import org.postgresql.largeobject.{LargeObject, LargeObjectManager}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.Sorting
+import java.net.ConnectException
 
 /** Some methods are here on the object, so that PostgreSQLDatabaseTest can call destroyTables on test data.
   */
@@ -257,9 +258,19 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def connect(dbNameWithoutPrefixIn: String, username: String, password: String) {
-    try if (mConn != null) mConn.close()
-    catch {case e: Exception => throw new RuntimeException(e)}
-    mConn = DriverManager.getConnection("jdbc:postgresql:" + dbNameWithoutPrefixIn, username, password)
+    try
+      if (mConn != null)
+        mConn.close()
+    catch {
+      case e: Exception => throw new RuntimeException(e)
+    }
+
+    val url = Option(System.getenv("PGHOST")) match {
+      case Some(host) => s"jdbc:postgresql://$host/$dbNameWithoutPrefixIn"
+      case None => s"jdbc:postgresql:$dbNameWithoutPrefixIn" 
+    }
+
+    mConn = DriverManager.getConnection(url, username, password)
     mConn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
   }
 
@@ -709,7 +720,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
 
-      dbAction("UPDATE om_db_version SET (version) = (" + PostgreSQLDatabase.CURRENT_DB_VERSION + ")")
+      dbAction(s"UPDATE om_db_version SET version = ${PostgreSQLDatabase.CURRENT_DB_VERSION}")
       commitTrans()
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
@@ -1143,7 +1154,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       // constraint?: (see file:///usr/share/doc/postgresql-doc-9.1/html/sql-createtable.html).
       dbAction("INSERT INTO Entity (id, insertion_date, name, class_id) VALUES (" + entityId + "," + System.currentTimeMillis() + ",'" + entityNameIn + "', NULL)")
       dbAction("INSERT INTO Class (id, name, defining_entity_id) VALUES (" + classId + ",'" + classNameIn + "', " + entityId + ")")
-      dbAction("update Entity set (class_id) = (" + classId + ") where id=" + entityId)
+      dbAction(s"update Entity set class_id = $classId where id=$entityId")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
