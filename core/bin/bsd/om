@@ -39,7 +39,8 @@ fi
 #ulimit -c 1
 #
 set +e
-java $DEBUG -jar target/onemodel-core-0.2.0-SNAPSHOT.jar $*
+# (user.name set for convenience with Docker.)
+java $DEBUG -Duser.name="$USER" -jar target/onemodel-core-0.2.0-SNAPSHOT.jar $*
 RESULT=$?
 set -e
 reset #see cmt just below for why. If adapting for other OSes, make sure that cmd doesn't do something drastic. 

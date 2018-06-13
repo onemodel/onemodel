@@ -34,9 +34,16 @@ object PostgreSQLDatabase {
   val CURRENT_DB_VERSION = 7
   def destroyTables(dbNameWithoutPrefixIn: String, username: String, password: String) {
     Class.forName("org.postgresql.Driver")
-    val conn: Connection = DriverManager.getConnection("jdbc:postgresql:" + Database.dbNamePrefix + dbNameWithoutPrefixIn, username, password)
+    val conn: Connection = DriverManager.getConnection(jdbcUrl(dbNameWithoutPrefixIn), username, password)
     conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
     destroyTables_helper(conn)
+  }
+
+  def jdbcUrl(dbNameWithoutPrefixIn: String): String = {
+    Option(System.getenv("PGHOST")) match {
+      case Some(host) => "jdbc:postgresql://" + host + "/" + Database.dbNamePrefix + dbNameWithoutPrefixIn
+      case None => "jdbc:postgresql:" + Database.dbNamePrefix + dbNameWithoutPrefixIn
+    }
   }
 
   private def destroyTables_helper(connIn: Connection) {
@@ -218,7 +225,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   private var mIncludeArchivedEntities = false
 
   Class.forName("org.postgresql.Driver")
-  connect(Database.dbNamePrefix + username, username, password)
+  connect(username, username, password)
   // clear the password from memory. Is there a better way?:
   password = null
   System.gc()
@@ -257,9 +264,14 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def connect(dbNameWithoutPrefixIn: String, username: String, password: String) {
-    try if (mConn != null) mConn.close()
-    catch {case e: Exception => throw new RuntimeException(e)}
-    mConn = DriverManager.getConnection("jdbc:postgresql:" + dbNameWithoutPrefixIn, username, password)
+    try {
+      if (mConn != null) {
+        mConn.close()
+      }
+    } catch {
+      case e: Exception => throw new RuntimeException(e)
+    }
+    mConn = DriverManager.getConnection(PostgreSQLDatabase.jdbcUrl(dbNameWithoutPrefixIn), username, password)
     mConn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
   }
 
@@ -1080,7 +1092,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     resultsInOut
   }
 
-  /** Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.  
+  /** Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.
     */
   def createBaseData() {
     // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?

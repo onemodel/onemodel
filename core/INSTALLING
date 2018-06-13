@@ -53,6 +53,8 @@ are complete.
 
 Installing
 ----------
+(There is a docker-specific section below if you know you want that.)
+
 (Note: wherever this document refers to documentation at postgresql.org,
 remember you can check the specific document for your version by starting
 at  https://www.postgresql.org/docs/ , or just change the provided link to
@@ -325,6 +327,40 @@ Compiling, above), you can:
        ...which runs integration tests against the .jar file built above
        by "mvn clean package".  For failures, see details in the file 
        integration/testsuite/README ).
+
+
+Docker
+------
+It might be easier to use `docker` to install and run OneModel. Once you've installed
+`docker` and `docker-compose`, change into your checked-out copy of the source and run:
+
+  docker-compose up
+
+This should start a postgres database in a container. We need to create the postgres
+database that `om` is looking for, so run:
+
+  docker-compose run om psql
+
+And in the `psql` session, run:
+
+  create database om_<yourusername>;
+  \c om_<yourusername>
+  create extension lo;
+  create role <yourusername> with createdb login encrypted password '<putYourPasswordHere>';
+  <CTRL+D>
+
+It might be worthwhile being familiar with the above more detailed steps, 
+for example choosing a password that lets OM start without prompting, 
+for possible troubleshooting, etc.
+
+Now you can run OneModel! From your terminal:
+
+  docker-compose run om om
+
+To run the tests, you'll need to create the `t1` role & its database as described in
+Verifying, above. Then run:
+
+  docker-compose run om mvn verify
 
 
 Running
