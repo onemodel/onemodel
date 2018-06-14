@@ -1714,8 +1714,9 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       val newEntityName: Option[String] = ui.askForString(Some(Array {"Enter a name (or description) for this web page or other URI"}))
       if (newEntityName.isEmpty || newEntityName.get.isEmpty) return None
 
-      val ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (normal) or the" +
-                                                " clipboard (faster sometimes)?")), Array("keyboard", "clipboard"))
+      val ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (typing or directly pasting), or" +
+                                                " have OM pull directly from the clipboard (faster sometimes)?")), 
+                                                Array("keyboard", "clipboard"))
       if (ans1.isEmpty) return None
       val keyboardOrClipboard1 = ans1.get
       val uri: String = if (keyboardOrClipboard1 == 1) {
@@ -1727,8 +1728,10 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         Util.getClipboardContent
       }
 
-      val ans2 = ui.askWhich(Some(Array[String]("Do you want to enter a quote from it, via the keyboard (normal) or the" +
-                                                " clipboard (faster sometimes, especially if it's multiline)? Or, ESC to not enter a quote.")),
+      val ans2 = ui.askWhich(Some(Array[String]("Do you want to enter a quote from it, via the keyboard (typing or directly pasting) or" +
+                                                " have OM pull directly from the clipboard (faster sometimes, especially if " +
+                                                " it's multiline)? Or, ESC to not enter a quote. (Tip: if it is a whole file, just put in" +
+                                                " a few characters from the keyboard, then go back and edit as multiline to put in all.)")),
                              Array("keyboard", "clipboard"))
       val quote: Option[String] = if (ans2.isEmpty) {
         None
