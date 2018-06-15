@@ -35,9 +35,19 @@ object PostgreSQLDatabase {
   val CURRENT_DB_VERSION = 7
   def destroyTables(dbNameWithoutPrefixIn: String, username: String, password: String) {
     Class.forName("org.postgresql.Driver")
-    val conn: Connection = DriverManager.getConnection("jdbc:postgresql:" + Database.dbNamePrefix + dbNameWithoutPrefixIn, username, password)
+    val conn: Connection = DriverManager.getConnection(
+        jdbcurl(dbNameWithoutPrefixIn),
+        username,
+        password)
     conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
     destroyTables_helper(conn)
+  }
+
+  def jdbcurl(dbNameWithoutPrefixIn: String): String = {
+    Option(System.getenv("PGHOST")) match {
+      case Some(host) => s"jdbc:postgresql://$host/${Database.dbNamePrefix}$dbNameWithoutPrefixIn"
+      case None => s"jdbc:postgresql:${Database.dbNamePrefix}$dbNameWithoutPrefixIn"
+    }
   }
 
   private def destroyTables_helper(connIn: Connection) {
@@ -219,7 +229,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   private var mIncludeArchivedEntities = false
 
   Class.forName("org.postgresql.Driver")
-  connect(Database.dbNamePrefix + username, username, password)
+  connect(username, username, password)
   // clear the password from memory. Is there a better way?:
   password = null
   System.gc()
@@ -265,12 +275,10 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       case e: Exception => throw new RuntimeException(e)
     }
 
-    val url = Option(System.getenv("PGHOST")) match {
-      case Some(host) => s"jdbc:postgresql://$host/$dbNameWithoutPrefixIn"
-      case None => s"jdbc:postgresql:$dbNameWithoutPrefixIn" 
-    }
-
-    mConn = DriverManager.getConnection(url, username, password)
+    mConn = DriverManager.getConnection(
+        PostgreSQLDatabase.jdbcurl(dbNameWithoutPrefixIn),
+        username,
+        password)
     mConn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
   }
 
@@ -1091,7 +1099,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     resultsInOut
   }
 
-  /** Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.  
+  /** Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.
     */
   def createBaseData() {
     // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?
@@ -1384,17 +1392,15 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def updateEntityOnlyName(idIn: Long, nameIn: String) {
     val name: String = escapeQuotesEtc(nameIn)
-    dbAction("update Entity set (name) = ('" + name + "') where id=" + idIn)
+    dbAction(s"update Entity set name = '$name' where id=$idIn")
   }
 
   def updateEntityOnlyPublicStatus(idIn: Long, value: Option[Boolean]) {
-    dbAction("update Entity set (public) = (" +
-             (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
-             ") where id=" + idIn)
+    dbAction(s"update Entity set public = ${value.map(_.toString).getOrElse("NULL")} where id=$idIn")
   }
 
   def updateEntityOnlyNewEntriesStickToTop(idIn: Long, newEntriesStickToTop: Boolean) {
-    dbAction("update Entity set (new_entries_stick_to_top) = ('" + newEntriesStickToTop + "') where id=" + idIn)
+    dbAction(s"update Entity set new_entries_stick_to_top = '$newEntriesStickToTop' where id=$idIn")
   }
 
   def updateClassAndTemplateEntityName(classIdIn: Long, name: String): Long = {
@@ -1414,14 +1420,12 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def updateClassName(idIn: Long, nameIn: String) {
     val name: String = escapeQuotesEtc(nameIn)
-    dbAction("update class set (name) = ('" + name + "') where id=" + idIn)
+    dbAction(s"update class set name = '$name' where id=$idIn")
   }
 
   def updateEntitysClass(entityId: Long, classId: Option[Long], callerManagesTransactions: Boolean = false) {
     if (!callerManagesTransactions) beginTrans()
-    dbAction("update Entity set (class_id) = (" +
-             (if (classId.isEmpty) "NULL" else classId.get) +
-             ") where id=" + entityId)
+    dbAction(s"update Entity set class_id = ${classId.getOrElse("NULL")} where id=$entityId")
     val groupIds = dbQuery("select group_id from EntitiesInAGroup where entity_id=" + entityId, "Long")
     for (row <- groupIds) {
       val groupId = row(0).get.asInstanceOf[Long]
@@ -1445,7 +1449,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val directionality: String = escapeQuotesEtc(directionalityIn)
     beginTrans()
     try {
-      dbAction("update Entity set (name) = ('" + name + "') where id=" + idIn)
+      dbAction(s"update Entity set name = '$name' where id=$idIn")
       dbAction("update RelationType set (name_in_reverse_direction, directionality) = ('" + nameInReverseDirection + "', " +
                "'" + directionality + "') where entity_id=" + idIn)
     } catch {
@@ -2809,13 +2813,11 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def updateSortingIndexInAGroup(groupIdIn: Long, entityIdIn: Long, sortingIndexIn: Long) {
-    dbAction("update EntitiesInAGroup set (sorting_index) = (" + sortingIndexIn + ") where group_id=" + groupIdIn + " and  " +
-             "entity_id=" + entityIdIn)
+    dbAction(s"update EntitiesInAGroup set sorting_index = $sortingIndexIn  where group_id=$groupIdIn and entity_id=$entityIdIn")
   }
 
   def updateAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Long) {
-    dbAction("update AttributeSorting set (sorting_index) = (" + sortingIndexIn + ") where entity_id=" + entityIdIn + " and  " +
-             "attribute_form_id=" + attributeFormIdIn + " and attribute_id=" + attributeIdIn)
+    dbAction(s"update AttributeSorting set sorting_index = $sortingIndexIn where entity_id=$entityIdIn and attribute_form_id=$attributeFormIdIn  and attribute_id=$attributeIdIn")
   }
 
   /** Returns whether the stored and calculated md5hashes match, and an error message when they don't.
@@ -3508,9 +3510,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
    * @return the create_default_attributes boolean value from a given class.
    */
   def updateClassCreateDefaultAttributes(classIdIn: Long, value: Option[Boolean]) {
-    dbAction("update class set (create_default_attributes) = (" +
-             (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
-             ") where id=" + classIdIn)
+    dbAction(s"update class set create_default_attributes = ${value.map(_.toString).getOrElse("NULL")} where id=$classIdIn")
   }
 
   def getTextEditorCommand: String = {

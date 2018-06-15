@@ -335,7 +335,12 @@ And in the `psql` session, run:
 
 Now you can run OneModel! From your terminal:
 
-  docker-compose run om /onemodel/core/bin/om
+  docker-compose run om om
+
+To run the tests, you'll need to create the `t1` role & its database as described in
+Verifying, above. Then run:
+
+  docker-compose run om mvn verify
 
 
 Running

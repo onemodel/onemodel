@@ -152,6 +152,9 @@
           <junitxml>.</junitxml>
           <!--filereports>WDF TestSuite.txt</filereports-->
           <filereports>scalatestTestSuite.txt</filereports>
+          <systemProperties>
+            <user.timezone>MST</user.timezone>
+          </systemProperties>
         </configuration>
         <executions>
           <execution>
