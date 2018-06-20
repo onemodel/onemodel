@@ -13,7 +13,8 @@
 # This is a convenient way to run dejagnu and see the output for quick debugging turnaround.
 # See core/testsuite/README for more about use of expect and gnutest.
 
-export SCRIPT_DIR="$(dirname $(readlink -e $0))"
+# (Use "readlink -f" not ".. -e" so it will work also on openbsd.)
+export SCRIPT_DIR="$(dirname $(readlink -f $0))"
 
 # ("set +e" is to continue if runtest returns an error, to show the errror code instead of failing:)
 set +e

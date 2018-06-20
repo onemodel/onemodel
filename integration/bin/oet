@@ -14,7 +14,8 @@ set -eux
 # A convenience script which has a shorter name and tries to show the logs for debugging.  
 # To work, the script om-expect-tests, part of the om source code, should be in the path, as should the om script itself.
 
-export SCRIPT_DIR="$(dirname $(readlink -e $0))"
+# (Use "readlink -f" not ".. -e" so it will work also on openbsd.)
+export SCRIPT_DIR="$(dirname $(readlink -f $0))"
 
 om-expect-tests
 

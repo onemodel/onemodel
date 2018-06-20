@@ -340,9 +340,18 @@ proc export_html {entity_name_to_confirm_right_menu} {
   sleep $human_keystroke_wait
   send "2017 john doe\n"
   sleep $human_keystroke_wait
+  # (About next line: not previously needed as it picked up the default
+  # value provided to the user by OM itself. Why not now: difference in 
+  # running under xterm under ssh on my system, or some timing 
+  # thing?  Was previously working w/o, under linux & konsole, now sure if 
+  # ssh.)
+  send "0"
   send \n
   myexpect "Include metadata"
   sleep $human_keystroke_wait
+  # (About next 2 lines, similar to comment above:  not previously needed.)
+  send \x08\x08
+  send n
   send \n
   myexpect "Include public data"
   sleep $human_keystroke_wait
@@ -1074,6 +1083,13 @@ proc check_group_menu {containing_entity_name group_menu_letter} {
   myexpect "Enter file path"
   # ESC (that is far enough for this test for now):
   send \x1B
+  # ESC twice now for some reason on openbsd, not linux? only sometimes? 
+  # A difference in
+  # terminals? (xterm/openbsd/ssh, vs. konsole/linux?)  Or, jline
+  # behavior different on openbsd than linux? or something else
+  # changed? retry on linux & see if this breaks it?:
+  send \x1B
+
   myexpect "ENTITY GROUP.*regular menu.*group2name.*class"
 
   send 31

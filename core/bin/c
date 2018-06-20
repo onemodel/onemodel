@@ -16,7 +16,8 @@
 # without taking the time to build a jar first.
 
 set -eux
-SCRIPT_DIR="$(dirname $(readlink -e $0))"
+# (Use "readlink -f" not ".. -e" so it will work also on openbsd.)
+SCRIPT_DIR="$(dirname $(readlink -f $0))"
 pushd $SCRIPT_DIR/..
 
 if [[ $(uname -a|grep -i openbsd|wc -l) -eq 1 ]]; then

@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash 
+#!/bin/bash 
 #    This file is part of OneModel, a program to manage knowledge.
 #    Copyright in each year of 2010-2017 inclusive, Luke A Call; all rights reserved.
 #    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
@@ -10,12 +10,12 @@
 #    not, see http://www.gnu.org/licenses/  .
 
 set -eu
-#doesn't work on machines w/ different paths:  #!/bin/bash -eu
 #...BUT: I put it back because otherwise running under testrun (of dejagnu) gets an error.
 
 #useful to debug or observe scripts if uncommented:
 #set -x
 
+# (Use "readlink -f" not ".. -e" so it will work also on openbsd.)
 THIS_SCRIPT_DIR=$(dirname $(readlink -fn $0))
 cd "$THIS_SCRIPT_DIR"/..
 

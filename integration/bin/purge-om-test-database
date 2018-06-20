@@ -13,7 +13,8 @@
 # Called by script om-expect-tests, but kept separate so can also be conveniently
 # called from the CLI.
 
-SCRIPT_DIR="$(dirname $(readlink -e $0))"
+# (Use "readlink -f" not ".. -e" so it will work also on openbsd.)
+SCRIPT_DIR="$(dirname $(readlink -f $0))"
 
 # Purge the test database (see core/testsuite/README for more about expect):
 # (The line with "-d" added increases the debug output. The commands being called
@@ -22,6 +23,6 @@ SCRIPT_DIR="$(dirname $(readlink -e $0))"
 expect -c "set script_dir $SCRIPT_DIR" -f $SCRIPT_DIR/purge-om-test-database.exp
 RESULT=$?
 
-# Couldn't get here, due to "-e" above and expect checks in the .exp file, if it were not successful so far:
+# Couldn't get here, due to "-e" switch to bash above and expect checks in the .exp file, if it were not successful so far:
 echo "result: OM db purge success."
 exit $RESULT

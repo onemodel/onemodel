@@ -19,6 +19,12 @@ To run dejagnu tests in debug mode (to hit breakpoints in the IDE, for example),
 
 For other convenience during development, see the next 2 variables immediately after that.
 
+For seeing why "mvn verify" fails, see the output of course, but then see what happens when you run
+the tests using the script integration/bin/oet , because that shows test log files with some details.
+Looking inside that script can give more insight.  You also might have to change the 1st line of
+integration/bin/om-expect-tests AND integration/bin/purge-om-test-database to give a valid path to 
+bash for your platform (portability suggestions welcome).
+
 To reproduce dejagnu test problems in debug mode, you can call OM like:
   "om d x"
 or

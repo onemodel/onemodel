@@ -36,9 +36,11 @@ public class EntityMenuIT {
 
   public void testOmUiEtc() throws Exception {
     String osName = System.getProperty("os.name");
-    if (! osName.equalsIgnoreCase("linux")) {
-      throw new OmException("This test isn't yet expected to work on anything but Linux (or maybe other unix), until the om-expect-tests " +
-                              "script in the code is adapted to that, and also probably others.");
+    if (! (osName.equalsIgnoreCase("linux") || osName.equalsIgnoreCase("OpenBSD"))) {
+      throw new OmException("This test isn't yet expected to work on anything but Linux," +
+                            " OpenBSD, and maybe similar others, until the om-expect-tests" +
+                            " and probably other scripts are adapted accordingly. (You" +
+                            " might have to fix the path to bash, at the top of scripts.)");
     }
 
     // Using expectit here to call *dejagnu* (instead of doing everything directly with expectit), because expectit was less clear how to debug than with

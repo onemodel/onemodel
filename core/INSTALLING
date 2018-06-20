@@ -214,6 +214,16 @@ command, substituting your username for the "<...>", removing the <>'s):
     \password <yourusername>
 ...then follow the prompts to enter the new password twice.)
 
+Note about users and schemas, if you create more users in the same
+database:  The current use of postgres assumes that there is only 
+one user per database.  If multiple users are created for
+any reason inside a single database, and they are not equally 
+trusted, see the potential risk related to search_path documented at 
+https://www.postgresql.org/docs/current/static/release-10-3.html#id-1.11.6.6.5 
+where "any schemas writable by a hostile user enables that user to 
+capture control of queries and then run arbitrary SQL code with 
+the permissions of the attacked user."
+
 - Create the database with this command (substituting your username for
 the "<...>", removing the <>'s):
     createdb om_<yourusername>
@@ -297,7 +307,7 @@ Compiling, above), you can:
 
   2) Then also run integration tests (for Linux at least; details just below), 
      by:
-    a) Installing dejagnu (details in the file core/testsuite/README).
+    a) Installing dejagnu (details in the file integration/testsuite/README).
     b) Making sure that the om core/bin directory is in the path, for running of
        scripts like "c" and "oet" etc. (Most of these scripts
        have only been written for Linux, and tested on Debian. For other 
@@ -309,7 +319,8 @@ Compiling, above), you can:
     d) Then you can run
          mvn verify
        ...which runs integration tests against the .jar file built above
-       by "mvn clean package".
+       by "mvn clean package".  For failures, see details in the file 
+       integration/testsuite/README ).
 
 
 Running
