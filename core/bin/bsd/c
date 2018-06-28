@@ -1,6 +1,6 @@
 #!/usr/local/bin/bash -eux
-# (I was skipping the "bin/bash" line above so it would run the same on openbsd, but then it doesn't run from dejagnu,
-# so I put it back.)
+# (I was skipping the "bin/bash" line above so it would run the same on linux and
+# openbsd, but then it doesn't run from dejagnu, so I put it back.)
 
 #    This file is part of OneModel, a program to manage knowledge.
 #    Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
@@ -18,7 +18,7 @@
 set -eux
 # (Use "readlink -f" not ".. -e" so it will work also on openbsd.)
 SCRIPT_DIR="$(dirname $(readlink -f $0))"
-pushd $SCRIPT_DIR/..
+pushd $SCRIPT_DIR/../..
 
 if [[ $(uname -a|grep -i openbsd|wc -l) -eq 1 ]]; then
   STAT_CMD="stat -f %m"

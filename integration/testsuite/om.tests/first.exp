@@ -269,7 +269,7 @@ proc import {entity_name_to_confirm_right_menu} {
   myexpect "2-Import/Export"
   send 21
   myexpect "Enter file path.*must exist"
-  send "$env(SCRIPT_DIR)/../../core/src/test/resources/testImportFile0.txt\n"
+  send "$env(SCRIPT_DIR)/../../../core/src/test/resources/testImportFile0.txt\n"
   myexpect "Do you want.*marked as public"
   sleep $human_keystroke_wait
   send y\n
@@ -1394,7 +1394,7 @@ if {$using_debugger == "false"} {
     spawn om
   } else {
     # (note: $env(SCRIPT_DIR) yields the directory within the project that
-    # contains the om-runtest script, i.e., the full path up to and
+    # contains the om-expect-tests script, i.e., the full path up to and
     # including core/bin .)
     spawn $env(SCRIPT_DIR)/c
     # allow time for recompile

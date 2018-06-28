@@ -1,0 +1,36 @@
+#!/bin/bash -eux
+
+#    This file is part of OneModel, a program to manage knowledge.
+#    Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
+#    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+#    see the file LICENSE for license version and details.
+#    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#    You should have received a copy of the GNU Affero General Public License along with OneModel.  If
+#    not, see http://www.gnu.org/licenses/  .
+
+# This is a convenient way to run dejagnu and see the output for quick debugging turnaround.
+# See core/testsuite/README for more about use of expect and gnutest.
+
+# (Use "readlink -f" not ".. -e" so it will work also on openbsd.)
+export SCRIPT_DIR="$(dirname $(readlink -f $0))"
+
+# ("set +e" is to continue if runtest returns an error, to show the errror code instead of failing:)
+set +e
+runtest --status --srcdir "$SCRIPT_DIR"/../../testsuite --outdir "$SCRIPT_DIR/.." --all --debug --status -vvvv $*   #--strace 1
+RESULT=$?
+set -e
+echo "Return code from dejagnu tests: $RESULT"
+if [[ $RESULT -ne 0 ]]; then
+  # local beep script
+  bp 1||true
+fi
+
+# These example commands can be useful interactively, but not when this is called from EntityMenuIT.java as part of
+# the integration tests.  You could put them in script to run separately after tests, and "oet" does this.
+# [note2self: also xel/xdl].
+#echo "Enter to view log"; read
+#less -p"found|ing proc" -J +G "$SCRIPT_DIR"/../testrun.log
+#echo "Enter to view debug log (more detailed)"; read
+#less -p"found|ing proc" -J +G dbg.log

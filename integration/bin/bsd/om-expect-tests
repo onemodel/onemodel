@@ -18,7 +18,7 @@ export SCRIPT_DIR="$(dirname $(readlink -f $0))"
 
 # ("set +e" is to continue if runtest returns an error, to show the errror code instead of failing:)
 set +e
-runtest --status --srcdir "$SCRIPT_DIR"/../testsuite --outdir "$SCRIPT_DIR" --all --debug --status -vvvv $*   #--strace 1
+runtest --status --srcdir "$SCRIPT_DIR"/../../testsuite --outdir "$SCRIPT_DIR/.." --all --debug --status -vvvv $*   #--strace 1
 RESULT=$?
 set -e
 echo "Return code from dejagnu tests: $RESULT"
@@ -31,6 +31,6 @@ fi
 # the integration tests.  You could put them in script to run separately after tests, and "oet" does this.
 # [note2self: also xel/xdl].
 #echo "Enter to view log"; read
-#less -p"found|ing proc" -J +G "$SCRIPT_DIR"/testrun.log
+#less -p"found|ing proc" -J +G "$SCRIPT_DIR"/../testrun.log
 #echo "Enter to view debug log (more detailed)"; read
 #less -p"found|ing proc" -J +G dbg.log

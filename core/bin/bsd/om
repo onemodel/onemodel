@@ -1,0 +1,51 @@
+#!/usr/local/bin/bash 
+#Some variant of above line seems required because otherwise running under testrun (of dejagnu) gets an error.
+
+#    This file is part of OneModel, a program to manage knowledge.
+#    Copyright in each year of 2010-2017 inclusive, Luke A Call; all rights reserved.
+#    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+#    see the file LICENSE for license version and details.
+#    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#    You should have received a copy of the GNU Affero General Public License along with OneModel.  If 
+#    not, see http://www.gnu.org/licenses/  .
+
+set -eu
+
+#useful to debug or observe scripts if uncommented:
+#set -x
+
+# (Use "readlink -f" not ".. -e" so it will work both on openbsd OR linux.)
+THIS_SCRIPT_DIR=$(dirname $(readlink -fn $0))
+cd "$THIS_SCRIPT_DIR"/../..
+
+# similar DEBUG setting code in "c" script
+DEBUG=""
+if [[ $# -gt 0 && $1 == 'd' ]]; then
+  shift
+  echo $#
+  if [[ $# -gt 0  && $1 == 's' ]]; then
+    shift
+    SUSPEND='y'
+  else
+    SUSPEND='n'
+  fi
+  DEBUG="-agentlib:jdwp=transport=dt_socket,server=y,suspend=$SUSPEND,address=5005"
+fi
+
+#prevent the system from locking up while creating huge java.core file 
+#when java crashes (like if there's a debug port conflict during development):
+#ulimit -c 1
+#
+set +e
+java $DEBUG -jar target/onemodel-core-0.2.0-SNAPSHOT.jar $*
+RESULT=$?
+set -e
+reset #see cmt just below for why. If adapting for other OSes, make sure that cmd doesn't do something drastic. 
+
+# Idea: put in a trap so ^C or ^Z gets handled right on those signals? (search 'man bash' for "times  Print the accumulated user and system times for the shell and for processes run from the shell",
+# and then see 'trap' there):  Or just fix the behavior of the application by watching for those & resetting the terminal state propertly. But what about coming back to it after a ^Z?
+echo "On unix, if the terminal is messed up now, you might have to blindly type (making sure the command line is clear first) "reset" and hit Enter.  Not usually, but there's a bug such that sometimes after ^Z or ^C it happens."
+
+exit $RESULT

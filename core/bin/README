@@ -1,0 +1,6 @@
+Probably the files in linux/ and bsd/ should be kept *identical* 
+except for the first line's path to bash.
+
+Then it is simply a matter of choosing which one to put into
+the PATH (in addition to the .../bin/ directory itself).
+

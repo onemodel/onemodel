@@ -308,11 +308,15 @@ Compiling, above), you can:
   2) Then also run integration tests (for Linux at least; details just below), 
      by:
     a) Installing dejagnu (details in the file integration/testsuite/README).
-    b) Making sure that the om core/bin directory is in the path, for running of
-       scripts like "c" and "oet" etc. (Most of these scripts
-       have only been written for Linux, and tested on Debian. For other 
-       platforms,
-       patches are welcome: pls see the file CONTRIBUTING and send in
+    b) Making sure that the following om directories are in the path, for 
+       running of scripts like "c" and "oet" etc: 
+         core/bin  
+         core/bin/linux  OR  core/bin/bsd
+         integration/bin
+         integration/bin/linux  OR  integration/bin/bsd
+         
+       (Scripts have been tested on Debian GNU/Linux and OpenBSD. For other 
+       platforms, patches are welcome: pls see the file CONTRIBUTING and send in
        questions.)
     c) Make sure psql (from the postgreSQL installation) is in the path 
        (this is true by default on debian).

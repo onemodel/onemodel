@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash 
+#!/bin/bash 
 #Some variant of above line seems required because otherwise running under testrun (of dejagnu) gets an error.
 
 #    This file is part of OneModel, a program to manage knowledge.
@@ -18,7 +18,7 @@ set -eu
 
 # (Use "readlink -f" not ".. -e" so it will work both on openbsd OR linux.)
 THIS_SCRIPT_DIR=$(dirname $(readlink -fn $0))
-cd "$THIS_SCRIPT_DIR"/..
+cd "$THIS_SCRIPT_DIR"/../..
 
 # similar DEBUG setting code in "c" script
 DEBUG=""
