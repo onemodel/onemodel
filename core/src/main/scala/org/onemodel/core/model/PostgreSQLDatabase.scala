@@ -98,7 +98,7 @@ object PostgreSQLDatabase {
   }
 
   private def drop(sqlType: String, name: String, connIn: Connection) {
-    try dbAction("drop " + escapeQuotesEtc(sqlType) + " " + escapeQuotesEtc(name) + " CASCADE", callerChecksRowCountEtc = false, connIn = connIn)
+    try dbAction("drop " + escapeQuotesEtc(sqlType) + " " + escapeQuotesEtc(name) + " CASCADE", connIn = connIn)
     catch {
       case e: Exception =>
         val sw: StringWriter = new StringWriter()
@@ -1127,7 +1127,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     // features, put them all there instead.
     // It is set to allowMixedClassesInGroup just because no current known reason not to, will be interesting to see what comes of it.
     createGroupAndRelationToGroup(systemEntityId, hasRelTypeId, Database.classTemplateEntityGroupName, allowMixedClassesInGroupIn = true,
-                                  Some(System.currentTimeMillis()), System.currentTimeMillis(), None, callerManagesTransactionsIn = false)
+                                  Some(System.currentTimeMillis()), System.currentTimeMillis(), None)
 
     // NOTICE: code should not rely on this name, but on data in the tables.
     /*val (classId, entityId) = */ createClassAndItsTemplateEntity("person")
@@ -2129,7 +2129,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   /** Creates the preference if it doesn't already exist.  */
-  def setUserPreference_Boolean(nameIn: String, valueIn: Boolean) = {
+  def setUserPreference_Boolean(nameIn: String, valueIn: Boolean): Unit = {
     val preferencesContainerId: Long = getPreferencesContainerId
     val result = getUserPreference2(preferencesContainerId, nameIn, Database.PREF_TYPE_BOOLEAN)
     val preferenceInfo: Option[(Long, Boolean)] = result.asInstanceOf[Option[(Long,Boolean)]]
@@ -3044,7 +3044,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   val selectEntityStart = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public, e.archived, e.new_entries_stick_to_top "
 
-  private def addNewEntityToResults(finalResults: java.util.ArrayList[Entity], intermediateResultIn: Array[Option[Any]]): Boolean = {
+  def addNewEntityToResults(finalResults: java.util.ArrayList[Entity], intermediateResultIn: Array[Option[Any]]): Boolean = {
     val result = intermediateResultIn
     // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
     finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
@@ -3874,13 +3874,13 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   /** Convenience function. Error message it gives if > 1 found assumes that sql passed in will return only 1 row! */
   def doesThisExist(sqlIn: String, failIfMoreThanOneFoundIn: Boolean = true): Boolean = {
-    val rowCnt: Long = extractRowCountFromCountQuery(sqlIn)
+    val rowCount: Long = extractRowCountFromCountQuery(sqlIn)
     if (failIfMoreThanOneFoundIn) {
-      if (rowCnt == 1) true
-      else if (rowCnt > 1) throw new OmDatabaseException("Should there be > 1 entries for sql: " + sqlIn + "?? (" + rowCnt + " were found.)")
+      if (rowCount == 1) true
+      else if (rowCount > 1) throw new OmDatabaseException("Should there be > 1 entries for sql: " + sqlIn + "?? (" + rowCount + " were found.)")
       else false
     }
-    else rowCnt >= 1
+    else rowCount >= 1
   }
 
   /** Cloned to archiveObjects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.

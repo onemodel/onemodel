@@ -18,11 +18,11 @@ import org.testng.annotations.*;
 import java.lang.Exception;
 import java.util.concurrent.TimeUnit;
 
-@Test
 /** Integration test ("...IT").  This is "integration testing", but could be either in the "integration" module,
  * or in the core module, because (as of 2017-8-30) it doesn't test other modules, just core. That might change soon,
  * to also test core making web calls, so the web server will need to be started, so it will make sense in "integration".
  */
+@Test
 public class EntityMenuIT {
   @BeforeClass
   protected void setUp() {

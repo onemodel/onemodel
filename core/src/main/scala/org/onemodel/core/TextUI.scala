@@ -41,8 +41,8 @@ object TextUI {
 class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream] = None) {
   //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
   val objectChooserMenuPrefixLength: Int = 2
-  val forceUsernamePasswordPrompt = if (args.length == 1) true else false
   val (username, password): (Option[String], Option[String]) = if (args.length == 2) (Some(args(0)), Some(args(1))) else (None, None)
+  val forceUsernamePasswordPrompt: Boolean = if (args.length == 1) true else false
 
   // (making some lazy vals instead of vars because it's considered generally cleaner to use vals, and lazy in case they are not
   // needed for unit tests)

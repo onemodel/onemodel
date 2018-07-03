@@ -37,7 +37,7 @@ set test_pass "x"
 # PICK JUST *ONE* OF NEXT 2 LINES:
 # Useful during testing to make sure we hit all new breakpoints for changed code. BUT
 # BUT WHEN (temporarily) REVERSING THIS, SEE ALSO THE COMMENTS in EntityMenuIT.java under "For some debugging",
-# if running from there!
+# if running from there!  Idea: is there a way to drive this, from a command-line parameter instead (ie simpler use)?
 set using_debugger "false"
 #set using_debugger "true"
 
@@ -73,7 +73,7 @@ proc myexpect {expectation} {
       # in this case OM is offering to provide a stack trace, so display it...
       global human_keystroke_wait
       sleep $human_keystroke_wait
-      # (backspace:)
+      # (2 backspaces:)
       send \x08\x08
       send y\n
       # ...then wait for the next prompt so the stack is shown, before expect closes OM.
@@ -314,6 +314,16 @@ proc export_txt {entity_name_to_confirm_right_menu} {
   myexpect "Include.*not specified"
   sleep $human_keystroke_wait
   send \x08y\n
+  myexpect "Number the entries in outline form"
+  sleep $human_keystroke_wait
+  send \x08n\n
+  myexpect "Wrap long lines and add whitespace"
+  sleep $human_keystroke_wait
+  send \x08n\n
+  myexpect "Wrap at what column"
+  sleep $human_keystroke_wait
+  send \x08\x08
+  send 80\n
   myexpect "Exported to file: "
   send x
   send 0
@@ -442,9 +452,14 @@ proc edit_entity_name_on_otherEntityMenu {old_entity_name new_entity_name class_
   # (Ctrl-U or the key to clear preceding characters in the edit line:)
   send \x15
   send ${new_entity_name}\n
+  # The next line is needed if in debug mode, or the output doesn't seem to
+  # make it to OM in time, which causes a strange, hard-to-diagnose problem
+  # with the test.
+  sleep $human_keystroke_wait
   myexpect "single subgroup.*Also change.*"
   sleep $human_keystroke_wait
-  send \x08n\n
+  send \x08
+  send n\n
   send 0
   myexpect "CURRENT ENTITY.*${new_entity_name}.*class: $class_name.*created"
   endproc edit_entity_name_on_otherEntityMenu false

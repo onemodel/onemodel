@@ -257,7 +257,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       if (nearNewNeighborSortingIndex.isEmpty || farNewNeighborSortingIndex.isEmpty)
         None
       else
-        getNearestEntrysSortingIndex(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forwardNotBackIn = forwardNotBackIn)
+        getSortingIndexOfNearestEntry(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forwardNotBackIn = forwardNotBackIn)
     }
 
     (byHowManyEntriesMoving, nearNewNeighborSortingIndex, adjustedFarNewNeighborSortingIndex)
@@ -266,7 +266,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
   protected def getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
                                                  forwardNotBackIn: Boolean): List[Array[Option[Any]]]
 
-  protected def getNearestEntrysSortingIndex(dbIn: Database, containingIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
+  protected def getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
 
   protected def renumberSortingIndexes(dbIn: Database, containingObjectIdIn: Long)
 

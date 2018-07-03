@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2018 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -49,6 +49,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
     //// instantiation does DB setup (creates tables, default data, etc):
     mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+    // this is used by the files we import:
     mDB.createRelationType("a test relation type","","UNI")
     // idea: fix the bad smell: shouldn't need a ui (& maybe not a controller?) to run tests of logic.  Noted in tasks to fix.
     //(ALSO FIX SIMILAR USAGE IN PostgreSQLDatabaseTest.)
@@ -178,4 +179,60 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     assert(firstNewFileContents.contains("<a href=\"http://www.onemodel.org/downloads/testfile.txt\">test file download</a>"), "unexpected file contents:  " + firstNewFileContents)
   }
 
+  "testExportTxtFileWithLongLines" should "wrap & space lines in useful ways so less manual fixing of exported content for printing/viewing" in {
+    val importFile: File = mImportExport.tryImporting_FOR_TESTS("testImportFile6.txt", mEntity)
+    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("importexporttest-testExportTxtFileWithLongLines-testExportFile6")
+
+    val (fileContents: String, outputFile: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB, wrapLongLinesIn = true,
+                                                                                           80, includeOutlineNumberingIn = true)
+    // Use regexes to enable checking whitespace length etc.  But not one big check against the whole file, as multiple assert lines
+    // makes it easier to know which part has a problem.
+    // The "(?m)" turns on multiline mode so that the ^ and $ mean per-line, not per the whole input.
+    // The "(?s)" turns on dotall mode so that a "." can mean any character *including* newlines.
+    assert(fileContents.matches("(?m)(?s)^importexporttest-testExportTxtFileWithLongLines-testExportFile6$.*"))
+    assert(fileContents.matches("(?m)(?s).*^  1 purpose$.*"))
+    assert(fileContents.matches("(?m)(?s).*^    5.1 mental$.*"), "unexpected file contents:  " + fileContents)
+    assert(fileContents.matches("""(?m)(?s).*^      5.2.1 1$
+                                            |^$
+                                            |^      5.2.2 long line1: om....   this is a long entity name, enuf to try $
+                                            |^      wrapping words, etc&c w/in om....   this is a long entity name, enuf to $
+                                            |^      test wrapping end.$
+                                            |^$
+                                            |^    5.3 outdent1$
+                                            |.*""".stripMargin), "unexpected file contents:" + fileContents)
+    assert(fileContents.contains("      5.3.1 shortline"), "unexpected file contents:  " + fileContents)
+    assert(fileContents.matches("""(?m)(?s).*^        5.3.2.1 indent$
+                                            |^$
+                                            |^        5.3.2.2 longline3: 3this is a long entity name, enuf to try wrapping.*
+                                            |.*""".stripMargin), "unexpected file contents:" + fileContents)
+    assert(fileContents.contains("    5.4 longline6 outdented 6this is a "), "unexpected file contents:  " + fileContents)
+    assert(fileContents.contains("  7 longline9 outdented 6this is a long entity name"), "unexpected file contents:  " + fileContents)
+    assert(fileContents.contains("longline12 outdented"), "unexpected file contents:  " + fileContents)
+
+
+    val (fileContents2: String, outputFile2: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB, wrapLongLinesIn = true,
+                                                                                             80, includeOutlineNumberingIn = false)
+    assert(fileContents2.matches("(?m)(?s)^importexporttest-testExportTxtFileWithLongLines-testExportFile6$.*"))
+    assert(fileContents2.matches("(?m)(?s).*^  purpose$.*"))
+    assert(fileContents2.matches("(?m)(?s).*^    mental$.*"), "unexpected file contents:  " + fileContents2)
+    assert(fileContents2.matches("""(?m)(?s).*^      1$
+                                             |^$
+                                             |^      long line1: om....   this is a long entity name, enuf to try wrapping $
+                                             |^      words, etc&c w/in om....   this is a long entity name, enuf to test $
+                                             |^      wrapping end.$
+                                             |^$
+                                             |^    outdent1$
+                                             |.*""".stripMargin), "unexpected file contents:" + fileContents2)
+    assert(fileContents2.contains("      shortline"), "unexpected file contents:  " + fileContents2)
+    assert(fileContents2.matches("""(?m)(?s).*^        indent$
+                                  |^$
+                                  |^        longline3: 3this is a long entity name, enuf to try wrapping.*
+                                  |.*""".stripMargin), "unexpected file contents:" + fileContents2)
+    assert(fileContents2.contains("    longline6 outdented 6this is a "), "unexpected file contents:  " + fileContents2)
+    assert(fileContents2.contains("  longline9 outdented 6this is a long entity name"), "unexpected file contents:  " + fileContents2)
+    assert(fileContents2.contains("longline12 outdented"), "unexpected file contents:  " + fileContents2)
+
+    //Remember: don't do this test: it is intentionally being modified from the original, for viewing:
+    //assert(outputFile.length == importFile.length)
+  }
 }

@@ -408,7 +408,8 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
         val ans = ui.askForString(Some(Array(Util.searchPromptPart(Util.ENTITY_TYPE))))
         if (ans.isDefined) {
           val searchString: String = ans.get
-          val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours; currently only searches locally)")),
+          val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours; currently only searches locally;" +
+                                                        " searching from main/top menu is sometimes faster)")),
                                              Some(Util.isNumeric), Some("5"))
           val levels: Int = levelsAnswer.getOrElse("4").toInt
           val entityIdsTreeSet: mutable.TreeSet[Long] = entityIn.findContainedLocalEntityIds(new mutable.TreeSet[Long], searchString, levels,
@@ -432,11 +433,11 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
               newarray
             }
           }
-          val entityStatusesAndNames: Array[String] = entityIdsTruncated.toArray.map {
-                                                                                       case id: Long =>
-                                                                                         val entity = new Entity(entityIn.mDB, id)
-                                                                                         entity.getArchivedStatusDisplayString + entity.getName
-                                                                                     }
+          val entityStatusesAndNames: Array[String] = entityIdsTruncated.map {
+                                                                               id: Long =>
+                                                                                 val entity = new Entity(entityIn.mDB, id)
+                                                                                 entity.getArchivedStatusDisplayString + entity.getName
+                                                                             }
           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
           @tailrec def showSearchResults() {
             val relatedEntitiesResult = ui.askWhich(Some(leadingText2), choices, entityStatusesAndNames)
@@ -775,7 +776,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
     entity.getAdjacentAttributesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected def getNearestEntrysSortingIndex(dbIn: Database, entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+  protected def getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
     val entity = new Entity(dbIn, entityIdIn)
     entity.getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }

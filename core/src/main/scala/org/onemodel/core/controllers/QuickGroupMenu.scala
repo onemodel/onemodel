@@ -253,7 +253,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
                                 "Select target (entry move destination: gets a '+')",
                                 "Select entry to highlight (with '*'; typing the letter instead goes to the subgroup if any, else to that entity)",
                                 "Other (slower actions, more complete menu)")
-    val displayDescription = if (relationToGroupIn.isDefined) relationToGroupIn.get.getDisplayString(0) else groupIn.getDisplayString(0)
+    val displayDescription = if (relationToGroupIn.isDefined) relationToGroupIn.get.getDisplayString(0) else groupIn.getDisplayString()
     // (idea: maybe this use of color on next line could be removed, if people don't rely on the color change.  I originally added it as a visual
     // cue to aid my transition to using entities more & groups less.  Same thing is done in GroupMenu.)
     // (Idea: this color thing should probably be handled in the textui class instead, especially if there were multiple kinds of UI.)
@@ -580,7 +580,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
     group.getAdjacentGroupEntriesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected def getNearestEntrysSortingIndex(dbIn: Database, groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+  protected def getSortingIndexOfNearestEntry(dbIn: Database, groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
     val group = new Group(dbIn, groupIdIn)
     group.getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }
