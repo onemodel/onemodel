@@ -2013,7 +2013,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     }
   }
 
-  def deleteEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false) = {
+  def deleteEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false): Unit = {
     // idea: (also on task list i think but) we should not delete entities until dealing with their use as attrtypeids etc!
     if (!callerManagesTransactionsIn) beginTrans()
     deleteObjects("EntitiesInAGroup", "where entity_id=" + idIn, -1, callerManagesTransactions = true)
@@ -2022,23 +2022,23 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     if (!callerManagesTransactionsIn) commitTrans()
   }
 
-  def archiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false) = {
+  def archiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false): Unit = {
     archiveObjects(Util.ENTITY_TYPE, "where id=" + idIn, 1, callerManagesTransactionsIn)
   }
 
-  def unarchiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false) = {
+  def unarchiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false): Unit = {
     archiveObjects(Util.ENTITY_TYPE, "where id=" + idIn, 1, callerManagesTransactionsIn, unarchive = true)
   }
 
-  def deleteQuantityAttribute(idIn: Long) = deleteObjectById(Util.QUANTITY_TYPE, idIn)
+  def deleteQuantityAttribute(idIn: Long): Unit = deleteObjectById(Util.QUANTITY_TYPE, idIn)
 
-  def deleteTextAttribute(idIn: Long) = deleteObjectById(Util.TEXT_TYPE, idIn)
+  def deleteTextAttribute(idIn: Long): Unit = deleteObjectById(Util.TEXT_TYPE, idIn)
 
-  def deleteDateAttribute(idIn: Long) = deleteObjectById(Util.DATE_TYPE, idIn)
+  def deleteDateAttribute(idIn: Long): Unit = deleteObjectById(Util.DATE_TYPE, idIn)
 
-  def deleteBooleanAttribute(idIn: Long) = deleteObjectById(Util.BOOLEAN_TYPE, idIn)
+  def deleteBooleanAttribute(idIn: Long): Unit = deleteObjectById(Util.BOOLEAN_TYPE, idIn)
 
-  def deleteFileAttribute(idIn: Long) = deleteObjectById(Util.FILE_TYPE, idIn)
+  def deleteFileAttribute(idIn: Long): Unit = deleteObjectById(Util.FILE_TYPE, idIn)
 
   def deleteRelationToLocalEntity(relTypeIdIn: Long, entityId1In: Long, entityId2In: Long) {
     deleteObjects(Util.RELATION_TO_LOCAL_ENTITY_TYPE, "where rel_type_id=" + relTypeIdIn + " and entity_id=" + entityId1In + " and entity_id_2=" + entityId2In)
@@ -2074,10 +2074,10 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   /** I hope you have a backup. */
-  def deleteGroupRelationsToItAndItsEntries(groupidIn: Long) {
+  def deleteGroupRelationsToItAndItsEntries(groupIdIn: Long) {
     beginTrans()
     try {
-      val entityCount = getGroupSize(groupidIn)
+      val entityCount = getGroupSize(groupIdIn)
 
       def deleteRelationToGroupAndALL_recursively(groupIdIn: Long): (Long, Long) = {
         val entityIds: List[Array[Option[Any]]] = dbQuery("select entity_id from entitiesinagroup where group_id=" + groupIdIn, "Long")
@@ -2098,7 +2098,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         deleteObjects("grupo", "where id=" + groupIdIn, 1, callerManagesTransactions = true)
         (deletions1, deletions2)
       }
-      val (deletions1, deletions2) = deleteRelationToGroupAndALL_recursively(groupidIn)
+      val (deletions1, deletions2) = deleteRelationToGroupAndALL_recursively(groupIdIn)
       require(deletions1 + deletions2 == entityCount)
     }
     catch {
@@ -2120,7 +2120,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def getSystemEntityId: Long = {
     val ids: Option[List[Long]] = findEntityOnlyIdsByName(Database.systemEntityName)
-    if (ids == None) {
+    if (ids.isEmpty) {
       throw new OmDatabaseException("No system entity id (named \"" + Database.systemEntityName + "\") was" +
                                     " found in the entity table.  Did a new data import fail partway through or something?")
     }
@@ -2156,7 +2156,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   /** Creates the preference if it doesn't already exist.  */
-  def setUserPreference_EntityId(nameIn: String, entityIdIn: Long) = {
+  def setUserPreference_EntityId(nameIn: String, entityIdIn: Long): Unit = {
     val preferencesContainerId: Long = getPreferencesContainerId
     val result = getUserPreference2(preferencesContainerId, nameIn, Database.PREF_TYPE_ENTITY_ID)
     val preferenceInfo: Option[(Long, Long, Long)] = result.asInstanceOf[Option[(Long,Long,Long)]]
@@ -2332,9 +2332,9 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         if (data.size != numberOfEntries) {
           // "Idea:: BAD SMELL! The UI should do all UI communication, no?"
           // (SEE ALSO comments and code at other places with the part on previous line in quotes).
-          System.err.println
-          System.err.println
-          System.err.println
+          System.err.println()
+          System.err.println()
+          System.err.println()
           System.err.println("--------------------------------------")
           System.err.println("Unexpected state: data.size (" + data.size +  ") != numberOfEntries (" + numberOfEntries +  "), when they should be equal. ")
           if (data.size > numberOfEntries) {
@@ -3044,7 +3044,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   val selectEntityStart = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public, e.archived, e.new_entries_stick_to_top "
 
-  def addNewEntityToResults(finalResults: java.util.ArrayList[Entity], intermediateResultIn: Array[Option[Any]]) = {
+  private def addNewEntityToResults(finalResults: java.util.ArrayList[Entity], intermediateResultIn: Array[Option[Any]]): Boolean = {
     val result = intermediateResultIn
     // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
     finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
@@ -3785,7 +3785,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       // using maxIdValue as the max value of a long so those w/o sorting information will just sort last:
       allResultsArray(index) = (element._1.getOrElse(maxIdValue), element._2)
     }
-    // Per the scaladocs for scala.math.Ordering, this sorts by the first element of the tuple (ie, .z_1) which at this point is attributesorting.sorting_index.
+    // Per the scalaDocs for scala.math.Ordering, this sorts by the first element of the tuple (ie, .z_1) which at this point is attributesorting.sorting_index.
     // (The "getOrElse" on next line is to allow for the absence of a value in case the attributeSorting table doesn't have an entry for some attributes.
     Sorting.quickSort(allResultsArray)(Ordering[Long].on(x => x._1.asInstanceOf[Long]))
 
@@ -3874,13 +3874,13 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   /** Convenience function. Error message it gives if > 1 found assumes that sql passed in will return only 1 row! */
   def doesThisExist(sqlIn: String, failIfMoreThanOneFoundIn: Boolean = true): Boolean = {
-    val rowcnt: Long = extractRowCountFromCountQuery(sqlIn)
+    val rowCnt: Long = extractRowCountFromCountQuery(sqlIn)
     if (failIfMoreThanOneFoundIn) {
-      if (rowcnt == 1) true
-      else if (rowcnt > 1) throw new OmDatabaseException("Should there be > 1 entries for sql: " + sqlIn + "?? (" + rowcnt + " were found.)")
+      if (rowCnt == 1) true
+      else if (rowCnt > 1) throw new OmDatabaseException("Should there be > 1 entries for sql: " + sqlIn + "?? (" + rowCnt + " were found.)")
       else false
     }
-    else rowcnt >= 1
+    else rowCnt >= 1
   }
 
   /** Cloned to archiveObjects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
