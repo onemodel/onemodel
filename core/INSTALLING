@@ -53,7 +53,8 @@ are complete.
 
 Installing
 ----------
-(There is a docker-specific section below if you know you want that.)
+(There is a docker-specific section below, which might be an easier way
+to get started if you are familiar with docker.)
 
 (Note: wherever this document refers to documentation at postgresql.org,
 remember you can check the specific document for your version by starting
