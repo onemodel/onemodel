@@ -26,6 +26,7 @@ import scala.collection.mutable
  * Idea: Think more about cleaner design, for this?  Like, how to avoid the problems I had when accidentally just using mImportExport.mDB during tests,
  * which by default connects to the user db, not the test db!?
  */
+//noinspection ConvertNullInitializerToUnderscore
 class ImportExportTest extends FlatSpec with MockitoSugar {
   var mEntity: Entity = null
 
@@ -187,49 +188,64 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
                                                                                            80, includeOutlineNumberingIn = true)
     // Use regexes to enable checking whitespace length etc.  But not one big check against the whole file, as multiple assert lines
     // makes it easier to know which part has a problem.
-    // The "(?m)" turns on multiline mode so that the ^ and $ mean per-line, not per the whole input.
-    // The "(?s)" turns on dotall mode so that a "." can mean any character *including* newlines.
+    // The "(?m)" turns on multi-line mode so that the ^ and $ mean per-line, not per the whole input.
+    // The "(?s)" turns on "dotall" mode so that a "." can mean any character *including* newlines.
     assert(fileContents.matches("(?m)(?s)^importexporttest-testExportTxtFileWithLongLines-testExportFile6$.*"))
-    assert(fileContents.matches("(?m)(?s).*^  1 purpose$.*"))
-    assert(fileContents.matches("(?m)(?s).*^    5.1 mental$.*"), "unexpected file contents:  " + fileContents)
-    assert(fileContents.matches("""(?m)(?s).*^      5.2.1 1$
+    assert(fileContents.matches("(?m)(?s).*^1 purpose$.*"))
+    assert(fileContents.matches("(?m)(?s).*^  5.1 mental$.*"), "unexpected file contents:  " + fileContents)
+    assert(fileContents.matches("""(?m)(?s).*^    5.2.1 1$
                                             |^$
-                                            |^      5.2.2 long line1: om....   this is a long entity name, enuf to try $
-                                            |^      wrapping words, etc&c w/in om....   this is a long entity name, enuf to $
-                                            |^      test wrapping end.$
+                                            |^    5.2.2 long line1: om....   this is a long entity name, enuf to try wrapping $
+                                            |^    words, etc&c w/in om....   this is a long entity name, enuf to test wrapping $
+                                            |^    end.$
                                             |^$
-                                            |^    5.3 outdent1$
+                                            |^  5.3 outdent1$
                                             |.*""".stripMargin), "unexpected file contents:" + fileContents)
-    assert(fileContents.contains("      5.3.1 shortline"), "unexpected file contents:  " + fileContents)
-    assert(fileContents.matches("""(?m)(?s).*^        5.3.2.1 indent$
+    assert(fileContents.contains("    5.3.1 shortline"), "unexpected file contents:  " + fileContents)
+    assert(fileContents.matches("""(?m)(?s).*^      5.3.2.1 indent$
                                             |^$
-                                            |^        5.3.2.2 longline3: 3this is a long entity name, enuf to try wrapping.*
+                                            |^      5.3.2.2 longline3: 3this is a long entity name, enuf to try wrapping.*
                                             |.*""".stripMargin), "unexpected file contents:" + fileContents)
-    assert(fileContents.contains("    5.4 longline6 outdented 6this is a "), "unexpected file contents:  " + fileContents)
-    assert(fileContents.contains("  7 longline9 outdented 6this is a long entity name"), "unexpected file contents:  " + fileContents)
+    assert(fileContents.contains("  5.4 longline6 outdented 6this is a "), "unexpected file contents:  " + fileContents)
+    assert(fileContents.contains("7 longline9 outdented 6this is a long entity name"), "unexpected file contents:  " + fileContents)
     assert(fileContents.contains("longline12 outdented"), "unexpected file contents:  " + fileContents)
 
 
     val (fileContents2: String, outputFile2: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB, wrapLongLinesIn = true,
                                                                                              80, includeOutlineNumberingIn = false)
-    assert(fileContents2.matches("(?m)(?s)^importexporttest-testExportTxtFileWithLongLines-testExportFile6$.*"))
-    assert(fileContents2.matches("(?m)(?s).*^  purpose$.*"))
-    assert(fileContents2.matches("(?m)(?s).*^    mental$.*"), "unexpected file contents:  " + fileContents2)
-    assert(fileContents2.matches("""(?m)(?s).*^      1$
+    assert(fileContents2.matches("""(?m)(?s)^importexporttest-testExportTxtFileWithLongLines-testExportFile6$
+                                           |^---------------------------------------------------------------$
+                                           |^$
+                                           |^purpose$
+                                           |^$
+                                           |^vision$
+                                           |^$
+                                           |^strategy$
+                                           |^$
+                                           |^goals$
+                                           |^$
+                                           |^empowerment$
+                                           |^$
+                                           |^  mental$
+                                           |^$
+                                           |^  spiritual$
+                                           |^$
+                                           |^    1$
+                                           |^$
+                                           |^    long line1: om....   this is a long entity name, enuf to try wrapping words, $
+                                           |^    etc&c w/in om....   this is a long entity name, enuf to test wrapping end.$
+                                           |^$
+                                           |^  outdent1$
+                                           |.*""".stripMargin), "unexpected file contents:" + fileContents2)
+    assert(fileContents2.contains("    shortline"), "unexpected file contents:  " + fileContents2)
+    assert(fileContents2.matches("""(?m)(?s).*^      indent$
                                              |^$
-                                             |^      long line1: om....   this is a long entity name, enuf to try wrapping $
-                                             |^      words, etc&c w/in om....   this is a long entity name, enuf to test $
-                                             |^      wrapping end.$
-                                             |^$
-                                             |^    outdent1$
+                                             |^      longline3: 3this is a long entity name, enuf to try wrapping words, etc&c $
                                              |.*""".stripMargin), "unexpected file contents:" + fileContents2)
-    assert(fileContents2.contains("      shortline"), "unexpected file contents:  " + fileContents2)
-    assert(fileContents2.matches("""(?m)(?s).*^        indent$
-                                  |^$
-                                  |^        longline3: 3this is a long entity name, enuf to try wrapping.*
-                                  |.*""".stripMargin), "unexpected file contents:" + fileContents2)
-    assert(fileContents2.contains("    longline6 outdented 6this is a "), "unexpected file contents:  " + fileContents2)
-    assert(fileContents2.contains("  longline9 outdented 6this is a long entity name"), "unexpected file contents:  " + fileContents2)
+    assert(fileContents2.contains("  longline6 outdented 6this is a "), "unexpected file contents:  " + fileContents2)
+    assert(!fileContents2.contains("    longline6 outdented 6this is a "), "unexpected file contents:  " + fileContents2)
+    assert(fileContents2.contains("longline9 outdented 6this is a long entity name"), "unexpected file contents:  " + fileContents2)
+    assert(!fileContents2.contains("  longline9 outdented 6this is a long entity name"), "unexpected file contents:  " + fileContents2)
     assert(fileContents2.contains("longline12 outdented"), "unexpected file contents:  " + fileContents2)
 
     //Remember: don't do this test: it is intentionally being modified from the original, for viewing:

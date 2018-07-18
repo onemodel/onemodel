@@ -467,11 +467,12 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       var wrapTheLines: Boolean = false
       var wrapAtColumn: Int = 1
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-        val ans6: Option[Boolean] = ui.askYesNoQuestion("Number the entries in outline form (ex, 3.1.5)?", Some("n"), allowBlankAnswer = true)
+        val ans6: Option[Boolean] = ui.askYesNoQuestion("Number the entries in outline form (ex, 3.1.5)?  (Prevents directly re-importing.)", Some("n"), allowBlankAnswer = true)
         if (ans6.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
         numberTheLines = ans6.get
 
-        val ans7: Option[Boolean] = ui.askYesNoQuestion("Wrap long lines and add whitespace for readability?", Some("y"), allowBlankAnswer = true)
+        // (See for more explanation on this prompt, the "adjustedCurrentIndentationLevels" variable used in a different method below.
+        val ans7: Option[Boolean] = ui.askYesNoQuestion("Wrap long lines and add whitespace for readability?  (Prevents directly re-importing; also removes one level of indentation, needless in that case.)", Some("y"), allowBlankAnswer = true)
         if (ans7.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
         wrapTheLines = ans7.get
 
@@ -947,7 +948,21 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       * @return  Whether lines were wrapped--so a later call to it can decide whether to print a leading blank line.
       */
     def printEntry(printWriterIn: PrintWriter, remainingUnprintedStringIn: String, isFirstLineInAnEntryIn: Boolean = true): Boolean = {
-      val indentingSpaces: String = getSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn)
+      // (Idea:  this method feels overcomplicated.  Maybe some sub-methods could be broken out or the logic made
+      // consistent but simpler.  I do use the features though, for how outlines are spaced etc., and it has been well-tested.)
+      val indentingSpaces: String = {
+        val adjustedCurrentIndentationLevelsIn = {
+          if (wrapLongLinesIn) {
+            // As also mentioned where we prompt the user in method "askForExportChoices" above, the one extra (initial) indent does not
+            // seem helpful for readability, and can sometimes hinder it, such as if the exported content is going to become a
+            // document or email message.
+            Math.max(0, currentIndentationLevelsIn - 1)
+          } else {
+            currentIndentationLevelsIn
+          }
+        }
+        getSpaces(adjustedCurrentIndentationLevelsIn * spacesPerIndentLevelIn)
+      }
       val lineNumbers: String = getLineNumbers(isFirstLineInAnEntryIn, includeOutlineNumberingIn, outlineNumbersTrackingInOut)
       var numCharactersBeforeActualContent = indentingSpaces.length + lineNumbers.length
       var remainingUnprintedString: String = indentingSpaces + lineNumbers
@@ -957,23 +972,63 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       }
       val willWrapLine: Boolean = wrapLongLinesIn && (remainingUnprintedString.length + remainingUnprintedStringIn.length) > wrapColumnIn
 
-      if (willWrapLine && !previousEntityWasWrapped && isFirstLineInAnEntryIn) {
-        // In this case we just had a single-line entry, now being followed by a block, and
-        // it makes it easier to read if there is also a preceding blank line before a block
-        // where a single line is wrapped.  And if always followed by a blank line.
-        remainingUnprintedString = Util.NEWLN + remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN
-      } else if (willWrapLine && isFirstLineInAnEntryIn) {
-        remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN
+
+      if (includeOutlineNumberingIn) {
+        // Just do the more complicated/optimized whitespace additions if adding outline numbers.
+        if (willWrapLine && isFirstLineInAnEntryIn && !previousEntityWasWrapped) {
+          // In this case we just had a single-line entry, now being followed by a block, and
+          // it makes it easier to read if there is also a preceding blank line before a block
+          // where a single line is wrapped.  And if always followed by a blank line.
+          // (These conditions put the newlines in for the entire entry, by changing based on
+          // the data in remainingUnprintedStringIn which will be used in the recursive calls to this method), *not* just to
+          // the currently-printed single line *of* the entry.)
+          remainingUnprintedString = Util.NEWLN + remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN
+        } else if (willWrapLine && isFirstLineInAnEntryIn) {
+          remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN
+        } else {
+          remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn
+        }
       } else {
-        remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn
+        // ...otherwise, make it simple, with just a whitespace line after every entry--but NOT
+        // if doing just a basic export w/o readability enhancements (because of tests' assumptions
+        // about size, and no need.  Wouldn't  really hurt otherwise, to remove the "wrapLongLinesIn &&" part
+        // of the condition).
+        // (For more explanation, see comments above about "These conditions put...".)
+        if (wrapLongLinesIn && isFirstLineInAnEntryIn) {
+          val isFirstEntryOfAll: Boolean = outlineNumbersTrackingInOut.size == 0
+          if (isFirstEntryOfAll /*&& wrapLongLinesIn && !includeOutlineNumberingIn*/) {
+            // Just a readability convenience: underline the very top entry (since its children
+            // are not indented under it--this sets it off visually as something like a "title".
+            var length = Math.min(wrapColumnIn, remainingUnprintedStringIn.length)
+            // (Compare use of "remainingUnprintedStringIn.lastIndexOf(..."  with
+            // the "val lastSpaceIndex = " line below.  Its use here is meant as a good enough estimate,
+            // as the other line needs to wait until execution gets farther along into the code, to run.)
+            var lastSpaceIndex = Math.max(remainingUnprintedStringIn.lastIndexOf(" ", wrapColumnIn), remainingUnprintedStringIn.lastIndexOf(Util.NEWLN, wrapColumnIn))
+            if (lastSpaceIndex >= 0) {
+              length = Math.min(length, lastSpaceIndex)
+            }
+            val underline: StringBuffer = new StringBuffer(length)
+            for (_ <- 1 to length) {
+              underline.append("-")
+            }
+            remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN + underline + Util.NEWLN
+          } else {
+            // not adding underline, so normal:
+            remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN
+          }
+        } else {
+          // (Final blank line for the entry was already added in a previous recursive call.)
+          remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn
+        }
       }
+
       if (! willWrapLine) {
         // print the one line, no need to wrap, and be done.
         printWriterIn.println(remainingUnprintedString)
         return ! isFirstLineInAnEntryIn
       }
       // figure out how much to print, out of a long line
-      val lastSpaceIndex = remainingUnprintedString.lastIndexOf(" ", wrapColumnIn)
+      var lastSpaceIndex = Math.max(remainingUnprintedString.lastIndexOf(" ", wrapColumnIn), remainingUnprintedString.lastIndexOf(Util.NEWLN, wrapColumnIn))
       val endLineIndex =
         if (lastSpaceIndex > numCharactersBeforeActualContent) {
           // + 1 to include the space on the end of this line, instead of leaving it at the beginning of the
