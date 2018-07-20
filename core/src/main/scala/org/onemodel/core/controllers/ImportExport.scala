@@ -516,7 +516,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         try {
           if (wrapTheLines || numberTheLines) {
             // The next line is debatable, but a point I want to make for now, and a personal convenience.  If you don't like it send a
-            // comment on the list, or even better, a patch with it removed.
+            // comment on the list, or a patch with it removed, for discussion.
             // Or maybe we just remove the "wrapTheLines" part of the condition so it prints only with the numbered outline format.
             // Done here because the method exportToSingleTextFile is called recursively, and this needs to simply be first.
             outputWriter.println("(This is an outline, meant to be skimmable.)" + Util.NEWLN)
@@ -920,16 +920,25 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     //printWriterIn.flush()
 
     var previousEntityWasWrapped = previousEntityWasWrappedIn
+    val isFirstEntryOfAll: Boolean = outlineNumbersTrackingInOut.size == 0
 
     def incrementOutlineNumbering(): Unit = {
-      val lastIndex = outlineNumbersTrackingInOut.size() - 1
-      val incrementedLastNumber = outlineNumbersTrackingInOut.get(lastIndex) + 1
-      outlineNumbersTrackingInOut.set(lastIndex, incrementedLastNumber)
+      // Don't do on the first entry: because that is just the header and
+      // shouldn't have a number, and the outlineNumbersTrackingInOut info
+      // isn't there to increment so it would fail anyway:
+      if (!isFirstEntryOfAll) {
+        val lastIndex = outlineNumbersTrackingInOut.size() - 1
+        val incrementedLastNumber = outlineNumbersTrackingInOut.get(lastIndex) + 1
+        outlineNumbersTrackingInOut.set(lastIndex, incrementedLastNumber)
+      }
     }
 
-    def getLineNumbers(isFirstLineInAnEntry: Boolean, includeOutlineNumbering: Boolean = true, nextKnownOutlineNumbers: java.util.ArrayList[Int]): String = {
+    def getLineNumbers(includeOutlineNumbering: Boolean = true, nextKnownOutlineNumbers: java.util.ArrayList[Int]): String = {
+      // (just a check, to learn. Maybe there is a better spot for it)
+      require(currentIndentationLevelsIn == nextKnownOutlineNumbers.size)
+
       val s = new StringBuffer
-      if (isFirstLineInAnEntry && includeOutlineNumbering && nextKnownOutlineNumbers.size > 0) {
+      if (includeOutlineNumbering && nextKnownOutlineNumbers.size > 0) {
         // (if nextKnownOutlineNumbersIn.size == 0, it is the first line/entity in the exported file, ie, just the
         // containing entity or heading for the rest, so nothing to do.
         for (i <- 0 until nextKnownOutlineNumbers.size) {
@@ -942,12 +951,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
     /** Does optional line wrapping and spacing for readability.
       * @param printWriterIn  The destination to print to.
-      * @param remainingUnprintedStringIn  The text from a given entry that has not yet been printed.
-      * @param isFirstLineInAnEntryIn Given that entry might be wrapped if longer enough, this says whether a given
-      *                             call to the method is for the first printed line of such a multi-line entry.
+      * @param entryText  The text to print, like an entity name.
       * @return  Whether lines were wrapped--so a later call to it can decide whether to print a leading blank line.
       */
-    def printEntry(printWriterIn: PrintWriter, remainingUnprintedStringIn: String, isFirstLineInAnEntryIn: Boolean = true): Boolean = {
+    def printEntry(printWriterIn: PrintWriter, entryText: String): Boolean = {
       // (Idea:  this method feels overcomplicated.  Maybe some sub-methods could be broken out or the logic made
       // consistent but simpler.  I do use the features though, for how outlines are spaced etc., and it has been well-tested.)
       val indentingSpaces: String = {
@@ -963,92 +970,89 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         }
         getSpaces(adjustedCurrentIndentationLevelsIn * spacesPerIndentLevelIn)
       }
-      val lineNumbers: String = getLineNumbers(isFirstLineInAnEntryIn, includeOutlineNumberingIn, outlineNumbersTrackingInOut)
+      incrementOutlineNumbering()
+      val lineNumbers: String = getLineNumbers(includeOutlineNumberingIn, outlineNumbersTrackingInOut)
       var numCharactersBeforeActualContent = indentingSpaces.length + lineNumbers.length
-      var remainingUnprintedString: String = indentingSpaces + lineNumbers
+      var stillToPrint: String = indentingSpaces + lineNumbers
       if (lineNumbers.length > 0 ) {
-        remainingUnprintedString = remainingUnprintedString + " "
+        stillToPrint = stillToPrint + " "
         numCharactersBeforeActualContent += 1
       }
-      val willWrapLine: Boolean = wrapLongLinesIn && (remainingUnprintedString.length + remainingUnprintedStringIn.length) > wrapColumnIn
+      val wrappingThisEntrysLines: Boolean = wrapLongLinesIn && (stillToPrint.length + entryText.length) > wrapColumnIn
 
 
       if (includeOutlineNumberingIn) {
-        // Just do the more complicated/optimized whitespace additions if adding outline numbers.
-        if (willWrapLine && isFirstLineInAnEntryIn && !previousEntityWasWrapped) {
-          // In this case we just had a single-line entry, now being followed by a block, and
-          // it makes it easier to read if there is also a preceding blank line before a block
-          // where a single line is wrapped.  And if always followed by a blank line.
-          // (These conditions put the newlines in for the entire entry, by changing based on
-          // the data in remainingUnprintedStringIn which will be used in the recursive calls to this method), *not* just to
-          // the currently-printed single line *of* the entry.)
-          remainingUnprintedString = Util.NEWLN + remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN
-        } else if (willWrapLine && isFirstLineInAnEntryIn) {
-          remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN
+        // Just do the more complicated/optimized whitespace additions if adding outline numbers,
+        // because only there is it trying to conserve vertical space (for now), with the numbers
+        // helping readability to compensate for less vertical whitespace in some places.  This might let
+        // exported content print on fewer sheets and require less page-turning.
+        if (wrappingThisEntrysLines && !previousEntityWasWrapped) {
+          // In this case we just had a single-line entry (which don't always have a blank line after),
+          // now being followed by a wrapped (multi-line) one,
+          // and it makes it easier to read if there is also a preceding blank line *before* a wrapped block.
+          stillToPrint = Util.NEWLN + stillToPrint + entryText
         } else {
-          remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn
+          stillToPrint = stillToPrint + entryText
         }
       } else {
-        // ...otherwise, make it simple, with just a whitespace line after every entry--but NOT
-        // if doing just a basic export w/o readability enhancements (because of tests' assumptions
-        // about size, and no need.  Wouldn't  really hurt otherwise, to remove the "wrapLongLinesIn &&" part
-        // of the condition).
-        // (For more explanation, see comments above about "These conditions put...".)
-        if (wrapLongLinesIn && isFirstLineInAnEntryIn) {
-          val isFirstEntryOfAll: Boolean = outlineNumbersTrackingInOut.size == 0
-          if (isFirstEntryOfAll /*&& wrapLongLinesIn && !includeOutlineNumberingIn*/) {
-            // Just a readability convenience: underline the very top entry (since its children
-            // are not indented under it--this sets it off visually as something like a "title".
-            var length = Math.min(wrapColumnIn, remainingUnprintedStringIn.length)
-            // (Compare use of "remainingUnprintedStringIn.lastIndexOf(..."  with
-            // the "val lastSpaceIndex = " line below.  Its use here is meant as a good enough estimate,
-            // as the other line needs to wait until execution gets farther along into the code, to run.)
-            var lastSpaceIndex = Math.max(remainingUnprintedStringIn.lastIndexOf(" ", wrapColumnIn), remainingUnprintedStringIn.lastIndexOf(Util.NEWLN, wrapColumnIn))
-            if (lastSpaceIndex >= 0) {
-              length = Math.min(length, lastSpaceIndex)
-            }
-            val underline: StringBuffer = new StringBuffer(length)
-            for (_ <- 1 to length) {
-              underline.append("-")
-            }
-            remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN + underline + Util.NEWLN
-          } else {
-            // not adding underline, so normal:
-            remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn + Util.NEWLN
-          }
-        } else {
-          // (Final blank line for the entry was already added in a previous recursive call.)
-          remainingUnprintedString = remainingUnprintedString + remainingUnprintedStringIn
-        }
+        stillToPrint = stillToPrint + entryText
       }
 
-      if (! willWrapLine) {
-        // print the one line, no need to wrap, and be done.
-        printWriterIn.println(remainingUnprintedString)
-        return ! isFirstLineInAnEntryIn
-      }
-      // figure out how much to print, out of a long line
-      var lastSpaceIndex = Math.max(remainingUnprintedString.lastIndexOf(" ", wrapColumnIn), remainingUnprintedString.lastIndexOf(Util.NEWLN, wrapColumnIn))
-      val endLineIndex =
-        if (lastSpaceIndex > numCharactersBeforeActualContent) {
-          // + 1 to include the space on the end of this line, instead of leaving it at the beginning of the
-          // next one as excess initial whitespace.
-          lastSpaceIndex + 1
-        } else {
-          // prevent endless loop of printing prefixes and adding more prefixes to print:
-          Math.max(numCharactersBeforeActualContent + 1, Math.min(wrapColumnIn, remainingUnprintedString.length))
-        }
-      // print the part of the line that fits
-      printWriterIn.println(remainingUnprintedString.substring(0, endLineIndex))
-      // go to the next one or be done
-      val nextRemainingPart: String = remainingUnprintedString.substring(endLineIndex)
-      if (nextRemainingPart.length > 0) {
-        return printEntry(printWriterIn, nextRemainingPart, isFirstLineInAnEntryIn = false)
+      if (! wrappingThisEntrysLines) {
+        // print the one line, no need to wrap.
+        // (No extra trailing NEWLN needed for readability if printing unwrapped lines, for example,
+        // if (includeOutlineNumberingIn == true), or if doing just a basic export without readability
+        // enhancements (because of tests' assumptions about size, and no need.)
+        printWriterIn.println(stillToPrint)
       } else {
-        // then done w/ this entry
-        return true
+        while (stillToPrint.length > 0) {
+          // figure out how much to print, out of a long line
+          //("wrapColumnIn - 1", is there to still respect the limit (wrapColumnIn) given that we do
+          // + 1 afterward to include the trailing space.)
+          var lastSpaceIndex = stillToPrint.lastIndexOf(" ", wrapColumnIn - 1)
+          val endLineIndex =
+            if (lastSpaceIndex > numCharactersBeforeActualContent && stillToPrint.length > wrapColumnIn) {
+              // + 1 to include the space on the end of this line, instead of leaving it at the beginning of the
+              // next one as excess initial whitespace.
+              lastSpaceIndex + 1
+            } else {
+              // prevent endless loop of printing prefixes and adding more prefixes to print:
+              Math.max(numCharactersBeforeActualContent + 1, Math.min(wrapColumnIn, stillToPrint.length))
+            }
+
+          // print the part of the line that fits
+          printWriterIn.println(stillToPrint.substring(0, endLineIndex))
+
+          // (fix for the next loop through, so it won't include the outline number now (if any))
+          numCharactersBeforeActualContent = indentingSpaces.length
+          if (stillToPrint.substring(endLineIndex).length > 0) {
+            stillToPrint = indentingSpaces + stillToPrint.substring(endLineIndex)
+          } else {
+            stillToPrint = stillToPrint.substring(endLineIndex)
+            // in other words, done with the content:
+            assert(stillToPrint.length == 0)
+           }
+        }
       }
+      if (isFirstEntryOfAll && wrapLongLinesIn) {
+        // Just a readability convenience: underline the very top entry (since its children
+        // are not indented under it--to set it off visually as something like a "title".
+        var length = Math.min(wrapColumnIn, entryText.length)
+        // (Compare use of "entryText.lastIndexOf(..."  with the "val lastSpaceIndex = " line elsewhere.
+        val underline: StringBuffer = new StringBuffer(wrapColumnIn)
+        for (_ <- 1 to length) {
+          underline.append("-")
+        }
+        printWriterIn.println(underline)
+      }
+      if (wrappingThisEntrysLines || (wrapLongLinesIn && !includeOutlineNumberingIn)) {
+        // whitespace for readability
+        printWriterIn.println()
+      }
+      // Return whether we *did* wrap lines:
+      wrappingThisEntrysLines
     }
+
 
 
     val entityName = entityIn.getName
@@ -1092,7 +1096,6 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               // work together with features such as wrapping, entities containing entities directly rather than via groups,
               // duplicate entities tracked via exportedEntityIdsIn, and all other attr types & variations on the parameters
               // to exportToSingleTxtFile.  Or wait for a need.
-              incrementOutlineNumbering()
               previousEntityWasWrapped = exportToSingleTextFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                                                                 currentIndentationLevelsIn + 1, printWriterIn,
                                                                 includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
@@ -1107,12 +1110,12 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                 printWriterIn.print(getSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn))
                 printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
               }
-              incrementOutlineNumbering()
               previousEntityWasWrapped = exportToSingleTextFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                                                                 currentIndentationLevelsIn + 1, printWriterIn,
                                                                 includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
                                                                 includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                                                wrapLongLinesIn, wrapColumnIn, includeOutlineNumberingIn, outlineNumbersTrackingInOut, previousEntityWasWrapped)
+                                                                wrapLongLinesIn, wrapColumnIn, includeOutlineNumberingIn, outlineNumbersTrackingInOut,
+                                                                previousEntityWasWrapped)
             case relation: RelationToGroup =>
               val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
               val group = new Group(relation.mDB, relation.getGroupId)
@@ -1129,7 +1132,6 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                 printWriterIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
               }
               for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-                incrementOutlineNumbering()
                 previousEntityWasWrapped = exportToSingleTextFile(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
                                                                   currentIndentationLevelsIn + 1, printWriterIn, includeMetadataIn,
                                                                   exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,

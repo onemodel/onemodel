@@ -5,7 +5,7 @@ importexporttest-testExportTxtFileWithLongLines-testExportFile6
   goals
   empowerment
     mental
-    spiritual
+    social
       1
       long line1: om....   this is a long entity name, enuf to try wrapping words, etc&c w/in om....   this is a long entity name, enuf to test wrapping end.
     outdent1

@@ -190,14 +190,16 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     // makes it easier to know which part has a problem.
     // The "(?m)" turns on multi-line mode so that the ^ and $ mean per-line, not per the whole input.
     // The "(?s)" turns on "dotall" mode so that a "." can mean any character *including* newlines.
-    assert(fileContents.matches("(?m)(?s)^importexporttest-testExportTxtFileWithLongLines-testExportFile6$.*"))
+    assert(fileContents.matches("""(?m)(?s)^importexporttest-testExportTxtFileWithLongLines-testExportFile6$
+                                          |^---------------------------------------------------------------$
+                                          |.*""".stripMargin), "unexpected file contents:" + fileContents)
     assert(fileContents.matches("(?m)(?s).*^1 purpose$.*"))
     assert(fileContents.matches("(?m)(?s).*^  5.1 mental$.*"), "unexpected file contents:  " + fileContents)
     assert(fileContents.matches("""(?m)(?s).*^    5.2.1 1$
                                             |^$
-                                            |^    5.2.2 long line1: om....   this is a long entity name, enuf to try wrapping $
-                                            |^    words, etc&c w/in om....   this is a long entity name, enuf to test wrapping $
-                                            |^    end.$
+                                            |^    5.2.2 long line1: om....   this is a long entity name, enuf to try $
+                                            |^    wrapping words, etc&c w/in om....   this is a long entity name, enuf to $
+                                            |^    test wrapping end.$
                                             |^$
                                             |^  5.3 outdent1$
                                             |.*""".stripMargin), "unexpected file contents:" + fileContents)
@@ -228,12 +230,13 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
                                            |^$
                                            |^  mental$
                                            |^$
-                                           |^  spiritual$
+                                           |^  social$
                                            |^$
                                            |^    1$
                                            |^$
-                                           |^    long line1: om....   this is a long entity name, enuf to try wrapping words, $
-                                           |^    etc&c w/in om....   this is a long entity name, enuf to test wrapping end.$
+                                           |^    long line1: om....   this is a long entity name, enuf to try wrapping $
+                                           |^    words, etc&c w/in om....   this is a long entity name, enuf to test $
+                                           |^    wrapping end.$
                                            |^$
                                            |^  outdent1$
                                            |.*""".stripMargin), "unexpected file contents:" + fileContents2)
