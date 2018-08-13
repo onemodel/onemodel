@@ -519,7 +519,19 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             // comment on the list, or a patch with it removed, for discussion.
             // Or maybe we just remove the "wrapTheLines" part of the condition so it prints only with the numbered outline format.
             // Done here because the method exportToSingleTextFile is called recursively, and this needs to simply be first.
-            outputWriter.println("(This is an outline, meant to be skimmable.)" + Util.NEWLN)
+            // Maybe it (or at least the part after #1) should be replaced with a link to some page ~ "How to do structured skimming to get more out of
+            // reading or spend less time".
+            outputWriter.println("(This is an outline, meant to be skimmable.  That means: 1) for an outline like this, read only the most out-dented parts," +
+                                 " and then the indented parts only if interest in the parent entry justifies it;" +
+                                 Util.NEWLN + "and (the rest of this paragraph is not" +
+                                 " for this content, but has general tips on structured skimming that have helped me get more out of reading, in less" +
+                                 " time), " +
+                                 Util.NEWLN + "2) for essays or papers, read the first and" +
+                                 " last paragraphs, then if interest remains, just the first sentences of paragraphs, and more only based on the value of" +
+                                 " what was read already; and , " +
+                                 Util.NEWLN + "3) for news, just the beginning to get the most important info, and read more rest only if" +
+                                 " you really want the increasing level of detail that comes in later parts of news articles.), " +
+                                 Util.NEWLN + "For more, see:  https://en.wikipedia.org/wiki/Skimming_(reading)#Skimming_and_scanning" + Util.NEWLN)
           }
 
           exportToSingleTextFile(entityIn, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntityIds, cachedEntities, cachedAttrs,
