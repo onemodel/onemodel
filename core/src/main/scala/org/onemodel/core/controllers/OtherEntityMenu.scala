@@ -54,7 +54,7 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
           val rteCount: Long = entityIn.getRelationToLocalEntityCount(includeArchivedEntitiesIn = false)
           val rtgCount: Long = entityIn.getRelationToGroupCount
           val whichToUpdateChoices = {
-            if (rteCount > 1) {
+            if (rteCount > 0) {
               Array("...for this entity (\"" + entityIn.getName + "\")",
                     "...for its " + rteCount + " contained entities (one level, local), and all the" +
                     " entities contained in its " + rtgCount + " groups (one level)",
