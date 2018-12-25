@@ -364,6 +364,37 @@ Verifying, above. Then run:
   docker-compose run om mvn verify
 
 
+Docker
+------
+
+It might be easier to use `docker` to install and run OneModel. Once you've installed
+`docker` and `docker-compose`, change into your checked-out copy of the source and run:
+
+  docker-compose up
+
+This should start a postgres database in a container. We need to create the postgres
+database that `om` is looking for, so run:
+
+  docker-compose run om psql
+
+And in the `psql` session, run:
+
+  create database om_<yourusername>;
+  \c om_<yourusername>
+  create extension lo;
+  create role <yourusername> with createdb login encrypted password '<putYourPasswordHere>';
+  <CTRL+D>
+
+Now you can run OneModel! From your terminal:
+
+  docker-compose run om om
+
+To run the tests, you'll need to create the `t1` role & its database as described in
+Verifying, above. Then run:
+
+  docker-compose run om mvn verify
+
+
 Running
 -------
 Just execute the jar with java.  An easy way is to go to the directory
