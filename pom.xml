@@ -1,6 +1,6 @@
 <!--
     This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2016-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2016-2018 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -22,17 +22,23 @@
   </licenses>
   <properties>
     <jdkVersion>1.8</jdkVersion>
+    <maven-scala-plugin.version>2.15.2</maven-scala-plugin.version>
+    <maven-surefire-plugin.version>2.7</maven-surefire-plugin.version>
+    <mockito-all.version>2.0.2-beta</mockito-all.version>
     <scala.version>2.11.8</scala.version>
+    <scalatest-maven-plugin.version>1.0</scalatest-maven-plugin.version>
+    <scalatest_2_11.version>3.0.0</scalatest_2_11.version>
+    <play2.version>2.5.9</play2.version>
   </properties>
   <build>
-    <plugins>
-    </plugins>
+    <defaultGoal>clean install</defaultGoal>
   </build>
   <dependencies>
   </dependencies>
   <modules>
     <module>core</module>
     <module>web</module>
+    <module>integration</module>
   </modules>
 </project>
 

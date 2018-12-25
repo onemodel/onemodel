@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2018 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -96,7 +96,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                 firstContainingEntryIn match {
                   case entity: Entity => new EntityMenu(ui, controller).entityMenu(entity)
                   case group: Group => new QuickGroupMenu(ui, controller).quickGroupMenu(firstContainingEntryIn.asInstanceOf[Group], 0,
-                                                                                             containingEntityIn = None)
+                                                                                         containingEntityIn = None)
                   case _ => throw new OmException("??")
                 }
                 ui.askYesNoQuestion("Do you want to commit the changes as they were made?")
@@ -313,7 +313,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                      "(it has to match an existing entity, case-sensitively)"
         //IDEA: this used to call controller.chooseOrCreateObject_OrSaysCancelled instead. Removing it removes a prompt if the user pressed ESC during it,
         //and this lacks a convenient way to test it, and I don't know that anyone uses it right now. So maybe add a test sometime:
-        val selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(entityIn.mDB, 
+        val selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(entityIn.mDB,
                                                                                               Some(List(prompt + ", so please choose one or ESC to abort" +
                                                                                                         " this import operation:")),
                                                                                               None, None, Util.TEXT_TYPE)
@@ -435,22 +435,67 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
   // idea: see comment in EntityMenu about scoping.
   def export(entityIn: Entity, exportTypeIn: String, headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
-    val ans: Option[String] = ui.askForString(Some(Array("Enter number of levels to export (including this one; 0 = 'all'); ESC to cancel")),
-                                              Some(Util.isNumeric), Some("0"))
-    if (ans.isEmpty) return
-    val levelsToExport: Int = ans.get.toInt
-    val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
-    if (ans2.isEmpty) return
-    val includeMetadata: Boolean = ans2.get
-    //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
-    val includePublicData: Option[Boolean] = ui.askYesNoQuestion("Include public data?  (Note: Whether an entity is public, non-public, or unset can be " +
-                                                                 "marked on each entity's menu, and the preference as to whether to display that status on " +
-                                                                 "each entity in a list can be set via the main menu.)", Some("y"))
-    val includeNonPublicData: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("n"))
-    val includeUnspecifiedData: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("n"))
+    def askForExportChoices: (Boolean, String, Int, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Int) = {
+      val levelsText = "number of levels to export"
 
-    if (includePublicData.isDefined && includeNonPublicData.isDefined && includeUnspecifiedData.isDefined &&
-        (includePublicData.get || includePublicData.get || includeUnspecifiedData.get)) {
+      val ans: Option[String] = ui.askForString(Some(Array("Enter " + levelsText + " (including this one; 0 = 'all'); ESC to cancel")),
+                                                Some(Util.isNumeric), Some("0"))
+      if (ans.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
+      val levelsToExport: Int = ans.get.toInt
+
+      val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
+      if (ans2.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
+      val includeMetadata: Boolean = ans2.get
+
+      //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
+      val ans3: Option[Boolean] = ui.askYesNoQuestion("Include public data?  (Note: Whether an entity is public, non-public, or unset can be " +
+                                                                   "marked on each entity's menu, and the preference as to whether to display that status on " +
+                                                                   "each entity in a list can be set via the main menu.)", Some("y"), allowBlankAnswer = true)
+      if (ans3.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
+      val includePublicData: Boolean = ans3.get
+
+      val ans4: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("n"), allowBlankAnswer = true)
+      if (ans4.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
+      val includeNonPublicData: Boolean = ans4.get
+
+      val ans5: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("y"),
+                                                      allowBlankAnswer = true)
+      if (ans5.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
+      val includeUnspecifiedData: Boolean = ans5.get
+
+      var numberTheLines: Boolean = false
+      var wrapTheLines: Boolean = false
+      var wrapAtColumn: Int = 1
+      if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
+        val ans6: Option[Boolean] = ui.askYesNoQuestion("Number the entries in outline form (ex, 3.1.5)?  (Prevents directly re-importing.)", Some("n"), allowBlankAnswer = true)
+        if (ans6.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
+        numberTheLines = ans6.get
+
+        // (See for more explanation on this prompt, the "adjustedCurrentIndentationLevels" variable used in a different method below.
+        val ans7: Option[Boolean] = ui.askYesNoQuestion("Wrap long lines and add whitespace for readability?  (Prevents directly re-importing; also removes one level of indentation, needless in that case.)", Some("y"), allowBlankAnswer = true)
+        if (ans7.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
+        wrapTheLines = ans7.get
+
+        wrapAtColumn = {
+          def checkColumn(s: String): Boolean = {
+            Util.isNumeric(s) && s.toFloat > 0
+          }
+          val ans8: Option[String] = ui.askForString(Some(Array("Wrap at what column (greater than 0)?")), Some(checkColumn), Some("80"),
+                                                       escKeySkipsCriteriaCheck = true)
+          if (ans8.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
+          ans8.get.toInt
+        }
+      }
+      (false, levelsText, levelsToExport, includeMetadata, includePublicData, includeNonPublicData, includeUnspecifiedData, numberTheLines, wrapTheLines,
+      wrapAtColumn)
+    }
+
+
+    val (userWantsOut: Boolean, levelsText: String, levelsToExport: Int, includeMetadata: Boolean, includePublicData: Boolean, includeNonPublicData: Boolean,
+         includeUnspecifiedData: Boolean, numberTheLines: Boolean, wrapTheLines: Boolean, wrapAtColumn: Int) = askForExportChoices
+    if (! userWantsOut) {
+      ui.displayText("Processing..." + Util.NEWLN +
+                     "(Note: if this takes too long, you can Ctrl+C and start over with a smaller or nonzero " + levelsText + ".)", waitForKeystrokeIn = false)
       require(levelsToExport >= 0)
       val spacesPerIndentLevel = 2
 
@@ -469,8 +514,17 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
         val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, None)
         try {
-          exportToSingleTxtFile(entityIn, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntityIds, cachedEntities, cachedAttrs,
-                                spacesPerIndentLevel, includePublicData.get, includeNonPublicData.get, includeUnspecifiedData.get)
+          if (wrapTheLines || numberTheLines) {
+            // The next line is debatable, but a point I want to make for now, and a personal convenience.  If you don't like it send a
+            // comment on the list, or a patch with it removed, for discussion.
+            // Or maybe we just remove the "wrapTheLines" part of the condition so it prints only with the numbered outline format.
+            // Done here because the method exportToSingleTextFile is called recursively, and this needs to simply be first.
+            outputWriter.println("(This is an outline, meant to be skimmable.)" + Util.NEWLN)
+          }
+
+          exportToSingleTextFile(entityIn, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntityIds, cachedEntities, cachedAttrs,
+                                spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, wrapTheLines,
+                                wrapAtColumn, numberTheLines)
           // flush before we report 'done' to the user:
           outputWriter.close()
           ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
@@ -491,7 +545,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
         exportHtml(entityIn, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                    cachedGroupInfo, mutable.TreeSet[Long](), uriClassId, quoteClassId,
-                   includePublicData.get, includeNonPublicData.get, includeUnspecifiedData.get, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
+                   includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
         ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
       } else {
         throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
@@ -850,36 +904,184 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   // (Idea: See note at the top of Controller.chooseOrCreateObject re inAttrType about similarly making exportTypeIn an enum.)
   /**
     * If levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
+    *
+    * @return  Whether lines were wrapped--so a later call to it can decide whether to print a leading blank line.
     */
-  def exportToSingleTxtFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int,
-                            printWriterIn: PrintWriter,
-                            includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
-                            cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], spacesPerIndentLevelIn: Int,
-                            //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                            includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean) {
-    // useful while debugging:
-    //out.flush()
+  def exportToSingleTextFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int,
+                             printWriterIn: PrintWriter,
+                             includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
+                             cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], spacesPerIndentLevelIn: Int,
+                             //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
+                             includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
+                             wrapLongLinesIn: Boolean = false, wrapColumnIn: Int = 80, includeOutlineNumberingIn: Boolean = true,
+                             outlineNumbersTrackingInOut: java.util.ArrayList[Int] = new java.util.ArrayList[Int],
+                             previousEntityWasWrappedIn: Boolean = false): Boolean = {
+    // useful while debugging, but maybe can also put that in the expression evaluator (^U)
+    //printWriterIn.flush()
 
+    var previousEntityWasWrapped = previousEntityWasWrappedIn
+    val isFirstEntryOfAll: Boolean = outlineNumbersTrackingInOut.size == 0
+
+    def incrementOutlineNumbering(): Unit = {
+      // Don't do on the first entry: because that is just the header and
+      // shouldn't have a number, and the outlineNumbersTrackingInOut info
+      // isn't there to increment so it would fail anyway:
+      if (!isFirstEntryOfAll) {
+        val lastIndex = outlineNumbersTrackingInOut.size() - 1
+        val incrementedLastNumber = outlineNumbersTrackingInOut.get(lastIndex) + 1
+        outlineNumbersTrackingInOut.set(lastIndex, incrementedLastNumber)
+      }
+    }
+
+    def getLineNumbers(includeOutlineNumbering: Boolean = true, nextKnownOutlineNumbers: java.util.ArrayList[Int]): String = {
+      // (just a check, to learn. Maybe there is a better spot for it)
+      require(currentIndentationLevelsIn == nextKnownOutlineNumbers.size)
+
+      val s = new StringBuffer
+      if (includeOutlineNumbering && nextKnownOutlineNumbers.size > 0) {
+        // (if nextKnownOutlineNumbersIn.size == 0, it is the first line/entity in the exported file, ie, just the
+        // containing entity or heading for the rest, so nothing to do.
+        for (i <- 0 until nextKnownOutlineNumbers.size) {
+          s.append(nextKnownOutlineNumbers.get(i))
+          if (nextKnownOutlineNumbers.size() - 1 > i) s.append(".")
+        }
+      }
+      s.toString
+    }
+
+    /** Does optional line wrapping and spacing for readability.
+      * @param printWriterIn  The destination to print to.
+      * @param entryText  The text to print, like an entity name.
+      * @return  Whether lines were wrapped--so a later call to it can decide whether to print a leading blank line.
+      */
+    def printEntry(printWriterIn: PrintWriter, entryText: String): Boolean = {
+      // (Idea:  this method feels overcomplicated.  Maybe some sub-methods could be broken out or the logic made
+      // consistent but simpler.  I do use the features though, for how outlines are spaced etc., and it has been well-tested.)
+      val indentingSpaces: String = {
+        val adjustedCurrentIndentationLevelsIn = {
+          if (wrapLongLinesIn) {
+            // As also mentioned where we prompt the user in method "askForExportChoices" above, the one extra (initial) indent does not
+            // seem helpful for readability, and can sometimes hinder it, such as if the exported content is going to become a
+            // document or email message.
+            Math.max(0, currentIndentationLevelsIn - 1)
+          } else {
+            currentIndentationLevelsIn
+          }
+        }
+        getSpaces(adjustedCurrentIndentationLevelsIn * spacesPerIndentLevelIn)
+      }
+      incrementOutlineNumbering()
+      val lineNumbers: String = getLineNumbers(includeOutlineNumberingIn, outlineNumbersTrackingInOut)
+      var numCharactersBeforeActualContent = indentingSpaces.length + lineNumbers.length
+      var stillToPrint: String = indentingSpaces + lineNumbers
+      if (lineNumbers.length > 0 ) {
+        stillToPrint = stillToPrint + " "
+        numCharactersBeforeActualContent += 1
+      }
+      val wrappingThisEntrysLines: Boolean = wrapLongLinesIn && (stillToPrint.length + entryText.length) > wrapColumnIn
+
+
+      if (includeOutlineNumberingIn) {
+        // Just do the more complicated/optimized whitespace additions if adding outline numbers,
+        // because only there is it trying to conserve vertical space (for now), with the numbers
+        // helping readability to compensate for less vertical whitespace in some places.  This might let
+        // exported content print on fewer sheets and require less page-turning.
+        if (wrappingThisEntrysLines && !previousEntityWasWrapped) {
+          // In this case we just had a single-line entry (which don't always have a blank line after),
+          // now being followed by a wrapped (multi-line) one,
+          // and it makes it easier to read if there is also a preceding blank line *before* a wrapped block.
+          stillToPrint = Util.NEWLN + stillToPrint + entryText
+        } else {
+          stillToPrint = stillToPrint + entryText
+        }
+      } else {
+        stillToPrint = stillToPrint + entryText
+      }
+
+      if (! wrappingThisEntrysLines) {
+        // print the one line, no need to wrap.
+        // (No extra trailing NEWLN needed for readability if printing unwrapped lines, for example,
+        // if (includeOutlineNumberingIn == true), or if doing just a basic export without readability
+        // enhancements (because of tests' assumptions about size, and no need.)
+        printWriterIn.println(stillToPrint)
+      } else {
+        while (stillToPrint.length > 0) {
+          // figure out how much to print, out of a long line
+          //("wrapColumnIn - 1", is there to still respect the limit (wrapColumnIn) given that we do
+          // + 1 afterward to include the trailing space.)
+          var lastSpaceIndex = stillToPrint.lastIndexOf(" ", wrapColumnIn - 1)
+          val endLineIndex =
+            if (lastSpaceIndex > numCharactersBeforeActualContent && stillToPrint.length > wrapColumnIn) {
+              // + 1 to include the space on the end of this line, instead of leaving it at the beginning of the
+              // next one as excess initial whitespace.
+              lastSpaceIndex + 1
+            } else {
+              // prevent endless loop of printing prefixes and adding more prefixes to print:
+              Math.max(numCharactersBeforeActualContent + 1, Math.min(wrapColumnIn, stillToPrint.length))
+            }
+
+          // print the part of the line that fits
+          printWriterIn.println(stillToPrint.substring(0, endLineIndex))
+
+          // (fix for the next loop through, so it won't include the outline number now (if any))
+          numCharactersBeforeActualContent = indentingSpaces.length
+          if (stillToPrint.substring(endLineIndex).length > 0) {
+            stillToPrint = indentingSpaces + stillToPrint.substring(endLineIndex)
+          } else {
+            stillToPrint = stillToPrint.substring(endLineIndex)
+            // in other words, done with the content:
+            assert(stillToPrint.length == 0)
+           }
+        }
+      }
+      if (isFirstEntryOfAll && wrapLongLinesIn) {
+        // Just a readability convenience: underline the very top entry (since its children
+        // are not indented under it--to set it off visually as something like a "title".
+        var length = Math.min(wrapColumnIn, entryText.length)
+        // (Compare use of "entryText.lastIndexOf(..."  with the "val lastSpaceIndex = " line elsewhere.
+        val underline: StringBuffer = new StringBuffer(wrapColumnIn)
+        for (_ <- 1 to length) {
+          underline.append("-")
+        }
+        printWriterIn.println(underline)
+      }
+      if (wrappingThisEntrysLines || (wrapLongLinesIn && !includeOutlineNumberingIn)) {
+        // whitespace for readability
+        printWriterIn.println()
+      }
+      // Return whether we *did* wrap lines:
+      wrappingThisEntrysLines
+    }
+
+
+
+    val entityName = entityIn.getName
     if (exportedEntityIdsIn.contains(entityIn.uniqueIdentifier)) {
-      printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
-      if (includeMetadataIn) printWriterIn.print("(duplicate: EN --> " + entityIn.getId + ": ")
-      printWriterIn.print(entityIn.getName)
-      if (includeMetadataIn) printWriterIn.print(")")
-      printWriterIn.println()
+      // it is a duplicate of something already exported, so just print a stub.
+      val infoToPrint = if (includeMetadataIn) {
+        "(duplicate: EN --> " + entityIn.getId + ": " + entityName + ")"
+      } else {
+        entityName
+      }
+      previousEntityWasWrapped = printEntry(printWriterIn, infoToPrint)
     } else {
       val allowedToExport: Boolean = isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                                                        levelsToExportIsInfiniteIn, levelsRemainingToExportIn)
       if (allowedToExport) {
-        //record, so we don't create duplicate files:
+        //record it, so we don't create duplicate entries:
         exportedEntityIdsIn.add(entityIn.uniqueIdentifier)
 
-        val entityName: String = entityIn.getName
-        printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
+        val infoToPrint = if (includeMetadataIn) {
+          "EN " + entityIn.getId + ": " + entityIn.getDisplayString()
+        } else {
+          entityName
+        }
 
-        if (includeMetadataIn) printWriterIn.println("EN " + entityIn.getId + ": " + entityIn.getDisplayString())
-        else printWriterIn.println(entityName)
+        previousEntityWasWrapped =
+          printEntry(printWriterIn, infoToPrint)
 
         val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn)
+        outlineNumbersTrackingInOut.add(0)
         for (attributeTuple <- attrTuples) {
           val attribute:Attribute = attributeTuple._2
           attribute match {
@@ -887,45 +1089,59 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
               val entity2 = new Entity(relation.mDB, relation.getRelatedId2)
               if (includeMetadataIn) {
-                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+                printWriterIn.print(getSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn))
                 printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
               }
-              exportToSingleTxtFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1, currentIndentationLevelsIn + 1, printWriterIn,
-                                    includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
-                                    includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
+              // Idea: write tests to confirm that printing metadata as just above and the entity as just below, will all
+              // work together with features such as wrapping, entities containing entities directly rather than via groups,
+              // duplicate entities tracked via exportedEntityIdsIn, and all other attr types & variations on the parameters
+              // to exportToSingleTxtFile.  Or wait for a need.
+              previousEntityWasWrapped = exportToSingleTextFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                                                                currentIndentationLevelsIn + 1, printWriterIn,
+                                                                includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
+                                                                includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                                                wrapLongLinesIn, wrapColumnIn, includeOutlineNumberingIn, outlineNumbersTrackingInOut,
+                                                                previousEntityWasWrapped)
             case relation: RelationToRemoteEntity =>
               val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
               val remoteDb: Database = relation.getRemoteDatabase
               val entity2 = new Entity(remoteDb, relation.getRelatedId2)
               if (includeMetadataIn) {
-                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+                printWriterIn.print(getSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn))
                 printWriterIn.println(attribute.getDisplayString(0, Some(entity2), Some(relationType)))
               }
-              exportToSingleTxtFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1, currentIndentationLevelsIn + 1, printWriterIn,
-                                    includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
-                                    includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
+              previousEntityWasWrapped = exportToSingleTextFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                                                                currentIndentationLevelsIn + 1, printWriterIn,
+                                                                includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
+                                                                includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                                                wrapLongLinesIn, wrapColumnIn, includeOutlineNumberingIn, outlineNumbersTrackingInOut,
+                                                                previousEntityWasWrapped)
             case relation: RelationToGroup =>
               val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
               val group = new Group(relation.mDB, relation.getGroupId)
               val grpName = group.getName
               // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
               if (entityName != grpName) {
-                printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+                printWriterIn.print(getSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn))
                 printWriterIn.println("(" + relationType.getName + " group named: " + grpName + ")")
               }
               if (includeMetadataIn) {
-                printSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn, printWriterIn)
+                printWriterIn.print(getSpaces(currentIndentationLevelsIn * spacesPerIndentLevelIn))
                 // plus one more level of spaces to make it look better but still ~equivalently/exchangeably importable:
-                printSpaces(spacesPerIndentLevelIn, printWriterIn)
+                printWriterIn.print(getSpaces(spacesPerIndentLevelIn))
                 printWriterIn.println("(group details: " + attribute.getDisplayString(0, None, Some(relationType)) + ")")
               }
               for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-                exportToSingleTxtFile(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1, currentIndentationLevelsIn + 1, printWriterIn,
-                                      includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
-                                      includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn)
+                previousEntityWasWrapped = exportToSingleTextFile(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                                                                  currentIndentationLevelsIn + 1, printWriterIn, includeMetadataIn,
+                                                                  exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
+                                                                  includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                                                  wrapLongLinesIn, wrapColumnIn, includeOutlineNumberingIn, outlineNumbersTrackingInOut,
+                                                                  previousEntityWasWrapped)
               }
             case _ =>
-              printSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn, printWriterIn)
+              incrementOutlineNumbering()
+              printWriterIn.print(getSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn))
               if (includeMetadataIn) {
                 printWriterIn.println((attribute match {
                   case ba: BooleanAttribute => "BA "
@@ -939,8 +1155,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               }
           }
         }
+        outlineNumbersTrackingInOut.remove(outlineNumbersTrackingInOut.size() - 1)
       }
     }
+    return previousEntityWasWrapped
   }
 
   def isAllowedToExport(entityIn: Entity, includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean,
@@ -974,10 +1192,12 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     numSubEntries
   }
 
-  def printSpaces(num: Int, out: PrintWriter) {
+  def getSpaces(num: Int): String = {
+    val s: StringBuffer = new StringBuffer
     for (i <- 1 to num) {
-      out.print(" ")
+      s.append(" ")
     }
+    s.toString
   }
 
   def getExportFileNamePrefix(entity: Entity, exportTypeIn: String): String = {
@@ -1057,7 +1277,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     tmpCopy.toFile
   }
   // (see cmt on tryImporting method)
-  def tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[Long], dbIn: Database): (String, File) = {
+  def tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[Long], dbIn: Database, wrapLongLinesIn: Boolean = false,
+                                wrapColumnIn: Int = 80, includeOutlineNumberingIn: Boolean = false): (String, File) = {
     assert(ids.size > 0)
     val entityId: Long = ids.get(0)
     val startingEntity: Entity = new Entity(dbIn, entityId)
@@ -1069,8 +1290,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
     val prefix: String = getExportFileNamePrefix(startingEntity, ImportExport.TEXT_EXPORT_TYPE)
     val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, ImportExport.TEXT_EXPORT_TYPE, None)
-    exportToSingleTxtFile(startingEntity, levelsToExportIsInfiniteIn = true, 0, 0, outputWriter, includeMetadataIn = false, exportedEntityIds, cachedEntities,
-                          cachedAttrs, 2, includePublicDataIn = true, includeNonPublicDataIn = true, includeUnspecifiedDataIn = true)
+    exportToSingleTextFile(startingEntity, levelsToExportIsInfiniteIn = true, 0, 0, outputWriter, includeMetadataIn = false, exportedEntityIds, cachedEntities,
+                          cachedAttrs, 2, includePublicDataIn = true, includeNonPublicDataIn = true, includeUnspecifiedDataIn = true,
+                          wrapLongLinesIn, wrapColumnIn, includeOutlineNumberingIn)
     assert(outputFile.exists)
     outputWriter.close()
     val firstNewFileContents: String = new Predef.String(Files.readAllBytes(outputFile.toPath))

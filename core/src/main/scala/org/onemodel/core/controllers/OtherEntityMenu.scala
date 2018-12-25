@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2015-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2015-2018 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -53,10 +53,17 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
           val valueAfterEntry: Option[Boolean] = controller.askForPublicNonpublicStatus(valueBeforeEntry)
           val rteCount: Long = entityIn.getRelationToLocalEntityCount(includeArchivedEntitiesIn = false)
           val rtgCount: Long = entityIn.getRelationToGroupCount
-          val publicMenuResponse = ui.askWhich(None, Array("...for this entity (\"" + entityIn.getName + "\")",
-                                                           "...for its " + rteCount + " contained entities (one level, local), and all the" +
-                                                           " entities contained in its " + rtgCount + " groups (one level)",
-                                                           "...for both."))
+          val whichToUpdateChoices = {
+            if (rteCount > 1) {
+              Array("...for this entity (\"" + entityIn.getName + "\")",
+                    "...for its " + rteCount + " contained entities (one level, local), and all the" +
+                    " entities contained in its " + rtgCount + " groups (one level)",
+                    "...for both.")
+            } else {
+              Array("...for this entity only (\"" + entityIn.getName + "\").")
+            }
+          }
+          val publicMenuResponse = ui.askWhich(None, whichToUpdateChoices)
           if (publicMenuResponse.isDefined) {
             if (publicMenuResponse.get == 1) {
               entityIn.updatePublicStatus(valueAfterEntry)

@@ -1,6 +1,8 @@
-#!/bin/bash 
+#!/usr/local/bin/bash 
+#Some variant of above line seems required because otherwise running under testrun (of dejagnu) gets an error.
+
 #    This file is part of OneModel, a program to manage knowledge.
-#    Copyright in each year of 2010-2017 inclusive, Luke A Call; all rights reserved.
+#    Copyright in each year of 2010-2018 inclusive, Luke A Call; all rights reserved.
 #    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
 #    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
 #    see the file LICENSE for license version and details.
@@ -10,14 +12,13 @@
 #    not, see http://www.gnu.org/licenses/  .
 
 set -eu
-#doesn't work on machines w/ different paths:  #!/bin/bash -eu
-#...BUT: I put it back because otherwise running under testrun (of dejagnu) gets an error.
 
 #useful to debug or observe scripts if uncommented:
 #set -x
 
+# (Use "readlink -f" not ".. -e" so it will work both on openbsd OR linux.)
 THIS_SCRIPT_DIR=$(dirname $(readlink -fn $0))
-cd "$THIS_SCRIPT_DIR"/..
+cd "$THIS_SCRIPT_DIR"/../..
 
 # similar DEBUG setting code in "c" script
 DEBUG=""
@@ -38,7 +39,8 @@ fi
 #ulimit -c 1
 #
 set +e
-java $DEBUG -Duser.name="$USER" -Djline.keybindings="$THIS_SCRIPT_DIR/../jlinebindings.properties" -jar target/onemodel-*.jar $*
+# (user.name set for convenience with Docker.)
+java $DEBUG -Duser.name="$USER" -jar target/onemodel-core-0.2.0-SNAPSHOT.jar $*
 RESULT=$?
 set -e
 reset #see cmt just below for why. If adapting for other OSes, make sure that cmd doesn't do something drastic. 

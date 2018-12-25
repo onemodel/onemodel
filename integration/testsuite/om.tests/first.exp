@@ -1,5 +1,5 @@
 #    This file is part of OneModel, a program to manage knowledge.
-#    Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
+#    Copyright in each year of 2016-2018 inclusive, Luke A Call; all rights reserved.
 #    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
 #    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
 #    see the file LICENSE for license version and details.
@@ -37,7 +37,7 @@ set test_pass "x"
 # PICK JUST *ONE* OF NEXT 2 LINES:
 # Useful during testing to make sure we hit all new breakpoints for changed code. BUT
 # BUT WHEN (temporarily) REVERSING THIS, SEE ALSO THE COMMENTS in EntityMenuIT.java under "For some debugging",
-# if running from there!
+# if running from there!  Idea: is there a way to drive this, from a command-line parameter instead (ie simpler use)?
 set using_debugger "false"
 #set using_debugger "true"
 
@@ -73,7 +73,7 @@ proc myexpect {expectation} {
       # in this case OM is offering to provide a stack trace, so display it...
       global human_keystroke_wait
       sleep $human_keystroke_wait
-      # (backspace:)
+      # (2 backspaces:)
       send \x08\x08
       send y\n
       # ...then wait for the next prompt so the stack is shown, before expect closes OM.
@@ -269,7 +269,7 @@ proc import {entity_name_to_confirm_right_menu} {
   myexpect "2-Import/Export"
   send 21
   myexpect "Enter file path.*must exist"
-  send "$env(SCRIPT_DIR)/../src/test/resources/testImportFile0.txt\n"
+  send "$env(SCRIPT_DIR)/../../../core/src/test/resources/testImportFile0.txt\n"
   myexpect "Do you want.*marked as public"
   sleep $human_keystroke_wait
   send y\n
@@ -314,6 +314,16 @@ proc export_txt {entity_name_to_confirm_right_menu} {
   myexpect "Include.*not specified"
   sleep $human_keystroke_wait
   send \x08y\n
+  myexpect "Number the entries in outline form"
+  sleep $human_keystroke_wait
+  send \x08n\n
+  myexpect "Wrap long lines and add whitespace"
+  sleep $human_keystroke_wait
+  send \x08n\n
+  myexpect "Wrap at what column"
+  sleep $human_keystroke_wait
+  send \x08\x08
+  send 80\n
   myexpect "Exported to file: "
   send x
   send 0
@@ -340,9 +350,18 @@ proc export_html {entity_name_to_confirm_right_menu} {
   sleep $human_keystroke_wait
   send "2017 john doe\n"
   sleep $human_keystroke_wait
+  # (About next line: not previously needed as it picked up the default
+  # value provided to the user by OM itself. Why not now: difference in 
+  # running under xterm under ssh on my system, or some timing 
+  # thing?  Was previously working w/o, under linux & konsole, now sure if 
+  # ssh.)
+  send "0"
   send \n
   myexpect "Include metadata"
   sleep $human_keystroke_wait
+  # (About next 2 lines, similar to comment above:  not previously needed.)
+  send \x08\x08
+  send n
   send \n
   myexpect "Include public data"
   sleep $human_keystroke_wait
@@ -433,9 +452,14 @@ proc edit_entity_name_on_otherEntityMenu {old_entity_name new_entity_name class_
   # (Ctrl-U or the key to clear preceding characters in the edit line:)
   send \x15
   send ${new_entity_name}\n
+  # The next line is needed if in debug mode, or the output doesn't seem to
+  # make it to OM in time, which causes a strange, hard-to-diagnose problem
+  # with the test.
+  sleep $human_keystroke_wait
   myexpect "single subgroup.*Also change.*"
   sleep $human_keystroke_wait
-  send \x08n\n
+  send \x08
+  send n\n
   send 0
   myexpect "CURRENT ENTITY.*${new_entity_name}.*class: $class_name.*created"
   endproc edit_entity_name_on_otherEntityMenu false
@@ -1074,6 +1098,13 @@ proc check_group_menu {containing_entity_name group_menu_letter} {
   myexpect "Enter file path"
   # ESC (that is far enough for this test for now):
   send \x1B
+  # ESC twice now for some reason on openbsd, not linux? only sometimes? 
+  # A difference in
+  # terminals? (xterm/openbsd/ssh, vs. konsole/linux?)  Or, jline
+  # behavior different on openbsd than linux? or something else
+  # changed? retry on linux & see if this breaks it?:
+  send \x1B
+
   myexpect "ENTITY GROUP.*regular menu.*group2name.*class"
 
   send 31
@@ -1378,7 +1409,7 @@ if {$using_debugger == "false"} {
     spawn om
   } else {
     # (note: $env(SCRIPT_DIR) yields the directory within the project that
-    # contains the om-runtest script, i.e., the full path up to and
+    # contains the om-expect-tests script, i.e., the full path up to and
     # including core/bin .)
     spawn $env(SCRIPT_DIR)/c
     # allow time for recompile

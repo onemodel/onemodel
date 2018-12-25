@@ -1,5 +1,5 @@
 #    This file is part of OneModel, a program to manage knowledge.
-#    Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
+#    Copyright in each year of 2016-2018 inclusive, Luke A Call; all rights reserved.
 #    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
 #    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
 #    see the file LICENSE for license version and details.
@@ -28,18 +28,22 @@ spawn psql -f ${script_dir}/purge-om-test-database.psql --username=${test_user} 
 
 set expectation "Password for user ${test_user}:"
 expect {
-  #-re $error_strings {exit 1}
   # per "man expect", the "default" keyword matches on either "timeout" or "eof" so we don't have to specify both:
-  default {exit 1}
+  default {
+    #using error instead of "exit 1", to generate a tcl stack trace:
+    error "Got an error looking for \"${expectation}\}."
+  }
   $expectation
 }
 
 send "${test_pass}\n"
 
-set expectation "No relations found."
+set expectation "Did not find any relations."
 expect {
-  #-re $error_strings {exit 1}
-  default {exit 1}
+  default {
+    #using error instead of "exit 1", to generate a tcl stack trace:
+    error "Got an error looking for \"${expectation}\}."
+  }
   $expectation
 }
 wait

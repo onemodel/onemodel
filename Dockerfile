@@ -12,4 +12,4 @@ COPY . /onemodel
 
 RUN mvn clean package -DskipTests=true
 
-ENV PATH="/onemodel/core/bin:${PATH}"
+ENV PATH="/onemodel/core/linux/bin:${PATH}"

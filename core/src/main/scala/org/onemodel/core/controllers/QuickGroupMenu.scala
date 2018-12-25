@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2018 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -89,16 +89,18 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
     val choices = Array[String](// these are ordered for convenience in doing them w/ the left hand: by frequency of use, and what seems easiest to remember
                                 // for common operations with the 4 fingers sitting on the '1234' keys.  Using LH more in this because my RH gets tired more,
                                 // and it seems like often people have their RH on the mouse.
-                                "Move up 25",
+                                "Move up " + controller.moveFartherCount,
                                 "Move up 5", "Move up 1", "Move down 1", "Move down 5",
-                                "Move down 25",
+                                "Move down " + controller.moveFartherCount,
 
                                 if (targetForMovesIn.isDefined) "Move (*) to selected target (+, if any)"
                                 else "(stub: have to choose a target before you can move entries into it)",
 
-                                "Move (*) to calling menu (up one)"
-                                // idea: make an option #9 here which is a "quick archive"? (for removing completed tasks: maybe only after showing
+                                "Move (*) to calling menu (up one)",
+                                "Move down " + controller.moveFarthestCount + " but keep data display position "
+                                // idea: make an option here which is a "quick archive"? (for removing completed tasks: maybe only after showing
                                 // archived things and "undo" works well, or use 9 for the 'cut' part of a logical 'cut/paste' operation to move something?)
+                                // But, would have to start using alt keys to distinguish between options chosen when there are that many?
                                )
     val response = ui.askWhich(None, choices, Array[String](), highlightIndexIn = Some(highlightedIndexInObjListIn),
                                secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -109,9 +111,9 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
       var numRowsToMove = 0
       var forwardNotBack = false
 
-      if (answer >= 1 && answer <= 6) {
+      if ((answer >= 1 && answer <= 6) || answer == 9) {
         if (answer == 1) {
-          numRowsToMove = 20
+          numRowsToMove = controller.moveFartherCount
         } else if (answer == 2) {
           numRowsToMove = 5
         } else if (answer == 3) {
@@ -123,12 +125,23 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
           numRowsToMove = 5
           forwardNotBack = true
         } else if (answer == 6) {
-          numRowsToMove = 20
+          numRowsToMove = controller.moveFartherCount
+          forwardNotBack = true
+        } else if (answer == 9) {
+          numRowsToMove = controller.moveFarthestCount
           forwardNotBack = true
         }
-        val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), numRowsToMove, forwardNotBack,
-                                                                 startingDisplayRowIndexIn, highlightedObjId, highlightedIndexInObjListIn,
-                                                                 Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
+        val displayStartingRowNumber: Int = {
+          val possibleDisplayStartingRowNumber = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), numRowsToMove, forwardNotBack,
+                               startingDisplayRowIndexIn, highlightedObjId, highlightedIndexInObjListIn,
+                               Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
+          if (answer != 9) {
+            possibleDisplayStartingRowNumber
+          } else {
+            // (see note at same place in EntityMenu, re the position and the highlight)
+            startingDisplayRowIndexIn
+          }
+        }
         quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 7 && targetForMovesIn.isDefined) {
         val targetRtgCount: Long = targetForMovesIn.get.getRelationToGroupCount
@@ -240,7 +253,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
                                 "Select target (entry move destination: gets a '+')",
                                 "Select entry to highlight (with '*'; typing the letter instead goes to the subgroup if any, else to that entity)",
                                 "Other (slower actions, more complete menu)")
-    val displayDescription = if (relationToGroupIn.isDefined) relationToGroupIn.get.getDisplayString(0) else groupIn.getDisplayString(0)
+    val displayDescription = if (relationToGroupIn.isDefined) relationToGroupIn.get.getDisplayString(0) else groupIn.getDisplayString()
     // (idea: maybe this use of color on next line could be removed, if people don't rely on the color change.  I originally added it as a visual
     // cue to aid my transition to using entities more & groups less.  Same thing is done in GroupMenu.)
     // (Idea: this color thing should probably be handled in the textui class instead, especially if there were multiple kinds of UI.)
@@ -567,7 +580,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
     group.getAdjacentGroupEntriesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected def getNearestEntrysSortingIndex(dbIn: Database, groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+  protected def getSortingIndexOfNearestEntry(dbIn: Database, groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
     val group = new Group(dbIn, groupIdIn)
     group.getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }

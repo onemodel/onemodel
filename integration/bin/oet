@@ -1,6 +1,6 @@
 # ------------------------
 # This file is part of OneModel, a program to manage knowledge.
-# Copyright in each year of 2016-2017 inclusive, Luke A Call; all rights reserved.
+# Copyright in each year of 2016-2018 inclusive, Luke A Call; all rights reserved.
 # OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
 # distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
 # see the file LICENSE for license version and details.
@@ -14,8 +14,10 @@ set -eux
 # A convenience script which has a shorter name and tries to show the logs for debugging.  
 # To work, the script om-expect-tests, part of the om source code, should be in the path, as should the om script itself.
 
-export SCRIPT_DIR="$(dirname $(readlink -e $0))"
+# (Use "readlink -f" not ".. -e" so it will work also on openbsd.)
+export SCRIPT_DIR="$(dirname $(readlink -f $0))"
 
+# should be placed in the path per core/INSTALLING and the core/bin/README:
 om-expect-tests
 
 echo "Enter to view log"; read

@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2017-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2017-2018 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -7,7 +7,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core.controllers;
+package org.onemodel.integration.controllers;
 
 import net.sf.expectit.*;
 import static net.sf.expectit.matcher.Matchers.*;
@@ -18,9 +18,11 @@ import org.testng.annotations.*;
 import java.lang.Exception;
 import java.util.concurrent.TimeUnit;
 
-@Test
-/** Integration test ("...IT").
+/** Integration test ("...IT").  This is "integration testing", but could be either in the "integration" module,
+ * or in the core module, because (as of 2017-8-30) it doesn't test other modules, just core. That might change soon,
+ * to also test core making web calls, so the web server will need to be started, so it will make sense in "integration".
  */
+@Test
 public class EntityMenuIT {
   @BeforeClass
   protected void setUp() {
@@ -34,9 +36,11 @@ public class EntityMenuIT {
 
   public void testOmUiEtc() throws Exception {
     String osName = System.getProperty("os.name");
-    if (! osName.equalsIgnoreCase("linux")) {
-      throw new OmException("This test isn't yet expected to work on anything but Linux (or maybe other unix), until the om-expect-tests " +
-                              "script in the code is adapted to that, and also probably others.");
+    if (! (osName.equalsIgnoreCase("linux") || osName.equalsIgnoreCase("OpenBSD"))) {
+      throw new OmException("This test isn't yet expected to work on anything but Linux," +
+                            " OpenBSD, and maybe similar others, until the om-expect-tests" +
+                            " and probably other scripts are adapted accordingly. (You" +
+                            " might have to fix the path to bash, at the top of scripts.)");
     }
 
     // Using expectit here to call *dejagnu* (instead of doing everything directly with expectit), because expectit was less clear how to debug than with
@@ -67,17 +71,17 @@ public class EntityMenuIT {
       # a failure could be missed.  This makes sure it runs to completion.
       # (If you don't know what # to use, comment the line out, check the testrun.log that was just
       # updated, and update the #, then uncomment the line. Or just uncomment it, but don't commit that.) */
-      // IDEA (also in tracked tasks): check for the string "# of expected passes            476"
+      // IDEA (also in tracked tasks): check for the string "# of expected passes            479"
       // here (for some reason putting in that full text
-      // causes the check to fail, even when I tried a regex, vs. just the "476" which works), and check
-      // for a ~"Return code from dejagnu tests: 0" (which I think I tried but failed when it was in addition to the "476",
+      // causes the check to fail, even when I tried a regex, vs. just the "479" which works), and check
+      // for a ~"Return code from dejagnu tests: 0" (which I think I tried but failed when it was in addition to the "479",
       // and didn't want to use alone because it seemed like could possible pass even when less than the full # of tests
       // were run.  Having problems with expectit and might try its
       // docs again or a different toolkit for this purpose:
 //      result = expect.expect(contains("# of expected passes"));
       //NOTE: I did confirm that the next line will fail when necessary:
-      result = expect.expect(contains("476"));
-//      result = expect.expect(contains("# of expected passes            476"));
+      result = expect.expect(contains("479"));
+//      result = expect.expect(contains("# of expected passes            479"));
 
 
       /* ***************************

@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2018 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -111,7 +111,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     */
   protected def getNewSortingIndex(dbIn: Database, containingObjectIdIn: Long, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: Long, startingDisplayRowIndexIn: Int,
                                    nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long], forwardNotBack: Boolean,
-                                   byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: Long, moveFromIndexInObjListIn: Int,
+                                   byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: Long, moveFromRelativeIndexInObjListIn: Int,
                                    numDisplayLines: Int): (Long, Boolean, Int) = {
     if (nearNewNeighborSortingIndex.isEmpty) {
       throw new OmException("never should have got here: should have been the logic of ~nowhere to go so doing nothing")
@@ -179,19 +179,23 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
 
     val newDisplayRowsStartingWithCounter: Int = {
       if (forwardNotBack) {
-        if ((moveFromIndexInObjListIn + byHowManyEntriesMoving) > numDisplayLines) {
+        if ((moveFromRelativeIndexInObjListIn + byHowManyEntriesMoving) >= numDisplayLines) {
           // if the object will move too far to be seen in this screenful, adjust the screenful to redisplay, with some margin
-          val x: Long = groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In - numDisplayLines
+          // ("- 1" on next line because the indexes are zero-based)
+          val lastScreenfulStartingIndex: Long = groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In - numDisplayLines - 1
           //(was: "(numDisplayLines / 4)", but center it better in the screen):
-          val y: Int = startingDisplayRowIndexIn + numDisplayLines + byHowManyEntriesMoving - (numDisplayLines / 2)
-          val min: Int = math.min(x,y).asInstanceOf[Int]
+          // Another name for next var might be  like "display index at new entry but going back to show enough contextual data on screen".
+          val numLinesInHalfTheScreen = numDisplayLines / 2
+          val movedEntrysNewAbsoluteIndexMinusHalfScreenful: Double = startingDisplayRowIndexIn + moveFromRelativeIndexInObjListIn +
+                                                                      byHowManyEntriesMoving - numLinesInHalfTheScreen
+          val min: Int = math.min(lastScreenfulStartingIndex, movedEntrysNewAbsoluteIndexMinusHalfScreenful).asInstanceOf[Int]
           math.max(0, min)
         } else startingDisplayRowIndexIn
       } else {
-        if ((moveFromIndexInObjListIn - byHowManyEntriesMoving) < 0) {
-          // if the object will move too far to be seen in this screenful, adjust the screenful to redisplay, with some margin
-          // (was: "/ 4", but center it better in the screen):
-          math.max(0, startingDisplayRowIndexIn - byHowManyEntriesMoving - (numDisplayLines / 2))
+        if ((moveFromRelativeIndexInObjListIn - byHowManyEntriesMoving) < 0) {
+          val movedEntrysNewAbsoluteIndexMinusHalfScreenful: Int = startingDisplayRowIndexIn + moveFromRelativeIndexInObjListIn -
+                                                                   byHowManyEntriesMoving - (numDisplayLines / 2)
+          math.max(0, movedEntrysNewAbsoluteIndexMinusHalfScreenful)
         } else startingDisplayRowIndexIn
       }
     }
@@ -253,7 +257,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       if (nearNewNeighborSortingIndex.isEmpty || farNewNeighborSortingIndex.isEmpty)
         None
       else
-        getNearestEntrysSortingIndex(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forwardNotBackIn = forwardNotBackIn)
+        getSortingIndexOfNearestEntry(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forwardNotBackIn = forwardNotBackIn)
     }
 
     (byHowManyEntriesMoving, nearNewNeighborSortingIndex, adjustedFarNewNeighborSortingIndex)
@@ -262,7 +266,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
   protected def getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
                                                  forwardNotBackIn: Boolean): List[Array[Option[Any]]]
 
-  protected def getNearestEntrysSortingIndex(dbIn: Database, containingIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
+  protected def getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
 
   protected def renumberSortingIndexes(dbIn: Database, containingObjectIdIn: Long)
 

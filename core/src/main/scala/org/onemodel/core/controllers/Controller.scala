@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2018 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement once said 2013-2015, until I remembered that much of Controller came from TextUI.scala, and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -38,6 +38,8 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   // This should *not* be passed around as a parameter to everything, but rather those places in the code should get the DB instance from the
   // entity (or other model object) being processed.
   private val localDb: Database = tryLogins(forceUserPassPromptIn, defaultUsernameIn, defaultPasswordIn)
+  val moveFartherCount = 25
+  val moveFarthestCount = 50
 
   /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
   def getDefaultEntity: Option[(Long, Entity)] = {
@@ -65,7 +67,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
 
   def start() {
     // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  make it save their answer 'yes/i agree' or such in the DB,
-    // and don't make them press the keystroke again (timesaver)!  See code at top of PostgreSQLDatabase that puts things in the db at startup: do similarly?
+    // and don't make them press the keystroke again (time-saver)!  See code at top of PostgreSQLDatabase that puts things in the db at startup: do similarly?
     ui.displayText(Util.copyright(ui), waitForKeystrokeIn = true, Some("IF YOU DO NOT AGREE TO THOSE TERMS: " + ui.howQuit + " to exit.\n" +
                                                              "If you agree to those terms: "))
     // Max id used as default here because it seems the least likely # to be used in the system hence the
@@ -493,7 +495,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
                              (if (Util.canEditAttributeOnSingleLine(attributeIn)) "content (single line)," else "") +
                              " and valid/observed dates",
 
-                             if (attributeIn.isInstanceOf[TextAttribute]) "Edit (as multiline value)" else "(stub)",
+                             if (attributeIn.isInstanceOf[TextAttribute]) "Edit (as multi-line value)" else "(stub)",
                              if (Util.canEditAttributeOnSingleLine(attributeIn)) "Edit the attribute content (single line)" else "(stub)",
                              "Delete",
                              "Go to entity representing the type: " + new Entity(attributeIn.mDB, attributeIn.getAttrTypeId).getName)
@@ -1306,7 +1308,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
                            uiIn: TextUI): Option[RelationToGroupDataHolder] = {
     val outDH = dhIn
 
-    val groupSelection = chooseOrCreateGroup(dbIn, Some(List("SELECT GROUP FOR THIS RELATION")), 0)
+    val groupSelection = chooseOrCreateGroup(dbIn, Some(List("SELECT GROUP FOR THIS RELATION")))
     val groupId: Option[Long] = {
       if (groupSelection.isEmpty) {
         uiIn.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystrokeIn = false)
@@ -1433,7 +1435,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
 
   def goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,
                                     containingGroupIn: Option[Group] = None): (Option[Entity], Option[Long], Boolean) = {
-    val (rtgid, rtid, groupId, _, moreThanOneAvailable) = userSelection.findRelationToAndGroup
+    val (rtgId, rtId, groupId, _, moreThanOneAvailable) = userSelection.findRelationToAndGroup
     val subEntitySelected: Option[Entity] = None
     if (groupId.isDefined && !moreThanOneAvailable && userSelection.getAttributeCount == 1) {
       // In quick menu, for efficiency of some work like brainstorming, if it's obvious which subgroup to go to, just go there.
@@ -1441,7 +1443,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       // to its own method, so it doesn't try to tail optimize it?)  See also the comment with 'tailrec', mentioning why to have it, above.
       new QuickGroupMenu(ui, this).quickGroupMenu(new Group(userSelection.mDB, groupId.get),
                                                       0,
-                                                      Some(new RelationToGroup(userSelection.mDB, rtgid.get, userSelection.getId, rtid.get, groupId.get)),
+                                                      Some(new RelationToGroup(userSelection.mDB, rtgId.get, userSelection.getId, rtId.get, groupId.get)),
                                                       callingMenusRtgIn = relationToGroupIn,
                                                       //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s)
                                                       // w/in this method!
@@ -1555,8 +1557,8 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
                                                                                                 val relTypeId: Long = relTypeIdAndEntity._1
                                                                                                 val entity: Entity = relTypeIdAndEntity._2
                                                                                                 val relTypeName: String = {
-                                                                                                  val reltype = new RelationType(entity.mDB, relTypeId)
-                                                                                                  reltype.getArchivedStatusDisplayString + reltype.getName
+                                                                                                  val relType = new RelationType(entity.mDB, relTypeId)
+                                                                                                  relType.getArchivedStatusDisplayString + relType.getName
                                                                                                 }
                                                                                                 "the entity \"" + entity.getArchivedStatusDisplayString +
                                                                                                 entity.getName + "\" " + relTypeName + " this group"
@@ -1712,8 +1714,9 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       val newEntityName: Option[String] = ui.askForString(Some(Array {"Enter a name (or description) for this web page or other URI"}))
       if (newEntityName.isEmpty || newEntityName.get.isEmpty) return None
 
-      val ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (normal) or the" +
-                                                " clipboard (faster sometimes)?")), Array("keyboard", "clipboard"))
+      val ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (typing or directly pasting), or" +
+                                                " have OM pull directly from the clipboard (faster sometimes)?")), 
+                                                Array("keyboard", "clipboard"))
       if (ans1.isEmpty) return None
       val keyboardOrClipboard1 = ans1.get
       val uri: String = if (keyboardOrClipboard1 == 1) {
@@ -1725,8 +1728,10 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         Util.getClipboardContent
       }
 
-      val ans2 = ui.askWhich(Some(Array[String]("Do you want to enter a quote from it, via the keyboard (normal) or the" +
-                                                " clipboard (faster sometimes, especially if it's multiline)? Or, ESC to not enter a quote.")),
+      val ans2 = ui.askWhich(Some(Array[String]("Do you want to enter a quote from it, via the keyboard (typing or directly pasting) or" +
+                                                " have OM pull directly from the clipboard (faster sometimes, especially if " +
+                                                " it's multi-line)? Or, ESC to not enter a quote. (Tip: if it is a whole file, just put in" +
+                                                " a few characters from the keyboard, then go back and edit as multi-line to put in all.)")),
                              Array("keyboard", "clipboard"))
       val quote: Option[String] = if (ans2.isEmpty) {
         None

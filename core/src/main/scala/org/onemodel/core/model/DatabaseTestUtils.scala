@@ -13,6 +13,8 @@ package org.onemodel.core.model
 
 object DatabaseTestUtils {
   /** Returns the groupId, and the RTG.
+    * This file is in the core package (not in the test directory), so that by being included in the .jar,
+    * it is available for use by the integration module (in RestDatabaseTest.scala).
     */
   def createAndAddTestRelationToGroup_ToEntity(dbIn: Database, inParentId: Long, inRelTypeId: Long, inGroupName: String = "something",
                                                inValidOnDate: Option[Long] = None, allowMixedClassesIn: Boolean = true): (Long, RelationToGroup) = {

@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2018 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -26,7 +26,6 @@ import org.postgresql.largeobject.{LargeObject, LargeObjectManager}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.Sorting
-import java.net.ConnectException
 
 /** Some methods are here on the object, so that PostgreSQLDatabaseTest can call destroyTables on test data.
   */
@@ -35,18 +34,15 @@ object PostgreSQLDatabase {
   val CURRENT_DB_VERSION = 7
   def destroyTables(dbNameWithoutPrefixIn: String, username: String, password: String) {
     Class.forName("org.postgresql.Driver")
-    val conn: Connection = DriverManager.getConnection(
-        jdbcurl(dbNameWithoutPrefixIn),
-        username,
-        password)
+    val conn: Connection = DriverManager.getConnection(jdbcUrl(dbNameWithoutPrefixIn), username, password)
     conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
     destroyTables_helper(conn)
   }
 
-  def jdbcurl(dbNameWithoutPrefixIn: String): String = {
+  def jdbcUrl(dbNameWithoutPrefixIn: String): String = {
     Option(System.getenv("PGHOST")) match {
-      case Some(host) => s"jdbc:postgresql://$host/${Database.dbNamePrefix}$dbNameWithoutPrefixIn"
-      case None => s"jdbc:postgresql:${Database.dbNamePrefix}$dbNameWithoutPrefixIn"
+      case Some(host) => "jdbc:postgresql://" + host + "/" + Database.dbNamePrefix + dbNameWithoutPrefixIn
+      case None => "jdbc:postgresql:" + Database.dbNamePrefix + dbNameWithoutPrefixIn
     }
   }
 
@@ -102,7 +98,7 @@ object PostgreSQLDatabase {
   }
 
   private def drop(sqlType: String, name: String, connIn: Connection) {
-    try dbAction("drop " + escapeQuotesEtc(sqlType) + " " + escapeQuotesEtc(name) + " CASCADE", callerChecksRowCountEtc = false, connIn = connIn)
+    try dbAction("drop " + escapeQuotesEtc(sqlType) + " " + escapeQuotesEtc(name) + " CASCADE", connIn = connIn)
     catch {
       case e: Exception =>
         val sw: StringWriter = new StringWriter()
@@ -120,11 +116,11 @@ object PostgreSQLDatabase {
     /*
     //both of these seem to work to embed a ' (single quote) in interactive testing w/ psql: the SQL standard
     //way (according to http://www.postgresql.org/docs/9.1/interactive/sql-syntax-lexical.html#SQL-SYNTAX-STRINGS )
-    //    update entity set (name) = ('len''gth4') where id=-9223372036854775807;
+    //    update entity set (name) = ROW('len''gth4') where id=-9223372036854775807;
     //...or the postgresql extension way (also works for: any char (\a is a), c-like (\b, \f, \n, \r, \t), or
     //hex (eg \x27), or "\u0027 (?) , \U0027 (?)  (x = 0 - 9, A - F)  16 or 32-bit
     //hexadecimal Unicode character value"; see same url above):
-    //    update entity set (name) = (E'len\'gth4') where id=-9223372036854775807;
+    //    update entity set (name) = ROW(E'len\'gth4') where id=-9223372036854775807;
     */
     // we don't have to do much: see the odd string that works ok, searching for "!@#$%" etc in PostgreSQLDatabaseTest.
     result = result.replaceAll("'", "\39")
@@ -268,17 +264,14 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def connect(dbNameWithoutPrefixIn: String, username: String, password: String) {
-    try
-      if (mConn != null)
+    try {
+      if (mConn != null) {
         mConn.close()
-    catch {
+      }
+    } catch {
       case e: Exception => throw new RuntimeException(e)
     }
-
-    mConn = DriverManager.getConnection(
-        PostgreSQLDatabase.jdbcurl(dbNameWithoutPrefixIn),
-        username,
-        password)
+    mConn = DriverManager.getConnection(PostgreSQLDatabase.jdbcUrl(dbNameWithoutPrefixIn), username, password)
     mConn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
   }
 
@@ -728,7 +721,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
 
-      dbAction(s"UPDATE om_db_version SET version = ${PostgreSQLDatabase.CURRENT_DB_VERSION}")
+      dbAction("UPDATE om_db_version SET (version) = ROW(" + PostgreSQLDatabase.CURRENT_DB_VERSION + ")")
       commitTrans()
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
@@ -834,7 +827,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
       dbAction("CREATE TRIGGER rtg_attribute_sorting_cleanup BEFORE DELETE ON RelationToGroup " +
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
-      dbAction("UPDATE om_db_version SET (version) = (1)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(1)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -845,7 +838,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     beginTrans()
     try {
       dbAction("ALTER TABLE class ADD COLUMN create_default_attributes boolean")
-      dbAction("UPDATE om_db_version SET (version) = (2)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(2)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -857,7 +850,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     try {
       dbAction("ALTER TABLE entity ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
       dbAction("ALTER TABLE grupo ADD COLUMN new_entries_stick_to_top boolean NOT NULL default false")
-      dbAction("UPDATE om_db_version SET (version) = (3)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(3)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -872,7 +865,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                ", entity_id bigint REFERENCES entity (id) ON DELETE RESTRICT " + ") ")
       // (this, or with its successors in later such methods, should be same as the line in createBaseData)
       createOmInstance(java.util.UUID.randomUUID().toString, isLocalIn = true, Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION, None, oldTableName = true)
-      dbAction("UPDATE om_db_version SET (version) = (4)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(4)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -886,7 +879,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       dbAction("alter table om_instance rename to OmInstance")
       // and fix a small math error I had made
       dbAction("alter table omInstance alter column address type varchar(262)")
-      dbAction("UPDATE om_db_version SET (version) = (5)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(5)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -920,7 +913,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       dbAction("CREATE TRIGGER rtre_attribute_sorting_cleanup BEFORE DELETE ON RelationToRemoteEntity " +
                "FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()")
 
-      dbAction("UPDATE om_db_version SET (version) = (6)")
+      dbAction("UPDATE om_db_version SET (version) = ROW(6)")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -937,7 +930,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
       // When creating an added version of this method, don't forget to update the constant PostgreSQLDatabase.CURRENT_DB_VERSION and val newVersion in
       // a newly created method!
-      dbAction("UPDATE om_db_version SET (version) = (" + newVersion + ")")
+      dbAction("UPDATE om_db_version SET (version) = ROW(" + newVersion + ")")
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -1134,7 +1127,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     // features, put them all there instead.
     // It is set to allowMixedClassesInGroup just because no current known reason not to, will be interesting to see what comes of it.
     createGroupAndRelationToGroup(systemEntityId, hasRelTypeId, Database.classTemplateEntityGroupName, allowMixedClassesInGroupIn = true,
-                                  Some(System.currentTimeMillis()), System.currentTimeMillis(), None, callerManagesTransactionsIn = false)
+                                  Some(System.currentTimeMillis()), System.currentTimeMillis(), None)
 
     // NOTICE: code should not rely on this name, but on data in the tables.
     /*val (classId, entityId) = */ createClassAndItsTemplateEntity("person")
@@ -1162,7 +1155,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       // constraint?: (see file:///usr/share/doc/postgresql-doc-9.1/html/sql-createtable.html).
       dbAction("INSERT INTO Entity (id, insertion_date, name, class_id) VALUES (" + entityId + "," + System.currentTimeMillis() + ",'" + entityNameIn + "', NULL)")
       dbAction("INSERT INTO Class (id, name, defining_entity_id) VALUES (" + classId + ",'" + classNameIn + "', " + entityId + ")")
-      dbAction(s"update Entity set class_id = $classId where id=$entityId")
+      dbAction("update Entity set (class_id) = ROW(" + classId + ") where id=" + entityId)
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
     }
@@ -1185,7 +1178,9 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val classTemplateGroupId = findRelationToAndGroup_OnEntity(systemEntityId, Some(Database.classTemplateEntityGroupName))._3
     if (classTemplateGroupId.isEmpty) {
       // no exception thrown here because really this group is a convenience for the user to see things, not a requirement. Maybe a user message would be best:
-      // Idea:: BAD SMELL! The UI should do all UI communication, no?
+      // "Idea:: BAD SMELL! The UI should do all UI communication, no?"  Maybe, pass in a UI object instead and call some generic method that will handle
+      // the info properly?  Or have logs?
+      // (SEE ALSO comments and code at other places with the part on previous line in quotes).
       System.err.println("Unable to find, from the entity " + Database.systemEntityName + "(" + systemEntityId + "), " +
                          "any connection to its expected contained group " +
                          Database.classTemplateEntityGroupName + ".  If it was deleted, it could be replaced if you want the convenience of finding" +
@@ -1392,15 +1387,17 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def updateEntityOnlyName(idIn: Long, nameIn: String) {
     val name: String = escapeQuotesEtc(nameIn)
-    dbAction(s"update Entity set name = '$name' where id=$idIn")
+    dbAction("update Entity set (name) = ROW('" + name + "') where id=" + idIn)
   }
 
   def updateEntityOnlyPublicStatus(idIn: Long, value: Option[Boolean]) {
-    dbAction(s"update Entity set public = ${value.map(_.toString).getOrElse("NULL")} where id=$idIn")
+    dbAction("update Entity set (public) = ROW(" +
+             (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
+             ") where id=" + idIn)
   }
 
   def updateEntityOnlyNewEntriesStickToTop(idIn: Long, newEntriesStickToTop: Boolean) {
-    dbAction(s"update Entity set new_entries_stick_to_top = '$newEntriesStickToTop' where id=$idIn")
+    dbAction("update Entity set (new_entries_stick_to_top) = ROW('" + newEntriesStickToTop + "') where id=" + idIn)
   }
 
   def updateClassAndTemplateEntityName(classIdIn: Long, name: String): Long = {
@@ -1420,12 +1417,14 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def updateClassName(idIn: Long, nameIn: String) {
     val name: String = escapeQuotesEtc(nameIn)
-    dbAction(s"update class set name = '$name' where id=$idIn")
+    dbAction("update class set (name) = ROW('" + name + "') where id=" + idIn)
   }
 
   def updateEntitysClass(entityId: Long, classId: Option[Long], callerManagesTransactions: Boolean = false) {
     if (!callerManagesTransactions) beginTrans()
-    dbAction(s"update Entity set class_id = ${classId.getOrElse("NULL")} where id=$entityId")
+    dbAction("update Entity set (class_id) = ROW(" +
+             (if (classId.isEmpty) "NULL" else classId.get) +
+             ") where id=" + entityId)
     val groupIds = dbQuery("select group_id from EntitiesInAGroup where entity_id=" + entityId, "Long")
     for (row <- groupIds) {
       val groupId = row(0).get.asInstanceOf[Long]
@@ -1449,8 +1448,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val directionality: String = escapeQuotesEtc(directionalityIn)
     beginTrans()
     try {
-      dbAction(s"update Entity set name = '$name' where id=$idIn")
-      dbAction("update RelationType set (name_in_reverse_direction, directionality) = ('" + nameInReverseDirection + "', " +
+      dbAction("update Entity set (name) = ROW('" + name + "') where id=" + idIn)
+      dbAction("update RelationType set (name_in_reverse_direction, directionality) = ROW('" + nameInReverseDirection + "', " +
                "'" + directionality + "') where entity_id=" + idIn)
     } catch {
       case e: Exception => throw rollbackWithCatch(e)
@@ -1664,7 +1663,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       //Something like the next line might have been more efficient than the above code to run, but not to write, given that it adds a complexity about updating
       //the attributesorting table, which might be more tricky in future when something is added to prevent those from being orphaned. The above avoids that or
       //centralizes the question to one place in the code.
-      //dbAction("UPDATE RelationToEntity SET (entity_id) = (" + newContainingEntityIdIn + ")" + " where id=" + relationToLocalEntityIdIn)
+      //dbAction("UPDATE RelationToEntity SET (entity_id) = ROW(" + newContainingEntityIdIn + ")" + " where id=" + relationToLocalEntityIdIn)
 
       commitTrans()
       newRTE
@@ -1797,7 +1796,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                                                  callerManagesTransactionsIn = true)
 
       // (see comment at similar commented line in moveRelationToLocalEntityToLocalEntity)
-      //dbAction("UPDATE RelationToGroup SET (entity_id) = (" + newContainingEntityIdIn + ")" + " where id=" + relationToGroupIdIn)
+      //dbAction("UPDATE RelationToGroup SET (entity_id) = ROW(" + newContainingEntityIdIn + ")" + " where id=" + relationToGroupIdIn)
 
       commitTrans()
       newRtgId
@@ -2014,7 +2013,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     }
   }
 
-  def deleteEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false) = {
+  def deleteEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false): Unit = {
     // idea: (also on task list i think but) we should not delete entities until dealing with their use as attrtypeids etc!
     if (!callerManagesTransactionsIn) beginTrans()
     deleteObjects("EntitiesInAGroup", "where entity_id=" + idIn, -1, callerManagesTransactions = true)
@@ -2023,23 +2022,23 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     if (!callerManagesTransactionsIn) commitTrans()
   }
 
-  def archiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false) = {
+  def archiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false): Unit = {
     archiveObjects(Util.ENTITY_TYPE, "where id=" + idIn, 1, callerManagesTransactionsIn)
   }
 
-  def unarchiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false) = {
+  def unarchiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false): Unit = {
     archiveObjects(Util.ENTITY_TYPE, "where id=" + idIn, 1, callerManagesTransactionsIn, unarchive = true)
   }
 
-  def deleteQuantityAttribute(idIn: Long) = deleteObjectById(Util.QUANTITY_TYPE, idIn)
+  def deleteQuantityAttribute(idIn: Long): Unit = deleteObjectById(Util.QUANTITY_TYPE, idIn)
 
-  def deleteTextAttribute(idIn: Long) = deleteObjectById(Util.TEXT_TYPE, idIn)
+  def deleteTextAttribute(idIn: Long): Unit = deleteObjectById(Util.TEXT_TYPE, idIn)
 
-  def deleteDateAttribute(idIn: Long) = deleteObjectById(Util.DATE_TYPE, idIn)
+  def deleteDateAttribute(idIn: Long): Unit = deleteObjectById(Util.DATE_TYPE, idIn)
 
-  def deleteBooleanAttribute(idIn: Long) = deleteObjectById(Util.BOOLEAN_TYPE, idIn)
+  def deleteBooleanAttribute(idIn: Long): Unit = deleteObjectById(Util.BOOLEAN_TYPE, idIn)
 
-  def deleteFileAttribute(idIn: Long) = deleteObjectById(Util.FILE_TYPE, idIn)
+  def deleteFileAttribute(idIn: Long): Unit = deleteObjectById(Util.FILE_TYPE, idIn)
 
   def deleteRelationToLocalEntity(relTypeIdIn: Long, entityId1In: Long, entityId2In: Long) {
     deleteObjects(Util.RELATION_TO_LOCAL_ENTITY_TYPE, "where rel_type_id=" + relTypeIdIn + " and entity_id=" + entityId1In + " and entity_id_2=" + entityId2In)
@@ -2075,10 +2074,10 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   /** I hope you have a backup. */
-  def deleteGroupRelationsToItAndItsEntries(groupidIn: Long) {
+  def deleteGroupRelationsToItAndItsEntries(groupIdIn: Long) {
     beginTrans()
     try {
-      val entityCount = getGroupSize(groupidIn)
+      val entityCount = getGroupSize(groupIdIn)
 
       def deleteRelationToGroupAndALL_recursively(groupIdIn: Long): (Long, Long) = {
         val entityIds: List[Array[Option[Any]]] = dbQuery("select entity_id from entitiesinagroup where group_id=" + groupIdIn, "Long")
@@ -2099,7 +2098,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         deleteObjects("grupo", "where id=" + groupIdIn, 1, callerManagesTransactions = true)
         (deletions1, deletions2)
       }
-      val (deletions1, deletions2) = deleteRelationToGroupAndALL_recursively(groupidIn)
+      val (deletions1, deletions2) = deleteRelationToGroupAndALL_recursively(groupIdIn)
       require(deletions1 + deletions2 == entityCount)
     }
     catch {
@@ -2121,12 +2120,16 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def getSystemEntityId: Long = {
     val ids: Option[List[Long]] = findEntityOnlyIdsByName(Database.systemEntityName)
+    if (ids.isEmpty) {
+      throw new OmDatabaseException("No system entity id (named \"" + Database.systemEntityName + "\") was" +
+                                    " found in the entity table.  Did a new data import fail partway through or something?")
+    }
     require(ids.get.size == 1)
     ids.get.head
   }
 
   /** Creates the preference if it doesn't already exist.  */
-  def setUserPreference_Boolean(nameIn: String, valueIn: Boolean) = {
+  def setUserPreference_Boolean(nameIn: String, valueIn: Boolean): Unit = {
     val preferencesContainerId: Long = getPreferencesContainerId
     val result = getUserPreference2(preferencesContainerId, nameIn, Database.PREF_TYPE_BOOLEAN)
     val preferenceInfo: Option[(Long, Boolean)] = result.asInstanceOf[Option[(Long,Boolean)]]
@@ -2153,7 +2156,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   /** Creates the preference if it doesn't already exist.  */
-  def setUserPreference_EntityId(nameIn: String, entityIdIn: Long) = {
+  def setUserPreference_EntityId(nameIn: String, entityIdIn: Long): Unit = {
     val preferencesContainerId: Long = getPreferencesContainerId
     val result = getUserPreference2(preferencesContainerId, nameIn, Database.PREF_TYPE_ENTITY_ID)
     val preferenceInfo: Option[(Long, Long, Long)] = result.asInstanceOf[Option[(Long,Long,Long)]]
@@ -2326,7 +2329,23 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
           if (isEntityAttrsNotGroupEntries) getEntityAttributeSortingData(entityIdOrGroupIdIn)
           else getGroupEntriesData(entityIdOrGroupIdIn)
         }
-        require(data.size == numberOfEntries, "Unexpected data state: data.size=" + data.size + " and numberOfEntries=" + numberOfEntries  + ".")
+        if (data.size != numberOfEntries) {
+          // "Idea:: BAD SMELL! The UI should do all UI communication, no?"
+          // (SEE ALSO comments and code at other places with the part on previous line in quotes).
+          System.err.println()
+          System.err.println()
+          System.err.println()
+          System.err.println("--------------------------------------")
+          System.err.println("Unexpected state: data.size (" + data.size +  ") != numberOfEntries (" + numberOfEntries +  "), when they should be equal. ")
+          if (data.size > numberOfEntries) {
+            System.err.println("Possibly, the database trigger \"attribute_sorting_cleanup\" (created in method createAttributeSortingDeletionTrigger) is" +
+            " not always cleaning up when it should or something. ")
+          }
+          System.err.println("If there is a consistent way to reproduce this from scratch (with attributes of a *new* entity), or other information" +
+                             " to diagnose/improve the situation, please advise.  The program will attempt to continue anyway but a bug around sorting" +
+                             " or placement in this set of entries might result.")
+          System.err.println("--------------------------------------")
+        }
         for (entry <- data) {
           if (isEntityAttrsNotGroupEntries) {
             while (isAttributeSortingIndexInUse(entityIdOrGroupIdIn, next)) {
@@ -2813,11 +2832,13 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def updateSortingIndexInAGroup(groupIdIn: Long, entityIdIn: Long, sortingIndexIn: Long) {
-    dbAction(s"update EntitiesInAGroup set sorting_index = $sortingIndexIn  where group_id=$groupIdIn and entity_id=$entityIdIn")
+    dbAction("update EntitiesInAGroup set (sorting_index) = ROW(" + sortingIndexIn + ") where group_id=" + groupIdIn + " and  " +
+             "entity_id=" + entityIdIn)
   }
 
   def updateAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Long) {
-    dbAction(s"update AttributeSorting set sorting_index = $sortingIndexIn where entity_id=$entityIdIn and attribute_form_id=$attributeFormIdIn  and attribute_id=$attributeIdIn")
+    dbAction("update AttributeSorting set (sorting_index) = ROW(" + sortingIndexIn + ") where entity_id=" + entityIdIn + " and  " +
+             "attribute_form_id=" + attributeFormIdIn + " and attribute_id=" + attributeIdIn)
   }
 
   /** Returns whether the stored and calculated md5hashes match, and an error message when they don't.
@@ -3023,7 +3044,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   val selectEntityStart = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public, e.archived, e.new_entries_stick_to_top "
 
-  def addNewEntityToResults(finalResults: java.util.ArrayList[Entity], intermediateResultIn: Array[Option[Any]]) = {
+  def addNewEntityToResults(finalResults: java.util.ArrayList[Entity], intermediateResultIn: Array[Option[Any]]): Boolean = {
     val result = intermediateResultIn
     // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
     finalResults.add(new Entity(this, result(0).get.asInstanceOf[Long], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[Long]],
@@ -3510,7 +3531,9 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
    * @return the create_default_attributes boolean value from a given class.
    */
   def updateClassCreateDefaultAttributes(classIdIn: Long, value: Option[Boolean]) {
-    dbAction(s"update class set create_default_attributes = ${value.map(_.toString).getOrElse("NULL")} where id=$classIdIn")
+    dbAction("update class set (create_default_attributes) = ROW(" +
+             (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
+             ") where id=" + classIdIn)
   }
 
   def getTextEditorCommand: String = {
@@ -3762,7 +3785,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       // using maxIdValue as the max value of a long so those w/o sorting information will just sort last:
       allResultsArray(index) = (element._1.getOrElse(maxIdValue), element._2)
     }
-    // Per the scaladocs for scala.math.Ordering, this sorts by the first element of the tuple (ie, .z_1) which at this point is attributesorting.sorting_index.
+    // Per the scalaDocs for scala.math.Ordering, this sorts by the first element of the tuple (ie, .z_1) which at this point is attributesorting.sorting_index.
     // (The "getOrElse" on next line is to allow for the absence of a value in case the attributeSorting table doesn't have an entry for some attributes.
     Sorting.quickSort(allResultsArray)(Ordering[Long].on(x => x._1.asInstanceOf[Long]))
 
@@ -3851,13 +3874,13 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   /** Convenience function. Error message it gives if > 1 found assumes that sql passed in will return only 1 row! */
   def doesThisExist(sqlIn: String, failIfMoreThanOneFoundIn: Boolean = true): Boolean = {
-    val rowcnt: Long = extractRowCountFromCountQuery(sqlIn)
+    val rowCount: Long = extractRowCountFromCountQuery(sqlIn)
     if (failIfMoreThanOneFoundIn) {
-      if (rowcnt == 1) true
-      else if (rowcnt > 1) throw new OmDatabaseException("Should there be > 1 entries for sql: " + sqlIn + "?? (" + rowcnt + " were found.)")
+      if (rowCount == 1) true
+      else if (rowCount > 1) throw new OmDatabaseException("Should there be > 1 entries for sql: " + sqlIn + "?? (" + rowCount + " were found.)")
       else false
     }
-    else rowcnt >= 1
+    else rowCount >= 1
   }
 
   /** Cloned to archiveObjects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
