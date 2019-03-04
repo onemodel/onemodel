@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2018 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2019 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -493,11 +493,21 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
     val (userWantsOut: Boolean, levelsText: String, levelsToExport: Int, includeMetadata: Boolean, includePublicData: Boolean, includeNonPublicData: Boolean,
          includeUnspecifiedData: Boolean, numberTheLines: Boolean, wrapTheLines: Boolean, wrapAtColumn: Int) = askForExportChoices
+
     if (! userWantsOut) {
       ui.displayText("Processing..." + Util.NEWLN +
                      "(Note: if this takes too long, you can Ctrl+C and start over with a smaller or nonzero " + levelsText + ".)", waitForKeystrokeIn = false)
       require(levelsToExport >= 0)
-      val spacesPerIndentLevel = 2
+      val spacesPerIndentLevel = {
+        if (wrapTheLines && !numberTheLines) {
+          // make it more obvious to readers using variable-width fonts that it is indented (someone might convert to another format,
+          // and this might help it stay looking like an outline).
+          6
+        } else {
+          // I would pick 2 as I usually use fixed-width, but readers with variable-width fonts if I send it to them, might still find it harder than 4.
+          4
+        }
+      }
 
       // To track what's been done so we don't repeat it:
       val exportedEntityIds = new mutable.TreeSet[String]
@@ -1058,6 +1068,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         printWriterIn.println(underline)
       }
       if (wrappingThisEntrysLines || (wrapLongLinesIn && !includeOutlineNumberingIn)) {
+        // *WHEN MAINTAINING HERE, MAINTAIN SIMILARLY BOTH PLACES THAT SAY "whitespace for readability" in comment.*
         // whitespace for readability
         printWriterIn.println()
       }
@@ -1164,6 +1175,11 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                 }) + /*attribute.getId +*/ ": " + attribute.getDisplayString(0, None, None))
               } else {
                 printWriterIn.println(attribute.getDisplayString(0, None, None, simplify = true))
+              }
+              if ((wrapLongLinesIn && !includeOutlineNumberingIn)) {
+                // *WHEN MAINTAINING HERE, MAINTAIN SIMILARLY BOTH PLACES THAT SAY "whitespace for readability" in comment.*
+                // whitespace for readability, similarly to what is done in printEntry
+                printWriterIn.println()
               }
           }
         }

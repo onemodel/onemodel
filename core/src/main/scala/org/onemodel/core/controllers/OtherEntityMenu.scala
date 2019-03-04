@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2015-2018 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2015-2019 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -63,7 +63,7 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
               Array("...for this entity only (\"" + entityIn.getName + "\").")
             }
           }
-          val publicMenuResponse = ui.askWhich(None, whichToUpdateChoices)
+          val publicMenuResponse = ui.askWhich(Some(Array[String]{"Confirm:"}), whichToUpdateChoices)
           if (publicMenuResponse.isDefined) {
             if (publicMenuResponse.get == 1) {
               entityIn.updatePublicStatus(valueAfterEntry)
@@ -631,13 +631,18 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
       // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options,
       // because
       // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
-      choices = choices :+ "Delete the link between the linking (or containing) entity: \"" + relationSourceEntityIn.get.getName + "\", " +
-                           "and this one: \"" + entityIn.getName + "\""
+      choices = choices :+ "Delete the link between the linking (or containing) entity:" + Util.NEWLN +
+                           "    \"" + relationSourceEntityIn.get.getName + "\", " + Util.NEWLN +
+                           "  ...and this one:" + Util.NEWLN +
+                           "    \"" + entityIn.getName + "\""
       delFromContainingGroup_choiceNumber += 1
       showAllArchivedEntities_choiceNumber += 1
     }
     if (containingGroupIn.isDefined) {
-      choices = choices :+ "Delete the link between the group: \"" + containingGroupIn.get.getName + "\", and this Entity: \"" + entityIn.getName
+      choices = choices :+ "Delete the link between the group:" + Util.NEWLN +
+                           "    \"" + containingGroupIn.get.getName + "\"," + Util.NEWLN +
+                           "  ...and this Entity:" + Util.NEWLN +
+                           "    \"" + entityIn.getName + "\""
       showAllArchivedEntities_choiceNumber += 1
     }
     choices = choices :+ (if (!entityIn.mDB.includeArchivedEntities) "Show archived entities" else "Do not show archived entities")

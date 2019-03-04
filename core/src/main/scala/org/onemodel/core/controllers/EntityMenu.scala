@@ -1,5 +1,5 @@
-/*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2018 inclusive, Luke A. Call; all rights reserved.
+ /*  This file is part of OneModel, a program to manage knowledge.
+    Copyright in each year of 2003-2004 and 2008-2019 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -409,7 +409,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
         if (ans.isDefined) {
           val searchString: String = ans.get
           val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours; currently only searches locally;" +
-                                                        " searching from main/top menu is sometimes faster)")),
+                                                        " searching from main/top menu is often faster)")),
                                              Some(Util.isNumeric), Some("5"))
           val levels: Int = levelsAnswer.getOrElse("4").toInt
           val entityIdsTreeSet: mutable.TreeSet[Long] = entityIn.findContainedLocalEntityIds(new mutable.TreeSet[Long], searchString, levels,

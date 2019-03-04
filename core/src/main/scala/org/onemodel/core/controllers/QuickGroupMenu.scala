@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2018 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2019 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -245,7 +245,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
                                callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     require(groupIn != null)
     val choices = Array[String]("Create new entry quickly",
-                                "Move selection (*) up/down, in, out...",
+                                "Move selection (*) up/down, in, out... (choose this then ESC to re-center from current selection, maybe)",
                                 "Edit the selected entry's name",
                                 "Create new entry...",
                                 "Go to selected entity (not the subgroup)",

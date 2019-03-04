@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2018 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2019 inclusive, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -380,8 +380,8 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     val possibleMenuChars = firstMenuChars + TextUI.menuCharsList
     // make sure caller didn't send more than the # of things we can handle
     require((choicesIn.length + moreChoicesIn.length) <= possibleMenuChars.length, "Programming error: there are more choices provided (" +
-                                                                               (choicesIn.length + moreChoicesIn.length) + ") than the menu can handle" +
-                                                                               possibleMenuChars.length)
+                                                                               (choicesIn.length + moreChoicesIn.length) + ") than the menu can handle (" +
+                                                                               possibleMenuChars.length + ")")
 
     val alreadyFull = false
     var lineCounter: Int = 0
