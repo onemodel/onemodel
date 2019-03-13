@@ -425,7 +425,14 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
           val choices: Array[String] = Array("(stub)")
           val entityIdsTruncated: Array[Long] = {
-            val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Util.maxNameLength)
+            //%%just show more: can scroll back, and that is the workaround until xxxxxlong & should probably
+            //  be done from the top-level menu better, or in sql, anyway, until we have better searching features?:
+            //%%but clean this up WRT the message logic just below telling the user?
+            //%%val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Util.maxNameLength)
+            //%%no, it gets err:  java.lang.IllegalArgumentException: requirement failed: Programming error: there are more choices provided (114) than the menu can handle85.  So, find dift workaround, quick soln like just showing them (not in a menu) or a sql query, or always show the max the menu can handle for now.
+            //%%TO ADDRESS: also read below code down to "showSearchResults" which gets the error, about which is already commented below also.
+            val numDisplayableAttributes = 84 //%%5000 //%%
+
             if (entityIds.length <= numDisplayableAttributes) {
               entityIds
             } else {

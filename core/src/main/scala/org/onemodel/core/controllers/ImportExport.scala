@@ -525,23 +525,30 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, None)
         try {
           if (wrapTheLines || numberTheLines) {
+            val numEntries: Long = entityIn.getAttributeCount
             // The next line is debatable, but a point I want to make for now, and a personal convenience.  If you don't like it send a
             // comment on the list, or a patch with it removed, for discussion.
             // Or maybe we just remove the "wrapTheLines" part of the condition so it prints only with the numbered outline format.
             // Done here because the method exportToSingleTextFile is called recursively, and this needs to simply be first.
             // Maybe it (or at least the part after #1) should be replaced with a link to some page ~ "How to do structured skimming to get more out of
             // reading or spend less time".
-            outputWriter.println("(This is an outline, meant to be skimmable.  That means: 1) for an outline like this, read only the most out-dented parts," +
-                                 " and then the indented parts only if interest in the parent entry justifies it;" +
-                                 Util.NEWLN + "and (the rest of this paragraph is not" +
-                                 " for this content, but has general tips on structured skimming that have helped me get more out of reading, in less" +
-                                 " time), " +
-                                 Util.NEWLN + "2) for essays or papers, read the first and" +
+            outputWriter.println("(This is an outline, generated from OM data (details at http://onemodel.org), with " + numEntries + " top-level items.  It is meant to be skimmable." +
+                                 Util.NEWLN + "Here are some hints for skimming or reading outlines (and other things) efficiently:" +
+                                 // WHEN PERSONAL WEB SITE UPDATED W/ THE CONTENTS (already in its todos), simply link here and delete the rest of the output?,
+                                 // or keep the tip about just reading the outline, & link to the rest with this & make the overall text work:
+                                 //Util.NEWLN + "  <a href=\"http://lukecall.net/e-9223372036854624718.html\">About reading outlines efficiently</a>"
+                                 //%%fix tests & run gp
+                                 Util.NEWLN + "1) for an outline like this, read only the most out-dented parts," +
+                                 " and then the indented parts only if interest in the parent entry justifies it." +
+                                 Util.NEWLN + "The rest of this top section is not" +
+                                 " for *this* outline, but has general tips on structured skimming that have helped me get more out of reading, in less" +
+                                 " time. " +
+                                 Util.NEWLN + "2) For essays or academic papers, read the first and" +
                                  " last paragraphs, then if interest remains, just the first sentences of paragraphs, and more only based on the value of" +
-                                 " what was read already; and , " +
-                                 Util.NEWLN + "3) for news, just the beginning to get the most important info, and read more rest only if" +
-                                 " you really want the increasing level of detail that comes in later parts of news articles.), " +
-                                 Util.NEWLN + "For more, see:  https://en.wikipedia.org/wiki/Skimming_(reading)#Skimming_and_scanning" + Util.NEWLN)
+                                 " what was read already." +
+                                 Util.NEWLN + "3) For news, one  can read just the beginning to get the most important info, and read more only if" +
+                                 " you really want the increasing level of detail that comes in later parts of news articles. " +
+                                 Util.NEWLN + "For more, see:  https://en.wikipedia.org/wiki/Skimming_(reading)#Skimming_and_scanning  .)" + Util.NEWLN)
           }
 
           exportToSingleTextFile(entityIn, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntityIds, cachedEntities, cachedAttrs,
@@ -565,10 +572,11 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         val uriClassId: Long = entityIn.mDB.getOrCreateClassAndTemplateEntity("URI", callerManagesTransactionsIn = true)._1
         val quoteClassId = entityIn.mDB.getOrCreateClassAndTemplateEntity("quote", callerManagesTransactionsIn = true)._1
 
-        exportHtml(entityIn, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
+        exportHtml(entityIn, (levelsToExport == 0), levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                    cachedGroupInfo, mutable.TreeSet[Long](), uriClassId, quoteClassId,
                    includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
-        ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
+        ui.displayText("Finished export to directory: " + outputDirectory.toFile.getCanonicalPath +
+                       " at " + Util.DATEFORMAT2.format(System.currentTimeMillis()))
       } else {
         throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
       }
@@ -583,6 +591,25 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                  uriClassId: Long, quoteClassId: Long,
                  includePublicData: Boolean, includeNonPublicData: Boolean, includeUnspecifiedData: Boolean,
                  headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
+    /*%%
+      The fix:
+        add smwhr a "levelsAlreadyDoneFromThisEntity" integer to the data structure of entityIds not to re-do.
+        whenever adding an entry to that expanded data stru, add an integer saying how many levels are *going* to be done, 0 if all
+        when that is checked to decide what to do
+          if not found (or after returned?), add, using the # planned to do or completed *OR 0if infinite), & go ahead.
+          If found (alr done)
+            if 0 || the # to do is <= than the # done, dont go ahead *even in the children checks*
+            if nonzero && the # to do is > than the # done
+                go ahead w/ the new #
+                and update the # done
+        make sure it is commented understandably
+        same issue with txt exports?
+        same issue with searching relative to a point in the tree (ie, that could be speeded up if there is much duplication w/in the tree)
+          just note somewhere?
+          same issue with anything that traverses trees?  probably found in some coding algorithms discussions...
+          Don't do that for now:
+            %%See/integrate updates w/ existing comments near to of PostgreSQLDatabase.findContainedLocalEntityIds .
+     */
     exportEntityToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn,
                            uriClassId, quoteClassId, includePublicData, includeNonPublicData, includeUnspecifiedData,
                            headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
@@ -801,6 +828,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     *   - Therefore X's children should have been exported from the "shallow" point, because they are now less than levelsRemainingToExportIn levels deep, but
     *     were not exported because X was skipped (having been already been done).
     *   - Therefore separating the logic for the children allows them to be exported anyway, which fixes the bug.
+    *   - Idea: does this same issue happen with exporting as text?  Does it need to be fixed there too?
     * Still, within this method it is also necessary to void infinitely looping around entities who contain references to (eventually) themselves, which
     * is the purpose of the variable "entitiesAlreadyProcessedInThisRefChain".
     *
