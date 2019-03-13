@@ -1244,7 +1244,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   }
 
   def askForNameAndSearchForEntity(dbIn: Database): Option[IdWrapper] = {
-    val ans = ui.askForString(Some(Array(Util.searchPrompt(Util.ENTITY_TYPE))))
+    val ans = ui.askForString(Some(Array(Util.entityOrGroupNameSqlSearchPrompt(Util.ENTITY_TYPE))))
     if (ans.isEmpty) {
       None
     } else {
@@ -1378,7 +1378,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
           }
         }
       } else if (answer == 3 && answer <= choices.length) {
-        val ans = ui.askForString(Some(Array(Util.searchPrompt(Util.GROUP_TYPE))))
+        val ans = ui.askForString(Some(Array(Util.entityOrGroupNameSqlSearchPrompt(Util.GROUP_TYPE))))
         if (ans.isEmpty) None
         else {
           // Allow relation to self, so None in 2nd parm.

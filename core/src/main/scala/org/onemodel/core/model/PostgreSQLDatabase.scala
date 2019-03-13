@@ -18,6 +18,7 @@ package org.onemodel.core.model
 import java.io.{PrintWriter, StringWriter}
 import java.sql.{Connection, DriverManager, ResultSet, Statement}
 import java.util.ArrayList
+import java.util.regex.Pattern
 
 import org.onemodel.core._
 import org.onemodel.core.model.Database._
@@ -1031,9 +1032,6 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     // comments on ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of levels total, it might not matter anyway
     // (ie, probably the current code is not optimized but is simpler and good enough for now).
 
-    // Idea: could do regexes instead of string matching, like we have elsewhere (& are now, for TextAttributes below)? If so, put similar text in the prompt
-    // (see Controller.findExistingObjectByText, clarify in the method names/docs that we are doing regexes, & methods getMatchingEntities, getMatchingGroups.
-
     if (levelsRemaining <= 0 || (stopAfterAnyFound && resultsInOut.nonEmpty)) {
       // do nothing: get out.
     } else {
@@ -1045,10 +1043,13 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                   ""
                 })
       val relatedEntityIdRows = dbQuery(sql, "Long,String")
+      val lowerCasedRegexPattern = Pattern.compile(".*" + searchStringIn.toLowerCase + ".*")
       for (row <- relatedEntityIdRows) {
         val id: Long = row(0).get.asInstanceOf[Long]
         val name = row(1).get.asInstanceOf[String]
-        if (name.toLowerCase.contains(searchStringIn.toLowerCase)) {
+
+        // NOTE: this line, similar lines just below, and the prompt inside EntityMenu.entitySearchSubmenu __should all match__.
+        if (lowerCasedRegexPattern.matcher(name.toLowerCase).find) {
           // have to do the name check here because we need to traverse all contained entities, so we need all those back from the sql, not just name matches.
           resultsInOut.add(id)
         }
@@ -1066,7 +1067,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         for (row <- entitiesInGroups) {
           val id: Long = row(0).get.asInstanceOf[Long]
           val name = row(1).get.asInstanceOf[String]
-          if (name.toLowerCase.contains(searchStringIn.toLowerCase)) {
+          // NOTE: this line, similar or related lines just above & below, and the prompt inside EntityMenu.entitySearchSubmenu __should all match__.
+          if (lowerCasedRegexPattern.matcher(name.toLowerCase).find) {
             // have to do the name check here because we need to traverse all contained entities, so we need all those back from the sql, not just name matches.
             resultsInOut.add(id)
           }
@@ -1082,6 +1084,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                      ""
                    }) +
                    " and entity_id=" + fromEntityIdIn +
+                   // NOTE: this line, similar lines just above (doing "matcher ..."), and the prompt inside EntityMenu.entitySearchSubmenu __should all match__.
                    " and textValue ~* '" + searchStringIn + "'"
         val textAttributes: List[Array[Option[Any]]] = dbQuery(sql3, "Long")
         if (textAttributes.nonEmpty) {

@@ -405,7 +405,13 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
         // Idea: could share some code or ideas between here and Controller.findExistingObjectByText, and perhaps others like them.  For example,
         // this doesn't yet have logic to page down through the results, but maybe for now there won't be many or it can be added later.
         // Idea: maybe we could use an abstraction to make this kind of UI work even simpler, since we do it often.
-        val ans = ui.askForString(Some(Array(Util.searchPromptPart(Util.ENTITY_TYPE))))
+        // Idea: make the following prompt and its code not be messy, in writing or in where it gets part of the text?
+
+        // NOTE: this prompt should match the logic inside PostgreSQLDatabase.findContainedLocalEntityIds:
+        val ans = ui.askForString(Some(Array(Util.entityOrGroupNameSqlSearchPrompt("Entity name or text attribute content") +
+                                             ", (that is for the textAttribute content, but for the entity names it will do a Matcher.find, " +
+                                             "after lowercasing both strings -- regex details at " +
+                                             "https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html.)")))
         if (ans.isDefined) {
           val searchString: String = ans.get
           val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours; currently only searches locally;" +

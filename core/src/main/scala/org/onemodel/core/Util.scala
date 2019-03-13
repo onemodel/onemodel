@@ -223,10 +223,10 @@ object Util {
 
   def searchPromptPart(typeIn: String): String = "Enter part of the " + typeIn + " name to search for."
 
-  def searchPrompt(typeNameIn: String): String = {
+  def entityOrGroupNameSqlSearchPrompt(typeNameIn: String): String = {
     searchPromptPart(typeNameIn) + "  (For the curious: it will be used in matching as a " +
     "case-insensitive POSIX " +
-    "regex; details at  http://www.postgresql.org/docs/9.1/static/functions-matching.html#FUNCTIONS-POSIX-REGEXP .)"
+    "regex; details at  http://www.postgresql.org/docs/current/static/functions-matching.html#FUNCTIONS-POSIX-REGEXP .)"
   }
 
   def isNumeric(input: String): Boolean = {
