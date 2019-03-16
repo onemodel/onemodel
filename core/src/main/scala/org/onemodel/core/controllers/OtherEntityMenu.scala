@@ -631,17 +631,17 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
       // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options,
       // because
       // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
-      choices = choices :+ "Delete the link between the linking (or containing) entity:" + Util.NEWLN +
+      choices = choices :+ "Delete the link from the linking (or containing) entity:" + Util.NEWLN +
                            "    \"" + relationSourceEntityIn.get.getName + "\", " + Util.NEWLN +
-                           "  ...and this one:" + Util.NEWLN +
+                           "  ...to this one:" + Util.NEWLN +
                            "    \"" + entityIn.getName + "\""
       delFromContainingGroup_choiceNumber += 1
       showAllArchivedEntities_choiceNumber += 1
     }
     if (containingGroupIn.isDefined) {
-      choices = choices :+ "Delete the link between the group:" + Util.NEWLN +
+      choices = choices :+ "Delete the link from the containing group:" + Util.NEWLN +
                            "    \"" + containingGroupIn.get.getName + "\"," + Util.NEWLN +
-                           "  ...and this Entity:" + Util.NEWLN +
+                           "  ...to this Entity:" + Util.NEWLN +
                            "    \"" + entityIn.getName + "\""
       showAllArchivedEntities_choiceNumber += 1
     }

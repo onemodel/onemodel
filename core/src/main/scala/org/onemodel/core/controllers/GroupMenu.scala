@@ -241,9 +241,9 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
     var choices: Array[String] = Array("Delete group definition & remove from all relationships where it is found?",
                                        "Delete group definition & remove from all relationships where it is found, AND delete all entities in it?")
     if (containingEntityIn.isDefined && relationToGroupIn.isDefined) {
-      choices = choices :+ "Delete the link between the containing entity:" + Util.NEWLN +
+      choices = choices :+ "Delete the link from the containing entity:" + Util.NEWLN +
                            "    \"" + containingEntityIn.get.getName + "\"," + Util.NEWLN +
-                           "  ...and this Group?:" + Util.NEWLN +
+                           "  ...to this Group?:" + Util.NEWLN +
                            "    \"" + groupDescrIn + "\""
     }
     val response = ui.askWhich(Some(Array("DELETION:  (This group contains " + totalInGroup + " entities, including " + numArchivedInGroup + " archived, and is " +
