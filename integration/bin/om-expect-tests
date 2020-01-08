@@ -1,7 +1,8 @@
-#!/bin/bash -eux
+#!/usr/bin/env bash
+set -eux
 
 #    This file is part of OneModel, a program to manage knowledge.
-#    Copyright in each year of 2016-2018 inclusive, Luke A Call; all rights reserved.
+#    Copyright in each year of 2016-2020 inclusive, Luke A. Call; all rights reserved.
 #    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
 #    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
 #    see the file LICENSE for license version and details.
@@ -16,9 +17,12 @@
 # (Use "readlink -f" not ".. -e" so it will work also on openbsd.)
 export SCRIPT_DIR="$(dirname $(readlink -f $0))"
 
+# cd so the dbg.log is in a predictable place (vs. always in the directory of user when launching):
+pushd $SCRIPT_DIR/..
+
 # ("set +e" is to continue if runtest returns an error, to show the errror code instead of failing:)
 set +e
-runtest --status --srcdir "$SCRIPT_DIR"/../../testsuite --outdir "$SCRIPT_DIR/.." --all --debug --status -vvvv $*   #--strace 1
+runtest --status --srcdir "$SCRIPT_DIR"/../testsuite --outdir "$SCRIPT_DIR/.." --all --debug --status -vvvv $*   #--strace 1
 RESULT=$?
 set -e
 echo "Return code from dejagnu tests: $RESULT"

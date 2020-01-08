@@ -1,7 +1,9 @@
-#!/usr/local/bin/bash -eux
+#!/usr/bin/env bash
+#(See file "../../core/bin/om" for discussion on the above line.)
+set -eux
 
 #    This file is part of OneModel, a program to manage knowledge.
-#    Copyright in each year of 2016-2018 inclusive, Luke A Call; all rights reserved.
+#    Copyright in each year of 2016-2019 inclusive, Luke A. Call; all rights reserved.
 #    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
 #    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
 #    see the file LICENSE for license version and details.
@@ -19,8 +21,8 @@ SCRIPT_DIR="$(dirname $(readlink -f $0))"
 # Purge the test database (see core/testsuite/README for more about expect):
 # (The line with "-d" added increases the debug output. The commands being called
 # themselves also have ways to increase output: search for "diagnostics".)
-#expect -d -c "set script_dir $SCRIPT_DIR/.." -f $SCRIPT_DIR/../purge-om-test-database.exp
-expect -c "set script_dir $SCRIPT_DIR/.." -f $SCRIPT_DIR/../purge-om-test-database.exp
+#expect -d -c "set script_dir $SCRIPT_DIR" -f $SCRIPT_DIR/purge-om-test-database.exp
+expect -c "set script_dir $SCRIPT_DIR" -f $SCRIPT_DIR/purge-om-test-database.exp
 RESULT=$?
 
 # Couldn't get here, due to "-e" switch to bash above and expect checks in the .exp file, if it were not successful so far:

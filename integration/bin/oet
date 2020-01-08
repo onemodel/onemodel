@@ -1,6 +1,8 @@
+#!/usr/bin/env bash
+#(See file "../../core/bin/om" for discussion on the above line.)
 # ------------------------
 # This file is part of OneModel, a program to manage knowledge.
-# Copyright in each year of 2016-2018 inclusive, Luke A Call; all rights reserved.
+# Copyright in each year of 2016-2018 inclusive and 2020, Luke A. Call; all rights reserved.
 # OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
 # distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
 # see the file LICENSE for license version and details.
@@ -21,7 +23,7 @@ export SCRIPT_DIR="$(dirname $(readlink -f $0))"
 om-expect-tests
 
 echo "Enter to view log"; read
-less -p"found|ing proc" -J +G "$SCRIPT_DIR"/testrun.log
+less -p"found|ing proc" -J +G "$SCRIPT_DIR"/../testrun.log
 echo "Enter to view debug log (more detailed)"; read
-less -p"found|ing proc" -J +G dbg.log
+less -p"found|ing proc" -J +G "$SCRIPT_DIR"/../dbg.log
 

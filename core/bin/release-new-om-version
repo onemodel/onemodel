@@ -1,5 +1,15 @@
+#!/usr/bin/env bash
+#(See sibling file "om" for discussion on the above line.)
 set -eux
-#was: #!/bin/bash -eux
+
+#    This file is part of OneModel, a program to manage knowledge.
+#    Copyright in each year of 2016-2017 inclusive and 2020, Luke A. Call; all rights reserved.
+#    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+#    see the file LICENSE for license version and details.
+#    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#    You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/ licenses/>
 
 # Created this because it wasn't working to pass the scm parameters on the command-line as properties, and I preferred that over
 # having scm info in the pom, since the local path will vary by developer.  Unless that takes a relative path...hm.  Improve?
