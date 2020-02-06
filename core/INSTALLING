@@ -74,6 +74,7 @@ facility may incur a noticeable performance penalty. This option must
 be enabled during initdb and cannot be changed (although there is a new
 GUC parameter 'ignore_checksum_failure' which will force PostgreSQL to
 continue processing a transaction even if corruption is detected)."
+(see also, e.g.?:  https://www.postgresql.org/docs/11/pgverifychecksums.html ).
 
 
 Install postgresql (OM has been tested with 9.1, 9.3, and 9.4; see

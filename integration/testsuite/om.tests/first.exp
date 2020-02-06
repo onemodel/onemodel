@@ -29,7 +29,9 @@
 # on a different system has problems.)
 set human_keystroke_wait .4
 set send_human {.4 .4 9999 .4 .4}
-set timeout 3
+# was timeout 3, but this let a much slower computer work (most things did at timeout 25, except a
+# network timeout hitting a (non-) remote connection that came with an SLF4J error).
+set timeout 45
 set test_name "OneModel startup"
 set test_user "t1"
 set test_pass "x"
@@ -693,7 +695,7 @@ proc mm_om_instance_menu {} {
   global human_keystroke_wait
 
   send 8
-  myexpect "OneModel INSTANCES.*a-.*local.*created"
+  myexpect "OneModel INSTANCES.*a-.*local.*cre"
   send a
   myexpect "OneModel Instance.*local"
   send 3
@@ -1360,7 +1362,8 @@ proc entity_create_and_edit_text_attribute {} {
   send \n3
   myexpect "Type or paste"
   sleep $human_keystroke_wait
-  set addition xyz
+  # using full "xyz" makes it longer than terminal, so gets cut off, n test fails, so just "x":
+  set addition x
   set content ${content}${addition}
   send ${addition}\n
   myexpect "CURRENT ENTITY.*entity1name.*created.*${type}: .${content}."

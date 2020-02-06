@@ -26,7 +26,8 @@ set test_pass "x"
 #spawn psql --echo-all --echo-queries -f ${script_dir}/purge-om-test-database.psql --username=${test_user} --password --dbname=om_${test_user}
 spawn psql -f ${script_dir}/purge-om-test-database.psql --username=${test_user} --password --dbname=om_${test_user}
 
-set expectation "Password for user ${test_user}:"
+#set expectation "Password for user ${test_user}:"
+set expectation "Password:"
 expect {
   # per "man expect", the "default" keyword matches on either "timeout" or "eof" so we don't have to specify both:
   default {

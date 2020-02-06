@@ -12,8 +12,9 @@ not, see http://www.gnu.org/licenses/  .
 
 This directory is for dejagnu (expect) tests, mainly intended for testing the Text UI / controller / menu features that did not seem to lend themselves to testing with testNG as easily as other classes did.
 
-To run these tests, you can install dejagnu, cd into the testsuite directory, and run the program: runtest, or the convenience
-script in the om project's core/bin/om-expect-tests (or its convenience helper, oet).  They are also run automatically by "mvn verify" (the failsafe plugin), by EntityMenuIT.java and probably others.
+To run these tests, you can install dejagnu, cd into the testsuite directory,
+and run the program runtest (from dejagnu), or the convenience
+script in the om project's integration/bin/om-expect-tests (or its convenience helper, oet).  They are also run automatically by "mvn verify" (the failsafe plugin), by EntityMenuIT.java and probably others.
 
 To run dejagnu tests in debug mode (to hit breakpoints in the IDE, for example), see at the top of first.exp, the comments around the variable "using_debugger".
 
@@ -23,7 +24,8 @@ For seeing why "mvn verify" fails, see the output of course, but then see what h
 the tests using the script integration/bin/oet , because that shows test log files with some details.
 Looking inside that script can give more insight.  You also might have to change the 1st line of
 integration/bin/om-expect-tests AND integration/bin/purge-om-test-database to give a valid path to 
-bash for your platform (portability suggestions welcome).
+bash for your platform (portability suggestions welcome.  Update: should be
+fixed to not matter, now).
 
 To reproduce dejagnu test problems in debug mode, you can call OM like:
   "om d x"
