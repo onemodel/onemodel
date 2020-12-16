@@ -40,6 +40,7 @@ if [[ $# -ne 2 || ($2 != "test" && $2 != "regular") ]]; then
 fi
 
 if [[ $(cat /etc/os-release|grep -i debian|wc -l) -gt 0 ]];then 
+  #(idea: use uname instead of /etc/ files, for portability.)
   echo "Supported system detected."
 else
   echo

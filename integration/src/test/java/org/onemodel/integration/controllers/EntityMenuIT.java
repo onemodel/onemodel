@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2017-2018 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2017-2018 inclusive and 2020, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -56,7 +56,8 @@ public class EntityMenuIT {
       .withOutput(process.getOutputStream())
         // For some debugging, can change the the next line.  Details in first.exp under "Useful during testing". Or better yet, debug
         // by calling the om-expect-tests script directly.  Also, this test as of 2017-7-31 takes ~100 seconds on my laptop.
-      .withTimeout(3, TimeUnit.MINUTES)
+	// Now making withTimeout longer than 3 min, because I sometimes run in a very slow way (the "verynice" script).
+      .withTimeout(15, TimeUnit.MINUTES)
       .withAutoFlushEcho(true)
       .withExceptionOnFailure()
       .withAutoFlushEcho(true)
