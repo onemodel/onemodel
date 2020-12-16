@@ -1,5 +1,5 @@
 This file is part of OneModel, a program to manage knowledge.
-This file is copyrighted in each year of 2014-2017 inclusive, Luke A Call.
+This file is copyrighted in each year of 2014-2017 inclusive and 2020, Luke A. Call.
 OneModel is free software, distributed under a license that includes 
 honesty, the Golden Rule, guidelines around binary distribution, and the GNU 
 Affero General Public License as published by the Free Software Foundation;
@@ -25,18 +25,30 @@ The file INSTALLING has useful detailed information about development,
 which as of 2017-7-31 is not found in this file nor in the notes 
 at http://onemodel.org, including about running tests.
 
-For code contributions, web site improvements, etc:  Please include
-in the *first* commit comment of the first pull request (or
-equivalent), the following statement with your name inserted in the
-blank (if you are legally an adult, or with explicit included
-guardian permission).  PLEASE SEE THE REASONS below, under the section
-"DETAILS AND EXPLANATION ON COPYRIGHT ASSIGNMENT".  A nonbinding
-summary could be:  "I give this to Luke for use in the project,
-having full rights to do so; this also applies to all future
-contributions, and is simple to revoke", but paste in the full text
-between the lines and fill in your name, in this "OM contributor statement":
+For code contributions, suggested web site improvements, etc, please first:
+1) Read and make a copy of the below text (which is shown indented, between the
+   lines), with your name and the date inserted in place of the [ ] sections in the
+   first and last lines, as indicated.
+   (A nonbinding summary could be:  "I give this to Luke for use in the project,
+   having full rights to do so; this also applies to all future
+   contributions, and is simple to revoke.")
+   FOR EXPLANATION AND REASONS: PLEASE SEE BELOW, under the section
+   "DETAILS AND EXPLANATION ON COPYRIGHT ASSIGNMENT".
+2) If you are not legally an adult, ask your parent or legal guardian to add at
+   the end the statement, starting on a new line, and replacing the [ ] sections
+   appropriately: 
+   "I [parent/guardian name], authorized by being [relationship] to [your name],
+   grant permission and also agree on their behalf, to the foregoing.  
+   Signed [parent/guardian name] on this [yyyy-mm-dd]."
+3) Make no other changes to the text of the agreement, without prior discussion.
+4) Make your first commit be in master (on HEAD), containing nothing but that
+   agreement text in the comment, (like with "git commit --allow-empty").  
+   (Ask, if you have the text ready but need more detailed command-line git 
+   instructions.)
+5) If you see that that is inadequate somehow for its obvious purposes, let me 
+   know.
     --------------------------------------------------------------------
-    I, ______, being of legal age, certify, and take full responsibility for this
+    I, [your name], being of legal age, certify, and take full responsibility for this
     certification, that I am authorized, without restriction
     of employer agreement or any other kind, to assign all rights to this 
     work (also known as "contribution"), and I do assign
@@ -76,6 +88,8 @@ between the lines and fill in your name, in this "OM contributor statement":
     project's source code will automatically fall under that new version 
     of the GNU AGPL, assuming it agrees in spirit with the GNU AGPL 
     version 3 from the Free Software Foundation.
+    
+    Signed [your name] on this [yyyy-mm-dd].
     --------------------------------------------------------------------
 
 
