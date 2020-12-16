@@ -1,5 +1,5 @@
 This file is part of OneModel, a program to manage knowledge.
-Copyright in each year of 2003 and 2010-2018 inclusive, Luke A Call;
+Copyright in each year of 2003, 2010-2018 inclusive, and 2020, Luke A Call;
 all rights reserved.  OneModel is free software, distributed under
 a license that includes honesty, the Golden Rule, guidelines around
 binary distribution, and the GNU Affero General Public License as
@@ -27,6 +27,11 @@ in a known directory location (such as ~/onemodel).
 For convenience on Windows, you can install cygwin (www.cygwin.com),
 then use cygwin to install postgresql and run the rest of the commands.
 This hasn't been tested yet so please advise on what works & doesn't.
+The web site http://onemodel.org has Windows installation instructions,
+as well as shortened versions of and a link to this detailed document.
+
+For Mac, rough installation instructions are probably available, if you
+ask on the general mailing list (see the site under "Community").
 
 Downloading
 -----------
@@ -39,11 +44,10 @@ Compiling before installing is optional, but developers should have java
 & maven.
 
 First you'll need a java SDK, at least openJDK 1.8 (likely minimum).  Then 
-install maven (mvn).  These versions are known to work, on debian 8
-(jessie) as of 2016-9:
-    Apache Maven 3.0.5.
-    Java version: OpenJDK 1.8.0_102.
-...but other versions might work too.
+install maven (mvn).  These versions are known to work, 
+    Apache Maven 3.0.5 (on debian 8 (jessie) as of 2016-9).
+    Maven 3.5.3 works in 2019-4 on openbsd.
+    Java: OpenJDK 1.8.0_102.
 
 Then in the directory where you have onemodel, run
   mvn clean package -DskipTests=true
@@ -62,10 +66,12 @@ at  https://www.postgresql.org/docs/ , or just change the provided link to
 reflect your version, or find it.)
 
 Before installing postgresql, decide whether you want data checksums
-(checksums requires postgresql 9.3 or higher; I haven't tested with
-checksums but they seem to provide a storage integrity feature).
-If you do, you will need to take care of that yourself up front (these
-instructions don't include that).  At:
+(checksums requires postgresql 9.3 or higher; but they seem to provide a 
+useful storage integrity feature, must be set initially and cannot be 
+changed later, and "may incur a noticeable performance penalty").
+If you do, you will need to take care of that yourself at the time you
+run initdb (or such, in the later instructions, but these
+instructions don't include data checksums).  At:
   https://wiki.postgresql.org/wiki/What%27s_new_in_PostgreSQL_9.3#Data_Checksums
 ...we learn: "It is now possible for PostgreSQL to checksum data pages
 and report corruption. This is a cluster-wide setting and cannot be
@@ -74,15 +80,25 @@ facility may incur a noticeable performance penalty. This option must
 be enabled during initdb and cannot be changed (although there is a new
 GUC parameter 'ignore_checksum_failure' which will force PostgreSQL to
 continue processing a transaction even if corruption is detected)."
+See also:
+  https://www.postgresql.org/docs/current/app-initd.html
+...and find "checksums" on that page.
 (see also, e.g.?:  https://www.postgresql.org/docs/11/pgverifychecksums.html ).
+(It seems all one does is add the --data-checksums option to the initdb command,
+or maybe a createdb command.)
+
+Similarly, for sqlite, there is something called a "checksum VFS shim"(?),
+which sounds like it does something similar.  More info at sqlite.org.
 
 
-Install postgresql (OM has been tested with 9.1, 9.3, and 9.4; see
+Install postgresql (OM versions have been tested with various pg versions 
+from 9 or earlier, up to at least 11.5; see
 www.postgresql.org).  For Debian GNU/Linux and its derivatives that
 usually means (as root) running "aptitude install postgresql-contrib".
 On OpenBSD that means running "pkg_add postgresql-contrib".  (The
 postgresql contrib module is for the "large objects" support, aka a
-module called "lo".)
+module called "lo", and this will cause the postgres server to also
+be installed.)
 
 There are additional steps to be performed from a command prompt:
 
@@ -97,7 +113,7 @@ There are additional steps to be performed from a command prompt:
 INITIAL POSTGRES CONFIGURATION UNDER LINUX:
 - Become the root user (i.e., run "/bin/su -" and enter the root
 password), then make a backup copy of and edit the file
-    /etc/postgresql/9.4/main/pg_hba.conf
+    /etc/postgresql/10.5/main/pg_hba.conf
   (or its equivalent on your system).
 
 - I commented out (with a # at the beginning of the line) all other lines
@@ -139,7 +155,7 @@ local	om_t1	t1    password
 
 
 INITIAL POSTGRES CONFIGURATION UNDER OPENBSD, tested
-with OpenBSD 5.7 and 5.8: --------------------------
+with OpenBSD versions including 6.5: --------------------------
 (Corrections solicited as with everything here, but doing this with
 OpenBSD seemed more complicated.)
 As root, run commands one at a time (not as a script), reading each line fully first:
@@ -150,14 +166,14 @@ As root, run commands one at a time (not as a script), reading each line fully f
   echo 'umask 0077' >> .profile
   exit # to let the umask change take effect
   /usr/bin/su - _postgresql
-  mkdir -p  /var/postgresql/9.4/main #BUT CHANGE THE '9.4' FOR your version of postgres! For example, no need to change if you have 9.4.4, but do change if you have 9.5, to say "9.5" instead of "9.4".
+  mkdir -p  /var/postgresql/11.2/main #BUT CHANGE THE '11.2' FOR your version of postgres! For example, no need to change if you have 11.2.x, but do change if you have 11.6, to say "11.6" instead of "11.2".
   echo "check permissions on those new directories: probably don't want group or world access.)";read
-  cd 9.4/main  #BUT CHANGE THE '9.4' FOR your version of postgres!
-  /usr/local/bin/initdb --pgdata /var/postgresql/9.4/main/ #BUT CHANGE THE '9.4' FOR your version of postgres!
+  cd 11.2/main  #BUT CHANGE THE '11.2' FOR your version of postgres!
+  /usr/local/bin/initdb --pgdata /var/postgresql/11.2/main/ -E UTF8 #BUT CHANGE THE '11.2' for your version of postgres!
   cp -p pg_hba.conf pg_hba.conf-original
 
 Then edit the file pg_hba.conf. Comment out all lines that are not already
-commented out (there were 3), and put these 5 lines at the end, substituting
+commented out (there were 3 in some earlier versions, 6 in 10.5), and put these 5 lines at the end, substituting
 your username (the user that will use OM) for the 4 instances of <username>:
 
 local	all		_postgresql	 peer
@@ -174,33 +190,36 @@ local	om_t1	t1	password
   to type than "testrunner"). There must be no conflicting lines above
   or below these, because when postgresql interprets the file there
   is no drop-through or default behavior, so the first matching
-  line wins.  Also I commented out all other lines below "Put your actual
-  configuration here" except the one that says
-    local   all		    postgres
-  ...but see the postgresql docs if you have specific configuration
+  line wins (at least as of 9.x).  
+  See the postgresql docs if you have specific configuration
   needs outside of what OM requires.  The "host" lines are necessary
   even if you are only using OM from your own computer, because of how
   jdbc makes connections.)
 
   Still as the user _postgresql, use commands like this, perhaps in a
-  script, to start postgresql:
-    pg_ctl start --pgdata /var/postgresql/9.4/main --log /var/log/postgresql/pg.log
+  script, to start postgresql (BUT AGAIN CHANGE THE VERSION TO MATCH YOURS):
+    pg_ctl start --pgdata /var/postgresql/11.2/main --log /var/log/postgresql/pg.log
     sleep 1
     ps auxww|grep postgres
 
   (I didn't use the /etc/rc.d/postgres script to start postgres,
   because it got errors like "/etc/rc.d/rc.subr: Permission denied",
   or when run as root it also failed saying it should have been run as
-  the _postgresql user.)
+  the _postgresql user.  That was on an earlier version of OBSD and of postgres.)
 
   If ever needed, you can stop postgresql by running a command like
-  this as root:
-    sudo -u _postgresql /usr/local/bin/pg_ctl status -D /var/postgresql/9.4/main
+  this as root (CHANGING THE VERSION TO MATCH YOURS):
+    sudo -u _postgresql /usr/local/bin/pg_ctl status -D /var/postgresql/11.2/main
+
+  (I have scripts that run the above ("pgup" and "pgdown", but when doing normal
+  OS shutdown I haven't been using pgdown first).  I can make them available
+  upon request and probably you can improve them or other things here,
+  and pass on what you learn.)
 
 
 
 CONTINUED POSTGRES CONFIGURATION FOR *BOTH* LINUX AND OPENBSD:
-- At this point you should still be logged in to a command-line as the
+-  At this point you should still be logged in to a command-line as the
 postgres (or on BSD, _postgresql) user.
 
 - Choose a username and password.  If you use the same username as
@@ -214,12 +233,12 @@ you will be prompted each time.
 all below steps, then again become the postgres user as above and run this 
 command, substituting your username for the "<...>", removing the <>'s):
     psql om_<yourusername>
-...then:
+  ...then:
     \password <yourusername>
-...then follow the prompts to enter the new password twice.)
+  ...then follow the prompts to enter the new password twice.)
 
 Note about users and schemas, if you create more users in the same
-database:  The current use of postgres assumes that there is only 
+database:  This current use of postgres assumes that there is only 
 one user per database.  If multiple users are created for
 any reason inside a single database, and they are not equally 
 trusted, see the potential risk related to search_path documented at 
@@ -236,7 +255,7 @@ the "<...>", removing the <>'s):
     psql om_<yourusername>
   ...and you should see a prompt, something like this:
     $psql om_<yourusername>
-    psql (9.4.5)
+    psql (11.2)
     Type "help" for help.
     om_<yourusername>=#
 
@@ -288,14 +307,17 @@ for the "<...>"'s, removing the <>'s, but *do keep* the single-quotes
   ... twice, to no longer be the postgres user or root.
 
 The remaining database setup steps are performed by the OneModel
-application when it is launched under your own user account.
+application when it is launched.
 
 In this setup you are responsible for local administration and backups,
 using the postgresql documentation as needed; feel free to inquire on
 the mailing list for more information.	(Developers: Using something
 like AWS with more automation is a possible alternative.  Or maybe we
 could just create a tarball and fully script all this, or a .deb that
-does everything without need for manual setup.)
+does everything without need for manual setup.  Also see Docker notes
+below.)
+
+Non-developers can now skip to the "Running" section below.
 
 
 Verifying
@@ -315,9 +337,7 @@ Compiling, above), you can:
     b) Making sure that the following om directories are in the path, for 
        running of scripts like "c" and "oet" etc: 
          core/bin  
-         core/bin/linux  OR  core/bin/bsd
          integration/bin
-         integration/bin/linux  OR  integration/bin/bsd
          
        (Scripts have been tested on Debian GNU/Linux and OpenBSD. For other 
        platforms, patches are welcome: pls see the file CONTRIBUTING and send in
@@ -398,8 +418,10 @@ Verifying, above. Then run:
 
 Running
 -------
-Just execute the jar with java.  An easy way is to go to the directory
-where it is installed (such as ~/onemodel), then use a command line
+Just execute the jar with java, like:
+   java -jar onemodel<full name...>.jar
+.  If you checked out the source code, an easy way is to go to the 
+directory where it is installed (such as ~/onemodel), then use a command line
 similar to this for Linux/Unix:
 
   bin/om
@@ -417,8 +439,11 @@ matters to you.  (idea: fill in here the steps, or link to instructions,
 for a postgresql backup? or suggest to go find that?)
 
 You'll almost certainly want to have a long scrollback buffer in your
-command window, for times when you just need to review the recent past,
-or there was an errant keystroke and you want to see what happened.
+command window, for times when you need to review the recent past, such 
+as if there was an errant keystroke and you want to see what happened.
+The web site http://onemodel.org has instructions for how to do this on
+Windows (at least for some versions), and Mac instructions may be 
+available upon request.
 
 If it ever crashes or you suspended it to the background with ^Z (which
 as of this writing doesn't work), and you find you can't type anything
@@ -432,7 +457,8 @@ then you can see the right entries by ESCaping from the incorrectly
 displayed group then going back into it.  It's an infrequent bug.
 If you learn a way to reproduce it consistently, let me know.
 
-See the http://onemodel.org web site for the latest usage documentation.
+See the http://onemodel.org web site for the latest usage documentation,
+including a tutorial.
 
 
 Troubleshooting
