@@ -374,7 +374,7 @@ proc export_html {entity_name_to_confirm_right_menu} {
   myexpect "Include.*not specified"
   sleep $human_keystroke_wait
   send \x08y\n
-  myexpect "Exported to directory: "
+  myexpect "Finished export to directory: "
   send x
   send 0
   # back at an entity menu:

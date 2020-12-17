@@ -70,8 +70,8 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     val entityId: Long = ids.get(0)
     val startingEntity: Entity = new Entity(mDB, entityId)
 
-    // see comments in ImportExport.export() method for explanation of the next few lines:
-    val exportedEntityIds = new mutable.TreeSet[String]
+    // For explanation of the next few lines, see declaration of similar things, in comments in ImportExport.export() method.
+    val exportedEntityIds = new scala.collection.mutable.HashMap[String,Integer]
     val cachedEntities = new mutable.HashMap[String, Entity]
     val cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]]
     val cachedGroupInfo = new mutable.HashMap[Long, Array[Long]]

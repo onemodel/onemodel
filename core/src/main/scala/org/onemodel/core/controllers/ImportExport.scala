@@ -458,7 +458,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       if (ans4.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
       val includeNonPublicData: Boolean = ans4.get
 
-      val ans5: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", Some("y"),
+      val ans5: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", 
+                                                      (if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) 
+                                                        Some("y") else Some("n")),
                                                       allowBlankAnswer = true)
       if (ans5.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
       val includeUnspecifiedData: Boolean = ans5.get
@@ -467,7 +469,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       var wrapTheLines: Boolean = false
       var wrapAtColumn: Int = 1
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-        val ans6: Option[Boolean] = ui.askYesNoQuestion("Number the entries in outline form (ex, 3.1.5)?  (Prevents directly re-importing.)", Some("n"), allowBlankAnswer = true)
+        val ans6: Option[Boolean] = ui.askYesNoQuestion("Number the entries in outline form (ex, 3.1.5)?  (Prevents directly re-importing.)", Some("y"), allowBlankAnswer = true)
         if (ans6.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
         numberTheLines = ans6.get
 
@@ -494,7 +496,48 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     val (userWantsOut: Boolean, levelsText: String, levelsToExport: Int, includeMetadata: Boolean, includePublicData: Boolean, includeNonPublicData: Boolean,
          includeUnspecifiedData: Boolean, numberTheLines: Boolean, wrapTheLines: Boolean, wrapAtColumn: Int) = askForExportChoices
 
-    if (! userWantsOut) {
+    def getNumExportableEntries(cachedEntities: mutable.HashMap[String, Entity], cachedAttrs: mutable.HashMap[Long, Array[(Long, Attribute)]]): Integer = {
+      var count: Integer = 0
+      val attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrs)
+      for (attributeTuple <- attrTuples) {
+        val attribute: Attribute = attributeTuple._2
+        attribute match {
+          case relation: RelationToLocalEntity =>
+            val e: Entity = getCachedEntity(relation.getRelatedId2, cachedEntities, relation.mDB)
+            if (levelsRemainAndPublicEnough(e, includePublicData, includeNonPublicData, includeUnspecifiedData,
+                                            levelsToExportIsInfiniteIn = false, 1)) {
+              count = count + 1
+            }
+          case relation: RelationToRemoteEntity =>
+            // Idea: The next line doesn't currently internally do caching for DBs like we do for entities in getCachedEntity, but that could be added if it is
+            // used often enough to be a performance problem (and at similar comment elsewhere in this file)
+            // (AND THE SAME AT THE OTHER PLACES W/ SAME COMMENT.)
+            val remoteDb = relation.getRemoteDatabase
+            val e: Entity = getCachedEntity(relation.getRelatedId2, cachedEntities, remoteDb)
+            if (levelsRemainAndPublicEnough(e, includePublicData, includeNonPublicData, includeUnspecifiedData,
+                                            levelsToExportIsInfiniteIn = false, 1)) {
+              count = count + 1
+            }
+          case relation: RelationToGroup =>
+            // Needed, or is accurate without? (depends on how groups are processed in txt exports: if they count as top-level entities/shown so...
+            // probably not so don't increment at all in that case?:
+            //                    val entityIds: Array[Long] = getCachedGroupData(relation, cachedGroupInfo)
+            //                    for (entityIdInGrp <- entityIds) {
+            //                      val entityInGrp: Entity = getCachedEntity(entityIdInGrp, cachedEntities, relation.mDB)
+            //                    if (levelsRemainAndPublicEnough(e, includePublicData, includeNonPublicData, includeUnspecifiedData,
+            //                                                    levelsToExportIsInfiniteIn = false, 1)) {
+            count = count + 1
+          //                    }
+          //                    }
+          case _ =>
+            // Remove? Put back when (all?) attributes show up in exported text outlines?  And in the meantime, probably need to manually check the count every time this is used?
+            count = count + 1
+        }
+      }
+      count
+    }
+
+    if (!userWantsOut) {
       ui.displayText("Processing..." + Util.NEWLN +
                      "(Note: if this takes too long, you can Ctrl+C and start over with a smaller or nonzero " + levelsText + ".)", waitForKeystrokeIn = false)
       require(levelsToExport >= 0)
@@ -509,15 +552,20 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         }
       }
 
-      // To track what's been done so we don't repeat it:
-      val exportedEntityIds = new mutable.TreeSet[String]
+      // To track what's been done so we don't repeat it:  The first part (key) is the Entity.uniqueIdentifier.
+      // The value (2nd part) is so we don't redo work if it has already been done.  (Adding this made an export of my web site
+      // change from taking more than several days, to under a minute).  It is 0 if "infinite" (or all levels available).
+      // (Note: if we later need to look up more than just an Integer, we could try mixing in a MultiMap.)
+      // (NOTE: could compare the performance (and exported data!), of HashMap vs. TreeMap, *after* upgrading to a later
+      // version of scala that has it?)
+      val exportedEntityIds = new mutable.HashMap[String, Integer]
 
       // The caches are to reduce the expensive repeated queries of attribute lists & entity objects (not all of which are known at the time we write to
-      // exportedEntityIds).
-      // Html exports were getting very slow before this caching logic was added.)
+      // exportedEntityIds.  Html exports were getting very slow before this caching logic was added.)
       val cachedEntities = new mutable.HashMap[String, Entity]
       // (The key is the entityId, and the value contains the attributes (w/ id & attr) as returned from db.getSortedAttributes.)
       val cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]]
+
       val cachedGroupInfo = new mutable.HashMap[Long, Array[Long]]
 
       val prefix: String = getExportFileNamePrefix(entityIn, exportTypeIn)
@@ -525,28 +573,47 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         val (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, exportTypeIn, None)
         try {
           if (wrapTheLines || numberTheLines) {
+            val numEntries: Integer = getNumExportableEntries(cachedEntities, cachedAttrs)
             // The next line is debatable, but a point I want to make for now, and a personal convenience.  If you don't like it send a
             // comment on the list, or a patch with it removed, for discussion.
             // Or maybe we just remove the "wrapTheLines" part of the condition so it prints only with the numbered outline format.
             // Done here because the method exportToSingleTextFile is called recursively, and this needs to simply be first.
             // Maybe it (or at least the part after #1) should be replaced with a link to some page ~ "How to do structured skimming to get more out of
             // reading or spend less time".
-            outputWriter.println("(This is an outline, meant to be skimmable.  That means: 1) for an outline like this, read only the most out-dented parts," +
-                                 " and then the indented parts only if interest in the parent entry justifies it;" +
-                                 Util.NEWLN + "and (the rest of this paragraph is not" +
-                                 " for this content, but has general tips on structured skimming that have helped me get more out of reading, in less" +
-                                 " time), " +
-                                 Util.NEWLN + "2) for essays or papers, read the first and" +
+/*Ideas: when I export for others, call the recipient to go over this material verbally (or email?):
+   just read #1
+   then skip the 1.1, 1.2, etc as details
+   then just read #2, skip the rest of 2.n
+   then just read #3, skipping details to 4,5,6 to the end.
+   ...to get an overview: this is *skimming*.
+   then go back to #1. If it is interesting, read its top level (1.1, 1.2, 1.3) skipping details.
+   same w/ #2, 3, etc.  pick the interesting ones & do that.
+   is that helpful?
+   please *please* send cmts to me as to whether it is helpful or not.
+ THEN consider each kind of person (age, either some academic or tech bent, experiences, how it is best for each one.
+*/
+            outputWriter.println("(This is an outline, generated from OM data (details at http://onemodel.org), with " + numEntries + " top-level items.  It is meant to be skimmable." +
+                                 Util.NEWLN + "Here are some hints for skimming or reading outlines (and other things) efficiently:" +
+                                 // WHEN PERSONAL WEB SITE UPDATED W/ THE CONTENTS (already in its todos), simply link here and delete the rest of the output?,
+                                 // or keep the tip about just reading the outline, & link to the rest with this & make the overall text work:
+                                 //Util.NEWLN + "  <a href=\"http://lukecall.net/e-9223372036854624718.html\">About reading outlines efficiently</a>"
+                                 Util.NEWLN + "1) for an outline like this, read only the most out-dented parts," +
+                                 " and then the indented parts only if interest in the parent entry justifies it." +
+                                 Util.NEWLN + "The rest of this top section is not" +
+                                 " for *this* outline, but has general tips on structured skimming that have helped me get more out of reading, in less" +
+                                 " time. " +
+                                 Util.NEWLN + "2) For essays or academic papers, read the first and" +
                                  " last paragraphs, then if interest remains, just the first sentences of paragraphs, and more only based on the value of" +
-                                 " what was read already; and , " +
-                                 Util.NEWLN + "3) for news, just the beginning to get the most important info, and read more rest only if" +
-                                 " you really want the increasing level of detail that comes in later parts of news articles.), " +
-                                 Util.NEWLN + "For more, see:  https://en.wikipedia.org/wiki/Skimming_(reading)#Skimming_and_scanning" + Util.NEWLN)
+                                 " what was read already." +
+                                 Util.NEWLN + "3) For news, one  can read just the beginning to get the most important info, and read more only if" +
+                                 " you really want the increasing level of detail that comes in later parts of news articles. " +
+                                 Util.NEWLN + "For more, see:  https://en.wikipedia.org/wiki/Skimming_(reading)#Skimming_and_scanning  .)" + Util.NEWLN)
           }
 
-          exportToSingleTextFile(entityIn, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata, exportedEntityIds, cachedEntities, cachedAttrs,
-                                spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, wrapTheLines,
-                                wrapAtColumn, numberTheLines)
+          exportToSingleTextFile(entityIn, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata,
+                                 exportedEntityIds, cachedEntities, cachedAttrs,
+                                 spacesPerIndentLevel, includePublicData, includeNonPublicData, includeUnspecifiedData, wrapTheLines,
+                                 wrapAtColumn, numberTheLines)
           // flush before we report 'done' to the user:
           outputWriter.close()
           ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
@@ -568,7 +635,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         exportHtml(entityIn, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                    cachedGroupInfo, mutable.TreeSet[Long](), uriClassId, quoteClassId,
                    includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
-        ui.displayText("Exported to directory: " + outputDirectory.toFile.getCanonicalPath)
+        ui.displayText("Finished export to directory: " + outputDirectory.toFile.getCanonicalPath +
+                       " at " + Util.DATEFORMAT2.format(System.currentTimeMillis()))
       } else {
         throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
       }
@@ -577,18 +645,66 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
   // This exists for the reasons commented in exportItsChildrenToHtmlFiles, and so that not all callers have to explicitly call both (ie, duplication of code).
   def exportHtml(entity: Entity, levelsToExportIsInfinite: Boolean, levelsToExport: Int,
-                 outputDirectory: Path, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
+                 outputDirectory: Path, exportedEntityIdsIn: mutable.HashMap[String, Integer], cachedEntitiesIn: mutable.HashMap[String, Entity],
                  cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]],
                  entitiesAlreadyProcessedInThisRefChain: mutable.TreeSet[Long],
                  uriClassId: Long, quoteClassId: Long,
                  includePublicData: Boolean, includeNonPublicData: Boolean, includeUnspecifiedData: Boolean,
                  headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
-    exportEntityToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn,
-                           uriClassId, quoteClassId, includePublicData, includeNonPublicData, includeUnspecifiedData,
-                           headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
-    exportItsChildrenToHtmlFiles(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntityIdsIn, cachedEntitiesIn,
-                                 cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChain, uriClassId, quoteClassId,
-                                 includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
+    /* The fix [FOR WHAT, AGAIN? See my OM noted todo "make count more accurate at top/header of expo", and other cmts made at same time w/ this commit?]:
+        xwhenever adding an entry to that expanded data stru, add an integer saying how many levels are *going* to be done, 0 if all
+        when that is checked to decide what to do
+          xif not found (or after returned?), add, using the # planned to do or completed *OR 0if infinite), & go ahead.
+          If found (alr done)
+            if 0 || the # to do is <= than the # done, dont go ahead *even in the children checks*
+            if nonzero && the # to do is > than the # done
+                go ahead w/ the new #
+                and update the # done
+        make sure it is commented understandably
+        same issue with txt exports?
+        same issue with searching relative to a point in the tree (ie, that could be speeded up if there is much duplication w/in the tree)
+          just note somewhere?
+          same issue with anything that traverses trees?  probably found in some coding algorithms discussions...
+          Don't do that for now:
+            See/integrate updates w/ existing comments near to of PostgreSQLDatabase.findContainedLocalEntityIds .
+        THEN REPEAT THIS FOR TXT EXPORT right?
+     */
+//    if (!shouldExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
+//      return
+//    }
+    if (!levelsRemainAndPublicEnough(entity, includePublicData, includeNonPublicData, includeUnspecifiedData, levelsToExportIsInfinite, levelsToExport)) {
+      return
+    }
+    // (The next line's "alreadyExportedLevels" is a different concept from the previous line's check:
+    // the next line is about *this time* into part of the tree, so we don't traverse the same sub-parts multiple times.
+    // The "levelsRemainAndPublicEnough" call is about not ever exceeding the total levels being exported from the top.
+    val alreadyExportedLevels: Option[Integer] = exportedEntityIdsIn.get(entity.uniqueIdentifier)
+    val entityWasPreviouslyExported = alreadyExportedLevels.isDefined
+    if (! entityWasPreviouslyExported) {
+      exportEntityToHtmlFile(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn,
+                             uriClassId, quoteClassId, includePublicData, includeNonPublicData, includeUnspecifiedData,
+                             headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
+
+      //add it, so we don't create duplicate files, or loop infinitely while doing sub-entities aka children.
+      exportedEntityIdsIn.update(entity.uniqueIdentifier, if (levelsToExportIsInfinite) 0 else levelsToExport)
+
+      exportItsChildrenToHtmlFiles(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntityIdsIn, cachedEntitiesIn,
+                                   cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChain, uriClassId, quoteClassId,
+                                   includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn,
+                                   copyrightYearAndNameIn)
+    } else {
+      // No need to recreate this entity's html file since it was already done, but there is a further check before doing
+      // children, if we need to go more levels deep now (see comments at or in exportItsChildrenToHtmlFiles, for details. Idea: move those here?).
+      if (alreadyExportedLevels.get != 0 && levelsToExport > alreadyExportedLevels.get) {
+        exportItsChildrenToHtmlFiles(entity, levelsToExportIsInfinite, levelsToExport, outputDirectory, exportedEntityIdsIn, cachedEntitiesIn,
+                                     cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChain, uriClassId, quoteClassId,
+                                     includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn,
+                                     copyrightYearAndNameIn)
+        exportedEntityIdsIn.update(entity.uniqueIdentifier, if (levelsToExportIsInfinite) 0 else levelsToExport)
+      } else {
+        // don't go ahead with sub-entities: this work has already been done in a previous iteration.
+      }
+    }
   }
 
   /** This creates a new file for each entity.
@@ -597,7 +713,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     *
     */
   def exportEntityToHtmlFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
-                             outputDirectoryIn: Path, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
+                             outputDirectoryIn: Path, exportedEntityIdsIn: mutable.HashMap[String, Integer], cachedEntitiesIn: mutable.HashMap[String, Entity],
                              cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]],
                              uriClassIdIn: Long, quoteClassIdIn: Long,
                              includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
@@ -605,19 +721,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     // useful while debugging:
     //out.flush()
 
-    if (! isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                           levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
-      return
-    }
-    if (exportedEntityIdsIn.contains(entityIn.uniqueIdentifier)) {
-      // no need to recreate this entity's html file, so return
-      return
-    }
-
     val entitysFileNamePrefix: String = getExportFileNamePrefix(entityIn, ImportExport.HTML_EXPORT_TYPE)
     val printWriter = createOutputFile(entitysFileNamePrefix, ImportExport.HTML_EXPORT_TYPE, Some(outputDirectoryIn))._2
-    //record, so we don't create duplicate files:
-    exportedEntityIdsIn.add(entityIn.uniqueIdentifier)
     try {
       printWriter.println("<html><head>")
       printWriter.println("  <title>" + entityIn.getName + "</title>")
@@ -638,8 +743,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           case relation: RelationToLocalEntity =>
             val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
             val entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, relation.mDB)
-            if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                  levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+            if (levelsRemainAndPublicEnough(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                            levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
               if (entity2.getClassId.isDefined && entity2.getClassId.get == uriClassIdIn) {
                 printListItemForUriEntity(uriClassIdIn, quoteClassIdIn, printWriter, entity2, cachedAttrsIn)
               } else {
@@ -652,10 +757,11 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             val relationType = new RelationType(relation.mDB, relation.getAttrTypeId)
             // Idea: The next line doesn't currently internally do caching for DBs like we do for entities in getCachedEntity, but that could be added if it is
             // used often enough to be a performance problem (and at similar comment elsewhere in this file)
+            // (AND THE SAME AT THE OTHER PLACES W/ SAME COMMENT.)
             val remoteDb: Database = relation.getRemoteDatabase
             val entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, remoteDb)
-            if (isAllowedToExport(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                  levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+            if (levelsRemainAndPublicEnough(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                            levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
               // The classId and uriClassIdIn probably won't match because entity2 n all its data comes from a different (remote) db, so not checking that, at
               // least until that sort of cross-db check is supported, so skipping this condition for now (as elsewhere):
 //              if (entity2.getClassId.isDefined && entity2.getClassId.get == uriClassIdIn) {
@@ -679,8 +785,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               for (entityInGrp: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
                 // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
                 // info in the link itself (the entity name) that has been restricted (ex., made nonpublic).
-                if (isAllowedToExport(entityInGrp, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                      levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+                if (levelsRemainAndPublicEnough(entityInGrp, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                                levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
                   if (entityInGrp.getClassId.isDefined && entityInGrp.getClassId.get == uriClassIdIn) {
                     printListItemForUriEntity(uriClassIdIn, quoteClassIdIn, printWriter, entityInGrp, cachedAttrsIn)
                   } else{
@@ -801,22 +907,30 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     *   - Therefore X's children should have been exported from the "shallow" point, because they are now less than levelsRemainingToExportIn levels deep, but
     *     were not exported because X was skipped (having been already been done).
     *   - Therefore separating the logic for the children allows them to be exported anyway, which fixes the bug.
-    * Still, within this method it is also necessary to void infinitely looping around entities who contain references to (eventually) themselves, which
+    *   - Idea: does this same issue happen with exporting as text?  Does it need to be fixed there too?  See other cmts made in same commit..?
+    *
+    * Still, within this method it is also necessary to avoid infinitely looping around entities who contain references to (eventually) themselves, which
     * is the purpose of the variable "entitiesAlreadyProcessedInThisRefChain".
     *
     * If parameter levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
     */
   def exportItsChildrenToHtmlFiles(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
-                                   outputDirectoryIn: Path, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
+                                   outputDirectoryIn: Path,
+                                   //in this method, next parm is only used to pass along in calls to exportHtml
+                                   //(idea: check: true? See also usage of entitiesAlreadyProcessedInThisRefChainIn just below, as part of ck?)
+                                   exportedEntityIdsIn: mutable.HashMap[String, Integer],
+                                   cachedEntitiesIn: mutable.HashMap[String, Entity],
                                    cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]],
                                    entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[Long], uriClassIdIn: Long, quoteClassId: Long,
                                    includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
                                    headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
-    if (! isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                            levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
+    if (!levelsRemainAndPublicEnough(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                     levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
       return
     }
+    // (See comment at similar location in exportEntityToHtmlFile about the use of the next line, compared to the check a couple of lines above.)
     if (entitiesAlreadyProcessedInThisRefChainIn.contains(entityIn.getId)) {
+      // (Breakpoints do hit this line when I export my personal site (at least with 40 levels and including entries marked neither public nor non-public).)
       return
     }
 
@@ -838,6 +952,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         case relation: RelationToRemoteEntity =>
           // Idea: The next line doesn't currently internally do caching for DBs like we do for entities in getCachedEntity, but that could be added if it is
           // used often enough to be a performance problem (and at similar comment elsewhere in this file)
+          // (AND THE SAME AT THE OTHER PLACES W/ SAME COMMENT.)
           val remoteDb = relation.getRemoteDatabase
           val entity2: Entity = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, remoteDb)
           // The classId and uriClassIdIn probably won't match because entity2 n all its data comes from a different (remote) db, so not checking that, at
@@ -921,6 +1036,23 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     out
   }
 
+  def getLineNumbers(includeOutlineNumbering: Boolean = true, currentIndentationLevels: Int, nextKnownOutlineNumbers: java.util.ArrayList[Int]): String = {
+    // (just a check, to learn. Maybe there is a better spot for it)
+    //test fails with it, as does item noted in my om todos??:
+    // require(currentIndentationLevels == nextKnownOutlineNumbers.size)
+
+    val s = new StringBuffer
+    if (includeOutlineNumbering && nextKnownOutlineNumbers.size > 0) {
+      // (if nextKnownOutlineNumbersIn.size == 0, it is the first line/entity in the exported file, ie, just the
+      // containing entity or heading for the rest, so nothing to do.
+      for (i <- 0 until nextKnownOutlineNumbers.size) {
+        s.append(nextKnownOutlineNumbers.get(i))
+        if (nextKnownOutlineNumbers.size() - 1 > i) s.append(".")
+      }
+    }
+    s.toString
+  }
+
   //@tailrec  THIS IS NOT TO BE TAIL RECURSIVE UNTIL IT'S KNOWN HOW TO MAKE SOME CALLS to it BE recursive, AND SOME *NOT* TAIL RECURSIVE (because some of them
   //*do* need to return & finish their work, such as when iterating through the entities & subgroups)! (but test it: is it really a problem?)
   // (Idea: See note at the top of Controller.chooseOrCreateObject re inAttrType about similarly making exportTypeIn an enum.)
@@ -931,7 +1063,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     */
   def exportToSingleTextFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int,
                              printWriterIn: PrintWriter,
-                             includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.TreeSet[String], cachedEntitiesIn: mutable.HashMap[String, Entity],
+                             includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.HashMap[String, Integer],
+                             cachedEntitiesIn: mutable.HashMap[String, Entity],
                              cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], spacesPerIndentLevelIn: Int,
                              //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                              includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
@@ -953,22 +1086,6 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         val incrementedLastNumber = outlineNumbersTrackingInOut.get(lastIndex) + 1
         outlineNumbersTrackingInOut.set(lastIndex, incrementedLastNumber)
       }
-    }
-
-    def getLineNumbers(includeOutlineNumbering: Boolean = true, nextKnownOutlineNumbers: java.util.ArrayList[Int]): String = {
-      // (just a check, to learn. Maybe there is a better spot for it)
-      require(currentIndentationLevelsIn == nextKnownOutlineNumbers.size)
-
-      val s = new StringBuffer
-      if (includeOutlineNumbering && nextKnownOutlineNumbers.size > 0) {
-        // (if nextKnownOutlineNumbersIn.size == 0, it is the first line/entity in the exported file, ie, just the
-        // containing entity or heading for the rest, so nothing to do.
-        for (i <- 0 until nextKnownOutlineNumbers.size) {
-          s.append(nextKnownOutlineNumbers.get(i))
-          if (nextKnownOutlineNumbers.size() - 1 > i) s.append(".")
-        }
-      }
-      s.toString
     }
 
     /** Does optional line wrapping and spacing for readability.
@@ -993,7 +1110,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         getSpaces(adjustedCurrentIndentationLevelsIn * spacesPerIndentLevelIn)
       }
       incrementOutlineNumbering()
-      val lineNumbers: String = getLineNumbers(includeOutlineNumberingIn, outlineNumbersTrackingInOut)
+      val lineNumbers: String = getLineNumbers(includeOutlineNumberingIn, currentIndentationLevelsIn, outlineNumbersTrackingInOut)
       var numCharactersBeforeActualContent = indentingSpaces.length + lineNumbers.length
       var stillToPrint: String = indentingSpaces + lineNumbers
       if (lineNumbers.length > 0 ) {
@@ -1031,7 +1148,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           // figure out how much to print, out of a long line
           //("wrapColumnIn - 1", is there to still respect the limit (wrapColumnIn) given that we do
           // + 1 afterward to include the trailing space.)
-          var lastSpaceIndex = stillToPrint.lastIndexOf(" ", wrapColumnIn - 1)
+          val lastSpaceIndex = stillToPrint.lastIndexOf(" ", wrapColumnIn - 1)
           val endLineIndex =
             if (lastSpaceIndex > numCharactersBeforeActualContent && stillToPrint.length > wrapColumnIn) {
               // + 1 to include the space on the end of this line, instead of leaving it at the beginning of the
@@ -1058,8 +1175,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       }
       if (isFirstEntryOfAll && wrapLongLinesIn) {
         // Just a readability convenience: underline the very top entry (since its children
-        // are not indented under it--to set it off visually as something like a "title".
-        var length = Math.min(wrapColumnIn, entryText.length)
+        // are not indented under it--to set it off visually as something like a "title").
+        val length = Math.min(wrapColumnIn, entryText.length)
         // (Compare use of "entryText.lastIndexOf(..."  with the "val lastSpaceIndex = " line elsewhere.
         val underline: StringBuffer = new StringBuffer(wrapColumnIn)
         for (_ <- 1 to length) {
@@ -1088,11 +1205,11 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       }
       previousEntityWasWrapped = printEntry(printWriterIn, infoToPrint)
     } else {
-      val allowedToExport: Boolean = isAllowedToExport(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                                       levelsToExportIsInfiniteIn, levelsRemainingToExportIn)
-      if (allowedToExport) {
-        //record it, so we don't create duplicate entries:
-        exportedEntityIdsIn.add(entityIn.uniqueIdentifier)
+      if (levelsRemainAndPublicEnough(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
+                                      levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
+        //add it, so we don't create duplicate entries:
+        // (NOTE: the -1 is not being used for now, in text file exports)
+        exportedEntityIdsIn.update(entityIn.uniqueIdentifier, -1)
 
         val infoToPrint = if (includeMetadataIn) {
           "EN " + entityIn.getId + ": " + entityIn.getDisplayString()
@@ -1164,6 +1281,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               }
             case _ =>
               incrementOutlineNumbering()
+              //idea?: print as a simple prefix the getLineNumbers content as done elsewhere in this file.  How does it look? Then stop enhancing until used?
+              printWriterIn.print(getLineNumbers(includeOutlineNumberingIn, currentIndentationLevelsIn, outlineNumbersTrackingInOut))
               printWriterIn.print(getSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn))
               if (includeMetadataIn) {
                 printWriterIn.println((attribute match {
@@ -1176,7 +1295,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               } else {
                 printWriterIn.println(attribute.getDisplayString(0, None, None, simplify = true))
               }
-              if ((wrapLongLinesIn && !includeOutlineNumberingIn)) {
+              if (wrapLongLinesIn && !includeOutlineNumberingIn) {
                 // *WHEN MAINTAINING HERE, MAINTAIN SIMILARLY BOTH PLACES THAT SAY "whitespace for readability" in comment.*
                 // whitespace for readability, similarly to what is done in printEntry
                 printWriterIn.println()
@@ -1189,14 +1308,16 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     return previousEntityWasWrapped
   }
 
-  def isAllowedToExport(entityIn: Entity, includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean,
-                        includeUnspecifiedDataIn: Boolean, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int): Boolean = {
+  def levelsRemainAndPublicEnough(entityIn: Entity, includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean,
+                                  includeUnspecifiedDataIn: Boolean, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int): Boolean = {
+    if (!levelsToExportIsInfiniteIn && levelsRemainingToExportIn == 0) {
+      return false
+    }
     val entityPublicStatus: Option[Boolean] = entityIn.getPublic
     val publicEnoughToExport = (entityPublicStatus.isDefined && entityPublicStatus.get && includePublicDataIn) ||
                           (entityPublicStatus.isDefined && !entityPublicStatus.get && includeNonPublicDataIn) ||
                           (entityPublicStatus.isEmpty && includeUnspecifiedDataIn)
-
-    publicEnoughToExport && (levelsToExportIsInfiniteIn || levelsRemainingToExportIn > 0)
+    publicEnoughToExport
   }
 
   def printHtmlListItemWithLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None,
@@ -1312,7 +1433,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     val startingEntity: Entity = new Entity(dbIn, entityId)
 
     // see comments in ImportExport.export() method for explanation of these 3
-    val exportedEntityIds = new mutable.TreeSet[String]
+    val exportedEntityIds = new mutable.HashMap[String, Integer]
     val cachedEntities = new mutable.HashMap[String, Entity]
     val cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]]
 
