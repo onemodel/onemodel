@@ -1,0 +1,405 @@
+#!/usr/local/bin/bash -eu
+
+#    This file is part of OneModel, a program to manage knowledge.
+#    Copyright in each year of 2017-2017 inclusive, Luke A Call; all rights 
+#    reserved.  OneModel is free software, distributed under a license that 
+#    includes honesty, the Golden Rule, guidelines around binary
+#    distribution, and the GNU Affero General Public License as published by 
+#    the Free Software Foundation; see the file LICENSE for license version 
+#    and details.
+#    OneModel is distributed in the hope that it will be useful, but WITHOUT 
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public 
+#    License for more details.  You should have received a copy of the GNU 
+#    Affero General Public License along with OneModel.  If
+#    not, see http://www.gnu.org/licenses/  .
+
+# Creates new postgresql user accounts for use by OneModel.  
+# Has to run as root.
+
+# (There is usually some
+# better way, but hopefully this is clear and maintainable.)
+
+#Can aid debugging:
+set -x
+
+if [[ $USER != "root" ]]; then
+  echo "Must be run as root."
+  exit 1
+fi
+if [[ $# -ne 2 || ($2 != "test" && $2 != "regular") ]]; then
+  echo
+  echo "Usage:  $0 <usernameToAdd> <test|regular>"
+  echo "Call with 2 parameters: the new username, and 'test' or 'regular'"
+  echo "(without quotes) to indicate the type of user being added (ie, for"
+  echo "automated tests or normal use)"
+  echo
+  exit 1
+fi
+
+if [[ $(uname -a | grep -i openbsd | wc -l) -eq 1 ]]; then
+  IS_OPENBSD='true'
+  IS_DEBIAN='false'
+  PG_USER='_postgresql'
+  echo "Supported system detected."
+elif [[ $(cat /etc/os-release|grep -i debian|wc -l) -gt 0 ]];then 
+  IS_DEBIAN='true'
+  IS_OPENBSD='false'
+  PG_USER='postgres'
+  echo "Supported system detected."
+else
+  echo
+  echo "---------------------------------------"
+  echo "You might want to check whether this script works on your OS, and if"
+  echo "so remove this check temporarily, or if not update it so it"
+  echo "does work.  Tested patches welcome.  Like, the bash path on line 1"
+  echo "being managed awkwardly across OSes."
+  exit 1
+fi
+
+USER_NAME=$1
+USER_TYPE=$2
+#CONF_FILE=$(ls /etc/postgresql/*/main/pg_hba.conf|sort|tail -1)
+# /var/postgresql/9.6/main on obsd today:
+CONF_FILE=$(ls /var/postgresql/*/main/pg_hba.conf|sort|tail -1) 
+# The script does an in-place backup of the conf file (farther 
+# below), but this is an extra precaution to not damage the file
+# without a backup.  Maybe when the script is super-well-tested
+# and somehow it is impossible for maintenance to cause the
+# script to possibly change the file
+# before that backup, this could be removed. But I thought I had
+# that level during testing and still changed it by mistake. So:
+cp -p "$CONF_FILE" $(mktemp -t $(basename \
+                     "${CONF_FILE}")--om-backup--$(date +%Y-%m-%dT%H:%M:%S)-XXXXXXXX)
+
+
+
+function is_blank_line {
+  if echo $1|grep -E "^\s*$">/dev/null; then echo "true"; else echo "false"; fi
+}
+function is_comment {
+  # (Is this, and the tests in similar functions,
+  # a precise way of checking it in the same way that 
+  # postgres does? Does it need fixing in that regard? Somewhat
+  # attempting here to be liberal in what we accept, and 
+  # strict in what we emit, like the ~ internet protocol saying,
+  # or at least to play it safe.)
+  if echo $1|grep -E "^\s*#">/dev/null; then echo "true"; else echo "false"; fi
+}
+function is_admin_login_config_line {
+  if echo $1|grep -E "^\s*local\s+all\s+postgres\s+peer\s*$">/dev/null; then 
+    # debian
+    echo "true"
+  #elif echo $1|grep -E "^\s*local\s+all\s+\_postgresql\s+peer\s*$">/dev/null; then 
+  #%%TODO: see how to use "\s" on next line for obsd instead of the dots, and if same needs to boe done for all other greps.
+  elif echo $1|grep -E "^.?local.+all.+_postgresql.+peer.?$">/dev/null; then 
+    # openbsd
+    echo "true"
+  else 
+    echo "false"
+  fi
+}
+function is_any_om_regular_login_config_line {
+  # The difference between this test & the one in the next
+  # function might be imprecise,
+  # for some situation, but probably not important now:
+  if echo $1|grep -E "^\s*host\s+om_\S+.+md5\s*$">/dev/null \
+  || echo $1|grep -E "^\s*local\s+om_\S+.+md5\s*$">/dev/null; then 
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+function is_any_om_test_login_config_line {
+  if echo $1|grep -E "^\s*host\s+om_\S+.+password\s*$">/dev/null \
+  || echo $1|grep -E "^\s*local\s+om_\S+.+password\s*$">/dev/null; then 
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+function comment_out_all_but_admin_config_lines {
+  local FROM_FILE=$1
+  local TO_FILE=$2
+  local RESULT="no-problem"
+  while read line; do 
+    if [[ $(is_blank_line "$line") == "true" \
+       || $(is_comment "$line") == "true" \
+       || $(is_admin_login_config_line "$line") == "true" ]]; then
+      # keep it the same:
+      echo "$line" >> $TO_FILE
+    elif [[ $(is_any_om_regular_login_config_line "$line") == "true" \
+         || $(is_any_om_test_login_config_line "$line") == "true" ]]; then
+      RESULT="unexpected OM lines not commented out"
+      echo "  (Unexpected line: \"$line\" )"
+      echo -e "$line" >> $TO_FILE
+    else
+      # this is why we came here: comment out the line.
+      echo -e "#$line" >> $TO_FILE
+    fi
+  done <"$FROM_FILE"
+  if [[ $RESULT == "unexpected OM lines not commented out" ]]; then
+    echo
+    echo "---------------------------------------"
+    echo "Unexpected line(s; shown above): some OM user entries"
+    echo "made previously in this "
+    echo "config file?  (Other lines were still commented out.)"
+    echo "You probably need to investigate the situation, then : "
+    echo "PRESS ^C TO STOP," \
+    echo "or Enter to continue with *other* config "
+    echo "IF you know what you are doing:"
+    echo "    $line" >> $TO_FILE
+    read
+  fi
+  echo $RESULT
+}
+function mv_OUT_FILE_to_CONF_FILE_with_backup {
+  local OUT_FILE="$1"
+  local BACKUP_FILE=$(echo "${CONF_FILE}--om-backup--$(date +%Y-%m-%dT%H:%M:%S)")
+  if [[ -e "$BACKUP_FILE" ]]; then
+    # err on the side of safety
+    echo
+    echo "---------------------------------------"
+    echo "Strangely, the backup file $BACKUP_FILE already exists.  You might"
+    echo "want to check the situation.  Aborting."
+    echo
+    exit 1
+  fi
+  cp -ip "$CONF_FILE" "$BACKUP_FILE"
+
+  # Make the permissions/owner/group look just like $CONF_FILE
+  # since it will replace that:
+  if [[ $IS_DEBIAN == "true" ]]; then
+    local FILE_PERMISSION=$(stat --format="%a" $CONF_FILE)
+    local FILE_OWNER_GROUP=$(stat --format="%U:%G" $CONF_FILE)
+  elif [[ $IS_OPENBSD == "true" ]]; then
+    # TODO: Would be nice to find how this should work best, 
+    # since "stat -f "%p filename", the closes I found, returns both
+    # the file type and permission (e.g., "100600"), and I'm not sure
+    # how to extract *just* the permissions.  So, cheap workaround
+    # for now, seems fragile:
+    local FILE_PERMISSION="600"
+    # TODO: And while at it, make this one non-fragile too:
+    local FILE_OWNER_GROUP="_postgresql:_postgresql"
+  else 
+    echo "Neither debian nor openbsd? How did we get here? (1)"
+    exit 1
+  fi
+  chmod $FILE_PERMISSION $OUT_FILE
+  chown $FILE_OWNER_GROUP $OUT_FILE
+
+  mv "$OUT_FILE" "$CONF_FILE"
+}
+function add_config_lines_for_new_user {
+  local OUT_FILE="$1"
+  local LINE1="host    om_$USER_NAME   $USER_NAME    127.0.0.1/32"
+  local LINE2="local   om_$USER_NAME   $USER_NAME"
+  if [[ $USER_TYPE == "regular" ]]; then
+    LINE1="${LINE1}    md5"
+    LINE2="${LINE2}    md5"
+  elif [[ $USER_TYPE == "test" ]]; then
+    LINE1="${LINE1}    password"
+    LINE2="${LINE2}    password"
+  else
+    echo "Unexpected user type: \"$USER_TYPE\".  Aborting."
+    exit 1
+  fi
+  echo "$LINE1" >> "$OUT_FILE"
+  echo "$LINE2" >> "$OUT_FILE"
+}
+function check_for_preexisting_user {
+  local CONF_FILE="$1"
+  if grep "om_$USER_NAME" $CONF_FILE; then
+    # Idea: could have this check carefully for all the needed info, and 
+    # if correct abort but return 0 (success) instead, and if not correct,
+    # keep current behavior.   Just make it check, say "good" & proceed?
+    echo
+    echo "---------------------------------------"
+    echo "Some entry for om_$USER_NAME already exists in the $CONF_FILE.  "
+    echo "You probably need to investigate the situation: "
+    echo "PRESS ^C TO STOP,"
+    echo "or Enter to continue anyway *IF* you know what you are doing:"
+    read
+  fi
+}
+
+# Check the CONF_FILE for its current state 
+FOUND_COMMENT="false"
+FOUND_ADMIN_LOGIN="false"
+FOUND_ANY_OM_REGULAR_LOGIN="false"
+FOUND_ANY_OM_TEST_LOGIN="false"
+
+#%% TEMPORARY WORK-around for some bug need2fix on bsd:
+#FOUND_ANY_OTHER_LINE="false"
+FOUND_ANY_OTHER_LINE="true" #%%
+
+check_for_preexisting_user "$CONF_FILE"
+while read line; do
+  # allow only non-blank lines into this checking logic:
+  if [[ $(is_blank_line "$line") == "false" ]]; then
+    if [[ $(is_comment "$line") == "true" ]]; then
+      FOUND_COMMENT="true"
+    elif [[ $(is_admin_login_config_line "$line") == "true" ]]; then
+      FOUND_ADMIN_LOGIN="true"
+    elif [[ $(is_any_om_regular_login_config_line "$line") == "true" ]]; then
+      FOUND_ANY_OM_REGULAR_LOGIN="true"
+    elif [[ $(is_any_om_test_login_config_line "$line") == "true" ]]; then
+      FOUND_ANY_OM_TEST_LOGIN="true"
+    else
+      FOUND_ANY_OTHER_LINE="true"
+    fi
+    #echo "$line"
+  fi
+done <"$CONF_FILE"
+
+
+# Then update the pg_hba.conf file based on what was found:
+echo "$FOUND_ADMIN_LOGIN / $FOUND_ANY_OTHER_LINE / \
+      $FOUND_ANY_OM_REGULAR_LOGIN / $FOUND_ANY_OM_TEST_LOGIN"
+if [[ $FOUND_ADMIN_LOGIN == "true" && $FOUND_ANY_OTHER_LINE == "true" \
+      && ( $FOUND_ANY_OM_REGULAR_LOGIN == "false" \
+          || $FOUND_ANY_OM_TEST_LOGIN == "false" ) ]]; then
+  echo
+  echo "---------------------------------------"
+  echo "Based on a crude check, it looks like you *might*"
+  echo "have a new installation of postgresql"
+  echo "(in $CONF_FILE), and this script can customize it *just*"
+  echo "for OneModel (after making a backup copy in place). "
+  echo "Press ^C IF YOU DO NOT WANT THAT, or Enter to proceed.."
+  echo
+  read
+  OUT_FILE=$(mktemp)
+  RESULT=$(comment_out_all_but_admin_config_lines "$CONF_FILE" "$OUT_FILE")
+  if [[ $RESULT == "unexpected OM lines not commented out" \
+      || $RESULT == "no-problem" ]]; then
+    :  #do nothing differently, it is handled in that function
+    add_config_lines_for_new_user "$OUT_FILE"
+    mv_OUT_FILE_to_CONF_FILE_with_backup "$OUT_FILE"
+  else
+    echo "unexpected value for RESULT from function: $RESULT.  Aborting"
+    exit 1
+  fi
+elif [[ $FOUND_ADMIN_LOGIN == "true" && $FOUND_ANY_OTHER_LINE == "false" \
+        && ( $FOUND_ANY_OM_REGULAR_LOGIN == "true" \
+            || $FOUND_ANY_OM_TEST_LOGIN == "true" ) ]]; then
+  echo
+  echo "---------------------------------------"
+  echo "It looks like postgresql might have been configured previously"
+  echo "(in $CONF_FILE) for "
+  echo "some OneModel user(s) on this computer.  This script can continue with this"
+  echo "customization (after making a backup copy in place), to add"
+  echo "the $USER_TYPE user \"$USER_NAME\"."
+  echo "Press ^C IF YOU DO NOT WANT THAT, or Enter to proceed..."
+  echo
+  read
+  OUT_FILE=$(mktemp)
+  cp -p "$CONF_FILE" "$OUT_FILE"
+  add_config_lines_for_new_user "$OUT_FILE"
+  mv_OUT_FILE_to_CONF_FILE_with_backup "$OUT_FILE"
+else 
+  echo
+  echo "---------------------------------------"
+  echo "The postgresql configuration file ($CONF_FILE) is not in a familiar"
+  echo "state, so has likely already been configured for some purpose other"
+  echo "than OneModel.  You probably want to check the OneModel installation"
+  echo "instructions (at http://onemodel.org click \"Documentation\", or"
+  echo "check the file INSTALLING for longer generalized instructions only),"
+  echo "and integrate the OneModel configuration with your current"
+  echo "local configuration"
+  exit 1
+fi
+
+# create postgres user account with the right password
+if [[ $USER_TYPE == "test" ]]; then
+  PASSWORD="x"
+else
+  # will prompt for it via a psql command instead.
+  PASSWORD=""
+#  echo
+#  echo "---------------------------------------"
+#  echo "It is time to enter the password for this user to log in to OM."
+#  echo "Be sure the password does not contain any apostrophes (aka"
+#  echo "single-ticks or single-quotes)."
+#  echo "FYI, choosing \"x\" (without quotes) as password, and your system"
+#  echo "username as the OM username, will let the text-based"
+#  echo "OM client log you in automatically without prompting (a real"
+#  echo "timesaver) -- but makes your"
+#  echo "password guessable by others -- so it probably"
+#  echo "makes the sense only when running"
+#  echo "on a computer that is securely managed and only used by you."
+#  echo "(Multiple consecutive spaces in a "
+#  echo "password will be collapsed into one space.)"
+#  RESULT="notyet"
+#  until [[ $RESULT == "match" ]]; do
+#    IFS= read -s  -p Password: PASSWORD1
+#    echo
+#    IFS= read -s  -p Password: PASSWORD2
+#    echo
+#    if [[ $PASSWORD1 == $PASSWORD2 ]]; then
+#      RESULT="match"
+#      PASSWORD=$PASSWORD1
+#    else
+#      echo "Passwords did not match; please retry."
+#    fi
+#    #get_matching_passwords
+#  done
+    # (That last command is convenient, but if posix-compliance is needed, another
+    # way from:
+    #https://stackoverflow.com/questions/2654009/how-to-make-bash-script-ask-for-a-password
+    # and
+    #https://stackoverflow.com/questions/3980668/how-to-get-a-password-from-a-shell-script-without-echoing
+    # is this (or maybe use IFS= in this too so it can accept spaces in the password)):
+    #stty_orig=`stty -g` # save original terminal setting.
+    #stty -echo          # turn-off echoing.
+    #read passwd         # read the password
+    #stty $stty_orig     # restore terminal setting.
+  #echo $PASSWORD
+fi
+
+# (The \'s are to allow the various layers to unwrap the $'s. The $'s are a
+# substitute for single-quotes (') so that bash will evaluate $PASSWORD,
+# which it would not do if it were surrounded by single-quotes.)
+if [[ $USER_TYPE == "test" ]]; then
+  su - $PG_USER -c "bash -c \"psql --dbname postgres --no-password \
+    --command \\\"create role $USER_NAME \
+    with login encrypted password \\\\\\\$\\\\\\\$$PASSWORD\\\\\\\$\\\\\\\$\\\"\""
+else
+  # Not passing password on command-line in this case (as an older revision
+  # of this file had some commented-out code above, to get the password),
+  # to prevent its exposure ex. to "ps" commands by
+  # any user, "set -x" output, the command history, or the server log.
+  su - $PG_USER -c "bash -c \"psql --dbname postgres \
+    --no-password --command \\\"create role $USER_NAME \
+    with login password NULL\\\"\""
+  # (I think the next line encrypts it in a way that has the same effect as if
+  # "encrypted password" were passed in the previous command.)
+  until { su - $PG_USER -c "bash -c \"psql --dbname postgres \
+          --no-password \
+          --command \\\"\\\\\password $USER_NAME \\\"\""; }; do
+    # Just run the command in the condition until it works
+    # (ex. in case passwords didn't match, it doesn't fail to run the
+    # rest of the script).
+    echo
+  done
+fi
+
+# (Older form with "--owner ..." probably not needed whether test
+# or regular user type.)
+#su - $PG_USER -c "bash -c \"createdb om_${USER_NAME} --owner ${USER_NAME}\""
+su - $PG_USER -c "bash -c \"createdb om_${USER_NAME}\""
+
+su - $PG_USER -c "bash -c \"psql --dbname om_$USER_NAME --no-password \
+  --command \\\"create extension lo\\\"\""
+
+if [[ $IS_DEBIAN == "true" ]]; then
+  /etc/init.d/postgresql reload
+elif [[ $IS_OPENBSD == "true" ]]; then
+  /usr/local/bin/custom pgup
+  /usr/local/bin/custom pgdown
+else 
+  echo "Neither debian nor openbsd? How did we get here? (2)"
+  exit 1
+fi
+
+echo $?
+echo "Success."
