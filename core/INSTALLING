@@ -97,8 +97,8 @@ www.postgresql.org).  For Debian GNU/Linux and its derivatives that
 usually means (as root) running "aptitude install postgresql-contrib".
 On OpenBSD that means running "pkg_add postgresql-contrib".  (The
 postgresql contrib module is for the "large objects" support, aka a
-module called "lo", and this will cause the postgres server to also
-be installed.)
+module called "lo", and installing it will automatically also install the 
+server etc, as required.)
 
 There are additional steps to be performed from a command prompt:
 
@@ -115,6 +115,10 @@ INITIAL POSTGRES CONFIGURATION UNDER LINUX:
 password), then make a backup copy of and edit the file
     /etc/postgresql/10.5/main/pg_hba.conf
   (or its equivalent on your system).
+
+  (Note: there are files under  integration/bin/pg-add-user*  which
+  could automatoe & simplify this process when run as root, but they also need
+  some integration, before running on mac or openbsd.)
 
 - I commented out (with a # at the beginning of the line) all other lines
 below "Put your actual configuration here" to limit other connections
@@ -166,13 +170,19 @@ As root, run commands one at a time (not as a script), reading each line fully f
   echo 'umask 0077' >> .profile
   exit # to let the umask change take effect
   /usr/bin/su - _postgresql
-  mkdir -p  /var/postgresql/11.2/main #BUT CHANGE THE '11.2' FOR your version of postgres! For example, no need to change if you have 11.2.x, but do change if you have 11.6, to say "11.6" instead of "11.2".
+
+  mkdir -p  /var/postgresql/11.2/main #BUT CHANGE THE '11.2' FOR your version of postgres! For example, no need to change if you have 11.2.x, but do change if you have 11.6, to say "11.6" instead of "11.2".  You can determine which version you have by running "pkg_info postgresql-server|less".
+
   echo "check permissions on those new directories: probably don't want group or world access.)";read
   cd 11.2/main  #BUT CHANGE THE '11.2' FOR your version of postgres!
   /usr/local/bin/initdb --pgdata /var/postgresql/11.2/main/ -E UTF8 #BUT CHANGE THE '11.2' for your version of postgres!
   cp -p pg_hba.conf pg_hba.conf-original
 
-Then edit the file pg_hba.conf. Comment out all lines that are not already
+Then edit the file pg_hba.conf. 
+  (Note: there are files under  integration/bin/pg-add-user*  which
+  could automate & simplify this process when run as root, but they also need
+  some integration, before running on mac or openbsd.)
+Comment out all lines that are not already
 commented out (there were 3 in some earlier versions, 6 in 10.5), and put these 5 lines at the end, substituting
 your username (the user that will use OM) for the 4 instances of <username>:
 
@@ -522,6 +532,9 @@ How I got IntelliJ working for this project (no previous settings):
   Go to File / project structure (like proj settings, ctrl+alt+shift+s),
   and:
     - fill in the JDK
+  
+  The rest of the intellij steps might not matter any more, but in case I'm
+  just coasting on old settings, here are the remaining IJ notes:
     - add scala facet (click it, then +, ... dbl-click the proj name or
     whatever in dialog not just hit OK )
     - click 'Libs' on LH, then + to add lib dir from the scala
@@ -529,14 +542,11 @@ How I got IntelliJ working for this project (no previous settings):
     - click 'Modules' on LH, then 'Paths' tab in center top, then
     make sure the radio button "Inherit project compile output path"
     is checked.
-
-  Accept option to enable type-aware highlighting (or yelo/grn "[ ]"
-  thing in lower RH status bar, or ctrl+shift+alt+E).
-
-  Open some file like textui.scala.
-
-  Right-click in the editor and choose mvn / reimport (this may have
-  since moved to a circle-like icon on the far right side of the IDE).
+    - Accept option to enable type-aware highlighting (or yelo/grn "[ ]"
+    thing in lower RH status bar, or ctrl+shift+alt+E).
+    - Open some file like textui.scala.
+    - Right-click in the editor and choose mvn / reimport (this may have
+    since moved to a circle-like icon on the far right side of the IDE).
 
 Notes on how I previously had Eclipse set up are in an older version of
 this file, in git.
