@@ -36,6 +36,8 @@ function maven() {
 
 echo "Temporary note: fix this script to handle the new directory structure, & also to update the core/bin/om script"
 echo "so that it also gets the new version.  See/mimic/test the part 'cat LICENSE' below."
+echo "Also, should this also update the REST api version, as used/tested in all modules? "
+echo "And, move this script since acting on multiple modules, to the top project level?"
 exit 1
 
 echo "Have you done a gp, and had a quiet period to make sure the latest version is working very well?";read
