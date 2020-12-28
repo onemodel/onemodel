@@ -360,6 +360,10 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getLong("/entities/" + entityIdIn + "/countOfRelationsToEntity/" + includeArchivedEntitiesIn)
   }
 
+  override def getRelationToRemoteEntityCount(entityIdIn: Long): Long = {
+    getLong("/entities/" + entityIdIn + "/countOfRelationsToRemoteEntity/")
+  }
+
   override def getRelationToGroupCount(entityIdIn: Long): Long = {
     getLong("/entities/" + entityIdIn + "/countOfRelationsToGroup")
   }

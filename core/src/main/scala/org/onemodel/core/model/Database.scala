@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2016-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2016-2017 inclusive and 2020, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -238,6 +238,7 @@ abstract class Database {
   protected[model] def getClassData(idIn: Long): Array[Option[Any]]
   protected[model] def getAttributeCount(entityIdIn: Long, includeArchivedEntitiesIn: Boolean = false): Long
   protected[model] def getRelationToLocalEntityCount(entityIdIn: Long, includeArchivedEntities: Boolean = false): Long
+  protected[model] def getRelationToRemoteEntityCount(entityIdIn: Long): Long
   protected[model] def getRelationToGroupCount(entityIdIn: Long): Long
   def getClassCount(entityIdIn: Option[Long] = None): Long
   protected[model] def getClassName(idIn: Long): Option[String]

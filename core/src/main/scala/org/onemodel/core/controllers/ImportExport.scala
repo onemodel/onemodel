@@ -1330,7 +1330,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
   def getNumSubEntries(entityIn: Entity): Long = {
     val numSubEntries = {
-      val numAttrs = entityIn.getAttributeCount
+      val numAttrs = entityIn.getAttributeCount()
       if (numAttrs == 1) {
         val (_, _, groupId, _, moreThanOneAvailable) = entityIn.findRelationToAndGroup
         if (groupId.isDefined && !moreThanOneAvailable) {

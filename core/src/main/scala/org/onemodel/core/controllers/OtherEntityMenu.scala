@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2015-2019 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2015-2020 inclusive, Luke A. Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -615,8 +615,50 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
 
     val groupCount: Long = entityIn.getCountOfContainingGroups
     val (entityCountNonArchived, entityCountArchived) = entityIn.getCountOfContainingLocalEntities
-    val leadingText = Some(Array("Choose a deletion or archiving option:  (The entity is " +
-                                 Util.getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) + ", and " + groupCount + " groups.)"))
+    val relToGroupCnt = entityIn.getRelationToGroupCount
+    val relToLocalEntityCnt = entityIn.getRelationToLocalEntityCount(true)
+    val relToLocalEntityCntNotArchived = entityIn.getRelationToLocalEntityCount(false)
+    val relToLocalEntityCntArchived = relToLocalEntityCnt - relToLocalEntityCntNotArchived 
+    val relToRemoteEntityCnt = entityIn.getRelationToRemoteEntityCount
+    val totalNumOfAttributes = entityIn.getAttributeCount(true)
+    val adjNumOfAttributes = (totalNumOfAttributes - relToGroupCnt) - relToLocalEntityCnt
+    //(Idea: the next line/block could use thorough tests, incl of the "remote" part)
+    val leadingText = Some(Array(("Choose a deletion or archiving option:  " + Util.NEWLN +
+      (if (entityCountNonArchived != 0 || entityCountArchived != 0) {
+        "  The entity is " + Util.getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) + "." + Util.NEWLN
+      } else "") 
+      + 
+      (if (groupCount != 0) {
+        "  The entity is contained in " + groupCount + " groups." + Util.NEWLN
+      } else "")
+      +
+      (if (relToLocalEntityCnt != 0 || relToLocalEntityCntArchived != 0 || relToRemoteEntityCnt != 0 
+        || relToGroupCnt != 0 || adjNumOfAttributes != 0) 
+        {
+          var directContains = "The entity directly contains: " + Util.NEWLN +
+          (if (relToLocalEntityCnt != 0) {
+            "    " + relToLocalEntityCnt + " local entities" +
+            (if (relToLocalEntityCntArchived != 0) {
+              " (" + relToLocalEntityCntArchived + " of them archived)"
+            } else "") + Util.NEWLN
+          } else "") +
+          (if (relToRemoteEntityCnt != 0) {
+            //(Idea: similar places might also mention remote entities..?)
+            relToRemoteEntityCnt + "    remote entities (incl. archived), " + Util.NEWLN
+          } else "") +
+          (if (relToGroupCnt != 0) {
+            "    " + relToGroupCnt + " groups" + Util.NEWLN
+          } else "") + 
+          (if (adjNumOfAttributes != 0) {
+            "    " + adjNumOfAttributes + " other attributes" + Util.NEWLN
+          } else "")
+
+          "  " + directContains.trim + "." + Util.NEWLN
+          //directContains
+        } else "")
+      ).trim 
+    ))
+
     var choices = Array("Delete this entity",
                         if (entityIn.isArchived) {
                           "Un-archive this entity"

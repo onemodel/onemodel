@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, and 2010-2017 inclusive, Luke A Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010-2017 inclusive, and 2020, Luke A Call; all rights reserved.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -227,7 +227,9 @@ class Entity(val mDB: Database, mId: Long) {
     mDB.id + "_" + getId
   }
 
-  def getAttributeCount: Long = mDB.getAttributeCount(mId, mDB.includeArchivedEntities)
+  def getAttributeCount(includeArchivedEntitiesIn: Boolean = mDB.includeArchivedEntities): Long = {
+    mDB.getAttributeCount(mId, includeArchivedEntitiesIn)
+  }
 
   def getRelationToGroupCount: Long = mDB.getRelationToGroupCount(mId)
 
@@ -353,6 +355,10 @@ class Entity(val mDB: Database, mId: Long) {
 
   def getRelationToLocalEntityCount(includeArchivedEntitiesIn: Boolean = true): Long = {
     mDB.getRelationToLocalEntityCount(getId, includeArchivedEntities = includeArchivedEntitiesIn)
+  }
+
+  def getRelationToRemoteEntityCount: Long = {
+    mDB.getRelationToRemoteEntityCount(getId)
   }
 
   def getTextAttributeByTypeId(typeIdIn: Long, expectedRowsIn: Option[Int] = None): ArrayList[TextAttribute] = {

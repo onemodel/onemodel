@@ -1,5 +1,5 @@
  /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2019 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2020 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -58,7 +58,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
       require(containingRelationToEntityIn_relatedId2.get == entityIn.getId)
     }
     if (containingGroupIn.isDefined) require(containingRelationToEntityIn.isEmpty)
-    val numAttrsInEntity: Long = entityIn.getAttributeCount
+    val numAttrsInEntity: Long = entityIn.getAttributeCount()
     val leadingText: Array[String] = new Array[String](2)
     val relationSourceEntity: Option[Entity] = {
       // (checking if exists also, because it could have been removed in another menu option)
@@ -155,7 +155,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
             val goingBackward: Boolean = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop
             val forward = !goingBackward
-            val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount, 0, forwardNotBackIn = forward,
+            val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount(), 0, forwardNotBackIn = forward,
                                                                      attributeRowsStartingIndexIn, newAttribute.getId,
                                                                      highlightedIndexInObjList.getOrElse(0),
                                                                      if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
@@ -193,7 +193,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
           val goingBackward: Boolean = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop
           val forward = !goingBackward
-          placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount, 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
+          placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount(), 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
                                newAttribute.get.getId, highlightedIndexInObjList.getOrElse(0),
                                if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
                                numDisplayableAttributes, newAttribute.get.getFormId,
@@ -220,7 +220,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
         // THE OTHER MIGHT ALSO NEED MAINTENANCE!
         val choices = Array[String](Util.unselectMoveTargetPromptText)
         val leadingText: Array[String] = Array(Util.unselectMoveTargetLeadingText)
-        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttributeCount, attributeRowsStartingIndexIn)
+        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttributeCount(), attributeRowsStartingIndexIn)
 
         val response = ui.askWhich(Some(leadingText), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
                                    secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -253,7 +253,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
         val choices = Array[String]("keep existing (same as ESC)")
         // says 'same screenful' because (see similar cmt elsewhere).
         val leadingText: Array[String] = Array("CHOOSE an attribute to highlight (*)")
-        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttributeCount, attributeRowsStartingIndexIn)
+        Util.addRemainingCountToPrompt(choices, attributeTuples.length, entityIn.getAttributeCount(), attributeRowsStartingIndexIn)
         val response = ui.askWhich(Some(leadingText), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,
                                    secondaryHighlightIndexIn = moveTargetIndexInObjList)
         val entryToHighlight: Option[Attribute] = {

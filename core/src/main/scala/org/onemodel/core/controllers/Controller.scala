@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2019 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2020 inclusive, Luke A. Call; all rights reserved.
     (That copyright statement once said 2013-2015, until I remembered that much of Controller came from TextUI.scala, and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -691,7 +691,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
           if (entityNameBeforeEdit != entityNameAfterEdit) {
             val (_, _, groupId, groupName, moreThanOneAvailable) = editedEntity.get.findRelationToAndGroup
             if (groupId.isDefined && !moreThanOneAvailable) {
-              val attrCount = entityIn.getAttributeCount
+              val attrCount = entityIn.getAttributeCount()
               // for efficiency, if it's obvious which subgroup's name to change at the same time, offer to do so
               val defaultAnswer = if (attrCount > 1) Some("n") else Some("y")
               val ans = ui.askYesNoQuestion("There's a single subgroup named \"" + groupName + "\"" +
@@ -1437,7 +1437,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
                                     containingGroupIn: Option[Group] = None): (Option[Entity], Option[Long], Boolean) = {
     val (rtgId, rtId, groupId, _, moreThanOneAvailable) = userSelection.findRelationToAndGroup
     val subEntitySelected: Option[Entity] = None
-    if (groupId.isDefined && !moreThanOneAvailable && userSelection.getAttributeCount == 1) {
+    if (groupId.isDefined && !moreThanOneAvailable && userSelection.getAttributeCount() == 1) {
       // In quick menu, for efficiency of some work like brainstorming, if it's obvious which subgroup to go to, just go there.
       // We DON'T want @tailrec on this method for this call, so that we can ESC back to the current menu & list! (so what balance/best? Maybe move this
       // to its own method, so it doesn't try to tail optimize it?)  See also the comment with 'tailrec', mentioning why to have it, above.
@@ -1467,7 +1467,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     */
   def getEntityContentSizePrefix(entityIn: Entity): String = {
     // attrCount counts groups also, so account for the overlap in the below.
-    val attrCount = entityIn.getAttributeCount
+    val attrCount = entityIn.getAttributeCount()
     // This is to not show that an entity contains more things (">" prefix...) if it only has one group which has no *non-archived* entities:
     val hasOneEmptyGroup: Boolean = {
       val numGroups: Long = entityIn.getRelationToGroupCount
@@ -2067,7 +2067,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         if (entityIn.getClassTemplateEntityId.isEmpty) {
           false
         } else {
-          val attrCount = new Entity(entityIn.mDB, entityIn.getClassTemplateEntityId.get).getAttributeCount
+          val attrCount = new Entity(entityIn.mDB, entityIn.getClassTemplateEntityId.get).getAttributeCount()
           if (attrCount == 0) {
             false
           } else {
