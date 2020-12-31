@@ -425,7 +425,11 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
           val choices: Array[String] = Array("(stub)")
           val entityIdsTruncated: Array[Long] = {
-            val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Util.maxNameLength)
+            //(A temporary workaround for too little info.  Better ideas in my OM todos: search for "show more search results in entitymenu",
+            //entry created 2020-12-28.)
+            //was:  val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Util.maxNameLength)
+            val numDisplayableAttributes = 84
+
             if (entityIds.length <= numDisplayableAttributes) {
               entityIds
             } else {

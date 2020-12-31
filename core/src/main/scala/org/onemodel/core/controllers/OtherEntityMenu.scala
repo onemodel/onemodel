@@ -629,7 +629,7 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
       } else "") 
       + 
       (if (groupCount != 0) {
-        "  The entity is contained in " + groupCount + " groups." + Util.NEWLN
+        "  The entity is contained in " + groupCount + " group(s)." + Util.NEWLN
       } else "")
       +
       (if (relToLocalEntityCnt != 0 || relToLocalEntityCntArchived != 0 || relToRemoteEntityCnt != 0 
@@ -637,20 +637,20 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
         {
           var directContains = "The entity directly contains: " + Util.NEWLN +
           (if (relToLocalEntityCnt != 0) {
-            "    " + relToLocalEntityCnt + " local entities" +
+            "    " + relToLocalEntityCnt + " local entity(ies)" +
             (if (relToLocalEntityCntArchived != 0) {
               " (" + relToLocalEntityCntArchived + " of them archived)"
             } else "") + Util.NEWLN
           } else "") +
           (if (relToRemoteEntityCnt != 0) {
             //(Idea: similar places might also mention remote entities..?)
-            relToRemoteEntityCnt + "    remote entities (incl. archived), " + Util.NEWLN
+            relToRemoteEntityCnt + "    remote entity(ies) (incl. archived), " + Util.NEWLN
           } else "") +
           (if (relToGroupCnt != 0) {
-            "    " + relToGroupCnt + " groups" + Util.NEWLN
+            "    " + relToGroupCnt + " group(s)" + Util.NEWLN
           } else "") + 
           (if (adjNumOfAttributes != 0) {
-            "    " + adjNumOfAttributes + " other attributes" + Util.NEWLN
+            "    " + adjNumOfAttributes + " other attribute(s)" + Util.NEWLN
           } else "")
 
           "  " + directContains.trim + "." + Util.NEWLN
