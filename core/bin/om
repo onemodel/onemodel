@@ -48,7 +48,7 @@ set +e
 java $DEBUG -Duser.name="$USER" -jar target/onemodel-core-0.2.0-SNAPSHOT.jar $*
 RESULT=$?
 set -e
-#%%temp removing next line to help diagnosing why pg wont always restart after om rung 4 a while. The plan
+#Idea: temporarily remove next line to help diagnosing why pg wont always restart after om rung 4 a while. The idea
 #is to do "kill -3 <pid>" on each running process just before exiting OM, one at a time, to see if something in 
 #the stack trace shows a transaction in use or such.
 #reset #see cmt just below for why. If adapting for other OSes, make sure that cmd doesn't do something drastic. 
