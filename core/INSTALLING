@@ -22,7 +22,7 @@ This document assumes you know how to become root (or administrator) on
 your system, edit files, and use a command prompt to change directories
 and type commands.  Also, if you plan to compile OM yourself, that you
 have downloaded and extracted, or git cloned, all the project files,
-in a known directory location (such as ~/onemodel).
+in a known directory location (such as ~/projects/onemodel).
 
 For convenience on Windows, you can install cygwin (www.cygwin.com),
 then use cygwin to install postgresql and run the rest of the commands.
@@ -45,13 +45,13 @@ Compiling before installing is optional, but developers should have java
 
 First you'll need a java SDK, at least openJDK 1.8 (likely minimum).  Then 
 install maven (mvn).  These versions are known to work, 
-    Apache Maven 3.0.5 (on debian 8 (jessie) as of 2016-9).
-    Maven 3.5.3 works in 2019-4 on openbsd.
+    Apache Maven 3.0.5 (on debian 8 (jessie) as of 2016-9 and probably later).
+    Maven 3.6.3 works in 2022-02 on openbsd.
     Java: OpenJDK 1.8.0_102.
 
 Then in the directory where you have onemodel, run
   mvn clean package -DskipTests=true
-...which builds the .jar -- but it can't run until the other steps below
+...which builds the .jar -- but the jar can't run until the other steps below
 are complete.
 
 
@@ -92,7 +92,7 @@ which sounds like it does something similar.  More info at sqlite.org.
 
 
 Install postgresql (OM versions have been tested with various pg versions 
-from 9 or earlier, up to at least 11.5; see
+(email & ask which version to use now; hopefully the latest works fine).
 www.postgresql.org).  For Debian GNU/Linux and its derivatives that
 usually means (as root) running "aptitude install postgresql-contrib".
 On OpenBSD that means running "pkg_add postgresql-contrib".  (The

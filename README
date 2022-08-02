@@ -1,5 +1,6 @@
 This file is part of OneModel, a program to manage knowledge.
-This file is copyrighted in each year of 2003, 2007, 2010, and 2012-2017 inclusive, Luke A Call; all rights reserved.
+This file is copyrighted in each year of 2003, 2007, 2010, 2012-2017 
+inclusive, and 2022 Luke A. Call; all rights reserved.
 OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
 distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
 see the file LICENSE for license version and details.
@@ -43,8 +44,9 @@ power of the network effect), but without the crippling human-language
 limitations. Think wikipedia but all the data is effectively computable,
 and locally controllable.
 
-3) Today: The AGPL prototype is like emacs org-mode in being keyboard-
-and desktop-oriented, and feeling like nested lists galore, but uses
+3) Today: The AGPL prototype is like emacs org-mode (but much simpler) 
+in being keyboard-
+and desktop-oriented, and feeling like nested lists galore; but it uses
 postgresql, allows having the same data linked into multiple places,
 is much easier to learn & use than emacs, and has a bigger long-term
 vision. It's (for me) the best personal organizer ever: very fast to
