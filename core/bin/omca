@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#(See sibling file "om" for discussion on the above line.)
+#    This file is part of OneModel, a program to manage knowledge.
+#    Copyright in each year of 2013-2017 inclusive and 2020, Luke A. Call; all rights reserved.
+#    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+#    see the file LICENSE for license version and details.
+#    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#    You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
+
+# convenience "quick compile/tests/jar/run" for onemodel code.  Not perfect, just meant to save time.
+
+set -eux
+
+if [[ $(uname -a|grep -i openbsd|wc -l) -eq 1 ]]; then
+  STAT_CMD="stat -f %m"
+else  
+  STAT_CMD="stat -c %Y"
+fi
+JAR_DATE=0
+DO_EXTRA_BUILD=false
+
+# then the normal work, but skip tests if tested files didn't change:
+RUN_TESTS=true
+if [[ $JAR_DATE -ne 0 ]]; then
+  echo
+  echo
+  LATEST_FILE_DATE=0
+  for SECONDS in $(find src|xargs -n 1 $STAT_CMD); do
+    if [[ $LATEST_FILE_DATE -lt $SECONDS ]]; then 
+      LATEST_FILE_DATE=$SECONDS
+    fi
+  done
+  echo
+  echo
+  if [[ $LATEST_FILE_DATE -le $JAR_DATE ]]; then
+    RUN_TESTS=false
+  fi
+fi
+
+if [[ "$RUN_TESTS" == "true" ]]; then
+  if which mvn-script-start; then 
+    . mvn-script-start  # see cmt at earlier use
+  fi
+  if which mvn-script-finish; then 
+    nice mvn package
+    . mvn-script-finish  # see cmt at earlier use
+  else
+    nice mvn package
+  fi
+fi
+
+if [[ $# -gt 0 && $1 == 'd' ]]; then
+  om d
+elif [[ $# -gt 0 && $1 == "skipapplaunch" ]]; then
+  : #do nothing
+else
+  om
+fi

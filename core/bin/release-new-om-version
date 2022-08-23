@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+#(See sibling file "om" for discussion on the above line.)
+set -eux
+
+#    This file is part of OneModel, a program to manage knowledge.
+#    Copyright in each year of 2016-2017 inclusive and 2020, Luke A. Call; all rights reserved.
+#    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+#    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+#    see the file LICENSE for license version and details.
+#    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#    You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/ licenses/>
+
+# Created this because it wasn't working to pass the scm parameters on the command-line as properties, and I preferred that over
+# having scm info in the pom, since the local path will vary by developer.  Unless that takes a relative path...hm.  Improve?
+
+# this does what I want in fewer steps than if using the mvn release plugin.
+
+CHECK_FOR="ERROR"  #|WARNING"
+function maven() {
+  # mvn apparently always returns 0 (success) if it was able to execute the goal, without errors 
+  # in its effort to execute the goal, but ignores whether the goal itself had errors!  I prefer 
+  # it to exit nonzero (indicate failure to calling scripts) if the goal failed, so it's reliably scriptable:
+  LOG=$(mktemp -t MVN_RUN_XXXXXXX)
+  #echo "cmd is: mvn $*"
+  nice mvn $* 2>&1 | tee $LOG
+  # (don't "fail" only due to the grep line or similar code from calling a scripted mvn cmd that may be doing the same kind
+  # of check....)
+  if grep -E "$CHECK_FOR" $LOG|grep -v grep|grep -v CHECK_FOR; then
+    echo "FOUND ${CHECK_FOR}(s); aborting partway through, so you need to fix it from where it left off:"
+    #rm $LOG
+    exit 1
+  fi
+  #rm $LOG
+}
+
+echo "Temporary note: fix this script to handle the new directory structure, & also to update the core/bin/om script"
+echo "so that it also gets the new version.  See/mimic/test the part 'cat LICENSE' below."
+echo "Also, should this also update the REST api version, as used/tested in all modules? "
+echo "And, move this script since acting on multiple modules, to the top project level?"
+exit 1
+
+echo "Have you done a gp, and had a quiet period to make sure the latest version is working very well?";read
+echo "Have you tested it on a new system (eg an account where OM has never been run) to make sure the startup, initial creation, & setting default entity work right?";read
+
+# could automate this part better, but it's not worth a lot as the release version and next version might not always
+# be programatically predictable (different major.minor.bugfix # changes than the one expected, etc.). At least
+# we can check it and revert conveniently etc:
+echo "OLD VERSION IS..."
+grep version pom.xml|grep SNAPSHOT
+read -a RELEASE_VERSION -p "Enter the release version: "
+maven versions:set -DnewVersion=$RELEASE_VERSION
+cat LICENSE| sed -e "s/${RELEASE_VERSION}-SNAPSHOT/$RELEASE_VERSION/" > LICENSE.new
+mv LICENSE.new LICENSE
+echo
+echo
+echo "VERSION for the *release* NOW SHOWS IN STARTUP AS:"
+head LICENSE |grep "OneModel.*a program to"
+echo "Does the file LICENSE have the *release* version (just the 1 line near the top, grepped just above), correctly?  ^C or edit it manually if not, Enter to continue."; read
+
+# but ignore some warnings on this one for now
+CHECK_FOR="ERROR"
+maven clean install
+git add pom.xml LICENSE
+git commit -m "Release version $RELEASE_VERSION"
+cpomjar-savbkup
+
+# REMOVING NEXT BLOCK FOR NOW UNTIL COMMUNITY/MATURITY GROW ENOUGH TO ASK FOR FEEDBACK OR WHAT? FOR NOW, REMOVE ALL OBSTACLES TO PARTICIPATION:
+# also build the free version
+#patch --ignore-whitespace --verbose -p1<other-tracked/makeFreeVersion.diff || true
+#echo "did the patch apply cleanly so it will build cleanly?";read
+#maven package
+#echo "did the free version build cleanly? want to test export & the main menu searches, to confirm it works as expected? Press Enter when ready to drop the changes.";read
+#git stash save "building free version"
+#git stash drop
+#cpomjar-savbkup free
+#FREE_JAR_NAME=$(ls target/*jar|grep "target/onemodel" | xargs basename -s .jar)
+#cp target/onemodel*jar ../om-website/download/${FREE_JAR_NAME}-free.jar
+
+ls -ltr ../om-website/download/
+echo "Might want to do a site sync now so any new jar gets there first, THEN update the web site now to point to the new .jar & sync again.";read
+
+read -a NEW_SNAPSHOT_VERSION -p "Enter the new snapshot version (i.e., +1!!; omitting '-SNAPSHOT'): " 
+NEW_SNAPSHOT_VERSION=${NEW_SNAPSHOT_VERSION}-SNAPSHOT
+CHECK_FOR="ERROR"
+maven versions:set -DnewVersion=$NEW_SNAPSHOT_VERSION
+git add pom.xml
+
+cat LICENSE| sed -e "s/$RELEASE_VERSION/$NEW_SNAPSHOT_VERSION/" > LICENSE.new
+mv LICENSE.new LICENSE
+echo
+echo
+echo "VERSION NOW SHOWS IN STARTUP AS:"
+head LICENSE |grep "OneModel.*a program to"
+echo "Does the file LICENSE have the new *snapshot* version (just the 1 line near the top), correctly?  ^C or fix it if not, Enter to continue."; read
+git add LICENSE
+git commit -m "Begin new version: $NEW_SNAPSHOT_VERSION"
+
+echo "After the next check (launch) finishes, you might consider announcing.  Process details under -9223372036854640573: OM release process.";read
+
+# but ignore some warnings on this one for now
+CHECK_FOR="ERROR"
+maven clean
+ca
+

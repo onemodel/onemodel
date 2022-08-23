@@ -1,0 +1,225 @@
+<!--
+    This file is part of OneModel, a program to manage knowledge.
+    Copyright in each year of 2010-2018 inclusive, Luke A. Call; all rights reserved.
+    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
+    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    see the file LICENSE for license version and details.
+    OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+    You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.onemodel</groupId>
+    <artifactId>onemodel</artifactId>
+    <version>0.2.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>core</artifactId>
+  <packaging>jar</packaging>
+  <version>0.2.0-SNAPSHOT</version>
+  <name>OneModel core and CLI</name>
+  <url>http://www.onemodel.org</url>
+  <licenses>
+    <license><comments>See the file LICENSE in parent directory.</comments></license>
+  </licenses>
+  <properties>
+    <!-- encoding as per http://blog.vinodsingh.com/2009/04/encoding-warning-with-maven-210.html  -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <mainTextUIClass>org.onemodel.core.TextUI</mainTextUIClass>
+    <!-- why is next line needed for exec plugin to work from cli as just "mvn exec:java"? I had tried
+         a plugin configuration section with "<mainClass>${mainTextUIClass}</mainClass>", or with "exec.mainClass",
+         but it didn't seem to work and this does. -->
+    <exec.mainClass>${mainTextUIClass}</exec.mainClass>
+  </properties>
+  <build>
+    <finalName>onemodel-core-${project.version}</finalName>
+    <resources>
+      <resource>
+        <directory>${basedir}/../</directory>
+        <includes>
+          <!--
+          <include>src/main/resources/jlinebindings.properties</include>
+          -->
+          <include>LICENSE</include>
+          <include>INSTALLING</include>
+          <include>README</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>${basedir}</directory>
+        <includes>
+          <include>INSTALLING</include>
+        </includes>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <groupId>org.scala-tools</groupId>
+        <artifactId>maven-scala-plugin</artifactId>
+        <version>${maven-scala-plugin.version}</version>
+        <configuration>
+          <scalaVersion>${scala.version}</scalaVersion>
+        </configuration>
+        <executions>
+          <execution>
+            <id>compile</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>test-compile</id>
+            <phase>test-compile</phase>
+            <goals>
+              <goal>testCompile</goal>
+            </goals>
+          </execution>
+          <execution>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- This is just to set the mainClass so it becomes a runnable jar, for execution convenience. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.4.2</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>${mainTextUIClass}</mainClass>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.DontIncludeResourceTransformer">
+                  <!-- what was making the apache license show up in the jar: put there by a dependency? Avoid confusion: OM is not under the apache license -->
+                  <resource>META-INF/LICENSE.txt</resource>
+                </transformer>
+                <!-- Next transformer is to resolve error at new call to ActorSystem() in Controller:
+                  "Exception in thread "main" com.typesafe.config.ConfigException$Missing: No configuration setting found for key 'akka.version'",
+                  and per these pages:
+                    http://stackoverflow.com/questions/31011243/no-configuration-setting-found-for-key-akka-version
+                    http://doc.akka.io/docs/akka/snapshot/general/configuration.html#When_using_JarJar__OneJar__Assembly_or_any_jar-bundler
+                  ...which say: 
+                    "Akka's configuration approach relies heavily on the notion of every module/jar having its own reference.conf file, all of these
+                    will be discovered by the configuration and loaded. Unfortunately this also means that if you put/merge multiple jars into the
+                    same jar, you need to merge all the reference.confs as well. Otherwise all defaults will be lost and Akka will not function.
+                    .... If you are using Maven to package your application, you can also make use of the Apache Maven Shade Plugin support for Resource
+                    Transformers to merge all the reference.confs on the build classpath into one. ....". -->
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>reference.conf</resource>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- disable surefire (so scala tests can run, as per scalatest web site docs -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.7</version> <!-- version probably insignificant for this, but having it might mean fewer downloading delays-->
+        <configuration>
+          <skipTests>true</skipTests>
+        </configuration>
+      </plugin>
+      <!-- enable scalatest -->
+      <plugin>
+        <groupId>org.scalatest</groupId>
+        <artifactId>scalatest-maven-plugin</artifactId>
+        <version>${scalatest-maven-plugin.version}</version>
+        <configuration>
+          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+          <junitxml>.</junitxml>
+          <!--filereports>WDF TestSuite.txt</filereports-->
+          <filereports>scalatestTestSuite.txt</filereports>
+          <systemProperties>
+            <user.timezone>MST</user.timezone>
+          </systemProperties>
+        </configuration>
+        <executions>
+          <execution>
+            <id>test</id>
+            <goals>
+              <goal>test</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.0.1</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>8.4-701.jdbc4</version>
+    </dependency>
+    <dependency>
+      <groupId>jline</groupId>
+      <artifactId>jline</artifactId>
+      <version>2.14.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <version>${mockito-all.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+      <version>${scala.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scalatest</groupId>
+      <artifactId>scalatest_2.11</artifactId>
+      <version>${scalatest_2_11.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.5</version>
+    </dependency>
+    <dependency>
+      <groupId>com.typesafe.play</groupId>
+      <artifactId>play-ws_2.11</artifactId>
+      <version>${play2.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-exec</artifactId>
+      <version>1.3</version>
+    </dependency>
+  </dependencies>
+</project>
+

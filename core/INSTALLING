@@ -1,0 +1,539 @@
+This file is part of OneModel, a program to manage knowledge.
+Copyright in each year of 2003, 2010-2018 inclusive, 2020, and 2022, Luke A. Call;
+all rights reserved.  OneModel is free software, distributed under
+a license that includes honesty, the Golden Rule, guidelines around
+binary distribution, and the GNU Affero General Public License as
+published by the Free Software Foundation; see the file LICENSE
+for license version and details.  OneModel is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.  You should
+have received a copy of the GNU Affero General Public License along
+with OneModel.  If not, see <http://www.gnu.org/licenses/>
+--------------------------------------------------------------------------------
+
+This file has details of installation. For simpler instructions see
+http://onemodel.org/1/e-9223372036854624134.html .
+
+Compiling, Installing and Running OneModel
+======================================================
+
+This document assumes you know how to become root (or administrator) on
+your system, edit files, and use a command prompt to change directories
+and type commands.  Also, if you plan to compile OM yourself, that you
+have downloaded and extracted, or git cloned, all the project files,
+in a known directory location (such as ~/projects/onemodel).
+
+For convenience on Windows, you can install cygwin (www.cygwin.com),
+then use cygwin to install postgresql and run the rest of the commands.
+This hasn't been tested yet so please advise on what works & doesn't.
+The web site http://onemodel.org has Windows installation instructions,
+as well as shortened versions of and a link to this detailed document.
+
+For Mac, rough installation instructions are probably available, if you
+ask on the general mailing list (see the site under "Community").
+
+Downloading
+-----------
+You can get the .jar from here if you don't want to compile it:
+www.onemodel.org .
+
+Compiling
+---------
+Compiling before installing is optional, but developers should have java
+& maven.
+
+First you'll need a java SDK, at least openJDK 1.8 (likely minimum).  Then 
+install maven (mvn).  These versions are known to work, 
+    Apache Maven 3.0.5 (on debian 8 (jessie) as of 2016-9 and probably later).
+    Maven 3.6.3 works in 2022-02 on openbsd.
+    Java: OpenJDK 1.8.0_102.
+
+Then in the directory where you have onemodel, run
+  mvn clean package -DskipTests=true
+...which builds the .jar -- but the jar can't run until the other steps below
+are complete.
+
+
+Installing
+----------
+(There is a docker-specific section below, which might be an easier way
+to get started if you are familiar with docker.)
+
+(Note: wherever this document refers to documentation at postgresql.org,
+remember you can check the specific document for your version by starting
+at  https://www.postgresql.org/docs/ , or just change the provided link to
+reflect your version, or find it.)
+
+Before installing postgresql, decide whether you want data checksums
+(checksums requires postgresql 9.3 or higher; but they seem to provide a 
+useful storage integrity feature, must be set initially and cannot be 
+changed later, and "may incur a noticeable performance penalty").
+If you do, you will need to take care of that yourself at the time you
+run initdb (or such, in the later instructions, but these
+instructions don't include data checksums).  At:
+  https://wiki.postgresql.org/wiki/What%27s_new_in_PostgreSQL_9.3#Data_Checksums
+...we learn: "It is now possible for PostgreSQL to checksum data pages
+and report corruption. This is a cluster-wide setting and cannot be
+applied to individual databases or objects. Also be aware that this
+facility may incur a noticeable performance penalty. This option must
+be enabled during initdb and cannot be changed (although there is a new
+GUC parameter 'ignore_checksum_failure' which will force PostgreSQL to
+continue processing a transaction even if corruption is detected)."
+See also:
+  https://www.postgresql.org/docs/current/app-initd.html
+...and find "checksums" on that page.
+(see also, e.g.?:  https://www.postgresql.org/docs/11/pgverifychecksums.html ).
+(It seems all one does is add the --data-checksums option to the initdb command,
+or maybe a createdb command.)
+
+Similarly, for sqlite, there is something called a "checksum VFS shim"(?),
+which sounds like it does something similar.  More info at sqlite.org.
+
+
+Install postgresql (OM versions have been tested with various pg versions 
+(email & ask which version to use now; hopefully the latest works fine).
+www.postgresql.org).  For Debian GNU/Linux and its derivatives that
+usually means (as root) running "aptitude install postgresql-contrib".
+On OpenBSD that means running "pkg_add postgresql-contrib".  (The
+postgresql contrib module is for the "large objects" support, aka a
+module called "lo", and installing it will automatically also install the 
+server etc, as required.)
+
+There are additional steps to be performed from a command prompt:
+
+- Make sure you have java in the path so you can run
+    java
+  ...and see a bunch of output about usage.  Otherwise see the java
+  installation instructions for putting it in your path.
+
+
+(OpenBSD instructions are further below.)
+
+INITIAL POSTGRES CONFIGURATION UNDER LINUX:
+- Become the root user (i.e., run "/bin/su -" and enter the root
+password), then make a backup copy of and edit the file
+    /etc/postgresql/10.5/main/pg_hba.conf
+  (or its equivalent on your system).
+
+  (Note: there are files under  integration/bin/pg-add-user*  which
+  could automatoe & simplify this process when run as root, but they also need
+  some integration, before running on mac or openbsd.)
+
+- I commented out (with a # at the beginning of the line) all other lines
+below "Put your actual configuration here" to limit other connections
+to the system, and you may also want to do that, *except DO NOT change*
+the one that says
+    local   all             postgres
+...which is required for administrative access.
+
+- Add some configuration lines at the very end, or at least down after
+where the file says "Put your actual configuration here", making sure
+there were no conflicting lines above them.  Replace <username> with
+the username you want to use to access your OneModel data (usually the
+same as your username on the computer; I don't know if spaces will work
+so omit them if your username has any):
+
+#This works for postgresql 9.1 - 9.6, and probably higher:
+host	om_<username>	<username>    127.0.0.1/32    md5
+local	om_<username>	<username>    md5
+host	om_t1	t1    127.0.0.1/32    password
+local	om_t1	t1    password
+
+  (Details for the interested:	"t1" (that is a "one" not lowercase "L")
+  is for running tests (and shorter
+  to type than "testrunner"). There must be no conflicting lines above
+  or below these, because when postgresql interprets the file there is
+  no drop-through or default behavior, so the first matching line wins.
+  ...but see the postgresql docs if you have specific configuration
+  needs outside of what OM requires.  The "host" lines are necessary
+  even if you are only using OM from your own computer, because of how
+  jdbc makes connections.  More at:
+  https://www.postgresql.org/docs/9.6/static/client-authentication.html
+
+- Restart postgresql (as root: "/etc/init.d/postgresql restart").
+
+- Become the user postgres with this:
+    su - postgres
+
+
+
+INITIAL POSTGRES CONFIGURATION UNDER OPENBSD, tested
+with OpenBSD versions including 6.5: --------------------------
+(Corrections solicited as with everything here, but doing this with
+OpenBSD seemed more complicated.)
+As root, run commands one at a time (not as a script), reading each line fully first:
+  chpass -s bash _postgresql  #Optional, for if you want that user to use bash. (You have to install bash first w/ "pkg_add bash", of course.)
+  mkdir -p /var/log/postgresql
+  chown -R _postgresql:_postgresql /var/log/postgresql
+  /usr/bin/su - _postgresql
+  echo 'umask 0077' >> .profile
+  exit # to let the umask change take effect
+  /usr/bin/su - _postgresql
+
+  mkdir -p  /var/postgresql/11.2/main #BUT CHANGE THE '11.2' FOR your version of postgres! For example, no need to change if you have 11.2.x, but do change if you have 11.6, to say "11.6" instead of "11.2".  You can determine which version you have by running "pkg_info postgresql-server|less".
+
+  echo "check permissions on those new directories: probably don't want group or world access.)";read
+  cd 11.2/main  #BUT CHANGE THE '11.2' FOR your version of postgres!
+  /usr/local/bin/initdb --pgdata /var/postgresql/11.2/main/ -E UTF8 #BUT CHANGE THE '11.2' for your version of postgres!
+  cp -p pg_hba.conf pg_hba.conf-original
+
+Then edit the file pg_hba.conf. 
+  (Note: there are files under  integration/bin/pg-add-user*  which
+  could automate & simplify this process when run as root, but they also need
+  some integration, before running on mac or openbsd.)
+Comment out all lines that are not already
+commented out (there were 3 in some earlier versions, 6 in 10.5), and put these 5 lines at the end, substituting
+your username (the user that will use OM) for the 4 instances of <username>:
+
+local	all		_postgresql	 peer
+host	om_<username>	<username>    127.0.0.1/32    md5
+local	om_<username>	<username>	  md5
+host	om_t1	t1    127.0.0.1/32    password
+local	om_t1	t1	password
+
+  Make sure those 5 are the only un-commented lines, or that you
+  understand the others and what they do & whether you want that.
+
+  (Details for the interested:	"t1" (that is a "one" not lowercase "L")
+  is for running tests (and shorter
+  to type than "testrunner"). There must be no conflicting lines above
+  or below these, because when postgresql interprets the file there
+  is no drop-through or default behavior, so the first matching
+  line wins (at least as of 9.x).  
+  See the postgresql docs if you have specific configuration
+  needs outside of what OM requires.  The "host" lines are necessary
+  even if you are only using OM from your own computer, because of how
+  jdbc makes connections.)
+
+  Still as the user _postgresql, use commands like this, perhaps in a
+  script, to start postgresql (BUT AGAIN CHANGE THE VERSION TO MATCH YOURS):
+    pg_ctl start --pgdata /var/postgresql/11.2/main --log /var/log/postgresql/pg.log
+    sleep 1
+    ps auxww|grep postgres
+
+  (I didn't use the /etc/rc.d/postgres script to start postgres,
+  because it got errors like "/etc/rc.d/rc.subr: Permission denied",
+  or when run as root it also failed saying it should have been run as
+  the _postgresql user.  That was on an earlier version of OBSD and of postgres.)
+
+  If ever needed, you can stop postgresql by running a command like
+  this as root (CHANGING THE VERSION TO MATCH YOURS):
+    sudo -u _postgresql /usr/local/bin/pg_ctl status -D /var/postgresql/11.2/main
+
+  (I have scripts that run the above ("pgup" and "pgdown", but when doing normal
+  OS shutdown I haven't been using pgdown first).  I can make them available
+  upon request and probably you can improve them or other things here,
+  and pass on what you learn.)
+
+
+
+CONTINUED POSTGRES CONFIGURATION FOR *BOTH* LINUX AND OPENBSD:
+-  At this point you should still be logged in to a command-line as the
+postgres (or on BSD, _postgresql) user.
+
+- Choose a username and password.  If you use the same username as
+your system username, and password 'x' (without quotes) when setting the
+password below, OM will log you in automatically. In many cases this
+might be most convenient, especially if your operating system already
+requires a password to log in under your own username.	If you choose a
+different username, or a strong password (which is a good idea sometimes),
+you will be prompted each time.
+(Note: If needed, you can change your password later on, after completing
+all below steps, then again become the postgres user as above and run this 
+command, substituting your username for the "<...>", removing the <>'s):
+    psql om_<yourusername>
+  ...then:
+    \password <yourusername>
+  ...then follow the prompts to enter the new password twice.)
+
+Note about users and schemas, if you create more users in the same
+database:  This current use of postgres assumes that there is only 
+one user per database.  If multiple users are created for
+any reason inside a single database, and they are not equally 
+trusted, see the potential risk related to search_path documented at 
+https://www.postgresql.org/docs/current/static/release-10-3.html#id-1.11.6.6.5 
+where "any schemas writable by a hostile user enables that user to 
+capture control of queries and then run arbitrary SQL code with 
+the permissions of the attacked user."
+
+- Create the database with this command (substituting your username for
+the "<...>", removing the <>'s):
+    createdb om_<yourusername>
+
+- run psql (the postgresql administrative application) like this:
+    psql om_<yourusername>
+  ...and you should see a prompt, something like this:
+    $psql om_<yourusername>
+    psql (11.2)
+    Type "help" for help.
+    om_<yourusername>=#
+
+- At the prompt, run this command (substituting your username & password
+for the "<...>"'s, removing the <>'s, but *do keep* the single-quotes
+(') and the semicolon ";"):
+    create role <yourusername> with createdb login encrypted password '<putYourPasswordHere>';
+  ... but don't use any apostrophes, aka single-ticks or single-quotes
+  inside your provided password, because it should only be surrounded
+  by them.   Note it is NOT "create role om_<yourusername>": having om_
+  at the beginning is just for when you refer to the databasename inside
+  postgresql.
+
+  (DEVELOPERS: during development or testing it might be convenient to
+  use a password of 'x' as described above under "Choose a username and
+  password", to avoid typing a longer password repeatedly, until you
+  use real data; it can be changed with postgresql commands as described
+  above, or you could set up a separate db/user/password combination for
+  "real" data.)
+
+- Developers: also run this command (with the semicolon):
+    create role t1 with login encrypted password 'x';
+  ...which is to enable unit tests.
+
+- Run this command (with the semicolon):
+    create extension lo;
+  ...which is to enable large objects support (ie to allow putting
+  documents or other files in the database).  (This requires the "contrib"
+  module installed above.)
+
+- Run
+    \q
+  ...(and Enter) to exit psql.
+
+- Developers: still as the postgres user, run the command:
+    createdb om_t1
+  ...which is also to enable unit tests.
+
+- Developers: re-enter psql as before but in the om_t1 database
+    psql om_t1
+  ...and in it run the command:
+    create extension lo;
+  ...and
+    \q
+  ...to exit psql again.
+
+- Everyone: Then run the command
+    exit
+  ... twice, to no longer be the postgres user or root.
+
+The remaining database setup steps are performed by the OneModel
+application when it is launched.
+
+In this setup you are responsible for local administration and backups,
+using the postgresql documentation as needed; feel free to inquire on
+the mailing list for more information.	(Developers: Using something
+like AWS with more automation is a possible alternative.  Or maybe we
+could just create a tarball and fully script all this, or a .deb that
+does everything without need for manual setup.  Also see Docker notes
+below.)
+
+Non-developers can now skip to the "Running" section below.
+
+
+Verifying
+---------
+Developers: if you (checked out source and) installed maven (under
+Compiling, above), you can:
+  1) verify that the installation was successful
+  by running this from the project directory:
+    mvn clean test
+  ...or if you change any code then instead run
+    mvn clean package
+  ...then make sure that was successful and no tests reported failure.
+
+  2) Then also run integration tests (for Linux at least; details just below), 
+     by:
+    a) Installing dejagnu (details in the file integration/testsuite/README).
+    b) Making sure that the following om directories are in the path, for 
+       running of scripts like "c" and "oet" etc: 
+         core/bin  
+         integration/bin
+         
+       (Scripts have been tested on Debian GNU/Linux and OpenBSD. For other 
+       platforms, patches are welcome: pls see the file CONTRIBUTING and send in
+       questions.)
+    c) Make sure psql (from the postgreSQL installation) is in the path 
+       (this is true by default on debian).
+    d) Then you can run
+         mvn verify
+       ...which runs integration tests against the .jar file built above
+       by "mvn clean package".  For failures, see details in the file 
+       integration/testsuite/README ).
+
+
+Docker
+------
+It might be easier to use `docker` to install and run OneModel. Once you've installed
+`docker` and `docker-compose`, change into your checked-out copy of the source and run:
+
+  docker-compose up
+
+This should start a postgres database in a container. We need to create the postgres
+database that `om` is looking for, so run:
+
+  docker-compose run om psql
+
+And in the `psql` session, run:
+
+  create database om_<yourusername>;
+  \c om_<yourusername>
+  create extension lo;
+  create role <yourusername> with createdb login encrypted password '<putYourPasswordHere>';
+  <CTRL+D>
+
+It might be worthwhile being familiar with the above more detailed steps, 
+for example choosing a password that lets OM start without prompting, 
+for possible troubleshooting, etc.
+
+Now you can run OneModel! From your terminal:
+
+  docker-compose run om om
+
+To run the tests, you'll need to create the `t1` role & its database as described in
+Verifying, above. Then run:
+
+  docker-compose run om mvn verify
+
+
+Running
+-------
+Just execute the jar with java, like:
+   java -jar onemodel<full name...>.jar
+.  If you checked out the source code, an easy way is to go to the 
+directory where it is installed (such as ~/onemodel), then use a command line
+similar to this for Linux/Unix:
+
+  bin/om
+
+...or for Windows (let me know if this works; feel free to fix it &
+send a pull request):
+
+  bin\om.bat
+
+
+Usage Tips
+----------
+There is no substitute for making regular backups of all data that
+matters to you.  (idea: fill in here the steps, or link to instructions,
+for a postgresql backup? or suggest to go find that?)
+
+You'll almost certainly want to have a long scrollback buffer in your
+command window, for times when you need to review the recent past, such 
+as if there was an errant keystroke and you want to see what happened.
+The web site http://onemodel.org has instructions for how to do this on
+Windows (at least for some versions), and Mac instructions may be 
+available upon request.
+
+If it ever crashes or you suspended it to the background with ^Z (which
+as of this writing doesn't work), and you find you can't type anything
+at all on the command-line, in the bash shell, you can run Ctrl-c then
+the 'reset' command (even if you can't see what you're typing) and that
+should fix it (by resetting the line editor at that bash prompt).
+
+If you make some changes in subgroups, then ESCape back to a group
+which suddenly doesn't look right (has too few entries or something),
+then you can see the right entries by ESCaping from the incorrectly
+displayed group then going back into it.  It's an infrequent bug.
+If you learn a way to reproduce it consistently, let me know.
+
+See the http://onemodel.org web site for the latest usage documentation,
+including a tutorial.
+
+
+Troubleshooting
+---------------
+Make sure you did everything above.  Triple-check it, really.
+
+This happened once, only after a later postgresql version was installed
+without fully removing the old version first:  in postgresql.conf I
+had to change the port from 5433 to 5432 (on openbsd, that would mean
+first copying the file from the examples directory; see above for
+other such files copied for mor info).	It probably was set to 5433
+on installation because I still had the config files on disk from the
+earlier installation, so it used the next available port.
+
+Developers: Try running 'mvn clean'.  Or starting from scratch with
+the instructions.
+
+It seems unlikely, but on some systems you might have to open port 5432
+for postgresql on a firewall.  If this is true you probably already know.
+
+Whatever else you learn to fix, send a message to the mailing list,
+or better yet a pull request with the information.
+
+Developers: If you're having problems with aspects (e.g., excessive
+debugging output, no debugging output, or error messages on launch about a
+missing method), then edit .aj files as needed, and you might have to run
+'mvn clean' (to remove what was there), then run "mvn package" *twice*
+(to reinstate aspect code as written) for reasons not yet investigated.
+The script /bin/c might make this convenient.  See the comments in the
+file 'pom.xml' for more info (search it for 'aspect').
+
+If anyone works interactively with the same postgresql instance as is
+used for your OneModel installation, and OneModel seems to hang (freeze),
+see if someone has left a transaction uncommitted.
+
+If something really annoying happens (due to some bug) and you can't
+get out, you can always ^C and go back in (and report what happened,
+exact details of all messages, and how to consistently reproduce it).
+
+
+Notes On Development Setup
+--------------------------
+I'm using IntelliJ again now instead of Eclipse, since I couldn't get some
+features to work with eclipse (of 2 scala files, in one of them things
+worked, in the other code completion, auto-formatting, most refactoring,
+and syntax error highlighting didn't work; couldn't run test files in
+the debugger, nor evaluate expressions.)  Seems to be much better.
+
+How I got IntelliJ working for this project (no previous settings):
+  Installed (then) IntelliJ IDEA v. 13.1.5, already having OpenJDK 1.7,
+  and launch it.
+
+  Select "open new project" (NOT import, that had more problems)
+    find the pom.xml file for OM, highlight, click OK
+
+  Choose File,settings,plugins,(lowerRH button) Browse..., right-click
+  scala (in list), choose dnload/install, close.
+
+  Wait for installation to complete, then restart IntelliJ
+
+  Go to File / project structure (like proj settings, ctrl+alt+shift+s),
+  and:
+    - fill in the JDK
+  
+  The rest of the intellij steps might not matter any more, but in case I'm
+  just coasting on old settings, here are the remaining IJ notes:
+    - add scala facet (click it, then +, ... dbl-click the proj name or
+    whatever in dialog not just hit OK )
+    - click 'Libs' on LH, then + to add lib dir from the scala
+    installation directory
+    - click 'Modules' on LH, then 'Paths' tab in center top, then
+    make sure the radio button "Inherit project compile output path"
+    is checked.
+    - Accept option to enable type-aware highlighting (or yelo/grn "[ ]"
+    thing in lower RH status bar, or ctrl+shift+alt+E).
+    - Open some file like textui.scala.
+    - Right-click in the editor and choose mvn / reimport (this may have
+    since moved to a circle-like icon on the far right side of the IDE).
+
+Notes on how I previously had Eclipse set up are in an older version of
+this file, in git.
+
+CUSTOMIZE the IDE.  At least set tabs to spaces, size 2.
+
+I put my typical mvn commands in scripts so I can invoke them from
+the command-line with just one or two letters; in bash that is always
+starting with the line "#!/bin/bash -eux" (or the 2nd line being "set
+-eux"), where the "-eu" is so the script will fail immediately on any
+errors instead of continuing in error.
+
+If you still see errors/warnings that the IDE is not finding things in
+the path, confirm it works from the command-line ('mvn' commands found
+in INSTALLING) before you decide the project is broken. There's something
+different w/ your configuration.
+
+I tried fsc but it was slower by 1/3 (15s in the ide) or got many compile
+errors (from CLI: "mvn clean scala:cc -Donce=true -Dfsc=true"); if you
+know why I'd like to hear.  Maybe it would work if switched from mvn
+to SBT.

@@ -1,0 +1,12 @@
+vsgeer
+  purpose
+  vision
+  strategy
+  goals
+  empowerment
+  execution
+    physical/financial
+    mental
+    spiritual
+      a text attribute:<ta> to fail, as begin/end markers shouldn't for now be allowed on the same line </ta> 
+

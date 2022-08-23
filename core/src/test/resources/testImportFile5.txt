@@ -1,0 +1,5 @@
+import-file-5
+  test file download <uri>http://www.onemodel.org/downloads/testfile.txt</uri>
+  xyz
+  abc
+  Make my copyright checker happy for this modified file:  Copyright 2015, Luke A Call; all rights reserved.
