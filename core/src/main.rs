@@ -1,34 +1,19 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2019 inclusive, Luke A Call; all rights reserved.
-    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    Copyright in each year of 2003-2004, 2008-2019 inclusive, and 2022, Luke A. Call; all rights reserved.
+    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, 
+    and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core
-
-import org.onemodel.core.controllers.Controller
-
-import scala.annotation.tailrec
-
-//idea: should go through controller to get this, so UI layer doesn't have to talk all the way to the model layer? enforce w/ scoping rules?
-
-import org.onemodel.core.model.FileAttribute
-
-import java.io._
-
-import jline.console.{ConsoleReader, KeyMap}
-import org.apache.commons.io.FilenameUtils
-
-/** Provides a text-based interface for efficiency, or for people who like that,
-  * The first OM user interface, it is intended to demonstrate basic concepts until we can make something more friendly.
-  *
-  * Improvements to this class should START WITH MAKING IT BETTER TESTED, then changing vars to vals?, None for null, delaying side effects more,
-  * shorter methods, other better scala style...
+/* * Provides a text-based interface for efficiency, or for people who like that,
+  * The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly.
   */
+fn main() {
+    println!("starting om in Rust");
 
+/*
 object TextUI {
   val NEWLN: String = Util.NEWLN
   val menuCharsList: String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
@@ -591,4 +576,19 @@ class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream
     }
   }
 
+package org.onemodel.core
+
+import org.onemodel.core.controllers.Controller
+
+import scala.annotation.tailrec
+
+//idea: should go through controller to get this, so UI layer doesn't have to talk all the way to the model layer? enforce w/ scoping rules?
+
+import org.onemodel.core.model.FileAttribute
+
+import java.io._
+
+import jline.console.{ConsoleReader, KeyMap}
+import org.apache.commons.io.FilenameUtils
+*/
 }
