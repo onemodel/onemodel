@@ -18,17 +18,17 @@ object DatabaseTestUtils {
     */
   def createAndAddTestRelationToGroup_ToEntity(dbIn: Database, inParentId: Long, inRelTypeId: Long, inGroupName: String = "something",
                                                inValidOnDate: Option[Long] = None, allowMixedClassesIn: Boolean = true): (Long, RelationToGroup) = {
-    val validOnDate: Option[Long] = if (inValidOnDate.isEmpty) None else inValidOnDate
-    val observationDate: Long = System.currentTimeMillis
-    val (group:Group, rtg: RelationToGroup) = new Entity(dbIn, inParentId).
+    let validOnDate: Option[Long] = if (inValidOnDate.isEmpty) None else inValidOnDate;
+    let observationDate: Long = System.currentTimeMillis;
+    let (group:Group, rtg: RelationToGroup) = new Entity(dbIn, inParentId).;
                                               addGroupAndRelationToGroup(inRelTypeId, inGroupName, allowMixedClassesIn, validOnDate, observationDate, None)
 
     // and verify it:
     if (inValidOnDate.isEmpty) {
       assert(rtg.getValidOnDate.isEmpty)
     } else {
-      val inDt: Long = inValidOnDate.get
-      val gotDt: Long = rtg.getValidOnDate.get
+      let inDt: Long = inValidOnDate.get;
+      let gotDt: Long = rtg.getValidOnDate.get;
       assert(inDt == gotDt)
     }
     assert(group.getMixedClassesAllowed == allowMixedClassesIn)

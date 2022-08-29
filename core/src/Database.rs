@@ -14,43 +14,43 @@ import org.onemodel.core.{OmDatabaseException, Util}
 import scala.collection.mutable
 
 object Database {
-  val dbNamePrefix = "om_"
+  let dbNamePrefix = "om_";
   // If next line ever changes, search the code for other places that also have it hard-coded, to change also
   // (ex., INSTALLING, first.exp or its successors, any .psql scripts, ....  "t1/x" is shorter to type
   // during manual testing than "testrunner/testrunner".
-  val TEST_USER: String = "t1"
-  val TEST_PASS: String = "x"
-  val MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class."
+  let TEST_USER: String = "t1";
+  let TEST_PASS: String = "x";
+  let MIXED_CLASSES_EXCEPTION = "All the entities in a group should be of the same class.";
   // so named to make it unlikely to collide by name with anything else:
-  val systemEntityName = ".system-use-only"
+  let systemEntityName = ".system-use-only";
   // aka template entities:
-  val classTemplateEntityGroupName = "class-defining entities"
-  val theHASrelationTypeName = "has"
-  val theIsHadByReverseName = "is had by"
-  val EDITOR_INFO_ENTITY_NAME = "editorInfo"
-  val TEXT_EDITOR_INFO_ENTITY_NAME = "textEditorInfo"
-  val TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME = "textEditorCommand"
-  val PREF_TYPE_BOOLEAN = "boolean"
-  val PREF_TYPE_ENTITY_ID = "entityId"
-  val TEMPLATE_NAME_SUFFIX: String = "-template"
-  val UNUSED_GROUP_ERR1 = "No available index found which is not already used. How would so many be used?"
-  val UNUSED_GROUP_ERR2 = "Very unexpected, but could it be that you are running out of available sorting indexes!?" +
+  let classTemplateEntityGroupName = "class-defining entities";
+  let theHASrelationTypeName = "has";
+  let theIsHadByReverseName = "is had by";
+  let EDITOR_INFO_ENTITY_NAME = "editorInfo";
+  let TEXT_EDITOR_INFO_ENTITY_NAME = "textEditorInfo";
+  let TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME = "textEditorCommand";
+  let PREF_TYPE_BOOLEAN = "boolean";
+  let PREF_TYPE_ENTITY_ID = "entityId";
+  let TEMPLATE_NAME_SUFFIX: String = "-template";
+  let UNUSED_GROUP_ERR1 = "No available index found which is not already used. How would so many be used?";
+  let UNUSED_GROUP_ERR2 = "Very unexpected, but could it be that you are running out of available sorting indexes!?" +;
                           " Have someone check, before you need to create, for example, a thousand more entities."
-  val getClassData_resultTypes = "String,Long,Boolean"
-  val getRelationTypeData_resultTypes = "String,String,String"
-  val getOmInstanceData_resultTypes = "Boolean,String,Long,Long"
-  val getQuantityAttributeData_resultTypes = "Long,Long,Float,Long,Long,Long,Long"
-  val getDateAttributeData_resultTypes = "Long,Long,Long,Long"
-  val getBooleanAttributeData_resultTypes = "Long,Boolean,Long,Long,Long,Long"
-  val getFileAttributeData_resultTypes = "Long,String,Long,Long,Long,String,Boolean,Boolean,Boolean,Long,String,Long"
-  val getTextAttributeData_resultTypes = "Long,String,Long,Long,Long,Long"
-  val getRelationToGroupDataById_resultTypes = "Long,Long,Long,Long,Long,Long,Long"
-  val getRelationToGroupDataByKeys_resultTypes = "Long,Long,Long,Long,Long,Long,Long"
-  val getRelationToLocalEntity_resultTypes = "Long,Long,Long,Long"
-  val getRelationToRemoteEntity_resultTypes = "Long,Long,Long,Long"
-  val getGroupData_resultTypes = "String,Long,Boolean,Boolean"
-  val getEntityData_resultTypes = "String,Long,Long,Boolean,Boolean,Boolean"
-  val getGroupEntriesData_resultTypes = "Long,Long"
+  let getClassData_resultTypes = "String,Long,Boolean";
+  let getRelationTypeData_resultTypes = "String,String,String";
+  let getOmInstanceData_resultTypes = "Boolean,String,Long,Long";
+  let getQuantityAttributeData_resultTypes = "Long,Long,Float,Long,Long,Long,Long";
+  let getDateAttributeData_resultTypes = "Long,Long,Long,Long";
+  let getBooleanAttributeData_resultTypes = "Long,Boolean,Long,Long,Long,Long";
+  let getFileAttributeData_resultTypes = "Long,String,Long,Long,Long,String,Boolean,Boolean,Boolean,Long,String,Long";
+  let getTextAttributeData_resultTypes = "Long,String,Long,Long,Long,Long";
+  let getRelationToGroupDataById_resultTypes = "Long,Long,Long,Long,Long,Long,Long";
+  let getRelationToGroupDataByKeys_resultTypes = "Long,Long,Long,Long,Long,Long,Long";
+  let getRelationToLocalEntity_resultTypes = "Long,Long,Long,Long";
+  let getRelationToRemoteEntity_resultTypes = "Long,Long,Long,Long";
+  let getGroupData_resultTypes = "String,Long,Boolean,Boolean";
+  let getEntityData_resultTypes = "String,Long,Long,Boolean,Boolean,Boolean";
+  let getGroupEntriesData_resultTypes = "Long,Long";
 
   // where we create the table also calls this.
   // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
@@ -140,7 +140,7 @@ object Database {
 abstract class Database {
   def isRemote: Boolean
   def getRemoteAddress: Option[String] = None
-  val id: String
+  let id: String;
   def includeArchivedEntities: Boolean
   def beginTrans()
   def rollbackTrans()

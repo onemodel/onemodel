@@ -13,7 +13,7 @@ package org.onemodel.core.controllers
 import org.onemodel.core._
 import org.onemodel.core.model._
 
-class GroupMenu(val ui: TextUI, val controller: Controller) {
+class GroupMenu(val ui: TextUI, let controller: Controller) {;
 
   /** Returns None if user wants out. The parameter callingMenusRtgIn exists only to preserve the value as may be used by quickGroupMenu, and passed
     * between it and here.
@@ -29,7 +29,7 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
     } catch {
       case e: Exception =>
         Util.handleException(e, ui, groupIn.mDB)
-        val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
+        let ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"));
         if (ans.isDefined && ans.get) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         else None
     }
@@ -46,8 +46,8 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
                        callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     require(relationToGroupIn != null)
 
-    val templateEntity = groupIn.getClassTemplateEntity
-    val choices = Array[String]("Add entity to group (if you add an existing entity with a relationship to one group, that is effectively adding that group " +
+    let templateEntity = groupIn.getClassTemplateEntity;
+    let choices = Array[String]("Add entity to group (if you add an existing entity with a relationship to one group, that is effectively adding that group " +;
                                 "as a subgroup to this one)",
 
                                 "Import/Export...",
@@ -58,29 +58,29 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
                                 "Filter (limit which are shown; unimplemented)",
                                 "(stub)" /*sort?*/ ,
                                 "Quick group menu")
-    val displayDescription = if (relationToGroupIn.isDefined) relationToGroupIn.get.getDisplayString(0) else groupIn.getDisplayString(0)
+    let displayDescription = if (relationToGroupIn.isDefined) relationToGroupIn.get.getDisplayString(0) else groupIn.getDisplayString(0);
     // (idea: maybe this use of color on next line could be removed, if people don't rely on the color change.  I originally added it as a visual
     // cue to aid my transition to using entities more & groups less. Same thing is done in QuickGroupMenu.)
-    val leadingText: Array[String] = Array(Color.yellow("ENTITY GROUP ") + "(regular menu: more complete, so slower for some things): " + displayDescription)
-    val numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength)
-    val objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems))
+    let leadingText: Array[String] = Array(Color.yellow("ENTITY GROUP ") + "(regular menu: more complete, so slower for some things): " + displayDescription);
+    let numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength);
+    let objectsToDisplay: java.util.ArrayList[Entity] = groupIn.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems));
     Util.addRemainingCountToPrompt(choices, objectsToDisplay.size, groupIn.getSize(4), displayStartingRowNumberIn)
-    val statusesAndNames: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {
-      val numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity)
-      val archivedStatus = entity.getArchivedStatusDisplayString
+    let statusesAndNames: Array[String] = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {;
+      let numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity);
+      let archivedStatus = entity.getArchivedStatusDisplayString;
       numSubgroupsPrefix + archivedStatus + entity.getName + " " + controller.getPublicStatusDisplayString(entity)
     }
 
 
-    val response = ui.askWhich(Some(leadingText), choices, statusesAndNames)
+    let response = ui.askWhich(Some(leadingText), choices, statusesAndNames);
     if (response.isEmpty) None
     else {
-      val answer = response.get
+      let answer = response.get;
       if (answer == 1) {
         controller.addEntityToGroup(groupIn)
         groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 2) {
-        val importOrExport = ui.askWhich(None, Array("Import", "Export"), Array[String]())
+        let importOrExport = ui.askWhich(None, Array("Import", "Export"), Array[String]());
         if (importOrExport.isDefined) {
           if (importOrExport.get == 1) new ImportExport(ui, controller).importCollapsibleOutlineAsGroups(groupIn)
           else if (importOrExport.get == 2) {
@@ -90,7 +90,7 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
         }
         groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 3) {
-        val editAnswer = ui.askWhich(Some(Array[String]{Util.groupMenuLeadingText(groupIn)}),
+        let editAnswer = ui.askWhich(Some(Array[String]{Util.groupMenuLeadingText(groupIn)}),;
                                      Array("Edit group name",
 
                                            if (groupIn.getNewEntriesStickToTop) {
@@ -100,7 +100,7 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
                                            }))
         if (editAnswer.isDefined) {
           if (editAnswer.get == 1) {
-            val ans = Util.editGroupName(groupIn, ui)
+            let ans = Util.editGroupName(groupIn, ui);
             if (ans.isDefined) {
               // reread the RTG to get the updated info:
               groupMenu(groupIn, displayStartingRowNumberIn,
@@ -120,14 +120,14 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
         confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn, groupIn, displayDescription,
                                       response)
       } else if (answer == 5 && answer <= choices.length) {
-        val containingEntities = groupIn.getEntitiesContainingGroup(0)
-        val numContainingEntities = containingEntities.size
+        let containingEntities = groupIn.getEntitiesContainingGroup(0);
+        let numContainingEntities = containingEntities.size;
         // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
-        val choices = Array(if (relationToGroupIn.isDefined) "Go edit the relation to group that led us here :" + displayDescription
+        let choices = Array(if (relationToGroupIn.isDefined) "Go edit the relation to group that led us here :" + displayDescription;
                             else "(stub)",
                             if (numContainingEntities == 1) {
-                              val entity = containingEntities.get(0)._2
-                              val entityStatusAndName = entity.getArchivedStatusDisplayString + entity.getName
+                              let entity = containingEntities.get(0)._2;
+                              let entityStatusAndName = entity.getArchivedStatusDisplayString + entity.getName;
                               "Go to entity containing this group: " + entityStatusAndName
                             } else {
                               "See entities that contain this group ( " + numContainingEntities + ")"
@@ -138,21 +138,21 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
         //"See groups containing this group (" + numContainingGroups + ")")
         //val numContainingGroups = mDB.getContainingRelationToGroups(relationToGroupIn, 0).size
 
-        val response = ui.askWhich(None, choices, Array[String]())
+        let response = ui.askWhich(None, choices, Array[String]());
         if (response.isEmpty) None
         else {
-          val ans = response.get
+          let ans = response.get;
           if (ans == 1 && relationToGroupIn.isDefined) {
             def updateRelationToGroup(dhInOut: RelationToGroupDataHolder) {
               //idea: does this make sense, to only update the dates when we prompt for everything on initial add? change(or note2later) update everything?
               relationToGroupIn.get.update(Some(dhInOut.attrTypeId), Some(dhInOut.groupId), dhInOut.validOnDate, Some(dhInOut.observationDate))
             }
-            val relationToGroupDH: RelationToGroupDataHolder = new RelationToGroupDataHolder(relationToGroupIn.get.getParentId,
+            let relationToGroupDH: RelationToGroupDataHolder = new RelationToGroupDataHolder(relationToGroupIn.get.getParentId,;
                                                                                              relationToGroupIn.get.getAttrTypeId,
                                                                                              relationToGroupIn.get.getGroupId,
                                                                                              relationToGroupIn.get.getValidOnDate,
                                                                                              relationToGroupIn.get.getObservationDate)
-            val (newRelationToGroup: Option[RelationToGroup], newGroup: Group) = {
+            let (newRelationToGroup: Option[RelationToGroup], newGroup: Group) = {;
               if (controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupIn.get.mDB, relationToGroupDH, askForAttrTypeId = true,
                                                                                      Util.RELATION_TO_GROUP_TYPE,
                                                                                      "CHOOSE TYPE OF Relation to Entity:",
@@ -167,7 +167,7 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
             }
             groupMenu(newGroup, displayStartingRowNumberIn, newRelationToGroup, callingMenusRtgIn, containingEntityIn)
           } else if (ans == 2 && ans <= choices.length) {
-            val entity: Option[Entity] =
+            let entity: Option[Entity] =;
               if (numContainingEntities == 1) {
                 Some(containingEntities.get(0)._2)
               } else {
@@ -192,7 +192,7 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
         }
       } else if (answer == 6) {
         let displayRowsStartingWithCounter: i32 = {;
-          val currentPosition = displayStartingRowNumberIn + objectsToDisplay.size
+          let currentPosition = displayStartingRowNumberIn + objectsToDisplay.size;
           if (currentPosition >= groupIn.getSize(4)) {
             ui.displayText("End of attribute list found; restarting from the beginning.")
             0 // start over
@@ -212,13 +212,13 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
       else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
         // those in the condition are 1-based, not 0-based.
         // lets user select a new entity and return to the main menu w/ that one displayed & current
-        val choicesIndex = answer - choices.length - 1
+        let choicesIndex = answer - choices.length - 1;
         // user typed a letter to select an attribute (now 0-based)
         if (choicesIndex >= objectsToDisplay.size()) {
           ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
           groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else {
-          val entry = objectsToDisplay.get(choicesIndex)
+          let entry = objectsToDisplay.get(choicesIndex);
           new EntityMenu(ui, controller).entityMenu(entry.asInstanceOf[Entity], containingGroupIn = Some(groupIn))
           groupMenu(groupIn, 0, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         }
@@ -233,11 +233,11 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
                                     containingEntityIn: Option[Entity], groupIn: Group, groupDescrIn: String,
                                     response: Option[Int]): Option[Entity] = {
     require(groupIn.getId == relationToGroupIn.get.getGroupId)
-    val totalInGroup = groupIn.getSize(3)
-    val numNonArchivedEntitiesInGroup: Long = groupIn.getSize(1)
-    val numArchivedInGroup = totalInGroup - numNonArchivedEntitiesInGroup
+    let totalInGroup = groupIn.getSize(3);
+    let numNonArchivedEntitiesInGroup: Long = groupIn.getSize(1);
+    let numArchivedInGroup = totalInGroup - numNonArchivedEntitiesInGroup;
     require(numArchivedInGroup == groupIn.getSize(2))
-    val (nonArchivedContainingCount, archivedContainingCount) = groupIn.getCountOfEntitiesContainingGroup
+    let (nonArchivedContainingCount, archivedContainingCount) = groupIn.getCountOfEntitiesContainingGroup;
     var choices: Array[String] = Array("Delete group definition & remove from all relationships where it is found?",
                                        "Delete group definition & remove from all relationships where it is found, AND delete all entities in it?")
     if (containingEntityIn.isDefined && relationToGroupIn.isDefined) {
@@ -246,14 +246,14 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
                            "  ...to this Group?:" + Util.NEWLN +
                            "    \"" + groupDescrIn + "\""
     }
-    val response = ui.askWhich(Some(Array("DELETION:  (This group contains " + totalInGroup + " entities, including " + numArchivedInGroup + " archived, and is " +
+    let response = ui.askWhich(Some(Array("DELETION:  (This group contains " + totalInGroup + " entities, including " + numArchivedInGroup + " archived, and is " +;
                                           Util.getContainingEntitiesDescription(nonArchivedContainingCount, archivedContainingCount) + ")")),
                                choices, Array[String]())
     if (response.isEmpty) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     else {
-      val ans = response.get
+      let ans = response.get;
       if (ans == 1) {
-        val ans = ui.askYesNoQuestion("DELETE this group definition AND remove from all entities that link to it (but not entities it contains): **ARE " +
+        let ans = ui.askYesNoQuestion("DELETE this group definition AND remove from all entities that link to it (but not entities it contains): **ARE " +;
                                       "YOU REALLY SURE?**")
         if (ans.isDefined && ans.get) {
           groupIn.delete()
@@ -270,13 +270,13 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
         // USED IN THIS WILL ALSO CK FOR ARCHIVED ENTITIES, AND ANYTHING ELSE?  And show the # of archived entities to the user or suggest that they view
         // those
         // also be4 deleting everything?
-        val ans = ui.askYesNoQuestion("DELETE this group definition from *all* relationships where it is found, *AND* its entities, " +
+        let ans = ui.askYesNoQuestion("DELETE this group definition from *all* relationships where it is found, *AND* its entities, " +;
                                       "with *ALL* entities and their \"subgroups\" that they eventually " +
                                       "refer" +
                                       " to, recursively (actually, the recursion is not finished and will probably fail if you have nesting): *******ARE " +
                                       "YOU REALLY SURE?******")
         if (ans.isDefined && ans.get) {
-          val ans = ui.askYesNoQuestion("Um, this seems unusual; note that this will also delete archived (~invisible) entities with the group!.  " +
+          let ans = ui.askYesNoQuestion("Um, this seems unusual; note that this will also delete archived (~invisible) entities with the group!.  " +;
                                         "Really _really_ sure?  " +
                                         "I certainly hope you make regular backups of the data AND TEST " +
                                         " RESTORES.  (Note: the deletion does(n't yet do) recursion but doesn't yet properly handle groups that " +
@@ -308,8 +308,8 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
    * @return If it was deleted.
    */
   def removingGroupReferenceFromEntity_Menu(relationToGroupIn: RelationToGroup, groupIn: Group, containingEntityIn: Entity): Boolean = {
-    val (nonArchivedCount, archivedCount) = groupIn.getCountOfEntitiesContainingGroup
-    val ans = ui.askYesNoQuestion("REMOVE this group from being an attribute of the entity \'" + containingEntityIn.getName + "\": ARE YOU SURE? (This isn't " +
+    let (nonArchivedCount, archivedCount) = groupIn.getCountOfEntitiesContainingGroup;
+    let ans = ui.askYesNoQuestion("REMOVE this group from being an attribute of the entity \'" + containingEntityIn.getName + "\": ARE YOU SURE? (This isn't " +;
                                   "a deletion. It can still be found by searching, and is " +
                                   Util.getContainingEntitiesDescription(nonArchivedCount, archivedCount) + ").", Some(""))
     if (ans.isDefined && ans.get) {

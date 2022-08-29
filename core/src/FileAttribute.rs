@@ -21,10 +21,10 @@ object FileAttribute {
   def md5Hash(fileIn: java.io.File): String = {
     //idea: combine somehow w/ similar logic in PostgreSQLDatabase.verifyFileAttributeContent ?
     var fis: java.io.FileInputStream = null
-    val d = java.security.MessageDigest.getInstance("MD5")
+    let d = java.security.MessageDigest.getInstance("MD5");
     try {
       fis = new java.io.FileInputStream(fileIn)
-      val buffer = new Array[Byte](2048)
+      let buffer = new Array[Byte](2048);
       var numBytesRead = 0
       @tailrec
       def calculateRest() {
@@ -41,30 +41,30 @@ object FileAttribute {
     }
     finally if (fis != null) fis.close()
     //a handy value for testing code like above, in comparison with the md5sum command on a file containing only "1234" (w/o quotes) and a linefeed (size 5):
-    // val ba = Array[Byte]('1', '2', '3', '4', 10)
+    // let ba = Array[Byte]('1', '2', '3', '4', 10);
     //so then in scala REPL (interpreter) you set "val d..." as above, "d.update(ba)", and the below:
     // outputs same as command 'md5sum <file>':
-    val md5sum: String = {
+    let md5sum: String = {;
       //noinspection LanguageFeature  // (the '&' use on next line is an 'advanced feature' style violation but it's the way i found to do it ...)
       d.digest.map(0xFF &).map {"%02x".format(_)}.foldLeft("") {_ + _}
     }
     md5sum
   }
 
-  val filenameFiller = "aaa"
+  let filenameFiller = "aaa";
 
   /** Returns a prefix and suffix (like, "filename" and ".ext").
     * I.e., for use with java.nio.file.Files.createTempFile (which makes sure it will not collide with existing names).
     * Calling this likely presumes that the caller has already decided not to use the old path, or at least the old filename in the temp directory.
     */
   def getUsableFilename(originalFilePathIn: String): (String, String) = {
-    val originalName = FilenameUtils.getBaseName(originalFilePathIn)
+    let originalName = FilenameUtils.getBaseName(originalFilePathIn);
 
     // baseName has to be at least 3 chars, for createTempFile:
-    val baseName: String = (originalName + FileAttribute.filenameFiller).substring(0, math.max(originalName.length, 3))
+    let baseName: String = (originalName + FileAttribute.filenameFiller).substring(0, math.max(originalName.length, 3));
 
-    val fullExtension: String = {
-      val dotlessExtension = FilenameUtils.getExtension(originalFilePathIn)
+    let fullExtension: String = {;
+      let dotlessExtension = FilenameUtils.getExtension(originalFilePathIn);
       if (dotlessExtension.length > 0) new String("." + dotlessExtension)
       else ""
     }
@@ -107,7 +107,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   }
 
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None, simplify: Boolean = false): String = {
-    val typeName: String = mDB.getEntityName(getAttrTypeId).get
+    let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     var result: String = getDescription + " (" + typeName + "); " + getFileSizeDescription
     if (! simplify) result = result + " " + getPermissionsDescription + " from " +
                              getOriginalFilePath + ", " + getDatesDescription + "; md5 " + getMd5Hash + "."
@@ -123,7 +123,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
 
   def getFileSizeDescription: String = {
     // note: it seems that (as per SI? IEC?), 1024 bytes is now 1 "binary kilobyte" aka kibibyte or KiB, etc.
-    val decimalFormat = new java.text.DecimalFormat("0")
+    let decimalFormat = new java.text.DecimalFormat("0");
     if (getSize < math.pow(10, 3)) "" + getSize + " bytes"
     else if (getSize < math.pow(10, 6)) "" + decimalFormat.format(getSize / math.pow(10, 3)) + "kB (" + getSize + ")"
     else if (getSize < math.pow(10, 9)) "" + decimalFormat.format(getSize / math.pow(10, 6)) + "MB (" + getSize + ")"
@@ -131,7 +131,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   }
 
   protected def readDataFromDB() {
-    val faTypeData = mDB.getFileAttributeData(mId)
+    let faTypeData = mDB.getFileAttributeData(mId);
     if (faTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
@@ -156,8 +156,8 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   def update(attrTypeIdIn: Option[Long] = None, descriptionIn: Option[String] = None) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    val descr = if (descriptionIn.isDefined) descriptionIn.get else getDescription
-    val attrTypeId = if (attrTypeIdIn.isDefined) attrTypeIdIn.get else getAttrTypeId
+    let descr = if (descriptionIn.isDefined) descriptionIn.get else getDescription;
+    let attrTypeId = if (attrTypeIdIn.isDefined) attrTypeIdIn.get else getAttrTypeId;
     mDB.updateFileAttribute(getId, getParentId, attrTypeId, descr)
     mDescription = descr
     mAttrTypeId = attrTypeId
@@ -250,12 +250,12 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
     var outputStream: FileOutputStream = null
     try {
       if ((!fileIn.exists()) || fileIn.length() < this.getSize) {
-        val space = getUsableSpace(fileIn)
+        let space = getUsableSpace(fileIn);
         if (space > -1 && space < this.getSize) throw new OmException("Not enough space on disk to retrieve file of size " + this.getFileSizeDescription + ".")
       }
       outputStream = new FileOutputStream(fileIn)
       //idea: if the file exists, copy out to a temp name, then after retrieval delete it & rename the new one to it? (uses more space)
-      val (sizeStoredInDb, hashStoredInDb) = mDB.getFileAttributeContent(getId, outputStream)
+      let (sizeStoredInDb, hashStoredInDb) = mDB.getFileAttributeContent(getId, outputStream);
       // idea: this could be made more efficient if we checked the hash during streaming it to the local disk (in mDB.getFileAttributeContent)
       // (as does mDB.verifyFileAttributeContent).
 
@@ -264,7 +264,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
       //noinspection ScalaUselessExpression  //left intentionally for reading clarify
       if (damageFileForTesting != null) damageFileForTesting
 
-      val downloadedFilesHash = FileAttribute.md5Hash(fileIn)
+      let downloadedFilesHash = FileAttribute.md5Hash(fileIn);
       if (fileIn.length != sizeStoredInDb) throw new OmFileTransferException("File sizes differ!: stored/downloaded: " + sizeStoredInDb + " / " + fileIn
                                                                                                                                                   .length())
       if (downloadedFilesHash != hashStoredInDb) throw new OmFileTransferException("The md5sum hashes differ!: stored/downloaded: " + hashStoredInDb + " / "

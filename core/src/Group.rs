@@ -16,7 +16,7 @@ import org.onemodel.core.{Util, Color, OmException}
 
 object Group {
   def createGroup(inDB: Database, inName: String, allowMixedClassesInGroupIn: Boolean = false): Group = {
-    val id: Long = inDB.createGroup(inName, allowMixedClassesInGroupIn)
+    let id: Long = inDB.createGroup(inName, allowMixedClassesInGroupIn);
     new Group(inDB, id)
   }
 
@@ -56,7 +56,7 @@ class Group(val mDB: Database, mId: Long) {
   }
 
   def readDataFromDB() {
-    val relationData: Array[Option[Any]] = mDB.getGroupData(mId)
+    let relationData: Array[Option[Any]] = mDB.getGroupData(mId);
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
@@ -95,7 +95,7 @@ class Group(val mDB: Database, mId: Long) {
   }
 
   def getDisplayString(lengthLimitIn: Int = 0, simplifyIn: Boolean = false): String = {
-    val numEntries = mDB.getGroupSize(getId, 1)
+    let numEntries = mDB.getGroupSize(getId, 1);
     var result: String =  ""
     result += {
       if (simplifyIn) getName
@@ -103,11 +103,11 @@ class Group(val mDB: Database, mId: Long) {
     }
     if (!simplifyIn) {
       result += ", class: "
-      val className =
+      let className =;
         if (getMixedClassesAllowed)
           "(mixed)"
         else {
-          val classNameOption = getClassName
+          let classNameOption = getClassName;
           if (classNameOption.isEmpty) "None"
           else classNameOption.get
         }
@@ -151,7 +151,7 @@ class Group(val mDB: Database, mId: Long) {
     if (getMixedClassesAllowed)
       None
     else {
-      val classId: Option[Long] = getClassId
+      let classId: Option[Long] = getClassId;
       if (classId.isEmpty && getSize() == 0) {
         // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
         Some("(unspecified)")
@@ -159,7 +159,7 @@ class Group(val mDB: Database, mId: Long) {
         // means the group requires uniform classes, but the enforced uniform class is None, i.e., to not have a class:
         Some("(specified as None)")
       } else {
-        val exampleEntitysClass = new EntityClass(mDB, classId.get)
+        let exampleEntitysClass = new EntityClass(mDB, classId.get);
         Some(exampleEntitysClass.getName)
       }
     }
@@ -169,7 +169,7 @@ class Group(val mDB: Database, mId: Long) {
     if (getMixedClassesAllowed)
       None
     else {
-      val entries = mDB.getGroupEntryObjects(getId, 0, Some(1))
+      let entries = mDB.getGroupEntryObjects(getId, 0, Some(1));
       let specified: bool = entries.size() > 0;
       if (!specified)
         None
@@ -184,12 +184,12 @@ class Group(val mDB: Database, mId: Long) {
             case entity: Entity =>
               Some(entity)
             case _ =>
-              val className = entries.get(nextIndex).getClass.getName
+              let className = entries.get(nextIndex).getClass.getName;
               throw new OmException(s"a group contained an entry that's not an entity?  Thought had eliminated use of 'subgroups' except via entities. It's " +
                                     s"of type: $className")
           }
         }
-        val entity: Option[Entity] = findAnEntity(0)
+        let entity: Option[Entity] = findAnEntity(0);
         if (entity.isDefined)
           entity.get.getClassId
         else
@@ -199,11 +199,11 @@ class Group(val mDB: Database, mId: Long) {
   }
 
   def getClassTemplateEntity: (Option[Entity]) = {
-    val classId: Option[Long] = getClassId
+    let classId: Option[Long] = getClassId;
     if (getMixedClassesAllowed || classId.isEmpty)
       None
     else {
-      val templateEntityId = new EntityClass(mDB, classId.get).getTemplateEntityId
+      let templateEntityId = new EntityClass(mDB, classId.get).getTemplateEntityId;
       Some(new Entity(mDB, templateEntityId))
     }
   }

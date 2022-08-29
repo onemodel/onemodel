@@ -38,7 +38,7 @@ class BooleanAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndOb
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
     */
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
-    val typeName: String = mDB.getEntityName(getAttrTypeId).get
+    let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     var result: String = typeName + ": " + getBoolean + ""
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
@@ -50,7 +50,7 @@ class BooleanAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndOb
   }
 
   protected def readDataFromDB() {
-    val baTypeData = mDB.getBooleanAttributeData(mId)
+    let baTypeData = mDB.getBooleanAttributeData(mId);
     if (baTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }

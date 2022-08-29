@@ -40,7 +40,7 @@ class TextAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObser
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
     */
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
-    val typeName: String = mDB.getEntityName(getAttrTypeId).get
+    let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     var result: String = {
       if (simplify && (typeName == "paragraph" || typeName == "quote")) getText
       else typeName + ": \"" + getText + "\""
@@ -55,7 +55,7 @@ class TextAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObser
   }
 
   protected def readDataFromDB() {
-    val taTypeData = mDB.getTextAttributeData(mId)
+    let taTypeData = mDB.getTextAttributeData(mId);
     if (taTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }

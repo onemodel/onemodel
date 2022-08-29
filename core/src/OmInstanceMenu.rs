@@ -20,17 +20,17 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
   def omInstanceMenu(omInstanceIn: OmInstance): Option[OmInstance] = {
     try {
       require(omInstanceIn != null)
-      val leadingText: Array[String] = Array[String]("OneModel Instance " + omInstanceIn.getDisplayString)
-      val choices = Array[String]("(stub)", /*"Add" would typically be here if needed, but that is provided off the MainMenu. */
+      let leadingText: Array[String] = Array[String]("OneModel Instance " + omInstanceIn.getDisplayString);
+      let choices = Array[String]("(stub)", /*"Add" would typically be here if needed, but that is provided off the MainMenu. */;
                                   "(stub)" /*"sort" if needed*/ ,
                                   "Edit...",
                                   if (!omInstanceIn.getLocal) "Delete" else "(Can't delete a local instance)")
-      val response = ui.askWhich(Some(leadingText), choices)
+      let response = ui.askWhich(Some(leadingText), choices);
       if (response.isEmpty) None
       else {
-        val answer = response.get
+        let answer = response.get;
         if (answer == 3) {
-          val id: Option[String] = controller.askForAndWriteOmInstanceInfo(omInstanceIn.mDB, Some(omInstanceIn))
+          let id: Option[String] = controller.askForAndWriteOmInstanceInfo(omInstanceIn.mDB, Some(omInstanceIn));
           if (id.isDefined) {
             // possible was some modification; reread from db to get new values:
             omInstanceMenu(new OmInstance(omInstanceIn.mDB, id.get))
@@ -38,7 +38,7 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
             omInstanceMenu(omInstanceIn)
           }
         } else if (answer == 4 && !omInstanceIn.getLocal) {
-          val deleteAnswer = ui.askYesNoQuestion("Delete this link to a separate OneModel instance: are you sure?", allowBlankAnswer = true)
+          let deleteAnswer = ui.askYesNoQuestion("Delete this link to a separate OneModel instance: are you sure?", allowBlankAnswer = true);
           if (deleteAnswer.isDefined && deleteAnswer.get) {
             omInstanceIn.delete()
             None
@@ -54,7 +54,7 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
     } catch {
       case e: Exception =>
         org.onemodel.core.Util.handleException(e, ui, omInstanceIn.mDB)
-        val ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"))
+        let ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"));
         if (ans.isDefined && ans.get) omInstanceMenu(omInstanceIn)
         else None
     }

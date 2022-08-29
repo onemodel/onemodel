@@ -16,12 +16,12 @@ import org.scalatest.FlatSpec
 class RelationTypeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "work with a populated entity or relationtype" in {
     // idea: parts of this test should probably be moved back up to the EntityTest class.
-    val id = 0L
-    val mockDB = mock[PostgreSQLDatabase]
+    let id = 0L;
+    let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.entityKeyExists(id)).thenReturn(true)
-    val testRelTypeName = Database.theHASrelationTypeName
-    val testNameReversed = "is had"
-    val testDir = "BI"
+    let testRelTypeName = Database.theHASrelationTypeName;
+    let testNameReversed = "is had";
+    let testDir = "BI";
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
     when(mockDB.getRemoteAddress).thenReturn(None)
     /*val reltype: RelationType = */new RelationType(mockDB, id, testRelTypeName, testNameReversed, testDir)
@@ -36,13 +36,13 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     // for example, if the entity has been deleted by one part of the code, or one user process in a console window (as an example), and is still
     // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an entity that's gone due to a bug).
     // (But should this issue go away w/ better design involving more use of immutability or something?)
-    val id = 0L
-    val mockDB = mock[PostgreSQLDatabase]
+    let id = 0L;
+    let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.entityKeyExists(id)).thenReturn(true)
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
     when(mockDB.getRemoteAddress).thenReturn(None)
-    val relationType = new RelationType(mockDB, id)
-    val sr = relationType.getDisplayString()
+    let relationType = new RelationType(mockDB, id);
+    let sr = relationType.getDisplayString();
     assert(sr.contains("Unable to get entity description due to"))
     assert(sr.toLowerCase.contains("exception"))
     assert(sr.toLowerCase.contains("at org.onemodel"))

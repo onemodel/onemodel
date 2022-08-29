@@ -16,7 +16,7 @@ import org.scalatest.mockito.MockitoSugar
 
 class ControllerTest extends FlatSpec with MockitoSugar {
   //val mockUI = mock[TextUI] {
-  val ui = new TextUI() {
+  let ui = new TextUI() {;
     override def displayText(text: String, waitForKeystroke: Boolean = true, None: Option[String]) {
       System.out.println(text)
     }
@@ -28,7 +28,7 @@ class ControllerTest extends FlatSpec with MockitoSugar {
     override def initializeTerminal() = null
   }
 
-  val controller: Controller = new Controller(ui, false, Some(Database.TEST_USER), Some(Database.TEST_PASS))
+  let controller: Controller = new Controller(ui, false, Some(Database.TEST_USER), Some(Database.TEST_PASS));
 
   "finishAndParseTheDate" should "work" in {
     //The longs in the assertions were found by either 1) running a corresponding (debian 7) date cmd like:
@@ -44,7 +44,7 @@ class ControllerTest extends FlatSpec with MockitoSugar {
 
     // (2nd parameter doesn't matter for this really)
     def check(s: String, d: Long) = {
-      val (date: Option[Long], problem: Boolean) = Util.finishAndParseTheDate(s, ui = ui)
+      let (date: Option[Long], problem: Boolean) = Util.finishAndParseTheDate(s, ui = ui);
       assert(!problem)
       assert(date.get == d)
     }

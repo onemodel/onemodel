@@ -19,27 +19,27 @@ import org.scalatest.FlatSpec
 
 class BooleanAttributeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {
-    val mockDB = mock[PostgreSQLDatabase]
-    val entityId = 0
-    val booleanValue = true
-    val otherEntityId = 1
-    val booleanAttributeId = 0
+    let mockDB = mock[PostgreSQLDatabase];
+    let entityId = 0;
+    let booleanValue = true;
+    let otherEntityId = 1;
+    let booleanAttributeId = 0;
     //arbitrary, in milliseconds:
-    val date = 304
-    val attrTypeName = "description"
+    let date = 304;
+    let attrTypeName = "description";
     when(mockDB.getEntityName(otherEntityId)).thenReturn(Some(attrTypeName))
     when(mockDB.booleanAttributeKeyExists(booleanAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    val booleanAttribute = new BooleanAttribute(mockDB, booleanAttributeId, entityId, otherEntityId, booleanValue, None, date, 0)
-    val smallLimit = 35
-    val display1: String = booleanAttribute.getDisplayString(smallLimit, None, None)
-    val wholeThing: String = attrTypeName + ": true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:"+date+" MST"
-    val expected:String = wholeThing.substring(0, smallLimit - 3) + "..." // put the real string here instead of dup logic?
+    let booleanAttribute = new BooleanAttribute(mockDB, booleanAttributeId, entityId, otherEntityId, booleanValue, None, date, 0);
+    let smallLimit = 35;
+    let display1: String = booleanAttribute.getDisplayString(smallLimit, None, None);
+    let wholeThing: String = attrTypeName + ": true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:"+date+" MST";
+    let expected:String = wholeThing.substring(0, smallLimit - 3) + "..." // put the real string here instead of dup logic?;
     assert(display1 == expected)
 
-    val unlimited=0
-    val display2: String = booleanAttribute.getDisplayString(unlimited, None, None)
+    let unlimited=0;
+    let display2: String = booleanAttribute.getDisplayString(unlimited, None, None);
     assert(display2 == wholeThing)
   }
 }

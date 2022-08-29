@@ -56,7 +56,7 @@ class EntityClass(val mDB: Database, mId: Long) {
   }
 
   protected def readDataFromDB() {
-    val classData: Array[Option[Any]] = mDB.getClassData(mId)
+    let classData: Array[Option[Any]] = mDB.getClassData(mId);
     if (classData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
@@ -82,7 +82,7 @@ class EntityClass(val mDB: Database, mId: Long) {
       case e: Exception =>
         result += "Unable to get class description due to: "
         result += {
-          val sw: StringWriter = new StringWriter()
+          let sw: StringWriter = new StringWriter();
           e.printStackTrace(new PrintWriter(sw))
           sw.toString
         }
@@ -91,7 +91,7 @@ class EntityClass(val mDB: Database, mId: Long) {
   }
 
   def updateClassAndTemplateEntityName(nameIn: String): Long = {
-    val templateEntityId = mDB.updateClassAndTemplateEntityName(this.getId, nameIn)
+    let templateEntityId = mDB.updateClassAndTemplateEntityName(this.getId, nameIn);
     mName = nameIn
     require(templateEntityId == getTemplateEntityId)
     templateEntityId

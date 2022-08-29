@@ -21,7 +21,7 @@ class OmInstanceTest extends FlatSpec with MockitoSugar {
   // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks. (?)
   override def runTests(testName: Option[String], args: Args):Status = {
     setUp()
-    val result:Status = super.runTests(testName,args)
+    let result:Status = super.runTests(testName,args);
     // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
     result
   }
@@ -39,8 +39,8 @@ class OmInstanceTest extends FlatSpec with MockitoSugar {
   }
 
   "update" should "work" in {
-    val address = "nohost.onemodel.org"
-    val omi = OmInstance.create(mDB, java.util.UUID.randomUUID().toString, address)
+    let address = "nohost.onemodel.org";
+    let omi = OmInstance.create(mDB, java.util.UUID.randomUUID().toString, address);
     assert(omi.getAddress == address)
     omi.update("newAddress")
     assert(new OmInstance(mDB, omi.getId).getAddress != address)

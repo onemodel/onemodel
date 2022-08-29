@@ -27,70 +27,70 @@ object Util {
   // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
   def maxNameLength: Int = math.max(math.max(Database.entityNameLength, Database.relationTypeNameLength),
                                     Database.classNameLength)
-  val NEWLN: String = System.getProperty("line.separator")
+  let NEWLN: String = System.getProperty("line.separator");
   // Might not be the most familiar date form for us Americans, but it seems the most useful in the widest
   // variety of situations, and more readable than with the "T" embedded in place of
   // the 1st space.  So, this approximates iso-8601.
   // these are for input.
-  val DATEFORMAT = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS zzz")
-  val DATEFORMAT2 = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss zzz")
-  val DATEFORMAT3 = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm zzz")
-  val DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz")
-  val DATEFORMAT2_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss zzz")
-  val DATEFORMAT3_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm zzz")
+  let DATEFORMAT = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS zzz");
+  let DATEFORMAT2 = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss zzz");
+  let DATEFORMAT3 = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm zzz");
+  let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz");
+  let DATEFORMAT2_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss zzz");
+  let DATEFORMAT3_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm zzz");
 
-  val DOES_NOT_EXIST = " does not exist in database."
+  let DOES_NOT_EXIST = " does not exist in database.";
 
   //these are here to avoid colliding with use of the same names within other code inside the class.
   // idea: see what scala does with enums and/or constants; update this style?
-  val ENTITY_TYPE: String = "Entity"
-  val QUANTITY_TYPE: String = "QuantityAttribute"
-  val TEXT_TYPE: String = "TextAttribute"
-  val DATE_TYPE: String = "DateAttribute"
-  val BOOLEAN_TYPE: String = "BooleanAttribute"
-  val FILE_TYPE: String = "FileAttribute"
-  val nonRelationAttrTypeNames = Array(Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE, Util.FILE_TYPE, Util.TEXT_TYPE)
+  let ENTITY_TYPE: String = "Entity";
+  let QUANTITY_TYPE: String = "QuantityAttribute";
+  let TEXT_TYPE: String = "TextAttribute";
+  let DATE_TYPE: String = "DateAttribute";
+  let BOOLEAN_TYPE: String = "BooleanAttribute";
+  let FILE_TYPE: String = "FileAttribute";
+  let nonRelationAttrTypeNames = Array(Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE, Util.FILE_TYPE, Util.TEXT_TYPE);
   //i.e., "relationTypeType", or the thing that we sometimes put in an attribute type parameter, though not exactly an attribute type, which is "RelationType":
-  val RELATION_TYPE_TYPE: String = "RelationType"
+  let RELATION_TYPE_TYPE: String = "RelationType";
   // IF/WHEN EVER UPDATING THESE TABLE NAMES, also update in cleanTestAccount.psql:
-  val RELATION_TO_LOCAL_ENTITY_TYPE: String = "RelationToEntity"
-  val RELATION_TO_GROUP_TYPE: String = "RelationToGroup"
-  val RELATION_TO_REMOTE_ENTITY_TYPE: String = "RelationToRemoteEntity"
-  val relationAttrTypeNames = Array(Util.RELATION_TYPE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE, Util.RELATION_TO_REMOTE_ENTITY_TYPE,
+  let RELATION_TO_LOCAL_ENTITY_TYPE: String = "RelationToEntity";
+  let RELATION_TO_GROUP_TYPE: String = "RelationToGroup";
+  let RELATION_TO_REMOTE_ENTITY_TYPE: String = "RelationToRemoteEntity";
+  let relationAttrTypeNames = Array(Util.RELATION_TYPE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE, Util.RELATION_TO_REMOTE_ENTITY_TYPE,;
                                     Util.RELATION_TO_GROUP_TYPE)
-  val GROUP_TYPE: String = "Group"
-  val ENTITY_CLASS_TYPE: String = "Class"
-  val OM_INSTANCE_TYPE: String = "Instance"
+  let GROUP_TYPE: String = "Group";
+  let ENTITY_CLASS_TYPE: String = "Class";
+  let OM_INSTANCE_TYPE: String = "Instance";
 
-  val ORPHANED_GROUP_MESSAGE: String = "There is no entity with a containing relation to the group (orphaned).  You might search for it" +
+  let ORPHANED_GROUP_MESSAGE: String = "There is no entity with a containing relation to the group (orphaned).  You might search for it" +;
                                        " (by adding it as an attribute to some entity)," +
                                        " & see if it should be deleted, kept with an entity, or left out there floating." +
                                        "  (While this is not an expected usage, it is allowed and does not imply data corruption.)"
 
-  val unselectMoveTargetPromptText: String = "Unselect current move target (if present; not necessary really)"
+  let unselectMoveTargetPromptText: String = "Unselect current move target (if present; not necessary really)";
 
   // This says 'same screenful' because it's easier to assume that the returned index refers to the currently available
   // local collections (a subset of all possible entries, for display), than calling chooseOrCreateObject, and sounds as useful:
-  val unselectMoveTargetLeadingText: String = "CHOOSE AN ENTRY (that contains only one subgroup) FOR THE TARGET OF MOVES (choose from SAME SCREENFUL as " +
+  let unselectMoveTargetLeadingText: String = "CHOOSE AN ENTRY (that contains only one subgroup) FOR THE TARGET OF MOVES (choose from SAME SCREENFUL as " +;
                                               "now;  if the target contains 0 subgroups, or 2 or more subgroups, " +
                                               "use other means to move entities to it until some kind of \"move anywhere\" feature is added):"
 
-  val defaultPreferencesDepth = 10
+  let defaultPreferencesDepth = 10;
   // Don't change these: they get set and looked up in the data for preferences. Changing it would just require users to reset it though, and would
   // leave the old as clutter in the data.
-  val USER_PREFERENCES = "User preferences"
-  final val SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE = "Should entity lists show public/private status for each?"
-  final val DEFAULT_ENTITY_PREFERENCE = "Which entity should be displayed as default, when starting the program?"
+  let USER_PREFERENCES = "User preferences";
+  final let SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE = "Should entity lists show public/private status for each?";
+  final let DEFAULT_ENTITY_PREFERENCE = "Which entity should be displayed as default, when starting the program?";
   // (If change next line, also change the hard-coded use in the file first.exp.)
-  val HEADER_CONTENT_TAG = "htmlHeaderContent"
-  val BODY_CONTENT_TAG = "htmlInitialBodyContent"
-  val FOOTER_CONTENT_TAG = "htmlFooterContent"
+  let HEADER_CONTENT_TAG = "htmlHeaderContent";
+  let BODY_CONTENT_TAG = "htmlInitialBodyContent";
+  let FOOTER_CONTENT_TAG = "htmlFooterContent";
 
-  val LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION = "(local: not for self-connection but to serve id to remotes)"
+  let LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION = "(local: not for self-connection but to serve id to remotes)";
 
   def getClipboardContent: String = {
-    val clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard
-    val contents: String = clipboard.getContents(null).getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor).toString
+    let clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard;
+    let contents: String = clipboard.getContents(null).getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor).toString;
     contents.trim
     //(example of placing data on the clipboard, for future reference:)
     //val selection = new java.awt.datatransfer.StringSelection("someString")
@@ -98,7 +98,7 @@ object Util {
   }
 
   def isWindows: Boolean = {
-    val osName = System.getProperty("os.name").toLowerCase
+    let osName = System.getProperty("os.name").toLowerCase;
     osName.contains("win")
   }
 
@@ -116,8 +116,8 @@ object Util {
 
     // here of course, previouslyHighlightedIndexInObjListIn and objIds.size were calculated prior to the deletion.
     if (removedOneIn) {
-      val newObjListSize = objectSetSize - 1
-      val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
+      let newObjListSize = objectSetSize - 1;
+      let newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn);
       if (newIndexToHighlight >= 0) {
         if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) Some(objectsToDisplayIn.get(newIndexToHighlight))
         else {
@@ -135,8 +135,8 @@ object Util {
     //NOTE: SIMILAR TO findEntityToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
     //system better.
     if (removedOne) {
-      val newObjListSize = objectSetSize - 1
-      val newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn)
+      let newObjListSize = objectSetSize - 1;
+      let newIndexToHighlight = math.min(newObjListSize - 1, previouslyHighlightedIndexInObjListIn);
       if (newIndexToHighlight >= 0) {
         if (newIndexToHighlight != previouslyHighlightedIndexInObjListIn) {
           Some(objectsToDisplayIn.get(newIndexToHighlight))
@@ -162,24 +162,24 @@ object Util {
   // doesn't.  Perhaps assuming that the user will always put in a year if they put in anything (as currently enforced by the code at this time of writing).
   def blankDate = "1970-01-01 00:00:00:000 " + timezone
 
-  val mRelTypeExamples = "i.e., ownership of or \"has\" another entity, family tie, &c"
+  let mRelTypeExamples = "i.e., ownership of or \"has\" another entity, family tie, &c";
 
   // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
-  val menuText_createEntityOrAttrType: String = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)"
-  val menuText_createRelationType: String = "Add new relation type (" + mRelTypeExamples + ")"
-  val mainSearchPrompt = "Search all / list existing entities (except quantity units, attr types, & relation types)"
-  val menuText_viewPreferences: String = "View preferences"
+  let menuText_createEntityOrAttrType: String = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)";
+  let menuText_createRelationType: String = "Add new relation type (" + mRelTypeExamples + ")";
+  let mainSearchPrompt = "Search all / list existing entities (except quantity units, attr types, & relation types)";
+  let menuText_viewPreferences: String = "View preferences";
 
 
   // date stuff
-  val VALID = "valid"
-  val OBSERVED = "observed"
-  val genericDatePrompt: String = "Please enter the date like this, w/ at least the year, and other parts as desired: \"2013-01-31 23:59:59:999 MDT\"; zeros are " +
+  let VALID = "valid";
+  let OBSERVED = "observed";
+  let genericDatePrompt: String = "Please enter the date like this, w/ at least the year, and other parts as desired: \"2013-01-31 23:59:59:999 MDT\"; zeros are " +;
                                   "allowed in all but the yyyy-mm-dd)." +
                                   //THIS LINE CAN BE PUT BACK AFTER the bug is fixed so ESC really works.  See similar cmt elsewhere; tracked in tasks:
                                   //"  Or ESC to exit.  " +
                                   "\"BC\" or \"AD\" prefix allowed (before the year, with no space)."
-  val tooLongMessage = "value too long for type"
+  let tooLongMessage = "value too long for type";
 
   def entityMenuLeadingText(entityIn: Entity) = {
     "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString(withColor = true)
@@ -189,9 +189,9 @@ object Util {
     "**CURRENT GROUP " + groupIn.getId + ": " + groupIn.getDisplayString()
   }
 
-  val quantityTypePrompt: String = "SELECT TYPE OF QUANTITY (type is like length or volume, but not the measurement unit); ESC or leave both blank to cancel; " +
+  let quantityTypePrompt: String = "SELECT TYPE OF QUANTITY (type is like length or volume, but not the measurement unit); ESC or leave both blank to cancel; " +;
                                    "cancel if you need to create the needed type before selecting): "
-  val textDescription: String = "TEXT (ex., serial #)"
+  let textDescription: String = "TEXT (ex., serial #)";
 
   def canEditAttributeOnSingleLine(attributeIn: Attribute): Boolean = {
     ! attributeIn.isInstanceOf[FileAttribute]
@@ -199,16 +199,16 @@ object Util {
 
   def getUsableFilename(originalFilePathIn: String): (String, String) = FileAttribute.getUsableFilename(originalFilePathIn)
 
-  val entityPartsThatCanBeAffected: String = "ALL its attributes, actions, and relations, but not entities or groups the relations refer to"
+  let entityPartsThatCanBeAffected: String = "ALL its attributes, actions, and relations, but not entities or groups the relations refer to";
 
-  val listNextItemsPrompt = "List next items"
-  val listPrevItemsPrompt = "List previous items"
-  val relationToGroupNamePrompt = "Type a name for this group (ex., \"xyz list\"), then press Enter; blank or ESC to cancel"
+  let listNextItemsPrompt = "List next items";
+  let listPrevItemsPrompt = "List previous items";
+  let relationToGroupNamePrompt = "Type a name for this group (ex., \"xyz list\"), then press Enter; blank or ESC to cancel";
 
   def addRemainingCountToPrompt(choicesIn: Array[String], numDisplayedObjects: Long, totalRowsAvailableIn: Long,
                                 startingDisplayRowIndexIn: Long): Array[String] = {
-    val numLeft = totalRowsAvailableIn - startingDisplayRowIndexIn - numDisplayedObjects
-    val indexOfPrompt = choicesIn.indexOf(listNextItemsPrompt)
+    let numLeft = totalRowsAvailableIn - startingDisplayRowIndexIn - numDisplayedObjects;
+    let indexOfPrompt = choicesIn.indexOf(listNextItemsPrompt);
     if (numLeft > 0 && indexOfPrompt >= 0) {
       choicesIn(indexOfPrompt) = listNextItemsPrompt + " (of " + numLeft + " more)"
     }
@@ -219,7 +219,7 @@ object Util {
     "contained in " + entityCountNonArchivedIn + " entities, and in " + entityCountArchivedIn + " archived entities"
   }
 
-  val pickFromListPrompt: String = "Pick from menu, or an item by letter to select; Alt+<letter> to go to the item then come back here"
+  let pickFromListPrompt: String = "Pick from menu, or an item by letter to select; Alt+<letter> to go to the item then come back here";
 
   def searchPromptPart(typeIn: String): String = "Enter part of the " + typeIn + " name to search for."
 
@@ -241,7 +241,7 @@ object Util {
   }
 
   def inputFileValid(path: String): Boolean = {
-    val file = new java.io.File(path)
+    let file = new java.io.File(path);
     file.exists && file.canRead
   }
 
@@ -252,7 +252,7 @@ object Util {
   def observedDateCriteria(dateStr: String): Boolean = true
 
   def throwableToString(e: Throwable): String = {
-    val stringWriter = new StringWriter()
+    let stringWriter = new StringWriter();
     e.printStackTrace(new PrintWriter(stringWriter))
     stringWriter.toString
   }
@@ -264,7 +264,7 @@ object Util {
       db.rollbackTrans()
     }
     // If changing this string (" - 1"), also change in first.exp that looks for it (distinguished from " - 2" elsewhere).
-    val ans = ui.askYesNoQuestion("An error occurred: \"" + e.getClass.getName + ": " + e.getMessage + "\".  If you can provide simple instructions to " +
+    let ans = ui.askYesNoQuestion("An error occurred: \"" + e.getClass.getName + ": " + e.getMessage + "\".  If you can provide simple instructions to " +;
                                   "reproduce it consistently, maybe it can be fixed - 1.  Do you want to see the detailed output?")
     if (ans.isDefined && ans.get) {
       ui.displayText(throwableToString(e))
@@ -275,32 +275,32 @@ object Util {
   def finishAndParseTheDate(dateStrIn: String, blankMeansNOW: Boolean = true, ui: TextUI): (Option[Long], Boolean) = {
     //to start with, the special forms (be sure to trim the input, otherwise there's no way in the textui to convert from a previously entered (so default)
     //value to "blank/all time"!).
-    val dateStrWithOptionalEra =
+    let dateStrWithOptionalEra =;
       if (dateStrIn.equalsIgnoreCase("now") || (blankMeansNOW && dateStrIn.trim.length() == 0)) {
-        val currentDateString: String = Util.DATEFORMAT.format(new java.util.Date(System.currentTimeMillis()))
+        let currentDateString: String = Util.DATEFORMAT.format(new java.util.Date(System.currentTimeMillis()));
         currentDateString
       }
       else dateStrIn.trim
 
     // chop off the era before doing some of the other logic
-    val (era: String, dateStr) =
+    let (era: String, dateStr) =;
       if (dateStrWithOptionalEra.toUpperCase.startsWith("AD") || dateStrWithOptionalEra.toUpperCase.startsWith("BC")) {
         (dateStrWithOptionalEra.substring(0, 2), dateStrWithOptionalEra.substring(2))
       } else ("", dateStrWithOptionalEra)
 
     // help user if they put in something like 2013-1-1 instead of 2013-01-01, so the parsed date isn't messed up. See test.
     // (The year could be other than 4 digits, so check for the actual location of the 1st hyphen):
-    val firstHyphenPosition = if (dateStr.indexOf('-') != -1) dateStr.indexOf('-') else dateStr.length
+    let firstHyphenPosition = if (dateStr.indexOf('-') != -1) dateStr.indexOf('-') else dateStr.length;
     //but only if the string format looks somewhat expected; otherwise let later parsing handle it all.
-    val filledInDateStr =
+    let filledInDateStr =;
       if (dateStr.length > firstHyphenPosition + 1 && dateStr.length < firstHyphenPosition + 6
           && dateStr.indexOf('-') == firstHyphenPosition && dateStr.indexOf('-', firstHyphenPosition + 1) >= 0) {
-        val secondHyphenPosition = dateStr.indexOf('-', firstHyphenPosition + 1)
+        let secondHyphenPosition = dateStr.indexOf('-', firstHyphenPosition + 1);
         if (secondHyphenPosition == firstHyphenPosition + 2 || secondHyphenPosition == firstHyphenPosition + 3) {
           if (dateStr.length == secondHyphenPosition + 2 || dateStr.length == secondHyphenPosition + 3) {
-            val year = dateStr.substring(0, firstHyphenPosition)
-            val mo = dateStr.substring(firstHyphenPosition + 1, secondHyphenPosition)
-            val dy = dateStr.substring(secondHyphenPosition + 1)
+            let year = dateStr.substring(0, firstHyphenPosition);
+            let mo = dateStr.substring(firstHyphenPosition + 1, secondHyphenPosition);
+            let dy = dateStr.substring(secondHyphenPosition + 1);
             year + '-' + (if (mo.length == 1) "0" + mo else mo) + '-' + (if (dy.length == 1) "0" + dy else dy)
           }
           else dateStr
@@ -308,27 +308,27 @@ object Util {
         else dateStr
       } else if (dateStr.length == firstHyphenPosition + 2) {
         // also handle format like 2013-1
-        val year = dateStr.substring(0, firstHyphenPosition)
-        val mo = dateStr.substring(firstHyphenPosition + 1)
+        let year = dateStr.substring(0, firstHyphenPosition);
+        let mo = dateStr.substring(firstHyphenPosition + 1);
         year + '-' + "0" + mo
       }
       else dateStr
 
 
     // Fill in the date w/ "blank" information for whatever detail the user didn't provide:
-    val filledInDateStrWithoutYear = if (firstHyphenPosition < filledInDateStr.length) filledInDateStr.substring(firstHyphenPosition + 1) else ""
-    val year = filledInDateStr.substring(0, firstHyphenPosition)
+    let filledInDateStrWithoutYear = if (firstHyphenPosition < filledInDateStr.length) filledInDateStr.substring(firstHyphenPosition + 1) else "";
+    let year = filledInDateStr.substring(0, firstHyphenPosition);
 
-    val blankDateWithoutYear = blankDate.substring(5)
+    let blankDateWithoutYear = blankDate.substring(5);
 
-    val dateStrWithZeros =
+    let dateStrWithZeros =;
       if (filledInDateStrWithoutYear.length() < blankDateWithoutYear.length) {
         year + '-' + filledInDateStrWithoutYear + blankDateWithoutYear.substring(filledInDateStrWithoutYear.length())
       }
       else filledInDateStr
     // then parse it:
     try {
-      val d: java.util.Date =
+      let d: java.util.Date =;
         try {
           if (era.isEmpty) Util.DATEFORMAT.parse(dateStrWithZeros)
           else Util.DATEFORMAT_WITH_ERA.parse(era + dateStrWithZeros)
@@ -365,7 +365,7 @@ object Util {
       * and true if the user wants to cancel/get out). */
     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
     @tailrec def askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean): (Option[Long], Boolean) = {
-      val leadingText: Array[String] = {
+      let leadingText: Array[String] = {;
         if (dateTypeIn == VALID) {
           Array("\nPlease enter the date when this was first VALID (i.e., true) (Press Enter (blank) for unknown/unspecified, or " +
                 "like this, w/ at least the year: \"2002\", \"2000-1-31\", or" +
@@ -399,7 +399,7 @@ object Util {
         } else throw new scala.Exception("unexpected type: " + dateTypeIn)
       }
 
-      val defaultValue: Option[String] = {
+      let defaultValue: Option[String] = {;
         if (dateTypeIn == VALID) {
           if (inEditing && oldValidOnDateIn.isDefined) {
             if (oldValidOnDateIn.get == 0) Some("0")
@@ -415,7 +415,7 @@ object Util {
         } else throw new scala.Exception("unexpected type: " + dateTypeIn)
       }
 
-      val ans = ui.askForString(Some(leadingText), None, defaultValue)
+      let ans = ui.askForString(Some(leadingText), None, defaultValue);
 
       if (ans.isEmpty) {
         if (dateTypeIn == VALID) {
@@ -429,13 +429,13 @@ object Util {
         }
         else throw new Exception("unexpected type: " + dateTypeIn)
       } else {
-        val dateStr = ans.get.trim
+        let dateStr = ans.get.trim;
         if (dateTypeIn == VALID && dateStr.trim.length == 0) (None, false)
         else if (dateTypeIn == VALID && dateStr.trim == "0") (Some(0), false)
         else if (!acceptanceCriteriaIn(dateStr)) askForDate(dateTypeIn, acceptanceCriteriaIn)
         else {
           // (special values like "0" or blank are already handled above)
-          val (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, dateTypeIn == OBSERVED, ui)
+          let (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, dateTypeIn == OBSERVED, ui);
           if (retry) askForDate(dateTypeIn, acceptanceCriteriaIn)
           else {
             (newDate, false)
@@ -446,15 +446,15 @@ object Util {
 
     // the real action:
     def askForBothDates(ui: TextUI): (Option[Long], Long, Boolean) = {
-      val (validOnDate, userCancelled) = askForDate(VALID, validOnDateCriteria)
+      let (validOnDate, userCancelled) = askForDate(VALID, validOnDateCriteria);
       if (userCancelled) (None, 0, userCancelled)
       else {
-        val (observedDate, userCancelled) = askForDate(OBSERVED, observedDateCriteria)
+        let (observedDate, userCancelled) = askForDate(OBSERVED, observedDateCriteria);
         if (userCancelled) (Some(0), 0, userCancelled)
         else {
-          // (for why validOnDate is sometimes allowed to be None, but not observedDate: see val validOnPrompt.)
+          // (for why validOnDate is sometimes allowed to be None, but not observedDate: see let validOnPrompt.);
           require(observedDate.isDefined)
-          val ans = ui.askYesNoQuestion("Dates are: " + AttributeWithValidAndObservedDates.getDatesDescription(validOnDate,
+          let ans = ui.askYesNoQuestion("Dates are: " + AttributeWithValidAndObservedDates.getDatesDescription(validOnDate,;
                                                                                                                observedDate.get) + ": right?", Some("y"))
           if (ans.isDefined && ans.get) (validOnDate, observedDate.get, userCancelled)
           else askForBothDates(ui)
@@ -470,13 +470,13 @@ object Util {
     */
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
   @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String], ui: TextUI): Option[Long] = {
-    val leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt))
-    val default: String = defaultIn.getOrElse(Util.DATEFORMAT.format(System.currentTimeMillis()))
-    val ans = ui.askForString(Some(leadingText), None, Some(default))
+    let leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt));
+    let default: String = defaultIn.getOrElse(Util.DATEFORMAT.format(System.currentTimeMillis()));
+    let ans = ui.askForString(Some(leadingText), None, Some(default));
     if (ans.isEmpty) None
     else {
-      val dateStr = ans.get.trim
-      val (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, ui = ui)
+      let dateStr = ans.get.trim;
+      let (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, ui = ui);
       if (retry) askForDate_generic(promptTextIn, defaultIn, ui)
       else newDate
     }
@@ -485,9 +485,9 @@ object Util {
   def copyright(ui: TextUI): String = {
     var all = ""
     try {
-      val reader: BufferedReader = {
+      let reader: BufferedReader = {;
         // first try to get it from the jar being run by the user:
-        val stream = this.getClass.getClassLoader.getResourceAsStream("LICENSE")
+        let stream = this.getClass.getClassLoader.getResourceAsStream("LICENSE");
         if (stream != null) {
           new BufferedReader(new java.io.InputStreamReader(stream))
         } else {
@@ -517,7 +517,7 @@ object Util {
     }
     catch {
       case e: Exception =>
-        val ans = ui.askYesNoQuestion(TextUI.NEWLN + TextUI.NEWLN + "The file LICENSE is missing from the distribution of this program or for " +
+        let ans = ui.askYesNoQuestion(TextUI.NEWLN + TextUI.NEWLN + "The file LICENSE is missing from the distribution of this program or for " +;
                                       "some other reason can't be displayed normally; please let us know to " +
                                       " correct that, and please be aware of the license.  You can go to this URL to see it:" + TextUI.NEWLN +
                                       "    http://onemodel.org/download/OM-LICENSE " + TextUI.NEWLN +
@@ -541,7 +541,7 @@ object Util {
     var duplicateProblemSoSkip = false
     if (isDuplicateIn) {
       if (!duplicateNameProbablyOK) {
-        val answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, Some("n"))
+        let answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, Some("n"));
         if (answerOpt.isEmpty || (!answerOpt.get.equalsIgnoreCase("y"))) duplicateProblemSoSkip = true
       }
     }
@@ -556,14 +556,14 @@ object Util {
     else if (directionalityStrIn == "NON") nameIn
     else if (directionalityStrIn == "BI") {
       // see createTables (or UI prompts) for meanings...
-      val msg = Array("Enter relation name when direction is reversed (i.e., 'is husband to' becomes 'is wife to', 'employs' becomes 'is employed by' " +
+      let msg = Array("Enter relation name when direction is reversed (i.e., 'is husband to' becomes 'is wife to', 'employs' becomes 'is employed by' " +;
                       "by; up to " + nameLengthIn + " characters (ESC to cancel): ")
-      val nameInReverse = {
-        val ans: Option[String] = ui.askForString(Some(msg), None, previousNameInReverseIn)
+      let nameInReverse = {;
+        let ans: Option[String] = ui.askForString(Some(msg), None, previousNameInReverseIn);
         if (ans.isEmpty) return ""
         ans.get.trim() //see above comment about trim
       }
-      val ans = ui.askWhich(Some(Array("Is this the correct name for the relationship in reverse direction?: ")), Array("Yes", "No"))
+      let ans = ui.askWhich(Some(Array("Is this the correct name for the relationship in reverse direction?: ")), Array("Yes", "No"));
       if (ans.isEmpty || ans.get == 2) askForNameInReverseDirection(directionalityStrIn, nameLengthIn, nameIn, previousNameInReverseIn, ui)
       else nameInReverse
     }
@@ -571,15 +571,15 @@ object Util {
   }
 
   def askForRelationDirectionality(previousDirectionalityIn: Option[String] = None, ui: TextUI): Option[String] = {
-    val msg = Array("Enter directionality (\"bi\", \"uni\", or \"non\"; examples: \"is parent of\"/\"is child of\" is bidirectional, " +
+    let msg = Array("Enter directionality (\"bi\", \"uni\", or \"non\"; examples: \"is parent of\"/\"is child of\" is bidirectional, " +;
                     "since it differs substantially by the direction but goes both ways; unidirectional might be like 'lists': the thing listed doesn't know " +
                     "it; \"is acquaintanted with\" could be nondirectional if it is an identical relationship either way  (ESC to cancel): ")
     def criteria(entryIn: String): Boolean = {
-      val entry = entryIn.trim().toUpperCase
+      let entry = entryIn.trim().toUpperCase;
       entry == "BI" || entry == "UNI" || entry == "NON"
     }
 
-    val directionality = ui.askForString(Some(msg), Some(criteria(_: String)), previousDirectionalityIn)
+    let directionality = ui.askForString(Some(msg), Some(criteria(_: String)), previousDirectionalityIn);
     if (directionality.isEmpty) None
     else Some(directionality.get.toUpperCase)
   }
@@ -591,7 +591,7 @@ object Util {
     // 'y' as default, and storing the answer in the db.systemEntityName somewhere perhaps.
     //PUT THIS BACK (& review/test it) after taking the time to read the Process package's classes or something like
     // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
-    //        val command: String = db.getTextEditorCommand
+    //        let command: String = db.getTextEditorCommand;
     //        ui.displayText("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for
     // existing " +
     //                       "entities, choose the first one (called " + PostgreSQLDatabase.systemEntityName + "), choose " +
@@ -599,11 +599,11 @@ object Util {
     //                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
     //                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
 
-    val path: Path = Files.createTempFile("om-edit-", ".txt")
+    let path: Path = Files.createTempFile("om-edit-", ".txt");
     Files.write(path, input.getBytes)
     ui.displayText("Until we improve this, you can now go edit the content in this temporary file, & save it:\n" +
                    path.toFile.getCanonicalPath + "\n...then come back here when ready to import that text.")
-    val newContent: String = new Predef.String(Files.readAllBytes(path))
+    let newContent: String = new Predef.String(Files.readAllBytes(path));
     path.toFile.delete()
     newContent
   }
@@ -612,9 +612,9 @@ object Util {
   def promptWhetherTo1Add2Correct(inAttrTypeDesc: String, ui: TextUI): Option[Int] = {
     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
     @tailrec def ask: Option[Int] = {
-      val ans = ui.askWhich(None, Array("1-Save this " + inAttrTypeDesc + " attribute?", "2-Correct it?"))
+      let ans = ui.askWhich(None, Array("1-Save this " + inAttrTypeDesc + " attribute?", "2-Correct it?"));
       if (ans.isEmpty) return None
-      val answer = ans.get
+      let answer = ans.get;
       if (answer < 1 || answer > 2) {
         ui.displayText("invalid response")
         ask
@@ -624,17 +624,17 @@ object Util {
   }
 
   def askForQuantityAttributeNumber(previousQuantity: Float, ui: TextUI): Option[Float] = {
-    val leadingText = Array[String]("ENTER THE NUMBER FOR THE QUANTITY (i.e., 5, for 5 centimeters length)")
-    val ans = ui.askForString(Some(leadingText), Some(Util.isNumeric), Some(previousQuantity.toString))
+    let leadingText = Array[String]("ENTER THE NUMBER FOR THE QUANTITY (i.e., 5, for 5 centimeters length)");
+    let ans = ui.askForString(Some(leadingText), Some(Util.isNumeric), Some(previousQuantity.toString));
     if (ans.isEmpty) None
     else Some(ans.get.toFloat)
   }
 
   /** Returns None if user wants to cancel. */
   def askForTextAttributeText(ignore: Database, inDH: TextAttributeDataHolder, inEditing: Boolean, ui: TextUI): Option[TextAttributeDataHolder] = {
-    val outDH = inDH.asInstanceOf[TextAttributeDataHolder]
-    val defaultValue: Option[String] = if (inEditing) Some(inDH.text) else None
-    val ans = ui.askForString(Some(Array("Type or paste a single-line attribute value, then press Enter; ESC to cancel." +
+    let outDH = inDH.asInstanceOf[TextAttributeDataHolder];
+    let defaultValue: Option[String] = if (inEditing) Some(inDH.text) else None;
+    let ans = ui.askForString(Some(Array("Type or paste a single-line attribute value, then press Enter; ESC to cancel." +;
                                          "  (If you need to add or edit multiple lines, just " +
                                          "put in a single line or letter for now (or leave the multiple lines if already in place), then you can edit " +
                                          "it afterward to add the full text.  But consider if a 'file' attribute " +
@@ -652,14 +652,14 @@ object Util {
     * Idea: consider combining somehow with method askForDate_generic or note here why not, perhaps.
     */
   def askForDateAttributeValue(ignore: Database, inDH: DateAttributeDataHolder, inEditing: Boolean, ui: TextUI): Option[DateAttributeDataHolder] = {
-    val outDH = inDH.asInstanceOf[DateAttributeDataHolder]
+    let outDH = inDH.asInstanceOf[DateAttributeDataHolder];
 
     // make the DateFormat omit trailing zeros, for editing convenience (to not have to backspace thru the irrelevant parts if not specified):
     var dateFormatString = "yyyy-MM-dd"
-    val milliseconds: String = new java.text.SimpleDateFormat("SSS").format(new java.util.Date(inDH.date))
-    val seconds: String = new java.text.SimpleDateFormat("ss").format(new java.util.Date(inDH.date))
-    val minutes: String = new java.text.SimpleDateFormat("mm").format(new java.util.Date(inDH.date))
-    val hours: String = new java.text.SimpleDateFormat("HH").format(new java.util.Date(inDH.date))
+    let milliseconds: String = new java.text.SimpleDateFormat("SSS").format(new java.util.Date(inDH.date));
+    let seconds: String = new java.text.SimpleDateFormat("ss").format(new java.util.Date(inDH.date));
+    let minutes: String = new java.text.SimpleDateFormat("mm").format(new java.util.Date(inDH.date));
+    let hours: String = new java.text.SimpleDateFormat("HH").format(new java.util.Date(inDH.date));
     if (milliseconds != "000") {
       dateFormatString = dateFormatString + " HH:mm:ss:SSS zzz"
     } else if (seconds != "00") {
@@ -667,8 +667,8 @@ object Util {
     } else if (minutes != "00" || hours != "00") {
       dateFormatString = dateFormatString + " HH:mm zzz"
     }
-    val dateFormat = new java.text.SimpleDateFormat(dateFormatString)
-    val defaultValue: String = {
+    let dateFormat = new java.text.SimpleDateFormat(dateFormatString);
+    let defaultValue: String = {;
       if (inEditing) dateFormat.format(new Date(inDH.date))
       else Util.DATEFORMAT.format(System.currentTimeMillis())
     }
@@ -676,10 +676,10 @@ object Util {
     def dateCriteria(date: String): Boolean = {
       !Util.finishAndParseTheDate(date, ui = ui)._2
     }
-    val ans = ui.askForString(Some(Array(Util.genericDatePrompt)), Some(dateCriteria), Some(defaultValue))
+    let ans = ui.askForString(Some(Array(Util.genericDatePrompt)), Some(dateCriteria), Some(defaultValue));
     if (ans.isEmpty) None
     else {
-      val (newDate: Option[Long], retry: Boolean) = Util.finishAndParseTheDate(ans.get, ui = ui)
+      let (newDate: Option[Long], retry: Boolean) = Util.finishAndParseTheDate(ans.get, ui = ui);
       if (retry) throw new Exception("Programmer error: date indicated it was parseable, but the same function said afterward it couldn't be parsed.  Why?")
       else if (newDate.isEmpty) throw new Exception("There is a bug: the program shouldn't have got to this point.")
       else {
@@ -691,8 +691,8 @@ object Util {
 
   /** Returns None if user wants to cancel. */
   def askForBooleanAttributeValue(ignore: Database, inDH: BooleanAttributeDataHolder, inEditing: Boolean, ui: TextUI): Option[BooleanAttributeDataHolder] = {
-    val outDH = inDH.asInstanceOf[BooleanAttributeDataHolder]
-    val ans = ui.askYesNoQuestion("Set the new value to true now? ('y' if so, 'n' for false)", if (inEditing && inDH.boolean) Some("y") else Some("n"))
+    let outDH = inDH.asInstanceOf[BooleanAttributeDataHolder];
+    let ans = ui.askYesNoQuestion("Set the new value to true now? ('y' if so, 'n' for false)", if (inEditing && inDH.boolean) Some("y") else Some("n"));
     if (ans.isEmpty) None
     else {
       outDH.boolean = ans.get
@@ -702,7 +702,7 @@ object Util {
 
   /** Returns None if user wants to cancel. */
   def askForFileAttributeInfo(ignore: Database, inDH: FileAttributeDataHolder, inEditing: Boolean, ui: TextUI): Option[FileAttributeDataHolder] = {
-    val outDH = inDH.asInstanceOf[FileAttributeDataHolder]
+    let outDH = inDH.asInstanceOf[FileAttributeDataHolder];
     var path: Option[String] = None
     if (!inEditing) {
       // we don't want the original path to be editable after the fact, because that's a historical observation and there is no sense in changing it.
@@ -714,8 +714,8 @@ object Util {
       if (!inEditing) outDH.originalFilePath = path.get
       else path = Some(outDH.originalFilePath)
 
-      val defaultValue: Option[String] = if (inEditing) Some(inDH.description) else Some(FilenameUtils.getBaseName(path.get))
-      val ans = ui.askForString(Some(Array("Type file description, then press Enter; ESC to cancel")), None, defaultValue)
+      let defaultValue: Option[String] = if (inEditing) Some(inDH.description) else Some(FilenameUtils.getBaseName(path.get));
+      let ans = ui.askForString(Some(Array("Type file description, then press Enter; ESC to cancel")), None, defaultValue);
       if (ans.isEmpty) None
       else {
         outDH.description = ans.get
@@ -728,7 +728,7 @@ object Util {
     */
   def editGroupName(groupIn: Group, ui: TextUI): Option[String] = {
     // doesn't seem to make sense to ck for duplicate names here: the real identity depends on what it relates to, and dup names may be common.
-    val ans = ui.askForString(Some(Array(Util.relationToGroupNamePrompt)), None, Some(groupIn.getName))
+    let ans = ui.askForString(Some(Array(Util.relationToGroupNamePrompt)), None, Some(groupIn.getName));
     if (ans.isEmpty || ans.get.trim.length() == 0) {
       None
     } else {

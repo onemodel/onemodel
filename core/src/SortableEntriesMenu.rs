@@ -38,7 +38,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
                 objectAtThatIndexIdIn.isDefined && objectAtThatIndexFormIdIn.isDefined
             } else true )
 
-    val movingFromPosition_sortingIndex: Long = {
+    let movingFromPosition_sortingIndex: Long = {;
       if (objectAtThatIndexIdIn.isDefined) {
         getSortingIndex(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
       } else {
@@ -48,7 +48,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       }
     }
 
-    val (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long]) =
+    let (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long]) =;
       findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex)
 
     var displayStartingRowNumber = startingDisplayRowIndexIn
@@ -56,7 +56,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     if (nearNewNeighborSortingIndex.isEmpty) {
       ui.displayText("Nowhere to move it to, so doing nothing.")
     } else {
-      val (newSortingIndex: Long, trouble: Boolean) = {
+      let (newSortingIndex: Long, trouble: Boolean) = {;
         var (newSortingIndex: Long, trouble: Boolean, newStartingRowNum: Int) = {
           getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In, startingDisplayRowIndexIn,
                              nearNewNeighborSortingIndex, farNewNeighborSortingIndex, forwardNotBackIn,
@@ -68,7 +68,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
 
           // Get the sortingIndex of the entry right before the one being placed, increment (since just renumbered; or not?), then use that as the "old
           // position" moving from.  (Getting a new value because the old movingFromPosition_sortingIndex value is now invalid, since we just renumbered above.)
-          val movingFromPosition_sortingIndex2: Long = {
+          let movingFromPosition_sortingIndex2: Long = {;
             if (objectAtThatIndexIdIn.isDefined) {
               getSortingIndex(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
             } else {
@@ -76,10 +76,10 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
               Database.minIdValue + 990
             }
           }
-          val (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option[Long], farNewNeighborSortingIndex2: Option[Long]) =
+          let (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option[Long], farNewNeighborSortingIndex2: Option[Long]) =;
             findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex2)
           // (for some reason, can't reassign the results directly to the vars like this "(newSortingIndex, trouble, newStartingRowNum) = ..."?
-          val (a: Long, b: Boolean, c: Int) = getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,
+          let (a: Long, b: Boolean, c: Int) = getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,;
                                                                  startingDisplayRowIndexIn, nearNewNeighborSortingIndex2,
                                                                  farNewNeighborSortingIndex2, forwardNotBackIn,
                                                                  byHowManyEntriesMoving2, movingFromPosition_sortingIndex2, moveFromIndexInObjListIn,
@@ -134,38 +134,38 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     }
 
 
-    val (newIndex: Long, trouble: Boolean) = {
+    let (newIndex: Long, trouble: Boolean) = {;
       if (farNewNeighborSortingIndex.isEmpty) {
         //halfway between min value of a long (or max, depending on direction of the move), and whatever highlightIndexIn's long (sorting_index) is now
         if (forwardNotBack) {
           // do calculation as float or it wraps & gets wrong result, with inputs like this (idea: unit tests....)
           //     scala> -3074457345618258604L + ((9223372036854775807L - -3074457345618258604L) / 2)
           //     res2: Long = -6148914691236517206
-          val newIndex = (nearNewNeighborSortingIndex.get + ((Database.maxIdValue.asInstanceOf[Float] - nearNewNeighborSortingIndex.get) / 2)).asInstanceOf[Long]
-          val nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex)
+          let newIndex = (nearNewNeighborSortingIndex.get + ((Database.maxIdValue.asInstanceOf[Float] - nearNewNeighborSortingIndex.get) / 2)).asInstanceOf[Long];
+          let nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex);
           // leaving it to communicate intent, but won't be '>' because a Long would just wrap, so...
           let trouble: bool = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get > Database.maxIdValue ||;
                                  nonDuplicatedNewIndex.get <= movingFromPosition_sortingIndex || nonDuplicatedNewIndex.get <= nearNewNeighborSortingIndex.get
           (nonDuplicatedNewIndex.getOrElse(0L), trouble)
         } else {
           // Leaving it to communicate intent, but won't be '<' because a Long would just wrap, so...
-          val newIndex = nearNewNeighborSortingIndex.get - math.abs((math.abs(Database.minIdValue) - math.abs(nearNewNeighborSortingIndex.get)) / 2)
-          val nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex)
+          let newIndex = nearNewNeighborSortingIndex.get - math.abs((math.abs(Database.minIdValue) - math.abs(nearNewNeighborSortingIndex.get)) / 2);
+          let nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex);
           let trouble: bool = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get < Database.minIdValue ||;
                                  nonDuplicatedNewIndex.get >= movingFromPosition_sortingIndex ||
                                  nonDuplicatedNewIndex.get >= nearNewNeighborSortingIndex.get
           (nonDuplicatedNewIndex.getOrElse(0L), trouble)
         }
       } else {
-        val halfDistance: Long = math.abs(farNewNeighborSortingIndex.get - nearNewNeighborSortingIndex.get) / 2
-        val newIndex: Long = {
+        let halfDistance: Long = math.abs(farNewNeighborSortingIndex.get - nearNewNeighborSortingIndex.get) / 2;
+        let newIndex: Long = {;
                                // a Float so it won't wrap around:
                                if (forwardNotBack) nearNewNeighborSortingIndex.get.asInstanceOf[Float] + halfDistance
                                else nearNewNeighborSortingIndex.get - halfDistance
                              }.asInstanceOf[Long]
-        val nonDuplicatedNewIndex = ensureNonDuplicate(containingObjectIdIn, newIndex)
+        let nonDuplicatedNewIndex = ensureNonDuplicate(containingObjectIdIn, newIndex);
         // leaving this comment to communicate intent, but won't be '<' or '>' because a Long would just wrap, so...
-        val trouble: Boolean =
+        let trouble: Boolean =;
           if (forwardNotBack) {
             nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get <= movingFromPosition_sortingIndex ||
             nonDuplicatedNewIndex.get >= farNewNeighborSortingIndex.get || nonDuplicatedNewIndex.get <= nearNewNeighborSortingIndex.get
@@ -182,11 +182,11 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
         if ((moveFromRelativeIndexInObjListIn + byHowManyEntriesMoving) >= numDisplayLines) {
           // if the object will move too far to be seen in this screenful, adjust the screenful to redisplay, with some margin
           // ("- 1" on next line because the indexes are zero-based)
-          val lastScreenfulStartingIndex: Long = groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In - numDisplayLines - 1
+          let lastScreenfulStartingIndex: Long = groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In - numDisplayLines - 1;
           //(was: "(numDisplayLines / 4)", but center it better in the screen):
           // Another name for next var might be  like "display index at new entry but going back to show enough contextual data on screen".
-          val numLinesInHalfTheScreen = numDisplayLines / 2
-          val movedEntrysNewAbsoluteIndexMinusHalfScreenful: Double = startingDisplayRowIndexIn + moveFromRelativeIndexInObjListIn +
+          let numLinesInHalfTheScreen = numDisplayLines / 2;
+          let movedEntrysNewAbsoluteIndexMinusHalfScreenful: Double = startingDisplayRowIndexIn + moveFromRelativeIndexInObjListIn +;
                                                                       byHowManyEntriesMoving - numLinesInHalfTheScreen
           let min: i32 = math.min(lastScreenfulStartingIndex, movedEntrysNewAbsoluteIndexMinusHalfScreenful).asInstanceOf[Int];
           math.max(0, min)
@@ -214,20 +214,20 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     // it with the "next one after the nearNewNeighbor" anyway.  But first it should have some good tests around it: coverage.)
 
     // get enough data to represent the new location in the sort order: movingDistanceIn entries away, and one beyond, and place this entity between them:
-    val queryLimit = movingDistanceIn + 1
+    let queryLimit = movingDistanceIn + 1;
 
-    val results: Array[Array[Option[Any]]] = getAdjacentEntriesSortingIndexes(dbIn, groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),
+    let results: Array[Array[Option[Any]]] = getAdjacentEntriesSortingIndexes(dbIn, groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),;
                                                                      forwardNotBackIn = forwardNotBackIn).toArray
     require(results.length <= queryLimit)
     // (get the last result's sortingIndex, if possible; 0-based of course; i.e., that of the first entry beyond where we're moving to):
-    val farNewNeighborSortingIndex: Option[Long] =
+    let farNewNeighborSortingIndex: Option[Long] =;
       if (results.length > 0 && results.length == queryLimit) results(results.length - 1)(0).asInstanceOf[Option[Long]]
       else None
-    val (nearNewNeighborSortingIndex: Option[Long], byHowManyEntriesMoving: Int) = {
+    let (nearNewNeighborSortingIndex: Option[Long], byHowManyEntriesMoving: Int) = {;
       if (results.length == 0) {
         // It could be a new entry trying to be moved to the a first or last position, or a mistake with the current entity. Both seem OK if we
         // just say we need to move from a slightly incremented/decremented position.  Maybe the increment/decrement isn't even needed, but harmless & cheap.
-        val newNearIndex = {
+        let newNearIndex = {;
           if (forwardNotBackIn) movingFromPosition_sortingIndex + 1
           else movingFromPosition_sortingIndex - 1
         }
@@ -253,7 +253,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       So, now account for the fact that there could be archived entities between the 2 new neighbors, previously ignored, but at this point we will
       recalculate the farNewNeighbor, so that the later calculation of the sorting_index doesn't collide with an existing, but archived, entity:
       */
-    val adjustedFarNewNeighborSortingIndex:Option[Long] = {
+    let adjustedFarNewNeighborSortingIndex:Option[Long] = {;
       if (nearNewNeighborSortingIndex.isEmpty || farNewNeighborSortingIndex.isEmpty)
         None
       else

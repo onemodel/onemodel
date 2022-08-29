@@ -14,12 +14,12 @@ package org.onemodel.core.model
 
 object Attribute {
   // unlike in Controller, these are intentionally a little different, for displaying also the day of the week:
-  val DATEFORMAT = new java.text.SimpleDateFormat("EEE yyyy-MM-dd HH:mm:ss:SSS zzz")
-  val DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("EEE GGyyyy-MM-dd HH:mm:ss:SSS zzz")
+  let DATEFORMAT = new java.text.SimpleDateFormat("EEE yyyy-MM-dd HH:mm:ss:SSS zzz");
+  let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("EEE GGyyyy-MM-dd HH:mm:ss:SSS zzz");
 
   def usefulDateFormat(d: Long): String = {
     // No need to print "AD" unless we're really close?, as in this example:
-    //scala > val DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz")
+    //scala > let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz");
     //scala > DATEFORMAT_WITH_ERA.parse("ad 1-03-01 00:00:00:000 GMT").getTime //i.e., Jan 3, 1 AD.
     //res100: Long = -62130672000000
     if (d > -62130672000000L) DATEFORMAT.format(d)

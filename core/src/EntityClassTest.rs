@@ -26,7 +26,7 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
 
   override def runTests(testName: Option[String], args: Args):Status = {
     setUp()
-    val result:Status = super.runTests(testName,args)
+    let result:Status = super.runTests(testName,args);
     // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
     result
   }
@@ -38,8 +38,8 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     // instantiation does DB setup (creates tables, default data, etc):
     mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
 
-    val name = "name of test class and its template entity"
-    val (classId, entityId): (Long, Long) = mDB.createClassAndItsTemplateEntity(name, name)
+    let name = "name of test class and its template entity";
+    let (classId, entityId): (Long, Long) = mDB.createClassAndItsTemplateEntity(name, name);
     mTemplateEntity = new Entity(mDB, entityId)
     mEntityClass = new EntityClass(mDB, classId)
   }
@@ -52,35 +52,35 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     // for example, if the class has been deleted by one part of the code, or one user process in a console window (as an example), and is still
     // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an class that's gone due to a bug).
     // (But should this issue go away w/ better design involving more use of immutability or something?)
-    val id = 0L
-    val mockDB = mock[PostgreSQLDatabase]
+    let id = 0L;
+    let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.classKeyExists(id)).thenReturn(true)
     when(mockDB.getClassData(id)).thenThrow(new RuntimeException("some exception"))
 
-    val entityClass = new EntityClass(mockDB, id)
-    val ec = entityClass.getDisplayString
+    let entityClass = new EntityClass(mockDB, id);
+    let ec = entityClass.getDisplayString;
     assert(ec.contains("Unable to get class description due to"))
     assert(ec.toLowerCase.contains("exception"))
     assert(ec.toLowerCase.contains("at org.onemodel"))
   }
 
   "getDisplayString" should "return name" in {
-    val id = 0L
-    val templateEntityId = 1L
-    val mockDB = mock[PostgreSQLDatabase]
+    let id = 0L;
+    let templateEntityId = 1L;
+    let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.classKeyExists(id)).thenReturn(true)
     when(mockDB.getClassName(id)).thenReturn(Some("class1Name"))
     when(mockDB.getClassData(id)).thenReturn(Array[Option[Any]](Some("class1Name"), Some(templateEntityId), Some(true)))
 
-    val entityClass = new EntityClass(mockDB, id)
-    val ds = entityClass.getDisplayString
+    let entityClass = new EntityClass(mockDB, id);
+    let ds = entityClass.getDisplayString;
     assert(ds == "class1Name")
   }
 
   "updateClassAndTemplateEntityName" should "work" in {
     //about begintrans: see comment farther below.
 //    mDB.beginTrans()
-    val tmpName = "garbage-temp"
+    let tmpName = "garbage-temp";
     mEntityClass.updateClassAndTemplateEntityName(tmpName)
     assert(mEntityClass.mName == tmpName)
     // have to reread to see the change:

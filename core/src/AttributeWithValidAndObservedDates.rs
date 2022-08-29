@@ -14,11 +14,11 @@ package org.onemodel.core.model
 
 object AttributeWithValidAndObservedDates {
   def getDatesDescription(mValidOnDate:Option[Long], mObservationDate:Long): String = {
-    val validDateDescr: String =
+    let validDateDescr: String =;
       if (mValidOnDate.isEmpty) "unsp'd"
       else if (mValidOnDate.get == 0) "all time"
       else Attribute.usefulDateFormat(mValidOnDate.get)
-    val observedDateDescr: String = Attribute.usefulDateFormat(mObservationDate)
+    let observedDateDescr: String = Attribute.usefulDateFormat(mObservationDate);
     "valid " + validDateDescr + ", obsv'd " + observedDateDescr
   }
 }

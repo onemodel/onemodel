@@ -44,7 +44,7 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: Long, mRelTy
    * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If inLengthLimit is 0 you get the whole thing.
    */
   def getDisplayString(lengthLimitIn: Int, relatedEntityIn: Option[Entity], relationTypeIn: Option[RelationType], simplify: Boolean = false): String = {
-    val relType: RelationType = {
+    let relType: RelationType = {;
       if (relationTypeIn.isDefined) {
         if (relationTypeIn.get.getId != getAttrTypeId) {
           // It can be ignored, but in cases called generically (the same as other Attribute types) it should have the right value or that indicates a
@@ -57,10 +57,10 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: Long, mRelTy
       }
     }
     //   *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:
-    val relatedEntity: Entity = {
+    let relatedEntity: Entity = {;
       relatedEntityIn.getOrElse(getEntityForEntityId2)
     }
-    val rtName: String = {
+    let rtName: String = {;
       if (relatedEntity.getId == mEntityId2) {
         relType.getName
       } else if (relatedEntity.getId == mEntityId1) {
@@ -71,7 +71,7 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: Long, mRelTy
     }
 
     // (See method comment about the relatedEntityIn param.)
-    val result: String =
+    let result: String =;
       if (simplify) {
         if (rtName == Database.theHASrelationTypeName) relatedEntity.getName
         else rtName + getRemoteDescription + ": " + relatedEntity.getName

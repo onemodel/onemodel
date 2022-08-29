@@ -45,9 +45,9 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
    * otherwise can be None.
    */
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity]=None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
-    val typeName: String = mDB.getEntityName(getAttrTypeId).get
-    val number: Float = getNumber
-    val unitId: Long = getUnitId
+    let typeName: String = mDB.getEntityName(getAttrTypeId).get;
+    let number: Float = getNumber;
+    let unitId: Long = getUnitId;
     var result: String = typeName + ": " + number + " " + mDB.getEntityName(unitId).get
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
@@ -64,7 +64,7 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
   }
 
   protected def readDataFromDB() {
-    val quantityData = mDB.getQuantityAttributeData(mId)
+    let quantityData = mDB.getQuantityAttributeData(mId);
     if (quantityData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
@@ -89,7 +89,7 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
   def delete() = mDB.deleteQuantityAttribute(mId)
 
   // **idea: make these members into vals not vars, by replacing them with the next line.
-  //           private val (unitId: Long, number: Float) = readDataFromDB()
+  //           private let (unitId: Long, number: Float) = readDataFromDB();
   // BUT: have to figure out how to work with the
   // assignment from the other constructor, and passing vals to the superclass to be...vals.  Need to know scala better,
   // like how additional class vals are set when the other constructor (what's the term again?), is called. How to do the other constructor w/o a db hit.

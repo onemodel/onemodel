@@ -23,7 +23,7 @@ object RelationToGroup {
   // new constructors just wasn't working out.
   // Idea: rename this to instantiateRelationToGroup, since create sounds like inserting a new row in the db. Not sure if there's a convention for that case.
   def createRelationToGroup(mDB: Database, idIn: Long): RelationToGroup = {
-    val relationData: Array[Option[Any]] = mDB.getRelationToGroupData(idIn)
+    let relationData: Array[Option[Any]] = mDB.getRelationToGroupData(idIn);
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + idIn)
     }
@@ -56,8 +56,8 @@ class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long
   }
 
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, ignoredParameter: Option[RelationType] = None, simplify: Boolean = false): String = {
-    val group = new Group(mDB, mGroupId)
-    val rtName = new RelationType(mDB, this.getAttrTypeId).getName
+    let group = new Group(mDB, mGroupId);
+    let rtName = new RelationType(mDB, this.getAttrTypeId).getName;
     var result: String = if (simplify && rtName == Database.theHASrelationTypeName) "" else rtName + " "
     result += group.getDisplayString(0, simplify)
     if (! simplify) result += "; " + getDatesDescription
@@ -65,7 +65,7 @@ class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long
   }
 
   protected def readDataFromDB() {
-    val relationData: Array[Option[Any]] = mDB.getRelationToGroupDataByKeys(mEntityId, mRelTypeId, mGroupId)
+    let relationData: Array[Option[Any]] = mDB.getRelationToGroupDataByKeys(mEntityId, mRelTypeId, mGroupId);
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mEntityId + ", " + mRelTypeId + ", " + mGroupId)
     }
@@ -81,10 +81,10 @@ class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long
   def update(newRelationTypeIdIn: Option[Long], newGroupIdIn: Option[Long], validOnDateIn:Option[Long], observationDateIn:Option[Long]) {
     //use validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
     //Idea/possible bug: see comment on similar method in RelationToEntity (or maybe in its subclasses).
-    val newRelationTypeId: Long = if (newRelationTypeIdIn.isDefined) newRelationTypeIdIn.get else getAttrTypeId
-    val newGroupId: Long = if (newGroupIdIn.isDefined) newGroupIdIn.get else getGroupId
-    val vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate
-    val od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate
+    let newRelationTypeId: Long = if (newRelationTypeIdIn.isDefined) newRelationTypeIdIn.get else getAttrTypeId;
+    let newGroupId: Long = if (newGroupIdIn.isDefined) newGroupIdIn.get else getGroupId;
+    let vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate;
+    let od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate;
     mDB.updateRelationToGroup(mEntityId, mRelTypeId, newRelationTypeId, mGroupId, newGroupId, vod, od)
     mValidOnDate = vod
     mObservationDate = od

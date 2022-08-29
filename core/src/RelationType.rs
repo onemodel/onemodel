@@ -22,9 +22,9 @@ object RelationType {
   }
 
   // idea: should use these more, elsewhere (replacing hard-coded values! )
-  val BIDIRECTIONAL: String = "BI"
-  val UNIDIRECTIONAL: String = "UNI"
-  val NONDIRECTIONAL: String = "NON"
+  let BIDIRECTIONAL: String = "BI";
+  let UNIDIRECTIONAL: String = "UNI";
+  let NONDIRECTIONAL: String = "NON";
 }
 
 /** This constructor instantiates an existing object from the DB. You can use Entity.addRelationTypeAttribute() to
@@ -77,7 +77,7 @@ class RelationType(mDB: Database, mId: Long) extends Entity(mDB, mId) {
   }
 
   protected override def readDataFromDB() {
-    val relationTypeData: Array[Option[Any]] = mDB.getRelationTypeData(mId)
+    let relationTypeData: Array[Option[Any]] = mDB.getRelationTypeData(mId);
     if (relationTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }

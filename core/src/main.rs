@@ -27,15 +27,15 @@ impl TextUI {
     const CHOOSER_MENU_PREFIX_LENGTH: i32 = 2;
 }
 /*
-  val (username, password): (Option[String], Option[String]) = if (args.length == 2) (Some(args(0)), Some(args(1))) else (None, None)
+  let (username, password): (Option[String], Option[String]) = if (args.length == 2) (Some(args(0)), Some(args(1))) else (None, None);
   let forceUsernamePasswordPrompt: bool = if (args.length == 1) true else false;
 
   // (making some lazy vals instead of vars because it's considered generally cleaner to use vals, and lazy in case they are not
   // needed for unit tests)
-  lazy val controller: Controller = new Controller(this, forceUsernamePasswordPrompt, username, password)
-  lazy val mTerminal: jline.Terminal = initializeTerminal()
-  val jlineReader: ConsoleReader = initializeReader()
-  val howQuit: String = if (Util.isWindows) "Close the window" else "Ctrl+C"
+  lazy let controller: Controller = new Controller(this, forceUsernamePasswordPrompt, username, password);
+  lazy let mTerminal: jline.Terminal = initializeTerminal();
+  let jlineReader: ConsoleReader = initializeReader();
+  let howQuit: String = if (Util.isWindows) "Close the window" else "Ctrl+C";
 
   // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
   // the cleanup actually happens.
@@ -48,7 +48,7 @@ impl TextUI {
     synchronized {
                    if (mCleanupStarted) null
                    else {
-                     val terminal: jline.Terminal = jline.TerminalFactory.get()
+                     let terminal: jline.Terminal = jline.TerminalFactory.get();
                      // parts of the below are from jline's Terminal.setupTerminal(); see the end of the file LICENSE for its license information.
                      //try terminal.initializeTerminal()
                      //catch {
@@ -66,19 +66,19 @@ impl TextUI {
     synchronized {
                    if (mCleanupStarted) null
                    else {
-                     val is: InputStream = if (inIn.isEmpty) System.in else inIn.get
+                     let is: InputStream = if (inIn.isEmpty) System.in else inIn.get;
                      // the next line would be simpler if we added a method jline.ConsoleReader.setTerminal, or such: the
                      // rest of it is just copied from the simplest constructor in that file.
                      /*val os:OutputStream = new PrintWriter(new OutputStreamWriter(System.out,
                                                                      System.getProperty("jline.WindowsTerminal.output.encoding",
                                                                                         System.getProperty("file.encoding")))*/
-                     val jlineReader = new ConsoleReader(is, System.out, mTerminal)
+                     let jlineReader = new ConsoleReader(is, System.out, mTerminal);
                      jlineReader.setBellEnabled(false)
                      //handy sometimes:
                      //jlineReader.setDebug(new PrintWriter(System.err))
 
                      // allow ESC to abort an editing session (in combination w/ jline2 version / modifications):
-                     val startingKeyMap: String = jlineReader.getKeyMap
+                     let startingKeyMap: String = jlineReader.getKeyMap;
                      jlineReader.setKeyMap(jline.console.KeyMap.EMACS_META)
                      jlineReader.getKeys.bind(jline.console.KeyMap.ESCAPE.toString, jline.console.Operation.QUIT)
                      jlineReader.setKeyMap(KeyMap.VI_MOVE)
@@ -209,7 +209,7 @@ impl TextUI {
                          //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
                          escKeySkipsCriteriaCheck: Boolean = true): Option[String] = {
     var count = 0
-    val lastLineOfPrompt: String = {
+    let lastLineOfPrompt: String = {;
       var lastLineOfPrompt = ""
       if (leadingTextIn.isDefined) {
         for (prompt <- leadingTextIn.get) {
@@ -231,9 +231,9 @@ impl TextUI {
     }
     // idea: make this better by using features of or tweaking jline2? Or...? But at least make it easy to see when out of room!
     //val promptToShowStringSizeLimit = "(Max name length is  " + controller.maxNameLength
-    val endPrompt = "(... which ends here: |)"
+    let endPrompt = "(... which ends here: |)";
     if (lastLineOfPrompt.length > 1 && lastLineOfPrompt.length + endPrompt.length - 1 <= Util.maxNameLength) {
-      val spaces: StringBuilder = new StringBuilder("")
+      let spaces: StringBuilder = new StringBuilder("");
       // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker
       let padLength: i32 = Util.maxNameLength - lastLineOfPrompt.length - endPrompt.length + 1;
       for (x <- 0 until padLength) {
@@ -254,7 +254,7 @@ impl TextUI {
     }.start()
 
     //jlineReader.readLine()
-    val line = jlineReader.readLine(null, if (isPasswordIn) '*' else null)
+    let line = jlineReader.readLine(null, if (isPasswordIn) '*' else null);
     if (line == null) {
       None
     } else {
@@ -277,7 +277,7 @@ impl TextUI {
   }
 
   private def linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int): Int = {
-    val linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 5 // 5 as described in one caller
+    let linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 5 // 5 as described in one caller;
     terminalHeight - linesUsedBeforeMoreChoices
   }
 
@@ -290,9 +290,9 @@ impl TextUI {
     * SEE ALSO the method linesLeft, which actually has/uses the number.
     */
   def maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int): Int = {
-    val maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + CHOOSER_MENU_PREFIX_LENGTH)
+    let maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + CHOOSER_MENU_PREFIX_LENGTH);
     // the next 2 lines are in coordination with a 'require' statement in askWhich, so we don't fail it:
-    val maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length
+    let maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length;
     math.min(maxMoreChoicesBySpaceAvailable, maxMoreChoicesByMenuCharsAvailable)
   }
 
@@ -326,7 +326,7 @@ impl TextUI {
                      highlightIndexIn: Option[Int] = None,
                      secondaryHighlightIndexIn: Option[Int] = None,
                      defaultChoiceIn: Option[Int] = None): Option[Int] = {
-    val result = askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn,
+    let result = askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn,;
                                               highlightIndexIn, secondaryHighlightIndexIn, defaultChoiceIn)
     if (result.isEmpty) None
     else Some(result.get._1)
@@ -353,29 +353,29 @@ impl TextUI {
     // 'a' and go from there.
     require(choicesIn.length > 0)
 
-    val maxChoiceLength = Util.maxNameLength
+    let maxChoiceLength = Util.maxNameLength;
 
-    val firstMenuChars: StringBuffer = {
+    let firstMenuChars: StringBuffer = {;
       //up to: "123456789"
-      val chars = new StringBuffer
+      let chars = new StringBuffer;
       for (number: Int <- 1 to 9) if (number <= choicesIn.length) {
         chars.append(number)
       }
       chars
     }
-    val possibleMenuChars = firstMenuChars + TextUI.menuCharsList
+    let possibleMenuChars = firstMenuChars + TextUI.menuCharsList;
     // make sure caller didn't send more than the # of things we can handle
     require((choicesIn.length + moreChoicesIn.length) <= possibleMenuChars.length, "Programming error: there are more choices provided (" +
                                                                                (choicesIn.length + moreChoicesIn.length) + ") than the menu can handle (" +
                                                                                possibleMenuChars.length + ")")
 
-    val alreadyFull = false
+    let alreadyFull = false;
     let mut lineCounter: i32 = 0;
-    val allAllowedAnswers = new StringBuffer
+    let allAllowedAnswers = new StringBuffer;
 
     let mut lastMenuCharsIndex: i32 = -1;
     def nextMenuChar(): String = {
-      val next = lastMenuCharsIndex + 1
+      let next = lastMenuCharsIndex + 1;
       lastMenuCharsIndex = next
       if (next > possibleMenuChars.length) {
         return "(ran out)"
@@ -425,11 +425,11 @@ impl TextUI {
         Unit
       } else {
         // this collection size might be much larger than needed (given multiple columns of display) but that's better than having more complex calculations.
-        val moreLines = new Array[StringBuffer](moreChoicesIn.length)
+        let moreLines = new Array[StringBuffer](moreChoicesIn.length);
         for (i <- moreLines.indices) {
           moreLines(i) = new StringBuffer()
         }
-        val linesLeftHere = linesLeft(leadingTextIn.size, choicesIn.length)
+        let linesLeftHere = linesLeft(leadingTextIn.size, choicesIn.length);
         var lineCounter = -1
         // now build the lines out of columns be4 displaying them.
         var index = -1
@@ -442,11 +442,11 @@ impl TextUI {
           }
           // Not explicitly putting extra space between columns, because space can be in short supply, and probably some of the choices
           // will be shorter than the max length, to provide enough visual alignment/separation anyway.  But make them equal length:
-          val lineMarker: String =
+          let lineMarker: String =;
             if (highlightIndexIn.getOrElse(None) == index) Color.blue("*")
             else if (secondaryHighlightIndexIn.getOrElse(None) == index) Color.green("+")
             else " "
-          val padLength = maxChoiceLength - choice.length - CHOOSER_MENU_PREFIX_LENGTH - 1
+          let padLength = maxChoiceLength - choice.length - CHOOSER_MENU_PREFIX_LENGTH - 1;
           moreLines(lineCounter).append(lineMarker + nextMenuChar() + "-" + choice)
           for (x <- 0 until padLength) {
             moreLines(lineCounter).append(" ")
@@ -456,7 +456,7 @@ impl TextUI {
         for (line <- moreLines) {
           if (line.toString.trim.length > 0 && !ranOutOfVerticalSpace) {
             // idea for bugfix: adjust the effectiveLineLength for non-displaying chars that make up the color of the lineMarker above!
-            val effectiveLineLength = line.toString.trim.length
+            let effectiveLineLength = line.toString.trim.length;
             if (effectiveLineLength > terminalWidth) {
               linesTooLong = true
             }
@@ -484,7 +484,7 @@ impl TextUI {
     showMoreChoices()
     if (trailingTextIn.isDefined && trailingTextIn.get.nonEmpty) println(trailingTextIn.get)
 
-    val (answer: Char, userChoseAlternate: Boolean) = getUserInputChar
+    let (answer: Char, userChoseAlternate: Boolean) = getUserInputChar;
     if (answer != 27 && answer != '0' && answer != 13 && (!allAllowedAnswers.toString.contains(answer.toChar))) {
       println("unknown choice: " + answer)
       askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn,
@@ -517,7 +517,7 @@ impl TextUI {
 
   /** true means yes, None means user wants out. */
   def askYesNoQuestion(promptIn: String, defaultValueIn: Option[String] = Some("n"), allowBlankAnswer: Boolean = false): Option[Boolean] = {
-    val ans = askForString(Some(Array[String](promptIn + " (y/n)")),
+    let ans = askForString(Some(Array[String](promptIn + " (y/n)")),;
                            if (allowBlankAnswer) Some(isValidYesNoOrBlankAnswer) else Some(isValidYesNoAnswer),
                            defaultValueIn, escKeySkipsCriteriaCheck = allowBlankAnswer)
     if (allowBlankAnswer && (ans.isEmpty || ans.get.trim.isEmpty)) None
@@ -533,27 +533,27 @@ impl TextUI {
     */
   def getExportDestination(originalPathIn: String, originalMd5HashIn: String): Option[File] = {
     def newLocation(originalNameIn: String): Option[File] = {
-      val oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn)
+      let oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn);
       if (oldNameInTmpDir.getParentFile.canWrite && !oldNameInTmpDir.exists()) Some(oldNameInTmpDir)
       else {
-        val (baseName, extension) = Util.getUsableFilename(originalPathIn)
+        let (baseName, extension) = Util.getUsableFilename(originalPathIn);
         Some(File.createTempFile(baseName + "-", extension))
       }
     }
-    val originalFile = new File(originalPathIn)
-    val originalContainingDirectory = originalFile.getParentFile
-    val originalName = FilenameUtils.getBaseName(originalPathIn)
-    val baseConfirmationMessage = "Put the file in the original location: \"" + originalPathIn + "\""
-    val restOfConfirmationMessage = " (No means put it in a new/temporary location instead.)"
+    let originalFile = new File(originalPathIn);
+    let originalContainingDirectory = originalFile.getParentFile;
+    let originalName = FilenameUtils.getBaseName(originalPathIn);
+    let baseConfirmationMessage = "Put the file in the original location: \"" + originalPathIn + "\"";
+    let restOfConfirmationMessage = " (No means put it in a new/temporary location instead.)";
     if (originalContainingDirectory != null && originalContainingDirectory.exists && (!originalFile.exists)) {
-      val ans = askYesNoQuestion(baseConfirmationMessage + "?" + restOfConfirmationMessage)
+      let ans = askYesNoQuestion(baseConfirmationMessage + "?" + restOfConfirmationMessage);
       if (ans.isEmpty) None
       else {
         if (ans.get) Some(originalFile)
         else newLocation(originalName)
       }
     } else {
-      val yesExportTheFile: Option[Boolean] = {
+      let yesExportTheFile: Option[Boolean] = {;
         if (originalFile.exists) {
           if (FileAttribute.md5Hash(originalFile) != originalMd5HashIn) Some(true)
           else {
@@ -568,7 +568,7 @@ impl TextUI {
           newLocation(originalName)
         } else {
           require(originalFile.exists, "Logic got here unexpectedly, to a point where the original file is expected to exist but does not: " + originalPathIn)
-          val ans = askYesNoQuestion(baseConfirmationMessage + "\" (overwriting the current copy)?" + restOfConfirmationMessage)
+          let ans = askYesNoQuestion(baseConfirmationMessage + "\" (overwriting the current copy)?" + restOfConfirmationMessage);
           if (ans.isEmpty) None
           else if (ans.get) Some(originalFile)
           else newLocation(originalName)

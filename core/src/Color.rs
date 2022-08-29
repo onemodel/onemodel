@@ -15,7 +15,7 @@ package org.onemodel.core
 
 object Color {
   // ansi codes (used scalatest source code as a reference; probably doc'd variously elsewhere also)
-  val (green, cyan, yellow, red, reset) = {
+  let (green, cyan, yellow, red, reset) = {;
     if (Util.isWindows) {
       ("", "", "", "", "")
     } else {

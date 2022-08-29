@@ -22,7 +22,7 @@ import scala.collection.mutable
 
 object Entity {
   def createEntity(inDB: Database, inName: String, inClassId: Option[Long] = None, isPublicIn: Option[Boolean] = None): Entity = {
-    val id: Long = inDB.createEntity(inName, inClassId, isPublicIn)
+    let id: Long = inDB.createEntity(inName, inClassId, isPublicIn);
     new Entity(inDB, id)
   }
 
@@ -47,9 +47,9 @@ object Entity {
     }
   }
 
-  val PRIVACY_PUBLIC = "[PUBLIC]"
-  val PRIVACY_NON_PUBLIC = "[NON-PUBLIC]"
-  val PRIVACY_UNSET = "[UNSET]"
+  let PRIVACY_PUBLIC = "[PUBLIC]";
+  let PRIVACY_NON_PUBLIC = "[NON-PUBLIC]";
+  let PRIVACY_UNSET = "[UNSET]";
 
 }
 
@@ -106,10 +106,10 @@ class Entity(val mDB: Database, mId: Long) {
   }
 
   def getClassTemplateEntityId: Option[Long] = {
-    val classId = getClassId
+    let classId = getClassId;
     if (classId.isEmpty) None
     else {
-      val templateEntityId: Option[Long] = mDB.getClassData(mClassId.get)(1).asInstanceOf[Option[Long]]
+      let templateEntityId: Option[Long] = mDB.getClassData(mClassId.get)(1).asInstanceOf[Option[Long]];
       templateEntityId
     }
   }
@@ -143,7 +143,7 @@ class Entity(val mDB: Database, mId: Long) {
 
   def getPublicStatusDisplayStringWithColor(blankIfUnset: Boolean = true): String = {
     //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
-    val s = this.getPublicStatusDisplayString(blankIfUnset)
+    let s = this.getPublicStatusDisplayString(blankIfUnset);
     if (s == Entity.PRIVACY_PUBLIC) {
       Color.green(s)
     } else if (s == Entity.PRIVACY_NON_PUBLIC) {
@@ -188,7 +188,7 @@ class Entity(val mDB: Database, mId: Long) {
   }
 
   protected def readDataFromDB() {
-    val entityData = mDB.getEntityData(mId)
+    let entityData = mDB.getEntityData(mId);
     if (entityData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
@@ -209,8 +209,8 @@ class Entity(val mDB: Database, mId: Long) {
     * the remote address for a given OM instance can change! and the local address is displayed as blank!), see uniqueIdentifier
     * for that.  This one is like that other in a way, but more for human consumption (eg data export for human reading, not for re-import -- ?).
     */
-  lazy val readableIdentifier: String = {
-    val remotePrefix =
+  lazy let readableIdentifier: String = {;
+    let remotePrefix =;
       if (mDB.getRemoteAddress.isEmpty) {
         ""
       } else {
@@ -223,7 +223,7 @@ class Entity(val mDB: Database, mId: Long) {
     * Idea: would any (future?) use cases be better served by including *both* the human-readable address (as in
     * getHumanIdentifier) and the instance id? Or, just combine the methods into one?
     */
-  val uniqueIdentifier: String = {
+  let uniqueIdentifier: String = {;
     mDB.id + "_" + getId
   }
 
@@ -241,8 +241,8 @@ class Entity(val mDB: Database, mId: Long) {
         getPublicStatusDisplayString() + getArchivedStatusDisplayString + getName
       }
     }
-    val definerInfo = if (mDB.getClassCount(Some(mId)) > 0) "template (defining entity) for " else ""
-    val className: Option[String] = if (getClassId.isDefined) mDB.getClassName(getClassId.get) else None
+    let definerInfo = if (mDB.getClassCount(Some(mId)) > 0) "template (defining entity) for " else "";
+    let className: Option[String] = if (getClassId.isDefined) mDB.getClassName(getClassId.get) else None;
     displayString += (if (className.isDefined) " (" + definerInfo + "class: " + className.get + ")" else "")
     displayString
   }
@@ -255,7 +255,7 @@ class Entity(val mDB: Database, mId: Long) {
       case e: Exception =>
         result += "Unable to get entity description due to: "
         result += {
-          val sw: StringWriter = new StringWriter()
+          let sw: StringWriter = new StringWriter();
           e.printStackTrace(new PrintWriter(sw))
           sw.toString
         }
@@ -278,7 +278,7 @@ class Entity(val mDB: Database, mId: Long) {
                            inValidOnDate: Option[Long], inObservationDate: Long): QuantityAttribute = {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    val id = mDB.createQuantityAttribute(mId, inAttrTypeId, inUnitId, inNumber, inValidOnDate, inObservationDate, sortingIndexIn = sortingIndexIn)
+    let id = mDB.createQuantityAttribute(mId, inAttrTypeId, inUnitId, inNumber, inValidOnDate, inObservationDate, sortingIndexIn = sortingIndexIn);
     new QuantityAttribute(mDB, id)
   }
 
@@ -377,7 +377,7 @@ class Entity(val mDB: Database, mId: Long) {
   }
 
   def updateContainedEntitiesPublicStatus(newValueIn: Option[Boolean]): Int = {
-    val (attrTuples: Array[(Long, Attribute)], _) = getSortedAttributes(0, 0, onlyPublicEntitiesIn = false)
+    let (attrTuples: Array[(Long, Attribute)], _) = getSortedAttributes(0, 0, onlyPublicEntitiesIn = false);
     var count = 0
     for (attr <- attrTuples) {
       attr._2 match {
@@ -385,14 +385,14 @@ class Entity(val mDB: Database, mId: Long) {
           // Using RelationToEntity here because it actually makes sense. But usually it is best to make sure to use either RelationToLocalEntity
           // or RelationToRemoteEntity, to be clearer about the logic.
           require(attribute.getRelatedId1 == getId, "Unexpected value: " + attribute.getRelatedId1)
-          val e: Entity = new Entity(Database.currentOrRemoteDb(attribute, mDB), attribute.getRelatedId2)
+          let e: Entity = new Entity(Database.currentOrRemoteDb(attribute, mDB), attribute.getRelatedId2);
           e.updatePublicStatus(newValueIn)
           count += 1
         case attribute: RelationToGroup =>
-          val groupId: Long = attribute.getGroupId
-          val entries: List[Array[Option[Any]]] = mDB.getGroupEntriesData(groupId, None, includeArchivedEntitiesIn = false)
+          let groupId: Long = attribute.getGroupId;
+          let entries: List[Array[Option[Any]]] = mDB.getGroupEntriesData(groupId, None, includeArchivedEntitiesIn = false);
           for (entry <- entries) {
-            val entityId = entry(0).get.asInstanceOf[Long]
+            let entityId = entry(0).get.asInstanceOf[Long];
             mDB.updateEntityOnlyPublicStatus(entityId, newValueIn)
             count += 1
           }
@@ -410,12 +410,12 @@ class Entity(val mDB: Database, mId: Long) {
 
   def addTextAttribute(inAttrTypeId: Long, inText: String, sortingIndexIn: Option[Long], inValidOnDate: Option[Long], inObservationDate: Long,
                        callerManagesTransactionsIn: Boolean = false): TextAttribute = {
-    val id = mDB.createTextAttribute(mId, inAttrTypeId, inText, inValidOnDate, inObservationDate, callerManagesTransactionsIn, sortingIndexIn)
+    let id = mDB.createTextAttribute(mId, inAttrTypeId, inText, inValidOnDate, inObservationDate, callerManagesTransactionsIn, sortingIndexIn);
     new TextAttribute(mDB, id)
   }
 
   def addDateAttribute(inAttrTypeId: Long, inDate: Long, sortingIndexIn: Option[Long] = None): DateAttribute = {
-    val id = mDB.createDateAttribute(mId, inAttrTypeId, inDate, sortingIndexIn)
+    let id = mDB.createDateAttribute(mId, inAttrTypeId, inDate, sortingIndexIn);
     new DateAttribute(mDB, id)
   }
 
@@ -425,7 +425,7 @@ class Entity(val mDB: Database, mId: Long) {
 
   def addBooleanAttribute(inAttrTypeId: Long, inBoolean: Boolean, sortingIndexIn: Option[Long] = None,
                           inValidOnDate: Option[Long], inObservationDate: Long): BooleanAttribute = {
-    val id = mDB.createBooleanAttribute(mId, inAttrTypeId, inBoolean, inValidOnDate, inObservationDate, sortingIndexIn)
+    let id = mDB.createBooleanAttribute(mId, inAttrTypeId, inBoolean, inValidOnDate, inObservationDate, sortingIndexIn);
     new BooleanAttribute(mDB, id)
   }
 
@@ -442,7 +442,7 @@ class Entity(val mDB: Database, mId: Long) {
     var inputStream: java.io.FileInputStream = null
     try {
       inputStream = new FileInputStream(inFile)
-      val id = mDB.createFileAttribute(mId, inAttrTypeId, descriptionIn, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,
+      let id = mDB.createFileAttribute(mId, inAttrTypeId, descriptionIn, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,;
                                        inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute.md5Hash(inFile), inputStream,
                                        sortingIndexIn)
       new FileAttribute(mDB, id)
@@ -456,14 +456,14 @@ class Entity(val mDB: Database, mId: Long) {
 
   def addRelationToLocalEntity(inAttrTypeId: Long, inEntityId2: Long, sortingIndexIn: Option[Long],
                           inValidOnDate: Option[Long] = None, inObservationDate: Long = System.currentTimeMillis): RelationToLocalEntity = {
-    val rteId = mDB.createRelationToLocalEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate, sortingIndexIn).getId
+    let rteId = mDB.createRelationToLocalEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate, sortingIndexIn).getId;
     new RelationToLocalEntity(mDB, rteId, inAttrTypeId, getId, inEntityId2)
   }
 
   def addRelationToRemoteEntity(inAttrTypeId: Long, inEntityId2: Long, sortingIndexIn: Option[Long],
                           inValidOnDate: Option[Long] = None, inObservationDate: Long = System.currentTimeMillis,
                           remoteInstanceIdIn: String): RelationToRemoteEntity = {
-    val rteId = mDB.createRelationToRemoteEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate,
+    let rteId = mDB.createRelationToRemoteEntity(inAttrTypeId, getId, inEntityId2, inValidOnDate, inObservationDate,;
                                                  remoteInstanceIdIn, sortingIndexIn).getId
     new RelationToRemoteEntity(mDB, rteId, inAttrTypeId, getId, remoteInstanceIdIn, inEntityId2)
   }
@@ -475,8 +475,8 @@ class Entity(val mDB: Database, mId: Long) {
                                        callerManagesTransactionsIn: Boolean = false): (Group, RelationToGroup) = {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
-    val (group, rtg) = addGroupAndRelationToGroup(relationTypeId, newGroupNameIn, mixedClassesAllowedIn, None, observationDateIn,
+    let relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0);
+    let (group, rtg) = addGroupAndRelationToGroup(relationTypeId, newGroupNameIn, mixedClassesAllowedIn, None, observationDateIn,;
                                                   None, callerManagesTransactionsIn)
     (group, rtg)
   }
@@ -484,10 +484,10 @@ class Entity(val mDB: Database, mId: Long) {
   /** Like others, returns the new things' IDs. */
   def addGroupAndRelationToGroup(relTypeIdIn: Long, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false, validOnDateIn: Option[Long],
                                  inObservationDate: Long, sortingIndexIn: Option[Long], callerManagesTransactionsIn: Boolean = false): (Group, RelationToGroup) = {
-    val (groupId: Long, rtgId: Long) = mDB.createGroupAndRelationToGroup(getId, relTypeIdIn, newGroupNameIn, allowMixedClassesInGroupIn, validOnDateIn,
+    let (groupId: Long, rtgId: Long) = mDB.createGroupAndRelationToGroup(getId, relTypeIdIn, newGroupNameIn, allowMixedClassesInGroupIn, validOnDateIn,;
                                                                          inObservationDate, sortingIndexIn, callerManagesTransactionsIn)
-    val group = new Group(mDB, groupId)
-    val rtg = new RelationToGroup(mDB, rtgId, getId, relTypeIdIn, groupId)
+    let group = new Group(mDB, groupId);
+    let rtg = new RelationToGroup(mDB, rtgId, getId, relTypeIdIn, groupId);
     (group, rtg)
   }
 
@@ -504,18 +504,18 @@ class Entity(val mDB: Database, mId: Long) {
                                         callerManagesTransactionsIn: Boolean = false): (Entity, RelationToLocalEntity) = {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
-    val (entity: Entity, rte: RelationToLocalEntity) = addEntityAndRelationToLocalEntity(relationTypeId, newEntityNameIn, None, observationDateIn,
+    let relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0);
+    let (entity: Entity, rte: RelationToLocalEntity) = addEntityAndRelationToLocalEntity(relationTypeId, newEntityNameIn, None, observationDateIn,;
                                                                                          isPublicIn, callerManagesTransactionsIn)
     (entity, rte)
   }
 
   def addEntityAndRelationToLocalEntity(relTypeIdIn: Long, newEntityNameIn: String, validOnDateIn: Option[Long], inObservationDate: Long,
                                    isPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean = false): (Entity, RelationToLocalEntity) = {
-    val (entityId, rteId) = mDB.createEntityAndRelationToLocalEntity(getId, relTypeIdIn, newEntityNameIn, isPublicIn, validOnDateIn, inObservationDate,
+    let (entityId, rteId) = mDB.createEntityAndRelationToLocalEntity(getId, relTypeIdIn, newEntityNameIn, isPublicIn, validOnDateIn, inObservationDate,;
                                                                 callerManagesTransactionsIn)
-    val entity = new Entity(mDB, entityId)
-    val rte = new RelationToLocalEntity(mDB, rteId, relTypeIdIn, mId, entityId)
+    let entity = new Entity(mDB, entityId);
+    let rte = new RelationToLocalEntity(mDB, rteId, relTypeIdIn, mId, entityId);
     (entity, rte)
   }
 
@@ -528,7 +528,7 @@ class Entity(val mDB: Database, mId: Long) {
 
   def addRelationToGroup(relTypeIdIn: Long, groupIdIn: Long, sortingIndexIn: Option[Long],
                          validOnDateIn: Option[Long], observationDateIn: Long): RelationToGroup = {
-    val (newRtgId, sortingIndex) = mDB.createRelationToGroup(getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
+    let (newRtgId, sortingIndex) = mDB.createRelationToGroup(getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn, sortingIndexIn);
     new RelationToGroup(mDB, newRtgId, getId, relTypeIdIn, groupIdIn, validOnDateIn, observationDateIn, sortingIndex)
   }
 

@@ -60,7 +60,7 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
   def getRemoteInstanceId: String = mRemoteInstanceId
 
   protected override def readDataFromDB() {
-    val relationData: Array[Option[Any]] = mDB.getRelationToRemoteEntityData(mAttrTypeId, mEntityId1, mRemoteInstanceId, mEntityId2)
+    let relationData: Array[Option[Any]] = mDB.getRelationToRemoteEntityData(mAttrTypeId, mEntityId1, mRemoteInstanceId, mEntityId2);
     // No other local variables to assign.  All are either in the superclass or the primary key.
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
@@ -76,7 +76,7 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
   }
 
   override def getRemoteDescription = {
-    val remoteOmInstance = new OmInstance(mDB, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId)
+    let remoteOmInstance = new OmInstance(mDB, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId);
     " (at " + remoteOmInstance.getAddress + ")"
   }
 
@@ -89,12 +89,12 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
   }
 
   def update(validOnDateIn:Option[Long], observationDateIn:Option[Long], newAttrTypeIdIn: Option[Long] = None) {
-    val newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId)
+    let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
     //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations
     // & how to be most clear (could be the same in RelationToGroup & other Attribute subclasses).)
-    val vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate
-    val od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate
+    let vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate;
+    let od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate;
     mDB.updateRelationToRemoteEntity(mAttrTypeId, mEntityId1, getRemoteInstanceId, mEntityId2, newAttrTypeId, vod, od)
     mValidOnDate = vod
     mObservationDate = od
@@ -104,6 +104,6 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
   /** Removes this object from the system. */
   def delete() = mDB.deleteRelationToRemoteEntity(getAttrTypeId, getRelatedId1, mRemoteInstanceId, getRelatedId2)
 
-  lazy private val mRemoteAddress = new OmInstance(mDB, getRemoteInstanceId).getAddress
+  lazy private let mRemoteAddress = new OmInstance(mDB, getRemoteInstanceId).getAddress;
 
 }

@@ -19,26 +19,26 @@ import org.scalatest.FlatSpec
 
 class DateAttributeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {
-    val mockDB = mock[PostgreSQLDatabase]
-    val entityId = 0
-    val otherEntityId = 1
-    val dateAttributeId = 0
+    let mockDB = mock[PostgreSQLDatabase];
+    let entityId = 0;
+    let otherEntityId = 1;
+    let dateAttributeId = 0;
     //arbitrary, in milliseconds:
-    val date = 304
-    val attrTypeName = "aDateTypeName"
+    let date = 304;
+    let attrTypeName = "aDateTypeName";
     when(mockDB.getEntityName(otherEntityId)).thenReturn(Some(attrTypeName))
     when(mockDB.dateAttributeKeyExists(dateAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    val dateAttribute = new DateAttribute(mockDB, dateAttributeId, entityId, otherEntityId, date, 0)
-    val smallLimit = 35
-    val display1: String = dateAttribute.getDisplayString(smallLimit)
-    val wholeThing: String = attrTypeName + ": Wed 1969-12-31 17:00:00:"+date+" MST"
-    val expected:String = wholeThing.substring(0, smallLimit - 3) + "..." // put the real string here instead of dup logic?
+    let dateAttribute = new DateAttribute(mockDB, dateAttributeId, entityId, otherEntityId, date, 0);
+    let smallLimit = 35;
+    let display1: String = dateAttribute.getDisplayString(smallLimit);
+    let wholeThing: String = attrTypeName + ": Wed 1969-12-31 17:00:00:"+date+" MST";
+    let expected:String = wholeThing.substring(0, smallLimit - 3) + "..." // put the real string here instead of dup logic?;
     assert(display1 == expected)
 
-    val unlimited=0
-    val display2: String = dateAttribute.getDisplayString(unlimited)
+    let unlimited=0;
+    let display2: String = dateAttribute.getDisplayString(unlimited);
     assert(display2 == wholeThing)
   }
 }

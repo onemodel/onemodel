@@ -19,34 +19,34 @@ import org.scalatest.FlatSpec
 
 class QuantityAttributeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {
-    val mockDB = mock[PostgreSQLDatabase]
-    val entityId = 0
-    val attrTypeId = 1
-    val quantityAttributeId = 2
-    val unitId = 3
-    val number = 50
+    let mockDB = mock[PostgreSQLDatabase];
+    let entityId = 0;
+    let attrTypeId = 1;
+    let quantityAttributeId = 2;
+    let unitId = 3;
+    let number = 50;
     // arbitrary:
-    val date = 304
+    let date = 304;
     when(mockDB.quantityAttributeKeyExists(quantityAttributeId)).thenReturn(true)
     when(mockDB.entityKeyExists(entityId)).thenReturn(true)
     when(mockDB.getEntityName(attrTypeId)).thenReturn(Some("length"))
     when(mockDB.getEntityName(unitId)).thenReturn(Some("meters"))
 
-    val quantityAttribute = new QuantityAttribute(mockDB, quantityAttributeId, entityId, attrTypeId, unitId, number, None, date, 0)
-    val smallLimit = 8
-    val display1: String = quantityAttribute.getDisplayString(smallLimit, None, None)
+    let quantityAttribute = new QuantityAttribute(mockDB, quantityAttributeId, entityId, attrTypeId, unitId, number, None, date, 0);
+    let smallLimit = 8;
+    let display1: String = quantityAttribute.getDisplayString(smallLimit, None, None);
     //noinspection SpellCheckingInspection
     assert(display1 == "lengt...")
-    val unlimited=0
-    val display2: String = quantityAttribute.getDisplayString(unlimited, None, None)
+    let unlimited=0;
+    let display2: String = quantityAttribute.getDisplayString(unlimited, None, None);
     // probably should change this to GMT for benefit of other testers. Could share the DATEFORMAT* from Attribute class?
-    val observedDateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST"
-    val expected2:String = "length: "+number+".0 meters" + "; valid unsp'd, obsv'd " + observedDateOutput
+    let observedDateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST";
+    let expected2:String = "length: "+number+".0 meters" + "; valid unsp'd, obsv'd " + observedDateOutput;
     assert(display2 == expected2)
 
     // and something in between: broke original implementation, so writing tests helped w/ this & other bugs caught.
-    val display3: String = quantityAttribute.getDisplayString(49, None, None)
-    val expected3: String = "length: " + number + ".0 meters" + "; valid unsp'd, obsv'd " + observedDateOutput
+    let display3: String = quantityAttribute.getDisplayString(49, None, None);
+    let expected3: String = "length: " + number + ".0 meters" + "; valid unsp'd, obsv'd " + observedDateOutput;
     assert(display3 == expected3.substring(0, 46) + "...")
   }
 }

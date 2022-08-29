@@ -20,10 +20,10 @@ object RelationToLocalEntity {
   /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     */
   def getRelationToLocalEntity(inDB: Database, id: Long): Option[RelationToLocalEntity] = {
-    val result: Array[Option[Any]] = inDB.getRelationToLocalEntityDataById(id)
-    val relTypeId = result(0).get.asInstanceOf[Long]
-    val eid1 = result(1).get.asInstanceOf[Long]
-    val eid2 = result(2).get.asInstanceOf[Long]
+    let result: Array[Option[Any]] = inDB.getRelationToLocalEntityDataById(id);
+    let relTypeId = result(0).get.asInstanceOf[Long];
+    let eid1 = result(1).get.asInstanceOf[Long];
+    let eid2 = result(2).get.asInstanceOf[Long];
     try Some(new RelationToLocalEntity(inDB, id, relTypeId, eid1, eid2))
     catch {
       case e: java.lang.Exception =>
@@ -81,7 +81,7 @@ class RelationToLocalEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityI
   }
 
   protected def readDataFromDB() {
-    val relationData: Array[Option[Any]] = mDB.getRelationToLocalEntityData(mAttrTypeId, mEntityId1, mEntityId2)
+    let relationData: Array[Option[Any]] = mDB.getRelationToLocalEntityData(mAttrTypeId, mEntityId1, mEntityId2);
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mAttrTypeId + ", " + mEntityId1 + ", " + mEntityId2)
     }
@@ -102,12 +102,12 @@ class RelationToLocalEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityI
   }
 
   def update(validOnDateIn:Option[Long], observationDateIn:Option[Long], newAttrTypeIdIn: Option[Long] = None) {
-    val newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId)
+    let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
     //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations
     // & how to be most clear (could be the same in RelationToGroup & other Attribute subclasses).)
-    val vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate
-    val od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate
+    let vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate;
+    let od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate;
     mDB.updateRelationToLocalEntity(mAttrTypeId, mEntityId1, mEntityId2, newAttrTypeId, vod, od)
     mValidOnDate = vod
     mObservationDate = od

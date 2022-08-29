@@ -37,7 +37,7 @@ class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   }
 
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
-    val typeName: String = mDB.getEntityName(getAttrTypeId).get
+    let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     var result: String = typeName + ": "
     result += Attribute.usefulDateFormat(mDate)
     Attribute.limitDescriptionLength(result, lengthLimitIn)
@@ -49,7 +49,7 @@ class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   }
 
   protected def readDataFromDB() {
-    val daTypeData = mDB.getDateAttributeData(mId)
+    let daTypeData = mDB.getDateAttributeData(mId);
     if (daTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }

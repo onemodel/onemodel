@@ -33,13 +33,13 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   // idea!!: instead of "new TextUI" pass in something that extends or implements a parent of them both, and does the right things for tests (like, maybe
   // answers everything in a particular way?):  but it shouldn't be used at all, anyway in this case).  When that is done, one can remove the "testing = true"
   // parameter below.
-  val ui = new TextUI
+  let ui = new TextUI;
   var mImportExport: ImportExport = null
   var mDB: PostgreSQLDatabase = null
 
   override def runTests(testName: Option[String], args: Args): Status = {
     setUp()
-    val result: Status = super.runTests(testName, args)
+    let result: Status = super.runTests(testName, args);
     // (not calling tearDown: see comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
     result
   }
@@ -57,7 +57,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     mImportExport = new ImportExport(ui, new Controller(ui, forceUserPassPromptIn = false,
                                                              defaultUsernameIn = Some(Database.TEST_USER), defaultPasswordIn = Some(Database.TEST_PASS)))
 
-    val entityId: Long = mDB.createEntity("test object")
+    let entityId: Long = mDB.createEntity("test object");
     mEntity = new Entity(mDB, entityId)
   }
 
@@ -67,28 +67,28 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   def tryExportingHtml(ids: java.util.ArrayList[Long]): (String, Array[String]) = {
     assert(ids.size > 0)
-    val entityId: Long = ids.get(0)
-    val startingEntity: Entity = new Entity(mDB, entityId)
+    let entityId: Long = ids.get(0);
+    let startingEntity: Entity = new Entity(mDB, entityId);
 
     // For explanation of the next few lines, see declaration of similar things, in comments in ImportExport.export() method.
-    val exportedEntityIds = new scala.collection.mutable.HashMap[String,Integer]
-    val cachedEntities = new mutable.HashMap[String, Entity]
-    val cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]]
-    val cachedGroupInfo = new mutable.HashMap[Long, Array[Long]]
+    let exportedEntityIds = new scala.collection.mutable.HashMap[String,Integer];
+    let cachedEntities = new mutable.HashMap[String, Entity];
+    let cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]];
+    let cachedGroupInfo = new mutable.HashMap[Long, Array[Long]];
 
-    val prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE)
-    val outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix)
-    val uriClassId: Long = startingEntity.mDB.getOrCreateClassAndTemplateEntity("URI", callerManagesTransactionsIn = true)._1
-    val quoteClassId = startingEntity.mDB.getOrCreateClassAndTemplateEntity("quote", callerManagesTransactionsIn = true)._1
+    let prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE);
+    let outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix);
+    let uriClassId: Long = startingEntity.mDB.getOrCreateClassAndTemplateEntity("URI", callerManagesTransactionsIn = true)._1;
+    let quoteClassId = startingEntity.mDB.getOrCreateClassAndTemplateEntity("quote", callerManagesTransactionsIn = true)._1;
     mImportExport.exportHtml(startingEntity, levelsToExportIsInfinite = true, 0, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                              cachedGroupInfo, mutable.TreeSet[Long](), uriClassId, quoteClassId, includePublicData = true, includeNonPublicData = true,
                              includeUnspecifiedData = true, None, None, Some("2015 thisisatestpersonname"))
 
     assert(outputDirectory.toFile.exists)
-    val newFiles: Array[String] = outputDirectory.toFile.list
-    val firstNewFileName = "e" + entityId + ".html"
-    val firstNewFile = new File(outputDirectory.toFile, firstNewFileName)
-    val firstNewFileContents: String = new Predef.String(Files.readAllBytes(firstNewFile.toPath))
+    let newFiles: Array[String] = outputDirectory.toFile.list;
+    let firstNewFileName = "e" + entityId + ".html";
+    let firstNewFile = new File(outputDirectory.toFile, firstNewFileName);
+    let firstNewFileContents: String = new Predef.String(Files.readAllBytes(firstNewFile.toPath));
     assert(newFiles.contains(firstNewFileName), "unexpected filenames, like: " + newFiles(0))
     (firstNewFileContents, newFiles)
   }
@@ -113,10 +113,10 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   }
 
   "testImportAndExportOfSimpleTxt" should "work" in {
-    val importFile: File = mImportExport.tryImporting_FOR_TESTS("testImportFile0.txt", mEntity)
-    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db")
+    let importFile: File = mImportExport.tryImporting_FOR_TESTS("testImportFile0.txt", mEntity);
+    let ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db");
 
-    val (fileContents: String, outputFile: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB)
+    let (fileContents: String, outputFile: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB);
 
     assert(fileContents.contains("vsgeer"), "unexpected file contents:  " + fileContents)
     assert(fileContents.contains("record/report/review"), "unexpected file contents:  " + fileContents)
@@ -124,7 +124,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   }
 
   "testImportBadTaFormat1" should "demonstrate throwing an exception" in {
-    val name = "testImportBadTaFormat1"
+    let name = "testImportBadTaFormat1";
     System.out.println("starting " + name)
     intercept[OmException] {
                              mImportExport.tryImporting_FOR_TESTS("testImportFile2.txt", mEntity)
@@ -132,7 +132,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   }
 
   "testImportBadTaFormat2" should "also demonstrate throwing an exception" in {
-    val name = "testImportBadTaFormat2"
+    let name = "testImportBadTaFormat2";
     System.out.println("starting " + name)
     intercept[OmException] {
                              mImportExport.tryImporting_FOR_TESTS("testImportFile3.txt", mEntity)
@@ -140,17 +140,17 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   }
 
   "testImportGoodTaFormat" should "demonstrate importing with content to become a TextAttribute, specifying a valid attribute type name" in {
-    val name = "testImportGoodTaFormat"
+    let name = "testImportGoodTaFormat";
     System.out.println("starting " + name)
 
     // no exceptions:
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
 
     // make sure it actually imported something expected:
-    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt")
+    let ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt");
     assert(ids.size > 0)
     var foundIt = false
-    val relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0)
+    let relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0);
     for (entityId: Long <- ids) {
       // (could have used mDB.getContainingEntities1 here perhaps)
       if (mDB.relationToLocalEntityExists(relationTypeId, mEntity.getId, entityId)) {
@@ -162,8 +162,8 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testExportHtml" should "work" in {
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
-    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("vsgeer4")
-    val (firstNewFileContents: String, newFiles: Array[String]) = tryExportingHtml(ids)
+    let ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("vsgeer4");
+    let (firstNewFileContents: String, newFiles: Array[String]) = tryExportingHtml(ids);
 
     assert(firstNewFileContents.contains("<a href=\"e-"), "unexpected file contents: no href?:  " + firstNewFileContents)
     assert(firstNewFileContents.contains("purpose"), "unexpected file contents: no 'purpose'?:  " + firstNewFileContents)
@@ -175,16 +175,16 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testImportAndExportOfUri" should "work" in {
     mImportExport.tryImporting_FOR_TESTS("testImportFile5.txt", mEntity)
-    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("import-file-5")
-    val firstNewFileContents: String = tryExportingHtml(ids)._1
+    let ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("import-file-5");
+    let firstNewFileContents: String = tryExportingHtml(ids)._1;
     assert(firstNewFileContents.contains("<a href=\"http://www.onemodel.org/downloads/testfile.txt\">test file download</a>"), "unexpected file contents:  " + firstNewFileContents)
   }
 
   "testExportTxtFileWithLongLines" should "wrap & space lines in useful ways so less manual fixing of exported content for printing/viewing" in {
-    val importFile: File = mImportExport.tryImporting_FOR_TESTS("testImportFile6.txt", mEntity)
-    val ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("importexporttest-testExportTxtFileWithLongLines-testExportFile6")
+    let importFile: File = mImportExport.tryImporting_FOR_TESTS("testImportFile6.txt", mEntity);
+    let ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("importexporttest-testExportTxtFileWithLongLines-testExportFile6");
 
-    val (fileContents: String, outputFile: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB, wrapLongLinesIn = true,
+    let (fileContents: String, outputFile: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB, wrapLongLinesIn = true,;
                                                                                            80, includeOutlineNumberingIn = true)
     // Use regexes to enable checking whitespace length etc.  But not one big check against the whole file, as multiple assert lines
     // makes it easier to know which part has a problem.
@@ -213,7 +213,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     assert(fileContents.contains("longline12 outdented"), "unexpected file contents:  " + fileContents)
 
 
-    val (fileContents2: String, outputFile2: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB, wrapLongLinesIn = true,
+    let (fileContents2: String, outputFile2: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, mDB, wrapLongLinesIn = true,;
                                                                                              80, includeOutlineNumberingIn = false)
     assert(fileContents2.matches("""(?m)(?s)^importexporttest-testExportTxtFileWithLongLines-testExportFile6$
                                            |^---------------------------------------------------------------$

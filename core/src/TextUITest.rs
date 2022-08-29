@@ -17,7 +17,7 @@ class TextUITest extends FlatSpec {
   //class TestTextUI() extends TextUI {
   //  // just the same except:
   //  private var maxLines=25
-  //  private val termWidth=80
+  //  private let termWidth=80;
   //  def setTerminalHeight(in:Int) {
   //    maxLines=in
   //  }
@@ -35,23 +35,23 @@ class TextUITest extends FlatSpec {
 
   /*
   In task list is: PUT ALL THESE BACK: WHEN ready to adjust tests for new jline2 usage (& fix surrounding known issues):
-  val ui:TextUI = new TextUI()
+  let ui:TextUI = new TextUI();
   ui.weAreTesting(testing = true)
 
-  val newlnByteArray = Array[Byte](TextUI.NEWLN(0).toByte, if (TextUI.NEWLN.size ==2) TextUI.NEWLN(1).toByte else 0.toByte)
+  let newlnByteArray = Array[Byte](TextUI.NEWLN(0).toByte, if (TextUI.NEWLN.size ==2) TextUI.NEWLN(1).toByte else 0.toByte);
 
   "getUserInputChar" should "return correct value, without parameters" in {
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](54)) //ascii for '6'
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](54)) //ascii for '6';
     //ui.setInput(bais)
-    val c: Char = ui.getUserInputChar
+    let c: Char = ui.getUserInputChar;
     assert(c.asDigit == 6)
     assert(c == 54)
   }
 
   "getUserInputChar" should "disallow disallowed chars" in {
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](54)) //ascii for '6'
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](54)) //ascii for '6';
     //ui.setInput(bais)
-    val infiniteLoop = { //due to library polling for good data in jline.ConsoleReader.readCharacter(final char[] allowed)--the while loop)
+    let infiniteLoop = { //due to library polling for good data in jline.ConsoleReader.readCharacter(final char[] allowed)--the while loop);
       new Thread {
         override def run() {
           ui.getUserInputChar(List('a', 'b'))
@@ -67,61 +67,61 @@ class TextUITest extends FlatSpec {
   }
 
   "getUserInputChar" should "allow allowed chars" in {
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](97)) //ascii for 'a'
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](97)) //ascii for 'a';
     //ui.setInput(bais)
-    val c: Char = ui.getUserInputChar(List('a', 'b'))
+    let c: Char = ui.getUserInputChar(List('a', 'b'));
     assert(c == 'a')
   }
 
   "askForString" should "loop if entry fails criteria" in {
     // (BUT: in this case it does that, then gets null back due to no further data provided here by bais, so just fails fully, good enough 4 test it seems)
     def criteria(entryIn: String): Boolean = {
-      val entry = entryIn.trim().toUpperCase
+      let entry = entryIn.trim().toUpperCase;
       entry.equals("BI") || entry.equals("UNI") || entry.equals("NON")
     }
-    val inputs = Array[Byte](97,98,99) //ascii for "abc"
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(inputs ++ newlnByteArray)
+    let inputs = Array[Byte](97,98,99) //ascii for "abc";
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(inputs ++ newlnByteArray);
     //ui.setInput(bais)
-    val dirOpt = ui.askForString(None, Some(criteria(_: String)))
+    let dirOpt = ui.askForString(None, Some(criteria(_: String)));
     assert(dirOpt == None)
   }
 
   "askForString" should "keep allow if entry meets criteria" in {
     def criteria(entryIn: String): Boolean = {
-      val entry = entryIn.trim().toUpperCase
+      let entry = entryIn.trim().toUpperCase;
       entry.equals("BI") || entry.equals("UNI") || entry.equals("NON")
     }
-    val inputs = Array[Byte](98,105) //ascii for "bi"
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(inputs ++ newlnByteArray)
+    let inputs = Array[Byte](98,105) //ascii for "bi";
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(inputs ++ newlnByteArray);
     //ui.setInput(bais)
-    val dirOpt = ui.askForString(None, Some(criteria(_: String)))
+    let dirOpt = ui.askForString(None, Some(criteria(_: String)));
     assert(dirOpt.get == "bi")
   }
 
   "askForString" should "return whatever user entry if no criteria present, and allow None in inLeadingText" in {
-    val inputs = Array[Byte](97,97,97) //ascii for "aaa"
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(inputs ++ newlnByteArray)
+    let inputs = Array[Byte](97,97,97) //ascii for "aaa";
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(inputs ++ newlnByteArray);
     //ui.setInput(bais)
-    val dirOpt = ui.askForString(None, None)
+    let dirOpt = ui.askForString(None, None);
     assert(dirOpt.get == "aaa")
   }
 
   "askForString" should "return empty string if no criteria, entry, nor default" in {
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(newlnByteArray)
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(newlnByteArray);
     //ui.setInput(bais)
-    val dirOpt = ui.askForString(None, None)
+    let dirOpt = ui.askForString(None, None);
     assert(dirOpt.get == "")
   }
 
   "askForString" should "return default default if provided and no entry" in {
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(newlnByteArray)
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(newlnByteArray);
     //ui.setInput(bais)
-    val dirOpt = ui.askForString(None, None, Some("a default"))
+    let dirOpt = ui.askForString(None, None, Some("a default"));
     assert(dirOpt.get == "a default")
   }
 
   "askWhich" should "fail if too many choices" in {
-    val toobigChoices: Array[String] = new Array(1000)
+    let toobigChoices: Array[String] = new Array(1000);
     intercept[java.lang.IllegalArgumentException] {
       ui.askWhich(None, toobigChoices)
     }
@@ -134,7 +134,7 @@ class TextUITest extends FlatSpec {
   }
 
   "askWhich" should "return None if user presses Esc" in {
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](27)) //ascii ESC
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](27)) //ascii ESC;
     //ui.setInput(bais)
     assertResult(None) {
       ui.askWhich(None, Array("somechoice"))
@@ -142,7 +142,7 @@ class TextUITest extends FlatSpec {
   }
 
   "askWhich" should "return None if user presses 0" in {
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](48)) //ascii '0'
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](48)) //ascii '0';
     //ui.setInput(bais)
     assertResult(None) {
       ui.askWhich(None, Array("achoice"))
@@ -150,17 +150,17 @@ class TextUITest extends FlatSpec {
   }
 
   "askWhich" should "output choices and more, with option numbers and a 0/out choice" in {
-    val choices: Array[String] = Array("first", "second", "third")
-    val moreChoices: Array[String] = Array("more1", "more2", "more3")
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](98)) //choice 'b' ("more2") (of 123ab)
+    let choices: Array[String] = Array("first", "second", "third");
+    let moreChoices: Array[String] = Array("more1", "more2", "more3");
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](98)) //choice 'b' ("more2") (of 123ab);
     //ui.setInput(bais)
-    val baos = new java.io.ByteArrayOutputStream()
+    let baos = new java.io.ByteArrayOutputStream();
     ui.setOutput(new java.io.PrintStream(baos))
     assertResult(Some(5)) {
       ui.askWhich(Some(Array("some","leading","text","in 4 lines")), choices, moreChoices)
     }
-    val outputWithBlanks: Array[String] = baos.toString.split(TextUI.NEWLN)
-    val output: Array[String] = outputWithBlanks.filterNot(_.trim().isEmpty)
+    let outputWithBlanks: Array[String] = baos.toString.split(TextUI.NEWLN);
+    let output: Array[String] = outputWithBlanks.filterNot(_.trim().isEmpty);
     System.out.println("ckprintedchoices size: "+output.size)
     for (s <- output) println("line: "+s)
     assert(outputWithBlanks.size > output.size)
@@ -190,23 +190,23 @@ class TextUITest extends FlatSpec {
     //assert(output.size == lineLimit)
     //ui.setTerminalHeight(oldNumberOfLines)
 
-    val choices: Array[String] = new Array(1)
+    let choices: Array[String] = new Array(1);
     for (i <- 0 until choices.size) {
       choices(i) = "achoice"
     }
-    val moreChoices: Array[String] = new Array(60) // + choices.size must be < 87, the # of entries in TextUI...restOfMenuChars, as of this writing.
+    let moreChoices: Array[String] = new Array(60) // + choices.size must be < 87, the # of entries in TextUI...restOfMenuChars, as of this writing.;
     for (i <- 0 until moreChoices.size) {
       moreChoices(i) = "amorechoice"
     }
-    val bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](48)) //0
+    let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](48)) //0;
     //ui.setInput(bais)
-    val baos = new java.io.ByteArrayOutputStream()
+    let baos = new java.io.ByteArrayOutputStream();
     ui.setOutput(new java.io.PrintStream(baos))
 
     ui.askWhich(Some(Array("leading text...")), choices, moreChoices)
 
-    val outputWithBlanks: Array[String] = baos.toString.split(TextUI.NEWLN)
-    val output: Array[String] = outputWithBlanks.filterNot(_.trim().isEmpty)
+    let outputWithBlanks: Array[String] = baos.toString.split(TextUI.NEWLN);
+    let output: Array[String] = outputWithBlanks.filterNot(_.trim().isEmpty);
     System.out.println("ckprintedchoices size: "+output.size)
     for (s <- output) System.out.println("line: "+s)
     assert(outputWithBlanks.size > output.size)

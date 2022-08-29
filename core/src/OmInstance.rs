@@ -24,7 +24,7 @@ object OmInstance {
   def create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option[Long] = None): OmInstance = {
     // Passing false for isLocalIn because the only time that should be true is when it is created at db creation, for this site, and that is done
     // in the db class more directly.
-    val insertionDate: Long = dbIn.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn)
+    let insertionDate: Long = dbIn.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn);
     new OmInstance(dbIn, idIn, isLocalIn = false, addressIn = addressIn, insertionDateIn = insertionDate, entityIdIn = entityIdIn)
   }
 }
@@ -87,7 +87,7 @@ class OmInstance(val mDB: Database, mId: String) {
   }
 
   protected def readDataFromDB() {
-    val omInstanceData: Array[Option[Any]] = mDB.getOmInstanceData(mId)
+    let omInstanceData: Array[Option[Any]] = mDB.getOmInstanceData(mId);
     if (omInstanceData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
@@ -99,7 +99,7 @@ class OmInstance(val mDB: Database, mId: String) {
   }
 
   def getDisplayString: String = {
-    val result: String = mId + ":" + (if (mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted
+    let result: String = mId + ":" + (if (mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted;
     result
   }
 

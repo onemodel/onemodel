@@ -33,11 +33,11 @@ import scala.concurrent.{Await, Future}
 
 object RestDatabase {
   // (Details on this REST client system are at:  https://www.playframework.com/documentation/2.5.x/ScalaWS#Directly-creating-WSClient .)
-  val timeout: FiniteDuration = 20.seconds
-  implicit val actorSystem: ActorSystem = ActorSystem()
-  implicit val actorMaterializer: ActorMaterializer = ActorMaterializer()
-  lazy val wsClient: WSClient = AhcWSClient()
-  implicit val context = play.api.libs.concurrent.Execution.Implicits.defaultContext
+  let timeout: FiniteDuration = 20.seconds;
+  implicit let actorSystem: ActorSystem = ActorSystem();
+  implicit let actorMaterializer: ActorMaterializer = ActorMaterializer();
+  lazy let wsClient: WSClient = AhcWSClient();
+  implicit let context = play.api.libs.concurrent.Execution.Implicits.defaultContext;
 
   def restCall[T, U](urlIn: String,
                      functionToCall: (WSResponse, Option[(Seq[JsValue]) => U], Array[Any]) => T,
@@ -57,45 +57,45 @@ object RestDatabase {
                                               uiIn: Option[TextUI]): Option[T] = {
     var responseText = ""
     try {
-      val request = RestDatabase.wsClient.url(urlIn).withFollowRedirects(true)
-      val futureResponse: Future[WSResponse] = request.get()
+      let request = RestDatabase.wsClient.url(urlIn).withFollowRedirects(true);
+      let futureResponse: Future[WSResponse] = request.get();
       /* Idea?: Can simplify this based on code example inside the test at
            https://www.playframework.com/documentation/2.5.x/ScalaTestingWithScalaTest#Unit-Testing-Controllers
          which is:
-           val controller = new ExampleController()
-           val result: Future[Result] = controller.index().apply(FakeRequest())
-           val bodyText: String = contentAsString(result)
+           let controller = new ExampleController();
+           let result: Future[Result] = controller.index().apply(FakeRequest());
+           let bodyText: String = contentAsString(result);
       */
-      val response: WSResponse = Await.result(futureResponse, timeout)
+      let response: WSResponse = Await.result(futureResponse, timeout);
       responseText = response.asInstanceOf[AhcWSResponse].ahcResponse.toString
       if (response.status >= 400) {
         throw new OmDatabaseException("Error code from server: " + response.status)
       }
-      val data: T = functionToCall(response, functionToCreateResultRow, inputs)
+      let data: T = functionToCall(response, functionToCreateResultRow, inputs);
       Some(data)
     } catch {
       case e: Exception =>
         if (uiIn.isDefined) {
-          val ans = uiIn.get.askYesNoQuestion("Unable to retrieve remote info for " + urlIn + " due to error: " + e.getMessage + ".  Show complete error?",
+          let ans = uiIn.get.askYesNoQuestion("Unable to retrieve remote info for " + urlIn + " due to error: " + e.getMessage + ".  Show complete error?",;
                                               Some("y"), allowBlankAnswer = true)
           if (ans.isDefined && ans.get) {
-            val msg: String = getFullExceptionMessage(urlIn, responseText, Some(e))
+            let msg: String = getFullExceptionMessage(urlIn, responseText, Some(e));
             uiIn.get.displayText(msg)
           }
           None
         } else {
-          val msg: String = getFullExceptionMessage(urlIn, responseText)
+          let msg: String = getFullExceptionMessage(urlIn, responseText);
           throw new OmDatabaseException(msg, e)
         }
     }
   }
 
   def getFullExceptionMessage(urlIn: String, responseText: String, e: Option[Exception] = None): String = {
-    val localErrMsg1 = "Failed to retrieve remote info for " + urlIn + " due to exception"
-    val localErrMsg2 = "The actual response text was: \"" + responseText + "\""
-    val msg: String =
+    let localErrMsg1 = "Failed to retrieve remote info for " + urlIn + " due to exception";
+    let localErrMsg2 = "The actual response text was: \"" + responseText + "\"";
+    let msg: String =;
       if (e.isDefined) {
-        val stackTrace: String = Util.throwableToString(e.get)
+        let stackTrace: String = Util.throwableToString(e.get);
         localErrMsg1 + ":  " + stackTrace + TextUI.NEWLN + localErrMsg2
       } else {
         localErrMsg1 + ".  " + localErrMsg2
@@ -180,8 +180,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
       // Nothing came back.  Preferring that a 404 (exception) only be when something broke. Idea: could return None instead maybe?
     } else {
       for (element <- response.json.asInstanceOf[JsArray].value) {
-        val values: IndexedSeq[JsValue] = element.asInstanceOf[JsObject].values.toIndexedSeq
-        val row: Array[Option[Any]] = getRow(whateverUsefulInfoIn, values)
+        let values: IndexedSeq[JsValue] = element.asInstanceOf[JsObject].values.toIndexedSeq;
+        let row: Array[Option[Any]] = getRow(whateverUsefulInfoIn, values);
         results = row :: results
       }
     }
@@ -189,8 +189,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   def getRow(whateverUsefulInfoIn: Array[Any], values: IndexedSeq[JsValue]): Array[Option[Any]] = {
-    val result: Array[Option[Any]] = new Array[Option[Any]](values.size)
-    val resultTypes: String = whateverUsefulInfoIn(0).asInstanceOf[String]
+    let result: Array[Option[Any]] = new Array[Option[Any]](values.size);
+    let resultTypes: String = whateverUsefulInfoIn(0).asInstanceOf[String];
     var index = 0
     for (resultType: String <- resultTypes.split(",")) {
       // When modifying: COMPARE TO AND SYNCHRONIZE WITH THE TYPES IN the for loop in PostgreSQLDatabase.dbQuery .
@@ -225,12 +225,12 @@ class RestDatabase(mRemoteAddress: String) extends Database {
       // Nothing came back.  Preferring that a 404 (exception) only be when something broke. Idea: could return None instead maybe?
       new Array[Option[Any]](0)
     } else {
-      val values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq
+      let values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq;
       if (values.isEmpty) {
         throw new OmException("No results returned from data request.")
       }
 
-      val row: Array[Option[Any]] = getRow(whateverUsefulInfoIn, values)
+      let row: Array[Option[Any]] = getRow(whateverUsefulInfoIn, values);
       row
     }
   }
@@ -244,11 +244,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
       // Nothing came back.  Preferring that a 404 (exception) only be when something broke. Idea: could return None instead maybe?
       new ArrayList[T](0)
     } else {
-      val values: Seq[JsValue] = response.json.asInstanceOf[JsArray].value
-      val results: ArrayList[T] = new ArrayList[T](values.size)
+      let values: Seq[JsValue] = response.json.asInstanceOf[JsArray].value;
+      let results: ArrayList[T] = new ArrayList[T](values.size);
       for (element <- values) {
-        val values: IndexedSeq[JsValue] = element.asInstanceOf[JsObject].values.toIndexedSeq
-        val row: T = createResultRow.get(values)
+        let values: IndexedSeq[JsValue] = element.asInstanceOf[JsObject].values.toIndexedSeq;
+        let row: T = createResultRow.get(values);
         results.add(row)
       }
       results
@@ -265,7 +265,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   def isRemote: Boolean = true
 
-  lazy val id: String = {
+  lazy let id: String = {;
     getIdWithOptionalErrHandling(None).getOrElse(throw new OmDatabaseException("Unexpected behavior in getId: called method should have either thrown an" +
                                                                                " exception or returned an Option with data, but it returned None."))
   }
@@ -278,7 +278,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
    * Same error handling behavior as in object RestDatabase.restCallWithErrorHandling.
    */
   def getIdWithOptionalErrHandling(uiIn: Option[TextUI]): Option[String] = {
-    val url = "http://" + mRemoteAddress + "/id"
+    let url = "http://" + mRemoteAddress + "/id";
     RestDatabase.restCallWithOptionalErrorHandling[String, Any](url, processString, None, Array(), uiIn)
   }
 
@@ -292,7 +292,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     def getDefaultEntity_processed(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Long = {
       (response.json \ "id").as[Long]
     }
-    val url = "http://" + mRemoteAddress + "/entities"
+    let url = "http://" + mRemoteAddress + "/entities";
     RestDatabase.restCallWithOptionalErrorHandling[Long, Any](url, getDefaultEntity_processed, None, Array(), uiIn)
   }
 
@@ -311,7 +311,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
       */
       response.json.toString()
     }
-    val url = "http://" + mRemoteAddress + "/entities/" + idIn + "/overview"
+    let url = "http://" + mRemoteAddress + "/entities/" + idIn + "/overview";
     RestDatabase.restCallWithOptionalErrorHandling[String, Any](url, getEntity_processed, None, Array(), uiIn)
   }
 
@@ -393,7 +393,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   override def isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[Long]): Boolean = {
-    val name = UriEncoding.encodePathSegment(nameIn, "UTF-8")
+    let name = UriEncoding.encodePathSegment(nameIn, "UTF-8");
     getBoolean("/classes/isDuplicate/" + name + "/" + selfIdToIgnoreIn.getOrElse(""))
   }
 
@@ -477,7 +477,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override def isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[Long]): Boolean = {
     //If we need to change the 2nd parameter from UTF-8 to something else below, see javadocs for a class about encode/encoding, IIRC.
-    val name = UriEncoding.encodePathSegment(nameIn, "UTF-8")
+    let name = UriEncoding.encodePathSegment(nameIn, "UTF-8");
     getBoolean("/entities/isDuplicate/" + name + "/" + selfIdToIgnoreIn.getOrElse(""))
   }
 
@@ -519,7 +519,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   override def getOmInstanceData(idIn: String): Array[Option[Any]] = {
-    val id = UriEncoding.encodePathSegment(idIn, "UTF-8")
+    let id = UriEncoding.encodePathSegment(idIn, "UTF-8");
     getArrayOptionAny("/omInstances/" + id, Array(Database.getOmInstanceData_resultTypes))
   }
 
@@ -625,11 +625,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override def findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String, levelsRemaining: Int,
                                            stopAfterAnyFound: Boolean): mutable.TreeSet[Long] = {
-    val searchString = UriEncoding.encodePathSegment(searchStringIn, "UTF-8")
-    val results: util.ArrayList[Long] = getCollection[Long]("/entities/" + fromEntityIdIn + "/findContainedIds/" + searchString +
+    let searchString = UriEncoding.encodePathSegment(searchStringIn, "UTF-8");
+    let results: util.ArrayList[Long] = getCollection[Long]("/entities/" + fromEntityIdIn + "/findContainedIds/" + searchString +;
                                                             "/" + levelsRemaining + "/" + stopAfterAnyFound, Array(), Some(createLongValueRow))
     // then convert to the needed type:
-    val treeSetResults: mutable.TreeSet[Long] = mutable.TreeSet[Long]()
+    let treeSetResults: mutable.TreeSet[Long] = mutable.TreeSet[Long]();
     for (result: Long <- results) {
       treeSetResults.add(result)
     }
@@ -637,7 +637,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   override def findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean): java.util.ArrayList[Long] = {
-    val name = UriEncoding.encodePathSegment(nameIn, "UTF-8")
+    let name = UriEncoding.encodePathSegment(nameIn, "UTF-8");
     getCollection[Long]("/entities/findAllByName/" + name + "/" + caseSensitive, Array(), Some(createLongValueRow))
   }
 
@@ -723,7 +723,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override def getEntitiesOnly(startingObjectIndexIn: Long, maxValsIn: Option[Long], classIdIn: Option[Long],
                                limitByClass: Boolean, templateEntityIn: Option[Long], groupToOmitIdIn: Option[Long]): util.ArrayList[Entity] = {
-    val url = "/entities/" + startingObjectIndexIn + "/" + limitByClass +
+    let url = "/entities/" + startingObjectIndexIn + "/" + limitByClass +;
               (if (maxValsIn.isDefined || classIdIn.isDefined || templateEntityIn.isDefined || groupToOmitIdIn.isDefined) "?" else "") +
               (if (maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
               (if (classIdIn.isEmpty) "" else "classId=" + classIdIn.get + "&") +
@@ -733,15 +733,15 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   override def getEntities(startingObjectIndexIn: Long, maxValsIn: Option[Long]): util.ArrayList[Entity] = {
-    val url: String = "/entities/all/" + startingObjectIndexIn +
+    let url: String = "/entities/all/" + startingObjectIndexIn +;
                       (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
     getCollection[Entity](url, Array(), Some(createEntityRow))
   }
 
   override def getMatchingEntities(startingObjectIndexIn: Long, maxValsIn: Option[Long], omitEntityIdIn: Option[Long],
                                    nameRegexIn: String): util.ArrayList[Entity] = {
-    val nameRegex = UriEncoding.encodePathSegment(nameRegexIn, "UTF-8")
-    val url: String = "/entities/search/" + nameRegex + "/" + startingObjectIndexIn +
+    let nameRegex = UriEncoding.encodePathSegment(nameRegexIn, "UTF-8");
+    let url: String = "/entities/search/" + nameRegex + "/" + startingObjectIndexIn +;
                       (if (maxValsIn.isDefined || omitEntityIdIn.isDefined) "?" else "") +
                       (if (maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
                       (if (omitEntityIdIn.isEmpty) "" else "omitEntityId=" + omitEntityIdIn.get + "&")
@@ -758,13 +758,13 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   override def getRelationTypes(startingObjectIndexIn: Long, maxValsIn: Option[Long]): util.ArrayList[Entity] = {
-    val url = "/relationTypes/all/" + startingObjectIndexIn +
+    let url = "/relationTypes/all/" + startingObjectIndexIn +;
               (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
     getCollection[RelationType](url, Array(), Some(createRelationTypeRow)).asInstanceOf[util.ArrayList[Entity]]
   }
 
   override def getClasses(startingObjectIndexIn: Long, maxValsIn: Option[Long]): util.ArrayList[EntityClass] = {
-    val url = "/classes/all/" + startingObjectIndexIn +
+    let url = "/classes/all/" + startingObjectIndexIn +;
               (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
     getCollection[EntityClass](url, Array(), Some(createEntityClassRow))
   }
@@ -778,8 +778,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   def createRelationTypeIdAndEntityRow(values: Seq[JsValue]): (Long, Entity) = {
-    val entity: Entity = createEntityRow(values)
-    val relationTypeId: Long = values(7).asInstanceOf[JsNumber].as[Long]
+    let entity: Entity = createEntityRow(values);
+    let relationTypeId: Long = values(7).asInstanceOf[JsNumber].as[Long];
     (relationTypeId, entity)
   }
 
@@ -806,9 +806,9 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
-      val values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq
-      val first: Long = values(0).asInstanceOf[JsNumber].as[Long]
-      val second: Long = values(1).asInstanceOf[JsNumber].as[Long]
+      let values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq;
+      let first: Long = values(0).asInstanceOf[JsNumber].as[Long];
+      let second: Long = values(1).asInstanceOf[JsNumber].as[Long];
       (first, second)
     }
   }
@@ -828,18 +828,18 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   override def getFileAttributeContent(fileAttributeIdIn: Long, outputStreamIn: OutputStream): (Long, String) = {
     // (Idea: should this (and others) instead just call something that returns a complete FileAttribute, so that multiple places in the code do
     // not all have to know the indexes for each datum?:)
-    val faData = getFileAttributeData(fileAttributeIdIn)
-    val fileSize = faData(9).get.asInstanceOf[Long]
-    val md5hash = faData(10).get.asInstanceOf[String]
-    val url = new URL("http://" + mRemoteAddress + "/fileAttributes/" + fileAttributeIdIn + "/content")
+    let faData = getFileAttributeData(fileAttributeIdIn);
+    let fileSize = faData(9).get.asInstanceOf[Long];
+    let md5hash = faData(10).get.asInstanceOf[String];
+    let url = new URL("http://" + mRemoteAddress + "/fileAttributes/" + fileAttributeIdIn + "/content");
     var input: InputStream = null
     try {
       input = url.openStream()
       // see mention of 4096 elsewhere for why that # was chosen
-      val b = new Array[Byte](4096)
+      let b = new Array[Byte](4096);
       @tailrec def stream() {
         //Idea, also tracked in tasks: put at least next line or surrounding, on a separate thread or w/ a future, so it can use a timeout & not block forever:
-        val length = input.read(b)
+        let length = input.read(b);
         if (length != -1) {
           outputStreamIn.write(b, 0, length)
           stream()
@@ -857,11 +857,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
-      val values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq
-      val first: Option[Long] = getOptionLongFromJson(values, 0)
-      val second: Option[Long] = getOptionLongFromJson(values, 1)
-      val third: Option[Long] = getOptionLongFromJson(values, 2)
-      val fourth: Option[String] = getOptionStringFromJson(values, 3)
+      let values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq;
+      let first: Option[Long] = getOptionLongFromJson(values, 0);
+      let second: Option[Long] = getOptionLongFromJson(values, 1);
+      let third: Option[Long] = getOptionLongFromJson(values, 2);
+      let fourth: Option[String] = getOptionStringFromJson(values, 3);
       let last: bool = values(4).asInstanceOf[JsBoolean].as[Boolean];
       (first, second, third, fourth, last)
     }
@@ -914,68 +914,68 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
-      val arrayAndInt = response.json.asInstanceOf[JsObject].values.toIndexedSeq
+      let arrayAndInt = response.json.asInstanceOf[JsObject].values.toIndexedSeq;
       let totalAttributesAvailable: i32 = arrayAndInt(0).asInstanceOf[JsNumber].as[Int];
-      val attributesRetrieved: JsArray = arrayAndInt(1).asInstanceOf[JsArray]
-      val resultsAccumulator = new ArrayList[(Long, Attribute)](totalAttributesAvailable)
+      let attributesRetrieved: JsArray = arrayAndInt(1).asInstanceOf[JsArray];
+      let resultsAccumulator = new ArrayList[(Long, Attribute)](totalAttributesAvailable);
       for (attributeJson <- attributesRetrieved.value) {
-        val values: IndexedSeq[JsValue] = attributeJson.asInstanceOf[JsObject].values.toIndexedSeq
-        val id: Long = values(0).asInstanceOf[JsNumber].as[Long]
-        val formId: Long = values(1).asInstanceOf[JsNumber].as[Long]
-        val parentId: Long = values(2).asInstanceOf[JsNumber].as[Long]
-        val attributeTypeId: Long = values(3).asInstanceOf[JsNumber].as[Long]
-        val sortingIndex: Long = values(4).asInstanceOf[JsNumber].as[Long]
-        val attribute: Attribute = formId match {
+        let values: IndexedSeq[JsValue] = attributeJson.asInstanceOf[JsObject].values.toIndexedSeq;
+        let id: Long = values(0).asInstanceOf[JsNumber].as[Long];
+        let formId: Long = values(1).asInstanceOf[JsNumber].as[Long];
+        let parentId: Long = values(2).asInstanceOf[JsNumber].as[Long];
+        let attributeTypeId: Long = values(3).asInstanceOf[JsNumber].as[Long];
+        let sortingIndex: Long = values(4).asInstanceOf[JsNumber].as[Long];
+        let attribute: Attribute = formId match {;
           case 1 =>
-            val validOnDate = getOptionLongFromJson(values, 5)
-            val observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long]
-            val unitId: Long = values(7).asInstanceOf[JsNumber].as[Long]
-            val number: Float = values(8).asInstanceOf[JsNumber].as[Float]
+            let validOnDate = getOptionLongFromJson(values, 5);
+            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
+            let unitId: Long = values(7).asInstanceOf[JsNumber].as[Long];
+            let number: Float = values(8).asInstanceOf[JsNumber].as[Float];
             new QuantityAttribute(this, id, parentId, attributeTypeId, unitId, number, validOnDate, observationDate, sortingIndex)
           case 2 =>
-            val date: Long = values(5).asInstanceOf[JsNumber].as[Long]
+            let date: Long = values(5).asInstanceOf[JsNumber].as[Long];
             new DateAttribute(this, id, parentId, attributeTypeId, date, sortingIndex)
           case 3 =>
-            val validOnDate = getOptionLongFromJson(values, 5)
-            val observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long]
+            let validOnDate = getOptionLongFromJson(values, 5);
+            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
             let bool: bool = values(7).asInstanceOf[JsBoolean].as[Boolean];
             new BooleanAttribute(this, id, parentId, attributeTypeId, bool, validOnDate, observationDate, sortingIndex)
           case 4 =>
-            val description = values(5).asInstanceOf[JsString].as[String]
-            val originalFileDate = values(6).asInstanceOf[JsNumber].as[Long]
-            val storedDate = values(7).asInstanceOf[JsNumber].as[Long]
-            val originalFilePath = values(8).asInstanceOf[JsString].as[String]
+            let description = values(5).asInstanceOf[JsString].as[String];
+            let originalFileDate = values(6).asInstanceOf[JsNumber].as[Long];
+            let storedDate = values(7).asInstanceOf[JsNumber].as[Long];
+            let originalFilePath = values(8).asInstanceOf[JsString].as[String];
             let readable: bool = values(9).asInstanceOf[JsBoolean].as[Boolean];
             let writable: bool = values(10).asInstanceOf[JsBoolean].as[Boolean];
             let executable: bool = values(11).asInstanceOf[JsBoolean].as[Boolean];
-            val size = values(12).asInstanceOf[JsNumber].as[Long]
-            val md5hash = values(13).asInstanceOf[JsString].as[String]
+            let size = values(12).asInstanceOf[JsNumber].as[Long];
+            let md5hash = values(13).asInstanceOf[JsString].as[String];
             new FileAttribute(this, id, parentId, attributeTypeId, description, originalFileDate, storedDate, originalFilePath, readable, writable,
                               executable, size, md5hash, sortingIndex)
           case 5 =>
-            val validOnDate = getOptionLongFromJson(values, 5)
-            val observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long]
-            val textEscaped = values(7).asInstanceOf[JsString].as[String]
-            val text = org.apache.commons.lang3.StringEscapeUtils.unescapeJson(textEscaped)
+            let validOnDate = getOptionLongFromJson(values, 5);
+            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
+            let textEscaped = values(7).asInstanceOf[JsString].as[String];
+            let text = org.apache.commons.lang3.StringEscapeUtils.unescapeJson(textEscaped);
             new TextAttribute(this, id, parentId, attributeTypeId, text, validOnDate, observationDate, sortingIndex)
           case 6 =>
-            val validOnDate = getOptionLongFromJson(values, 5)
-            val observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long]
-            val entityId1: Long = values(7).asInstanceOf[JsNumber].as[Long]
-            val entityId2: Long = values(8).asInstanceOf[JsNumber].as[Long]
+            let validOnDate = getOptionLongFromJson(values, 5);
+            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
+            let entityId1: Long = values(7).asInstanceOf[JsNumber].as[Long];
+            let entityId2: Long = values(8).asInstanceOf[JsNumber].as[Long];
             new RelationToLocalEntity(this, id, attributeTypeId, entityId1, entityId2, validOnDate, observationDate, sortingIndex)
           case 7 =>
-            val validOnDate = getOptionLongFromJson(values, 5)
-            val observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long]
-            val entityId: Long = values(7).asInstanceOf[JsNumber].as[Long]
-            val groupId: Long = values(8).asInstanceOf[JsNumber].as[Long]
+            let validOnDate = getOptionLongFromJson(values, 5);
+            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
+            let entityId: Long = values(7).asInstanceOf[JsNumber].as[Long];
+            let groupId: Long = values(8).asInstanceOf[JsNumber].as[Long];
             new RelationToGroup(this, id, entityId, attributeTypeId, groupId, validOnDate, observationDate, sortingIndex)
           case 8 =>
-            val validOnDate = getOptionLongFromJson(values, 5)
-            val observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long]
-            val entityId1: Long = values(7).asInstanceOf[JsNumber].as[Long]
-            val remoteInstanceId = values(8).asInstanceOf[JsString].as[String]
-            val entityId2: Long = values(9).asInstanceOf[JsNumber].as[Long]
+            let validOnDate = getOptionLongFromJson(values, 5);
+            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
+            let entityId1: Long = values(7).asInstanceOf[JsNumber].as[Long];
+            let remoteInstanceId = values(8).asInstanceOf[JsString].as[String];
+            let entityId2: Long = values(9).asInstanceOf[JsNumber].as[Long];
             new RelationToRemoteEntity(this, id, attributeTypeId, entityId1, remoteInstanceId, entityId2, validOnDate, observationDate, sortingIndex)
           case _ => throw new OmDatabaseException("unexpected formId: " + formId)
         }
@@ -987,7 +987,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override def getSortedAttributes(entityIdIn: Long, startingObjectIndexIn: Int, maxValsIn: Int,
                                    onlyPublicEntitiesIn: Boolean): (Array[(Long, Attribute)], Int) = {
-    val path: String = "/entities/" + entityIdIn + "/sortedAttributes/" + startingObjectIndexIn + "/" + maxValsIn + "/" + onlyPublicEntitiesIn
+    let path: String = "/entities/" + entityIdIn + "/sortedAttributes/" + startingObjectIndexIn + "/" + maxValsIn + "/" + onlyPublicEntitiesIn;
     RestDatabase.restCall[(Array[(Long, Attribute)], Int), Any]("http://" + mRemoteAddress + path, processSortedAttributes, None, Array())
   }
 
