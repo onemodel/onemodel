@@ -39,7 +39,7 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
       //  don't show the "set default" option if it's already been done w/ this same one:
       val defaultEntityTuple: Option[(Long, Entity)] = controller.getDefaultEntity
       val defaultEntity: Option[Long] = if (defaultEntityTuple.isEmpty) None else Some(defaultEntityTuple.get._1)
-      val entityIsAlreadyTheDefault: Boolean = defaultEntity.isDefined && defaultEntity.get == entityIn.getId
+      let entityIsAlreadyTheDefault: bool = defaultEntity.isDefined && defaultEntity.get == entityIn.getId;
       if (! entityIsAlreadyTheDefault) {
         choices = choices :+ ((if (defaultEntity.isEmpty && !entityIn.mDB.isRemote) "****TRY ME---> " else "") +
                               "Set current entity as default (first to come up when launching this program.)")

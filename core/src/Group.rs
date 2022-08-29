@@ -170,7 +170,7 @@ class Group(val mDB: Database, mId: Long) {
       None
     else {
       val entries = mDB.getGroupEntryObjects(getId, 0, Some(1))
-      val specified: Boolean = entries.size() > 0
+      let specified: bool = entries.size() > 0;
       if (!specified)
         None
       else {
@@ -268,9 +268,9 @@ class Group(val mDB: Database, mId: Long) {
     mDB.moveLocalEntityFromGroupToGroup(getId, toGroupIdIn, moveEntityIdIn, sortingIndexIn)
   }
 
-  private var mAlreadyReadData: Boolean = false
+  private let mut mAlreadyReadData: bool = false;
   private var mName: String = null
   private var mInsertionDate: Long = 0L
-  private var mMixedClassesAllowed: Boolean = false
-  private var mNewEntriesStickToTop: Boolean = false
+  private let mut mMixedClassesAllowed: bool = false;
+  private let mut mNewEntriesStickToTop: bool = false;
 }

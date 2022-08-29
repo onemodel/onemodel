@@ -28,7 +28,7 @@ impl TextUI {
   //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
   let objectChooserMenuPrefixLength: i32 = 2;
   val (username, password): (Option[String], Option[String]) = if (args.length == 2) (Some(args(0)), Some(args(1))) else (None, None)
-  val forceUsernamePasswordPrompt: Boolean = if (args.length == 1) true else false
+  let forceUsernamePasswordPrompt: bool = if (args.length == 1) true else false;
 
   // (making some lazy vals instead of vars because it's considered generally cleaner to use vals, and lazy in case they are not
   // needed for unit tests)
@@ -39,10 +39,10 @@ impl TextUI {
 
   // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
   // the cleanup actually happens.
-  private val mCleanupStarted: Boolean = false
+  private let mCleanupStarted: bool = false;
 
-  private var mJlineTerminalInitFinished: Boolean = false
-  private var mJlineReaderInitFinished: Boolean = false
+  private let mut mJlineTerminalInitFinished: bool = false;
+  private let mut mJlineReaderInitFinished: bool = false;
 
   def initializeTerminal(): jline.Terminal = {
     synchronized {
@@ -141,7 +141,7 @@ impl TextUI {
     if (!input.isValidChar) {
       throw new Exception("Unexpected non-char value " + input + " from readCharacter().")
     }
-    var isAltKeyCombo: Boolean = false
+    let mut isAltKeyCombo: bool = false;
     if (input > 1000) {
       // this means that the user pressed an alt-key combination (i.e.: my kludge in my modified copy of jline2's
       // readCharacter(boolean checkForAltKeyCombo) has been invoked.

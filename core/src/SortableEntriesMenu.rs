@@ -144,14 +144,14 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
           val newIndex = (nearNewNeighborSortingIndex.get + ((Database.maxIdValue.asInstanceOf[Float] - nearNewNeighborSortingIndex.get) / 2)).asInstanceOf[Long]
           val nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex)
           // leaving it to communicate intent, but won't be '>' because a Long would just wrap, so...
-          val trouble: Boolean = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get > Database.maxIdValue ||
+          let trouble: bool = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get > Database.maxIdValue ||;
                                  nonDuplicatedNewIndex.get <= movingFromPosition_sortingIndex || nonDuplicatedNewIndex.get <= nearNewNeighborSortingIndex.get
           (nonDuplicatedNewIndex.getOrElse(0L), trouble)
         } else {
           // Leaving it to communicate intent, but won't be '<' because a Long would just wrap, so...
           val newIndex = nearNewNeighborSortingIndex.get - math.abs((math.abs(Database.minIdValue) - math.abs(nearNewNeighborSortingIndex.get)) / 2)
           val nonDuplicatedNewIndex: Option[Long] = ensureNonDuplicate(containingObjectIdIn, newIndex)
-          val trouble: Boolean = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get < Database.minIdValue ||
+          let trouble: bool = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get < Database.minIdValue ||;
                                  nonDuplicatedNewIndex.get >= movingFromPosition_sortingIndex ||
                                  nonDuplicatedNewIndex.get >= nearNewNeighborSortingIndex.get
           (nonDuplicatedNewIndex.getOrElse(0L), trouble)

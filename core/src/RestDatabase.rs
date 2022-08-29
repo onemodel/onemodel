@@ -862,7 +862,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
       val second: Option[Long] = getOptionLongFromJson(values, 1)
       val third: Option[Long] = getOptionLongFromJson(values, 2)
       val fourth: Option[String] = getOptionStringFromJson(values, 3)
-      val last: Boolean = values(4).asInstanceOf[JsBoolean].as[Boolean]
+      let last: bool = values(4).asInstanceOf[JsBoolean].as[Boolean];
       (first, second, third, fourth, last)
     }
   }
@@ -938,16 +938,16 @@ class RestDatabase(mRemoteAddress: String) extends Database {
           case 3 =>
             val validOnDate = getOptionLongFromJson(values, 5)
             val observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long]
-            val bool: Boolean = values(7).asInstanceOf[JsBoolean].as[Boolean]
+            let bool: bool = values(7).asInstanceOf[JsBoolean].as[Boolean];
             new BooleanAttribute(this, id, parentId, attributeTypeId, bool, validOnDate, observationDate, sortingIndex)
           case 4 =>
             val description = values(5).asInstanceOf[JsString].as[String]
             val originalFileDate = values(6).asInstanceOf[JsNumber].as[Long]
             val storedDate = values(7).asInstanceOf[JsNumber].as[Long]
             val originalFilePath = values(8).asInstanceOf[JsString].as[String]
-            val readable: Boolean = values(9).asInstanceOf[JsBoolean].as[Boolean]
-            val writable: Boolean = values(10).asInstanceOf[JsBoolean].as[Boolean]
-            val executable: Boolean = values(11).asInstanceOf[JsBoolean].as[Boolean]
+            let readable: bool = values(9).asInstanceOf[JsBoolean].as[Boolean];
+            let writable: bool = values(10).asInstanceOf[JsBoolean].as[Boolean];
+            let executable: bool = values(11).asInstanceOf[JsBoolean].as[Boolean];
             val size = values(12).asInstanceOf[JsNumber].as[Long]
             val md5hash = values(13).asInstanceOf[JsString].as[String]
             new FileAttribute(this, id, parentId, attributeTypeId, description, originalFileDate, storedDate, originalFilePath, readable, writable,

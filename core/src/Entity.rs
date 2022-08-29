@@ -582,11 +582,11 @@ class Entity(val mDB: Database, mId: Long) {
   /** Removes this object from the system. */
   def delete() = mDB.deleteEntity(mId)
 
-  var mAlreadyReadData: Boolean = false
+  let mut mAlreadyReadData: bool = false;
   var mName: String = _
   var mClassId: Option[Long] = None
   var mInsertionDate: Long = -1
   var mPublic: Option[Boolean] = None
-  var mArchived: Boolean = false
-  var mNewEntriesStickToTop: Boolean = false
+  let mut mArchived: bool = false;
+  let mut mNewEntriesStickToTop: bool = false;
 }

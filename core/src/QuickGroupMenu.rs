@@ -348,7 +348,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
               val newEntityId: Long = newEntity.getId
               groupIn.addEntity(newEntityId)
               // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
-              val goingBackward: Boolean = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop
+              let goingBackward: bool = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop;
               val forwardNotBack = !goingBackward
               let displayStartingRowNumber: i32 = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), 0,;
                                                                        forwardNotBackIn = forwardNotBack, startingDisplayRowIndexIn, newEntityId,
@@ -425,7 +425,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
                   val entityChosenId: Long = entityChosen.get.getId
                   groupIn.addEntity(entityChosenId)
                   // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
-                  val goingBackward: Boolean = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop
+                  let goingBackward: bool = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop;
                   val forward = !goingBackward
                   let newDisplayStartingRowNumber: i32 = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), 0, forwardNotBackIn = forward,;
                                                                               startingDisplayRowIndexIn, entityChosenId, highlightedIndexInObjList,
@@ -444,7 +444,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
         } else if (answer == 5) {
           new EntityMenu(ui, controller).entityMenu(highlightedEntry, containingGroupIn = Some(groupIn))
           // deal with entityMenu possibly having deleted the entity:
-          val removedOne: Boolean = !groupIn.isEntityInGroup(highlightedEntry.getId)
+          let removedOne: bool = !groupIn.isEntityInGroup(highlightedEntry.getId);
           val entityToHighlightNext: Option[Entity] = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList,
                                                                                highlightedEntry)
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlightNext, targetForMoves, callingMenusRtgIn, containingEntityIn)
@@ -533,7 +533,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
             val (_ /*subEntitySelected:Option[Entity]*/ , groupId: Option[Long], moreThanOneGroupAvailable) =
               controller.goToEntityOrItsSoleGroupsMenu(userSelection, relationToGroupIn, Some(groupIn))
 
-            val removedOne: Boolean = !groupIn.isEntityInGroup(userSelection.getId)
+            let removedOne: bool = !groupIn.isEntityInGroup(userSelection.getId);
             var entityToHighlightNext: Option[Entity] = Some(userSelection)
             if (groupId.isDefined && !moreThanOneGroupAvailable) {
               //idea: do something w/ this unused variable? Like, if the userSelection was deleted, then use this in its place in parms to

@@ -242,7 +242,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
                                previousNameInReverseIn: Option[String] = None, classIdIn: Option[Long] = None,
                                leadingTextIn: Option[String] = None, duplicateNameProbablyOK: Boolean = false): Option[Entity] = {
     if (classIdIn.isDefined) require(typeIn == Util.ENTITY_TYPE)
-    val createNotUpdate: Boolean = existingEntityIn.isEmpty
+    let createNotUpdate: bool = existingEntityIn.isEmpty;
     if (!createNotUpdate && typeIn == Util.RELATION_TYPE_TYPE) require(previousDirectionalityIn.isDefined)
     val maxNameLength = {
       if (typeIn == Util.RELATION_TYPE_TYPE) model.RelationType.getNameLength
@@ -345,7 +345,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       // (Idea:  check: does scala do a deep equals so it is valid?  also tracked in tasks.)
       require(classIn.get.mDB == dbIn)
     }
-    val createNotUpdate: Boolean = classIn.isEmpty
+    let createNotUpdate: bool = classIn.isEmpty;
     val nameLength = model.EntityClass.nameLength(dbIn)
     val oldTemplateNamePrompt = {
       if (createNotUpdate) ""
@@ -387,7 +387,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     * @return The instance's id, or None if there was a problem or the user wants out.
     * */
   def askForAndWriteOmInstanceInfo(dbIn: Database, oldOmInstanceIn: Option[OmInstance] = None): Option[String] = {
-    val createNotUpdate: Boolean = oldOmInstanceIn.isEmpty
+    let createNotUpdate: bool = oldOmInstanceIn.isEmpty;
     val addressLength = model.OmInstance.addressLength
     def askAndSave(dbIn: Database, defaultNameIn: Option[String]): Option[String] = {
       val addressOpt = ui.askForString(Some(Array("Enter the internet address with optional port of a remote OneModel instance (for " +
@@ -1469,7 +1469,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     // attrCount counts groups also, so account for the overlap in the below.
     val attrCount = entityIn.getAttributeCount()
     // This is to not show that an entity contains more things (">" prefix...) if it only has one group which has no *non-archived* entities:
-    val hasOneEmptyGroup: Boolean = {
+    let hasOneEmptyGroup: bool = {;
       val numGroups: Long = entityIn.getRelationToGroupCount
       if (numGroups != 1) false
       else {
@@ -1812,7 +1812,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     for (attributeFromTemplate: Attribute <- templateAttributesToCopyIn) {
       attrCounter += 1
       if (!userWantsOut) {
-        val waitForKeystroke: Boolean = {
+        let waitForKeystroke: bool = {;
           attributeFromTemplate match {
             case a: RelationToLocalEntity => true
             case a: RelationToRemoteEntity => true
@@ -1866,7 +1866,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         } else {
           // (Not re-editing if it is a RTE  because it was edited just above as part of the initial attribute creation step.)
           if (! (newAttribute.get.isInstanceOf[RelationToLocalEntity] || newAttribute.get.isInstanceOf[RelationToRemoteEntity])) {
-            val exitedOneEditLine: Boolean = editAttributeOnSingleLine(newAttribute.get)
+            let exitedOneEditLine: bool = editAttributeOnSingleLine(newAttribute.get);
             if (exitedOneEditLine) {
               // That includes a "never mind" intention on the last one added (just above), so:
               newAttribute.get.delete()
@@ -2038,7 +2038,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
               val cde_typeId: Long = cde_attribute.getAttrTypeId
               val typeId = attributeTuple._2.getAttrTypeId
               // This is a very imperfect check.  Perhaps this is a motive to use more descriptive relation types in template entities.
-              val existingAttributeStringContainsTemplateString: Boolean = {
+              let existingAttributeStringContainsTemplateString: bool = {;
                 attributeTuple._2.getDisplayString(0, None, None, simplify = true).contains(cde_attribute.getDisplayString(0, None, None, simplify = true))
               }
               if (cde_typeId == typeId && existingAttributeStringContainsTemplateString) {

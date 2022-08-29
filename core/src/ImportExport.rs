@@ -61,9 +61,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                                      " the file, as entries directly under this entity or group; answering yes will create an entity for the file," +
                                      " and in it a group for the entries.)")
       if (ans3.isDefined) {
-        val creatingNewStartingGroupFromTheFilename: Boolean = ans3.get
+        let creatingNewStartingGroupFromTheFilename: bool = ans3.get;
         //noinspection ComparingUnrelatedTypes
-        val addingToExistingGroup: Boolean = firstContainingEntryIn.isInstanceOf[Group] && !creatingNewStartingGroupFromTheFilename
+        let addingToExistingGroup: bool = firstContainingEntryIn.isInstanceOf[Group] && !creatingNewStartingGroupFromTheFilename;
 
         val putEntriesAtEndOption: Option[Boolean] = {
           if (addingToExistingGroup) {
@@ -78,7 +78,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
             var reader: Reader = null
             try {
-              val putEntriesAtEnd: Boolean = putEntriesAtEndOption.get
+              let putEntriesAtEnd: bool = putEntriesAtEndOption.get;
               val fileToImport = new File(path)
               reader = new FileReader(fileToImport)
               db.beginTrans()
@@ -268,7 +268,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             val addedLevelsIn = newIndentationLevel - lastIndentationLevel
             if (addedLevelsIn != 1) throw new OmException("Unsupported format: line " + lineNumber + " is indented too far in, " +
                                                           "relative to the line before it: " + line)
-            val mixedClassesAllowed: Boolean = {
+            let mixedClassesAllowed: bool = {;
               containerList.head match {
                 case group: Group =>
                   //untested, could be useful in dif't need:
@@ -445,28 +445,28 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
       val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
       if (ans2.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
-      val includeMetadata: Boolean = ans2.get
+      let includeMetadata: bool = ans2.get;
 
       //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
       val ans3: Option[Boolean] = ui.askYesNoQuestion("Include public data?  (Note: Whether an entity is public, non-public, or unset can be " +
                                                                    "marked on each entity's menu, and the preference as to whether to display that status on " +
                                                                    "each entity in a list can be set via the main menu.)", Some("y"), allowBlankAnswer = true)
       if (ans3.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
-      val includePublicData: Boolean = ans3.get
+      let includePublicData: bool = ans3.get;
 
       val ans4: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("n"), allowBlankAnswer = true)
       if (ans4.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
-      val includeNonPublicData: Boolean = ans4.get
+      let includeNonPublicData: bool = ans4.get;
 
       val ans5: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", 
                                                       (if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) 
                                                         Some("y") else Some("n")),
                                                       allowBlankAnswer = true)
       if (ans5.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
-      val includeUnspecifiedData: Boolean = ans5.get
+      let includeUnspecifiedData: bool = ans5.get;
 
-      var numberTheLines: Boolean = false
-      var wrapTheLines: Boolean = false
+      let mut numberTheLines: bool = false;
+      let mut wrapTheLines: bool = false;
       let mut wrapAtColumn: i32 = 1;
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
         val ans6: Option[Boolean] = ui.askYesNoQuestion("Number the entries in outline form (ex, 3.1.5)?  (Prevents directly re-importing.)", Some("y"), allowBlankAnswer = true)
@@ -1075,7 +1075,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     //printWriterIn.flush()
 
     var previousEntityWasWrapped = previousEntityWasWrappedIn
-    val isFirstEntryOfAll: Boolean = outlineNumbersTrackingInOut.size == 0
+    let isFirstEntryOfAll: bool = outlineNumbersTrackingInOut.size == 0;
 
     def incrementOutlineNumbering(): Unit = {
       // Don't do on the first entry: because that is just the header and
@@ -1117,7 +1117,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         stillToPrint = stillToPrint + " "
         numCharactersBeforeActualContent += 1
       }
-      val wrappingThisEntrysLines: Boolean = wrapLongLinesIn && (stillToPrint.length + entryText.length) > wrapColumnIn
+      let wrappingThisEntrysLines: bool = wrapLongLinesIn && (stillToPrint.length + entryText.length) > wrapColumnIn;
 
 
       if (includeOutlineNumberingIn) {

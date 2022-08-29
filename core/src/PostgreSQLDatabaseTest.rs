@@ -74,7 +74,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   }
 
   "database version table" should "have been created with right data" in {
-    val versionTableExists: Boolean = mDB.doesThisExist("select count(1) from pg_class where relname='om_db_version'")
+    let versionTableExists: bool = mDB.doesThisExist("select count(1) from pg_class where relname='om_db_version'");
     assert(versionTableExists)
     val results = mDB.dbQueryWrapperForOneRow("select version from om_db_version", "Int")
     assert(results.length == 1)
@@ -429,7 +429,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     }
 
     // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below; and to verify behavior with other values)
-    val testval2: Boolean = true
+    let testval2: bool = true;
     val validOnDate2: Option[Long] = None
     val boolAttributeId2: Long = mDB.createBooleanAttribute(pid1, atid1, testval2, validOnDate2, observationDate)
     val ba3: BooleanAttribute = new BooleanAttribute(mDB, boolAttributeId2)

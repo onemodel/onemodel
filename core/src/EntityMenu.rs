@@ -153,7 +153,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
             val newAttribute: Attribute = entityIn.addHASRelationToLocalEntity(newEntity.get.getId, None, System.currentTimeMillis())
             // The next 2 lines are so if adding a new entry on the 1st entry, and if the user so prefers, the new one becomes the
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
-            val goingBackward: Boolean = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop
+            let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop;
             val forward = !goingBackward
             let displayStartingRowNumber: i32 = placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount(), 0, forwardNotBackIn = forward,;
                                                                      attributeRowsStartingIndexIn, newAttribute.getId,
@@ -191,7 +191,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
         val newAttribute: Option[Attribute] = addAttribute(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingGroupIn)
         if (newAttribute.isDefined && highlightedEntry.isDefined) {
           // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
-          val goingBackward: Boolean = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop
+          let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop;
           val forward = !goingBackward
           placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount(), 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
                                newAttribute.get.getId, highlightedIndexInObjList.getOrElse(0),
@@ -273,7 +273,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           // entity could have been deleted by some operation in OtherEntityMenu
           None
         } else {
-          val listEntryIsGoneNow: Boolean = highlightedEntry.isDefined &&
+          let listEntryIsGoneNow: bool = highlightedEntry.isDefined &&;
                                             !highlightedEntry.get.mDB.attributeKeyExists(highlightedEntry.get.getFormId, highlightedEntry.get.getId)
           val defaultEntryToHighlight: Option[Attribute] = highlightedEntry
           val nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entityIn, attributesToDisplay,
@@ -352,14 +352,14 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           case relToEntity: RelationToLocalEntity =>
             val db = relToEntity.mDB
             entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
-            val stillThere: Boolean = db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false) &&
+            let stillThere: bool = db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false) &&;
                                       db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId)
             !stillThere
           case relToRemoteEntity: RelationToRemoteEntity =>
             // (An entity can be remote, but referred to by a local RelationToLocalEntity:)
             val remoteDb: Database = relToRemoteEntity.getRemoteDatabase
             entityMenu(new Entity(remoteDb, relToRemoteEntity.getRelatedId2), 0, None, None, Some(relToRemoteEntity))
-            val stillThere: Boolean = remoteDb.entityKeyExists(relToRemoteEntity.getRelatedId2, includeArchived = false) &&
+            let stillThere: bool = remoteDb.entityKeyExists(relToRemoteEntity.getRelatedId2, includeArchived = false) &&;
                                       remoteDb.attributeKeyExists(relToRemoteEntity.getFormId, relToRemoteEntity.getId)
             !stillThere
           case relToGroup: RelationToGroup =>

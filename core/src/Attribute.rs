@@ -92,6 +92,6 @@ abstract class Attribute(val mDB: Database, mId: Long) {
    */
   protected var mParentId: Long = 0L
   protected var mAttrTypeId: Long = 0L
-  protected var mAlreadyReadData: Boolean = false
+  protected let mut mAlreadyReadData: bool = false;
   protected var mSortingIndex: Long = 0L
 }

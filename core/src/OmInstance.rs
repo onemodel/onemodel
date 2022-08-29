@@ -109,8 +109,8 @@ class OmInstance(val mDB: Database, mId: String) {
 
   def delete() = mDB.deleteOmInstance(mId)
 
-  var mAlreadyReadData: Boolean = false
-  var mLocal: Boolean = false
+  let mut mAlreadyReadData: bool = false;
+  let mut mLocal: bool = false;
   var mAddress: String = ""
   var mInsertionDate: Long = 0
   var mEntityId: Option[Long] = None

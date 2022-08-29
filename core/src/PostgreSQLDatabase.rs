@@ -736,7 +736,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     * because createTables always provides the latest structure in a new system.  This method is just for updating older instances to what is in createTables!
     */
   def doDatabaseUpgradesIfNeeded(): Unit = {
-    val versionTableExists: Boolean = doesThisExist("select count(1) from pg_class where relname='om_db_version'")
+    let versionTableExists: bool = doesThisExist("select count(1) from pg_class where relname='om_db_version'");
     if (! versionTableExists) {
       createVersionTable()
     }
@@ -1431,7 +1431,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val groupIds = dbQuery("select group_id from EntitiesInAGroup where entity_id=" + entityId, "Long")
     for (row <- groupIds) {
       val groupId = row(0).get.asInstanceOf[Long]
-      val mixedClassesAllowed: Boolean = areMixedClassesAllowed(groupId)
+      let mixedClassesAllowed: bool = areMixedClassesAllowed(groupId);
       if ((!mixedClassesAllowed) && hasMixedClasses(groupId)) {
         throw rollbackWithCatch(new OmDatabaseException(Database.MIXED_CLASSES_EXCEPTION))
       }
@@ -1902,7 +1902,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     dbAction("insert into EntitiesInAGroup (group_id, entity_id, sorting_index) values (" + groupIdIn + "," + containedEntityIdIn + "," +
              "" + sortingIndex + ")")
     // idea: do this check sooner in this method?:
-    val mixedClassesAllowed: Boolean = areMixedClassesAllowed(groupIdIn)
+    let mixedClassesAllowed: bool = areMixedClassesAllowed(groupIdIn);
     if ((!mixedClassesAllowed) && hasMixedClasses(groupIdIn)) {
       if (!callerManagesTransactionsIn) rollbackTrans()
       throw new OmDatabaseException(Database.MIXED_CLASSES_EXCEPTION)
@@ -1940,7 +1940,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
   def areMixedClassesAllowed(groupId: Long): Boolean = {
     val rows = dbQuery("select allow_mixed_classes from grupo where id =" + groupId, "Boolean")
-    val mixedClassesAllowed: Boolean = rows.head(0).get.asInstanceOf[Boolean]
+    let mixedClassesAllowed: bool = rows.head(0).get.asInstanceOf[Boolean];
     mixedClassesAllowed
   }
 
@@ -2239,7 +2239,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                                                  "so the program does not know what to use for this.  There should be *one*.")
         if (preferenceType == Database.PREF_TYPE_BOOLEAN) {
           val preferenceId: Long = relevantAttributeRows.head(0).get.asInstanceOf[Long]
-          val preferenceValue: Boolean = relevantAttributeRows.head(1).get.asInstanceOf[Boolean]
+          let preferenceValue: bool = relevantAttributeRows.head(1).get.asInstanceOf[Boolean];
           Some((preferenceId, preferenceValue))
         } else if (preferenceType == Database.PREF_TYPE_ENTITY_ID) {
           val relTypeId: Long = relevantAttributeRows.head(0).get.asInstanceOf[Long]

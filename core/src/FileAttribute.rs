@@ -285,9 +285,9 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   private var mOriginalFileDate: Long = 0
   private var mStoredDate: Long = 0
   private var mOriginalFilePath: String = null
-  private var mReadable: Boolean = false
-  private var mWritable: Boolean = false
-  private var mExecutable: Boolean = false
+  private let mut mReadable: bool = false;
+  private let mut mWritable: bool = false;
+  private let mut mExecutable: bool = false;
   private var mSize: Long = 0
   private var mMd5hash: String = null
 }

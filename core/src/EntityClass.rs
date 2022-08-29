@@ -105,7 +105,7 @@ class EntityClass(val mDB: Database, mId: Long) {
   /** Removes this object etc from the system. */
   def delete() = mDB.deleteClassAndItsTemplateEntity(mId)
 
-  var mAlreadyReadData: Boolean = false
+  let mut mAlreadyReadData: bool = false;
   var mName: String = null
   var mTemplateEntityId: Long = 0
   var mCreateDefaultAttributes: Option[Boolean] = None

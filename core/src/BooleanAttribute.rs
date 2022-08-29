@@ -75,5 +75,5 @@ class BooleanAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndOb
   /** For descriptions of the meanings of these variables, see the comments
     on createBooleanAttribute(...) or createTables() in PostgreSQLDatabase or Database classes.
     */
-  private var mBoolean: Boolean = false
+  private let mut mBoolean: bool = false;
 }
