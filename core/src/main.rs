@@ -23,10 +23,10 @@ struct TextUI {
 
 impl TextUI {
     const MENU_CHARS: &'static str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+    //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
+    const CHOOSER_MENU_PREFIX_LENGTH: i32 = 2;
 }
 /*
-  //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
-  let objectChooserMenuPrefixLength: i32 = 2;
   val (username, password): (Option[String], Option[String]) = if (args.length == 2) (Some(args(0)), Some(args(1))) else (None, None)
   let forceUsernamePasswordPrompt: bool = if (args.length == 1) true else false;
 
@@ -290,7 +290,7 @@ impl TextUI {
     * SEE ALSO the method linesLeft, which actually has/uses the number.
     */
   def maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int): Int = {
-    val maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + objectChooserMenuPrefixLength)
+    val maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + CHOOSER_MENU_PREFIX_LENGTH)
     // the next 2 lines are in coordination with a 'require' statement in askWhich, so we don't fail it:
     val maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length
     math.min(maxMoreChoicesBySpaceAvailable, maxMoreChoicesByMenuCharsAvailable)
@@ -446,7 +446,7 @@ impl TextUI {
             if (highlightIndexIn.getOrElse(None) == index) Color.blue("*")
             else if (secondaryHighlightIndexIn.getOrElse(None) == index) Color.green("+")
             else " "
-          val padLength = maxChoiceLength - choice.length - objectChooserMenuPrefixLength - 1
+          val padLength = maxChoiceLength - choice.length - CHOOSER_MENU_PREFIX_LENGTH - 1
           moreLines(lineCounter).append(lineMarker + nextMenuChar() + "-" + choice)
           for (x <- 0 until padLength) {
             moreLines(lineCounter).append(" ")
