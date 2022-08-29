@@ -48,7 +48,7 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let number: Float = getNumber;
     let unitId: Long = getUnitId;
-    var result: String = typeName + ": " + number + " " + mDB.getEntityName(unitId).get
+    let mut result: String = typeName + ": " + number + " " + mDB.getEntityName(unitId).get;
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
@@ -97,6 +97,6 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
    * For descriptions of the meanings of these variables, see the comments
    * on createQuantityAttribute(...) or createTables() in PostgreSQLDatabase or Database classes
    */
-  private var mUnitId: Long = 0L
-  private var mNumber: Float = .0F
+  private let mut mUnitId: Long = 0L;
+  private let mut mNumber: Float = .0F;
 }

@@ -20,15 +20,15 @@ import org.scalatest.{Args, FlatSpec, Status}
 class EntityTest extends FlatSpec with MockitoSugar {
   // ABOUT the last attempt at CHANGING VARS TO VALS: see comment ("NOTE", farther down) that was removed when the last part of this sentence was added.
 
-  var mEntity: Entity = null
-  var mUnitId: Long = 0
-  var mDB: PostgreSQLDatabase = null
-  var mQuantityAttrTypeId: Long = 0
-  var mTextAttrTypeId: Long = 0
-  var mDateAttrTypeId = 0L
-  var mBooleanAttrTypeId = 0L
-  var mFileAttrTypeId = 0L
-  var mRelationTypeId = 0L
+  let mut mEntity: Entity = null;
+  let mut mUnitId: Long = 0;
+  let mut mDB: PostgreSQLDatabase = null;
+  let mut mQuantityAttrTypeId: Long = 0;
+  let mut mTextAttrTypeId: Long = 0;
+  let mut mDateAttrTypeId = 0L;
+  let mut mBooleanAttrTypeId = 0L;
+  let mut mFileAttrTypeId = 0L;
+  let mut mRelationTypeId = 0L;
 
   override def runTests(testName: Option[String], args: Args): Status = {
     setUp()
@@ -112,8 +112,8 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
   "testAddFileAttribute" should "also work" in {
     mDB.beginTrans()
-    var file: java.io.File = null
-    var fw: java.io.FileWriter = null
+    let mut file: java.io.File = null;
+    let mut fw: java.io.FileWriter = null;
     System.out.println("starting testAddFileAttribute")
     try {
       file = java.io.File.createTempFile("om-test-file-attr-", null)

@@ -106,6 +106,6 @@ class RelationType(mDB: Database, mId: Long) extends Entity(mDB, mId) {
   /** For descriptions of the meanings of these variables, see the comments
     on PostgreSQLDatabase.createTables(...), and examples in the database testing code.
     */
-  private var mNameInReverseDirection: String = null
-  private var mDirectionality: String = null
+  private let mut mNameInReverseDirection: String = null;
+  private let mut mDirectionality: String = null;
 }

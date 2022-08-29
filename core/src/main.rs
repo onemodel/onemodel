@@ -100,7 +100,7 @@ impl TextUI {
   //}
   //Runtime.getRuntime.addShutdownHook(cleanup)
 
-  var out: PrintStream = System.out
+  let mut out: PrintStream = System.out;
 
   def setOutput(out: PrintStream) {
     this.out = out
@@ -170,7 +170,7 @@ impl TextUI {
     println("==============================================")
   }
 
-  var mTesting = false
+  let mut mTesting = false;
 
   //idea: change this to ".apply"
   def weAreTesting(testing: Boolean) {
@@ -208,9 +208,9 @@ impl TextUI {
                          isPasswordIn: Boolean = false,
                          //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
                          escKeySkipsCriteriaCheck: Boolean = true): Option[String] = {
-    var count = 0
+    let mut count = 0;
     let lastLineOfPrompt: String = {;
-      var lastLineOfPrompt = ""
+      let mut lastLineOfPrompt = "";
       if (leadingTextIn.isDefined) {
         for (prompt <- leadingTextIn.get) {
           count = count + 1
@@ -430,9 +430,9 @@ impl TextUI {
           moreLines(i) = new StringBuffer()
         }
         let linesLeftHere = linesLeft(leadingTextIn.size, choicesIn.length);
-        var lineCounter = -1
+        let mut lineCounter = -1;
         // now build the lines out of columns be4 displaying them.
-        var index = -1
+        let mut index = -1;
         for (choice <- moreChoicesIn) {
           index += 1
           lineCounter = lineCounter + 1
@@ -452,7 +452,7 @@ impl TextUI {
             moreLines(lineCounter).append(" ")
           }
         }
-        var linesTooLong = false
+        let mut linesTooLong = false;
         for (line <- moreLines) {
           if (line.toString.trim.length > 0 && !ranOutOfVerticalSpace) {
             // idea for bugfix: adjust the effectiveLineLength for non-displaying chars that make up the color of the lineMarker above!

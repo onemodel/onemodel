@@ -59,7 +59,7 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.fileAttributeKeyExists(fileAttributeId)).thenReturn(true)
 
-    var originalName = ""
+    let mut originalName = "";
     let fa: FileAttribute = new FileAttribute(mockDB, fileAttributeId) {override def getOriginalFilePath: String = originalName};
     let (basename, extension) = FileAttribute.getUsableFilename(fa.getOriginalFilePath);
     assert(basename == FileAttribute.filenameFiller && extension == "")

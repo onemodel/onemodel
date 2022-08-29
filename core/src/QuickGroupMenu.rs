@@ -108,8 +108,8 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
                                          containingEntityIn)
     else {
       let answer = response.get;
-      var numRowsToMove = 0
-      var forwardNotBack = false
+      let mut numRowsToMove = 0;
+      let mut forwardNotBack = false;
 
       if ((answer >= 1 && answer <= 6) || answer == 9) {
         if (answer == 1) {
@@ -292,7 +292,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
       let (highlightedIndexInObjList: Int, highlightedObjId: Long, highlightedEntry: Entity, moveTargetIndexInObjList: Option[Int],;
       targetForMoves: Option[Entity]) = {
         // Be sure the code is OK even if the highlightedEntityIn isn't really in the list due to caller logic error, etc.
-        var highlightedObjId: Long = if (highlightedEntityIn.isEmpty) objIds(0) else highlightedEntityIn.get.getId
+        let mut highlightedObjId: Long = if (highlightedEntityIn.isEmpty) objIds(0) else highlightedEntityIn.get.getId;
         let mut highlightedIndexInObjList: i32 = {;
           let index = objIds.indexOf(highlightedObjId);
           // if index == -1 then there could be a logic error where an entity not in the list was passed in, or an entry was moved and we're not displaying
@@ -303,7 +303,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
           }
           else index
         }
-        var moveTargetIndexInObjList: Option[Int] = if (targetForMovesIn.isEmpty) None
+        let mut moveTargetIndexInObjList: Option[Int] = if (targetForMovesIn.isEmpty) None;
                                                     else {
                                                       let index = objIds.indexOf(targetForMovesIn.get.getId);
                                                       // same as just above: don't bomb w/ a -1
@@ -534,10 +534,10 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
               controller.goToEntityOrItsSoleGroupsMenu(userSelection, relationToGroupIn, Some(groupIn))
 
             let removedOne: bool = !groupIn.isEntityInGroup(userSelection.getId);
-            var entityToHighlightNext: Option[Entity] = Some(userSelection)
+            let mut entityToHighlightNext: Option[Entity] = Some(userSelection);
             if (groupId.isDefined && !moreThanOneGroupAvailable) {
               //idea: do something w/ this unused variable? Like, if the userSelection was deleted, then use this in its place in parms to
-              // qGM just below? or what was it for originally?  Or, del this var around here?
+              // qGM just below? or what was it for originally?  Or, del this let mut around here?;
               entityToHighlightNext = Util.findEntityToHighlightNext(objIds.length, objectsToDisplay, removedOne, highlightedIndexInObjList, highlightedEntry)
             }
 

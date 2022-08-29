@@ -51,13 +51,13 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     let (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option[Long], farNewNeighborSortingIndex: Option[Long]) =;
       findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex)
 
-    var displayStartingRowNumber = startingDisplayRowIndexIn
+    let mut displayStartingRowNumber = startingDisplayRowIndexIn;
 
     if (nearNewNeighborSortingIndex.isEmpty) {
       ui.displayText("Nowhere to move it to, so doing nothing.")
     } else {
       let (newSortingIndex: Long, trouble: Boolean) = {;
-        var (newSortingIndex: Long, trouble: Boolean, newStartingRowNum: Int) = {
+        let mut (newSortingIndex: Long, trouble: Boolean, newStartingRowNum: Int) = {;
           getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In, startingDisplayRowIndexIn,
                              nearNewNeighborSortingIndex, farNewNeighborSortingIndex, forwardNotBackIn,
                              byHowManyEntriesActuallyMoving, movingFromPosition_sortingIndex, moveFromIndexInObjListIn, numDisplayLinesIn)
@@ -184,7 +184,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
           // ("- 1" on next line because the indexes are zero-based)
           let lastScreenfulStartingIndex: Long = groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In - numDisplayLines - 1;
           //(was: "(numDisplayLines / 4)", but center it better in the screen):
-          // Another name for next var might be  like "display index at new entry but going back to show enough contextual data on screen".
+          // Another name for next let mut might be  like "display index at new entry but going back to show enough contextual data on screen".;
           let numLinesInHalfTheScreen = numDisplayLines / 2;
           let movedEntrysNewAbsoluteIndexMinusHalfScreenful: Double = startingDisplayRowIndexIn + moveFromRelativeIndexInObjListIn +;
                                                                       byHowManyEntriesMoving - numLinesInHalfTheScreen

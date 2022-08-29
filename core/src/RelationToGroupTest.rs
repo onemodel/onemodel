@@ -17,7 +17,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Status, Args, FlatSpec}
 
 class RelationToGroupTest extends FlatSpec with MockitoSugar {
-  var mDB: PostgreSQLDatabase = null
+  let mut mDB: PostgreSQLDatabase = null;
 
   // Starting to use the real db because the time savings don't seem enough to justify the work with the mocks. (?)
   override def runTests(testName: Option[String], args: Args):Status = {

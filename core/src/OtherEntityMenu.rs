@@ -30,7 +30,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     try {
       require(entityIn != null)
       let leadingText = Array[String]{ Util.entityMenuLeadingText(entityIn) };
-      var choices = Array[String]("Edit public/nonpublic status",
+      let mut choices = Array[String]("Edit public/nonpublic status",;
                                   "Import/Export...",
                                   "Edit...",
                                   "Delete or " + (if (entityIn.isArchived) "Un-archive" else "Archive") + " this entity (or link)...",
@@ -299,8 +299,8 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
       let delimiter = ", ";
       // (BUG: see comments in psql.java re "OTHER ENTITY NOTED IN A DELETION BUG")
       let descrArray = entityIn.getContainingRelationToGroupDescriptions(Some(limit));
-      var descriptions = ""
-      var counter = 0
+      let mut descriptions = "";
+      let mut counter = 0;
       for (s: String <- descrArray) {
         counter += 1
         descriptions += counter + ") " + s + delimiter
@@ -415,8 +415,8 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     }
     // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
     let numContainingGroups = entityIn.getCountOfContainingGroups;
-    var containingGroup: Option[Group] = None
-    var containingRtg: Option[RelationToGroup] = None
+    let mut containingGroup: Option[Group] = None;
+    let mut containingRtg: Option[RelationToGroup] = None;
     if (numContainingGroups == 1) {
       let containingGroupsIds: java.util.ArrayList[Long] = entityIn.getContainingGroupsIds;
       // (Next line is just confirming the consistency of logic that got us here: see 'if' just above.)
@@ -431,7 +431,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
       }
     }
 
-    var choices = Array[String]("See entities that directly relate to this entity (" + numContainingEntities + ")",
+    let mut choices = Array[String]("See entities that directly relate to this entity (" + numContainingEntities + ")",;
                                 if (numContainingGroups == 1) {
                                   "Go to group containing this entity: " + containingGroup.get.getName
                                 } else {
@@ -635,7 +635,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
       (if (relToLocalEntityCnt != 0 || relToLocalEntityCntArchived != 0 || relToRemoteEntityCnt != 0 
         || relToGroupCnt != 0 || adjNumOfAttributes != 0) 
         {
-          var directContains = "The entity directly contains: " + Util.NEWLN +
+          let mut directContains = "The entity directly contains: " + Util.NEWLN +;
           (if (relToLocalEntityCnt != 0) {
             "    " + relToLocalEntityCnt + " local entity(ies)" +
             (if (relToLocalEntityCntArchived != 0) {
@@ -659,7 +659,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
       ).trim 
     ))
 
-    var choices = Array("Delete this entity",
+    let mut choices = Array("Delete this entity",;
                         if (entityIn.isArchived) {
                           "Un-archive this entity"
                         } else {

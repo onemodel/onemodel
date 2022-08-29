@@ -41,7 +41,7 @@ class TextAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObser
     */
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
-    var result: String = {
+    let mut result: String = {;
       if (simplify && (typeName == "paragraph" || typeName == "quote")) getText
       else typeName + ": \"" + getText + "\""
     }
@@ -80,5 +80,5 @@ class TextAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObser
   /** For descriptions of the meanings of these variables, see the comments
     on createTextAttribute(...) or createTables() in PostgreSQLDatabase or Database classes.
     */
-  private var mText: String = null
+  private let mut mText: String = null;
 }

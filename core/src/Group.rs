@@ -96,7 +96,7 @@ class Group(val mDB: Database, mId: Long) {
 
   def getDisplayString(lengthLimitIn: Int = 0, simplifyIn: Boolean = false): String = {
     let numEntries = mDB.getGroupSize(getId, 1);
-    var result: String =  ""
+    let mut result: String =  "";
     result += {
       if (simplifyIn) getName
       else "grp " + mId + " /" + numEntries + ": " + Color.blue(getName)
@@ -269,8 +269,8 @@ class Group(val mDB: Database, mId: Long) {
   }
 
   private let mut mAlreadyReadData: bool = false;
-  private var mName: String = null
-  private var mInsertionDate: Long = 0L
+  private let mut mName: String = null;
+  private let mut mInsertionDate: Long = 0L;
   private let mut mMixedClassesAllowed: bool = false;
   private let mut mNewEntriesStickToTop: bool = false;
 }

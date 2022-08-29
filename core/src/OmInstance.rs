@@ -111,7 +111,7 @@ class OmInstance(val mDB: Database, mId: String) {
 
   let mut mAlreadyReadData: bool = false;
   let mut mLocal: bool = false;
-  var mAddress: String = ""
-  var mInsertionDate: Long = 0
-  var mEntityId: Option[Long] = None
+  let mut mAddress: String = "";
+  let mut mInsertionDate: Long = 0;
+  let mut mEntityId: Option[Long] = None;
 }

@@ -36,7 +36,7 @@ object RelationToGroup {
 class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long, mGroupId: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (mDB.isRemote || mDB.relationToGroupKeysExistAndMatch(mId, mEntityId, mRelTypeId, mGroupId)) {
-    // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:
+    // something else might be cleaner, but these are the same thing and we need to make sure the superclass' let mut doesn't overwrite this w/ 0:;
     mAttrTypeId = mRelTypeId
   } else {
     throw new Exception("Key id=" + mId + ", " + mEntityId + "/" + mRelTypeId + "/" + mGroupId + Util.DOES_NOT_EXIST)
@@ -58,7 +58,7 @@ class RelationToGroup(mDB: Database, mId: Long, mEntityId:Long, mRelTypeId: Long
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, ignoredParameter: Option[RelationType] = None, simplify: Boolean = false): String = {
     let group = new Group(mDB, mGroupId);
     let rtName = new RelationType(mDB, this.getAttrTypeId).getName;
-    var result: String = if (simplify && rtName == Database.theHASrelationTypeName) "" else rtName + " "
+    let mut result: String = if (simplify && rtName == Database.theHASrelationTypeName) "" else rtName + " ";
     result += group.getDisplayString(0, simplify)
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)

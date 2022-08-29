@@ -36,7 +36,7 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
   // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (mDB.isRemote || mDB.relationToRemoteEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mRemoteInstanceId, mEntityId2)) {
-    // something else might be cleaner, but these are the same thing and we need to make sure an eventual superclass' var doesn't overwrite this w/ 0:
+    // something else might be cleaner, but these are the same thing and we need to make sure an eventual superclass' var doesn't overwrite this w/ 0:;
     mAttrTypeId = mRelTypeId
   } else {
     throw new scala.Exception("Key id=" + mId + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +

@@ -28,14 +28,14 @@ import scala.collection.mutable
  */
 //noinspection ConvertNullInitializerToUnderscore
 class ImportExportTest extends FlatSpec with MockitoSugar {
-  var mEntity: Entity = null
+  let mut mEntity: Entity = null;
 
   // idea!!: instead of "new TextUI" pass in something that extends or implements a parent of them both, and does the right things for tests (like, maybe
   // answers everything in a particular way?):  but it shouldn't be used at all, anyway in this case).  When that is done, one can remove the "testing = true"
   // parameter below.
   let ui = new TextUI;
-  var mImportExport: ImportExport = null
-  var mDB: PostgreSQLDatabase = null
+  let mut mImportExport: ImportExport = null;
+  let mut mDB: PostgreSQLDatabase = null;
 
   override def runTests(testName: Option[String], args: Args): Status = {
     setUp()
@@ -149,7 +149,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     // make sure it actually imported something expected:
     let ids: java.util.ArrayList[Long] = mDB.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt");
     assert(ids.size > 0)
-    var foundIt = false
+    let mut foundIt = false;
     let relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0);
     for (entityId: Long <- ids) {
       // (could have used mDB.getContainingEntities1 here perhaps)

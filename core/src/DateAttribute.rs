@@ -38,7 +38,7 @@ class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
 
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
-    var result: String = typeName + ": "
+    let mut result: String = typeName + ": ";
     result += Attribute.usefulDateFormat(mDate)
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
@@ -71,5 +71,5 @@ class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   /** For descriptions of the meanings of these variables, see the comments
     on createDateAttribute(...) or createTables() in PostgreSQLDatabase or Database classes
     */
-  private var mDate: Long = 0L
+  private let mut mDate: Long = 0L;
 }

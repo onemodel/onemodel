@@ -20,9 +20,9 @@ import org.scalatest.{Args, FlatSpec, Status}
 class EntityClassTest extends FlatSpec with MockitoSugar {
   // ABOUT the last attempt at CHANGING VARS TO VALS: see comment ("NOTE", farther down) that was removed when the last part of this sentence was added.
 
-  var mTemplateEntity: Entity = null
-  var mEntityClass: EntityClass = null
-  var mDB: PostgreSQLDatabase = null
+  let mut mTemplateEntity: Entity = null;
+  let mut mEntityClass: EntityClass = null;
+  let mut mDB: PostgreSQLDatabase = null;
 
   override def runTests(testName: Option[String], args: Args):Status = {
     setUp()

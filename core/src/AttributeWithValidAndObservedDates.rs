@@ -26,7 +26,7 @@ object AttributeWithValidAndObservedDates {
 abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long, sortingIndexIn: Long) {
     mValidOnDate = validOnDateIn
-    // observationDate is not expected to be None, like mValidOnDate can be. See var def for more info.
+    // observationDate is not expected to be None, like mValidOnDate can be. See let mut def for more info.;
     mObservationDate = observationDateIn
     super.assignCommonVars(parentIdIn, attrTypeIdIn, sortingIndexIn)
   }
@@ -49,6 +49,6 @@ abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: Long) exte
    * For descriptions of the meanings of these variables, see the comments
    * on createTables(...), and examples in the database testing code in PostgreSQLDatabase or Database classes.
    */
-  protected var mValidOnDate: Option[Long] = None
-  protected var mObservationDate: Long = 0L
+  protected let mut mValidOnDate: Option[Long] = None;
+  protected let mut mObservationDate: Long = 0L;
 }

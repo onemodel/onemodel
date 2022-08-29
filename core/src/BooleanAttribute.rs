@@ -39,7 +39,7 @@ class BooleanAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndOb
     */
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
-    var result: String = typeName + ": " + getBoolean + ""
+    let mut result: String = typeName + ": " + getBoolean + "";
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }

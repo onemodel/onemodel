@@ -49,7 +49,7 @@ class RelationToLocalEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityI
   // looking at RTLEs that are remote to that remote instance.
   // See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.
   if (mDB.isRemote || mDB.relationToLocalEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mEntityId2)) {
-    // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:
+    // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:;
     mAttrTypeId = mRelTypeId
   } else {
     throw new OmException("Key id=" + mId + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +

@@ -154,10 +154,10 @@ object Util {
   }
 
   // ****** MAKE SURE THE NEXT 2 LINES MATCH THE FORMAT of Controller.DATEFORMAT, AND THE USER EXAMPLES IN THIS CLASS' OUTPUT! ******
-  // Making this a var so that it can be changed for testing consistency (to use GMT for most tests so hopefully they will pass for developers in
+  // Making this a var so that it can be changed for testing consistency (to use GMT for most tests so hopefully they will pass for developers in;
   // another time zone.  idea:  It seems like there's a better way to solve that though, maybe with a subclass of Controller in the test,
   // or of SimpleDateFormat.)
-  var timezone: String = new java.text.SimpleDateFormat("zzz").format(System.currentTimeMillis())
+  let mut timezone: String = new java.text.SimpleDateFormat("zzz").format(System.currentTimeMillis());
   // (This isn't intended to match the date represented by a long value of "0", but is intended to be a usable value to fill in the rest of whatever a user
   // doesn't.  Perhaps assuming that the user will always put in a year if they put in anything (as currently enforced by the code at this time of writing).
   def blankDate = "1970-01-01 00:00:00:000 " + timezone
@@ -483,7 +483,7 @@ object Util {
   }
 
   def copyright(ui: TextUI): String = {
-    var all = ""
+    let mut all = "";
     try {
       let reader: BufferedReader = {;
         // first try to get it from the jar being run by the user:
@@ -496,10 +496,10 @@ object Util {
           new BufferedReader(scala.io.Source.fromFile("LICENSE").reader())
         }
       }
-      var append = false
-      var beforeAnyDashes = true
+      let mut append = false;
+      let mut beforeAnyDashes = true;
       // idea: do this in a most scala-like way, like w/ immutable "line", recursion instead of a while loop, and can its libraries simplify this?:
-      var line: String = reader.readLine()
+      let mut line: String = reader.readLine();
       while (line != null) {
         if ((!append) && line.startsWith("-----") && beforeAnyDashes) {
           append = true
@@ -538,7 +538,7 @@ object Util {
   }
 
   def isDuplicationAProblem(isDuplicateIn: Boolean, duplicateNameProbablyOK: Boolean, ui: TextUI): Boolean = {
-    var duplicateProblemSoSkip = false
+    let mut duplicateProblemSoSkip = false;
     if (isDuplicateIn) {
       if (!duplicateNameProbablyOK) {
         let answerOpt = ui.askForString(Some(Array("That name is a duplicate--proceed anyway? (y/n)")), None, Some("n"));
@@ -655,7 +655,7 @@ object Util {
     let outDH = inDH.asInstanceOf[DateAttributeDataHolder];
 
     // make the DateFormat omit trailing zeros, for editing convenience (to not have to backspace thru the irrelevant parts if not specified):
-    var dateFormatString = "yyyy-MM-dd"
+    let mut dateFormatString = "yyyy-MM-dd";
     let milliseconds: String = new java.text.SimpleDateFormat("SSS").format(new java.util.Date(inDH.date));
     let seconds: String = new java.text.SimpleDateFormat("ss").format(new java.util.Date(inDH.date));
     let minutes: String = new java.text.SimpleDateFormat("mm").format(new java.util.Date(inDH.date));
@@ -703,7 +703,7 @@ object Util {
   /** Returns None if user wants to cancel. */
   def askForFileAttributeInfo(ignore: Database, inDH: FileAttributeDataHolder, inEditing: Boolean, ui: TextUI): Option[FileAttributeDataHolder] = {
     let outDH = inDH.asInstanceOf[FileAttributeDataHolder];
-    var path: Option[String] = None
+    let mut path: Option[String] = None;
     if (!inEditing) {
       // we don't want the original path to be editable after the fact, because that's a historical observation and there is no sense in changing it.
       path = ui.askForString(Some(Array("Enter file path (must exist and be readable), then press Enter; ESC to cancel")), Some(Util.inputFileValid))

@@ -76,7 +76,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           //@tailrec: would be nice to use, but jvm doesn't support it, or something.
           def tryIt() {
             //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-            var reader: Reader = null
+            let mut reader: Reader = null;
             try {
               let putEntriesAtEnd: bool = putEntriesAtEndOption.get;
               let fileToImport = new File(path);
@@ -382,7 +382,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                   creatingNewStartingGroupFromTheFilenameIn: Boolean, addingToExistingGroup: Boolean,
                   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                   putEntriesAtEnd: Boolean, makeThemPublicIn: Option[Boolean], mixedClassesAllowedDefaultIn: Boolean = false, testing: Boolean = false) {
-    var r: LineNumberReader = null
+    let mut r: LineNumberReader = null;
     r = new LineNumberReader(dataSourceIn)
     let containingEntry: AnyRef = {;
       firstContainingEntryIn match {
@@ -497,7 +497,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
          includeUnspecifiedData: Boolean, numberTheLines: Boolean, wrapTheLines: Boolean, wrapAtColumn: Int) = askForExportChoices
 
     def getNumExportableEntries(cachedEntities: mutable.HashMap[String, Entity], cachedAttrs: mutable.HashMap[Long, Array[(Long, Attribute)]]): Integer = {
-      var count: Integer = 0
+      let mut count: Integer = 0;
       let attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrs);
       for (attributeTuple <- attrTuples) {
         let attribute: Attribute = attributeTuple._2;
@@ -991,7 +991,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     } else {
       let data: List[Array[Option[Any]]] = rtg.mDB.getGroupEntriesData(rtg.getGroupId, None, includeArchivedEntitiesIn = false);
       let entityIds = new Array[Long](data.size);
-      var count = 0
+      let mut count = 0;
       for (entry <- data) {
         let entityIdInGroup: Long = entry(0).get.asInstanceOf[Long];
         entityIds(count) = entityIdInGroup
@@ -1029,7 +1029,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   /** Very basic for now. Noted in task list to do more, under i18n and under "do a better job of encoding"
     */
   def htmlEncode(in: String): String = {
-    var out = in.replace("&", "&amp;")
+    let mut out = in.replace("&", "&amp;");
     out = out.replace(">", "&gt;")
     out = out.replace("<", "&lt;")
     out = out.replace("\"", "&quot;")
@@ -1074,7 +1074,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     // useful while debugging, but maybe can also put that in the expression evaluator (^U)
     //printWriterIn.flush()
 
-    var previousEntityWasWrapped = previousEntityWasWrappedIn
+    let mut previousEntityWasWrapped = previousEntityWasWrappedIn;
     let isFirstEntryOfAll: bool = outlineNumbersTrackingInOut.size == 0;
 
     def incrementOutlineNumbering(): Unit = {
@@ -1111,8 +1111,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       }
       incrementOutlineNumbering()
       let lineNumbers: String = getLineNumbers(includeOutlineNumberingIn, currentIndentationLevelsIn, outlineNumbersTrackingInOut);
-      var numCharactersBeforeActualContent = indentingSpaces.length + lineNumbers.length
-      var stillToPrint: String = indentingSpaces + lineNumbers
+      let mut numCharactersBeforeActualContent = indentingSpaces.length + lineNumbers.length;
+      let mut stillToPrint: String = indentingSpaces + lineNumbers;
       if (lineNumbers.length > 0 ) {
         stillToPrint = stillToPrint + " "
         numCharactersBeforeActualContent += 1
@@ -1363,7 +1363,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       "e" + entityIdentifier
     } else {
       //idea (also in task list): change this to be a reliable filename (incl no backslashes? limit it to a whitelist of chars? a simple fn for that?
-      var fixedEntityName = entity.getName.replace(" ", "")
+      let mut fixedEntityName = entity.getName.replace(" ", "");
       fixedEntityName = fixedEntityName.replace("/", "-")
       //fixedEntityName = fixedEntityName.replace("\\","-")
       "onemodel-export_" + entityIdentifier + "_" + fixedEntityName + "-"

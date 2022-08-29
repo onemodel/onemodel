@@ -234,7 +234,7 @@ class Entity(val mDB: Database, mId: Long) {
   def getRelationToGroupCount: Long = mDB.getRelationToGroupCount(mId)
 
   def getDisplayString_helper(withColor: Boolean): String = {
-    var displayString: String = {
+    let mut displayString: String = {;
       if (withColor) {
         getPublicStatusDisplayStringWithColor() + getArchivedStatusDisplayString + Color.blue(getName)
       } else {
@@ -248,7 +248,7 @@ class Entity(val mDB: Database, mId: Long) {
   }
 
   def getDisplayString(withColor: Boolean = false): String = {
-    var result = ""
+    let mut result = "";
     try {
       result = getDisplayString_helper(withColor)
     } catch {
@@ -378,7 +378,7 @@ class Entity(val mDB: Database, mId: Long) {
 
   def updateContainedEntitiesPublicStatus(newValueIn: Option[Boolean]): Int = {
     let (attrTuples: Array[(Long, Attribute)], _) = getSortedAttributes(0, 0, onlyPublicEntitiesIn = false);
-    var count = 0
+    let mut count = 0;
     for (attr <- attrTuples) {
       attr._2 match {
         case attribute: RelationToEntity =>
@@ -439,7 +439,7 @@ class Entity(val mDB: Database, mId: Long) {
     }
     // idea: could be a little faster if the md5Hash method were merged into the database method, so that the file is only traversed once (for both
     // upload and md5 calculation).
-    var inputStream: java.io.FileInputStream = null
+    let mut inputStream: java.io.FileInputStream = null;
     try {
       inputStream = new FileInputStream(inFile)
       let id = mDB.createFileAttribute(mId, inAttrTypeId, descriptionIn, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,;
@@ -583,10 +583,10 @@ class Entity(val mDB: Database, mId: Long) {
   def delete() = mDB.deleteEntity(mId)
 
   let mut mAlreadyReadData: bool = false;
-  var mName: String = _
-  var mClassId: Option[Long] = None
-  var mInsertionDate: Long = -1
-  var mPublic: Option[Boolean] = None
+  let mut mName: String = _;
+  let mut mClassId: Option[Long] = None;
+  let mut mInsertionDate: Long = -1;
+  let mut mPublic: Option[Boolean] = None;
   let mut mArchived: bool = false;
   let mut mNewEntriesStickToTop: bool = false;
 }

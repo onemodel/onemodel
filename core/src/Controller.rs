@@ -108,7 +108,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
     @tailrec def tryOtherLoginsOrPrompt(): Database = {
       let db = {;
-        var pwdOpt: Option[String] = None
+        let mut pwdOpt: Option[String] = None;
         // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
         let (defaultUserName, defaultPassword) = Util.getDefaultUserInfo;
         let dbWithSystemNameBlankPwd = Database.login(defaultUserName, defaultPassword, showError = false);
@@ -170,7 +170,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         System.exit(1)
       }
       db.get
-      // not attempting to clear that password variable because (making the parm a var got an err msg and) maybe that kind is less intended
+      // not attempting to clear that password variable because (making the parm a var got an err msg and) maybe that kind is less intended;
       // to be secure (anyway)?
     } else tryOtherLoginsOrPrompt()
   }
@@ -181,12 +181,12 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   // up to N levels deep, among the preferences that can include entities with deep nesting.  So in a related change I made it also not look N levels
   // deep, for preferences.  If you check other places touched by this commit there may be a "shotgun surgery" bad smell here also.
   //Idea: Maybe these should have their cache expire after a period of time (to help when running multiple clients).
-  var showPublicPrivateStatusPreference: Option[Boolean] = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
+  let mut showPublicPrivateStatusPreference: Option[Boolean] = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE);
   def refreshPublicPrivateStatusPreference(): Unit = {
     showPublicPrivateStatusPreference = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
   }
-  // putting this in a var instead of recalculating it every time (too frequent) inside findDefaultDisplayEntityId:
-  var defaultDisplayEntityId: Option[Long] = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
+  // putting this in a var instead of recalculating it every time (too frequent) inside findDefaultDisplayEntityId:;
+  let mut defaultDisplayEntityId: Option[Long] = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE);
   def refreshDefaultDisplayEntityId(): Unit = {
     defaultDisplayEntityId = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
   }
@@ -207,7 +207,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     * for whether a group name should be changed at the same time.
     */
   def askForClassInfoAndNameAndCreateEntity(dbIn: Database, classIdIn: Option[Long] = None): Option[Entity] = {
-    var newClass = false
+    let mut newClass = false;
     let classId: Option[Long] =;
       if (classIdIn.isDefined) classIdIn
       else {
@@ -491,7 +491,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
   final def attributeEditMenu(attributeIn: Attribute): Boolean = {
     let leadingText: Array[String] = Array("Attribute: " + attributeIn.getDisplayString(0, None, None));
-    var firstChoices = Array("Edit the attribute type, " +
+    let mut firstChoices = Array("Edit the attribute type, " +;
                              (if (Util.canEditAttributeOnSingleLine(attributeIn)) "content (single line)," else "") +
                              " and valid/observed dates",
 
@@ -763,7 +763,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       let ans2: Option[T] = askForOtherInfo(dbIn, inoutDH, editingIn, ui);
       if (ans2.isEmpty) None
       else {
-        var userWantsToCancel = false
+        let mut userWantsToCancel = false;
         // (the ide/intellij preferred to have it this way instead of 'if')
         inoutDH match {
           case dhWithVOD: AttributeDataHolderWithVODates =>
@@ -930,17 +930,17 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     // Attempt to keep these straight even though the size of the list, hence their option #'s on the menu,
     // is conditional:
     def getChoiceList: (Array[String], Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = {
-      var keepPreviousSelectionChoiceNum = 1
-      var createAttrTypeChoiceNum = 1
-      var searchForEntityByNameChoiceNum = 1
-      var searchForEntityByIdChoiceNum = 1
-      var showJournalChoiceNum = 1
-      var swapObjectsToDisplayChoiceNum = 1
-      var linkToRemoteInstanceChoiceNum = 1
-      var createRelationTypeChoiceNum = 1
-      var createClassChoiceNum = 1
-      var createInstanceChoiceNum = 1
-      var choiceList = Array(Util.listNextItemsPrompt)
+      let mut keepPreviousSelectionChoiceNum = 1;
+      let mut createAttrTypeChoiceNum = 1;
+      let mut searchForEntityByNameChoiceNum = 1;
+      let mut searchForEntityByIdChoiceNum = 1;
+      let mut showJournalChoiceNum = 1;
+      let mut swapObjectsToDisplayChoiceNum = 1;
+      let mut linkToRemoteInstanceChoiceNum = 1;
+      let mut createRelationTypeChoiceNum = 1;
+      let mut createClassChoiceNum = 1;
+      let mut createInstanceChoiceNum = 1;
+      let mut choiceList = Array(Util.listNextItemsPrompt);
       if (previousSelectionDescIn.isDefined) {
         choiceList = choiceList :+ "Keep previous selection (" + previousSelectionDescIn.get + ")."
         keepPreviousSelectionChoiceNum += 1
@@ -1007,7 +1007,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         case Util.OM_INSTANCE_TYPE => "OneModel INSTANCES: "
         case _ => ""
       }
-      var leadingText = leadingTextIn.getOrElse(List[String](prefix + "Pick from menu, or an item by letter; Alt+<letter> to go to the item & later come back)"))
+      let mut leadingText = leadingTextIn.getOrElse(List[String](prefix + "Pick from menu, or an item by letter; Alt+<letter> to go to the item & later come back)"));
       let numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size + 3 /* up to: see more of leadingText below .*/ , choicesIn.length,;
                                                                     Util.maxNameLength)
       let objectsToDisplay = {;
@@ -1115,7 +1115,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
           let endDate: Option[Long] = Util.askForDate_generic(Some("ENDING date in the time range: " + Util.genericDatePrompt), None, ui);
           if (endDate.isEmpty) None
           else {
-            var dayCurrentlyShowing: String = ""
+            let mut dayCurrentlyShowing: String = "";
             let results: util.ArrayList[(Long, String, Long)] = dbIn.findJournalEntries(beginDate.get, endDate.get);
             for (result: (Long, String, Long) <- results) {
               let date = new java.text.SimpleDateFormat("yyyy-MM-dd").format(result._1);
@@ -1337,7 +1337,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         0 // start over
       } else x
     }
-    var leadingText = leadingTextIn.getOrElse(List[String](Util.pickFromListPrompt))
+    let mut leadingText = leadingTextIn.getOrElse(List[String](Util.pickFromListPrompt));
     let choicesPreAdjustment: Array[String] = Array("List next items",;
                                                     "Create new group (aka RelationToGroup)",
                                                     "Search for existing group by name...",
@@ -1789,11 +1789,11 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
 
   def copyAndEditAttributes(entityIn: Entity, templateAttributesToCopyIn: ArrayBuffer[Attribute]): Unit = {
     // userWantsOut is used like a break statement below: could be replaced with a functional idiom (see link to stackoverflow somewhere in the code).
-    var escCounter = 0
-    var userWantsOut = false
+    let mut escCounter = 0;
+    let mut userWantsOut = false;
 
     def checkIfExiting(escCounterIn: Int, attributeCounterIn: Int, numAttributes: Int): Int = {
-      var escCounterLocal = escCounterIn + 1
+      let mut escCounterLocal = escCounterIn + 1;
       if (escCounterLocal > 3 && attributeCounterIn < numAttributes /* <, so we don't ask when done anyway. */) {
         let outAnswer = ui.askYesNoQuestion("Stop checking/adding attributes?", Some(""));
         require(outAnswer.isDefined, "Unexpected behavior: meant to make user answer here.")
@@ -1806,9 +1806,9 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       escCounterLocal
     }
 
-    var askAboutRteEveryTime: Option[Boolean] = None
-    var (allCopy: Boolean, allCreateOrSearch: Boolean, allKeepReference: Boolean) = (false, false, false)
-    var attrCounter = 0
+    let mut askAboutRteEveryTime: Option[Boolean] = None;
+    let mut (allCopy: Boolean, allCreateOrSearch: Boolean, allKeepReference: Boolean) = (false, false, false);
+    let mut attrCounter = 0;
     for (attributeFromTemplate: Attribute <- templateAttributesToCopyIn) {
       attrCounter += 1
       if (!userWantsOut) {
@@ -1887,7 +1887,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       let choice3text = "Keep a reference to the same entity as in the template (least likely choice)";
       let keepSameReferenceAsInTemplateChoiceNum = 3;
 
-      var askEveryTime: Option[Boolean] = None
+      let mut askEveryTime: Option[Boolean] = None;
       askEveryTime = {
         if (askEveryTimeIn.isDefined) {
           askEveryTimeIn
@@ -2031,7 +2031,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         // ("cde" in name means "classDefiningEntity" (aka template))
         let (cde_attributeTuples: Array[(Long, Attribute)], _) = classTemplateEntityIn.get.getSortedAttributes(onlyPublicEntitiesIn = false);
         for (cde_attributeTuple <- cde_attributeTuples) {
-          var attributeTypeFoundOnEntity = false
+          let mut attributeTypeFoundOnEntity = false;
           let cde_attribute = cde_attributeTuple._2;
           for (attributeTuple <- existingAttributeTuplesIn) {
             if (!attributeTypeFoundOnEntity) {

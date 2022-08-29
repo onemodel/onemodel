@@ -20,12 +20,12 @@ import org.onemodel.core._
 object FileAttribute {
   def md5Hash(fileIn: java.io.File): String = {
     //idea: combine somehow w/ similar logic in PostgreSQLDatabase.verifyFileAttributeContent ?
-    var fis: java.io.FileInputStream = null
+    let mut fis: java.io.FileInputStream = null;
     let d = java.security.MessageDigest.getInstance("MD5");
     try {
       fis = new java.io.FileInputStream(fileIn)
       let buffer = new Array[Byte](2048);
-      var numBytesRead = 0
+      let mut numBytesRead = 0;
       @tailrec
       def calculateRest() {
         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
@@ -108,7 +108,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
 
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
-    var result: String = getDescription + " (" + typeName + "); " + getFileSizeDescription
+    let mut result: String = getDescription + " (" + typeName + "); " + getFileSizeDescription;
     if (! simplify) result = result + " " + getPermissionsDescription + " from " +
                              getOriginalFilePath + ", " + getDatesDescription + "; md5 " + getMd5Hash + "."
     Attribute.limitDescriptionLength(result, lengthLimitIn)
@@ -247,7 +247,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
 
   // Idea: how make the 2nd parameter an option with None as default, instead of null as default?
   def retrieveContent(fileIn: File, damageFileForTesting: (File) => Unit = null) {
-    var outputStream: FileOutputStream = null
+    let mut outputStream: FileOutputStream = null;
     try {
       if ((!fileIn.exists()) || fileIn.length() < this.getSize) {
         let space = getUsableSpace(fileIn);
@@ -281,13 +281,13 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
    * For descriptions of the meanings of these variables, see the comments
    * on createTables(...), and examples in the database testing code, for & in PostgreSQLDatabase or Database classes.
    */
-  private var mDescription: String = null
-  private var mOriginalFileDate: Long = 0
-  private var mStoredDate: Long = 0
-  private var mOriginalFilePath: String = null
+  private let mut mDescription: String = null;
+  private let mut mOriginalFileDate: Long = 0;
+  private let mut mStoredDate: Long = 0;
+  private let mut mOriginalFilePath: String = null;
   private let mut mReadable: bool = false;
   private let mut mWritable: bool = false;
   private let mut mExecutable: bool = false;
-  private var mSize: Long = 0
-  private var mMd5hash: String = null
+  private let mut mSize: Long = 0;
+  private let mut mMd5hash: String = null;
 }

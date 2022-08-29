@@ -113,7 +113,7 @@ object PostgreSQLDatabase {
     * with only one field at a time, so you don't escape the single-ticks that *surround* the field.
     */
   def escapeQuotesEtc(s: String): String = {
-    var result: String = s
+    let mut result: String = s;
     /*
     //both of these seem to work to embed a ' (single quote) in interactive testing w/ psql: the SQL standard
     //way (according to http://www.postgresql.org/docs/9.1/interactive/sql-syntax-lexical.html#SQL-SYNTAX-STRINGS )
@@ -135,7 +135,7 @@ object PostgreSQLDatabase {
   def unEscapeQuotesEtc(s: String): String = {
     // don't have to do the single-ticks ("'") because the db does that automatically when returning data (see PostgreSQLDatabaseTest).
 
-    var result: String = s
+    let mut result: String = s;
     result = result.replaceAll("\39", "'")
     result = result.replaceAll("\59", ";")
     result
@@ -146,8 +146,8 @@ object PostgreSQLDatabase {
     *                              still just one) PLACE USING IT NOW (in method createAttributeSortingDeletionTrigger) AND PROBABLY LIMIT USE TO THAT!
     */
   def dbAction(sqlIn: String, callerChecksRowCountEtc: Boolean = false, connIn: Connection, skipCheckForBadSqlIn: Boolean = false): Long = {
-    var rowsAffected = -1
-    var st: Statement = null
+    let mut rowsAffected = -1;
+    let mut st: Statement = null;
     let isCreateDropOrAlterStatement = sqlIn.toLowerCase.startsWith("create ") || sqlIn.toLowerCase.startsWith("drop ") ||;
                                        sqlIn.toLowerCase.startsWith("alter ")
     try {
@@ -217,13 +217,13 @@ object PostgreSQLDatabase {
  * auto-commit will be off until you rollbackTrans() or commitTrans(), at which point auto-commit is
  * turned back on.
  */
-class PostgreSQLDatabase(username: String, var password: String) extends Database {
+class PostgreSQLDatabase(username: String, let mut password: String) extends Database {;
   override def isRemote: Boolean = false
 
   private let ENTITY_ONLY_SELECT_PART: String = "SELECT e.id";
-  protected var mConn: Connection = _
+  protected let mut mConn: Connection = _;
   // When true, this means to override the usual settings and show the archived entities too (like a global temporary "un-archive"):
-  private var mIncludeArchivedEntities = false
+  private let mut mIncludeArchivedEntities = false;
 
   Class.forName("org.postgresql.Driver")
   connect(username, username, password)
@@ -988,7 +988,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
     if (rows.isEmpty) None
     else {
-      var results: List[Long] = Nil
+      let mut results: List[Long] = Nil;
       for (row <- rows) {
         results = row(0).get.asInstanceOf[Long] :: results
       }
@@ -1011,7 +1011,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                        "Long")
     if (rows.isEmpty) None
     else {
-      var results: List[Long] = Nil
+      let mut results: List[Long] = Nil;
       for (row <- rows) {
         results = row(0).get.asInstanceOf[Long] :: results
       }
@@ -1304,7 +1304,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   def createQuantityAttribute(parentIdIn: Long, attrTypeIdIn: Long, unitIdIn: Long, numberIn: Float, validOnDateIn: Option[Long],
                               inObservationDate: Long, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option[Long] = None): /*id*/ Long = {
     if (!callerManagesTransactionsIn) beginTrans()
-    var id: Long = 0L
+    let mut id: Long = 0L;
     try {
       id = getNewKey("QuantityAttributeKeySequence")
       addAttributeSortingRow(parentIdIn, Database.getAttributeFormId(Util.QUANTITY_TYPE), id, sortingIndexIn)
@@ -1404,7 +1404,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def updateClassAndTemplateEntityName(classIdIn: Long, name: String): Long = {
-    var entityId: Long = 0
+    let mut entityId: Long = 0;
     beginTrans()
     try {
       updateClassName(classIdIn, name)
@@ -1522,8 +1522,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     let originalFilePath: String = escapeQuotesEtc(originalFilePathIn);
     // Escaping the md5hash string shouldn't ever matter, but security is more important than the md5hash:
     let md5hash: String = escapeQuotesEtc(md5hashIn);
-    var obj: LargeObject = null
-    var id: Long = 0
+    let mut obj: LargeObject = null;
+    let mut id: Long = 0;
     try {
       id = getNewKey("FileAttributeKeySequence")
       beginTrans()
@@ -1538,8 +1538,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       let oid: Long = lobjManager.createLO();
       obj = lobjManager.open(oid, LargeObjectManager.WRITE)
       let buffer = new Array[Byte](2048);
-      var numBytesRead = 0
-      var total: Long = 0
+      let mut numBytesRead = 0;
+      let mut total: Long = 0;
       @tailrec
       //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
       def saveFileToDb() {
@@ -2000,7 +2000,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def rollbackWithCatch(t: Throwable): Throwable = {
-    var rollbackException: Option[Throwable] = None
+    let mut rollbackException: Option[Throwable] = None;
     try {
       rollbackTrans()
     } catch {
@@ -2324,8 +2324,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       // doing so without exceeding the value of a Long during the calculation.)
       let increment: Long = (maxIdValue.asInstanceOf[Float] / numberOfSegments * 2).asInstanceOf[Long];
       // (start with an increment so that later there is room to sort something prior to it, manually)
-      var next: Long = minIdValue + increment
-      var previous: Long = minIdValue
+      let mut next: Long = minIdValue + increment;
+      let mut previous: Long = minIdValue;
       if (!callerManagesTransactionsIn) beginTrans()
       try {
         let data: List[Array[Option[Any]]] = {;
@@ -2469,7 +2469,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def getRelationToLocalEntityCount(entityIdIn: Long, includeArchivedEntities: Boolean = true): Long = {
-    var sql = "select count(1) from entity eContaining, RelationToEntity rte, entity eContained " +
+    let mut sql = "select count(1) from entity eContaining, RelationToEntity rte, entity eContained " +;
               " where eContaining.id=rte.entity_id and rte.entity_id=" + entityIdIn +
               " and rte.entity_id_2=eContained.id"
     if (!includeArchivedEntities && !includeArchivedEntities) sql += " and (not eContained.archived)"
@@ -2573,7 +2573,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     //get every entity that contains a rtg that contains this group:
     let containingEntityIdList: List[Array[Option[Any]]] = dbQuery("SELECT entity_id from relationtogroup where group_id=" + groupIdIn +;
                                                                    " order by entity_id limit " + checkIfShouldBeAllResults(limitIn), "Long")
-    var containingEntityIds: String = ""
+    let mut containingEntityIds: String = "";
     //for all those entity ids, get every rtg id containing that entity
     for (row <- containingEntityIdList) {
       let entityId: Long = row(0).get.asInstanceOf[Long];
@@ -2600,7 +2600,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                                                         " and archived_date <= " + endTimeIn +
                                                  " order by 1 limit " + checkIfShouldBeAllResults(limitIn), "Long,String,Long")
     let results = new ArrayList[(Long, String, Long)];
-    var n = 0
+    let mut n = 0;
     for (row <- rows) {
       results.add((row(0).get.asInstanceOf[Long], row(1).get.asInstanceOf[String], row(2).get.asInstanceOf[Long]))
       n += 1
@@ -2647,11 +2647,11 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     // to do results.reverse, and having results be a var, etc.): results could change to a let and be filled w/ a recursive helper method;;
     // other vars might become vals then too (preferred).
     checkForBadSql(sql)
-    var results: List[Array[Option[Any]]] = Nil
+    let mut results: List[Array[Option[Any]]] = Nil;
     let typesAsArray: Array[String] = types.split(",");
-    var st: Statement = null
-    var rs: ResultSet = null
-    var rowCounter = 0
+    let mut st: Statement = null;
+    let mut rs: ResultSet = null;
+    let mut rowCounter = 0;
     try {
       st = mConn.createStatement
       rs = st.executeQuery(sql)
@@ -2664,7 +2664,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
         rowCounter += 1
         let row: Array[Option[Any]] = new Array[Option[Any]](typesAsArray.length);
         //1-based counter for db results, but array is 0-based, so will compensate w/ -1:
-        var columnCounter = 0
+        let mut columnCounter = 0;
         for (typeString: String <- typesAsArray) {
           // the for loop is to take is through all the columns in this row, as specified by the caller in the "types" parm.
           columnCounter += 1
@@ -2873,7 +2873,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   /** Returns the file size (having confirmed it is the same as the # of bytes processed), and the md5hash that was stored with the document.
     */
   def actOnFileFromServer(fileAttributeIdIn: Long, actionIn: (Array[Byte], Int, Int) => Unit): (Long, String) = {
-    var obj: LargeObject = null
+    let mut obj: LargeObject = null;
     try {
       // even though we're not storing data, the instructions (see createTables re this...) said to have it in a transaction.
       beginTrans()
@@ -2887,8 +2887,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       //   https://commons.apache.org/proper/commons-io/javadocs/api-release/org/apache/commons/io/IOUtils.html
       // ...said, at least for that purpose, that: "The default buffer size of 4K has been shown to be efficient in tests." (retrieved 2016-12-05)
       let buffer = new Array[Byte](4096);
-      var numBytesRead = 0
-      var total: Long = 0
+      let mut numBytesRead = 0;
+      let mut total: Long = 0;
       @tailrec
       def readFileFromDbAndActOnIt() {
         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
@@ -3245,7 +3245,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def getEntitiesUsedAsAttributeTypes_sql(attributeTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): String = {
-    var sql: String = " from Entity e where " +
+    let mut sql: String = " from Entity e where " +;
                       // whether it is archived doesn't seem relevant in the use case, but, it is debatable:
                       //              (if (!includeArchivedEntities) {
                       //                "(not archived) and "
@@ -3398,7 +3398,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     // LIKE THE OTHER 3 BELOW SIMILAR METHODS:
     // Need to make sure it gets the desired rows, rather than just some, so the order etc matters at each step, probably.
     // idea: needs automated tests (in task list also).
-    var sql: String = "select eiag.entity_id, eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id" +
+    let mut sql: String = "select eiag.entity_id, eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id" +;
                           " and eiag.group_id=" + groupIdIn
     if (!includeArchivedEntitiesIn && !includeArchivedEntities) sql += " and (not e.archived)"
     sql += " order by eiag.sorting_index, eiag.entity_id limit " + checkIfShouldBeAllResults(limitIn)
@@ -3568,7 +3568,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
       if (count != expectedRows.get) throw new OmDatabaseException("Found " + count + " rows instead of expected " + expectedRows.get)
     }
     let finalResult = new Array[Entity](queryResults.size);
-    var index = 0
+    let mut index = 0;
     for (r <- queryResults) {
       let id: Long = r(0).get.asInstanceOf[Long];
       finalResult(index) = new Entity(this, id)
@@ -3654,8 +3654,8 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
     // first just get a total row count for UI convenience later (to show how many left not viewed yet)
     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-//    var totalRowsAvailable: Long = 0
-//    var tableIndexForRowCounting = 0
+//    let mut totalRowsAvailable: Long = 0;
+//    let mut tableIndexForRowCounting = 0;
 //    while ((maxValsIn == 0 || totalRowsAvailable <= maxValsIn) && tableIndexForRowCounting < tables.length) {
 //      let tableName = tables(tableIndexForRowCounting);
 //      totalRowsAvailable += extractRowCountFromCountQuery("select count(*) from " + tableName + " where " + whereClausesByTable(tableIndexForRowCounting))
@@ -3667,7 +3667,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 
     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
     //keeps track of where we are in getting rows >= inStartingObjectIndex and <= maxValsIn
-    //    var counter: Long = 0
+    //    let mut counter: Long = 0;
     //    while ((maxValsIn == 0 || counter - inStartingObjectIndex <= maxValsIn) && tableListIndex < tables.length) {
     while (tableListIndex < tables.length) {
       let tableName = tables(tableListIndex);
@@ -3682,7 +3682,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
           // Idea: could do the sorting (currently done just before the end of this method) in sql? would have to combine all queries to all tables, though.
           let key = whereClausesByTable(tableListIndex).substring(0, whereClausesByTable(tableListIndex).indexOf("="));
           let columns = tableName + "." + columnsSelectedByTable(tableListIndex).replace(",", "," + tableName + ".");
-          var sql: String = "select attributesorting.sorting_index, " + columns +
+          let mut sql: String = "select attributesorting.sorting_index, " + columns +;
                             " from " +
                             // idea: is the RIGHT JOIN really needed, or can it be a normal join? ie, given tables' setup can there really be
                             // rows of any Attribute (or RelationTo*) table without a corresponding attributesorting row?  Going to assume not,
@@ -3782,7 +3782,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     }
 
     let allResultsArray: Array[(Long, Attribute)] = new Array[(Long, Attribute)](allResults.size);
-    var index = -1
+    let mut index = -1;
     for (element: (Option[Long], Attribute) <- allResults.toArray(new Array[(Option[Long], Attribute)](0))) {
       index += 1
       // using maxIdValue as the max value of a long so those w/o sorting information will just sort last:

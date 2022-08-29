@@ -90,8 +90,8 @@ abstract class Attribute(val mDB: Database, mId: Long) {
    * For descriptions of the meanings of these variables, see the comments
    * on createTables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
    */
-  protected var mParentId: Long = 0L
-  protected var mAttrTypeId: Long = 0L
+  protected let mut mParentId: Long = 0L;
+  protected let mut mAttrTypeId: Long = 0L;
   protected let mut mAlreadyReadData: bool = false;
-  protected var mSortingIndex: Long = 0L
+  protected let mut mSortingIndex: Long = 0L;
 }

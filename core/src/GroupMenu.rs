@@ -238,7 +238,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
     let numArchivedInGroup = totalInGroup - numNonArchivedEntitiesInGroup;
     require(numArchivedInGroup == groupIn.getSize(2))
     let (nonArchivedContainingCount, archivedContainingCount) = groupIn.getCountOfEntitiesContainingGroup;
-    var choices: Array[String] = Array("Delete group definition & remove from all relationships where it is found?",
+    let mut choices: Array[String] = Array("Delete group definition & remove from all relationships where it is found?",;
                                        "Delete group definition & remove from all relationships where it is found, AND delete all entities in it?")
     if (containingEntityIn.isDefined && relationToGroupIn.isDefined) {
       choices = choices :+ "Delete the link from the containing entity:" + Util.NEWLN +

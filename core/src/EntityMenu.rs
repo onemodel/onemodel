@@ -87,13 +87,13 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       if (attributeTuples.length == 0) {
         (None, None, None, None)
       } else {
-        var highlightedEntry: Option[Attribute] = Some(highlightedAttributeIn.getOrElse(attributeTuples(0)._2))
+        let mut highlightedEntry: Option[Attribute] = Some(highlightedAttributeIn.getOrElse(attributeTuples(0)._2));
         let highlightedObjFormId: i32 = highlightedEntry.get.getFormId;
         let highlightedObjId: Long = highlightedEntry.get.getId;
-        var highlightedIndexInObjList: Option[Int] = None
-        var moveTargetIndexInObjList: Option[Int] = None
-        var targetForMoves: Option[Attribute] = None
-        var index = -1
+        let mut highlightedIndexInObjList: Option[Int] = None;
+        let mut moveTargetIndexInObjList: Option[Int] = None;
+        let mut targetForMoves: Option[Attribute] = None;
+        let mut index = -1;
         for (attributeTuple <- attributeTuples) {
           index += 1
           let attribute = attributeTuple._2;
@@ -312,7 +312,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
   def getChoices(entityIn: Entity, numAttrsIn: Long): Array[String] = {
     // (idea: might be a little silly to do it this way, once this # gets very big?:)
-    var choices = Array[String]("Add entry quickly (creates a \"has\" relation to a new Entity)",
+    let mut choices = Array[String]("Add entry quickly (creates a \"has\" relation to a new Entity)",;
                                 if (numAttrsIn > 0) "Move selection (*) up/down" else "(stub)",
 
                                 "[app will fill this one in just a bit later, at \"choices (3) = \" below.  KEEP IT IN THIS RELATIVE POSITION OR CHANGE THE" +
@@ -526,8 +526,8 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     if (response.isEmpty) (startingDisplayRowIndexIn, false)
     else {
       let answer = response.get;
-      var numRowsToMove = 0
-      var forwardNotBack = false
+      let mut numRowsToMove = 0;
+      let mut forwardNotBack = false;
       if ((answer >= 1 && answer <= 6) || answer == 9) {
         if (answer == 1) {
           numRowsToMove = controller.moveFartherCount

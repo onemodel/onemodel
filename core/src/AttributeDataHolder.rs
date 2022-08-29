@@ -16,55 +16,55 @@ package org.onemodel.core.model
 class AttributeDataHolder(var attrTypeId: Long)
 
 class AttributeDataHolderWithVODates(attrTypeId: Long,
-                          var validOnDate: Option[Long],
-                          var observationDate: Long)
+                          let mut validOnDate: Option[Long],;
+                          let mut observationDate: Long);
   extends AttributeDataHolder(attrTypeId)
 
 class QuantityAttributeDataHolder(attrTypeIdIn: Long,
                                   validOnDateIn: Option[Long],
                                   observationDateIn: Long,
-                                  var number: Float,
-                                  var unitId: Long)
+                                  let mut number: Float,;
+                                  let mut unitId: Long);
     extends AttributeDataHolderWithVODates(attrTypeIdIn, validOnDateIn, observationDateIn)
 
 class TextAttributeDataHolder(attrTypeIdIn: Long,
                                 validOnDateIn: Option[Long],
                                 observationDateIn: Long,
-                                var text: String)
+                                let mut text: String);
     extends AttributeDataHolderWithVODates(attrTypeIdIn, validOnDateIn, observationDateIn)
 
 class RelationToEntityDataHolder(relTypeIdIn: Long,
                                  validOnDateIn: Option[Long],
                                  observationDateIn: Long,
-                                 var entityId2: Long,
-                                 var isRemote: Boolean,
-                                 var remoteInstanceId: String)
+                                 let mut entityId2: Long,;
+                                 let mut isRemote: Boolean,;
+                                 let mut remoteInstanceId: String);
   extends AttributeDataHolderWithVODates(relTypeIdIn, validOnDateIn, observationDateIn)
 
 class GroupDataHolder(var id:Long,
-                      var name: String,
-                      var insertionDateIn: Option[Long],
-                      var mixedClassesAllowed: Boolean)
+                      let mut name: String,;
+                      let mut insertionDateIn: Option[Long],;
+                      let mut mixedClassesAllowed: Boolean);
 
 class RelationToGroupDataHolder(var entityId:Long,
                          relTypeIdIn: Long,
-                         var groupId: Long,
+                         let mut groupId: Long,;
                          validOnDateIn: Option[Long],
                          observationDateIn: Long)
   extends AttributeDataHolderWithVODates(relTypeIdIn, validOnDateIn, observationDateIn)
 
 class DateAttributeDataHolder(attrTypeId: Long,
-                              var date: Long)
+                              let mut date: Long);
   extends AttributeDataHolder(attrTypeId)
 
 class BooleanAttributeDataHolder(attrTypeIdIn: Long,
                                  validOnDateIn: Option[Long],
                                  observationDateIn: Long,
-                              var boolean: Boolean)
+                              let mut boolean: Boolean);
   extends AttributeDataHolderWithVODates(attrTypeIdIn, validOnDateIn, observationDateIn)
 
 class FileAttributeDataHolder(attrTypeId: Long,
-                              var description: String,
-                              var originalFilePath: String
+                              let mut description: String,;
+                              let mut originalFilePath: String;
                              )
   extends AttributeDataHolder(attrTypeId)

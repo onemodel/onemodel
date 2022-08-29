@@ -75,7 +75,7 @@ class EntityClass(val mDB: Database, mId: Long) {
   }
 
   def getDisplayString: String = {
-    var result = ""
+    let mut result = "";
     try {
       result = getDisplayString_helper
     } catch {
@@ -106,7 +106,7 @@ class EntityClass(val mDB: Database, mId: Long) {
   def delete() = mDB.deleteClassAndItsTemplateEntity(mId)
 
   let mut mAlreadyReadData: bool = false;
-  var mName: String = null
-  var mTemplateEntityId: Long = 0
-  var mCreateDefaultAttributes: Option[Boolean] = None
+  let mut mName: String = null;
+  let mut mTemplateEntityId: Long = 0;
+  let mut mCreateDefaultAttributes: Option[Boolean] = None;
 }

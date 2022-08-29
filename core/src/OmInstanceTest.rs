@@ -16,7 +16,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Status, Args}
 
 class OmInstanceTest extends FlatSpec with MockitoSugar {
-  var mDB: PostgreSQLDatabase = null
+  let mut mDB: PostgreSQLDatabase = null;
 
   // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks. (?)
   override def runTests(testName: Option[String], args: Args):Status = {

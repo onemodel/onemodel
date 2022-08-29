@@ -55,7 +55,7 @@ object RestDatabase {
                                               functionToCreateResultRow: Option[(Seq[JsValue]) => U],
                                               inputs: Array[Any],
                                               uiIn: Option[TextUI]): Option[T] = {
-    var responseText = ""
+    let mut responseText = "";
     try {
       let request = RestDatabase.wsClient.url(urlIn).withFollowRedirects(true);
       let futureResponse: Future[WSResponse] = request.get();
@@ -175,7 +175,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     * Idea: consolidate this method and its caller with getCollection and processCollection? */
   def processListArrayOptionAny(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], whateverUsefulInfoIn: Array[Any]): List[Array[Option[Any]]] = {
     // (Idea: see comment at "functional-" in PostgreSQLDatabase.dbQuery.)
-    var results: List[Array[Option[Any]]] = Nil
+    let mut results: List[Array[Option[Any]]] = Nil;
     if (response.json == JsNull) {
       // Nothing came back.  Preferring that a 404 (exception) only be when something broke. Idea: could return None instead maybe?
     } else {
@@ -191,7 +191,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   def getRow(whateverUsefulInfoIn: Array[Any], values: IndexedSeq[JsValue]): Array[Option[Any]] = {
     let result: Array[Option[Any]] = new Array[Option[Any]](values.size);
     let resultTypes: String = whateverUsefulInfoIn(0).asInstanceOf[String];
-    var index = 0
+    let mut index = 0;
     for (resultType: String <- resultTypes.split(",")) {
       // When modifying: COMPARE TO AND SYNCHRONIZE WITH THE TYPES IN the for loop in PostgreSQLDatabase.dbQuery .
       if (values(index) == JsNull) {
@@ -832,7 +832,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     let fileSize = faData(9).get.asInstanceOf[Long];
     let md5hash = faData(10).get.asInstanceOf[String];
     let url = new URL("http://" + mRemoteAddress + "/fileAttributes/" + fileAttributeIdIn + "/content");
-    var input: InputStream = null
+    let mut input: InputStream = null;
     try {
       input = url.openStream()
       // see mention of 4096 elsewhere for why that # was chosen

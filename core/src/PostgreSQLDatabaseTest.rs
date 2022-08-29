@@ -43,7 +43,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   PostgreSQLDatabaseTest.tearDownTestDB()
 
   // for a test
-  private var mDoDamageBuffer = false
+  private let mut mDoDamageBuffer = false;
 
   // instantiation does DB setup (creates tables, default data, etc):
   private let mDB: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS) {;
@@ -107,7 +107,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     mDB.createOmInstance(uuid2, isLocalIn = false, "om.example.com", Some(mDB.getSystemEntityId))
     // should have the local one created at db creation, and now the one for this test:
     assert(mDB.getOmInstanceCount == startingOmiCount + 1)
-    var i2: OmInstance = new OmInstance(mDB, uuid2)
+    let mut i2: OmInstance = new OmInstance(mDB, uuid2);
     assert(i2.getAddress == "om.example.com")
     mDB.updateOmInstance(uuid2, "address", None)
     i2  = new OmInstance(mDB,uuid2)
@@ -546,8 +546,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let entityId: Long = mDB.createEntity("someent");
     let attrTypeId: Long = mDB.createEntity("fileAttributeType");
     let uploadSourceFile: java.io.File = java.io.File.createTempFile("om-test-iofailures-", null);
-    var writer: java.io.FileWriter = null
-    var inputStream: java.io.FileInputStream = null
+    let mut writer: java.io.FileWriter = null;
+    let mut inputStream: java.io.FileInputStream = null;
     let downloadTargetFile = File.createTempFile("om-testing-file-retrieval-", null);
     try {
       writer = new java.io.FileWriter(uploadSourceFile)
@@ -838,7 +838,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       fail("We added attributes (RelationToLocalEntity, quantity & text, date,bool,file,RTG), but getAttributeIdsAndAttributeTypeIds() returned " + counter + "?")
     }
 
-    var (foundQA, foundTA, foundRTE, foundRTG, foundDA, foundBA, foundFA) = (false, false, false, false, false, false, false)
+    let mut (foundQA, foundTA, foundRTE, foundRTG, foundDA, foundBA, foundFA) = (false, false, false, false, false, false, false);
     for (attr <- attrTuples) {
       attr._2 match {
         case attribute: QuantityAttribute =>
@@ -997,12 +997,12 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   private def createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: Boolean = true): FileAttribute = {
     let attrTypeId: Long = mDB.createEntity("fileAttributeType");
     let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
-    var writer: java.io.FileWriter = null
-    var verificationFile: java.io.File = null
+    let mut writer: java.io.FileWriter = null;
+    let mut verificationFile: java.io.File = null;
     try {
       writer = new java.io.FileWriter(file)
       writer.write(addedKiloBytesIn + "+ kB file from: " + file.getCanonicalPath + ", created " + new java.util.Date())
-      var nextInteger: Long = 1
+      let mut nextInteger: Long = 1;
       for (i: Int <- 1 to (1000 * addedKiloBytesIn)) {
         // there's a bug here: files aren't the right size (not single digits being added) but oh well it's just to make some file.
         writer.write(nextInteger.toString)
@@ -1014,8 +1014,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       let sleepPeriod = 5;
       Thread.sleep(sleepPeriod)
       let size = file.length();
-      var inputStream: java.io.FileInputStream = null
-      var fa: FileAttribute = null
+      let mut inputStream: java.io.FileInputStream = null;
+      let mut fa: FileAttribute = null;
       try {
         inputStream = new java.io.FileInputStream(file)
         fa = inParentEntity.addFileAttribute(attrTypeId, inDescr, file)
@@ -1089,7 +1089,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       //noinspection ScalaUselessExpression  (intentional style violation, for readability)
       override def doDatabaseUpgradesIfNeeded() = Unit
     }
-    var found = false
+    let mut found = false;
     let originalErrMsg: String = "testing123";
     try {
       try throw new Exception(originalErrMsg)
@@ -1122,7 +1122,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     let personTemplateEntityId: Long = mDB.findEntityOnlyIdsByName(PERSON_TEMPLATE).get.head;
     // idea: make this next part more scala-like (but only if still very simple to read for programmers who are used to other languages):
-    var found = false
+    let mut found = false;
     let entitiesInGroup: java.util.ArrayList[Entity] = mDB.getGroupEntryObjects(groupIdOfClassTemplates.get, 0);
     for (entity <- entitiesInGroup.toArray) {
       if (entity.asInstanceOf[Entity].getId == personTemplateEntityId) {
@@ -1143,7 +1143,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let allContainedWithName: mutable.TreeSet[Long] = mDB.findContainedLocalEntityIds(new mutable.TreeSet[Long](), systemEntityId, RELATED_ENTITY_NAME, 4,;
                                                                                  stopAfterAnyFound = false)
     // (see idea above about making more scala-like)
-    var allContainedIds = ""
+    let mut allContainedIds = "";
     for (id: Long <- allContainedWithName) {
       allContainedIds += id + ", "
     }
@@ -1410,7 +1410,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(mDB.getEntitiesOnlyCount() == c2)
     let dateAttributeTypeEntities: Array[Entity] = mDB.getEntitiesUsedAsAttributeTypes(Util.DATE_TYPE, 0, quantitySeeksUnitNotTypeIn = false);
                                                    .toArray(new Array[Entity](0 ))
-    var found = false
+    let mut found = false;
     for (dateAttributeType: Entity <- dateAttributeTypeEntities.toArray) {
       if (dateAttributeType.getId == dateAttribute.getAttrTypeId) {
         found = true

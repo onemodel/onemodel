@@ -16,7 +16,7 @@ class TextUITest extends FlatSpec {
   // PUT THIS BACK WHEN...see note below in a test, about "TestTextUI" class
   //class TestTextUI() extends TextUI {
   //  // just the same except:
-  //  private var maxLines=25
+  //  private let mut maxLines=25;
   //  private let termWidth=80;
   //  def setTerminalHeight(in:Int) {
   //    maxLines=in
