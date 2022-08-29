@@ -19,7 +19,7 @@ import org.onemodel.core.{OmException, Util}
     This constructor instantiates an existing object from the DB. You can use Entity.addTextAttribute() to
     create a new object.
   */
-class TextAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.textAttributeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
@@ -30,8 +30,8 @@ class TextAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObser
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: Long, parentIdIn: Long, attrTypeIdIn: Long, textIn: String, validOnDate: Option[Long], observationDate: Long,
-           sortingIndexIn: Long) {
+  def this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDate: Option[i64], observationDate: i64,
+           sortingIndexIn: i64) {
     this(mDB, mId)
     assignCommonVars(parentIdIn, attrTypeIdIn, validOnDate, observationDate, sortingIndexIn)
     mText = textIn
@@ -60,11 +60,11 @@ class TextAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObser
       throw new OmException("No results returned from data request for: " + mId)
     }
     mText = taTypeData(1).get.asInstanceOf[String]
-    super.assignCommonVars(taTypeData(0).get.asInstanceOf[Long], taTypeData(2).get.asInstanceOf[Long], taTypeData(3).asInstanceOf[Option[Long]],
-                           taTypeData(4).get.asInstanceOf[Long], taTypeData(5).get.asInstanceOf[Long])
+    super.assignCommonVars(taTypeData(0).get.asInstanceOf[i64], taTypeData(2).get.asInstanceOf[i64], taTypeData(3).asInstanceOf[Option[i64]],
+                           taTypeData(4).get.asInstanceOf[i64], taTypeData(5).get.asInstanceOf[i64])
   }
 
-  def update(attrTypeIdIn: Long, textIn: String, validOnDateIn: Option[Long], observationDateIn: Long) {
+  def update(attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64], observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateTextAttribute(mId, getParentId, attrTypeIdIn, textIn, validOnDateIn, observationDateIn)

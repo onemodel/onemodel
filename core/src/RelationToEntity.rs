@@ -24,15 +24,15 @@ import org.onemodel.core.{OmException, Color}
  * You can use Entity.addRelationTo[Local|Remote]Entity() to create a new object.
  *
  */
-abstract protected[this] class RelationToEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityId1: Long,
-                                                            mEntityId2: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1: i64,
+                                                            mEntityId2: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // (the next line used to be coded so instead of working it would return an exception, like this:
   //     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
   // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
   // to have it be like this instead, for convenience:
-  override def getParentId: Long = getRelatedId1
-  def getRelatedId1: Long = mEntityId1
-  def getRelatedId2: Long = mEntityId2
+  override def getParentId: i64 = getRelatedId1
+  def getRelatedId1: i64 = mEntityId1
+  def getRelatedId2: i64 = mEntityId2
 
   /**
    * @param relatedEntityIn, could be either mEntityId2 or 1: it is always *not* the entity from whose perspective the result will be returned, ex.,

@@ -24,7 +24,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
 
   def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
                       containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates], containingGroupIn: Option[Group],
-                      attributeTuplesIn: Array[(Long, Attribute)]) {
+                      attributeTuplesIn: Array[(i64, Attribute)]) {
     require(containingRelationToEntityIn.isEmpty ||
             containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
     try {
@@ -37,8 +37,8 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
                                   "Go to other related entities or groups...",
                                   "(stub)")
       //  don't show the "set default" option if it's already been done w/ this same one:
-      let defaultEntityTuple: Option[(Long, Entity)] = controller.getDefaultEntity;
-      let defaultEntity: Option[Long] = if (defaultEntityTuple.isEmpty) None else Some(defaultEntityTuple.get._1);
+      let defaultEntityTuple: Option[(i64, Entity)] = controller.getDefaultEntity;
+      let defaultEntity: Option[i64] = if (defaultEntityTuple.isEmpty) None else Some(defaultEntityTuple.get._1);
       let entityIsAlreadyTheDefault: bool = defaultEntity.isDefined && defaultEntity.get == entityIn.getId;
       if (! entityIsAlreadyTheDefault) {
         choices = choices :+ ((if (defaultEntity.isEmpty && !entityIn.mDB.isRemote) "****TRY ME---> " else "") +
@@ -51,8 +51,8 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
         if (answer == 1) {
           let valueBeforeEntry: Option[Boolean] = entityIn.getPublic;
           let valueAfterEntry: Option[Boolean] = controller.askForPublicNonpublicStatus(valueBeforeEntry);
-          let rteCount: Long = entityIn.getRelationToLocalEntityCount(includeArchivedEntitiesIn = false);
-          let rtgCount: Long = entityIn.getRelationToGroupCount;
+          let rteCount: i64 = entityIn.getRelationToLocalEntityCount(includeArchivedEntitiesIn = false);
+          let rtgCount: i64 = entityIn.getRelationToGroupCount;
           let whichToUpdateChoices = {;
             if (rteCount > 0) {
               Array("...for this entity (\"" + entityIn.getName + "\")",
@@ -124,7 +124,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
               otherEntityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn,
                               containingRelationToEntityIn, containingGroupIn, attributeTuplesIn)
             } else if (editAnswer.get == 2) {
-              let classId: Option[Long] = controller.askForClass(entityIn.mDB);
+              let classId: Option[i64] = controller.askForClass(entityIn.mDB);
               if (classId.isDefined) {
                 entityIn.updateClass(classId)
 
@@ -174,7 +174,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
             }
           }
         } else if (answer == 5) {
-          let templateEntityId: Option[Long] = entityIn.getClassTemplateEntityId;
+          let templateEntityId: Option[i64] = entityIn.getClassTemplateEntityId;
           goToRelatedPlaces(entityIn, relationSourceEntityIn, containingRelationToEntityIn, templateEntityId)
           //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
           if (entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
@@ -202,7 +202,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
   }
 
   def removeEntityReferenceFromGroup_Menu(entityIn: Entity, containingGroupIn: Option[Group]): Boolean = {
-    let groupCount: Long = entityIn.getCountOfContainingGroups;
+    let groupCount: i64 = entityIn.getCountOfContainingGroups;
     let (entityCountNonArchived, entityCountArchived) = entityIn.getCountOfContainingLocalEntities;
     let ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion: the entity can still be found by searching, and " +;
                                   "is " + Util.getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) +
@@ -229,7 +229,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     //IDEA: could combine this method with the following two. The only differences as of now are 3 strings and a method call, easily parameterized. Not
     //doing it immediately in case they diverge again soon.
     let name = entityIn.getName;
-    let groupCount: Long = entityIn.getCountOfContainingGroups;
+    let groupCount: i64 = entityIn.getCountOfContainingGroups;
     let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entityIn);
     let effectMsg =  "This will ALSO remove it from " + groupCount + " groups, including for example these relations" +;
                      " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + affectedExamples
@@ -251,7 +251,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     */
   def archiveEntity(entityIn: Entity): Boolean = {
     let name = entityIn.getName;
-    let groupCount: Long = entityIn.getCountOfContainingGroups;
+    let groupCount: i64 = entityIn.getCountOfContainingGroups;
     let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entityIn);
     let effectMsg = "This will affect affect its visibility in " + groupCount + " groups, including for example these relations" +;
                     " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + affectedExamples
@@ -273,7 +273,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     */
   def unarchiveEntity(entityIn: Entity): Boolean = {
     let name = entityIn.getName;
-    let groupCount: Long = entityIn.getCountOfContainingGroups;
+    let groupCount: i64 = entityIn.getCountOfContainingGroups;
     let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entityIn);
     let effectMsg = "This will affect affect its visibility in " + groupCount + " groups, including for example these relations" +;
                     " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + affectedExamples
@@ -291,7 +291,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     }
   }
 
-  def getExampleAffectedGroupsDescriptions(groupCount: Long, entityIn: Entity): (String) = {
+  def getExampleAffectedGroupsDescriptions(groupCount: i64, entityIn: Entity): (String) = {
     if (groupCount == 0) {
       ""
     } else {
@@ -316,9 +316,9 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     // (Wrote "lines" plural, to clarify when this is presented with the "SINGLE LINE" copyright prompt below.)
     let prompt4 = ", and put the relevant lines of html (or nothing) in the value for that attribute.  Or just press Enter to skip through this each time.)";
 
-    let headerTypeIds: java.util.ArrayList[Long] = entityIn.mDB.findAllEntityIdsByName(Util.HEADER_CONTENT_TAG, caseSensitive = true);
-    let bodyContentTypeIds: java.util.ArrayList[Long] = entityIn.mDB.findAllEntityIdsByName(Util.BODY_CONTENT_TAG, caseSensitive = true);
-    let footerTypeIds: java.util.ArrayList[Long] = entityIn.mDB.findAllEntityIdsByName(Util.FOOTER_CONTENT_TAG, caseSensitive = true);
+    let headerTypeIds: java.util.ArrayList[i64] = entityIn.mDB.findAllEntityIdsByName(Util.HEADER_CONTENT_TAG, caseSensitive = true);
+    let bodyContentTypeIds: java.util.ArrayList[i64] = entityIn.mDB.findAllEntityIdsByName(Util.BODY_CONTENT_TAG, caseSensitive = true);
+    let footerTypeIds: java.util.ArrayList[i64] = entityIn.mDB.findAllEntityIdsByName(Util.FOOTER_CONTENT_TAG, caseSensitive = true);
     if ((headerTypeIds.size > 1) || (bodyContentTypeIds.size > 1) || (footerTypeIds.size > 1)) {
       throw new OmException("Expected at most one entity (as typeId) each, with the names " + Util.HEADER_CONTENT_TAG + ", " +
                             Util.BODY_CONTENT_TAG + ", or " + Util.FOOTER_CONTENT_TAG + ", but found respectively " +
@@ -328,7 +328,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
 
     }
 
-    def getAttrText(entityIn: Entity, typeIdIn: Long): Option[String] = {
+    def getAttrText(entityIn: Entity, typeIdIn: i64): Option[String] = {
       let attrs: java.util.ArrayList[TextAttribute] = entityIn.getTextAttributeByTypeId(typeIdIn);
       if (attrs.size == 0) None
       else if (attrs.size > 1) throw new OmException("The program doesn't know what to do with > 1 textAttributes with this type on the same " +
@@ -397,7 +397,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
    * @param relationIn  (See comment on "@param relationIn" on method askWhetherDeleteOrArchiveEtc. )
    */
   def goToRelatedPlaces(entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
-                        relationIn: Option[AttributeWithValidAndObservedDates] = None, templateEntityId: Option[Long]) {
+                        relationIn: Option[AttributeWithValidAndObservedDates] = None, templateEntityId: Option[i64]) {
     //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
     require(relationIn.isEmpty || relationIn.get.isInstanceOf[RelationToLocalEntity] || relationIn.get.isInstanceOf[RelationToRemoteEntity])
     let leadingText = Some(Array("Go to..."));
@@ -408,7 +408,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     // The next 2 values are 3 & 4 in case the previous 2 are unused.  If the previous 2 are used, the next 2 will be += 2, below.
     let mut goToTemplateEntity_choiceNumber: i32 = 3;
     let mut goToClass_choiceNumber: i32 = 4;
-    let numContainingEntities: Long = {;
+    let numContainingEntities: i64 = {;
       let (nonArchived, archived) = entityIn.getCountOfContainingLocalEntities;
       if (entityIn.mDB.includeArchivedEntities)  nonArchived + archived
       else nonArchived
@@ -418,7 +418,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     let mut containingGroup: Option[Group] = None;
     let mut containingRtg: Option[RelationToGroup] = None;
     if (numContainingGroups == 1) {
-      let containingGroupsIds: java.util.ArrayList[Long] = entityIn.getContainingGroupsIds;
+      let containingGroupsIds: java.util.ArrayList[i64] = entityIn.getContainingGroupsIds;
       // (Next line is just confirming the consistency of logic that got us here: see 'if' just above.)
       require(containingGroupsIds.size == 1)
       containingGroup = Some(new Group(entityIn.mDB, containingGroupsIds.get(0)))
@@ -458,14 +458,14 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
       if (goWhereAnswer == seeContainingEntities_choiceNumber && goWhereAnswer <= choices.length) {
         let leadingText = List[String]("Pick from menu, or an entity by letter");
         let choices: Array[String] = Array(Util.listNextItemsPrompt);
-        let numDisplayableItems: Long = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength);
+        let numDisplayableItems: i64 = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength);
         // This is partly set up so it could handle multiple screensful, but would need to be broken into a recursive method that
         // can specify dif't values on each call, for the startingIndexIn parm of getRelatingEntities.  I.e., could make it look more like
         // searchForExistingObject or such ? IF needed.  But to be needed means the user is putting the same object related by multiple
         // entities: enough to fill > 1 screen when listed.
-        let containingEntities: util.ArrayList[(Long, Entity)] = entityIn.getLocalEntitiesContainingEntity(0, Some(numDisplayableItems));
+        let containingEntities: util.ArrayList[(i64, Entity)] = entityIn.getLocalEntitiesContainingEntity(0, Some(numDisplayableItems));
         let containingEntitiesStatusAndNames: Array[String] = containingEntities.toArray.map {;
-                                                                                      case relTypeIdAndEntity: (Long, Entity) =>
+                                                                                      case relTypeIdAndEntity: (i64, Entity) =>
                                                                                         let entity: Entity = relTypeIdAndEntity._2;
                                                                                         entity.getArchivedStatusDisplayString + entity.getName
                                                                                       case _ => throw new OmException("??")
@@ -534,7 +534,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
       } else if (goWhereAnswer == goToTemplateEntity_choiceNumber && templateEntityId.isDefined && goWhereAnswer <= choices.length) {
         new EntityMenu(ui, controller).entityMenu(new Entity(entityIn.mDB, templateEntityId.get))
       } else if (goWhereAnswer == goToClass_choiceNumber && templateEntityId.isDefined && goWhereAnswer <= choices.length) {
-        let classId: Option[Long] = entityIn.getClassId;
+        let classId: Option[i64] = entityIn.getClassId;
         if (classId.isEmpty) {
           throw new OmException("Unexpectedly, this entity doesn't seem to have a class id.  That is probably a bug.")
         } else {
@@ -588,10 +588,10 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
         }
       } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && userPressedAltKey) {
         // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
-        let id: Long = containingRelationToGroups.get(index).getId;
-        let entityId: Long = containingRelationToGroups.get(index).getParentId;
-        let groupId: Long = containingRelationToGroups.get(index).getGroupId;
-        let relTypeId: Long = containingRelationToGroups.get(index).getAttrTypeId;
+        let id: i64 = containingRelationToGroups.get(index).getId;
+        let entityId: i64 = containingRelationToGroups.get(index).getParentId;
+        let groupId: i64 = containingRelationToGroups.get(index).getGroupId;
+        let relTypeId: i64 = containingRelationToGroups.get(index).getAttrTypeId;
         new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(entityIn.mDB, groupId), 0,
                                                           Some(new RelationToGroup(entityIn.mDB, id, entityId, relTypeId, groupId)),
                                                           Some(entityIn), containingEntityIn = None)
@@ -613,7 +613,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
                                    containingGroupIn: Option[Group]): (Option[Int], Int, Int, Int) = {
     require(relationIn.isEmpty || relationIn.get.isInstanceOf[RelationToLocalEntity] || relationIn.get.isInstanceOf[RelationToRemoteEntity])
 
-    let groupCount: Long = entityIn.getCountOfContainingGroups;
+    let groupCount: i64 = entityIn.getCountOfContainingGroups;
     let (entityCountNonArchived, entityCountArchived) = entityIn.getCountOfContainingLocalEntities;
     let relToGroupCnt = entityIn.getRelationToGroupCount;
     let relToLocalEntityCnt = entityIn.getRelationToLocalEntityCount(true);

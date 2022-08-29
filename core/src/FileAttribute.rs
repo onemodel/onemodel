@@ -80,7 +80,7 @@ object FileAttribute {
   * not shared (idea: model that better, and in DateAttribute). (idea: IN FACT, ALL THE CODE RELATED TO THESE CLASSES COULD PROBABLY HAVE A LOT OF REDUNDANCY
   * REMOVED.)
   */
-class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
+class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.fileAttributeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
@@ -91,8 +91,8 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
   one that already exists.
     */
-  def this(mDB: Database, mId: Long, parentIdIn: Long, attrTypeIdIn: Long, descriptionIn: String, originalFileDateIn: Long, storedDateIn: Long,
-           inOriginalFilePath: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: Long, md5hashIn: String, sortingIndexIn: Long) {
+  def this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
+           inOriginalFilePath: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64, md5hashIn: String, sortingIndexIn: i64) {
     this(mDB, mId)
     mDescription = descriptionIn
     mOriginalFileDate = originalFileDateIn
@@ -136,15 +136,15 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
       throw new OmException("No results returned from data request for: " + mId)
     }
     mDescription = faTypeData(1).get.asInstanceOf[String]
-    mOriginalFileDate = faTypeData(3).get.asInstanceOf[Long]
-    mStoredDate = faTypeData(4).get.asInstanceOf[Long]
+    mOriginalFileDate = faTypeData(3).get.asInstanceOf[i64]
+    mStoredDate = faTypeData(4).get.asInstanceOf[i64]
     mOriginalFilePath = faTypeData(5).get.asInstanceOf[String]
     mReadable = faTypeData(6).get.asInstanceOf[Boolean]
     mWritable = faTypeData(7).get.asInstanceOf[Boolean]
     mExecutable = faTypeData(8).get.asInstanceOf[Boolean]
-    mSize = faTypeData(9).get.asInstanceOf[Long]
+    mSize = faTypeData(9).get.asInstanceOf[i64]
     mMd5hash = faTypeData(10).get.asInstanceOf[String]
-    assignCommonVars(faTypeData(0).get.asInstanceOf[Long], faTypeData(2).get.asInstanceOf[Long], faTypeData(11).get.asInstanceOf[Long])
+    assignCommonVars(faTypeData(0).get.asInstanceOf[i64], faTypeData(2).get.asInstanceOf[i64], faTypeData(11).get.asInstanceOf[i64])
   }
 
 
@@ -153,7 +153,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   // AND note that: The dates for a fileAttribute shouldn't ever be None/NULL like with other Attributes, because it is the file date in the filesystem
   // before it was
   // read into OM, and the current date; so they should be known whenever adding a document.
-  def update(attrTypeIdIn: Option[Long] = None, descriptionIn: Option[String] = None) {
+  def update(attrTypeIdIn: Option[i64] = None, descriptionIn: Option[String] = None) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     let descr = if (descriptionIn.isDefined) descriptionIn.get else getDescription;
@@ -165,8 +165,8 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
 
   ///** Using Options for the parameters so caller can pass in only those desired (named), and other members will stay the same.
   //  */
-  //def update(attrTypeIdIn: Option[Long] = None, descriptionIn: Option[String] = None, originalFileDateIn: Option[Long] = None,
-  //           storedDateIn: Option[Long] = None, originalFilePathIn: Option[String] = None, sizeIn: Option[Long] = None, md5hashIn: Option[String] = None) {
+  //def update(attrTypeIdIn: Option[i64] = None, descriptionIn: Option[String] = None, originalFileDateIn: Option[i64] = None,
+  //           storedDateIn: Option[i64] = None, originalFilePathIn: Option[String] = None, sizeIn: Option[i64] = None, md5hashIn: Option[String] = None) {
   //  // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
   //  // it all goes with
   //  //********IF THIS METHOD IS EVER UNCOMMENTED: BE SURE TO TEST THAT the values (like size, hash, original date,
@@ -187,12 +187,12 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
 
   def getDatesDescription: String = "mod " + Attribute.usefulDateFormat(getOriginalFileDate) + ", stored " + Attribute.usefulDateFormat(getStoredDate)
 
-  private[onemodel] def getOriginalFileDate: Long = {
+  private[onemodel] def getOriginalFileDate: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mOriginalFileDate
   }
 
-  private[onemodel] def getStoredDate: Long = {
+  private[onemodel] def getStoredDate: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mStoredDate
   }
@@ -207,7 +207,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
     mOriginalFilePath
   }
 
-  private[onemodel] def getSize: Long = {
+  private[onemodel] def getSize: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mSize
   }
@@ -234,7 +234,7 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
 
   /** just calling the File.getUsableSpace function on a nonexistent file yields 0, so come up with something better. -1 if it just can't figure it out.
     */
-  def getUsableSpace(fileIn: File): Long = {
+  def getUsableSpace(fileIn: File): i64 = {
     try {
       if (fileIn.exists) fileIn.getUsableSpace
       else if (fileIn.getParentFile == null) -1
@@ -282,12 +282,12 @@ class FileAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
    * on createTables(...), and examples in the database testing code, for & in PostgreSQLDatabase or Database classes.
    */
   private let mut mDescription: String = null;
-  private let mut mOriginalFileDate: Long = 0;
-  private let mut mStoredDate: Long = 0;
+  private let mut mOriginalFileDate: i64 = 0;
+  private let mut mStoredDate: i64 = 0;
   private let mut mOriginalFilePath: String = null;
   private let mut mReadable: bool = false;
   private let mut mWritable: bool = false;
   private let mut mExecutable: bool = false;
-  private let mut mSize: Long = 0;
+  private let mut mSize: i64 = 0;
   private let mut mMd5hash: String = null;
 }

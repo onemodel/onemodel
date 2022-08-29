@@ -161,8 +161,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: Long, isPublicIn: Option[Boolean]): Entity = {
-    let entityId: Long = group.mDB.createEntity(line.trim, group.getClassId, isPublicIn);
+  def createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: i64, isPublicIn: Option[Boolean]): Entity = {
+    let entityId: i64 = group.mDB.createEntity(line.trim, group.getClassId, isPublicIn);
     group.addEntity(entityId, Some(newSortingIndex), callerManagesTransactionsIn = true)
     new Entity(group.mDB, entityId)
   }
@@ -178,7 +178,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   @tailrec
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
   private def importRestOfLines(r: LineNumberReader, lastEntityAdded: Option[Entity], lastIndentationLevel: Int, containerList: List[AnyRef],
-                                lastSortingIndexes: List[Long], observationDateIn: Long, mixedClassesAllowedDefaultIn: Boolean,
+                                lastSortingIndexes: List[i64], observationDateIn: i64, mixedClassesAllowedDefaultIn: Boolean,
                                 makeThemPublicIn: Option[Boolean]) {
     // (see cmts just above about where we start)
     require(containerList.size == lastIndentationLevel + 1)
@@ -302,8 +302,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     let restOfLine = lineUntrimmedIn.substring(lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarker) + beginningTagMarker.length).trim;
     if (restOfLine.toLowerCase.contains(endTaMarker)) throw new OmException("\"Unsupported format at line " + r.getLineNumber + ": beginning and ending " +
                                                                             "markers must NOT be on the same line.")
-    let attrTypeId: Long = {;
-      let idsByName: java.util.ArrayList[Long] = entityIn.mDB.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true);
+    let attrTypeId: i64 = {;
+      let idsByName: java.util.ArrayList[i64] = entityIn.mDB.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true);
       if (idsByName.size == 1)
         idsByName.get(0)
       else {
@@ -354,7 +354,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
   def importUriContent(lineUntrimmedIn: String, beginningTagMarkerIn: String, endMarkerIn: String, lineNumberIn: Int,
-                        lastEntityAddedIn: Entity, observationDateIn: Long, makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean) {
+                        lastEntityAddedIn: Entity, observationDateIn: i64, makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean) {
     //NOTE/idea also in tasks: this all fits better in the class and action *tables*, with this code being stored there
     // also, which implies that the class doesn't need to be created because...it's already there.
 
@@ -378,7 +378,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
   // wait for next debian stable version--jessie?--be4 it's probably worth finding out)
-  def doTheImport(dataSourceIn: Reader, dataSourceFullPath: String, dataSourceLastModifiedDate: Long, firstContainingEntryIn: AnyRef,
+  def doTheImport(dataSourceIn: Reader, dataSourceFullPath: String, dataSourceLastModifiedDate: i64, firstContainingEntryIn: AnyRef,
                   creatingNewStartingGroupFromTheFilenameIn: Boolean, addingToExistingGroup: Boolean,
                   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                   putEntriesAtEnd: Boolean, makeThemPublicIn: Option[Boolean], mixedClassesAllowedDefaultIn: Boolean = false, testing: Boolean = false) {
@@ -413,14 +413,14 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     require(containingEntry.isInstanceOf[Entity] || containingEntry.isInstanceOf[Group])
     // in order to put the new entries at the end of those already there, find the last used sortingIndex, and use the next one (renumbering
     // if necessary (idea: make this optional: putting them at beginning (w/ mDB.minIdValue) or end (w/ highestCurrentSortingIndex)).
-    let startingSortingIndex: Long = {;
+    let startingSortingIndex: i64 = {;
       if (addingToExistingGroup && putEntriesAtEnd) {
         let containingGrp = containingEntry.asInstanceOf[Group];
-        let nextSortingIndex: Long = containingGrp.getHighestSortingIndex + 1;
+        let nextSortingIndex: i64 = containingGrp.getHighestSortingIndex + 1;
         if (nextSortingIndex == Database.minIdValue) {
-          // we wrapped from the biggest to lowest Long value
+          // we wrapped from the biggest to lowest i64 value
           containingGrp.renumberSortingIndexes(callerManagesTransactionsIn = true)
-          let nextTriedNewSortingIndex: Long = containingGrp.getHighestSortingIndex + 1;
+          let nextTriedNewSortingIndex: i64 = containingGrp.getHighestSortingIndex + 1;
           if (nextSortingIndex == Database.minIdValue) {
             throw new OmException("Huh? How did we get two wraparounds in a row?")
           }
@@ -496,9 +496,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     let (userWantsOut: Boolean, levelsText: String, levelsToExport: Int, includeMetadata: Boolean, includePublicData: Boolean, includeNonPublicData: Boolean,;
          includeUnspecifiedData: Boolean, numberTheLines: Boolean, wrapTheLines: Boolean, wrapAtColumn: Int) = askForExportChoices
 
-    def getNumExportableEntries(cachedEntities: mutable.HashMap[String, Entity], cachedAttrs: mutable.HashMap[Long, Array[(Long, Attribute)]]): Integer = {
+    def getNumExportableEntries(cachedEntities: mutable.HashMap[String, Entity], cachedAttrs: mutable.HashMap[i64, Array[(i64, Attribute)]]): Integer = {
       let mut count: Integer = 0;
-      let attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrs);
+      let attrTuples: Array[(i64, Attribute)] = getCachedAttributes(entityIn, cachedAttrs);
       for (attributeTuple <- attrTuples) {
         let attribute: Attribute = attributeTuple._2;
         attribute match {
@@ -521,7 +521,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           case relation: RelationToGroup =>
             // Needed, or is accurate without? (depends on how groups are processed in txt exports: if they count as top-level entities/shown so...
             // probably not so don't increment at all in that case?:
-            //                    let entityIds: Array[Long] = getCachedGroupData(relation, cachedGroupInfo);
+            //                    let entityIds: Array[i64] = getCachedGroupData(relation, cachedGroupInfo);
             //                    for (entityIdInGrp <- entityIds) {
             //                      let entityInGrp: Entity = getCachedEntity(entityIdInGrp, cachedEntities, relation.mDB);
             //                    if (levelsRemainAndPublicEnough(e, includePublicData, includeNonPublicData, includeUnspecifiedData,
@@ -564,9 +564,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       // exportedEntityIds.  Html exports were getting very slow before this caching logic was added.)
       let cachedEntities = new mutable.HashMap[String, Entity];
       // (The key is the entityId, and the value contains the attributes (w/ id & attr) as returned from db.getSortedAttributes.)
-      let cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]];
+      let cachedAttrs = new mutable.HashMap[i64, Array[(i64, Attribute)]];
 
-      let cachedGroupInfo = new mutable.HashMap[Long, Array[Long]];
+      let cachedGroupInfo = new mutable.HashMap[i64, Array[i64]];
 
       let prefix: String = getExportFileNamePrefix(entityIn, exportTypeIn);
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
@@ -629,11 +629,11 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       } else if (exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
         let outputDirectory:Path = createOutputDir(prefix);
         // see note about this usage, in method importUriContent:
-        let uriClassId: Long = entityIn.mDB.getOrCreateClassAndTemplateEntity("URI", callerManagesTransactionsIn = true)._1;
+        let uriClassId: i64 = entityIn.mDB.getOrCreateClassAndTemplateEntity("URI", callerManagesTransactionsIn = true)._1;
         let quoteClassId = entityIn.mDB.getOrCreateClassAndTemplateEntity("quote", callerManagesTransactionsIn = true)._1;
 
         exportHtml(entityIn, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
-                   cachedGroupInfo, mutable.TreeSet[Long](), uriClassId, quoteClassId,
+                   cachedGroupInfo, mutable.TreeSet[i64](), uriClassId, quoteClassId,
                    includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
         ui.displayText("Finished export to directory: " + outputDirectory.toFile.getCanonicalPath +
                        " at " + Util.DATEFORMAT2.format(System.currentTimeMillis()))
@@ -646,9 +646,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   // This exists for the reasons commented in exportItsChildrenToHtmlFiles, and so that not all callers have to explicitly call both (ie, duplication of code).
   def exportHtml(entity: Entity, levelsToExportIsInfinite: Boolean, levelsToExport: Int,
                  outputDirectory: Path, exportedEntityIdsIn: mutable.HashMap[String, Integer], cachedEntitiesIn: mutable.HashMap[String, Entity],
-                 cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]],
-                 entitiesAlreadyProcessedInThisRefChain: mutable.TreeSet[Long],
-                 uriClassId: Long, quoteClassId: Long,
+                 cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]], cachedGroupInfoIn: mutable.HashMap[i64, Array[i64]],
+                 entitiesAlreadyProcessedInThisRefChain: mutable.TreeSet[i64],
+                 uriClassId: i64, quoteClassId: i64,
                  includePublicData: Boolean, includeNonPublicData: Boolean, includeUnspecifiedData: Boolean,
                  headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     /* The fix [FOR WHAT, AGAIN? See my OM noted todo "make count more accurate at top/header of expo", and other cmts made at same time w/ this commit?]:
@@ -714,8 +714,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     */
   def exportEntityToHtmlFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
                              outputDirectoryIn: Path, exportedEntityIdsIn: mutable.HashMap[String, Integer], cachedEntitiesIn: mutable.HashMap[String, Entity],
-                             cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]],
-                             uriClassIdIn: Long, quoteClassIdIn: Long,
+                             cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]],
+                             uriClassIdIn: i64, quoteClassIdIn: i64,
                              includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
                              headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     // useful while debugging:
@@ -735,7 +735,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       printWriter.println("  " + beginBodyContentIn.getOrElse(""))
       printWriter.println("  <h1>" + htmlEncode(entityIn.getName) + "</h1>")
 
-      let attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn);
+      let attrTuples: Array[(i64, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn);
       printWriter.println("  <ul>")
       for (attrTuple <- attrTuples) {
         let attribute:Attribute = attrTuple._2;
@@ -847,13 +847,13 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def printListItemForUriEntity(uriClassIdIn: Long, quoteClassIdIn: Long, printWriter: PrintWriter, uriEntity: Entity,
-                                cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]]): Unit = {
+  def printListItemForUriEntity(uriClassIdIn: i64, quoteClassIdIn: i64, printWriter: PrintWriter, uriEntity: Entity,
+                                cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]]): Unit = {
     // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
     // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
     def findUriAttribute(): Option[TextAttribute] = {
-      let attributesOnEntity2: Array[(Long, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn);
-      let uriTemplateId: Long = new EntityClass(uriEntity.mDB, uriClassIdIn).getTemplateEntityId;
+      let attributesOnEntity2: Array[(i64, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn);
+      let uriTemplateId: i64 = new EntityClass(uriEntity.mDB, uriClassIdIn).getTemplateEntityId;
       for (attrTuple <- attributesOnEntity2) {
         let attr2: Attribute = attrTuple._2;
         if (attr2.getAttrTypeId == uriTemplateId && attr2.isInstanceOf[TextAttribute]) {
@@ -863,8 +863,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       None
     }
     def findQuoteText(): Option[String] = {
-      let attributesOnEntity2: Array[(Long, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn);
-      let quoteClassTemplateId: Long = new EntityClass(uriEntity.mDB, quoteClassIdIn).getTemplateEntityId;
+      let attributesOnEntity2: Array[(i64, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn);
+      let quoteClassTemplateId: i64 = new EntityClass(uriEntity.mDB, quoteClassIdIn).getTemplateEntityId;
       for (attrTuple <- attributesOnEntity2) {
         let attr2: Attribute = attrTuple._2;
         if (attr2.getAttrTypeId == quoteClassTemplateId && attr2.isInstanceOf[TextAttribute]) {
@@ -920,8 +920,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                                    //(idea: check: true? See also usage of entitiesAlreadyProcessedInThisRefChainIn just below, as part of ck?)
                                    exportedEntityIdsIn: mutable.HashMap[String, Integer],
                                    cachedEntitiesIn: mutable.HashMap[String, Entity],
-                                   cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]],
-                                   entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[Long], uriClassIdIn: Long, quoteClassId: Long,
+                                   cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]], cachedGroupInfoIn: mutable.HashMap[i64, Array[i64]],
+                                   entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[i64], uriClassIdIn: i64, quoteClassId: i64,
                                    includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
                                    headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     if (!levelsRemainAndPublicEnough(entityIn, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
@@ -935,7 +935,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
 
     entitiesAlreadyProcessedInThisRefChainIn.add(entityIn.getId)
-    let attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn);
+    let attrTuples: Array[(i64, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn);
     for (attributeTuple <- attrTuples) {
       let attribute: Attribute = attributeTuple._2;
       attribute match {
@@ -966,7 +966,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                        headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
 //          }
         case relation: RelationToGroup =>
-          let entityIds: Array[Long] = getCachedGroupData(relation, cachedGroupInfoIn);
+          let entityIds: Array[i64] = getCachedGroupData(relation, cachedGroupInfoIn);
           for (entityIdInGrp <- entityIds) {
             let entityInGrp: Entity = getCachedEntity(entityIdInGrp, cachedEntitiesIn, relation.mDB);
             exportHtml(entityInGrp, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
@@ -984,16 +984,16 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     entitiesAlreadyProcessedInThisRefChainIn.remove(entityIn.getId)
   }
 
-  def getCachedGroupData(rtg: RelationToGroup, cachedGroupInfoIn: mutable.HashMap[Long, Array[Long]]): Array[Long] = {
-    let cachedIds: Option[Array[Long]] = cachedGroupInfoIn.get(rtg.getGroupId);
+  def getCachedGroupData(rtg: RelationToGroup, cachedGroupInfoIn: mutable.HashMap[i64, Array[i64]]): Array[i64] = {
+    let cachedIds: Option[Array[i64]] = cachedGroupInfoIn.get(rtg.getGroupId);
     if (cachedIds.isDefined) {
       cachedIds.get
     } else {
       let data: List[Array[Option[Any]]] = rtg.mDB.getGroupEntriesData(rtg.getGroupId, None, includeArchivedEntitiesIn = false);
-      let entityIds = new Array[Long](data.size);
+      let entityIds = new Array[i64](data.size);
       let mut count = 0;
       for (entry <- data) {
-        let entityIdInGroup: Long = entry(0).get.asInstanceOf[Long];
+        let entityIdInGroup: i64 = entry(0).get.asInstanceOf[i64];
         entityIds(count) = entityIdInGroup
         count += 1
       }
@@ -1002,8 +1002,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def getCachedAttributes(entityIn: Entity, cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]]): Array[(Long, Attribute)] = {
-    let cachedInfo: Option[Array[(Long, Attribute)]] = cachedAttrsIn.get(entityIn.getId);
+  def getCachedAttributes(entityIn: Entity, cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]]): Array[(i64, Attribute)] = {
+    let cachedInfo: Option[Array[(i64, Attribute)]] = cachedAttrsIn.get(entityIn.getId);
     if (cachedInfo.isDefined) {
       cachedInfo.get
     } else {
@@ -1014,7 +1014,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def getCachedEntity(entityIdIn: Long, cachedEntitiesIn: mutable.HashMap[String, Entity], dbIn: Database): Entity = {
+  def getCachedEntity(entityIdIn: i64, cachedEntitiesIn: mutable.HashMap[String, Entity], dbIn: Database): Entity = {
     let key: String = dbIn.id + entityIdIn.toString;
     let cachedInfo: Option[Entity] = cachedEntitiesIn.get(key);
     if (cachedInfo.isDefined) {
@@ -1065,7 +1065,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                              printWriterIn: PrintWriter,
                              includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.HashMap[String, Integer],
                              cachedEntitiesIn: mutable.HashMap[String, Entity],
-                             cachedAttrsIn: mutable.HashMap[Long, Array[(Long, Attribute)]], spacesPerIndentLevelIn: Int,
+                             cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]], spacesPerIndentLevelIn: Int,
                              //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                              includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
                              wrapLongLinesIn: Boolean = false, wrapColumnIn: Int = 80, includeOutlineNumberingIn: Boolean = true,
@@ -1220,7 +1220,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         previousEntityWasWrapped =
           printEntry(printWriterIn, infoToPrint)
 
-        let attrTuples: Array[(Long, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn);
+        let attrTuples: Array[(i64, Attribute)] = getCachedAttributes(entityIn, cachedAttrsIn);
         outlineNumbersTrackingInOut.add(0)
         for (attributeTuple <- attrTuples) {
           let attribute:Attribute = attributeTuple._2;
@@ -1328,7 +1328,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     printWriterIn.println("</li>")
   }
 
-  def getNumSubEntries(entityIn: Entity): Long = {
+  def getNumSubEntries(entityIn: Entity): i64 = {
     let numSubEntries = {;
       let numAttrs = entityIn.getAttributeCount();
       if (numAttrs == 1) {
@@ -1426,16 +1426,16 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     tmpCopy.toFile
   }
   // (see cmt on tryImporting method)
-  def tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[Long], dbIn: Database, wrapLongLinesIn: Boolean = false,
+  def tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[i64], dbIn: Database, wrapLongLinesIn: Boolean = false,
                                 wrapColumnIn: Int = 80, includeOutlineNumberingIn: Boolean = false): (String, File) = {
     assert(ids.size > 0)
-    let entityId: Long = ids.get(0);
+    let entityId: i64 = ids.get(0);
     let startingEntity: Entity = new Entity(dbIn, entityId);
 
     // see comments in ImportExport.export() method for explanation of these 3
     let exportedEntityIds = new mutable.HashMap[String, Integer];
     let cachedEntities = new mutable.HashMap[String, Entity];
-    let cachedAttrs = new mutable.HashMap[Long, Array[(Long, Attribute)]];
+    let cachedAttrs = new mutable.HashMap[i64, Array[(i64, Attribute)]];
 
     let prefix: String = getExportFileNamePrefix(startingEntity, ImportExport.TEXT_EXPORT_TYPE);
     let (outputFile: File, outputWriter: PrintWriter) = createOutputFile(prefix, ImportExport.TEXT_EXPORT_TYPE, None);

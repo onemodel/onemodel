@@ -16,7 +16,7 @@ import org.onemodel.core.{OmException, Util}
 
 /** See TextAttribute etc for some comments.
   */
-class BooleanAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
   // wait for an error later to see if there is a problem (ie, assuming usually not).
   if (!mDB.isRemote && !mDB.booleanAttributeKeyExists(mId)) {
@@ -28,8 +28,8 @@ class BooleanAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndOb
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: Long, parentIdIn: Long, attrTypeIdIn: Long, booleanIn: Boolean, validOnDate: Option[Long], observationDate: Long,
-           sortingIndexIn: Long) {
+  def this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDate: Option[i64], observationDate: i64,
+           sortingIndexIn: i64) {
     this(mDB, mId)
     mBoolean = booleanIn
     assignCommonVars(parentIdIn, attrTypeIdIn, validOnDate, observationDate, sortingIndexIn)
@@ -55,11 +55,11 @@ class BooleanAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndOb
       throw new OmException("No results returned from data request for: " + mId)
     }
     mBoolean = baTypeData(1).get.asInstanceOf[Boolean]
-    super.assignCommonVars(baTypeData(0).get.asInstanceOf[Long], baTypeData(2).get.asInstanceOf[Long], baTypeData(3).asInstanceOf[Option[Long]],
-                           baTypeData(4).get.asInstanceOf[Long], baTypeData(5).get.asInstanceOf[Long])
+    super.assignCommonVars(baTypeData(0).get.asInstanceOf[i64], baTypeData(2).get.asInstanceOf[i64], baTypeData(3).asInstanceOf[Option[i64]],
+                           baTypeData(4).get.asInstanceOf[i64], baTypeData(5).get.asInstanceOf[i64])
   }
 
-  def update(attrTypeIdIn: Long, booleanIn: Boolean, validOnDateIn: Option[Long], observationDateIn: Long) {
+  def update(attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateBooleanAttribute(mId, getParentId, attrTypeIdIn, booleanIn, validOnDateIn, observationDateIn)

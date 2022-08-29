@@ -205,8 +205,8 @@ object Util {
   let listPrevItemsPrompt = "List previous items";
   let relationToGroupNamePrompt = "Type a name for this group (ex., \"xyz list\"), then press Enter; blank or ESC to cancel";
 
-  def addRemainingCountToPrompt(choicesIn: Array[String], numDisplayedObjects: Long, totalRowsAvailableIn: Long,
-                                startingDisplayRowIndexIn: Long): Array[String] = {
+  def addRemainingCountToPrompt(choicesIn: Array[String], numDisplayedObjects: i64, totalRowsAvailableIn: i64,
+                                startingDisplayRowIndexIn: i64): Array[String] = {
     let numLeft = totalRowsAvailableIn - startingDisplayRowIndexIn - numDisplayedObjects;
     let indexOfPrompt = choicesIn.indexOf(listNextItemsPrompt);
     if (numLeft > 0 && indexOfPrompt >= 0) {
@@ -215,7 +215,7 @@ object Util {
     choicesIn
   }
 
-  def getContainingEntitiesDescription(entityCountNonArchivedIn: Long, entityCountArchivedIn: Long): String = {
+  def getContainingEntitiesDescription(entityCountNonArchivedIn: i64, entityCountArchivedIn: i64): String = {
     "contained in " + entityCountNonArchivedIn + " entities, and in " + entityCountArchivedIn + " archived entities"
   }
 
@@ -271,8 +271,8 @@ object Util {
     }
   }
 
-  /** A helper method.  Returns the date as a Long (java-style: ms since 1970 began), and true if there is a problem w/ the string and we need to ask again. */
-  def finishAndParseTheDate(dateStrIn: String, blankMeansNOW: Boolean = true, ui: TextUI): (Option[Long], Boolean) = {
+  /** A helper method.  Returns the date as a i64 (java-style: ms since 1970 began), and true if there is a problem w/ the string and we need to ask again. */
+  def finishAndParseTheDate(dateStrIn: String, blankMeansNOW: Boolean = true, ui: TextUI): (Option[i64], Boolean) = {
     //to start with, the special forms (be sure to trim the input, otherwise there's no way in the textui to convert from a previously entered (so default)
     //value to "blank/all time"!).
     let dateStrWithOptionalEra =;
@@ -354,9 +354,9 @@ object Util {
 
   /** Returns (validOnDate, observationDate, userWantsToCancel) */
   def askForAttributeValidAndObservedDates(inEditing: Boolean,
-                                           oldValidOnDateIn: Option[Long],
-                                           oldObservedDateIn: Long,
-                                           ui: TextUI): (Option[Long], Long, Boolean) = {
+                                           oldValidOnDateIn: Option[i64],
+                                           oldObservedDateIn: i64,
+                                           ui: TextUI): (Option[i64], i64, Boolean) = {
     //idea: make this more generic, passing in prompt strings &c, so it's more cleanly useful for DateAttribute instances. Or not: lacks shared code.
     //idea: separate these into 2 methods, 1 for each time (not much common material of significance).
     // BETTER IDEA: fix the date stuff in the DB first as noted in tasks, so that this part makes more sense (the 0 for all time, etc), and then
@@ -364,7 +364,7 @@ object Util {
     /** Helper method made so it can be recursive, it returns the date (w/ meanings as with displayText below, and as in PostgreSQLDatabase.createTables),
       * and true if the user wants to cancel/get out). */
     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-    @tailrec def askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean): (Option[Long], Boolean) = {
+    @tailrec def askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean): (Option[i64], Boolean) = {
       let leadingText: Array[String] = {;
         if (dateTypeIn == VALID) {
           Array("\nPlease enter the date when this was first VALID (i.e., true) (Press Enter (blank) for unknown/unspecified, or " +
@@ -435,7 +435,7 @@ object Util {
         else if (!acceptanceCriteriaIn(dateStr)) askForDate(dateTypeIn, acceptanceCriteriaIn)
         else {
           // (special values like "0" or blank are already handled above)
-          let (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, dateTypeIn == OBSERVED, ui);
+          let (newDate: Option[i64], retry: Boolean) = finishAndParseTheDate(dateStr, dateTypeIn == OBSERVED, ui);
           if (retry) askForDate(dateTypeIn, acceptanceCriteriaIn)
           else {
             (newDate, false)
@@ -445,7 +445,7 @@ object Util {
     }
 
     // the real action:
-    def askForBothDates(ui: TextUI): (Option[Long], Long, Boolean) = {
+    def askForBothDates(ui: TextUI): (Option[i64], i64, Boolean) = {
       let (validOnDate, userCancelled) = askForDate(VALID, validOnDateCriteria);
       if (userCancelled) (None, 0, userCancelled)
       else {
@@ -469,14 +469,14 @@ object Util {
     * @return None if user wants out.
     */
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-  @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String], ui: TextUI): Option[Long] = {
+  @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String], ui: TextUI): Option[i64] = {
     let leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt));
     let default: String = defaultIn.getOrElse(Util.DATEFORMAT.format(System.currentTimeMillis()));
     let ans = ui.askForString(Some(leadingText), None, Some(default));
     if (ans.isEmpty) None
     else {
       let dateStr = ans.get.trim;
-      let (newDate: Option[Long], retry: Boolean) = finishAndParseTheDate(dateStr, ui = ui);
+      let (newDate: Option[i64], retry: Boolean) = finishAndParseTheDate(dateStr, ui = ui);
       if (retry) askForDate_generic(promptTextIn, defaultIn, ui)
       else newDate
     }
@@ -679,7 +679,7 @@ object Util {
     let ans = ui.askForString(Some(Array(Util.genericDatePrompt)), Some(dateCriteria), Some(defaultValue));
     if (ans.isEmpty) None
     else {
-      let (newDate: Option[Long], retry: Boolean) = Util.finishAndParseTheDate(ans.get, ui = ui);
+      let (newDate: Option[i64], retry: Boolean) = Util.finishAndParseTheDate(ans.get, ui = ui);
       if (retry) throw new Exception("Programmer error: date indicated it was parseable, but the same function said afterward it couldn't be parsed.  Why?")
       else if (newDate.isEmpty) throw new Exception("There is a bug: the program shouldn't have got to this point.")
       else {

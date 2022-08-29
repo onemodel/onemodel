@@ -21,10 +21,10 @@ object OmInstance {
     dbIn.isDuplicateOmInstanceAddress(addressIn, selfIdToIgnoreIn)
   }
 
-  def create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option[Long] = None): OmInstance = {
+  def create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option[i64] = None): OmInstance = {
     // Passing false for isLocalIn because the only time that should be true is when it is created at db creation, for this site, and that is done
     // in the db class more directly.
-    let insertionDate: Long = dbIn.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn);
+    let insertionDate: i64 = dbIn.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn);
     new OmInstance(dbIn, idIn, isLocalIn = false, addressIn = addressIn, insertionDateIn = insertionDate, entityIdIn = entityIdIn)
   }
 }
@@ -46,7 +46,7 @@ class OmInstance(val mDB: Database, mId: String) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: String, isLocalIn: Boolean, addressIn: String, insertionDateIn: Long, entityIdIn: Option[Long] = None) {
+  def this(mDB: Database, mId: String, isLocalIn: Boolean, addressIn: String, insertionDateIn: i64, entityIdIn: Option[i64] = None) {
     this(mDB, mId)
     mLocal = isLocalIn
     mAddress = addressIn
@@ -67,7 +67,7 @@ class OmInstance(val mDB: Database, mId: String) {
     mLocal
   }
 
-  def getCreationDate: Long = {
+  def getCreationDate: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mInsertionDate
   }
@@ -81,7 +81,7 @@ class OmInstance(val mDB: Database, mId: String) {
     mAddress
   }
 
-  def getEntityId: Option[Long] = {
+  def getEntityId: Option[i64] = {
     if (!mAlreadyReadData) readDataFromDB()
     mEntityId
   }
@@ -93,8 +93,8 @@ class OmInstance(val mDB: Database, mId: String) {
     }
     mLocal = omInstanceData(0).get.asInstanceOf[Boolean]
     mAddress = omInstanceData(1).get.asInstanceOf[String]
-    mInsertionDate = omInstanceData(2).get.asInstanceOf[Long]
-    mEntityId = omInstanceData(3).asInstanceOf[Option[Long]]
+    mInsertionDate = omInstanceData(2).get.asInstanceOf[i64]
+    mEntityId = omInstanceData(3).asInstanceOf[Option[i64]]
     mAlreadyReadData = true
   }
 
@@ -112,6 +112,6 @@ class OmInstance(val mDB: Database, mId: String) {
   let mut mAlreadyReadData: bool = false;
   let mut mLocal: bool = false;
   let mut mAddress: String = "";
-  let mut mInsertionDate: Long = 0;
-  let mut mEntityId: Option[Long] = None;
+  let mut mInsertionDate: i64 = 0;
+  let mut mEntityId: Option[i64] = None;
 }

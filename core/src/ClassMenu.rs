@@ -67,14 +67,14 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
           }
         }
         else if (answer == 4) {
-          let entitiesCount: Long = classIn.mDB.getEntitiesOnlyCount(limitByClass = true, Some(classIn.getId), Some(classIn.getTemplateEntityId));
+          let entitiesCount: i64 = classIn.mDB.getEntitiesOnlyCount(limitByClass = true, Some(classIn.getId), Some(classIn.getTemplateEntityId));
           if (entitiesCount > 0) {
             ui.displayText("Can not delete class, because it is the class of " + entitiesCount + " entities.")
           } else {
             let name = classIn.getName;
             let templateEntity = new Entity(classIn.mDB, classIn.getTemplateEntityId);
             let templateEntityName: String = templateEntity.getName;
-            let groupCount: Long = templateEntity.getCountOfContainingGroups;
+            let groupCount: i64 = templateEntity.getCountOfContainingGroups;
             let (entityCountNonArchived, entityCountArchived) = templateEntity.getCountOfContainingLocalEntities;
             let ans = ui.askYesNoQuestion("DELETE CLASS \"" + name + "\" AND its template ENTITY \"" + templateEntityName + "\" with " +;
                                           Util.entityPartsThatCanBeAffected + ".  \n**ARE YOU REALLY SURE?**  (The template entity is " +

@@ -36,21 +36,21 @@ object Database {
   let UNUSED_GROUP_ERR1 = "No available index found which is not already used. How would so many be used?";
   let UNUSED_GROUP_ERR2 = "Very unexpected, but could it be that you are running out of available sorting indexes!?" +;
                           " Have someone check, before you need to create, for example, a thousand more entities."
-  let getClassData_resultTypes = "String,Long,Boolean";
+  let getClassData_resultTypes = "String,i64,Boolean";
   let getRelationTypeData_resultTypes = "String,String,String";
-  let getOmInstanceData_resultTypes = "Boolean,String,Long,Long";
-  let getQuantityAttributeData_resultTypes = "Long,Long,Float,Long,Long,Long,Long";
-  let getDateAttributeData_resultTypes = "Long,Long,Long,Long";
-  let getBooleanAttributeData_resultTypes = "Long,Boolean,Long,Long,Long,Long";
-  let getFileAttributeData_resultTypes = "Long,String,Long,Long,Long,String,Boolean,Boolean,Boolean,Long,String,Long";
-  let getTextAttributeData_resultTypes = "Long,String,Long,Long,Long,Long";
-  let getRelationToGroupDataById_resultTypes = "Long,Long,Long,Long,Long,Long,Long";
-  let getRelationToGroupDataByKeys_resultTypes = "Long,Long,Long,Long,Long,Long,Long";
-  let getRelationToLocalEntity_resultTypes = "Long,Long,Long,Long";
-  let getRelationToRemoteEntity_resultTypes = "Long,Long,Long,Long";
-  let getGroupData_resultTypes = "String,Long,Boolean,Boolean";
-  let getEntityData_resultTypes = "String,Long,Long,Boolean,Boolean,Boolean";
-  let getGroupEntriesData_resultTypes = "Long,Long";
+  let getOmInstanceData_resultTypes = "Boolean,String,i64,i64";
+  let getQuantityAttributeData_resultTypes = "i64,i64,Float,i64,i64,i64,i64";
+  let getDateAttributeData_resultTypes = "i64,i64,i64,i64";
+  let getBooleanAttributeData_resultTypes = "i64,Boolean,i64,i64,i64,i64";
+  let getFileAttributeData_resultTypes = "i64,String,i64,i64,i64,String,Boolean,Boolean,Boolean,i64,String,i64";
+  let getTextAttributeData_resultTypes = "i64,String,i64,i64,i64,i64";
+  let getRelationToGroupDataById_resultTypes = "i64,i64,i64,i64,i64,i64,i64";
+  let getRelationToGroupDataByKeys_resultTypes = "i64,i64,i64,i64,i64,i64,i64";
+  let getRelationToLocalEntity_resultTypes = "i64,i64,i64,i64";
+  let getRelationToRemoteEntity_resultTypes = "i64,i64,i64,i64";
+  let getGroupData_resultTypes = "String,i64,Boolean,Boolean";
+  let getEntityData_resultTypes = "String,i64,i64,Boolean,Boolean,Boolean";
+  let getGroupEntriesData_resultTypes = "i64,i64";
 
   // where we create the table also calls this.
   // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
@@ -98,13 +98,13 @@ object Database {
     }
   }
 
-  def maxIdValue: Long = {
+  def maxIdValue: i64 = {
     // Max size for a Java long type, and for a postgresql 7.2.1 bigint type (which is being used, at the moment, for the id value in Entity table.
     // (these values are from file:///usr/share/doc/postgresql-doc-9.1/html/datatype-numeric.html)
     9223372036854775807L
   }
 
-  def minIdValue: Long = {
+  def minIdValue: i64 = {
     -9223372036854775808L
   }
 
@@ -154,210 +154,210 @@ abstract class Database {
      ...but should be avoided when going through the model object (like Entity) causes enough more db hits to not be worth it (performance vs.
      clarity & ease of maintenance).
   * */
-  protected[model] def createQuantityAttribute(parentIdIn: Long, attrTypeIdIn: Long, unitIdIn: Long, numberIn: Float, validOnDateIn: Option[Long],
-                              inObservationDate: Long, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option[Long] = None): /*id*/ Long
-  protected[model] def createDateAttribute(parentIdIn: Long, attrTypeIdIn: Long, dateIn: Long, sortingIndexIn: Option[Long] = None): /*id*/ Long
-  protected[model] def createBooleanAttribute(parentIdIn: Long, attrTypeIdIn: Long, booleanIn: Boolean, validOnDateIn: Option[Long], observationDateIn: Long,
-                             sortingIndexIn: Option[Long] = None): /*id*/ Long
-  protected[model] def createFileAttribute(parentIdIn: Long, attrTypeIdIn: Long, descriptionIn: String, originalFileDateIn: Long, storedDateIn: Long,
-                          originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: Long,
-                          md5hashIn: String, inputStreamIn: java.io.FileInputStream, sortingIndexIn: Option[Long] = None): /*id*/ Long
-  protected[model] def createTextAttribute(parentIdIn: Long, attrTypeIdIn: Long, textIn: String, validOnDateIn: Option[Long] = None,
-                          observationDateIn: Long = System.currentTimeMillis(), callerManagesTransactionsIn: Boolean = false,
-                          sortingIndexIn: Option[Long] = None): /*id*/ Long
-  protected[model] def createRelationToLocalEntity(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                             sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false): RelationToLocalEntity
-  protected[model] def createRelationToRemoteEntity(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                                   remoteInstanceIdIn: String, sortingIndexIn: Option[Long] = None,
+  protected[model] def createQuantityAttribute(parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
+                              inObservationDate: i64, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option[i64] = None): /*id*/ i64
+  protected[model] def createDateAttribute(parentIdIn: i64, attrTypeIdIn: i64, dateIn: i64, sortingIndexIn: Option[i64] = None): /*id*/ i64
+  protected[model] def createBooleanAttribute(parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64,
+                             sortingIndexIn: Option[i64] = None): /*id*/ i64
+  protected[model] def createFileAttribute(parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
+                          originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64,
+                          md5hashIn: String, inputStreamIn: java.io.FileInputStream, sortingIndexIn: Option[i64] = None): /*id*/ i64
+  protected[model] def createTextAttribute(parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64] = None,
+                          observationDateIn: i64 = System.currentTimeMillis(), callerManagesTransactionsIn: Boolean = false,
+                          sortingIndexIn: Option[i64] = None): /*id*/ i64
+  protected[model] def createRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+                             sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false): RelationToLocalEntity
+  protected[model] def createRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+                                   remoteInstanceIdIn: String, sortingIndexIn: Option[i64] = None,
                                    callerManagesTransactionsIn: Boolean = false): RelationToRemoteEntity
-  protected[model] def createGroupAndRelationToGroup(entityIdIn: Long, relationTypeIdIn: Long, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false,
-                                    validOnDateIn: Option[Long], observationDateIn: Long,
-                                    sortingIndexIn: Option[Long], callerManagesTransactionsIn: Boolean = false): (Long, Long)
-  def createEntity(nameIn: String, classIdIn: Option[Long] = None, isPublicIn: Option[Boolean] = None): /*id*/ Long
-  protected[model] def createEntityAndRelationToLocalEntity(entityIdIn: Long, relationTypeIdIn: Long, newEntityNameIn: String, isPublicIn: Option[Boolean],
-                                      validOnDateIn: Option[Long], observationDateIn: Long, callerManagesTransactionsIn: Boolean = false): (Long, Long)
-  protected[model] def createRelationToGroup(entityIdIn: Long, relationTypeIdIn: Long, groupIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                            sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false): (Long, Long)
-  protected[model] def addEntityToGroup(groupIdIn: Long, containedEntityIdIn: Long, sortingIndexIn: Option[Long] = None, callerManagesTransactionsIn: Boolean = false)
-  def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[Long] = None, oldTableName: Boolean = false): Long
-  protected[model] def addHASRelationToLocalEntity(fromEntityIdIn: Long, toEntityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                             sortingIndexIn: Option[Long] = None): RelationToLocalEntity
-  def getOrCreateClassAndTemplateEntity(classNameIn: String, callerManagesTransactionsIn: Boolean): (Long, Long)
-  def createRelationType(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): /*id*/ Long
-  def createClassAndItsTemplateEntity(classNameIn: String): (Long, Long)
-  protected[model] def addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: Long,
+  protected[model] def createGroupAndRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false,
+                                    validOnDateIn: Option[i64], observationDateIn: i64,
+                                    sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean = false): (i64, i64)
+  def createEntity(nameIn: String, classIdIn: Option[i64] = None, isPublicIn: Option[Boolean] = None): /*id*/ i64
+  protected[model] def createEntityAndRelationToLocalEntity(entityIdIn: i64, relationTypeIdIn: i64, newEntityNameIn: String, isPublicIn: Option[Boolean],
+                                      validOnDateIn: Option[i64], observationDateIn: i64, callerManagesTransactionsIn: Boolean = false): (i64, i64)
+  protected[model] def createRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+                            sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false): (i64, i64)
+  protected[model] def addEntityToGroup(groupIdIn: i64, containedEntityIdIn: i64, sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false)
+  def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[i64] = None, oldTableName: Boolean = false): i64
+  protected[model] def addHASRelationToLocalEntity(fromEntityIdIn: i64, toEntityIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+                             sortingIndexIn: Option[i64] = None): RelationToLocalEntity
+  def getOrCreateClassAndTemplateEntity(classNameIn: String, callerManagesTransactionsIn: Boolean): (i64, i64)
+  def createRelationType(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): /*id*/ i64
+  def createClassAndItsTemplateEntity(classNameIn: String): (i64, i64)
+  protected[model] def addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: i64,
                                    makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
                                    quoteIn: Option[String] = None): (Entity, RelationToLocalEntity)
 
 
-  def attributeKeyExists(formIdIn: Long, idIn: Long): Boolean
-  protected[model] def findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String,
-                             levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true): mutable.TreeSet[Long]
-  def entityKeyExists(idIn: Long, includeArchived: Boolean = true): Boolean
-  protected[model] def relationTypeKeyExists(idIn: Long): Boolean
-  protected[model] def quantityAttributeKeyExists(idIn: Long): Boolean
-  protected[model] def dateAttributeKeyExists(idIn: Long): Boolean
-  protected[model] def booleanAttributeKeyExists(idIn: Long): Boolean
-  protected[model] def fileAttributeKeyExists(idIn: Long): Boolean
-  protected[model] def textAttributeKeyExists(idIn: Long): Boolean
-  def relationToLocalEntityKeyExists(idIn: Long): Boolean
-  def groupKeyExists(idIn: Long): Boolean
-  protected[model] def relationToGroupKeysExistAndMatch(id: Long, entityId: Long, relTypeId: Long, groupId: Long): Boolean
-  protected[model] def classKeyExists(idIn: Long): Boolean
+  def attributeKeyExists(formIdIn: i64, idIn: i64): Boolean
+  protected[model] def findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[i64], fromEntityIdIn: i64, searchStringIn: String,
+                             levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true): mutable.TreeSet[i64]
+  def entityKeyExists(idIn: i64, includeArchived: Boolean = true): Boolean
+  protected[model] def relationTypeKeyExists(idIn: i64): Boolean
+  protected[model] def quantityAttributeKeyExists(idIn: i64): Boolean
+  protected[model] def dateAttributeKeyExists(idIn: i64): Boolean
+  protected[model] def booleanAttributeKeyExists(idIn: i64): Boolean
+  protected[model] def fileAttributeKeyExists(idIn: i64): Boolean
+  protected[model] def textAttributeKeyExists(idIn: i64): Boolean
+  def relationToLocalEntityKeyExists(idIn: i64): Boolean
+  def groupKeyExists(idIn: i64): Boolean
+  protected[model] def relationToGroupKeysExistAndMatch(id: i64, entityId: i64, relTypeId: i64, groupId: i64): Boolean
+  protected[model] def classKeyExists(idIn: i64): Boolean
   protected[model] def omInstanceKeyExists(idIn: String): Boolean
-  protected[model] def getEntityData(idIn: Long): Array[Option[Any]]
-  protected[model] def getEntityName(idIn: Long): Option[String]
-  protected[model] def isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[Long] = None): Boolean
-  protected[model] def getSortedAttributes(entityIdIn: Long, startingObjectIndexIn: Int = 0, maxValsIn: Int = 0,
-                          onlyPublicEntitiesIn: Boolean = true): (Array[(Long, Attribute)], Int)
-  def findRelationType(typeNameIn: String, expectedRows: Option[Int] = Some(1)): java.util.ArrayList[Long]
-  protected[model] def getRelationTypeData(idIn: Long): Array[Option[Any]]
-  protected[model] def getQuantityAttributeData(idIn: Long): Array[Option[Any]]
-  protected[model] def getDateAttributeData(idIn: Long): Array[Option[Any]]
-  protected[model] def getBooleanAttributeData(idIn: Long): Array[Option[Any]]
-  protected[model] def getFileAttributeData(idIn: Long): Array[Option[Any]]
-  protected[model] def getFileAttributeContent(fileAttributeIdIn: Long, outputStreamIn: java.io.OutputStream): (Long, String)
-  protected[model] def getTextAttributeData(idIn: Long): Array[Option[Any]]
-  protected[model] def relationToLocalEntityKeysExistAndMatch(idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Boolean
-  protected[model] def relationToRemoteEntityKeyExists(idIn: Long): Boolean
-  protected[model] def relationToRemoteEntityKeysExistAndMatch(idIn: Long, relTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long): Boolean
-  protected[model] def getRelationToLocalEntityData(relTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Array[Option[Any]]
-  protected[model] def getRelationToLocalEntityDataById(idIn: Long): Array[Option[Any]]
-  protected[model] def getRelationToRemoteEntityData(relTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long): Array[Option[Any]]
-  protected[model] def getGroupData(idIn: Long): Array[Option[Any]]
-  protected[model] def getGroupEntryObjects(groupIdIn: Long, startingObjectIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[Entity]
-  def getGroupSize(groupIdIn: Long, includeWhichEntitiesIn: Int = 3): Long
-  protected[model] def getHighestSortingIndexForGroup(groupIdIn: Long): Long
-  protected[model] def getRelationToGroupDataByKeys(entityId: Long, relTypeId: Long, groupId: Long): Array[Option[Any]]
-  protected[model] def getRelationToGroupData(idIn: Long): Array[Option[Any]]
-  def getGroupEntriesData(groupIdIn: Long, limitIn: Option[Long] = None, includeArchivedEntitiesIn: Boolean = true): List[Array[Option[Any]]]
-  protected[model] def findRelationToAndGroup_OnEntity(entityIdIn: Long,
-                                                       groupNameIn: Option[String] = None): (Option[Long], Option[Long], Option[Long], Option[String], Boolean)
-  def getEntitiesContainingGroup(groupIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)]
-  protected[model] def getCountOfEntitiesContainingGroup(groupIdIn: Long): (Long, Long)
-  protected[model] def getClassData(idIn: Long): Array[Option[Any]]
-  protected[model] def getAttributeCount(entityIdIn: Long, includeArchivedEntitiesIn: Boolean = false): Long
-  protected[model] def getRelationToLocalEntityCount(entityIdIn: Long, includeArchivedEntities: Boolean = false): Long
-  protected[model] def getRelationToRemoteEntityCount(entityIdIn: Long): Long
-  protected[model] def getRelationToGroupCount(entityIdIn: Long): Long
-  def getClassCount(entityIdIn: Option[Long] = None): Long
-  protected[model] def getClassName(idIn: Long): Option[String]
+  protected[model] def getEntityData(idIn: i64): Array[Option[Any]]
+  protected[model] def getEntityName(idIn: i64): Option[String]
+  protected[model] def isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[i64] = None): Boolean
+  protected[model] def getSortedAttributes(entityIdIn: i64, startingObjectIndexIn: Int = 0, maxValsIn: Int = 0,
+                          onlyPublicEntitiesIn: Boolean = true): (Array[(i64, Attribute)], Int)
+  def findRelationType(typeNameIn: String, expectedRows: Option[Int] = Some(1)): java.util.ArrayList[i64]
+  protected[model] def getRelationTypeData(idIn: i64): Array[Option[Any]]
+  protected[model] def getQuantityAttributeData(idIn: i64): Array[Option[Any]]
+  protected[model] def getDateAttributeData(idIn: i64): Array[Option[Any]]
+  protected[model] def getBooleanAttributeData(idIn: i64): Array[Option[Any]]
+  protected[model] def getFileAttributeData(idIn: i64): Array[Option[Any]]
+  protected[model] def getFileAttributeContent(fileAttributeIdIn: i64, outputStreamIn: java.io.OutputStream): (i64, String)
+  protected[model] def getTextAttributeData(idIn: i64): Array[Option[Any]]
+  protected[model] def relationToLocalEntityKeysExistAndMatch(idIn: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64): Boolean
+  protected[model] def relationToRemoteEntityKeyExists(idIn: i64): Boolean
+  protected[model] def relationToRemoteEntityKeysExistAndMatch(idIn: i64, relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64): Boolean
+  protected[model] def getRelationToLocalEntityData(relTypeIdIn: i64, entityId1In: i64, entityId2In: i64): Array[Option[Any]]
+  protected[model] def getRelationToLocalEntityDataById(idIn: i64): Array[Option[Any]]
+  protected[model] def getRelationToRemoteEntityData(relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64): Array[Option[Any]]
+  protected[model] def getGroupData(idIn: i64): Array[Option[Any]]
+  protected[model] def getGroupEntryObjects(groupIdIn: i64, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity]
+  def getGroupSize(groupIdIn: i64, includeWhichEntitiesIn: Int = 3): i64
+  protected[model] def getHighestSortingIndexForGroup(groupIdIn: i64): i64
+  protected[model] def getRelationToGroupDataByKeys(entityId: i64, relTypeId: i64, groupId: i64): Array[Option[Any]]
+  protected[model] def getRelationToGroupData(idIn: i64): Array[Option[Any]]
+  def getGroupEntriesData(groupIdIn: i64, limitIn: Option[i64] = None, includeArchivedEntitiesIn: Boolean = true): List[Array[Option[Any]]]
+  protected[model] def findRelationToAndGroup_OnEntity(entityIdIn: i64,
+                                                       groupNameIn: Option[String] = None): (Option[i64], Option[i64], Option[i64], Option[String], Boolean)
+  def getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[(i64, Entity)]
+  protected[model] def getCountOfEntitiesContainingGroup(groupIdIn: i64): (i64, i64)
+  protected[model] def getClassData(idIn: i64): Array[Option[Any]]
+  protected[model] def getAttributeCount(entityIdIn: i64, includeArchivedEntitiesIn: Boolean = false): i64
+  protected[model] def getRelationToLocalEntityCount(entityIdIn: i64, includeArchivedEntities: Boolean = false): i64
+  protected[model] def getRelationToRemoteEntityCount(entityIdIn: i64): i64
+  protected[model] def getRelationToGroupCount(entityIdIn: i64): i64
+  def getClassCount(entityIdIn: Option[i64] = None): i64
+  protected[model] def getClassName(idIn: i64): Option[String]
   protected[model] def getOmInstanceData(idIn: String): Array[Option[Any]]
   protected[model] def isDuplicateOmInstanceAddress(addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean
-  protected[model] def  getGroupsContainingEntitysGroupsIds(groupIdIn: Long, limitIn: Option[Long] = Some(5)): List[Array[Option[Any]]]
-  protected[model] def isEntityInGroup(groupIdIn: Long, entityIdIn: Long): Boolean
-  protected[model] def getAdjacentGroupEntriesSortingIndexes(groupIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long] = None,
+  protected[model] def  getGroupsContainingEntitysGroupsIds(groupIdIn: i64, limitIn: Option[i64] = Some(5)): List[Array[Option[Any]]]
+  protected[model] def isEntityInGroup(groupIdIn: i64, entityIdIn: i64): Boolean
+  protected[model] def getAdjacentGroupEntriesSortingIndexes(groupIdIn: i64, sortingIndexIn: i64, limitIn: Option[i64] = None,
                                             forwardNotBackIn: Boolean): List[Array[Option[Any]]]
-  protected[model] def getNearestGroupEntrysSortingIndex(groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
-  protected[model] def getAdjacentAttributesSortingIndexes(entityIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long], forwardNotBackIn: Boolean): List[Array[Option[Any]]]
-  protected[model] def getNearestAttributeEntrysSortingIndex(entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long]
-  protected[model] def getEntityAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long): Long
-  protected[model] def getGroupEntrySortingIndex(groupIdIn: Long, entityIdIn: Long): Long
-  protected[model] def isGroupEntrySortingIndexInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean
-  protected[model] def isAttributeSortingIndexInUse(entityIdIn: Long, sortingIndexIn: Long): Boolean
-  protected[model] def findUnusedAttributeSortingIndex(entityIdIn: Long, startingWithIn: Option[Long] = None): Long
-  def findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean = false): java.util.ArrayList[Long]
-  protected[model] def findUnusedGroupSortingIndex(groupIdIn: Long, startingWithIn: Option[Long] = None): Long
-  protected[model] def getTextAttributeByTypeId(parentEntityIdIn: Long, typeIdIn: Long, expectedRows: Option[Int] = None): java.util.ArrayList[TextAttribute]
-  protected[model] def getLocalEntitiesContainingLocalEntity(entityIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[(Long, Entity)]
-  protected[model] def getCountOfGroupsContainingEntity(entityIdIn: Long): Long
-  protected[model] def getContainingGroupsIds(entityIdIn: Long): java.util.ArrayList[Long]
-  protected[model] def getContainingRelationsToGroup(entityIdIn: Long, startingIndexIn: Long,
-                                                     maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup]
-//  protected[model] def getShouldCreateDefaultAttributes(classIdIn: Long): Option[Boolean]
-  protected[model] def updateClassCreateDefaultAttributes(classIdIn: Long, value: Option[Boolean])
-  def getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option[Long] = None, templateEntity: Option[Long] = None): Long
-  protected[model] def getCountOfLocalEntitiesContainingLocalEntity(entityIdIn: Long): (Long, Long)
+  protected[model] def getNearestGroupEntrysSortingIndex(groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64]
+  protected[model] def getAdjacentAttributesSortingIndexes(entityIdIn: i64, sortingIndexIn: i64, limitIn: Option[i64], forwardNotBackIn: Boolean): List[Array[Option[Any]]]
+  protected[model] def getNearestAttributeEntrysSortingIndex(entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64]
+  protected[model] def getEntityAttributeSortingIndex(entityIdIn: i64, attributeFormIdIn: i64, attributeIdIn: i64): i64
+  protected[model] def getGroupEntrySortingIndex(groupIdIn: i64, entityIdIn: i64): i64
+  protected[model] def isGroupEntrySortingIndexInUse(groupIdIn: i64, sortingIndexIn: i64): Boolean
+  protected[model] def isAttributeSortingIndexInUse(entityIdIn: i64, sortingIndexIn: i64): Boolean
+  protected[model] def findUnusedAttributeSortingIndex(entityIdIn: i64, startingWithIn: Option[i64] = None): i64
+  def findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean = false): java.util.ArrayList[i64]
+  protected[model] def findUnusedGroupSortingIndex(groupIdIn: i64, startingWithIn: Option[i64] = None): i64
+  protected[model] def getTextAttributeByTypeId(parentEntityIdIn: i64, typeIdIn: i64, expectedRows: Option[Int] = None): java.util.ArrayList[TextAttribute]
+  protected[model] def getLocalEntitiesContainingLocalEntity(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[(i64, Entity)]
+  protected[model] def getCountOfGroupsContainingEntity(entityIdIn: i64): i64
+  protected[model] def getContainingGroupsIds(entityIdIn: i64): java.util.ArrayList[i64]
+  protected[model] def getContainingRelationsToGroup(entityIdIn: i64, startingIndexIn: i64,
+                                                     maxValsIn: Option[i64] = None): java.util.ArrayList[RelationToGroup]
+//  protected[model] def getShouldCreateDefaultAttributes(classIdIn: i64): Option[Boolean]
+  protected[model] def updateClassCreateDefaultAttributes(classIdIn: i64, value: Option[Boolean])
+  def getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option[i64] = None, templateEntity: Option[i64] = None): i64
+  protected[model] def getCountOfLocalEntitiesContainingLocalEntity(entityIdIn: i64): (i64, i64)
   //idea (tracked): make "*duplicate*" methods just be ... called "search"? combine w/ search, or rename? makes sense for callers?
-  def isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[Long] = None): Boolean
-  protected[model] def getContainingRelationToGroupDescriptions(entityIdIn: Long, limitIn: Option[Long] = None): util.ArrayList[String]
-  def getMatchingEntities(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None, omitEntityIdIn: Option[Long],
+  def isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[i64] = None): Boolean
+  protected[model] def getContainingRelationToGroupDescriptions(entityIdIn: i64, limitIn: Option[i64] = None): util.ArrayList[String]
+  def getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitEntityIdIn: Option[i64],
                           nameRegexIn: String): java.util.ArrayList[Entity]
-  def getMatchingGroups(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None, omitGroupIdIn: Option[Long],
+  def getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitGroupIdIn: Option[i64],
                         nameRegexIn: String): java.util.ArrayList[Group]
-  protected[model] def getRelationsToGroupContainingThisGroup(groupIdIn: Long, startingIndexIn: Long,
-                                                              maxValsIn: Option[Long] = None): java.util.ArrayList[RelationToGroup]
-  def getEntities(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[Entity]
-  def getEntitiesOnly(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None, classIdIn: Option[Long] = None,
-                      limitByClass: Boolean = false, templateEntity: Option[Long] = None,
-                      groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Entity]
-  def getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): Long
-  def getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: Long, maxValsIn: Option[Long] = None,
+  protected[model] def getRelationsToGroupContainingThisGroup(groupIdIn: i64, startingIndexIn: i64,
+                                                              maxValsIn: Option[i64] = None): java.util.ArrayList[RelationToGroup]
+  def getEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity]
+  def getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, classIdIn: Option[i64] = None,
+                      limitByClass: Boolean = false, templateEntity: Option[i64] = None,
+                      groupToOmitIdIn: Option[i64] = None): java.util.ArrayList[Entity]
+  def getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): i64
+  def getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None,
                                       quantitySeeksUnitNotTypeIn: Boolean): java.util.ArrayList[Entity]
-  def getRelationTypes(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[Entity]
-  def getClasses(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None): java.util.ArrayList[EntityClass]
-  def getRelationTypeCount: Long
-  def getOmInstanceCount: Long
-  def getEntityCount: Long
-  def findJournalEntries(startTimeIn: Long, endTimeIn: Long, limitIn: Option[Long] = None): util.ArrayList[(Long, String, Long)]
-  def getGroupCount: Long
-  def getGroups(startingObjectIndexIn: Long, maxValsIn: Option[Long] = None, groupToOmitIdIn: Option[Long] = None): java.util.ArrayList[Group]
-  def createGroup(nameIn: String, allowMixedClassesInGroupIn: Boolean = false): Long
-  def relationToGroupKeyExists(idIn: Long): Boolean
+  def getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity]
+  def getClasses(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[EntityClass]
+  def getRelationTypeCount: i64
+  def getOmInstanceCount: i64
+  def getEntityCount: i64
+  def findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option[i64] = None): util.ArrayList[(i64, String, i64)]
+  def getGroupCount: i64
+  def getGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, groupToOmitIdIn: Option[i64] = None): java.util.ArrayList[Group]
+  def createGroup(nameIn: String, allowMixedClassesInGroupIn: Boolean = false): i64
+  def relationToGroupKeyExists(idIn: i64): Boolean
 
 
-  protected[model] def updateEntitysClass(entityId: Long, classId: Option[Long], callerManagesTransactions: Boolean = false)
-  protected[model] def updateEntityOnlyNewEntriesStickToTop(idIn: Long, newEntriesStickToTop: Boolean)
-  protected[model] def archiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false)
-  protected[model] def unarchiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false)
+  protected[model] def updateEntitysClass(entityId: i64, classId: Option[i64], callerManagesTransactions: Boolean = false)
+  protected[model] def updateEntityOnlyNewEntriesStickToTop(idIn: i64, newEntriesStickToTop: Boolean)
+  protected[model] def archiveEntity(idIn: i64, callerManagesTransactionsIn: Boolean = false)
+  protected[model] def unarchiveEntity(idIn: i64, callerManagesTransactionsIn: Boolean = false)
   def setIncludeArchivedEntities(in: Boolean): Unit
-  def setUserPreference_EntityId(nameIn: String, entityIdIn: Long)
-  protected[model] def updateEntityOnlyPublicStatus(idIn: Long, value: Option[Boolean])
-  protected[model] def updateQuantityAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, unitIdIn: Long, numberIn: Float, validOnDateIn: Option[Long],
-                              inObservationDate: Long)
-  protected[model] def updateDateAttribute(idIn: Long, parentIdIn: Long, dateIn: Long, attrTypeIdIn: Long)
-  protected[model] def updateBooleanAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, booleanIn: Boolean, validOnDateIn: Option[Long],
-                             inObservationDate: Long)
-  protected[model] def updateFileAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, descriptionIn: String)
-  protected[model] def updateFileAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, descriptionIn: String,
-                                           originalFileDateIn: Long, storedDateIn: Long,
-                          originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: Long, md5hashIn: String)
-  protected[model] def updateTextAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, textIn: String, validOnDateIn: Option[Long],
-                                           observationDateIn: Long)
-  protected[model] def updateRelationToLocalEntity(oldRelationTypeIdIn: Long, entityId1In: Long, entityId2In: Long,
-                             newRelationTypeIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long)
-  protected[model] def updateRelationToRemoteEntity(oldRelationTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long,
-                                   newRelationTypeIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long)
-  protected[model] def updateGroup(groupIdIn: Long, nameIn: String, allowMixedClassesInGroupIn: Boolean = false, newEntriesStickToTopIn: Boolean = false)
-  protected[model] def updateRelationToGroup(entityIdIn: Long, oldRelationTypeIdIn: Long, newRelationTypeIdIn: Long, oldGroupIdIn: Long, newGroupIdIn: Long,
-                            validOnDateIn: Option[Long], observationDateIn: Long)
-  protected[model] def moveRelationToLocalEntityToLocalEntity(rtleIdIn: Long, newContainingEntityIdIn: Long,
-                                                              sortingIndexIn: Long): RelationToLocalEntity
-  protected[model] def moveRelationToRemoteEntityToLocalEntity(remoteInstanceIdIn: String, relationToRemoteEntityIdIn: Long, toContainingEntityIdIn: Long,
-                                                               sortingIndexIn: Long): RelationToRemoteEntity
-  protected[model] def moveLocalEntityFromLocalEntityToGroup(removingRtleIn: RelationToLocalEntity, targetGroupIdIn: Long, sortingIndexIn: Long)
-  protected[model] def moveRelationToGroup(relationToGroupIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): Long
-  protected[model] def moveEntityFromGroupToLocalEntity(fromGroupIdIn: Long, toEntityIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long)
-  protected[model] def moveLocalEntityFromGroupToGroup(fromGroupIdIn: Long, toGroupIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long)
-  protected[model] def renumberSortingIndexes(entityIdOrGroupIdIn: Long, callerManagesTransactionsIn: Boolean = false,
+  def setUserPreference_EntityId(nameIn: String, entityIdIn: i64)
+  protected[model] def updateEntityOnlyPublicStatus(idIn: i64, value: Option[Boolean])
+  protected[model] def updateQuantityAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
+                              inObservationDate: i64)
+  protected[model] def updateDateAttribute(idIn: i64, parentIdIn: i64, dateIn: i64, attrTypeIdIn: i64)
+  protected[model] def updateBooleanAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64],
+                             inObservationDate: i64)
+  protected[model] def updateFileAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String)
+  protected[model] def updateFileAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String,
+                                           originalFileDateIn: i64, storedDateIn: i64,
+                          originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64, md5hashIn: String)
+  protected[model] def updateTextAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64],
+                                           observationDateIn: i64)
+  protected[model] def updateRelationToLocalEntity(oldRelationTypeIdIn: i64, entityId1In: i64, entityId2In: i64,
+                             newRelationTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64)
+  protected[model] def updateRelationToRemoteEntity(oldRelationTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
+                                   newRelationTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64)
+  protected[model] def updateGroup(groupIdIn: i64, nameIn: String, allowMixedClassesInGroupIn: Boolean = false, newEntriesStickToTopIn: Boolean = false)
+  protected[model] def updateRelationToGroup(entityIdIn: i64, oldRelationTypeIdIn: i64, newRelationTypeIdIn: i64, oldGroupIdIn: i64, newGroupIdIn: i64,
+                            validOnDateIn: Option[i64], observationDateIn: i64)
+  protected[model] def moveRelationToLocalEntityToLocalEntity(rtleIdIn: i64, newContainingEntityIdIn: i64,
+                                                              sortingIndexIn: i64): RelationToLocalEntity
+  protected[model] def moveRelationToRemoteEntityToLocalEntity(remoteInstanceIdIn: String, relationToRemoteEntityIdIn: i64, toContainingEntityIdIn: i64,
+                                                               sortingIndexIn: i64): RelationToRemoteEntity
+  protected[model] def moveLocalEntityFromLocalEntityToGroup(removingRtleIn: RelationToLocalEntity, targetGroupIdIn: i64, sortingIndexIn: i64)
+  protected[model] def moveRelationToGroup(relationToGroupIdIn: i64, newContainingEntityIdIn: i64, sortingIndexIn: i64): i64
+  protected[model] def moveEntityFromGroupToLocalEntity(fromGroupIdIn: i64, toEntityIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64)
+  protected[model] def moveLocalEntityFromGroupToGroup(fromGroupIdIn: i64, toGroupIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64)
+  protected[model] def renumberSortingIndexes(entityIdOrGroupIdIn: i64, callerManagesTransactionsIn: Boolean = false,
                                               isEntityAttrsNotGroupEntries: Boolean = true)
-  protected[model] def updateAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Long)
-  protected[model] def updateSortingIndexInAGroup(groupIdIn: Long, entityIdIn: Long, sortingIndexIn: Long)
-  protected[model] def updateEntityOnlyName(idIn: Long, nameIn: String)
-  protected[model] def updateRelationType(idIn: Long, nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String)
-  protected[model] def updateClassAndTemplateEntityName(classIdIn: Long, name: String): Long
-  protected[model] def updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option[Long])
+  protected[model] def updateAttributeSortingIndex(entityIdIn: i64, attributeFormIdIn: i64, attributeIdIn: i64, sortingIndexIn: i64)
+  protected[model] def updateSortingIndexInAGroup(groupIdIn: i64, entityIdIn: i64, sortingIndexIn: i64)
+  protected[model] def updateEntityOnlyName(idIn: i64, nameIn: String)
+  protected[model] def updateRelationType(idIn: i64, nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String)
+  protected[model] def updateClassAndTemplateEntityName(classIdIn: i64, name: String): i64
+  protected[model] def updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option[i64])
 
-  protected[model] def deleteEntity(idIn: Long, callerManagesTransactionsIn: Boolean = false)
-  protected[model] def deleteQuantityAttribute(idIn: Long)
-  protected[model] def deleteDateAttribute(idIn: Long)
-  protected[model] def deleteBooleanAttribute(idIn: Long)
-  protected[model] def deleteFileAttribute(idIn: Long)
-  protected[model] def deleteTextAttribute(idIn: Long)
-  protected[model] def deleteRelationToLocalEntity(relTypeIdIn: Long, entityId1In: Long, entityId2In: Long)
-  protected[model] def deleteRelationToRemoteEntity(relTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long)
-  protected[model] def deleteRelationToGroup(entityIdIn: Long, relTypeIdIn: Long, groupIdIn: Long)
-  protected[model] def deleteGroupAndRelationsToIt(idIn: Long)
-  protected[model] def deleteRelationType(idIn: Long)
-  protected[model] def deleteClassAndItsTemplateEntity(classIdIn: Long)
-  protected[model] def deleteGroupRelationsToItAndItsEntries(groupidIn: Long)
+  protected[model] def deleteEntity(idIn: i64, callerManagesTransactionsIn: Boolean = false)
+  protected[model] def deleteQuantityAttribute(idIn: i64)
+  protected[model] def deleteDateAttribute(idIn: i64)
+  protected[model] def deleteBooleanAttribute(idIn: i64)
+  protected[model] def deleteFileAttribute(idIn: i64)
+  protected[model] def deleteTextAttribute(idIn: i64)
+  protected[model] def deleteRelationToLocalEntity(relTypeIdIn: i64, entityId1In: i64, entityId2In: i64)
+  protected[model] def deleteRelationToRemoteEntity(relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64)
+  protected[model] def deleteRelationToGroup(entityIdIn: i64, relTypeIdIn: i64, groupIdIn: i64)
+  protected[model] def deleteGroupAndRelationsToIt(idIn: i64)
+  protected[model] def deleteRelationType(idIn: i64)
+  protected[model] def deleteClassAndItsTemplateEntity(classIdIn: i64)
+  protected[model] def deleteGroupRelationsToItAndItsEntries(groupidIn: i64)
   protected[model] def deleteOmInstance(idIn: String): Unit
-  protected[model] def removeEntityFromGroup(groupIdIn: Long, containedEntityIdIn: Long, callerManagesTransactionsIn: Boolean = false)
+  protected[model] def removeEntityFromGroup(groupIdIn: i64, containedEntityIdIn: i64, callerManagesTransactionsIn: Boolean = false)
 
 
   // (See comments above the set of these methods, in RestDatabase.scala:)
   def getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option[Boolean] = None): Option[Boolean]
-  def getPreferencesContainerId: Long
-  def getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[Long] = None): Option[Long]
+  def getPreferencesContainerId: i64
+  def getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[i64] = None): Option[i64]
   def getOmInstances(localIn: Option[Boolean] = None): java.util.ArrayList[OmInstance]
 }

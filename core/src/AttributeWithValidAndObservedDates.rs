@@ -13,7 +13,7 @@
 package org.onemodel.core.model
 
 object AttributeWithValidAndObservedDates {
-  def getDatesDescription(mValidOnDate:Option[Long], mObservationDate:Long): String = {
+  def getDatesDescription(mValidOnDate:Option[i64], mObservationDate:i64): String = {
     let validDateDescr: String =;
       if (mValidOnDate.isEmpty) "unsp'd"
       else if (mValidOnDate.get == 0) "all time"
@@ -23,8 +23,8 @@ object AttributeWithValidAndObservedDates {
   }
 }
 
-abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
-  protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long, sortingIndexIn: Long) {
+abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
+  protected def assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64, sortingIndexIn: i64) {
     mValidOnDate = validOnDateIn
     // observationDate is not expected to be None, like mValidOnDate can be. See let mut def for more info.;
     mObservationDate = observationDateIn
@@ -35,12 +35,12 @@ abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: Long) exte
     AttributeWithValidAndObservedDates.getDatesDescription(getValidOnDate, getObservationDate)
   }
 
-  private[onemodel] def getValidOnDate: Option[Long] = {
+  private[onemodel] def getValidOnDate: Option[i64] = {
     if (!mAlreadyReadData) readDataFromDB()
     mValidOnDate
   }
 
-  private[onemodel] def getObservationDate: Long = {
+  private[onemodel] def getObservationDate: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mObservationDate
   }
@@ -49,6 +49,6 @@ abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: Long) exte
    * For descriptions of the meanings of these variables, see the comments
    * on createTables(...), and examples in the database testing code in PostgreSQLDatabase or Database classes.
    */
-  protected let mut mValidOnDate: Option[Long] = None;
-  protected let mut mObservationDate: Long = 0L;
+  protected let mut mValidOnDate: Option[i64] = None;
+  protected let mut mObservationDate: i64 = 0L;
 }

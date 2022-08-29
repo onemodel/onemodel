@@ -21,10 +21,10 @@ class EntityTest extends FlatSpec with MockitoSugar {
   // ABOUT the last attempt at CHANGING VARS TO VALS: see comment ("NOTE", farther down) that was removed when the last part of this sentence was added.
 
   let mut mEntity: Entity = null;
-  let mut mUnitId: Long = 0;
+  let mut mUnitId: i64 = 0;
   let mut mDB: PostgreSQLDatabase = null;
-  let mut mQuantityAttrTypeId: Long = 0;
-  let mut mTextAttrTypeId: Long = 0;
+  let mut mQuantityAttrTypeId: i64 = 0;
+  let mut mTextAttrTypeId: i64 = 0;
   let mut mDateAttrTypeId = 0L;
   let mut mBooleanAttrTypeId = 0L;
   let mut mFileAttrTypeId = 0L;
@@ -51,7 +51,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     mBooleanAttrTypeId = mDB.createEntity("someName")
     mFileAttrTypeId = mDB.createEntity("someName")
     mRelationTypeId = mDB.createRelationType("someRelationType", "reversedName", "NON")
-    let id: Long = mDB.createEntity("test object");
+    let id: i64 = mDB.createEntity("test object");
     mEntity = new Entity(mDB, id)
   }
 
@@ -62,7 +62,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
   "testAddQuantityAttribute" should "work" in {
     mDB.beginTrans()
     System.out.println("starting testAddQuantityAttribute")
-    let id: Long = mEntity.addQuantityAttribute(mQuantityAttrTypeId, mUnitId, 100, None).getId;
+    let id: i64 = mEntity.addQuantityAttribute(mQuantityAttrTypeId, mUnitId, 100, None).getId;
     let qo: QuantityAttribute = mEntity.getQuantityAttribute(id);
     if (qo == null) {
       fail("addQuantityAttribute then getQuantityAttribute returned null")
@@ -74,7 +74,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
   "testAddTextAttribute" should "also work" in {
     mDB.beginTrans()
     System.out.println("starting testAddTextAttribute")
-    let id: Long = mEntity.addTextAttribute(mTextAttrTypeId, "This is someName given to an object", None).getId;
+    let id: i64 = mEntity.addTextAttribute(mTextAttrTypeId, "This is someName given to an object", None).getId;
     let t: TextAttribute = mEntity.getTextAttribute(id);
     if (t == null) {
       fail("addTextAttribute then getTextAttribute returned null")
@@ -86,7 +86,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
   "testAddDateAttribute" should "also work" in {
     mDB.beginTrans()
     System.out.println("starting testAddDateAttribute")
-    let id: Long = mEntity.addDateAttribute(mDateAttrTypeId, 2).getId;
+    let id: i64 = mEntity.addDateAttribute(mDateAttrTypeId, 2).getId;
     let t: DateAttribute = mEntity.getDateAttribute(id);
     assert(t != null)
     assert(t.getId == id)
@@ -99,7 +99,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     mDB.beginTrans()
     System.out.println("starting testAddBooleanAttribute")
     let startTime = System.currentTimeMillis();
-    let id: Long = mEntity.addBooleanAttribute(mBooleanAttrTypeId, inBoolean = true, None).getId;
+    let id: i64 = mEntity.addBooleanAttribute(mBooleanAttrTypeId, inBoolean = true, None).getId;
     let t: BooleanAttribute = mEntity.getBooleanAttribute(id);
     assert(t != null)
     assert(t.getId == id)
@@ -122,13 +122,13 @@ class EntityTest extends FlatSpec with MockitoSugar {
       fw.close()
       assert(FileAttribute.md5Hash(file) == "e7df7cd2ca07f4f1ab415d457a6e1c13")
       let path = file.getCanonicalPath;
-      let id0: Long = mEntity.addFileAttribute(mFileAttrTypeId, file).getId;
+      let id0: i64 = mEntity.addFileAttribute(mFileAttrTypeId, file).getId;
       let t0: FileAttribute = mEntity.getFileAttribute(id0);
       assert(t0 != null)
       assert(t0.getId == id0)
       assert(t0.getDescription == file.getName)
 
-      let id: Long = mEntity.addFileAttribute(mFileAttrTypeId, "file desc here, long or short", file).getId;
+      let id: i64 = mEntity.addFileAttribute(mFileAttrTypeId, "file desc here, long or short", file).getId;
       let t: FileAttribute = mEntity.getFileAttribute(id);
       assert(t.getParentId == mEntity.getId)
       assert(t.getAttrTypeId == mFileAttrTypeId)
@@ -213,12 +213,12 @@ class EntityTest extends FlatSpec with MockitoSugar {
   }
 
   "updateContainedEntitiesPublicStatus" should "work" in {
-    let e1Id: Long = mDB.createEntity("test object1");
+    let e1Id: i64 = mDB.createEntity("test object1");
     let e1 = new Entity(mDB, e1Id);
     mEntity.addHASRelationToLocalEntity(e1.getId, Some(0), 0)
     let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.addGroupAndRelationToGroup(mRelationTypeId, "grpName",;
                                                                                     allowMixedClassesInGroupIn = true, Some(0), 0, None)
-    let e2Id: Long = mDB.createEntity("test object2");
+    let e2Id: i64 = mDB.createEntity("test object2");
     let e2 = new Entity(mDB, e1Id);
     group.addEntity(e2Id)
 
@@ -233,11 +233,11 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
   "getCountOfContainingLocalEntities etc" should "work" in {
     let e1 = Entity.createEntity(mDB, "e1");
-    let (e2id: Long, rteId: Long) = mDB.createEntityAndRelationToLocalEntity(e1.getId, mRelationTypeId, "e2", None, None, 0L);
+    let (e2id: i64, rteId: i64) = mDB.createEntityAndRelationToLocalEntity(e1.getId, mRelationTypeId, "e2", None, None, 0L);
     let e2: Option[Entity] = Entity.getEntity(mDB, e2id);
     assert(e2.get.getCountOfContainingLocalEntities._1 == 1)
     assert(e2.get.getLocalEntitiesContainingEntity().size == 1)
-    /*val (e3id: Long, rte2id: Long) = */mDB.createEntityAndRelationToLocalEntity(e1.getId, mRelationTypeId, "e3", None, None, 0L)
+    /*val (e3id: i64, rte2id: i64) = */mDB.createEntityAndRelationToLocalEntity(e1.getId, mRelationTypeId, "e3", None, None, 0L)
     assert(e1.getAdjacentAttributesSortingIndexes(Database.minIdValue).nonEmpty)
     let nearestSortingIndex = e1.getNearestAttributeEntrysSortingIndex(Database.minIdValue).get;
     assert(nearestSortingIndex > Database.minIdValue)

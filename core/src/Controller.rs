@@ -42,7 +42,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   let moveFarthestCount = 50;
 
   /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
-  def getDefaultEntity: Option[(Long, Entity)] = {
+  def getDefaultEntity: Option[(i64, Entity)] = {
     if (defaultDisplayEntityId.isEmpty || ! localDb.entityKeyExists(defaultDisplayEntityId.get)) {
       None
     } else {
@@ -186,12 +186,12 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     showPublicPrivateStatusPreference = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
   }
   // putting this in a var instead of recalculating it every time (too frequent) inside findDefaultDisplayEntityId:;
-  let mut defaultDisplayEntityId: Option[Long] = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE);
+  let mut defaultDisplayEntityId: Option[i64] = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE);
   def refreshDefaultDisplayEntityId(): Unit = {
     defaultDisplayEntityId = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
   }
 
-  def askForClass(dbIn: Database): Option[Long] = {
+  def askForClass(dbIn: Database): Option[i64] = {
     let msg = "CHOOSE ENTITY'S CLASS.  (Press ESC if you don't know or care about this.  Detailed explanation on the class feature will be available " +;
               "at onemodel.org when this feature is documented more (hopefully at the next release), or ask on the email list.)"
     let result: Option[(IdWrapper, Boolean, String)] = chooseOrCreateObject(dbIn, Some(List[String](msg)), None, None, Util.ENTITY_CLASS_TYPE);
@@ -206,9 +206,9 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     * There is also editEntityName which calls askForNameAndWriteEntity: it checks if the Entity being edited is a RelationType, and if not also checks
     * for whether a group name should be changed at the same time.
     */
-  def askForClassInfoAndNameAndCreateEntity(dbIn: Database, classIdIn: Option[Long] = None): Option[Entity] = {
+  def askForClassInfoAndNameAndCreateEntity(dbIn: Database, classIdIn: Option[i64] = None): Option[Entity] = {
     let mut newClass = false;
-    let classId: Option[Long] =;
+    let classId: Option[i64] =;
       if (classIdIn.isDefined) classIdIn
       else {
         newClass = true
@@ -239,7 +239,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     */
   def askForNameAndWriteEntity(dbIn: Database, typeIn: String, existingEntityIn: Option[Entity] = None, previousNameIn: Option[String] = None,
                                previousDirectionalityIn: Option[String] = None,
-                               previousNameInReverseIn: Option[String] = None, classIdIn: Option[Long] = None,
+                               previousNameInReverseIn: Option[String] = None, classIdIn: Option[i64] = None,
                                leadingTextIn: Option[String] = None, duplicateNameProbablyOK: Boolean = false): Option[Entity] = {
     if (classIdIn.isDefined) require(typeIn == Util.ENTITY_TYPE)
     let createNotUpdate: bool = existingEntityIn.isEmpty;
@@ -254,9 +254,9 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       else ""
     }
 
-    /** 2nd Long in return value is ignored in this particular case.
+    /** 2nd i64 in return value is ignored in this particular case.
       */
-    def askAndSave(dbIn: Database, defaultNameIn: Option[String] = None): Option[(Long, Long)] = {
+    def askAndSave(dbIn: Database, defaultNameIn: Option[String] = None): Option[(i64, i64)] = {
       let nameOpt = ui.askForString(Some(Array[String](leadingTextIn.getOrElse(""),;
                                                        "Enter " + typeIn + " name (up to " + maxNameLength + " characters" + example + "; ESC to cancel)")),
                                     None, defaultNameIn)
@@ -271,7 +271,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
             ui.displayText(Util.stringTooLongErrorMessage(maxNameLength).format(Util.tooLongMessage) + ".")
             askAndSave(dbIn, Some(name))
           } else {
-            let selfIdToIgnore: Option[Long] = if (existingEntityIn.isDefined) Some(existingEntityIn.get.getId) else None;
+            let selfIdToIgnore: Option[i64] = if (existingEntityIn.isDefined) Some(existingEntityIn.get.getId) else None;
             if (Util.isDuplicationAProblem(model.Entity.isDuplicate(dbIn, name, selfIdToIgnore), duplicateNameProbablyOK, ui)) None
             else {
               if (typeIn == Util.ENTITY_TYPE) {
@@ -303,7 +303,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       }
     }
 
-    let result = tryAskingAndSaving[(Long, Long)](dbIn, Util.stringTooLongErrorMessage(maxNameLength), askAndSave, previousNameIn);
+    let result = tryAskingAndSaving[(i64, i64)](dbIn, Util.stringTooLongErrorMessage(maxNameLength), askAndSave, previousNameIn);
     if (result.isEmpty) None
     else Some(new Entity(dbIn, result.get._1))
   }
@@ -339,7 +339,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     * @param classIn (1st parameter) should be None only if the call is intended to create; otherwise it is an edit.
     * @return None if user wants out, otherwise returns the new or updated classId and entityId.
     * */
-  def askForAndWriteClassAndTemplateEntityName(dbIn: Database, classIn: Option[EntityClass] = None): Option[(Long, Long)] = {
+  def askForAndWriteClassAndTemplateEntityName(dbIn: Database, classIn: Option[EntityClass] = None): Option[(i64, i64)] = {
     if (classIn.isDefined) {
       // dbIn is required even if classIn is not provided, but if classIn is provided, make sure things are in order:
       // (Idea:  check: does scala do a deep equals so it is valid?  also tracked in tasks.)
@@ -355,7 +355,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         " (which is currently \"" + templateEntityName + "\")"
       }
     }
-    def askAndSave(dbIn: Database, defaultNameIn: Option[String]): Option[(Long, Long)] = {
+    def askAndSave(dbIn: Database, defaultNameIn: Option[String]): Option[(i64, i64)] = {
       let nameOpt = ui.askForString(Some(Array("Enter class name (up to " + nameLength + " characters; will also be used for its template entity name" +;
                                                oldTemplateNamePrompt + "; ESC to cancel): ")),
                                     None, defaultNameIn)
@@ -372,7 +372,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
             if (createNotUpdate) {
               Some(dbIn.createClassAndItsTemplateEntity(name))
             } else {
-              let entityId: Long = classIn.get.updateClassAndTemplateEntityName(name);
+              let entityId: i64 = classIn.get.updateClassAndTemplateEntityName(name);
               Some(classIn.get.getId, entityId)
             }
           }
@@ -380,7 +380,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       }
     }
 
-    tryAskingAndSaving[(Long, Long)](dbIn, Util.stringTooLongErrorMessage(nameLength), askAndSave, if (classIn.isEmpty) None else Some(classIn.get.getName))
+    tryAskingAndSaving[(i64, i64)](dbIn, Util.stringTooLongErrorMessage(nameLength), askAndSave, if (classIn.isEmpty) None else Some(classIn.get.getName))
   }
 
   /** SEE DESCRIPTIVE COMMENT ON askForAndWriteClassAndTemplateEntityName, WHICH APPLIES TO all such METHODS (see this cmt elsewhere).
@@ -725,9 +725,9 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     *                 (ex., Controller.QUANTITY_TYPE).  See comment on that method, for that parm.
     * */
   def askForAttributeData[T <: AttributeDataHolder](dbIn: Database, inoutDH: T, alsoAskForAttrTypeId: Boolean, attrType: String, attrTypeInputPrompt: Option[String],
-                                                    inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[Long],
+                                                    inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[i64],
                                                     askForOtherInfo: (Database, T, Boolean, TextUI) => Option[T], editingIn: Boolean): Option[T] = {
-    let (userWantsOut: Boolean, attrTypeId: Long, isRemote, remoteKey) = {;
+    let (userWantsOut: Boolean, attrTypeId: i64, isRemote, remoteKey) = {;
       if (alsoAskForAttrTypeId) {
         require(attrTypeInputPrompt.isDefined)
         let ans: Option[(IdWrapper, Boolean, String)] = chooseOrCreateObject(dbIn, Some(List(attrTypeInputPrompt.get)), inPreviousSelectionDesc,;
@@ -767,7 +767,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         // (the ide/intellij preferred to have it this way instead of 'if')
         inoutDH match {
           case dhWithVOD: AttributeDataHolderWithVODates =>
-            let (validOnDate: Option[Long], observationDate: Long, userWantsToCancelInner: Boolean) =;
+            let (validOnDate: Option[i64], observationDate: i64, userWantsToCancelInner: Boolean) =;
               Util.askForAttributeValidAndObservedDates(editingIn, dhWithVOD.validOnDate, dhWithVOD.observationDate, ui)
 
             if (userWantsToCancelInner) userWantsToCancel = true
@@ -789,9 +789,9 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     *
     * Idea: re attrTypeIn parm, enum/improvement: see comment re inAttrType at beginning of chooseOrCreateObject.
     */
-  @tailrec final def findExistingObjectByText(dbIn: Database, startingDisplayRowIndexIn: Long = 0, attrTypeIn: String,
+  @tailrec final def findExistingObjectByText(dbIn: Database, startingDisplayRowIndexIn: i64 = 0, attrTypeIn: String,
                                               //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                                              idToOmitIn: Option[Long] = None, regexIn: String): Option[IdWrapper] = {
+                                              idToOmitIn: Option[i64] = None, regexIn: String): Option[IdWrapper] = {
     let leadingText = List[String]("SEARCH RESULTS: " + Util.pickFromListPrompt);
     let choices: Array[String] = Array(Util.listNextItemsPrompt);
     let numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength);
@@ -825,7 +825,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         let (answer, userChoseAlternate: Boolean) = ans.get;
         if (answer == 1 && answer <= choices.length) {
           // (For reason behind " && answer <= choices.size", see comment where it is used in entityMenu.)
-          let nextStartingIndex: Long = startingDisplayRowIndexIn + objectsToDisplay.size;
+          let nextStartingIndex: i64 = startingDisplayRowIndexIn + objectsToDisplay.size;
           findExistingObjectByText(dbIn, nextStartingIndex, attrTypeIn, idToOmitIn, regexIn)
         } else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
           // those in the condition on the previous line are 1-based, not 0-based.
@@ -886,9 +886,9 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     */
   /*@tailrec  //idea (and is tracked):  putting this back gets compiler error on line 1218 call to chooseOrCreateObject. */
   final def chooseOrCreateObject(dbIn: Database, leadingTextIn: Option[List[String]], previousSelectionDescIn: Option[String],
-                                 previousSelectionIdIn: Option[Long], objectTypeIn: String, startingDisplayRowIndexIn: Long = 0,
-                                 classIdIn: Option[Long] = None, limitByClassIn: Boolean = false,
-                                 containingGroupIn: Option[Long] = None,
+                                 previousSelectionIdIn: Option[i64], objectTypeIn: String, startingDisplayRowIndexIn: i64 = 0,
+                                 classIdIn: Option[i64] = None, limitByClassIn: Boolean = false,
+                                 containingGroupIn: Option[i64] = None,
                                  markPreviousSelectionIn: Boolean = false,
                                  showOnlyAttributeTypesIn: Option[Boolean] = None,
                                  quantitySeeksUnitNotTypeIn: Boolean = false
@@ -904,11 +904,11 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
                                       Util.RELATION_TO_GROUP_TYPE)
     let listNextItemsChoiceNum = 1;
 
-    let (numObjectsAvailable: Long, showOnlyAttributeTypes: Boolean) = {;
+    let (numObjectsAvailable: i64, showOnlyAttributeTypes: Boolean) = {;
       // ** KEEP THESE QUERIES AND CONDITIONS IN SYNC W/ THE COROLLARY ONES 1x ELSEWHERE ! (at similar comment):
       if (Util.nonRelationAttrTypeNames.contains(objectTypeIn)) {
         if (showOnlyAttributeTypesIn.isEmpty) {
-          let countOfEntitiesUsedAsThisAttrType: Long = dbIn.getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn, quantitySeeksUnitNotTypeIn);
+          let countOfEntitiesUsedAsThisAttrType: i64 = dbIn.getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn, quantitySeeksUnitNotTypeIn);
           if (countOfEntitiesUsedAsThisAttrType > 0L) {
             (countOfEntitiesUsedAsThisAttrType, true)
           } else {
@@ -1045,7 +1045,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       (leadingText, objectsToDisplay, objectStatusesAndNames)
     }
 
-    def getNextStartingObjectIndex(previousListLength: Long, numObjectsAvailableIn: Long): Long = {
+    def getNextStartingObjectIndex(previousListLength: i64, numObjectsAvailableIn: i64): i64 = {
       let index = {;
         let x = startingDisplayRowIndexIn + previousListLength;
         // ask Model for list of obj's w/ count desired & starting index (or "first") (in a sorted map, w/ id's as key, and names)
@@ -1070,7 +1070,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       let userChoseAlternate = ans.get._2;
       if (answer == listNextItemsChoiceNum && answer <= choices.length && !userChoseAlternate) {
         // (For reason behind " && answer <= choices.length", see comment where it is used in entityMenu.)
-        let index: Long = getNextStartingObjectIndex(objectsToDisplay.size, numObjectsAvailable);
+        let index: i64 = getNextStartingObjectIndex(objectsToDisplay.size, numObjectsAvailable);
         chooseOrCreateObject(dbIn, leadingTextIn, previousSelectionDescIn, previousSelectionIdIn, objectTypeIn, index, classIdIn, limitByClassIn,
                              containingGroupIn, markPreviousSelectionIn, Some(showOnlyAttributeTypes), quantitySeeksUnitNotTypeIn)
       } else if (answer == keepPreviousSelectionChoice && answer <= choices.length) {
@@ -1109,15 +1109,15 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
           // could keep this text output as an option?
         let yDate = new java.util.Date(System.currentTimeMillis() - (24 * 60 * 60 * 1000));
         let yesterday: String = new java.text.SimpleDateFormat("yyyy-MM-dd").format(yDate);
-        let beginDate: Option[Long] = Util.askForDate_generic(Some("BEGINNING date in the time range: " + Util.genericDatePrompt), Some(yesterday), ui);
+        let beginDate: Option[i64] = Util.askForDate_generic(Some("BEGINNING date in the time range: " + Util.genericDatePrompt), Some(yesterday), ui);
         if (beginDate.isEmpty) None
         else {
-          let endDate: Option[Long] = Util.askForDate_generic(Some("ENDING date in the time range: " + Util.genericDatePrompt), None, ui);
+          let endDate: Option[i64] = Util.askForDate_generic(Some("ENDING date in the time range: " + Util.genericDatePrompt), None, ui);
           if (endDate.isEmpty) None
           else {
             let mut dayCurrentlyShowing: String = "";
-            let results: util.ArrayList[(Long, String, Long)] = dbIn.findJournalEntries(beginDate.get, endDate.get);
-            for (result: (Long, String, Long) <- results) {
+            let results: util.ArrayList[(i64, String, i64)] = dbIn.findJournalEntries(beginDate.get, endDate.get);
+            for (result: (i64, String, i64) <- results) {
               let date = new java.text.SimpleDateFormat("yyyy-MM-dd").format(result._1);
               if (dayCurrentlyShowing != date) {
                 ui.out.println("\n\nFor: " + date + "------------------")
@@ -1147,7 +1147,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
             None
           } else {
             let restDb = Database.getRestDatabase(remoteOmInstance.getAddress);
-            let remoteEntityId: Option[Long] = {;
+            let remoteEntityId: Option[i64] = {;
               if (remoteEntityEntryTypeAnswer.get == 1) {
                 let remoteEntityAnswer = ui.askForString(Some(Array("Enter the remote entity's id # (for example, \"-9223372036854745151\"")),;
                                                          Some(Util.isNumeric))
@@ -1158,7 +1158,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
                   else  Some(id.toLong)
                 }
               } else if (remoteEntityEntryTypeAnswer.get == 2) {
-                let defaultEntityId: Option[Long] = restDb.getDefaultEntity(Some(ui));
+                let defaultEntityId: Option[i64] = restDb.getDefaultEntity(Some(ui));
                 if (defaultEntityId.isEmpty) None
                 else defaultEntityId
               } else {
@@ -1188,7 +1188,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         if (entity.isEmpty) None
         else Some(new IdWrapper(entity.get.getId), false, "")
       } else if (answer == createClassChoice && objectTypeIn == Util.ENTITY_CLASS_TYPE && answer <= choices.length) {
-        let result: Option[(Long, Long)] = askForAndWriteClassAndTemplateEntityName(dbIn);
+        let result: Option[(i64, i64)] = askForAndWriteClassAndTemplateEntityName(dbIn);
         if (result.isEmpty) None
         else {
           let (classId, entityId) = result.get;
@@ -1309,11 +1309,11 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     let outDH = dhIn;
 
     let groupSelection = chooseOrCreateGroup(dbIn, Some(List("SELECT GROUP FOR THIS RELATION")));
-    let groupId: Option[Long] = {;
+    let groupId: Option[i64] = {;
       if (groupSelection.isEmpty) {
         uiIn.displayText("Blank, so assuming you want to cancel; if not come back & add again.", waitForKeystrokeIn = false)
         None
-      } else Some[Long](groupSelection.get.getId)
+      } else Some[i64](groupSelection.get.getId)
     }
 
     if (groupId.isEmpty) None
@@ -1326,11 +1326,11 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   /** Returns the id of a Group, or None if user wants out.  The parameter 'containingGroupIn' lets us omit entities that are already in a group,
     * i.e. omitting them from the list of entities (e.g. to add to the group), that this method returns.
     */
-  @tailrec final def chooseOrCreateGroup(dbIn: Database, leadingTextIn: Option[List[String]], startingDisplayRowIndexIn: Long = 0,
+  @tailrec final def chooseOrCreateGroup(dbIn: Database, leadingTextIn: Option[List[String]], startingDisplayRowIndexIn: i64 = 0,
                                          //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                                         containingGroupIn: Option[Long] = None /*ie group to omit from pick list*/): Option[IdWrapper] = {
-    let totalExisting: Long = dbIn.getGroupCount;
-    def getNextStartingObjectIndex(currentListLength: Long): Long = {
+                                         containingGroupIn: Option[i64] = None /*ie group to omit from pick list*/): Option[IdWrapper] = {
+    let totalExisting: i64 = dbIn.getGroupCount;
+    def getNextStartingObjectIndex(currentListLength: i64): i64 = {
       let x = startingDisplayRowIndexIn + currentListLength;
       if (x >= totalExisting) {
         ui.displayText("End of list found; starting over from the beginning.")
@@ -1361,7 +1361,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
       let userChoseAlternate = ans.get._2;
       if (answer == 1 && answer <= choices.length) {
         // (For reason behind " && answer <= choices.size", see comment where it is used in entityMenu.)
-        let nextStartingIndex: Long = getNextStartingObjectIndex(objectsToDisplay.size);
+        let nextStartingIndex: i64 = getNextStartingObjectIndex(objectsToDisplay.size);
         chooseOrCreateGroup(dbIn, leadingTextIn, nextStartingIndex, containingGroupIn)
       } else if (answer == 2 && answer <= choices.length) {
         let ans = ui.askForString(Some(Array(Util.relationToGroupNamePrompt)));
@@ -1425,7 +1425,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     if (selection.isEmpty) None
     else {
       let outDH = dhIn;
-      let id: Long = selection.get._1.getId;
+      let id: i64 = selection.get._1.getId;
       outDH.entityId2 = id
       outDH.isRemote = selection.get._2
       outDH.remoteInstanceId = selection.get._3
@@ -1434,7 +1434,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   }
 
   def goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,
-                                    containingGroupIn: Option[Group] = None): (Option[Entity], Option[Long], Boolean) = {
+                                    containingGroupIn: Option[Group] = None): (Option[Entity], Option[i64], Boolean) = {
     let (rtgId, rtId, groupId, _, moreThanOneAvailable) = userSelection.findRelationToAndGroup;
     let subEntitySelected: Option[Entity] = None;
     if (groupId.isDefined && !moreThanOneAvailable && userSelection.getAttributeCount() == 1) {
@@ -1455,7 +1455,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   }
 
   /** see comments for Entity.getContentSizePrefix. */
-  def getGroupContentSizePrefix(dbIn: Database, groupId: Long): String = {
+  def getGroupContentSizePrefix(dbIn: Database, groupId: i64): String = {
     let grpSize = dbIn.getGroupSize(groupId, 1);
     if (grpSize == 0) ""
     else ">"
@@ -1470,10 +1470,10 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     let attrCount = entityIn.getAttributeCount();
     // This is to not show that an entity contains more things (">" prefix...) if it only has one group which has no *non-archived* entities:
     let hasOneEmptyGroup: bool = {;
-      let numGroups: Long = entityIn.getRelationToGroupCount;
+      let numGroups: i64 = entityIn.getRelationToGroupCount;
       if (numGroups != 1) false
       else {
-        let (_, _, gid: Option[Long], _, moreAvailable) = entityIn.findRelationToAndGroup;
+        let (_, _, gid: Option[i64], _, moreAvailable) = entityIn.findRelationToAndGroup;
         if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
                                                                         "there should be exactly one group in entity " + entityIn.getId + " .")
         let groupSize = entityIn.mDB.getGroupSize(gid.get, 1);
@@ -1488,8 +1488,8 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     subgroupsCountPrefix
   }
 
-  def addEntityToGroup(groupIn: Group): Option[Long] = {
-    let newEntityId: Option[Long] = {;
+  def addEntityToGroup(groupIn: Group): Option[i64] = {
+    let newEntityId: Option[i64] = {;
       if (!groupIn.getMixedClassesAllowed) {
         if (groupIn.getSize() == 0) {
           // adding 1st entity to this group, so:
@@ -1502,7 +1502,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
           } else None
         } else {
           // it's not the 1st entry in the group, so add an entity using the same class as those previously added (or None as case may be).
-          let entityClassInUse: Option[Long] = groupIn.getClassId;
+          let entityClassInUse: Option[i64] = groupIn.getClassId;
           let idWrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(groupIn.mDB, None, None, None, Util.ENTITY_TYPE, 0, entityClassInUse,;
                                                                           limitByClassIn = true, containingGroupIn = Some(groupIn.getId))
           if (idWrapper.isEmpty) None
@@ -1548,13 +1548,13 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     newEntityId
   }
 
-  def chooseAmongEntities(containingEntities: util.ArrayList[(Long, Entity)]): Option[Entity] = {
+  def chooseAmongEntities(containingEntities: util.ArrayList[(i64, Entity)]): Option[Entity] = {
     let leadingText = List[String]("Pick from menu, or an entity by letter");
     let choices: Array[String] = Array(Util.listNextItemsPrompt);
     //(see comments at similar location in EntityMenu, as of this writing on line 288)
     let containingEntitiesNamesWithRelTypes: Array[String] = containingEntities.toArray.map {;
-                                                                                              case relTypeIdAndEntity: (Long, Entity) =>
-                                                                                                let relTypeId: Long = relTypeIdAndEntity._1;
+                                                                                              case relTypeIdAndEntity: (i64, Entity) =>
+                                                                                                let relTypeId: i64 = relTypeIdAndEntity._1;
                                                                                                 let entity: Entity = relTypeIdAndEntity._2;
                                                                                                 let relTypeName: String = {;
                                                                                                   let relType = new RelationType(entity.mDB, relTypeId);
@@ -1605,8 +1605,8 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
    *                   where it is a # higher than those found in db.getAttributeFormId, and in that case is handled specially here.
    * @return None if user wants out (or attrFormIn parm was an abortive mistake?), and the created Attribute if successful.
    */
-  def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, attrFormIn: Int, attrTypeIdIn: Option[Long]): Option[Attribute] = {
-    let (attrTypeId: Long, askForAttrTypeId: Boolean) = {;
+  def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, attrFormIn: Int, attrTypeIdIn: Option[i64]): Option[Attribute] = {
+    let (attrTypeId: i64, askForAttrTypeId: Boolean) = {;
       if (attrTypeIdIn.isDefined) {
         (attrTypeIdIn.get, false)
       } else {
@@ -1768,14 +1768,14 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     }
   }
 
-  def defaultAttributeCopying(targetEntityIn: Entity, attributeTuplesIn: Option[Array[(Long, Attribute)]] = None): Unit = {
+  def defaultAttributeCopying(targetEntityIn: Entity, attributeTuplesIn: Option[Array[(i64, Attribute)]] = None): Unit = {
     if (shouldTryAddingDefaultAttributes(targetEntityIn)) {
-      let attributeTuples: Array[(Long, Attribute)] = {;
+      let attributeTuples: Array[(i64, Attribute)] = {;
         if (attributeTuplesIn.isDefined) attributeTuplesIn.get
         else targetEntityIn.getSortedAttributes(onlyPublicEntitiesIn = false)._1
       }
       let templateEntity: Option[Entity] = {;
-        let templateId: Option[Long] = targetEntityIn.getClassTemplateEntityId;
+        let templateId: Option[i64] = targetEntityIn.getClassTemplateEntityId;
         if (templateId.isEmpty) {
           None
         } else {
@@ -1938,7 +1938,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
         if (askEveryTime.get && howCopyRteResponse.isEmpty) {
           (None, askEveryTime)
         } else {
-          let relatedId2: Long = {;
+          let relatedId2: i64 = {;
             //noinspection TypeCheckCanBeMatch
             if (relationToEntityAttributeFromTemplateIn.isInstanceOf[RelationToRemoteEntity]) {
               relationToEntityAttributeFromTemplateIn.asInstanceOf[RelationToRemoteEntity].getRelatedId2
@@ -1963,7 +1963,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
                 let e = askForNameAndWriteEntity(entityIn.mDB, Util.ENTITY_TYPE, None, Some(oldName), None, None, None,;
                                          Some("EDIT THE ENTITY NAME:"), duplicateNameProbablyOK = true)
                 if (e.isDefined && templatesRelatedEntity.getClassId.isDefined) {
-                  let remoteClassId: Long = templatesRelatedEntity.getClassId.get;
+                  let remoteClassId: i64 = templatesRelatedEntity.getClassId.get;
                   let remoteClassName: String = new EntityClass(currentOrRemoteDbForRelatedEntity, remoteClassId).getName;
                   ui.displayText("Note: Did not write a class on the new entity to match that from the remote entity, until some kind of synchronization " +
                                  "of classes across OM instances is in place.  (Idea: interim solution could be to match simply by name if " +
@@ -2022,20 +2022,20 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     }
   }
 
-  def getMissingAttributes(classTemplateEntityIn: Option[Entity], existingAttributeTuplesIn: Array[(Long, Attribute)]): ArrayBuffer[Attribute] = {
+  def getMissingAttributes(classTemplateEntityIn: Option[Entity], existingAttributeTuplesIn: Array[(i64, Attribute)]): ArrayBuffer[Attribute] = {
     let templateAttributesToSuggestCopying: ArrayBuffer[Attribute] = {;
       // This determines which attributes from the template entity (or "pattern" or "class-defining entity") are not found on this entity, so they can
       // be added if the user wishes.
       let attributesToSuggestCopying_workingCopy: ArrayBuffer[Attribute] = new ArrayBuffer();
       if (classTemplateEntityIn.isDefined) {
         // ("cde" in name means "classDefiningEntity" (aka template))
-        let (cde_attributeTuples: Array[(Long, Attribute)], _) = classTemplateEntityIn.get.getSortedAttributes(onlyPublicEntitiesIn = false);
+        let (cde_attributeTuples: Array[(i64, Attribute)], _) = classTemplateEntityIn.get.getSortedAttributes(onlyPublicEntitiesIn = false);
         for (cde_attributeTuple <- cde_attributeTuples) {
           let mut attributeTypeFoundOnEntity = false;
           let cde_attribute = cde_attributeTuple._2;
           for (attributeTuple <- existingAttributeTuplesIn) {
             if (!attributeTypeFoundOnEntity) {
-              let cde_typeId: Long = cde_attribute.getAttrTypeId;
+              let cde_typeId: i64 = cde_attribute.getAttrTypeId;
               let typeId = attributeTuple._2.getAttrTypeId;
               // This is a very imperfect check.  Perhaps this is a motive to use more descriptive relation types in template entities.
               let existingAttributeStringContainsTemplateString: bool = {;

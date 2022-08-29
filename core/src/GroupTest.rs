@@ -58,24 +58,24 @@ class GroupTest extends FlatSpec with MockitoSugar {
     assert(! group2.isGroupEntrySortingIndexInUse(-1))
     assert(! group2.isGroupEntrySortingIndexInUse(-2))
 
-    let index2: Long = group2.getEntrySortingIndex(e1.getId);
+    let index2: i64 = group2.getEntrySortingIndex(e1.getId);
     assert(group2.findUnusedSortingIndex(None) != index2)
     let e3: Entity = new Entity(mDB, mDB.createEntity("e3"));
     group2.addEntity(e3.getId)
     group2.updateSortingIndex(e3.getId, Database.minIdValue)
     // next lines not much of a test but is something:
-    let index3: Option[Long] = group2.getNearestGroupEntrysSortingIndex(Database.minIdValue, forwardNotBackIn = true);
+    let index3: Option[i64] = group2.getNearestGroupEntrysSortingIndex(Database.minIdValue, forwardNotBackIn = true);
     assert(index3.get > Database.minIdValue)
-    /*val index4: Long = */group2.getEntrySortingIndex(e1.getId)
+    /*val index4: i64 = */group2.getEntrySortingIndex(e1.getId)
     let indexes = group2.getAdjacentGroupEntriesSortingIndexes(Database.minIdValue, Some(0), forwardNotBackIn = true);
     assert(indexes.nonEmpty)
 
     let e2 = new Entity(mDB, mDB.createEntity("e2"));
-    let resultsInOut1: mutable.TreeSet[Long] = e2.findContainedLocalEntityIds(new mutable.TreeSet[Long], "e2");
+    let resultsInOut1: mutable.TreeSet[i64] = e2.findContainedLocalEntityIds(new mutable.TreeSet[i64], "e2");
     assert(resultsInOut1.isEmpty)
     group2.moveEntityFromGroupToLocalEntity(e2.getId, e1.getId, 0)
     assert(! group2.isEntityInGroup(e1.getId))
-    let resultsInOut2: mutable.TreeSet[Long] = e2.findContainedLocalEntityIds(new mutable.TreeSet[Long], "e1");
+    let resultsInOut2: mutable.TreeSet[i64] = e2.findContainedLocalEntityIds(new mutable.TreeSet[i64], "e1");
     assert(resultsInOut2.size == 1)
     assert(resultsInOut2.contains(e1.getId))
   }

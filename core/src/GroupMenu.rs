@@ -234,7 +234,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
                                     response: Option[Int]): Option[Entity] = {
     require(groupIn.getId == relationToGroupIn.get.getGroupId)
     let totalInGroup = groupIn.getSize(3);
-    let numNonArchivedEntitiesInGroup: Long = groupIn.getSize(1);
+    let numNonArchivedEntitiesInGroup: i64 = groupIn.getSize(1);
     let numArchivedInGroup = totalInGroup - numNonArchivedEntitiesInGroup;
     require(numArchivedInGroup == groupIn.getSize(2))
     let (nonArchivedContainingCount, archivedContainingCount) = groupIn.getCountOfEntitiesContainingGroup;

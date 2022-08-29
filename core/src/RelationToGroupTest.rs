@@ -43,12 +43,12 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let mockDB = mock[PostgreSQLDatabase];
 
     // arbitrary...:
-    let rtgId: Long = 300;
-    let groupId: Long = 301;
-    let entityId: Long = 302;
-    let classTemplateEntityId: Long = 303;
-    let relTypeId: Long = 401;
-    let classId: Long = 501;
+    let rtgId: i64 = 300;
+    let groupId: i64 = 301;
+    let entityId: i64 = 302;
+    let classTemplateEntityId: i64 = 303;
+    let relTypeId: i64 = 401;
+    let classId: i64 = 501;
     let grpName: String = "somename";
     let grpEntryCount = 9;
     // arbitrary, in milliseconds:
@@ -107,13 +107,13 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
 
   "getTemplateEntity" should "work right" in {
     let mockDB = mock[PostgreSQLDatabase];
-    let rtgId: Long = 300;
-    let groupId: Long = 301;
-    //val parentId: Long = 302
-    let classTemplateEntityId: Long = 303;
-    let relTypeId: Long = 401;
-    let entityId: Long = 402;
-    let classId: Long = 501;
+    let rtgId: i64 = 300;
+    let groupId: i64 = 301;
+    //val parentId: i64 = 302
+    let classTemplateEntityId: i64 = 303;
+    let relTypeId: i64 = 401;
+    let entityId: i64 = 402;
+    let classId: i64 = 501;
     let className = "someclassname";
     let grpName: String = "somename";
     when(mockDB.relationTypeKeyExists(relTypeId)).thenReturn(true)
@@ -150,7 +150,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
   "move and update" should "work" in {
     let entity1 = new Entity(mDB, mDB.createEntity("entityName1"));
     let (_, rtg: RelationToGroup) = entity1.createGroupAndAddHASRelationToIt("groupName", mixedClassesAllowedIn = false, 0);
-    let (attributeTuples1: Array[(Long, Attribute)], _) = entity1.getSortedAttributes(0, 0);
+    let (attributeTuples1: Array[(i64, Attribute)], _) = entity1.getSortedAttributes(0, 0);
     let rtg1 = attributeTuples1(0)._2.asInstanceOf[RelationToGroup];
     assert(rtg1.getParentId == entity1.getId)
     assert(rtg1.getId == rtg.getId)
@@ -160,9 +160,9 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let entity2 = new Entity(mDB, mDB.createEntity("entityName2"));
     rtg.move(entity2.getId, 0)
 
-    let (attributeTuples1a: Array[(Long, Attribute)], _) = entity1.getSortedAttributes(0, 0);
+    let (attributeTuples1a: Array[(i64, Attribute)], _) = entity1.getSortedAttributes(0, 0);
     assert(attributeTuples1a.length == 0)
-    let (attributeTuples2: Array[(Long, Attribute)], _) = entity2.getSortedAttributes(0, 0);
+    let (attributeTuples2: Array[(i64, Attribute)], _) = entity2.getSortedAttributes(0, 0);
     let rtg2 = attributeTuples2(0)._2.asInstanceOf[RelationToGroup];
     let rtg2RelTypeId = rtg2.getAttrTypeId;
     let rtg2GroupId = rtg2.getGroupId;

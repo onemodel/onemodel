@@ -18,7 +18,7 @@ import org.onemodel.core.{OmException, Util}
   * Also, though this doesn't formally extend Attribute, it still belongs to the same group conceptually (just doesn't have the same date variables so code
   * not shared (idea: model that better, and in FileAttribute).
   */
-class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
+class DateAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.dateAttributeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
@@ -30,7 +30,7 @@ class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: Long, inParentId: Long, attrTypeIdIn: Long, inDate: Long, sortingIndexIn: Long) {
+  def this(mDB: Database, mId: i64, inParentId: i64, attrTypeIdIn: i64, inDate: i64, sortingIndexIn: i64) {
     this(mDB, mId)
     mDate = inDate
     super.assignCommonVars(inParentId, attrTypeIdIn, sortingIndexIn)
@@ -43,7 +43,7 @@ class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-  def getDate: Long = {
+  def getDate: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mDate
   }
@@ -53,11 +53,11 @@ class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
     if (daTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
-    mDate = daTypeData(1).get.asInstanceOf[Long]
-    assignCommonVars(daTypeData(0).get.asInstanceOf[Long], daTypeData(2).get.asInstanceOf[Long], daTypeData(3).get.asInstanceOf[Long])
+    mDate = daTypeData(1).get.asInstanceOf[i64]
+    assignCommonVars(daTypeData(0).get.asInstanceOf[i64], daTypeData(2).get.asInstanceOf[i64], daTypeData(3).get.asInstanceOf[i64])
   }
 
-  def update(inAttrTypeId: Long, inDate: Long) {
+  def update(inAttrTypeId: i64, inDate: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateDateAttribute(mId, getParentId, inDate, inAttrTypeId)
@@ -71,5 +71,5 @@ class DateAttribute(mDB: Database, mId: Long) extends Attribute(mDB, mId) {
   /** For descriptions of the meanings of these variables, see the comments
     on createDateAttribute(...) or createTables() in PostgreSQLDatabase or Database classes
     */
-  private let mut mDate: Long = 0L;
+  private let mut mDate: i64 = 0L;
 }

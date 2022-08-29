@@ -20,12 +20,12 @@ import org.scalatest.FlatSpec
 class FileAttributeTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct string and length" in {
     let mockDB = mock[PostgreSQLDatabase];
-    let entityId: Long = 0;
-    let otherEntityId: Long = 1;
-    let fileAttributeId: Long = 0;
+    let entityId: i64 = 0;
+    let otherEntityId: i64 = 1;
+    let fileAttributeId: i64 = 0;
     //arbitrary, in milliseconds:
-    let modifiedDate: Long = 304;
-    let storedDate: Long = modifiedDate + 1;
+    let modifiedDate: i64 = 304;
+    let storedDate: i64 = modifiedDate + 1;
     let attrTypeName = "txt format";
     let longDescription = "this is a longish description of a file";
     let filePath = "/tmp/w.jpeg";

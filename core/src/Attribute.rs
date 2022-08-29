@@ -17,11 +17,11 @@ object Attribute {
   let DATEFORMAT = new java.text.SimpleDateFormat("EEE yyyy-MM-dd HH:mm:ss:SSS zzz");
   let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("EEE GGyyyy-MM-dd HH:mm:ss:SSS zzz");
 
-  def usefulDateFormat(d: Long): String = {
+  def usefulDateFormat(d: i64): String = {
     // No need to print "AD" unless we're really close?, as in this example:
     //scala > let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz");
     //scala > DATEFORMAT_WITH_ERA.parse("ad 1-03-01 00:00:00:000 GMT").getTime //i.e., Jan 3, 1 AD.
-    //res100: Long = -62130672000000
+    //res100: i64 = -62130672000000
     if (d > -62130672000000L) DATEFORMAT.format(d)
     else DATEFORMAT_WITH_ERA.format(d)
   }
@@ -42,7 +42,7 @@ object Attribute {
  * Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
  * Originally created as a place to put common stuff between Relation/QuantityAttribute/TextAttribute.
  */
-abstract class Attribute(val mDB: Database, mId: Long) {
+abstract class Attribute(val mDB: Database, mId: i64) {
   // idea: somehow use scala features better to make it cleaner, so we don't need these extra 2 vars, because they are
   // used in 1-2 instances, and ignored in the rest.  One thing is that RelationTo[Local|Remote]Entity and RelationToGroup are Attributes. Should they be?
   def getDisplayString(inLengthLimit: Int, parentEntity: Option[Entity], inRTId: Option[RelationType], simplify: Boolean = false): String
@@ -55,7 +55,7 @@ abstract class Attribute(val mDB: Database, mId: Long) {
     new IdWrapper(mId)
   }
 
-  def getId: Long = {
+  def getId: i64 = {
     mId
   }
 
@@ -63,25 +63,25 @@ abstract class Attribute(val mDB: Database, mId: Long) {
     Database.getAttributeFormId(this.getClass.getSimpleName)
   }
 
-  protected def assignCommonVars(parentIdIn: Long, attrTypeIdIn: Long, sortingIndexIn: Long) {
+  protected def assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, sortingIndexIn: i64) {
     mParentId = parentIdIn
     mAttrTypeId = attrTypeIdIn
     mSortingIndex = sortingIndexIn
     mAlreadyReadData = true
   }
 
-  def getAttrTypeId: Long = {
+  def getAttrTypeId: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mAttrTypeId
   }
 
-  def getSortingIndex: Long = {
+  def getSortingIndex: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mSortingIndex
   }
 
   // idea: make the scope definitions (by whatever name: "private[onemodel] ") sensible and uniform
-  private[onemodel] def getParentId: Long = {
+  private[onemodel] def getParentId: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mParentId
   }
@@ -90,8 +90,8 @@ abstract class Attribute(val mDB: Database, mId: Long) {
    * For descriptions of the meanings of these variables, see the comments
    * on createTables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
    */
-  protected let mut mParentId: Long = 0L;
-  protected let mut mAttrTypeId: Long = 0L;
+  protected let mut mParentId: i64 = 0L;
+  protected let mut mAttrTypeId: i64 = 0L;
   protected let mut mAlreadyReadData: bool = false;
-  protected let mut mSortingIndex: Long = 0L;
+  protected let mut mSortingIndex: i64 = 0L;
 }

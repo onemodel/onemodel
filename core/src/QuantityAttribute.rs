@@ -19,7 +19,7 @@ import org.onemodel.core.{OmException, Util}
   * This constructor instantiates an existing object from the DB. You can use Entity.addQuantityAttribute() to
   * create a new object.
   */
-class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndObservedDates(mDB, mId) {
+class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.quantityAttributeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
@@ -30,8 +30,8 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(db: Database, id: Long, parentIdIn: Long, attrTypeIdIn: Long, unitIdIn: Long, numberIn: Float, validOnDate: Option[Long],
-           observationDate: Long, sortingIndex: Long) {
+  def this(db: Database, id: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDate: Option[i64],
+           observationDate: i64, sortingIndex: i64) {
     this(db, id)
     mUnitId = unitIdIn
     mNumber = numberIn
@@ -47,7 +47,7 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
   def getDisplayString(lengthLimitIn: Int, unused: Option[Entity]=None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let number: Float = getNumber;
-    let unitId: Long = getUnitId;
+    let unitId: i64 = getUnitId;
     let mut result: String = typeName + ": " + number + " " + mDB.getEntityName(unitId).get;
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
@@ -58,7 +58,7 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
     mNumber
   }
 
-  private[onemodel] def getUnitId: Long = {
+  private[onemodel] def getUnitId: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mUnitId
   }
@@ -68,13 +68,13 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
     if (quantityData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
-    mUnitId = quantityData(1).get.asInstanceOf[Long]
+    mUnitId = quantityData(1).get.asInstanceOf[i64]
     mNumber = quantityData(2).get.asInstanceOf[Float]
-    assignCommonVars(quantityData(0).get.asInstanceOf[Long], quantityData(3).get.asInstanceOf[Long], quantityData(4).asInstanceOf[Option[Long]],
-                           quantityData(5).get.asInstanceOf[Long], quantityData(6).get.asInstanceOf[Long])
+    assignCommonVars(quantityData(0).get.asInstanceOf[i64], quantityData(3).get.asInstanceOf[i64], quantityData(4).asInstanceOf[Option[i64]],
+                           quantityData(5).get.asInstanceOf[i64], quantityData(6).get.asInstanceOf[i64])
   }
 
-  def update(attrTypeIdIn: Long, unitIdIn: Long, numberIn: Float, validOnDateIn: Option[Long], observationDateIn: Long) {
+  def update(attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64], observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateQuantityAttribute(mId, getParentId, attrTypeIdIn, unitIdIn, numberIn, validOnDateIn, observationDateIn)
@@ -89,7 +89,7 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
   def delete() = mDB.deleteQuantityAttribute(mId)
 
   // **idea: make these members into vals not vars, by replacing them with the next line.
-  //           private let (unitId: Long, number: Float) = readDataFromDB();
+  //           private let (unitId: i64, number: Float) = readDataFromDB();
   // BUT: have to figure out how to work with the
   // assignment from the other constructor, and passing vals to the superclass to be...vals.  Need to know scala better,
   // like how additional class vals are set when the other constructor (what's the term again?), is called. How to do the other constructor w/o a db hit.
@@ -97,6 +97,6 @@ class QuantityAttribute(mDB: Database, mId: Long) extends AttributeWithValidAndO
    * For descriptions of the meanings of these variables, see the comments
    * on createQuantityAttribute(...) or createTables() in PostgreSQLDatabase or Database classes
    */
-  private let mut mUnitId: Long = 0L;
+  private let mut mUnitId: i64 = 0L;
   private let mut mNumber: Float = .0F;
 }

@@ -16,10 +16,10 @@ object DatabaseTestUtils {
     * This file is in the core package (not in the test directory), so that by being included in the .jar,
     * it is available for use by the integration module (in RestDatabaseTest.scala).
     */
-  def createAndAddTestRelationToGroup_ToEntity(dbIn: Database, inParentId: Long, inRelTypeId: Long, inGroupName: String = "something",
-                                               inValidOnDate: Option[Long] = None, allowMixedClassesIn: Boolean = true): (Long, RelationToGroup) = {
-    let validOnDate: Option[Long] = if (inValidOnDate.isEmpty) None else inValidOnDate;
-    let observationDate: Long = System.currentTimeMillis;
+  def createAndAddTestRelationToGroup_ToEntity(dbIn: Database, inParentId: i64, inRelTypeId: i64, inGroupName: String = "something",
+                                               inValidOnDate: Option[i64] = None, allowMixedClassesIn: Boolean = true): (i64, RelationToGroup) = {
+    let validOnDate: Option[i64] = if (inValidOnDate.isEmpty) None else inValidOnDate;
+    let observationDate: i64 = System.currentTimeMillis;
     let (group:Group, rtg: RelationToGroup) = new Entity(dbIn, inParentId).;
                                               addGroupAndRelationToGroup(inRelTypeId, inGroupName, allowMixedClassesIn, validOnDate, observationDate, None)
 
@@ -27,8 +27,8 @@ object DatabaseTestUtils {
     if (inValidOnDate.isEmpty) {
       assert(rtg.getValidOnDate.isEmpty)
     } else {
-      let inDt: Long = inValidOnDate.get;
-      let gotDt: Long = rtg.getValidOnDate.get;
+      let inDt: i64 = inValidOnDate.get;
+      let gotDt: i64 = rtg.getValidOnDate.get;
       assert(inDt == gotDt)
     }
     assert(group.getMixedClassesAllowed == allowMixedClassesIn)

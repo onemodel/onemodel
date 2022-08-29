@@ -19,11 +19,11 @@ import org.onemodel.core.{Util, OmException}
 object RelationToLocalEntity {
   /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     */
-  def getRelationToLocalEntity(inDB: Database, id: Long): Option[RelationToLocalEntity] = {
+  def getRelationToLocalEntity(inDB: Database, id: i64): Option[RelationToLocalEntity] = {
     let result: Array[Option[Any]] = inDB.getRelationToLocalEntityDataById(id);
-    let relTypeId = result(0).get.asInstanceOf[Long];
-    let eid1 = result(1).get.asInstanceOf[Long];
-    let eid2 = result(2).get.asInstanceOf[Long];
+    let relTypeId = result(0).get.asInstanceOf[i64];
+    let eid1 = result(1).get.asInstanceOf[i64];
+    let eid2 = result(2).get.asInstanceOf[i64];
     try Some(new RelationToLocalEntity(inDB, id, relTypeId, eid1, eid2))
     catch {
       case e: java.lang.Exception =>
@@ -42,8 +42,8 @@ object RelationToLocalEntity {
   * This 1st constructor instantiates an existing object from the DB and is rarely needed. You can use Entity.addRelationTo[Local|Remote]Entity() to
   * create a new persistent record.
   */
-class RelationToLocalEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityId1: Long,
-                             mEntityId2: Long) extends RelationToEntity(mDB, mId, mRelTypeId, mEntityId1, mEntityId2) {
+class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1: i64,
+                             mEntityId2: i64) extends RelationToEntity(mDB, mId, mRelTypeId, mEntityId1, mEntityId2) {
   // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
   // Even a RelationToRemoteEntity can have mDB.isRemote == true, if it is viewing data *in* a remote OM instance
   // looking at RTLEs that are remote to that remote instance.
@@ -61,8 +61,8 @@ class RelationToLocalEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityI
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(mDB: Database, idIn: Long, relTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-           sortingIndexIn: Long) {
+  def this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+           sortingIndexIn: i64) {
     this(mDB, idIn, relTypeIdIn, entityId1In, entityId2In)
     //    if (this.isInstanceOf[RelationToRemoteEntity]) {
     //      //idea: this test & exception feel awkward. What is the better approach?  Maybe using scala's type features?
@@ -89,19 +89,19 @@ class RelationToLocalEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityI
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
     assignCommonVars(mEntityId1, mAttrTypeId,
-                     relationData(1).asInstanceOf[Option[Long]],
-                     relationData(2).get.asInstanceOf[Long], relationData(3).get.asInstanceOf[Long])
+                     relationData(1).asInstanceOf[Option[i64]],
+                     relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
-  def move(toLocalContainingEntityIdIn: Long, sortingIndexIn: Long): RelationToLocalEntity = {
+  def move(toLocalContainingEntityIdIn: i64, sortingIndexIn: i64): RelationToLocalEntity = {
     mDB.moveRelationToLocalEntityToLocalEntity(getId, toLocalContainingEntityIdIn, sortingIndexIn)
   }
 
-  def moveEntityFromEntityToGroup(targetGroupIdIn: Long, sortingIndexIn: Long) {
+  def moveEntityFromEntityToGroup(targetGroupIdIn: i64, sortingIndexIn: i64) {
     mDB.moveLocalEntityFromLocalEntityToGroup(this, targetGroupIdIn, sortingIndexIn)
   }
 
-  def update(validOnDateIn:Option[Long], observationDateIn:Option[Long], newAttrTypeIdIn: Option[Long] = None) {
+  def update(validOnDateIn:Option[i64], observationDateIn:Option[i64], newAttrTypeIdIn: Option[i64] = None) {
     let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
     //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations

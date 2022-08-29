@@ -39,7 +39,7 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
 
     let name = "name of test class and its template entity";
-    let (classId, entityId): (Long, Long) = mDB.createClassAndItsTemplateEntity(name, name);
+    let (classId, entityId): (i64, i64) = mDB.createClassAndItsTemplateEntity(name, name);
     mTemplateEntity = new Entity(mDB, entityId)
     mEntityClass = new EntityClass(mDB, classId)
   }

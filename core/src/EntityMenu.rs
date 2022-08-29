@@ -38,7 +38,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                      "and so cannot be displayed here.  Exiting to the next menu.")
       return None
     }
-    let (containingRelationToEntityIn_relatedId1: Option[Long], containingRelationToEntityIn_relatedId2: Option[Long]) = {;
+    let (containingRelationToEntityIn_relatedId1: Option[i64], containingRelationToEntityIn_relatedId2: Option[i64]) = {;
       if (containingRelationToEntityIn.isDefined) {
         //noinspection TypeCheckCanBeMatch
         if (containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity]) {
@@ -58,7 +58,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       require(containingRelationToEntityIn_relatedId2.get == entityIn.getId)
     }
     if (containingGroupIn.isDefined) require(containingRelationToEntityIn.isEmpty)
-    let numAttrsInEntity: Long = entityIn.getAttributeCount();
+    let numAttrsInEntity: i64 = entityIn.getAttributeCount();
     let leadingText: Array[String] = new Array[String](2);
     let relationSourceEntity: Option[Entity] = {;
       // (checking if exists also, because it could have been removed in another menu option)
@@ -70,7 +70,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     }
     let choices: Array[String] = getChoices(entityIn, numAttrsInEntity);
     let numDisplayableAttributes: i32 = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength);
-    let (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =;
+    let (attributeTuples: Array[(i64, Attribute)], totalAttrsAvailable: Int) =;
       entityIn.getSortedAttributes(attributeRowsStartingIndexIn, numDisplayableAttributes, onlyPublicEntitiesIn = false)
     if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) {
       require(numAttrsInEntity > 0 && attributeTuples.length > 0)
@@ -89,7 +89,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       } else {
         let mut highlightedEntry: Option[Attribute] = Some(highlightedAttributeIn.getOrElse(attributeTuples(0)._2));
         let highlightedObjFormId: i32 = highlightedEntry.get.getFormId;
-        let highlightedObjId: Long = highlightedEntry.get.getId;
+        let highlightedObjId: i64 = highlightedEntry.get.getId;
         let mut highlightedIndexInObjList: Option[Int] = None;
         let mut moveTargetIndexInObjList: Option[Int] = None;
         let mut targetForMoves: Option[Attribute] = None;
@@ -310,7 +310,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   }
 
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
-  def getChoices(entityIn: Entity, numAttrsIn: Long): Array[String] = {
+  def getChoices(entityIn: Entity, numAttrsIn: i64): Array[String] = {
     // (idea: might be a little silly to do it this way, once this # gets very big?:)
     let mut choices = Array[String]("Add entry quickly (creates a \"has\" relation to a new Entity)",;
                                 if (numAttrsIn > 0) "Move selection (*) up/down" else "(stub)",
@@ -331,7 +331,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
 
   def goToAttributeThenRedisplayHere(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
                                      containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates], containingGroupIn: Option[Group],
-                                     attributeTuples: Array[(Long, Attribute)], attributesToDisplay: util.ArrayList[Attribute],
+                                     attributeTuples: Array[(i64, Attribute)], attributesToDisplay: util.ArrayList[Attribute],
                                      answer: Int, choicesIndex: Int): Option[Entity] = {
     require(containingRelationToEntityIn.isEmpty ||
             containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
@@ -386,7 +386,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   }
 
   def entitySearchSubmenu(entityIn: Entity, attributeRowsStartingIndexIn: Int, containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates],
-                          containingGroupIn: Option[Group], numAttrsInEntity: Long, attributeTuples: Array[(Long, Attribute)],
+                          containingGroupIn: Option[Group], numAttrsInEntity: i64, attributeTuples: Array[(i64, Attribute)],
                           highlightedEntry: Option[Attribute], targetForMoves: Option[Attribute], answer: Int) {
     require(containingRelationToEntityIn.isEmpty ||
             containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
@@ -418,13 +418,13 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                                                         " searching from main/top menu is often faster)")),
                                              Some(Util.isNumeric), Some("5"))
           let levels: i32 = levelsAnswer.getOrElse("4").toInt;
-          let entityIdsTreeSet: mutable.TreeSet[Long] = entityIn.findContainedLocalEntityIds(new mutable.TreeSet[Long], searchString, levels,;
+          let entityIdsTreeSet: mutable.TreeSet[i64] = entityIn.findContainedLocalEntityIds(new mutable.TreeSet[i64], searchString, levels,;
                                                                                              stopAfterAnyFoundIn = false)
           let entityIds = entityIdsTreeSet.toArray;
           let leadingText2 = Array[String](Util.pickFromListPrompt);
           // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
           let choices: Array[String] = Array("(stub)");
-          let entityIdsTruncated: Array[Long] = {;
+          let entityIdsTruncated: Array[i64] = {;
             //(A temporary workaround for too little info.  Better ideas in my OM todos: search for "show more search results in entitymenu",
             //entry created 2020-12-28.)
             //was:  let numDisplayableAttributes: i32 = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Util.maxNameLength);
@@ -433,7 +433,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             if (entityIds.length <= numDisplayableAttributes) {
               entityIds
             } else {
-              let newarray: Array[Long] = new Array(numDisplayableAttributes);
+              let newarray: Array[i64] = new Array(numDisplayableAttributes);
               entityIds.copyToArray(newarray, 0, numDisplayableAttributes)
               // (This is to avoid the later "require" error not far from the top of TextUI.askWhichChoiceOrItsAlternate, if there are too many
               // menu items to display. It could be done better if we implement scrolling among the attrs, similarly to the other use of
@@ -444,7 +444,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             }
           }
           let entityStatusesAndNames: Array[String] = entityIdsTruncated.map {;
-                                                                               id: Long =>
+                                                                               id: i64 =>
                                                                                  let entity = new Entity(entityIn.mDB, id);
                                                                                  entity.getArchivedStatusDisplayString + entity.getName
                                                                              }
@@ -460,7 +460,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
               } else if (relatedEntitiesAnswer > choices.length && relatedEntitiesAnswer <= (choices.length + entityStatusesAndNames.length)) {
                 // those in the condition on the previous line are 1-based, not 0-based.
                 let index = relatedEntitiesAnswer - choices.length - 1;
-                let id: Long = entityIds(index);
+                let id: i64 = entityIds(index);
                 entityMenu(new Entity(entityIn.mDB, id))
               }
               showSearchResults()
@@ -686,7 +686,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     leadingTextIn
   }
 
-  def getItemDisplayStringsAndAttrs(attributeTuples: Array[(Long, Attribute)]): (Array[String], util.ArrayList[Attribute]) = {
+  def getItemDisplayStringsAndAttrs(attributeTuples: Array[(i64, Attribute)]): (Array[String], util.ArrayList[Attribute]) = {
     let attributes = new util.ArrayList[Attribute];
     let attributeStatusesAndNames: Array[String] =;
       for (attributeTuple <- attributeTuples) yield {
@@ -768,7 +768,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     }
   }
 
-  def getNextStartingRowsIndex(numAttrsToDisplay: Int, startingAttributeRowsIndexIn: Int, numAttrsInEntity: Long): Int = {
+  def getNextStartingRowsIndex(numAttrsToDisplay: Int, startingAttributeRowsIndexIn: Int, numAttrsInEntity: i64): Int = {
     let startingIndex = {;
       let currentPosition = startingAttributeRowsIndexIn + numAttrsToDisplay;
       if (currentPosition >= numAttrsInEntity) {
@@ -780,38 +780,38 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     startingIndex
   }
 
-  protected def getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: Long, movingFromPosition_sortingIndexIn: Long, queryLimitIn: Option[Long],
+  protected def getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
                                                  forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getAdjacentAttributesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected def getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+  protected def getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64] = {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }
 
-  protected def renumberSortingIndexes(dbIn: Database, entityIdIn: Long): Unit = {
+  protected def renumberSortingIndexes(dbIn: Database, entityIdIn: i64): Unit = {
     let entity = new Entity(dbIn, entityIdIn);
     entity.renumberSortingIndexes()
   }
 
-  protected def updateSortedEntry(dbIn: Database, entityIdIn: Long, movingAttributeFormIdIn: Int, movingAttributeIdIn: Long, sortingIndexIn: Long): Unit = {
+  protected def updateSortedEntry(dbIn: Database, entityIdIn: i64, movingAttributeFormIdIn: Int, movingAttributeIdIn: i64, sortingIndexIn: i64): Unit = {
     let entity = new Entity(dbIn, entityIdIn);
     entity.updateAttributeSortingIndex(movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
   }
 
-  protected def getSortingIndex(dbIn: Database, entityIdIn: Long, attributeFormIdIn: Int, attributeIdIn: Long): Long = {
+  protected def getSortingIndex(dbIn: Database, entityIdIn: i64, attributeFormIdIn: Int, attributeIdIn: i64): i64 = {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getAttributeSortingIndex(attributeFormIdIn, attributeIdIn)
   }
 
-  protected def indexIsInUse(dbIn: Database, entityIdIn: Long, sortingIndexIn: Long): Boolean = {
+  protected def indexIsInUse(dbIn: Database, entityIdIn: i64, sortingIndexIn: i64): Boolean = {
     let entity = new Entity(dbIn, entityIdIn);
     entity.isAttributeSortingIndexInUse(sortingIndexIn)
   }
 
-  protected def findUnusedSortingIndex(dbIn: Database, entityIdIn: Long, startingWithIn: Long): Long = {
+  protected def findUnusedSortingIndex(dbIn: Database, entityIdIn: i64, startingWithIn: i64): i64 = {
     let entity = new Entity(dbIn, entityIdIn);
     entity.findUnusedAttributeSortingIndex(Some(startingWithIn))
   }

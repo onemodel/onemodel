@@ -18,10 +18,10 @@ import org.onemodel.core.{OmException, Util}
 object EntityClass {
   def nameLength(inDB: Database): Int = Database.classNameLength
 
-  def isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[Long] = None): Boolean = inDB.isDuplicateClassName(inName, inSelfIdToIgnore)
+  def isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[i64] = None): Boolean = inDB.isDuplicateClassName(inName, inSelfIdToIgnore)
 }
 
-class EntityClass(val mDB: Database, mId: Long) {
+class EntityClass(val mDB: Database, mId: i64) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.classKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
@@ -31,7 +31,7 @@ class EntityClass(val mDB: Database, mId: Long) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: Long, inName: String, inTemplateEntityId: Long, createDefaultAttributesIn: Option[Boolean] = None) {
+  def this(mDB: Database, mId: i64, inName: String, inTemplateEntityId: i64, createDefaultAttributesIn: Option[Boolean] = None) {
     this(mDB, mId)
     mName = inName
     mTemplateEntityId = inTemplateEntityId
@@ -44,7 +44,7 @@ class EntityClass(val mDB: Database, mId: Long) {
     mName
   }
 
-  def getTemplateEntityId: Long = {
+  def getTemplateEntityId: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mTemplateEntityId
   }
@@ -61,14 +61,14 @@ class EntityClass(val mDB: Database, mId: Long) {
       throw new OmException("No results returned from data request for: " + mId)
     }
     mName = classData(0).get.asInstanceOf[String]
-    mTemplateEntityId = classData(1).get.asInstanceOf[Long]
+    mTemplateEntityId = classData(1).get.asInstanceOf[i64]
     mCreateDefaultAttributes = classData(2).asInstanceOf[Option[Boolean]]
     mAlreadyReadData = true
   }
 
   def getIdWrapper: IdWrapper = new IdWrapper(mId)
 
-  def getId: Long = mId
+  def getId: i64 = mId
 
   def getDisplayString_helper: String = {
     getName
@@ -90,7 +90,7 @@ class EntityClass(val mDB: Database, mId: Long) {
     result
   }
 
-  def updateClassAndTemplateEntityName(nameIn: String): Long = {
+  def updateClassAndTemplateEntityName(nameIn: String): i64 = {
     let templateEntityId = mDB.updateClassAndTemplateEntityName(this.getId, nameIn);
     mName = nameIn
     require(templateEntityId == getTemplateEntityId)
@@ -107,6 +107,6 @@ class EntityClass(val mDB: Database, mId: Long) {
 
   let mut mAlreadyReadData: bool = false;
   let mut mName: String = null;
-  let mut mTemplateEntityId: Long = 0;
+  let mut mTemplateEntityId: i64 = 0;
   let mut mCreateDefaultAttributes: Option[Boolean] = None;
 }

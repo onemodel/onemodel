@@ -31,8 +31,8 @@ import org.onemodel.core.{OmException, Util}
 
    *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:
  */
-class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntityId1: Long, mRemoteInstanceId: String,
-                       mEntityId2: Long) extends RelationToEntity(mDB, mId, mRelTypeId, mEntityId1, mEntityId2) {
+class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1: i64, mRemoteInstanceId: String,
+                       mEntityId2: i64) extends RelationToEntity(mDB, mId, mRelTypeId, mEntityId1, mEntityId2) {
   // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (mDB.isRemote || mDB.relationToRemoteEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mRemoteInstanceId, mEntityId2)) {
@@ -49,8 +49,8 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(mDB: Database, idIn: Long, relTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long,
-           validOnDateIn: Option[Long], observationDateIn: Long, sortingIndexIn: Long) {
+  def this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
+           validOnDateIn: Option[i64], observationDateIn: i64, sortingIndexIn: i64) {
     this(mDB, idIn, relTypeIdIn, entityId1In, remoteInstanceIdIn, entityId2In)
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
@@ -67,11 +67,11 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mAttrTypeId + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)
     }
-    assignCommonVars(mEntityId1, mAttrTypeId, relationData(1).asInstanceOf[Option[Long]],
-                     relationData(2).get.asInstanceOf[Long], relationData(3).get.asInstanceOf[Long])
+    assignCommonVars(mEntityId1, mAttrTypeId, relationData(1).asInstanceOf[Option[i64]],
+                     relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
-  def move(toContainingEntityIdIn: Long, sortingIndexIn: Long): RelationToRemoteEntity = {
+  def move(toContainingEntityIdIn: i64, sortingIndexIn: i64): RelationToRemoteEntity = {
     mDB.moveRelationToRemoteEntityToLocalEntity(getRemoteInstanceId, getId, toContainingEntityIdIn, sortingIndexIn)
   }
 
@@ -88,7 +88,7 @@ class RelationToRemoteEntity(mDB: Database, mId: Long, mRelTypeId: Long, mEntity
     Database.getRestDatabase(mRemoteAddress)
   }
 
-  def update(validOnDateIn:Option[Long], observationDateIn:Option[Long], newAttrTypeIdIn: Option[Long] = None) {
+  def update(validOnDateIn:Option[i64], observationDateIn:Option[i64], newAttrTypeIdIn: Option[i64] = None) {
     let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
     //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations

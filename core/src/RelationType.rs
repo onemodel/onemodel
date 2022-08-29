@@ -31,7 +31,7 @@ object RelationType {
     create a new object. Assumes caller just read it from the DB and the info is accurate (i.e., this may only ever need to be called by
     a Database instance?).
   */
-class RelationType(mDB: Database, mId: Long) extends Entity(mDB, mId) {
+class RelationType(mDB: Database, mId: i64) extends Entity(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.relationTypeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
@@ -42,7 +42,7 @@ class RelationType(mDB: Database, mId: Long) extends Entity(mDB, mId) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  private[onemodel] def this(dbIn: Database, entityIdIn: Long, nameIn: String, nameInReverseDirectionIn: String,
+  private[onemodel] def this(dbIn: Database, entityIdIn: i64, nameIn: String, nameInReverseDirectionIn: String,
                              inDirectionality: String) {
     this(dbIn, entityIdIn)
     mName = nameIn

@@ -119,12 +119,12 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   // Idea: There are probably nicer scala idioms for doing this wrapping instead of the 2-method approach with "process*" methods; maybe should use them.
 
   // Idea: could methods like this be combined with a type parameter [T] ? (like the git commit i reverted ~ 2016-11-17 but, another try?)
-  def processLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Long = {
-    response.json.as[Long]
+  def processLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): i64 = {
+    response.json.as[i64]
   }
 
-  def getLong(pathIn: String): Long = {
-    RestDatabase.restCall[Long, Any]("http://" + mRemoteAddress + pathIn, processLong, None, Array())
+  def getLong(pathIn: String): i64 = {
+    RestDatabase.restCall[i64, Any]("http://" + mRemoteAddress + pathIn, processLong, None, Array())
   }
 
   def processBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Boolean = {
@@ -147,16 +147,16 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCall[Option[String], Any]("http://" + mRemoteAddress + pathIn, processOptionString, None, Array())
   }
 
-  def processOptionLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Option[Long] = {
+  def processOptionLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Option[i64] = {
     if (response.json == JsNull) {
       None
     } else {
-      Some(response.json.as[Long])
+      Some(response.json.as[i64])
     }
   }
 
-  def getOptionLongFromRest(pathIn: String): Option[Long] = {
-    RestDatabase.restCall[Option[Long], Any]("http://" + mRemoteAddress + pathIn, processOptionLong, None, Array())
+  def getOptionLongFromRest(pathIn: String): Option[i64] = {
+    RestDatabase.restCall[Option[i64], Any]("http://" + mRemoteAddress + pathIn, processOptionLong, None, Array())
   }
 
   def processOptionBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Option[Boolean] = {
@@ -200,8 +200,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
         result(index) = Some(values(index).asInstanceOf[JsNumber].as[Float])
       } else if (resultType == "String") {
         result(index) = Some(values(index).asInstanceOf[JsString].as[String])
-      } else if (resultType == "Long") {
-        result(index) = Some(values(index).asInstanceOf[JsNumber].as[Long])
+      } else if (resultType == "i64") {
+        result(index) = Some(values(index).asInstanceOf[JsNumber].as[i64])
       } else if (resultType == "Boolean") {
         result(index) = Some(values(index).asInstanceOf[JsBoolean].as[Boolean])
       } else if (resultType == "Int") {
@@ -282,21 +282,21 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCallWithOptionalErrorHandling[String, Any](url, processString, None, Array(), uiIn)
   }
 
-  def getDefaultEntityId: Long = {
+  def getDefaultEntityId: i64 = {
     getDefaultEntity(None).getOrElse(throw new OmDatabaseException("Unexpected behavior in getDefaultEntityWithOptionalErrHandling:" +
                                                                    " called method should have thrown an" +
                                                                    " exception or returned an Option with data, but returned None"))
   }
 
-  def getDefaultEntity(uiIn: Option[TextUI]): Option[Long] = {
-    def getDefaultEntity_processed(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Long = {
-      (response.json \ "id").as[Long]
+  def getDefaultEntity(uiIn: Option[TextUI]): Option[i64] = {
+    def getDefaultEntity_processed(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): i64 = {
+      (response.json \ "id").as[i64]
     }
     let url = "http://" + mRemoteAddress + "/entities";
-    RestDatabase.restCallWithOptionalErrorHandling[Long, Any](url, getDefaultEntity_processed, None, Array(), uiIn)
+    RestDatabase.restCallWithOptionalErrorHandling[i64, Any](url, getDefaultEntity_processed, None, Array(), uiIn)
   }
 
-  def getEntityJson_WithOptionalErrHandling(uiIn: Option[TextUI], idIn: Long): Option[String] = {
+  def getEntityJson_WithOptionalErrHandling(uiIn: Option[TextUI], idIn: i64): Option[String] = {
     def getEntity_processed(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): String = {
       /* Why doesn't next json line ("...as[String]") work but the following one does?  The first one gets:
         Failed to retrieve remote info for http://localhost:9000/entities/-9223372036854745151 due to exception:
@@ -315,27 +315,27 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCallWithOptionalErrorHandling[String, Any](url, getEntity_processed, None, Array(), uiIn)
   }
 
-  override def getGroupSize(groupIdIn: Long, includeWhichEntitiesIn: Int = 3): Long = {
+  override def getGroupSize(groupIdIn: i64, includeWhichEntitiesIn: Int = 3): i64 = {
     getLong("/groups/" + groupIdIn + "/size/" + includeWhichEntitiesIn)
   }
 
-  override def findUnusedGroupSortingIndex(groupIdIn: Long, startingWithIn: Option[Long]): Long = {
+  override def findUnusedGroupSortingIndex(groupIdIn: i64, startingWithIn: Option[i64]): i64 = {
     getLong("/groups/" + groupIdIn + "/unusedSortingIndex/" + startingWithIn.getOrElse(""))
   }
 
-  override def getHighestSortingIndexForGroup(groupIdIn: Long): Long = {
+  override def getHighestSortingIndexForGroup(groupIdIn: i64): i64 = {
     getLong("/groups/" + groupIdIn + "/highestSortingIndex")
   }
 
-  override def getGroupEntrySortingIndex(groupIdIn: Long, entityIdIn: Long): Long = {
+  override def getGroupEntrySortingIndex(groupIdIn: i64, entityIdIn: i64): i64 = {
     getLong("/groups/" + groupIdIn + "/sortingIndex/" + entityIdIn)
   }
 
-  override def getEntityAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long): Long = {
+  override def getEntityAttributeSortingIndex(entityIdIn: i64, attributeFormIdIn: i64, attributeIdIn: i64): i64 = {
     getLong("/entities/" + entityIdIn + "/sortingIndex/" + attributeFormIdIn + "/" + attributeIdIn)
   }
 
-  override def getEntitiesOnlyCount(limitByClass: Boolean, classIdIn: Option[Long], templateEntity: Option[Long]): Long = {
+  override def getEntitiesOnlyCount(limitByClass: Boolean, classIdIn: Option[i64], templateEntity: Option[i64]): i64 = {
     getLong("/entities/entitiesOnlyCount/" + limitByClass +
             (if (classIdIn.isEmpty) ""
             else {
@@ -348,72 +348,72 @@ class RestDatabase(mRemoteAddress: String) extends Database {
             }))
   }
 
-  override def getAttributeCount(entityIdIn: Long, includeArchivedEntitiesIn: Boolean = false): Long = {
+  override def getAttributeCount(entityIdIn: i64, includeArchivedEntitiesIn: Boolean = false): i64 = {
     getLong("/entities/" + entityIdIn + "/attributeCount/" + includeArchivedEntitiesIn)
   }
 
-  override def getCountOfGroupsContainingEntity(entityIdIn: Long): Long = {
+  override def getCountOfGroupsContainingEntity(entityIdIn: i64): i64 = {
     getLong("/entities/" + entityIdIn + "/countOfGroupsContaining")
   }
 
-  override def getRelationToLocalEntityCount(entityIdIn: Long, includeArchivedEntitiesIn: Boolean): Long = {
+  override def getRelationToLocalEntityCount(entityIdIn: i64, includeArchivedEntitiesIn: Boolean): i64 = {
     getLong("/entities/" + entityIdIn + "/countOfRelationsToEntity/" + includeArchivedEntitiesIn)
   }
 
-  override def getRelationToRemoteEntityCount(entityIdIn: Long): Long = {
+  override def getRelationToRemoteEntityCount(entityIdIn: i64): i64 = {
     getLong("/entities/" + entityIdIn + "/countOfRelationsToRemoteEntity/")
   }
 
-  override def getRelationToGroupCount(entityIdIn: Long): Long = {
+  override def getRelationToGroupCount(entityIdIn: i64): i64 = {
     getLong("/entities/" + entityIdIn + "/countOfRelationsToGroup")
   }
 
-  override def getClassCount(templateEntityIdIn: Option[Long]): Long = {
+  override def getClassCount(templateEntityIdIn: Option[i64]): i64 = {
     getLong("/classes/count/" + templateEntityIdIn.getOrElse(""))
   }
 
-  override def findUnusedAttributeSortingIndex(entityIdIn: Long, startingWithIn: Option[Long]): Long = {
+  override def findUnusedAttributeSortingIndex(entityIdIn: i64, startingWithIn: Option[i64]): i64 = {
     getLong("/entities/" + entityIdIn + "/unusedAttributeSortingIndex/" + startingWithIn.getOrElse(""))
   }
 
-  override def getGroupCount: Long = {
+  override def getGroupCount: i64 = {
     getLong("/groups/count")
   }
 
-  override def getOmInstanceCount: Long = {
+  override def getOmInstanceCount: i64 = {
     getLong("/omInstances/count")
   }
 
-  override def getRelationTypeCount: Long = {
+  override def getRelationTypeCount: i64 = {
     getLong("/relationTypes/count")
   }
 
-  override def getEntityCount: Long = {
+  override def getEntityCount: i64 = {
     getLong("/entities/count")
   }
 
-  override def isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[Long]): Boolean = {
+  override def isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[i64]): Boolean = {
     let name = UriEncoding.encodePathSegment(nameIn, "UTF-8");
     getBoolean("/classes/isDuplicate/" + name + "/" + selfIdToIgnoreIn.getOrElse(""))
   }
 
-  override def relationToGroupKeyExists(idIn: Long): Boolean = {
+  override def relationToGroupKeyExists(idIn: i64): Boolean = {
     getBoolean("/relationsToGroup/" + idIn + "/exists")
   }
 
-  override def isAttributeSortingIndexInUse(entityIdIn: Long, sortingIndexIn: Long): Boolean = {
+  override def isAttributeSortingIndexInUse(entityIdIn: i64, sortingIndexIn: i64): Boolean = {
     getBoolean("/entities/" + entityIdIn + "/isAttributeSortingIndexInUse/" + sortingIndexIn)
   }
 
-  override def isGroupEntrySortingIndexInUse(groupIdIn: Long, sortingIndexIn: Long): Boolean = {
+  override def isGroupEntrySortingIndexInUse(groupIdIn: i64, sortingIndexIn: i64): Boolean = {
     getBoolean("/groups/" + groupIdIn + "/isEntrySortingIndexInUse/" + sortingIndexIn)
   }
 
-  override def entityKeyExists(idIn: Long, includeArchived: Boolean): Boolean = {
+  override def entityKeyExists(idIn: i64, includeArchived: Boolean): Boolean = {
     getBoolean("/entities/" + idIn + "/exists/" + includeArchived)
   }
 
-  override def relationTypeKeyExists(idIn: Long): Boolean = {
+  override def relationTypeKeyExists(idIn: i64): Boolean = {
     getBoolean("/relationTypes/" + idIn + "/exists")
   }
 
@@ -421,61 +421,61 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getBoolean("/omInstances/" + UriEncoding.encodePathSegment(idIn, "UTF-8") + "/exists")
   }
 
-  override def classKeyExists(idIn: Long): Boolean = {
+  override def classKeyExists(idIn: i64): Boolean = {
     getBoolean("/classes/" + idIn + "/exists")
   }
 
-  override def attributeKeyExists(formIdIn: Long, idIn: Long): Boolean = {
+  override def attributeKeyExists(formIdIn: i64, idIn: i64): Boolean = {
     getBoolean("/attributes/" + formIdIn + "/" + idIn + "/exists")
   }
 
-  override def quantityAttributeKeyExists(idIn: Long): Boolean = {
+  override def quantityAttributeKeyExists(idIn: i64): Boolean = {
     getBoolean("/quantityAttributes/" + idIn + "/exists")
   }
 
-  override def dateAttributeKeyExists(idIn: Long): Boolean = {
+  override def dateAttributeKeyExists(idIn: i64): Boolean = {
     getBoolean("/dateAttributes/" + idIn + "/exists")
   }
 
-  override def booleanAttributeKeyExists(idIn: Long): Boolean = {
+  override def booleanAttributeKeyExists(idIn: i64): Boolean = {
     getBoolean("/booleanAttributes/" + idIn + "/exists")
   }
 
-  override def fileAttributeKeyExists(idIn: Long): Boolean = {
+  override def fileAttributeKeyExists(idIn: i64): Boolean = {
     getBoolean("/fileAttributes/" + idIn + "/exists")
   }
 
-  override def textAttributeKeyExists(idIn: Long): Boolean = {
+  override def textAttributeKeyExists(idIn: i64): Boolean = {
     getBoolean("/textAttributes/" + idIn + "/exists")
   }
 
-  override def relationToLocalEntityKeysExistAndMatch(idIn: Long, relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Boolean = {
+  override def relationToLocalEntityKeysExistAndMatch(idIn: i64, relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64): Boolean = {
     getBoolean("/relationsToEntity/" + idIn + "/existsWith/" + relationTypeIdIn + "/" + entityId1In + "/" + entityId2In)
   }
 
-  override def relationToLocalEntityKeyExists(idIn: Long): Boolean = {
+  override def relationToLocalEntityKeyExists(idIn: i64): Boolean = {
     getBoolean("/relationsToEntity/" + idIn + "/exists")
   }
 
-  override def relationToRemoteEntityKeyExists(idIn: Long): Boolean = {
+  override def relationToRemoteEntityKeyExists(idIn: i64): Boolean = {
     getBoolean("/relationsToRemoteEntity/" + idIn + "/exists")
   }
 
-  override def relationToRemoteEntityKeysExistAndMatch(idIn: Long, relationTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long):
+  override def relationToRemoteEntityKeysExistAndMatch(idIn: i64, relationTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64):
   Boolean = {
     getBoolean("/relationsToRemoteEntity/" + idIn + "/existsWith/" + relationTypeIdIn + "/" + entityId1In + "/" +
                UriEncoding.encodePathSegment(remoteInstanceIdIn, "UTF-8") + "/" + entityId2In)
   }
 
-  override def relationToGroupKeysExistAndMatch(id: Long, entityId: Long, relationTypeId: Long, groupId: Long): Boolean = {
+  override def relationToGroupKeysExistAndMatch(id: i64, entityId: i64, relationTypeId: i64, groupId: i64): Boolean = {
     getBoolean("/relationsToGroup/" + id + "/existsWith/" + entityId + "/" + relationTypeId + "/" + groupId)
   }
 
-  override def groupKeyExists(idIn: Long): Boolean = {
+  override def groupKeyExists(idIn: i64): Boolean = {
     getBoolean("/groups/" + idIn + "/exists")
   }
 
-  override def isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[Long]): Boolean = {
+  override def isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[i64]): Boolean = {
     //If we need to change the 2nd parameter from UTF-8 to something else below, see javadocs for a class about encode/encoding, IIRC.
     let name = UriEncoding.encodePathSegment(nameIn, "UTF-8");
     getBoolean("/entities/isDuplicate/" + name + "/" + selfIdToIgnoreIn.getOrElse(""))
@@ -486,7 +486,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                UriEncoding.encodePathSegment(selfIdToIgnoreIn.getOrElse(""), "UTF-8"))
   }
 
-  override def isEntityInGroup(groupIdIn: Long, entityIdIn: Long): Boolean = {
+  override def isEntityInGroup(groupIdIn: i64, entityIdIn: i64): Boolean = {
     getBoolean("/groups/" + groupIdIn + "/containsEntity/" + entityIdIn)
   }
 
@@ -494,27 +494,27 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getBoolean("/entities/includeArchived")
   }
 
-  override def getClassName(idIn: Long): Option[String] = {
+  override def getClassName(idIn: i64): Option[String] = {
     getOptionString("/classes/" + idIn + "/name")
   }
 
-  override def getEntityName(idIn: Long): Option[String] = {
+  override def getEntityName(idIn: i64): Option[String] = {
     getOptionString("/entities/" + idIn + "/name")
   }
 
-  override def getNearestGroupEntrysSortingIndex(groupIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+  override def getNearestGroupEntrysSortingIndex(groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64] = {
     getOptionLongFromRest("/groups/" + groupIdIn + "/nearestEntrysSortingIndex/" + startingPointSortingIndexIn + "/" + forwardNotBackIn)
   }
 
-  override def getNearestAttributeEntrysSortingIndex(entityIdIn: Long, startingPointSortingIndexIn: Long, forwardNotBackIn: Boolean): Option[Long] = {
+  override def getNearestAttributeEntrysSortingIndex(entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64] = {
     getOptionLongFromRest("/entities/" + entityIdIn + "/nearestAttributeSortingIndex/" + startingPointSortingIndexIn + "/" + forwardNotBackIn)
   }
 
-  override def getClassData(idIn: Long): Array[Option[Any]] = {
+  override def getClassData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/classes/" + idIn, Array(Database.getClassData_resultTypes))
   }
 
-  override def getRelationTypeData(idIn: Long): Array[Option[Any]] = {
+  override def getRelationTypeData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/relationTypes/" + idIn, Array(Database.getRelationTypeData_resultTypes))
   }
 
@@ -523,144 +523,144 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getArrayOptionAny("/omInstances/" + id, Array(Database.getOmInstanceData_resultTypes))
   }
 
-  override def getFileAttributeData(idIn: Long): Array[Option[Any]] = {
+  override def getFileAttributeData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/fileAttributes/" + idIn, Array(Database.getFileAttributeData_resultTypes))
   }
 
-  override def getTextAttributeData(idIn: Long): Array[Option[Any]] = {
+  override def getTextAttributeData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/textAttributes/" + idIn, Array(Database.getTextAttributeData_resultTypes))
   }
 
-  override def getQuantityAttributeData(idIn: Long): Array[Option[Any]] = {
+  override def getQuantityAttributeData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/quantityAttributes/" + idIn, Array(Database.getQuantityAttributeData_resultTypes))
   }
 
-  override def getRelationToGroupData(idIn: Long): Array[Option[Any]] = {
+  override def getRelationToGroupData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/relationsToGroup/" + idIn, Array(Database.getRelationToGroupDataById_resultTypes))
   }
 
-  override def getRelationToGroupDataByKeys(entityId: Long, relationTypeId: Long, groupId: Long): Array[Option[Any]] = {
+  override def getRelationToGroupDataByKeys(entityId: i64, relationTypeId: i64, groupId: i64): Array[Option[Any]] = {
     getArrayOptionAny("/relationsToGroup/byKeys/" + entityId + "/" + relationTypeId + "/" + groupId, Array(Database.getRelationToGroupDataByKeys_resultTypes))
   }
 
-  override def getGroupData(idIn: Long): Array[Option[Any]] = {
+  override def getGroupData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/groups/" + idIn, Array(Database.getGroupData_resultTypes))
   }
 
-  override def getDateAttributeData(idIn: Long): Array[Option[Any]] = {
+  override def getDateAttributeData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/dateAttributes/" + idIn, Array(Database.getDateAttributeData_resultTypes))
   }
 
-  override def getBooleanAttributeData(idIn: Long): Array[Option[Any]] = {
+  override def getBooleanAttributeData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/booleanAttributes/" + idIn, Array(Database.getBooleanAttributeData_resultTypes))
   }
 
-  override def getRelationToLocalEntityData(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Array[Option[Any]] = {
+  override def getRelationToLocalEntityData(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64): Array[Option[Any]] = {
     getArrayOptionAny("/relationsToEntity/" + relationTypeIdIn + "/" + entityId1In + "/" + entityId2In, Array(Database.getRelationToLocalEntity_resultTypes))
   }
 
-  override def getRelationToRemoteEntityData(relationTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long): Array[Option[Any]] = {
+  override def getRelationToRemoteEntityData(relationTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64): Array[Option[Any]] = {
     getArrayOptionAny("/relationsToRemoteEntity/" + relationTypeIdIn + "/" + entityId1In + "/" +
                       UriEncoding.encodePathSegment(remoteInstanceIdIn, "UTF-8") + "/" + entityId2In,
                       Array(Database.getRelationToRemoteEntity_resultTypes))
   }
 
-  override def getEntityData(idIn: Long): Array[Option[Any]] = {
+  override def getEntityData(idIn: i64): Array[Option[Any]] = {
     getArrayOptionAny("/entities/" + idIn, Array(Database.getEntityData_resultTypes))
   }
 
-  override def getAdjacentGroupEntriesSortingIndexes(groupIdIn: Long, adjacentToEntrySortingIndexIn: Long, limitIn: Option[Long],
+  override def getAdjacentGroupEntriesSortingIndexes(groupIdIn: i64, adjacentToEntrySortingIndexIn: i64, limitIn: Option[i64],
                                                      forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
     getListArrayOptionAny("/groups/" + groupIdIn + "/adjacentEntriesSortingIndexes/" + adjacentToEntrySortingIndexIn + "/" + forwardNotBackIn +
                           (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
-                          Array("Long"))
+                          Array("i64"))
   }
 
   //Idea: simplify return type of things like this so it is more consumer-friendly, unless it is more friendly to be like the other code already is (ie,
   // like now). Some
   //of the other methods return less generic structures and they are more work to consume in this class because they are different/nonstandard so more
   //methods needed to handle each kind.
-  override def getGroupsContainingEntitysGroupsIds(groupIdIn: Long, limitIn: Option[Long]): List[Array[Option[Any]]] = {
-    getListArrayOptionAny("/groups/" + groupIdIn + "/containingEntitysGroupsIds" + (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get), Array("Long"))
+  override def getGroupsContainingEntitysGroupsIds(groupIdIn: i64, limitIn: Option[i64]): List[Array[Option[Any]]] = {
+    getListArrayOptionAny("/groups/" + groupIdIn + "/containingEntitysGroupsIds" + (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get), Array("i64"))
   }
 
-  override def getGroupEntriesData(groupIdIn: Long, limitIn: Option[Long], includeArchivedEntitiesIn: Boolean): List[Array[Option[Any]]] = {
+  override def getGroupEntriesData(groupIdIn: i64, limitIn: Option[i64], includeArchivedEntitiesIn: Boolean): List[Array[Option[Any]]] = {
     getListArrayOptionAny("/groups/" + groupIdIn + "/entriesData/" + includeArchivedEntitiesIn + (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
                           Array(Database.getGroupEntriesData_resultTypes))
   }
 
-  override def getAdjacentAttributesSortingIndexes(entityIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long],
+  override def getAdjacentAttributesSortingIndexes(entityIdIn: i64, sortingIndexIn: i64, limitIn: Option[i64],
                                                    forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
     getListArrayOptionAny("/entities/" + entityIdIn + "/adjacentAttributesSortingIndexes/" + sortingIndexIn + "/" + forwardNotBackIn +
                           (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
-                          Array("Long"))
+                          Array("i64"))
   }
 
   def createTextAttributeRow(values: Seq[JsValue]): TextAttribute = {
-    new TextAttribute(this, values(0).asInstanceOf[JsNumber].as[Long], values(1).asInstanceOf[JsNumber].as[Long],
-                      values(2).asInstanceOf[JsNumber].as[Long],
+    new TextAttribute(this, values(0).asInstanceOf[JsNumber].as[i64], values(1).asInstanceOf[JsNumber].as[i64],
+                      values(2).asInstanceOf[JsNumber].as[i64],
                       values(3).asInstanceOf[JsString].as[String],
-                      if (values(4) == JsNull) None else Some(values(4).asInstanceOf[JsNumber].as[Long]),
-                      values(5).asInstanceOf[JsNumber].as[Long],
-                      values(6).asInstanceOf[JsNumber].as[Long])
+                      if (values(4) == JsNull) None else Some(values(4).asInstanceOf[JsNumber].as[i64]),
+                      values(5).asInstanceOf[JsNumber].as[i64],
+                      values(6).asInstanceOf[JsNumber].as[i64])
   }
 
-  override def getTextAttributeByTypeId(parentEntityIdIn: Long, typeIdIn: Long, expectedRows: Option[Int]): java.util.ArrayList[TextAttribute] = {
+  override def getTextAttributeByTypeId(parentEntityIdIn: i64, typeIdIn: i64, expectedRows: Option[Int]): java.util.ArrayList[TextAttribute] = {
     getCollection[TextAttribute]("/entities/" + parentEntityIdIn + "/textAttributeByTypeId/" + typeIdIn +
                                  (if (expectedRows.isEmpty) "" else "?expectedRows=" + expectedRows.get),
                                  Array(), Some(createTextAttributeRow))
   }
 
-  def createLongValueRow(values: Seq[JsValue]): Long = {
-    values(0).asInstanceOf[JsNumber].as[Long]
+  def createLongValueRow(values: Seq[JsValue]): i64 = {
+    values(0).asInstanceOf[JsNumber].as[i64]
   }
 
   def createStringValueRow(values: Seq[JsValue]): String = {
     values(0).asInstanceOf[JsString].as[String]
   }
 
-  def createLongStringLongRow(values: Seq[JsValue]): (Long, String, Long) = {
-    (values(0).asInstanceOf[JsNumber].as[Long], values(1).asInstanceOf[JsString].as[String], values(2).asInstanceOf[JsNumber].as[Long])
+  def createLongStringLongRow(values: Seq[JsValue]): (i64, String, i64) = {
+    (values(0).asInstanceOf[JsNumber].as[i64], values(1).asInstanceOf[JsString].as[String], values(2).asInstanceOf[JsNumber].as[i64])
   }
 
-  override def findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[Long], fromEntityIdIn: Long, searchStringIn: String, levelsRemaining: Int,
-                                           stopAfterAnyFound: Boolean): mutable.TreeSet[Long] = {
+  override def findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[i64], fromEntityIdIn: i64, searchStringIn: String, levelsRemaining: Int,
+                                           stopAfterAnyFound: Boolean): mutable.TreeSet[i64] = {
     let searchString = UriEncoding.encodePathSegment(searchStringIn, "UTF-8");
-    let results: util.ArrayList[Long] = getCollection[Long]("/entities/" + fromEntityIdIn + "/findContainedIds/" + searchString +;
+    let results: util.ArrayList[i64] = getCollection[i64]("/entities/" + fromEntityIdIn + "/findContainedIds/" + searchString +;
                                                             "/" + levelsRemaining + "/" + stopAfterAnyFound, Array(), Some(createLongValueRow))
     // then convert to the needed type:
-    let treeSetResults: mutable.TreeSet[Long] = mutable.TreeSet[Long]();
-    for (result: Long <- results) {
+    let treeSetResults: mutable.TreeSet[i64] = mutable.TreeSet[i64]();
+    for (result: i64 <- results) {
       treeSetResults.add(result)
     }
     treeSetResults
   }
 
-  override def findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean): java.util.ArrayList[Long] = {
+  override def findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean): java.util.ArrayList[i64] = {
     let name = UriEncoding.encodePathSegment(nameIn, "UTF-8");
-    getCollection[Long]("/entities/findAllByName/" + name + "/" + caseSensitive, Array(), Some(createLongValueRow))
+    getCollection[i64]("/entities/findAllByName/" + name + "/" + caseSensitive, Array(), Some(createLongValueRow))
   }
 
-  override def getContainingGroupsIds(entityIdIn: Long): java.util.ArrayList[Long] = {
-    getCollection[Long]("/entities/" + entityIdIn + "/containingGroupsIds", Array(), Some(createLongValueRow))
+  override def getContainingGroupsIds(entityIdIn: i64): java.util.ArrayList[i64] = {
+    getCollection[i64]("/entities/" + entityIdIn + "/containingGroupsIds", Array(), Some(createLongValueRow))
   }
 
-  override def getContainingRelationToGroupDescriptions(entityIdIn: Long, limitIn: Option[Long]): ArrayList[String] = {
+  override def getContainingRelationToGroupDescriptions(entityIdIn: i64, limitIn: Option[i64]): ArrayList[String] = {
     getCollection[String]("/entities/" + entityIdIn + "/containingRelationsToGroupDescriptions" +
                           (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
                           Array(), Some(createStringValueRow))
   }
 
   def createRelationToGroupRow(values: Seq[JsValue]): RelationToGroup = {
-    new RelationToGroup(this, values(0).asInstanceOf[JsNumber].as[Long], values(1).asInstanceOf[JsNumber].as[Long],
-                        values(2).asInstanceOf[JsNumber].as[Long],
-                        values(3).asInstanceOf[JsNumber].as[Long],
-                        if (values(4) == JsNull) None else Some(values(4).asInstanceOf[JsNumber].as[Long]),
-                        values(5).asInstanceOf[JsNumber].as[Long],
-                        values(6).asInstanceOf[JsNumber].as[Long])
+    new RelationToGroup(this, values(0).asInstanceOf[JsNumber].as[i64], values(1).asInstanceOf[JsNumber].as[i64],
+                        values(2).asInstanceOf[JsNumber].as[i64],
+                        values(3).asInstanceOf[JsNumber].as[i64],
+                        if (values(4) == JsNull) None else Some(values(4).asInstanceOf[JsNumber].as[i64]),
+                        values(5).asInstanceOf[JsNumber].as[i64],
+                        values(6).asInstanceOf[JsNumber].as[i64])
   }
 
-  override def getContainingRelationsToGroup(entityIdIn: Long, startingIndexIn: Long, limitIn: Option[Long]): ArrayList[RelationToGroup] = {
+  override def getContainingRelationsToGroup(entityIdIn: i64, startingIndexIn: i64, limitIn: Option[i64]): ArrayList[RelationToGroup] = {
     // (The 2nd parameter has to match the types in the 2nd (1st alternate) constructor for RelationToGroup.  Consider putting it in a constant like
     // Database.getClassData_resultTypes etc.)
     getCollection[RelationToGroup]("/entities/" + entityIdIn + "/containingRelationsToGroup/" + startingIndexIn +
@@ -669,60 +669,60 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                    Some(createRelationToGroupRow))
   }
 
-  override def getRelationsToGroupContainingThisGroup(groupIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long]): util.ArrayList[RelationToGroup] = {
+  override def getRelationsToGroupContainingThisGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64]): util.ArrayList[RelationToGroup] = {
     getCollection[RelationToGroup]("/groups/" + groupIdIn + "/relationsToGroupContainingThisGroup/" + startingIndexIn +
                                    (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
                                    Array(),
                                    Some(createRelationToGroupRow))
   }
 
-  override def findJournalEntries(startTimeIn: Long, endTimeIn: Long, limitIn: Option[Long]): ArrayList[(Long, String, Long)] = {
-    getCollection[(Long, String, Long)]("/entities/addedAndArchivedByDate/" + startTimeIn + "/" + endTimeIn +
+  override def findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option[i64]): ArrayList[(i64, String, i64)] = {
+    getCollection[(i64, String, i64)]("/entities/addedAndArchivedByDate/" + startTimeIn + "/" + endTimeIn +
                                         (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
                                         Array(),
                                         Some(createLongStringLongRow))
   }
 
-  override def findRelationType(typeNameIn: String, expectedRows: Option[Int]): ArrayList[Long] = {
-    getCollection[Long]("/relationTypes/find/" + UriEncoding.encodePathSegment(typeNameIn, "UTF-8") +
+  override def findRelationType(typeNameIn: String, expectedRows: Option[Int]): ArrayList[i64] = {
+    getCollection[i64]("/relationTypes/find/" + UriEncoding.encodePathSegment(typeNameIn, "UTF-8") +
                         (if (expectedRows.isEmpty) "" else "?expectedRows=" + expectedRows.get),
                         Array(), Some(createLongValueRow))
   }
 
   // idea: make private all methods used for the same purpose like this one:
   def createEntityRow(values: Seq[JsValue]): Entity = {
-    new Entity(this, values(0).asInstanceOf[JsNumber].as[Long],
+    new Entity(this, values(0).asInstanceOf[JsNumber].as[i64],
                values(1).asInstanceOf[JsString].as[String],
-               if (values(2) == JsNull) None else Some(values(2).asInstanceOf[JsNumber].as[Long]),
-               values(3).asInstanceOf[JsNumber].as[Long],
+               if (values(2) == JsNull) None else Some(values(2).asInstanceOf[JsNumber].as[i64]),
+               values(3).asInstanceOf[JsNumber].as[i64],
                if (values(4) == JsNull) None else Some(values(4).asInstanceOf[JsBoolean].as[Boolean]),
                values(5).asInstanceOf[JsBoolean].as[Boolean],
                values(6).asInstanceOf[JsBoolean].as[Boolean])
   }
 
   def createGroupRow(values: Seq[JsValue]): Group = {
-    new Group(this, values(0).asInstanceOf[JsNumber].as[Long],
+    new Group(this, values(0).asInstanceOf[JsNumber].as[i64],
               values(1).asInstanceOf[JsString].as[String],
-              values(2).asInstanceOf[JsNumber].as[Long],
+              values(2).asInstanceOf[JsNumber].as[i64],
               values(3).asInstanceOf[JsBoolean].as[Boolean],
               values(4).asInstanceOf[JsBoolean].as[Boolean])
   }
 
   def createEntityClassRow(values: Seq[JsValue]): EntityClass = {
-    new EntityClass(this, values(0).asInstanceOf[JsNumber].as[Long],
+    new EntityClass(this, values(0).asInstanceOf[JsNumber].as[i64],
                     values(1).asInstanceOf[JsString].as[String],
-                    values(2).asInstanceOf[JsNumber].as[Long],
+                    values(2).asInstanceOf[JsNumber].as[i64],
                     if (values(3) == JsNull) None else Some(values(3).asInstanceOf[JsBoolean].as[Boolean]))
   }
 
-  override def getGroupEntryObjects(groupIdIn: Long, startingObjectIndexIn: Long, maxValsIn: Option[Long]): ArrayList[Entity] = {
+  override def getGroupEntryObjects(groupIdIn: i64, startingObjectIndexIn: i64, maxValsIn: Option[i64]): ArrayList[Entity] = {
     getCollection[Entity]("/groups/" + groupIdIn + "/entries/" + startingObjectIndexIn +
                           (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
                           Array(), Some(createEntityRow))
   }
 
-  override def getEntitiesOnly(startingObjectIndexIn: Long, maxValsIn: Option[Long], classIdIn: Option[Long],
-                               limitByClass: Boolean, templateEntityIn: Option[Long], groupToOmitIdIn: Option[Long]): util.ArrayList[Entity] = {
+  override def getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option[i64], classIdIn: Option[i64],
+                               limitByClass: Boolean, templateEntityIn: Option[i64], groupToOmitIdIn: Option[i64]): util.ArrayList[Entity] = {
     let url = "/entities/" + startingObjectIndexIn + "/" + limitByClass +;
               (if (maxValsIn.isDefined || classIdIn.isDefined || templateEntityIn.isDefined || groupToOmitIdIn.isDefined) "?" else "") +
               (if (maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
@@ -732,13 +732,13 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getCollection[Entity](url, Array(), Some(createEntityRow))
   }
 
-  override def getEntities(startingObjectIndexIn: Long, maxValsIn: Option[Long]): util.ArrayList[Entity] = {
+  override def getEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64]): util.ArrayList[Entity] = {
     let url: String = "/entities/all/" + startingObjectIndexIn +;
                       (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
     getCollection[Entity](url, Array(), Some(createEntityRow))
   }
 
-  override def getMatchingEntities(startingObjectIndexIn: Long, maxValsIn: Option[Long], omitEntityIdIn: Option[Long],
+  override def getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64], omitEntityIdIn: Option[i64],
                                    nameRegexIn: String): util.ArrayList[Entity] = {
     let nameRegex = UriEncoding.encodePathSegment(nameRegexIn, "UTF-8");
     let url: String = "/entities/search/" + nameRegex + "/" + startingObjectIndexIn +;
@@ -748,7 +748,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getCollection[Entity](url, Array(), Some(createEntityRow))
   }
 
-  override def getMatchingGroups(startingObjectIndexIn: Long, maxValsIn: Option[Long], omitGroupIdIn: Option[Long],
+  override def getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64], omitGroupIdIn: Option[i64],
                                  nameRegexIn: String): util.ArrayList[Group] = {
     getCollection[Group]("/groups/search/" + UriEncoding.encodePathSegment(nameRegexIn, "UTF-8") + "/" + startingObjectIndexIn +
                          (if (maxValsIn.isDefined || omitGroupIdIn.isDefined) "?" else "") +
@@ -757,19 +757,19 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                          Array(), Some(createGroupRow))
   }
 
-  override def getRelationTypes(startingObjectIndexIn: Long, maxValsIn: Option[Long]): util.ArrayList[Entity] = {
+  override def getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option[i64]): util.ArrayList[Entity] = {
     let url = "/relationTypes/all/" + startingObjectIndexIn +;
               (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
     getCollection[RelationType](url, Array(), Some(createRelationTypeRow)).asInstanceOf[util.ArrayList[Entity]]
   }
 
-  override def getClasses(startingObjectIndexIn: Long, maxValsIn: Option[Long]): util.ArrayList[EntityClass] = {
+  override def getClasses(startingObjectIndexIn: i64, maxValsIn: Option[i64]): util.ArrayList[EntityClass] = {
     let url = "/classes/all/" + startingObjectIndexIn +;
               (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
     getCollection[EntityClass](url, Array(), Some(createEntityClassRow))
   }
 
-  override def getGroups(startingObjectIndexIn: Long, maxValsIn: Option[Long], groupToOmitIdIn: Option[Long]): util.ArrayList[Group] = {
+  override def getGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64], groupToOmitIdIn: Option[i64]): util.ArrayList[Group] = {
     getCollection[Group]("/groups/all/" + startingObjectIndexIn +
                          (if (maxValsIn.isDefined || groupToOmitIdIn.isDefined) "?" else "") +
                          (if (maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
@@ -777,59 +777,59 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                          Array(), Some(createGroupRow))
   }
 
-  def createRelationTypeIdAndEntityRow(values: Seq[JsValue]): (Long, Entity) = {
+  def createRelationTypeIdAndEntityRow(values: Seq[JsValue]): (i64, Entity) = {
     let entity: Entity = createEntityRow(values);
-    let relationTypeId: Long = values(7).asInstanceOf[JsNumber].as[Long];
+    let relationTypeId: i64 = values(7).asInstanceOf[JsNumber].as[i64];
     (relationTypeId, entity)
   }
 
   def createRelationTypeRow(values: Seq[JsValue]): RelationType = {
-    new RelationType(this, values(0).asInstanceOf[JsNumber].as[Long],
+    new RelationType(this, values(0).asInstanceOf[JsNumber].as[i64],
                      values(1).asInstanceOf[JsString].as[String],
                      values(7).asInstanceOf[JsString].as[String],
                      values(8).asInstanceOf[JsString].as[String])
   }
 
-  override def getEntitiesContainingGroup(groupIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long]): ArrayList[(Long, Entity)] = {
-    getCollection[(Long, Entity)]("/groups/" + groupIdIn + "/containingEntities/" + startingIndexIn +
+  override def getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64]): ArrayList[(i64, Entity)] = {
+    getCollection[(i64, Entity)]("/groups/" + groupIdIn + "/containingEntities/" + startingIndexIn +
                                   (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
                                   Array(), Some(createRelationTypeIdAndEntityRow))
   }
 
-  override def getLocalEntitiesContainingLocalEntity(entityIdIn: Long, startingIndexIn: Long, maxValsIn: Option[Long]): ArrayList[(Long, Entity)] = {
-    getCollection[(Long, Entity)]("/entities/" + entityIdIn + "/containingEntities/" + startingIndexIn +
+  override def getLocalEntitiesContainingLocalEntity(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64]): ArrayList[(i64, Entity)] = {
+    getCollection[(i64, Entity)]("/entities/" + entityIdIn + "/containingEntities/" + startingIndexIn +
                                   (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
                                   Array(), Some(createRelationTypeIdAndEntityRow))
   }
 
-  def process2Longs(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): (Long, Long) = {
+  def process2Longs(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): (i64, i64) = {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
       let values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq;
-      let first: Long = values(0).asInstanceOf[JsNumber].as[Long];
-      let second: Long = values(1).asInstanceOf[JsNumber].as[Long];
+      let first: i64 = values(0).asInstanceOf[JsNumber].as[i64];
+      let second: i64 = values(1).asInstanceOf[JsNumber].as[i64];
       (first, second)
     }
   }
 
-  def get2Longs(pathIn: String): (Long, Long) = {
-    RestDatabase.restCall[(Long, Long), Any]("http://" + mRemoteAddress + pathIn, process2Longs, None, Array())
+  def get2Longs(pathIn: String): (i64, i64) = {
+    RestDatabase.restCall[(i64, i64), Any]("http://" + mRemoteAddress + pathIn, process2Longs, None, Array())
   }
 
-  override def getCountOfEntitiesContainingGroup(groupIdIn: Long): (Long, Long) = {
+  override def getCountOfEntitiesContainingGroup(groupIdIn: i64): (i64, i64) = {
     get2Longs("/groups/" + groupIdIn + "/countOfContainingEntities")
   }
 
-  override def getCountOfLocalEntitiesContainingLocalEntity(entityIdIn: Long): (Long, Long) = {
+  override def getCountOfLocalEntitiesContainingLocalEntity(entityIdIn: i64): (i64, i64) = {
     get2Longs("/entities/" + entityIdIn + "/countOfContainingEntities")
   }
 
-  override def getFileAttributeContent(fileAttributeIdIn: Long, outputStreamIn: OutputStream): (Long, String) = {
+  override def getFileAttributeContent(fileAttributeIdIn: i64, outputStreamIn: OutputStream): (i64, String) = {
     // (Idea: should this (and others) instead just call something that returns a complete FileAttribute, so that multiple places in the code do
     // not all have to know the indexes for each datum?:)
     let faData = getFileAttributeData(fileAttributeIdIn);
-    let fileSize = faData(9).get.asInstanceOf[Long];
+    let fileSize = faData(9).get.asInstanceOf[i64];
     let md5hash = faData(10).get.asInstanceOf[String];
     let url = new URL("http://" + mRemoteAddress + "/fileAttributes/" + fileAttributeIdIn + "/content");
     let mut input: InputStream = null;
@@ -853,27 +853,27 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   def processOptionLongsStringBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any],
-                                      ignore2: Array[Any]): (Option[Long], Option[Long], Option[Long], Option[String], Boolean) = {
+                                      ignore2: Array[Any]): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) = {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
       let values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq;
-      let first: Option[Long] = getOptionLongFromJson(values, 0);
-      let second: Option[Long] = getOptionLongFromJson(values, 1);
-      let third: Option[Long] = getOptionLongFromJson(values, 2);
+      let first: Option[i64] = getOptionLongFromJson(values, 0);
+      let second: Option[i64] = getOptionLongFromJson(values, 1);
+      let third: Option[i64] = getOptionLongFromJson(values, 2);
       let fourth: Option[String] = getOptionStringFromJson(values, 3);
       let last: bool = values(4).asInstanceOf[JsBoolean].as[Boolean];
       (first, second, third, fourth, last)
     }
   }
 
-  def getOptionLongsStringBoolean(pathIn: String): (Option[Long], Option[Long], Option[Long], Option[String], Boolean) = {
-    RestDatabase.restCall[(Option[Long], Option[Long], Option[Long], Option[String], Boolean), Any]("http://" + mRemoteAddress + pathIn,
+  def getOptionLongsStringBoolean(pathIn: String): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) = {
+    RestDatabase.restCall[(Option[i64], Option[i64], Option[i64], Option[String], Boolean), Any]("http://" + mRemoteAddress + pathIn,
                                                                                                     processOptionLongsStringBoolean, None, Array())
   }
 
-  override def findRelationToAndGroup_OnEntity(entityIdIn: Long,
-                                               groupNameIn: Option[String]): (Option[Long], Option[Long], Option[Long], Option[String], Boolean) = {
+  override def findRelationToAndGroup_OnEntity(entityIdIn: i64,
+                                               groupNameIn: Option[String]): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) = {
     getOptionLongsStringBoolean("/entities/" + entityIdIn + "/findRelationToAndGroup" +
                                 (if (groupNameIn.isEmpty) "" else "?groupName=" + java.net.URLEncoder.encode(groupNameIn.get, "UTF-8")))
     // Note: using a different kind of encoder/encoding for a query part of a URI (vs. the path, as elsewhere), per info at:
@@ -892,12 +892,12 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     */
   }
 
-  def getOptionLongFromJson(values: IndexedSeq[JsValue], index: Int): Option[Long] = {
+  def getOptionLongFromJson(values: IndexedSeq[JsValue], index: Int): Option[i64] = {
     if (values(index) == JsNull) None
     else {
-      Some(values(index).asInstanceOf[JsNumber].as[Long])
+      Some(values(index).asInstanceOf[JsNumber].as[i64])
       // Idea: learn why in some places this needed instead: is there a difference in the way it is sent from the web module? or do both work?:
-      // Some(response.json.as[Long])
+      // Some(response.json.as[i64])
     }
   }
 
@@ -906,93 +906,93 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     else {
       Some(values(index).asInstanceOf[JsString].as[String])
       // Idea: learn why in some places this needed instead: is there a difference in the way it is sent from the web module? or do both work?:
-      // Some(response.json.as[Long])
+      // Some(response.json.as[i64])
     }
   }
 
-  def processSortedAttributes(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): (Array[(Long, Attribute)], Int) = {
+  def processSortedAttributes(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): (Array[(i64, Attribute)], Int) = {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
       let arrayAndInt = response.json.asInstanceOf[JsObject].values.toIndexedSeq;
       let totalAttributesAvailable: i32 = arrayAndInt(0).asInstanceOf[JsNumber].as[Int];
       let attributesRetrieved: JsArray = arrayAndInt(1).asInstanceOf[JsArray];
-      let resultsAccumulator = new ArrayList[(Long, Attribute)](totalAttributesAvailable);
+      let resultsAccumulator = new ArrayList[(i64, Attribute)](totalAttributesAvailable);
       for (attributeJson <- attributesRetrieved.value) {
         let values: IndexedSeq[JsValue] = attributeJson.asInstanceOf[JsObject].values.toIndexedSeq;
-        let id: Long = values(0).asInstanceOf[JsNumber].as[Long];
-        let formId: Long = values(1).asInstanceOf[JsNumber].as[Long];
-        let parentId: Long = values(2).asInstanceOf[JsNumber].as[Long];
-        let attributeTypeId: Long = values(3).asInstanceOf[JsNumber].as[Long];
-        let sortingIndex: Long = values(4).asInstanceOf[JsNumber].as[Long];
+        let id: i64 = values(0).asInstanceOf[JsNumber].as[i64];
+        let formId: i64 = values(1).asInstanceOf[JsNumber].as[i64];
+        let parentId: i64 = values(2).asInstanceOf[JsNumber].as[i64];
+        let attributeTypeId: i64 = values(3).asInstanceOf[JsNumber].as[i64];
+        let sortingIndex: i64 = values(4).asInstanceOf[JsNumber].as[i64];
         let attribute: Attribute = formId match {;
           case 1 =>
             let validOnDate = getOptionLongFromJson(values, 5);
-            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
-            let unitId: Long = values(7).asInstanceOf[JsNumber].as[Long];
+            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let unitId: i64 = values(7).asInstanceOf[JsNumber].as[i64];
             let number: Float = values(8).asInstanceOf[JsNumber].as[Float];
             new QuantityAttribute(this, id, parentId, attributeTypeId, unitId, number, validOnDate, observationDate, sortingIndex)
           case 2 =>
-            let date: Long = values(5).asInstanceOf[JsNumber].as[Long];
+            let date: i64 = values(5).asInstanceOf[JsNumber].as[i64];
             new DateAttribute(this, id, parentId, attributeTypeId, date, sortingIndex)
           case 3 =>
             let validOnDate = getOptionLongFromJson(values, 5);
-            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
+            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
             let bool: bool = values(7).asInstanceOf[JsBoolean].as[Boolean];
             new BooleanAttribute(this, id, parentId, attributeTypeId, bool, validOnDate, observationDate, sortingIndex)
           case 4 =>
             let description = values(5).asInstanceOf[JsString].as[String];
-            let originalFileDate = values(6).asInstanceOf[JsNumber].as[Long];
-            let storedDate = values(7).asInstanceOf[JsNumber].as[Long];
+            let originalFileDate = values(6).asInstanceOf[JsNumber].as[i64];
+            let storedDate = values(7).asInstanceOf[JsNumber].as[i64];
             let originalFilePath = values(8).asInstanceOf[JsString].as[String];
             let readable: bool = values(9).asInstanceOf[JsBoolean].as[Boolean];
             let writable: bool = values(10).asInstanceOf[JsBoolean].as[Boolean];
             let executable: bool = values(11).asInstanceOf[JsBoolean].as[Boolean];
-            let size = values(12).asInstanceOf[JsNumber].as[Long];
+            let size = values(12).asInstanceOf[JsNumber].as[i64];
             let md5hash = values(13).asInstanceOf[JsString].as[String];
             new FileAttribute(this, id, parentId, attributeTypeId, description, originalFileDate, storedDate, originalFilePath, readable, writable,
                               executable, size, md5hash, sortingIndex)
           case 5 =>
             let validOnDate = getOptionLongFromJson(values, 5);
-            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
+            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
             let textEscaped = values(7).asInstanceOf[JsString].as[String];
             let text = org.apache.commons.lang3.StringEscapeUtils.unescapeJson(textEscaped);
             new TextAttribute(this, id, parentId, attributeTypeId, text, validOnDate, observationDate, sortingIndex)
           case 6 =>
             let validOnDate = getOptionLongFromJson(values, 5);
-            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
-            let entityId1: Long = values(7).asInstanceOf[JsNumber].as[Long];
-            let entityId2: Long = values(8).asInstanceOf[JsNumber].as[Long];
+            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let entityId1: i64 = values(7).asInstanceOf[JsNumber].as[i64];
+            let entityId2: i64 = values(8).asInstanceOf[JsNumber].as[i64];
             new RelationToLocalEntity(this, id, attributeTypeId, entityId1, entityId2, validOnDate, observationDate, sortingIndex)
           case 7 =>
             let validOnDate = getOptionLongFromJson(values, 5);
-            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
-            let entityId: Long = values(7).asInstanceOf[JsNumber].as[Long];
-            let groupId: Long = values(8).asInstanceOf[JsNumber].as[Long];
+            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let entityId: i64 = values(7).asInstanceOf[JsNumber].as[i64];
+            let groupId: i64 = values(8).asInstanceOf[JsNumber].as[i64];
             new RelationToGroup(this, id, entityId, attributeTypeId, groupId, validOnDate, observationDate, sortingIndex)
           case 8 =>
             let validOnDate = getOptionLongFromJson(values, 5);
-            let observationDate: Long = values(6).asInstanceOf[JsNumber].as[Long];
-            let entityId1: Long = values(7).asInstanceOf[JsNumber].as[Long];
+            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let entityId1: i64 = values(7).asInstanceOf[JsNumber].as[i64];
             let remoteInstanceId = values(8).asInstanceOf[JsString].as[String];
-            let entityId2: Long = values(9).asInstanceOf[JsNumber].as[Long];
+            let entityId2: i64 = values(9).asInstanceOf[JsNumber].as[i64];
             new RelationToRemoteEntity(this, id, attributeTypeId, entityId1, remoteInstanceId, entityId2, validOnDate, observationDate, sortingIndex)
           case _ => throw new OmDatabaseException("unexpected formId: " + formId)
         }
         resultsAccumulator.add((sortingIndex, attribute))
       }
-      (resultsAccumulator.toArray(new Array[(Long, Attribute)](0)), totalAttributesAvailable)
+      (resultsAccumulator.toArray(new Array[(i64, Attribute)](0)), totalAttributesAvailable)
     }
   }
 
-  override def getSortedAttributes(entityIdIn: Long, startingObjectIndexIn: Int, maxValsIn: Int,
-                                   onlyPublicEntitiesIn: Boolean): (Array[(Long, Attribute)], Int) = {
+  override def getSortedAttributes(entityIdIn: i64, startingObjectIndexIn: Int, maxValsIn: Int,
+                                   onlyPublicEntitiesIn: Boolean): (Array[(i64, Attribute)], Int) = {
     let path: String = "/entities/" + entityIdIn + "/sortedAttributes/" + startingObjectIndexIn + "/" + maxValsIn + "/" + onlyPublicEntitiesIn;
-    RestDatabase.restCall[(Array[(Long, Attribute)], Int), Any]("http://" + mRemoteAddress + path, processSortedAttributes, None, Array())
+    RestDatabase.restCall[(Array[(i64, Attribute)], Int), Any]("http://" + mRemoteAddress + path, processSortedAttributes, None, Array())
   }
 
-  def getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): Long = ???
-  def getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: Long, maxValsIn: Option[Long] = None,
+  def getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): i64 = ???
+  def getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None,
                                       quantitySeeksUnitNotTypeIn: Boolean): java.util.ArrayList[Entity] = ???
 
 
@@ -1010,164 +1010,164 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override def commitTrans(): Unit = ???
 
-  override def moveRelationToGroup(relationToGroupIdIn: Long, newContainingEntityIdIn: Long, sortingIndexIn: Long): Long = ???
+  override def moveRelationToGroup(relationToGroupIdIn: i64, newContainingEntityIdIn: i64, sortingIndexIn: i64): i64 = ???
 
-  override def updateRelationToRemoteEntity(oldRelationTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long,
-                                            newRelationTypeIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long): Unit = ???
+  override def updateRelationToRemoteEntity(oldRelationTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
+                                            newRelationTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64): Unit = ???
 
-  override def unarchiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean): Unit = ???
+  override def unarchiveEntity(idIn: i64, callerManagesTransactionsIn: Boolean): Unit = ???
 
   override def setIncludeArchivedEntities(in: Boolean): Unit = ???
 
-  override def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[Long], oldTableName: Boolean): Long = ???
+  override def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[i64], oldTableName: Boolean): i64 = ???
 
   override def deleteOmInstance(idIn: String): Unit = ???
 
-  override def deleteDateAttribute(idIn: Long): Unit = ???
+  override def deleteDateAttribute(idIn: i64): Unit = ???
 
-  override def updateDateAttribute(idIn: Long, parentIdIn: Long, dateIn: Long, attrTypeIdIn: Long): Unit = ???
+  override def updateDateAttribute(idIn: i64, parentIdIn: i64, dateIn: i64, attrTypeIdIn: i64): Unit = ???
 
-  override def updateRelationToGroup(entityIdIn: Long, oldRelationTypeIdIn: Long, newRelationTypeIdIn: Long, oldGroupIdIn: Long, newGroupIdIn: Long,
-                                     validOnDateIn: Option[Long], observationDateIn: Long): Unit = ???
+  override def updateRelationToGroup(entityIdIn: i64, oldRelationTypeIdIn: i64, newRelationTypeIdIn: i64, oldGroupIdIn: i64, newGroupIdIn: i64,
+                                     validOnDateIn: Option[i64], observationDateIn: i64): Unit = ???
 
-  override def archiveEntity(idIn: Long, callerManagesTransactionsIn: Boolean): Unit = ???
+  override def archiveEntity(idIn: i64, callerManagesTransactionsIn: Boolean): Unit = ???
 
-  override def moveLocalEntityFromGroupToGroup(fromGroupIdIn: Long, toGroupIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long): Unit = ???
+  override def moveLocalEntityFromGroupToGroup(fromGroupIdIn: i64, toGroupIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64): Unit = ???
 
-  override def deleteClassAndItsTemplateEntity(classIdIn: Long): Unit = ???
+  override def deleteClassAndItsTemplateEntity(classIdIn: i64): Unit = ???
 
-  override def createRelationToLocalEntity(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                                           sortingIndexIn: Option[Long], callerManagesTransactionsIn: Boolean): RelationToLocalEntity = ???
+  override def createRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+                                           sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean): RelationToLocalEntity = ???
 
-  override def deleteRelationToGroup(entityIdIn: Long, relationTypeIdIn: Long, groupIdIn: Long): Unit = ???
+  override def deleteRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64): Unit = ???
 
-  override def deleteQuantityAttribute(idIn: Long): Unit = ???
+  override def deleteQuantityAttribute(idIn: i64): Unit = ???
 
-  override def removeEntityFromGroup(groupIdIn: Long, containedEntityIdIn: Long, callerManagesTransactionsIn: Boolean): Unit = ???
+  override def removeEntityFromGroup(groupIdIn: i64, containedEntityIdIn: i64, callerManagesTransactionsIn: Boolean): Unit = ???
 
-  override def addEntityToGroup(groupIdIn: Long, containedEntityIdIn: Long, sortingIndexIn: Option[Long], callerManagesTransactionsIn: Boolean): Unit = ???
+  override def addEntityToGroup(groupIdIn: i64, containedEntityIdIn: i64, sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean): Unit = ???
 
-  override def deleteRelationToRemoteEntity(relationTypeIdIn: Long, entityId1In: Long, remoteInstanceIdIn: String, entityId2In: Long): Unit = ???
+  override def deleteRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64): Unit = ???
 
-  override def deleteFileAttribute(idIn: Long): Unit = ???
+  override def deleteFileAttribute(idIn: i64): Unit = ???
 
-  override def updateFileAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, descriptionIn: String): Unit = ???
+  override def updateFileAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String): Unit = ???
 
-  override def updateFileAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, descriptionIn: String, originalFileDateIn: Long, storedDateIn: Long,
-                                   originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: Long,
+  override def updateFileAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
+                                   originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64,
                                    md5hashIn: String): Unit = ???
 
-  override def updateQuantityAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, unitIdIn: Long, numberIn: Float, validOnDateIn: Option[Long],
-                                       inObservationDate: Long): Unit = ???
+  override def updateQuantityAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
+                                       inObservationDate: i64): Unit = ???
 
-  override def deleteGroupRelationsToItAndItsEntries(groupidIn: Long): Unit = ???
+  override def deleteGroupRelationsToItAndItsEntries(groupidIn: i64): Unit = ???
 
-  override def updateEntitysClass(entityId: Long, classId: Option[Long], callerManagesTransactions: Boolean): Unit = ???
+  override def updateEntitysClass(entityId: i64, classId: Option[i64], callerManagesTransactions: Boolean): Unit = ???
 
-  override def deleteBooleanAttribute(idIn: Long): Unit = ???
+  override def deleteBooleanAttribute(idIn: i64): Unit = ???
 
-  override def moveLocalEntityFromLocalEntityToGroup(removingRtleIn: RelationToLocalEntity, targetGroupIdIn: Long, sortingIndexIn: Long): Unit = ???
+  override def moveLocalEntityFromLocalEntityToGroup(removingRtleIn: RelationToLocalEntity, targetGroupIdIn: i64, sortingIndexIn: i64): Unit = ???
 
-  override def renumberSortingIndexes(entityIdOrGroupIdIn: Long, callerManagesTransactionsIn: Boolean, isEntityAttrsNotGroupEntries: Boolean): Unit = ???
+  override def renumberSortingIndexes(entityIdOrGroupIdIn: i64, callerManagesTransactionsIn: Boolean, isEntityAttrsNotGroupEntries: Boolean): Unit = ???
 
-  override def updateEntityOnlyNewEntriesStickToTop(idIn: Long, newEntriesStickToTop: Boolean): Unit = ???
+  override def updateEntityOnlyNewEntriesStickToTop(idIn: i64, newEntriesStickToTop: Boolean): Unit = ???
 
-  override def createDateAttribute(parentIdIn: Long, attrTypeIdIn: Long, dateIn: Long, sortingIndexIn: Option[Long]): Long = ???
+  override def createDateAttribute(parentIdIn: i64, attrTypeIdIn: i64, dateIn: i64, sortingIndexIn: Option[i64]): i64 = ???
 
-  override def createGroupAndRelationToGroup(entityIdIn: Long, relationTypeIdIn: Long, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean,
-                                             validOnDateIn: Option[Long], observationDateIn: Long, sortingIndexIn: Option[Long],
-                                             callerManagesTransactionsIn: Boolean): (Long, Long) = ???
+  override def createGroupAndRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean,
+                                             validOnDateIn: Option[i64], observationDateIn: i64, sortingIndexIn: Option[i64],
+                                             callerManagesTransactionsIn: Boolean): (i64, i64) = ???
 
-  override def addHASRelationToLocalEntity(fromEntityIdIn: Long, toEntityIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                                           sortingIndexIn: Option[Long]): RelationToLocalEntity = ???
+  override def addHASRelationToLocalEntity(fromEntityIdIn: i64, toEntityIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+                                           sortingIndexIn: Option[i64]): RelationToLocalEntity = ???
 
-  override def updateRelationToLocalEntity(oldRelationTypeIdIn: Long, entityId1In: Long, entityId2In: Long, newRelationTypeIdIn: Long,
-                                           validOnDateIn: Option[Long], observationDateIn: Long): Unit = ???
+  override def updateRelationToLocalEntity(oldRelationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, newRelationTypeIdIn: i64,
+                                           validOnDateIn: Option[i64], observationDateIn: i64): Unit = ???
 
-  override def updateSortingIndexInAGroup(groupIdIn: Long, entityIdIn: Long, sortingIndexIn: Long): Unit = ???
+  override def updateSortingIndexInAGroup(groupIdIn: i64, entityIdIn: i64, sortingIndexIn: i64): Unit = ???
 
-  override def updateAttributeSortingIndex(entityIdIn: Long, attributeFormIdIn: Long, attributeIdIn: Long, sortingIndexIn: Long): Unit = ???
+  override def updateAttributeSortingIndex(entityIdIn: i64, attributeFormIdIn: i64, attributeIdIn: i64, sortingIndexIn: i64): Unit = ???
 
-  override def updateGroup(groupIdIn: Long, nameIn: String, allowMixedClassesInGroupIn: Boolean, newEntriesStickToTopIn: Boolean): Unit = ???
+  override def updateGroup(groupIdIn: i64, nameIn: String, allowMixedClassesInGroupIn: Boolean, newEntriesStickToTopIn: Boolean): Unit = ???
 
-  override def setUserPreference_EntityId(nameIn: String, entityIdIn: Long): Unit = ???
+  override def setUserPreference_EntityId(nameIn: String, entityIdIn: i64): Unit = ???
 
-  override def deleteRelationType(idIn: Long): Unit = ???
+  override def deleteRelationType(idIn: i64): Unit = ???
 
-  override def deleteGroupAndRelationsToIt(idIn: Long): Unit = ???
+  override def deleteGroupAndRelationsToIt(idIn: i64): Unit = ???
 
-  override def deleteEntity(idIn: Long, callerManagesTransactionsIn: Boolean): Unit = ???
+  override def deleteEntity(idIn: i64, callerManagesTransactionsIn: Boolean): Unit = ???
 
-  override def moveRelationToLocalEntityToLocalEntity(rtleIdIn: Long, newContainingEntityIdIn: Long,
-                                                      sortingIndexIn: Long): RelationToLocalEntity = ???
+  override def moveRelationToLocalEntityToLocalEntity(rtleIdIn: i64, newContainingEntityIdIn: i64,
+                                                      sortingIndexIn: i64): RelationToLocalEntity = ???
 
   //NOTE: when implementing the below method (ie, so there is more supporting code then), also create a test (locally though...?) for RTRE.move.
   // (And while at it, also for RTRE.getEntityForEntityId2 and RTLE.getEntityForEntityId2 ?  Do they get called?)
-  override def moveRelationToRemoteEntityToLocalEntity(remoteInstanceIdIn: String, relationToRemoteEntityIdIn: Long, toContainingEntityIdIn: Long,
-                                                       sortingIndexIn: Long): RelationToRemoteEntity = ???
+  override def moveRelationToRemoteEntityToLocalEntity(remoteInstanceIdIn: String, relationToRemoteEntityIdIn: i64, toContainingEntityIdIn: i64,
+                                                       sortingIndexIn: i64): RelationToRemoteEntity = ???
 
-  override def createFileAttribute(parentIdIn: Long, attrTypeIdIn: Long, descriptionIn: String, originalFileDateIn: Long, storedDateIn: Long,
-                                   originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: Long,
-                                   md5hashIn: String, inputStreamIn: FileInputStream, sortingIndexIn: Option[Long]): Long = ???
+  override def createFileAttribute(parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
+                                   originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64,
+                                   md5hashIn: String, inputStreamIn: FileInputStream, sortingIndexIn: Option[i64]): i64 = ???
 
-  override def deleteTextAttribute(idIn: Long): Unit = ???
+  override def deleteTextAttribute(idIn: i64): Unit = ???
 
-  override def createEntityAndRelationToLocalEntity(entityIdIn: Long, relationTypeIdIn: Long, newEntityNameIn: String, isPublicIn: Option[Boolean],
-                                                    validOnDateIn: Option[Long], observationDateIn: Long,
-                                                    callerManagesTransactionsIn: Boolean): (Long, Long) = ???
+  override def createEntityAndRelationToLocalEntity(entityIdIn: i64, relationTypeIdIn: i64, newEntityNameIn: String, isPublicIn: Option[Boolean],
+                                                    validOnDateIn: Option[i64], observationDateIn: i64,
+                                                    callerManagesTransactionsIn: Boolean): (i64, i64) = ???
 
-  override def moveEntityFromGroupToLocalEntity(fromGroupIdIn: Long, toEntityIdIn: Long, moveEntityIdIn: Long, sortingIndexIn: Long): Unit = ???
+  override def moveEntityFromGroupToLocalEntity(fromGroupIdIn: i64, toEntityIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64): Unit = ???
 
-  override def updateTextAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, textIn: String, validOnDateIn: Option[Long],
-                                   observationDateIn: Long): Unit = ???
+  override def updateTextAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64],
+                                   observationDateIn: i64): Unit = ???
 
-  override def getOrCreateClassAndTemplateEntity(classNameIn: String, callerManagesTransactionsIn: Boolean): (Long, Long) = ???
+  override def getOrCreateClassAndTemplateEntity(classNameIn: String, callerManagesTransactionsIn: Boolean): (i64, i64) = ???
 
-  override def addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: Long,
+  override def addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: i64,
                                             makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
                                             quoteIn: Option[String] = None): (Entity, RelationToLocalEntity) = ???
 
-  override def updateEntityOnlyPublicStatus(idIn: Long, value: Option[Boolean]): Unit = ???
+  override def updateEntityOnlyPublicStatus(idIn: i64, value: Option[Boolean]): Unit = ???
 
-  override def createRelationToRemoteEntity(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long, validOnDateIn: Option[Long],
-                                            observationDateIn: Long, remoteInstanceIdIn: String, sortingIndexIn: Option[Long],
+  override def createRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64],
+                                            observationDateIn: i64, remoteInstanceIdIn: String, sortingIndexIn: Option[i64],
                                             callerManagesTransactionsIn: Boolean): RelationToRemoteEntity = ???
 
-  override def createRelationToGroup(entityIdIn: Long, relationTypeIdIn: Long, groupIdIn: Long, validOnDateIn: Option[Long], observationDateIn: Long,
-                                     sortingIndexIn: Option[Long], callerManagesTransactionsIn: Boolean): (Long, Long) = ???
+  override def createRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+                                     sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean): (i64, i64) = ???
 
-  override def createBooleanAttribute(parentIdIn: Long, attrTypeIdIn: Long, booleanIn: Boolean, validOnDateIn: Option[Long], observationDateIn: Long,
-                                      sortingIndexIn: Option[Long]): Long = ???
+  override def createBooleanAttribute(parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64,
+                                      sortingIndexIn: Option[i64]): i64 = ???
 
-  override def createEntity(nameIn: String, classIdIn: Option[Long], isPublicIn: Option[Boolean]): Long = ???
+  override def createEntity(nameIn: String, classIdIn: Option[i64], isPublicIn: Option[Boolean]): i64 = ???
 
-  override def deleteRelationToLocalEntity(relationTypeIdIn: Long, entityId1In: Long, entityId2In: Long): Unit = ???
+  override def deleteRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64): Unit = ???
 
-  override def updateClassCreateDefaultAttributes(classIdIn: Long, value: Option[Boolean]) = ???
+  override def updateClassCreateDefaultAttributes(classIdIn: i64, value: Option[Boolean]) = ???
 
-  override def updateBooleanAttribute(idIn: Long, parentIdIn: Long, attrTypeIdIn: Long, booleanIn: Boolean,
-                                      validOnDateIn: Option[Long], inObservationDate: Long): Unit = ???
+  override def updateBooleanAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean,
+                                      validOnDateIn: Option[i64], inObservationDate: i64): Unit = ???
 
-  override def createQuantityAttribute(parentIdIn: Long, attrTypeIdIn: Long, unitIdIn: Long, numberIn: Float, validOnDateIn: Option[Long],
-                                       inObservationDate: Long, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option[Long] = None): /*id*/
-  Long = ???
+  override def createQuantityAttribute(parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
+                                       inObservationDate: i64, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option[i64] = None): /*id*/
+  i64 = ???
 
-  override def createTextAttribute(parentIdIn: Long, attrTypeIdIn: Long, textIn: String, validOnDateIn: Option[Long],
-                                   observationDateIn: Long, callerManagesTransactionsIn: Boolean, sortingIndexIn: Option[Long]): Long = ???
+  override def createTextAttribute(parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64],
+                                   observationDateIn: i64, callerManagesTransactionsIn: Boolean, sortingIndexIn: Option[i64]): i64 = ???
 
-  override def createRelationType(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): Long = ???
+  override def createRelationType(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): i64 = ???
 
-  override def updateRelationType(idIn: Long, nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): Unit = ???
+  override def updateRelationType(idIn: i64, nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): Unit = ???
 
-  override def createClassAndItsTemplateEntity(classNameIn: String): (Long, Long) = ???
+  override def createClassAndItsTemplateEntity(classNameIn: String): (i64, i64) = ???
 
-  override def createGroup(nameIn: String, allowMixedClassesInGroupIn: Boolean): Long = ???
+  override def createGroup(nameIn: String, allowMixedClassesInGroupIn: Boolean): i64 = ???
 
-  override def updateEntityOnlyName(idIn: Long, nameIn: String): Unit = ???
+  override def updateEntityOnlyName(idIn: i64, nameIn: String): Unit = ???
 
-  override def updateClassAndTemplateEntityName(classIdIn: Long, name: String): Long = ???
+  override def updateClassAndTemplateEntityName(classIdIn: i64, name: String): i64 = ???
 
-  override def updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option[Long]): Unit = ???
+  override def updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option[i64]): Unit = ???
 
 
   // NOTE: those below, like getUserPreference_Boolean or getPreferencesContainerId, are intentionally unimplemented, not because they are
@@ -1182,11 +1182,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   // Idea: improve & shorten that rambling explanation.
   override def getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option[Boolean]): Option[Boolean] = ???
 
-  override def getPreferencesContainerId: Long = ???
+  override def getPreferencesContainerId: i64 = ???
 
-  override def getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[Long]): Option[Long] = ???
+  override def getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[i64]): Option[i64] = ???
 
   override def getOmInstances(localIn: Option[Boolean]): util.ArrayList[OmInstance] = ???
 
-  def getRelationToLocalEntityDataById(idIn: Long): Array[Option[Any]] = ???
+  def getRelationToLocalEntityDataById(idIn: i64): Array[Option[Any]] = ???
 }

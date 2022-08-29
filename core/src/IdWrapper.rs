@@ -16,10 +16,10 @@ package org.onemodel.core.model
   one of these from a method and the signature of the method does not have to specify whether it is
   the ID of a QuantityAttribute, Relation, etc (relation ID has 3 parts, Attribute and Entity ID's for example have one).
 
-  (But: why not just return a Long or Option[Long]?)
+  (But: why not just return a i64 or Option[i64]?)
   */
-class IdWrapper(id: Long) {
-  def getId: Long = {
+class IdWrapper(id: i64) {
+  def getId: i64 = {
     id
   }
 }

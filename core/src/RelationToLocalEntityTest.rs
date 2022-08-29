@@ -38,7 +38,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   "getDisplayString" should "return correct strings and length" in {
     let relationTypeName: String = "is husband to";
     let relationTypeNameInReverseDirection: String = "is wife to";
-    let relationTypeId: Long = mDB.createRelationType(relationTypeName, relationTypeNameInReverseDirection, "BI");
+    let relationTypeId: i64 = mDB.createRelationType(relationTypeName, relationTypeNameInReverseDirection, "BI");
     let relationType = new RelationType(mDB, relationTypeId);
     let entity1Name = "husbandName";
     let entity2Name = "wifeName";
