@@ -7,23 +7,24 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-/* * Provides a text-based interface for efficiency, or for people who like that,
-  * The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly.
-  */
+use std::env;
+
+/// Provides a text-based interface for efficiency, or for people who like that,
+/// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
+/// or a library and/or good REST api for such.
 fn main() {
     println!("starting om in Rust");
-
-/*
-object TextUI {
-  val NEWLN: String = Util.NEWLN
-  val menuCharsList: String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
-
-  def main(args: Array[String]) {
-    new TextUI(args).launchUI()
-  }
+    //println!("{}", TextUI::MENU_CHARS)
+    let args: Vec<String> = env::args().collect();
 }
 
-class TextUI(args: Array[String] = Array[String](), val inIn: Option[InputStream] = None) {
+struct TextUI {
+}
+
+impl TextUI {
+    const MENU_CHARS: &'static str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+}
+/*
   //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
   val objectChooserMenuPrefixLength: Int = 2
   val (username, password): (Option[String], Option[String]) = if (args.length == 2) (Some(args(0)), Some(args(1))) else (None, None)
@@ -591,4 +592,3 @@ import java.io._
 import jline.console.{ConsoleReader, KeyMap}
 import org.apache.commons.io.FilenameUtils
 */
-}
