@@ -131,7 +131,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
           numRowsToMove = controller.moveFarthestCount
           forwardNotBack = true
         }
-        val displayStartingRowNumber: Int = {
+        let displayStartingRowNumber: i32 = {;
           val possibleDisplayStartingRowNumber = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), numRowsToMove, forwardNotBack,
                                startingDisplayRowIndexIn, highlightedObjId, highlightedIndexInObjListIn,
                                Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
@@ -293,7 +293,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
       targetForMoves: Option[Entity]) = {
         // Be sure the code is OK even if the highlightedEntityIn isn't really in the list due to caller logic error, etc.
         var highlightedObjId: Long = if (highlightedEntityIn.isEmpty) objIds(0) else highlightedEntityIn.get.getId
-        var highlightedIndexInObjList: Int = {
+        let mut highlightedIndexInObjList: i32 = {;
           val index = objIds.indexOf(highlightedObjId)
           // if index == -1 then there could be a logic error where an entity not in the list was passed in, or an entry was moved and we're not displaying
           // the portion of the list containing that entry.  Regardless, don't fail (ie, don't throw AIOOBE) due to the -1 later, just make it None.
@@ -350,7 +350,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
               // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
               val goingBackward: Boolean = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop
               val forwardNotBack = !goingBackward
-              val displayStartingRowNumber: Int = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), 0,
+              let displayStartingRowNumber: i32 = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), 0,;
                                                                        forwardNotBackIn = forwardNotBack, startingDisplayRowIndexIn, newEntityId,
                                                                        highlightedIndexInObjList, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
               controller.defaultAttributeCopying(newEntity)
@@ -427,7 +427,7 @@ class QuickGroupMenu(override val ui: TextUI, val controller: Controller) extend
                   // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
                   val goingBackward: Boolean = highlightedIndexInObjList == 0 && groupIn.getNewEntriesStickToTop
                   val forward = !goingBackward
-                  val newDisplayStartingRowNumber: Int = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), 0, forwardNotBackIn = forward,
+                  let newDisplayStartingRowNumber: i32 = placeEntryInPosition(groupIn.mDB, groupIn.getId, groupIn.getSize(4), 0, forwardNotBackIn = forward,;
                                                                               startingDisplayRowIndexIn, entityChosenId, highlightedIndexInObjList,
                                                                               Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
                   (Some(new Entity(groupIn.mDB, entityChosenId)), newDisplayStartingRowNumber)

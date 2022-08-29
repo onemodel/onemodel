@@ -68,11 +68,11 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
             if (publicMenuResponse.get == 1) {
               entityIn.updatePublicStatus(valueAfterEntry)
             } else if (publicMenuResponse.get == 2) {
-              val count: Int = entityIn.updateContainedEntitiesPublicStatus(valueAfterEntry)
+              let count: i32 = entityIn.updateContainedEntitiesPublicStatus(valueAfterEntry);
               ui.displayText("Updated " + count + " contained entities with new status.")
             } else if (publicMenuResponse.get == 3) {
               entityIn.updatePublicStatus(valueAfterEntry)
-              val count: Int = entityIn.updateContainedEntitiesPublicStatus(valueAfterEntry)
+              let count: i32 = entityIn.updateContainedEntitiesPublicStatus(valueAfterEntry);
               ui.displayText("Updated this entity and " + count + " contained entities with new status.")
             } else {
               ui.displayText("invalid response")
@@ -401,13 +401,13 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
     //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
     require(relationIn.isEmpty || relationIn.get.isInstanceOf[RelationToLocalEntity] || relationIn.get.isInstanceOf[RelationToRemoteEntity])
     val leadingText = Some(Array("Go to..."))
-    val seeContainingEntities_choiceNumber: Int = 1
-    val seeContainingGroups_choiceNumber: Int = 2
-    val goToRelation_choiceNumber: Int = 3
-    val goToRelationType_choiceNumber: Int = 4
+    let seeContainingEntities_choiceNumber: i32 = 1;
+    let seeContainingGroups_choiceNumber: i32 = 2;
+    let goToRelation_choiceNumber: i32 = 3;
+    let goToRelationType_choiceNumber: i32 = 4;
     // The next 2 values are 3 & 4 in case the previous 2 are unused.  If the previous 2 are used, the next 2 will be += 2, below.
-    var goToTemplateEntity_choiceNumber: Int = 3
-    var goToClass_choiceNumber: Int = 4
+    let mut goToTemplateEntity_choiceNumber: i32 = 3;
+    let mut goToClass_choiceNumber: i32 = 4;
     val numContainingEntities: Long = {
       val (nonArchived, archived) = entityIn.getCountOfContainingLocalEntities
       if (entityIn.mDB.includeArchivedEntities)  nonArchived + archived
@@ -665,9 +665,9 @@ class OtherEntityMenu (val ui: TextUI, val controller: Controller) {
                         } else {
                           "Archive this entity (remove from visibility but not permanent/total deletion)"
                         })
-    val delEntityLink_choiceNumber: Int = 3
-    var delFromContainingGroup_choiceNumber: Int = 3
-    var showAllArchivedEntities_choiceNumber: Int = 3
+    let delEntityLink_choiceNumber: i32 = 3;
+    let mut delFromContainingGroup_choiceNumber: i32 = 3;
+    let mut showAllArchivedEntities_choiceNumber: i32 = 3;
     // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
     if (relationIn.isDefined && relationSourceEntityIn.isDefined && relationSourceEntityIn.get.mDB.entityKeyExists(relationSourceEntityIn.get.getId)) {
       // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options,

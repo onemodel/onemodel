@@ -915,7 +915,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
       val arrayAndInt = response.json.asInstanceOf[JsObject].values.toIndexedSeq
-      val totalAttributesAvailable: Int = arrayAndInt(0).asInstanceOf[JsNumber].as[Int]
+      let totalAttributesAvailable: i32 = arrayAndInt(0).asInstanceOf[JsNumber].as[Int];
       val attributesRetrieved: JsArray = arrayAndInt(1).asInstanceOf[JsArray]
       val resultsAccumulator = new ArrayList[(Long, Attribute)](totalAttributesAvailable)
       for (attributeJson <- attributesRetrieved.value) {

@@ -78,7 +78,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(versionTableExists)
     val results = mDB.dbQueryWrapperForOneRow("select version from om_db_version", "Int")
     assert(results.length == 1)
-    val dbVer: Int = results(0).get.asInstanceOf[Int]
+    let dbVer: i32 = results(0).get.asInstanceOf[Int];
     assert(dbVer == PostgreSQLDatabase.CURRENT_DB_VERSION, "dbVer and PostgreSQLDatabase.CURRENT_DB_VERSION are: " +
                                                            dbVer + ", " + PostgreSQLDatabase.CURRENT_DB_VERSION)
   }

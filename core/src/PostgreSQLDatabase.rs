@@ -740,7 +740,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     if (! versionTableExists) {
       createVersionTable()
     }
-    var dbVersion: Int = dbQueryWrapperForOneRow("select version from om_db_version", "Int")(0).get.asInstanceOf[Int]
+    let mut dbVersion: i32 = dbQueryWrapperForOneRow("select version from om_db_version", "Int")(0).get.asInstanceOf[Int];
     if (dbVersion == 0) {
       dbVersion = upgradeDbFrom0to1()
     }
@@ -3663,7 +3663,7 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
 //    }
 
     // idea: this could change to a val and be filled w/ a recursive helper method; other vars might go away then too.
-    var tableListIndex: Int = 0
+    let mut tableListIndex: i32 = 0;
 
     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
     //keeps track of where we are in getting rows >= inStartingObjectIndex and <= maxValsIn
@@ -3792,9 +3792,9 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     // (The "getOrElse" on next line is to allow for the absence of a value in case the attributeSorting table doesn't have an entry for some attributes.
     Sorting.quickSort(allResultsArray)(Ordering[Long].on(x => x._1.asInstanceOf[Long]))
 
-    val from: Int = startingObjectIndexIn
-    val numVals: Int = if (maxValsIn > 0) maxValsIn else allResultsArray.length
-    val until: Int = Math.min(startingObjectIndexIn + numVals, allResultsArray.length)
+    let from: i32 = startingObjectIndexIn;
+    let numVals: i32 = if (maxValsIn > 0) maxValsIn else allResultsArray.length;
+    let until: i32 = Math.min(startingObjectIndexIn + numVals, allResultsArray.length);
     (allResultsArray.slice(from, until), allResultsArray.length)
   }
 

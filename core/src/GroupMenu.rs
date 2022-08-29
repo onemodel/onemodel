@@ -191,7 +191,7 @@ class GroupMenu(val ui: TextUI, val controller: Controller) {
           }
         }
       } else if (answer == 6) {
-        val displayRowsStartingWithCounter: Int = {
+        let displayRowsStartingWithCounter: i32 = {;
           val currentPosition = displayStartingRowNumberIn + objectsToDisplay.size
           if (currentPosition >= groupIn.getSize(4)) {
             ui.displayText("End of attribute list found; restarting from the beginning.")

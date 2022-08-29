@@ -177,7 +177,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       }
     }
 
-    val newDisplayRowsStartingWithCounter: Int = {
+    let newDisplayRowsStartingWithCounter: i32 = {;
       if (forwardNotBack) {
         if ((moveFromRelativeIndexInObjListIn + byHowManyEntriesMoving) >= numDisplayLines) {
           // if the object will move too far to be seen in this screenful, adjust the screenful to redisplay, with some margin
@@ -188,12 +188,12 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
           val numLinesInHalfTheScreen = numDisplayLines / 2
           val movedEntrysNewAbsoluteIndexMinusHalfScreenful: Double = startingDisplayRowIndexIn + moveFromRelativeIndexInObjListIn +
                                                                       byHowManyEntriesMoving - numLinesInHalfTheScreen
-          val min: Int = math.min(lastScreenfulStartingIndex, movedEntrysNewAbsoluteIndexMinusHalfScreenful).asInstanceOf[Int]
+          let min: i32 = math.min(lastScreenfulStartingIndex, movedEntrysNewAbsoluteIndexMinusHalfScreenful).asInstanceOf[Int];
           math.max(0, min)
         } else startingDisplayRowIndexIn
       } else {
         if ((moveFromRelativeIndexInObjListIn - byHowManyEntriesMoving) < 0) {
-          val movedEntrysNewAbsoluteIndexMinusHalfScreenful: Int = startingDisplayRowIndexIn + moveFromRelativeIndexInObjListIn -
+          let movedEntrysNewAbsoluteIndexMinusHalfScreenful: i32 = startingDisplayRowIndexIn + moveFromRelativeIndexInObjListIn -;
                                                                    byHowManyEntriesMoving - (numDisplayLines / 2)
           math.max(0, movedEntrysNewAbsoluteIndexMinusHalfScreenful)
         } else startingDisplayRowIndexIn

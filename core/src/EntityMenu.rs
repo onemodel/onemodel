@@ -69,7 +69,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
       }
     }
     val choices: Array[String] = getChoices(entityIn, numAttrsInEntity)
-    val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength)
+    let numDisplayableAttributes: i32 = ui.maxColumnarChoicesToDisplayAfter(leadingText.length, choices.length, Util.maxNameLength);
     val (attributeTuples: Array[(Long, Attribute)], totalAttrsAvailable: Int) =
       entityIn.getSortedAttributes(attributeRowsStartingIndexIn, numDisplayableAttributes, onlyPublicEntitiesIn = false)
     if ((numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) {
@@ -88,7 +88,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
         (None, None, None, None)
       } else {
         var highlightedEntry: Option[Attribute] = Some(highlightedAttributeIn.getOrElse(attributeTuples(0)._2))
-        val highlightedObjFormId: Int = highlightedEntry.get.getFormId
+        let highlightedObjFormId: i32 = highlightedEntry.get.getFormId;
         val highlightedObjId: Long = highlightedEntry.get.getId
         var highlightedIndexInObjList: Option[Int] = None
         var moveTargetIndexInObjList: Option[Int] = None
@@ -155,7 +155,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
             val goingBackward: Boolean = highlightedIndexInObjList.getOrElse(0) == 0 && entityIn.getNewEntriesStickToTop
             val forward = !goingBackward
-            val displayStartingRowNumber: Int = placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount(), 0, forwardNotBackIn = forward,
+            let displayStartingRowNumber: i32 = placeEntryInPosition(entityIn.mDB, entityIn.getId, entityIn.getAttributeCount(), 0, forwardNotBackIn = forward,;
                                                                      attributeRowsStartingIndexIn, newAttribute.getId,
                                                                      highlightedIndexInObjList.getOrElse(0),
                                                                      if (highlightedEntry.isDefined) Some(highlightedEntry.get.getId) else None,
@@ -233,7 +233,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
             } else {
               // those in the condition are 1-based, not 0-based.
               // user typed a letter to select an attribute (now 0-based):
-              val selectionIndex: Int = answer - choices.length - 1
+              let selectionIndex: i32 = answer - choices.length - 1;
               val userSelection: Attribute = attributeTuples(selectionIndex)._2
               if (selectionIndex == highlightedIndexInObjList.get) {
                 // chose same entity for the target, as the existing highlighted selection, so make it the target, and no highlighted one.
@@ -288,7 +288,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
 
         // those in the condition are 1-based, not 0-based.
         // lets user go to an entity or group quickly (1 stroke)
-        val choicesIndex: Int = answer - choices.length - 1
+        let choicesIndex: i32 = answer - choices.length - 1;
         goToAttributeThenRedisplayHere(entityIn, attributeRowsStartingIndexIn, targetForMovesIn, containingRelationToEntityIn, containingGroupIn,
                                        attributeTuples, attributesToDisplay, answer, choicesIndex)
       } else {
@@ -397,7 +397,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
     if (searchResponse.isDefined) {
       val searchAnswer = searchResponse.get
       if (searchAnswer == 1) {
-        val startingIndex: Int = getNextStartingRowsIndex(attributeTuples.length, attributeRowsStartingIndexIn, numAttrsInEntity)
+        let startingIndex: i32 = getNextStartingRowsIndex(attributeTuples.length, attributeRowsStartingIndexIn, numAttrsInEntity);
         entityMenu(entityIn, startingIndex, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (searchAnswer == 2) {
         ui.displayText("(Not yet implemented.)")
@@ -417,7 +417,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           val levelsAnswer = ui.askForString(Some(Array("Enter the # of levels to search (above 10 can take many hours; currently only searches locally;" +
                                                         " searching from main/top menu is often faster)")),
                                              Some(Util.isNumeric), Some("5"))
-          val levels: Int = levelsAnswer.getOrElse("4").toInt
+          let levels: i32 = levelsAnswer.getOrElse("4").toInt;
           val entityIdsTreeSet: mutable.TreeSet[Long] = entityIn.findContainedLocalEntityIds(new mutable.TreeSet[Long], searchString, levels,
                                                                                              stopAfterAnyFoundIn = false)
           val entityIds = entityIdsTreeSet.toArray
@@ -427,7 +427,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           val entityIdsTruncated: Array[Long] = {
             //(A temporary workaround for too little info.  Better ideas in my OM todos: search for "show more search results in entitymenu",
             //entry created 2020-12-28.)
-            //was:  val numDisplayableAttributes: Int = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Util.maxNameLength)
+            //was:  let numDisplayableAttributes: i32 = ui.maxColumnarChoicesToDisplayAfter(leadingText2.length, choices.length, Util.maxNameLength);
             val numDisplayableAttributes = 84
 
             if (entityIds.length <= numDisplayableAttributes) {
@@ -548,7 +548,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
           numRowsToMove = controller.moveFarthestCount
           forwardNotBack = true
         }
-        val displayStartingRowNumber: Int = {
+        let displayStartingRowNumber: i32 = {;
           val possibleDisplayStartingRowNumber = placeEntryInPosition(entityIn.mDB, entityIn.getId, totalAttrsAvailable, numRowsToMove,
                                forwardNotBackIn = forwardNotBack, startingDisplayRowIndexIn, highlightedAttributeIn.getId,
                                highlightedIndexInObjListIn, Some(highlightedAttributeIn.getId),
@@ -744,7 +744,7 @@ class EntityMenu(override val ui: TextUI, val controller: Controller) extends So
                         "external web page (or other URI, to refer to external information and optionally quote it)")
                  )
     if (whichKindOfAttribute.isDefined) {
-      val attrForm: Int = whichKindOfAttribute.get match {
+      let attrForm: i32 = whichKindOfAttribute.get match {;
         // This is a bridge between the expected order for convenient UI above, and the parameter value expected by controller.addAttribute
         // (1-based, not 0-based.)
 

@@ -219,7 +219,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         } else {
           if (line.length > Util.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + Util.maxNameLength + " characters " +
                                                                " (has " + line.length + "): " + line)
-          val indentationSpaceCount: Int = getFirstNonSpaceIndex(lineUntrimmed.getBytes, 0)
+          let indentationSpaceCount: i32 = getFirstNonSpaceIndex(lineUntrimmed.getBytes, 0);
           if (indentationSpaceCount % spacesPerIndentLevel != 0) throw new OmException("# of spaces is off, on line " + lineNumber + ": '" + line + "'")
           val newIndentationLevel = indentationSpaceCount / spacesPerIndentLevel
           if (newIndentationLevel == lastIndentationLevel) {
@@ -362,8 +362,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                                                                                    "markers MUST be on the same line.")
     val lineContentBeforeMarker = lineUntrimmedIn.substring(0, lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarkerIn)).trim
     val lineContentFromBeginMarker = lineUntrimmedIn.substring(lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarkerIn)).trim
-    val uriStartLocation: Int = lineContentFromBeginMarker.toLowerCase.indexOf(beginningTagMarkerIn.toLowerCase) + beginningTagMarkerIn.length
-    val uriEndLocation: Int = lineContentFromBeginMarker.toLowerCase.indexOf(endMarkerIn.toLowerCase)
+    let uriStartLocation: i32 = lineContentFromBeginMarker.toLowerCase.indexOf(beginningTagMarkerIn.toLowerCase) + beginningTagMarkerIn.length;
+    let uriEndLocation: i32 = lineContentFromBeginMarker.toLowerCase.indexOf(endMarkerIn.toLowerCase);
     if (lineContentFromBeginMarker.substring(uriEndLocation + endMarkerIn.length).trim.nonEmpty) {
       throw new OmException("\"Unsupported format at line " + lineNumberIn + ": A \"" + endMarkerIn + "\" (end URI attribute) marker " +
                             "must be the" + " last text on its line.")
@@ -441,7 +441,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       val ans: Option[String] = ui.askForString(Some(Array("Enter " + levelsText + " (including this one; 0 = 'all'); ESC to cancel")),
                                                 Some(Util.isNumeric), Some("0"))
       if (ans.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
-      val levelsToExport: Int = ans.get.toInt
+      let levelsToExport: i32 = ans.get.toInt;
 
       val ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?")
       if (ans2.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
@@ -467,7 +467,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
       var numberTheLines: Boolean = false
       var wrapTheLines: Boolean = false
-      var wrapAtColumn: Int = 1
+      let mut wrapAtColumn: i32 = 1;
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
         val ans6: Option[Boolean] = ui.askYesNoQuestion("Number the entries in outline form (ex, 3.1.5)?  (Prevents directly re-importing.)", Some("y"), allowBlankAnswer = true)
         if (ans6.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)

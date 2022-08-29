@@ -505,7 +505,7 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
     val response = ui.askWhich(Some(leadingText), firstChoices)
     if (response.isEmpty) false
     else {
-      val answer: Int = response.get
+      let answer: i32 = response.get;
       if (answer == 1) {
         attributeIn match {
           case quantityAttribute: QuantityAttribute =>

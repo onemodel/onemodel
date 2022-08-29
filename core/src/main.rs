@@ -26,7 +26,7 @@ impl TextUI {
 }
 /*
   //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
-  val objectChooserMenuPrefixLength: Int = 2
+  let objectChooserMenuPrefixLength: i32 = 2;
   val (username, password): (Option[String], Option[String]) = if (args.length == 2) (Some(args(0)), Some(args(1))) else (None, None)
   val forceUsernamePasswordPrompt: Boolean = if (args.length == 1) true else false
 
@@ -137,7 +137,7 @@ impl TextUI {
   }
 
   def getUserInputChar(allowedCharsIn_CURRENTLY_IGNORED: List[Char]): (Char, Boolean) = {
-    var input: Int = jlineReader.readCharacter(true)
+    let mut input: i32 = jlineReader.readCharacter(true);
     if (!input.isValidChar) {
       throw new Exception("Unexpected non-char value " + input + " from readCharacter().")
     }
@@ -235,7 +235,7 @@ impl TextUI {
     if (lastLineOfPrompt.length > 1 && lastLineOfPrompt.length + endPrompt.length - 1 <= Util.maxNameLength) {
       val spaces: StringBuilder = new StringBuilder("")
       // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker
-      val padLength: Int = Util.maxNameLength - lastLineOfPrompt.length - endPrompt.length + 1
+      let padLength: i32 = Util.maxNameLength - lastLineOfPrompt.length - endPrompt.length + 1;
       for (x <- 0 until padLength) {
         spaces.append(" ")
       }
@@ -370,10 +370,10 @@ impl TextUI {
                                                                                possibleMenuChars.length + ")")
 
     val alreadyFull = false
-    var lineCounter: Int = 0
+    let mut lineCounter: i32 = 0;
     val allAllowedAnswers = new StringBuffer
 
-    var lastMenuCharsIndex: Int = -1
+    let mut lastMenuCharsIndex: i32 = -1;
     def nextMenuChar(): String = {
       val next = lastMenuCharsIndex + 1
       lastMenuCharsIndex = next
@@ -390,7 +390,7 @@ impl TextUI {
         alreadyFull
       } else if ((!alreadyFull) && lineCounter > terminalHeight) {
         // (+ 1 above to leave room for the error message line, below)
-        val unshownCount: Int = choicesIn.length + moreChoicesIn.length - lineCounter - 1
+        let unshownCount: i32 = choicesIn.length + moreChoicesIn.length - lineCounter - 1;
         println("==============================")
         println("FYI: Unable to show remaining " + unshownCount + " items in the available screen space(!?). Consider code change to pass the " +
         "right number of them, relaunching w/ larger terminal, or grouping things?  (ref: " + alreadyFull + "/" + lineCounter + "/" +
@@ -404,7 +404,7 @@ impl TextUI {
 
     def showChoices() {
       // see containing method description: these choices are 1-based when considered from the human/UI perspective:
-      var index: Int = 1
+      let mut index: i32 = 1;
 
       for (choice <- choicesIn) {
         if (!ranOutOfVerticalSpace) {
