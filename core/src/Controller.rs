@@ -1,39 +1,34 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2020 inclusive, Luke A. Call; all rights reserved.
-    (That copyright statement once said 2013-2015, until I remembered that much of Controller came from TextUI.scala, and TextUI.java before that.)
-    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    Copyright in each year of 2003-2004, 2008-2020 inclusive, and 2022, Luke A. Call; all rights reserved.
+    (That copyright statement once said only 2013-2015, until I remembered that much of Controller came from TextUI.scala, and TextUI.java before that.)
+    OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
+    and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core.controllers
 
-import java.io._
-import java.util
-
-import org.onemodel.core._
-import org.onemodel.core.model._
-
-import scala.annotation.tailrec
-import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
-
-/** This Controller is for user-interactive things.  The Controller class in the web module is for the REST API.  For shared code that does not fit
-  * in those, see the org.onemodel.core.Util object (in Util.scala).
-  *
-  * Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
-  * scalatest docs 4 ideas, & maybe use expect or the gnu testing tool that uses expect?), delaying side effects more,
-  * shorter methods, other better scala style, etc.
-  *
-  *
-  * * * * *IMPORTANT * * * * * IMPORTANT* * * * * * *IMPORTANT * * * * * * * IMPORTANT* * * * * * * * *IMPORTANT * * * * * *
-  Don't ever instantiate a controller from a *test* without passing in username/password parameters, because it will try to log in to the user's default
-  database and run the tests there (ie, they could be destructive):
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  */
-class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None, defaultPasswordIn: Option[String] = None) {
+/// This Controller is for user-interactive things.  The Controller class in the web module is for the REST API.  For shared code that does not fit
+/// in those, see the org.onemodel.core.Util object (in Util.rc)%%?
+///
+/// Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
+/// scalatest docs 4 ideas, & maybe use expect or the gnu testing tool that uses expect?), delaying side effects more,
+/// shorter methods, other better style?, etc.
+///
+/// * * * *IMPORTANT * * * * * IMPORTANT* * * * * * *IMPORTANT * * * * * * * IMPORTANT* * * * * * * * *IMPORTANT * * * * * *
+/// Don't ever instantiate a controller from a *test* without passing in username/password parameters, because it will try to log in to the user's
+/// default, live Database and run the tests there (ie, they could be destructive)!:
+/// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+///
+struct Controller {
+  //%%
+}
+impl Controller {
+    // %%
+}
+/*
+(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None, defaultPasswordIn: Option[String] = None) {
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
   // This should *not* be passed around as a parameter to everything, but rather those places in the code should get the DB instance from the
   // entity (or other model object) being processed.
@@ -2081,3 +2076,16 @@ class Controller(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUser
   }
 
 }
+package org.onemodel.core.controllers
+
+import java.io._
+import java.util
+
+import org.onemodel.core._
+import org.onemodel.core.model._
+
+import scala.annotation.tailrec
+import scala.collection.JavaConversions._
+import scala.collection.mutable.ArrayBuffer
+
+*/

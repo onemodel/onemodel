@@ -1,6 +1,6 @@
 /*  This file is part of OneModel, a program to manage knowledge.
     Copyright in each year of 2003-2004, 2008-2019 inclusive, and 2022, Luke A. Call; all rights reserved.
-    OneModel is free software, distributed under a license that includes honesty, the Golden Rule, 
+    OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,6 +16,36 @@ fn main() {
     println!("starting om in Rust");
     //println!("{}", TextUI::MENU_CHARS)
     let args: Vec<String> = env::args().collect();
+    let (username, password) = (args.get(1), args.get(2));
+        // %%
+    // {
+        // if args.len() == 3 {
+        //     (Some(args[1].clone), Some(args[2]))
+        //     // (Some(String::from("args[0]")), Some(String::from("args[1]")))
+        // } else {
+        //     (None, None)
+        // }
+    // };
+    dbg!(username, password);
+    println!("args.len: {}", args.len());
+    let forceUsernamePasswordPrompt: bool = if args.len() == 1 {true} else {false};
+    println!("forceUsernamePasswordPrompt: {}", forceUsernamePasswordPrompt);
+
+/*
+    let controller: Controller = new Controller(this, forceUsernamePasswordPrompt, username, password);
+    let mTerminal: jline.Terminal = initializeTerminal();
+    let jlineReader: ConsoleReader = initializeReader();
+    let howQuit: String = if (Util.isWindows) "Close the window" else "Ctrl+C";
+
+    // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
+    // the cleanup actually happens.
+    private let mCleanupStarted: bool = false;
+
+    private let mut mJlineTerminalInitFinished: bool = false;
+    private let mut mJlineReaderInitFinished: bool = false;
+
+    controller.start()
+*/
 }
 
 struct TextUI {
@@ -27,23 +57,6 @@ impl TextUI {
     const CHOOSER_MENU_PREFIX_LENGTH: i32 = 2;
 }
 /*
-  let (username, password): (Option[String], Option[String]) = if (args.length == 2) (Some(args(0)), Some(args(1))) else (None, None);
-  let forceUsernamePasswordPrompt: bool = if (args.length == 1) true else false;
-
-  // (making some lazy vals instead of vars because it's considered generally cleaner to use vals, and lazy in case they are not
-  // needed for unit tests)
-  lazy let controller: Controller = new Controller(this, forceUsernamePasswordPrompt, username, password);
-  lazy let mTerminal: jline.Terminal = initializeTerminal();
-  let jlineReader: ConsoleReader = initializeReader();
-  let howQuit: String = if (Util.isWindows) "Close the window" else "Ctrl+C";
-
-  // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
-  // the cleanup actually happens.
-  private let mCleanupStarted: bool = false;
-
-  private let mut mJlineTerminalInitFinished: bool = false;
-  private let mut mJlineReaderInitFinished: bool = false;
-
   def initializeTerminal(): jline.Terminal = {
     synchronized {
                    if (mCleanupStarted) null
@@ -192,9 +205,6 @@ impl TextUI {
     }
   }
 
-  def launchUI() {
-    controller.start()
-  }
 
   /* Returns the string entered (None if the user just wants out of this question or whatever, unless escKeySkipsCriteriaCheck is false).
    * The parameter "criteria"'s Option is a function which takes a String (which will be the user input), which it checks for validity.
