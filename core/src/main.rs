@@ -56,7 +56,7 @@ impl TextUI {
     //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
     const CHOOSER_MENU_PREFIX_LENGTH: i32 = 2;
 }
-/*
+/* %%
   def initializeTerminal(): jline.Terminal = {
     synchronized {
                    if (mCleanupStarted) null

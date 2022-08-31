@@ -27,7 +27,7 @@ struct Controller {
 impl Controller {
     // %%
 }
-/*
+/* %%
 (ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None, defaultPasswordIn: Option[String] = None) {
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
   // This should *not* be passed around as a parameter to everything, but rather those places in the code should get the DB instance from the
