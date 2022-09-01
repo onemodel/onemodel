@@ -17,46 +17,56 @@ fn main() {
     //println!("{}", TextUI::MENU_CHARS)
     let args: Vec<String> = env::args().collect();
     let (username, password) = (args.get(1), args.get(2));
-        // %%
+    // %%
     // {
-        // if args.len() == 3 {
-        //     (Some(args[1].clone), Some(args[2]))
-        //     // (Some(String::from("args[0]")), Some(String::from("args[1]")))
-        // } else {
-        //     (None, None)
-        // }
+    // if args.len() == 3 {
+    //     (Some(args[1].clone), Some(args[2]))
+    //     // (Some(String::from("args[0]")), Some(String::from("args[1]")))
+    // } else {
+    //     (None, None)
+    // }
     // };
     dbg!(username, password);
     println!("args.len: {}", args.len());
-    let forceUsernamePasswordPrompt: bool = if args.len() == 1 {true} else {false};
-    println!("forceUsernamePasswordPrompt: {}", forceUsernamePasswordPrompt);
+    let forceUsernamePasswordPrompt: bool = if args.len() == 1 { true } else { false };
+    println!(
+        "forceUsernamePasswordPrompt: {}",
+        forceUsernamePasswordPrompt
+    );
 
-/*
-    let controller: Controller = new Controller(this, forceUsernamePasswordPrompt, username, password);
-    let mTerminal: jline.Terminal = initializeTerminal();
-    let jlineReader: ConsoleReader = initializeReader();
-    let howQuit: String = if (Util.isWindows) "Close the window" else "Ctrl+C";
+    let ui = TextUI {};
 
-    // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
-    // the cleanup actually happens.
-    private let mCleanupStarted: bool = false;
+    let controller = controller {
+        ui,
+        forceUsernamePasswordPrompt,
+        username,
+        password,
+    };
+    /*
+        let mTerminal: jline.Terminal = initializeTerminal();
+        let jlineReader: ConsoleReader = initializeReader();
+        let howQuit: String = if (Util.isWindows) "Close the window" else "Ctrl+C";
 
-    private let mut mJlineTerminalInitFinished: bool = false;
-    private let mut mJlineReaderInitFinished: bool = false;
+        // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
+        // the cleanup actually happens.
+        private let mCleanupStarted: bool = false;
 
-    controller.start()
-*/
+        private let mut mJlineTerminalInitFinished: bool = false;
+        private let mut mJlineReaderInitFinished: bool = false;
+
+        controller.start()
+    */
 }
 
-struct TextUI {
-}
+struct TextUI {}
 
 impl TextUI {
-    const MENU_CHARS: &'static str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+    const MENU_CHARS: &'static str =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
     //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
     const CHOOSER_MENU_PREFIX_LENGTH: i32 = 2;
 }
-/* %%
+/*
   def initializeTerminal(): jline.Terminal = {
     synchronized {
                    if (mCleanupStarted) null

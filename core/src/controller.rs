@@ -21,10 +21,10 @@
 /// default, live Database and run the tests there (ie, they could be destructive)!:
 /// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ///
-struct Controller {
+struct controller {
   //%%
 }
-impl Controller {
+impl controller {
     // %%
 }
 /* %%
