@@ -8,7 +8,8 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 use std::env;
-
+pub mod controllers;
+use crate::controllers::controller::Controller;
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.
@@ -16,31 +17,22 @@ fn main() {
     println!("starting om in Rust");
     //println!("{}", TextUI::MENU_CHARS)
     let args: Vec<String> = env::args().collect();
-    let (username, password) = (args.get(1), args.get(2));
-    // %%
-    // {
-    // if args.len() == 3 {
-    //     (Some(args[1].clone), Some(args[2]))
-    //     // (Some(String::from("args[0]")), Some(String::from("args[1]")))
-    // } else {
-    //     (None, None)
-    // }
-    // };
-    dbg!(username, password);
+    let (default_username, default_password) = (args.get(1), args.get(2));
+    dbg!(default_username, default_password);
     println!("args.len: {}", args.len());
-    let forceUsernamePasswordPrompt: bool = if args.len() == 1 { true } else { false };
+    let force_user_pass_prompt: bool = if args.len() == 1 { true } else { false };
     println!(
         "forceUsernamePasswordPrompt: {}",
-        forceUsernamePasswordPrompt
+        force_user_pass_prompt
     );
 
     let ui = TextUI {};
 
-    let controller = controller {
+    let controller = Controller {
         ui,
-        forceUsernamePasswordPrompt,
-        username,
-        password,
+        force_user_pass_prompt,
+        default_username,
+        default_password,
     };
     /*
         let mTerminal: jline.Terminal = initializeTerminal();
@@ -54,11 +46,12 @@ fn main() {
         private let mut mJlineTerminalInitFinished: bool = false;
         private let mut mJlineReaderInitFinished: bool = false;
 
-        controller.start()
+        Controller.start()
+        %%
     */
 }
 
-struct TextUI {}
+pub struct TextUI {}
 
 impl TextUI {
     const MENU_CHARS: &'static str =
@@ -66,7 +59,7 @@ impl TextUI {
     //i.e., for the "n-" menu number prefix on each option shown in "askWhich":
     const CHOOSER_MENU_PREFIX_LENGTH: i32 = 2;
 }
-/*
+/* %%
   def initializeTerminal(): jline.Terminal = {
     synchronized {
                    if (mCleanupStarted) null
@@ -250,7 +243,7 @@ impl TextUI {
       lastLineOfPrompt
     }
     // idea: make this better by using features of or tweaking jline2? Or...? But at least make it easy to see when out of room!
-    //val promptToShowStringSizeLimit = "(Max name length is  " + controller.maxNameLength
+    //val promptToShowStringSizeLimit = "(Max name length is  " + Controller.maxNameLength
     let endPrompt = "(... which ends here: |)";
     if (lastLineOfPrompt.length > 1 && lastLineOfPrompt.length + endPrompt.length - 1 <= Util.maxNameLength) {
       let spaces: StringBuilder = new StringBuilder("");
@@ -485,7 +478,7 @@ impl TextUI {
           }
         }
         if (linesTooLong) {
-          // This could mean that either the terminal width is less than " + controller.maxNameLength + " characters, or
+          // This could mean that either the terminal width is less than " + Controller.maxNameLength + " characters, or
           // that there is a bug in the display logic:
           println("(Some lines were longer than the terminal width and have been truncated.)")
         }
@@ -603,7 +596,7 @@ import org.onemodel.core.controllers.Controller
 
 import scala.annotation.tailrec
 
-//idea: should go through controller to get this, so UI layer doesn't have to talk all the way to the model layer? enforce w/ scoping rules?
+//idea: should go through Controller to get this, so UI layer doesn't have to talk all the way to the model layer? enforce w/ scoping rules?
 
 import org.onemodel.core.model.FileAttribute
 

@@ -150,7 +150,7 @@ abstract class Database {
   /* Many of these methods are marked "protected[model]" for 2 reasons:
        1) to minimize the risk of calling db.<method> on the wrong db, when the full model object (like Entity) would contain the right db for itself
           (ie, what if one called db.delete and the same entity id # exists in both databases), and
-       2) to generally manage the coupling between the controller and model package, since it seems cleaner to go through model objects when then can
+       2) to generally manage the coupling between the Controller and model package, since it seems cleaner to go through model objects when then can
           call the db for themselves, rather than everything touching the db entrails directly.
      ...but should be avoided when going through the model object (like Entity) causes enough more db hits to not be worth it (performance vs.
      clarity & ease of maintenance).

@@ -312,7 +312,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         let prompt = "A name for the *type* of this text attribute was not provided; it would be the entire line content preceding the \"" +;
                      beginningTagMarker + "\" " +
                      "(it has to match an existing entity, case-sensitively)"
-        //IDEA: this used to call controller.chooseOrCreateObject_OrSaysCancelled instead. Removing it removes a prompt if the user pressed ESC during it,
+        //IDEA: this used to call Controller.chooseOrCreateObject_OrSaysCancelled instead. Removing it removes a prompt if the user pressed ESC during it,
         //and this lacks a convenient way to test it, and I don't know that anyone uses it right now. So maybe add a test sometime:
         let selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(entityIn.mDB,;
                                                                                               Some(List(prompt + ", so please choose one or ESC to abort" +

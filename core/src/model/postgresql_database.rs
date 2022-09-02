@@ -243,7 +243,7 @@ class PostgreSQLDatabase(username: String, let mut password: String) extends Dat
     * after an OM release was done.  This puts it into existing databases if needed.
     */
   def createAndCheckExpectedData(): Unit = {
-    //Idea: should this really be in the controller then?  It wouldn't differ by which database type we are using.  Hmm, no, if there were multiple
+    //Idea: should this really be in the Controller then?  It wouldn't differ by which database type we are using.  Hmm, no, if there were multiple
     // database types, there would probably a parent class over them (of some kind) to hold this.
     let systemEntityId = getSystemEntityId;
     let HASrelationTypeId = findRelationType(Database.theHASrelationTypeName, Some(1)).get(0);
@@ -3208,15 +3208,15 @@ class PostgreSQLDatabase(username: String, let mut password: String) extends Dat
         ==============================================
         java.lang.StringIndexOutOfBoundsException: String index out of range: -2
         at java.lang.String.substring(String.java:1911)
-        at org.onemodel.controller.Controller.deleteOrArchiveEntity(Controller.scala:644)
-        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:232)
-        at org.onemodel.controller.EntityMenu.entityMenu(EntityMenu.scala:388)
-        at org.onemodel.controller.Controller.showInEntityMenuThenMainMenu(Controller.scala:277)
-        at org.onemodel.controller.MainMenu.mainMenu(MainMenu.scala:80)
-        at org.onemodel.controller.MainMenu.mainMenu(MainMenu.scala:98)
-        at org.onemodel.controller.MainMenu.mainMenu(MainMenu.scala:98)
-        at org.onemodel.controller.Controller.menuLoop$1(Controller.scala:140)
-        at org.onemodel.controller.Controller.start(Controller.scala:143)
+        at org.onemodel.Controller.Controller.deleteOrArchiveEntity(Controller.scala:644)
+        at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:232)
+        at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:388)
+        at org.onemodel.Controller.Controller.showInEntityMenuThenMainMenu(Controller.scala:277)
+        at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:80)
+        at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
+        at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
+        at org.onemodel.Controller.Controller.menuLoop$1(Controller.scala:140)
+        at org.onemodel.Controller.Controller.start(Controller.scala:143)
         at org.onemodel.TextUI.launchUI(TextUI.scala:220)
         at org.onemodel.TextUI$.main(TextUI.scala:34)
         at org.onemodel.TextUI.main(TextUI.scala:1)

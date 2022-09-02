@@ -129,7 +129,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
               if (classId.isDefined) {
                 entityIn.updateClass(classId)
 
-                // Idea here: when changing the class of an entity, we *could* controller.defaultAttributeCopying (or prompt as elsewhere) to
+                // Idea here: when changing the class of an entity, we *could* Controller.defaultAttributeCopying (or prompt as elsewhere) to
                 // set up the attributes, but the need is unclear, and user can now do that manually from the menus if needed.  Code in future
                 // should also be able to use default values from the template entity, as another fallback.
               }
@@ -153,7 +153,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
               if (!entityIn.isArchived) {
                 archiveEntity(entityIn)
               } else {
-                // ** IF THIS menu OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in controller.getDefaultEntity. **
+                // ** IF THIS menu OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in Controller.getDefaultEntity. **
                 unarchiveEntity(entityIn)
               }
             } else if (delAnswer == delEntityLink_choiceNumber && containingRelationToEntityIn.isDefined && delAnswer <= choices.length) {
@@ -166,7 +166,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
             } else if (delAnswer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && delAnswer <= choices.length) {
               removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn)
             } else if (delAnswer == showAllArchivedEntities_choiceNumber) {
-              // ** IF THIS OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in controller.getDefaultEntity. **
+              // ** IF THIS OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in Controller.getDefaultEntity. **
               entityIn.mDB.setIncludeArchivedEntities(! entityIn.mDB.includeArchivedEntities)
             } else {
               ui.displayText("invalid response")

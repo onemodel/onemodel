@@ -9,6 +9,8 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 
+use crate::TextUI;
+
 /// This Controller is for user-interactive things.  The Controller class in the web module is for the REST API.  For shared code that does not fit
 /// in those, see the org.onemodel.core.Util object (in Util.rc)%%?
 ///
@@ -17,22 +19,27 @@
 /// shorter methods, other better style?, etc.
 ///
 /// * * * *IMPORTANT * * * * * IMPORTANT* * * * * * *IMPORTANT * * * * * * * IMPORTANT* * * * * * * * *IMPORTANT * * * * * *
-/// Don't ever instantiate a controller from a *test* without passing in username/password parameters, because it will try to log in to the user's
+/// Don't ever instantiate a Controller from a *test* without passing in username/password parameters, because it will try to log in to the user's
 /// default, live Database and run the tests there (ie, they could be destructive)!:
 /// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ///
-struct controller {
-  //%%
+pub struct Controller<'a> {
+    //%%the defas?--if needed make a ::new that sets them?:
+    // force_user_pass_prompt: Boolean = false, default_username: Option[String] = None, default_password: Option[String] = None,
+    pub ui: TextUI,
+    pub force_user_pass_prompt: bool,
+    pub default_username: Option<&'a String>,
+    pub default_password: Option<&'a String>,
+    //%%
 }
-impl controller {
+impl Controller<'_> {
     // %%
 }
 /* %%
-(ui: TextUI, forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None, defaultPasswordIn: Option[String] = None) {
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
   // This should *not* be passed around as a parameter to everything, but rather those places in the code should get the DB instance from the
   // entity (or other model object) being processed.
-  private let localDb: Database = tryLogins(forceUserPassPromptIn, defaultUsernameIn, defaultPasswordIn);
+  private let localDb: Database = tryLogins(force_user_pass_prompt, default_username, default_password);
   let moveFartherCount = 25;
   let moveFarthestCount = 50;
 
@@ -94,10 +101,10 @@ impl controller {
   }
 
   /** If the 1st parm is true, the next 2 must be omitted or None. */
-  private def tryLogins(forceUserPassPromptIn: Boolean = false, defaultUsernameIn: Option[String] = None,
-                        defaultPasswordIn: Option[String] = None): Database = {
+  private def tryLogins(force_user_pass_prompt: Boolean = false, default_username: Option[String] = None,
+                        default_password: Option[String] = None): Database = {
 
-    require(if (forceUserPassPromptIn) defaultUsernameIn.isEmpty && defaultPasswordIn.isEmpty else true)
+    require(if (force_user_pass_prompt) default_username.isEmpty && default_password.isEmpty else true)
 
     // Tries the system username, blank password, & if that doesn't work, prompts user.
     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
@@ -105,13 +112,13 @@ impl controller {
       let db = {;
         let mut pwdOpt: Option[String] = None;
         // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
-        let (defaultUserName, defaultPassword) = Util.getDefaultUserInfo;
-        let dbWithSystemNameBlankPwd = Database.login(defaultUserName, defaultPassword, showError = false);
+        let (default_username, defaultPassword) = Util.getDefaultUserInfo;
+        let dbWithSystemNameBlankPwd = Database.login(default_username, defaultPassword, showError = false);
         if (dbWithSystemNameBlankPwd.isDefined) {
           ui.displayText("(Using default user info...)", waitForKeystrokeIn = false)
           dbWithSystemNameBlankPwd
         } else {
-          let usrOpt = ui.askForString(Some(Array("Username")), None, Some(defaultUserName));
+          let usrOpt = ui.askForString(Some(Array("Username")), None, Some(default_username));
           if (usrOpt.isEmpty) System.exit(1)
           let dbConnectedWithBlankPwd = Database.login(usrOpt.get, defaultPassword, showError = false);
           if (dbConnectedWithBlankPwd.isDefined) dbConnectedWithBlankPwd
@@ -142,7 +149,7 @@ impl controller {
       else db.get
     }
 
-    if (forceUserPassPromptIn) {
+    if (force_user_pass_prompt) {
       //IF ADDING ANY optional PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
       @tailrec def loopPrompting: Database = {
         let usrOpt = ui.askForString(Some(Array("Username")));
@@ -156,9 +163,9 @@ impl controller {
         else loopPrompting
       }
       loopPrompting
-    } else if (defaultUsernameIn.isDefined && defaultPasswordIn.isDefined) {
+    } else if (default_username.isDefined && default_password.isDefined) {
       // idea: perhaps this could be enhanced and tested to allow a username parameter, but prompt for a password, if/when need exists.
-      let db = Database.login(defaultUsernameIn.get, defaultPasswordIn.get, showError = true);
+      let db = Database.login(default_username.get, default_password.get, showError = true);
       if (db.isEmpty) {
         ui.displayText("The program wasn't expected to get to this point in handling it (expected an exception to be thrown previously), " +
                        "but the login with provided credentials failed.")
@@ -1710,7 +1717,7 @@ impl controller {
       if (newEntityName.isEmpty || newEntityName.get.isEmpty) return None
 
       let ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (typing or directly pasting), or" +;
-                                                " have OM pull directly from the clipboard (faster sometimes)?")), 
+                                                " have OM pull directly from the clipboard (faster sometimes)?")),
                                                 Array("keyboard", "clipboard"))
       if (ans1.isEmpty) return None
       let keyboardOrClipboard1 = ans1.get;

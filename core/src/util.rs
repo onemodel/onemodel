@@ -465,7 +465,7 @@ object Util {
     askForBothDates(ui)
   }
 
-  /** Cloned from controller.askForDate; see its comments in the code.
+  /** Cloned from Controller.askForDate; see its comments in the code.
     * Idea: consider combining somehow with method askForDateAttributeValue.
     * @return None if user wants out.
     */

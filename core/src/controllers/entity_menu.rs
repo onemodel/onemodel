@@ -423,7 +423,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                                                                                              stopAfterAnyFoundIn = false)
           let entityIds = entityIdsTreeSet.toArray;
           let leadingText2 = Array[String](Util.pickFromListPrompt);
-          // could be like if (numAttrsInEntity > 0) controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
+          // could be like if (numAttrsInEntity > 0) Controller.listNextItemsPrompt else "(stub)" above, if we made the method more sophisticated to do that.
           let choices: Array[String] = Array("(stub)");
           let entityIdsTruncated: Array[i64] = {;
             //(A temporary workaround for too little info.  Better ideas in my OM todos: search for "show more search results in entitymenu",
@@ -746,7 +746,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                  )
     if (whichKindOfAttribute.isDefined) {
       let attrForm: i32 = whichKindOfAttribute.get match {;
-        // This is a bridge between the expected order for convenient UI above, and the parameter value expected by controller.addAttribute
+        // This is a bridge between the expected order for convenient UI above, and the parameter value expected by Controller.addAttribute
         // (1-based, not 0-based.)
 
         // (Using RELATION_TO_LOCAL_ENTITY_TYPE on next line even though it actually will work for either local or remote.  There wasn't room in the menu

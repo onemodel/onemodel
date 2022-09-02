@@ -63,8 +63,8 @@ object RestDatabase {
       /* Idea?: Can simplify this based on code example inside the test at
            https://www.playframework.com/documentation/2.5.x/ScalaTestingWithScalaTest#Unit-Testing-Controllers
          which is:
-           let controller = new ExampleController();
-           let result: Future[Result] = controller.index().apply(FakeRequest());
+           let Controller = new ExampleController();
+           let result: Future[Result] = Controller.index().apply(FakeRequest());
            let bodyText: String = contentAsString(result);
       */
       let response: WSResponse = Await.result(futureResponse, timeout);
