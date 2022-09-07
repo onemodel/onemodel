@@ -10,6 +10,11 @@
 use std::env;
 pub mod controllers;
 use crate::controllers::controller::Controller;
+pub mod util;
+use crate::util::Util;
+use rustyline::error::ReadlineError;
+use rustyline::{Editor, Result};
+
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.
@@ -34,10 +39,39 @@ fn main() {
         default_username,
         default_password,
     };
+    let how_quit: String = if Util::is_windows() {
+        String::from("Close the window")
+    } else {
+        String::from("Ctrl+C")
+    };
+
+    controller.start();
+
     /*
+let mut rl = Editor::<()>::new()?;
+
+let readline = rl.readline(">> ");
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(line.as_str());
+                println!("Line: {}", line);
+            },
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break
+            },
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break
+            },
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break
+            }
+        }
+
         let mTerminal: jline.Terminal = initializeTerminal();
         let jlineReader: ConsoleReader = initializeReader();
-        let howQuit: String = if (Util.isWindows) "Close the window" else "Ctrl+C";
 
         // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
         // the cleanup actually happens.
@@ -45,8 +79,6 @@ fn main() {
 
         private let mut mJlineTerminalInitFinished: bool = false;
         private let mut mJlineReaderInitFinished: bool = false;
-
-        Controller.start()
         %%
     */
 }
@@ -125,7 +157,8 @@ impl TextUI {
   //def setInput(in: InputStream) {
   //  jlineReader.setInput(in)
   //}
-
+*/
+/* %%$%
   /**
    * The # of items to try to display on the screen at one time.
    */
@@ -171,6 +204,8 @@ impl TextUI {
     (input.toChar, isAltKeyCombo)
   }
 
+*/
+/* %%
   /** Allows customizing the output stream, for tests.
     */
   def println() {
@@ -196,7 +231,6 @@ impl TextUI {
   def weAreTesting: Boolean = {
     mTesting
   }
-
   def displayText(textIn: String, waitForKeystrokeIn: Boolean = true, prePromptIn: Option[String] = None) {
     displayVisualSeparator()
     println(textIn)
@@ -207,8 +241,9 @@ impl TextUI {
       getUserInputChar
     }
   }
+*/
 
-
+/* %%
   /* Returns the string entered (None if the user just wants out of this question or whatever, unless escKeySkipsCriteriaCheck is false).
    * The parameter "criteria"'s Option is a function which takes a String (which will be the user input), which it checks for validity.
    * If the entry didn't meet the criteria, it repeats the question until it does or user gets out w/ ESC.

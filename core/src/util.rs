@@ -1,4 +1,3 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
     Copyright in each year of 2003-2004 and 2008-2017 inclusive, and 2019, Luke A. Call; all rights reserved.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala, and TextUI.java before that.
@@ -10,21 +9,15 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-package org.onemodel.core
 
-import java.io.{BufferedReader, PrintWriter, StringWriter}
-import java.nio.file.{Files, Path}
-import java.util.Date
-
-import org.apache.commons.io.FilenameUtils
-import org.onemodel.core.model._
-
-import scala.annotation.tailrec
-
-/** This is just a place to put shared code ("Utility") until a grouping or better idea emerges.  Using it also
-  * has the benefit of making the Controller file smaller, so it is more quickly compiled (especially by the IDE).
+/** This is just a place to put shared code ("Utility") until a grouping for some, or a better idea emerges.  Using it also
+  * had (in Scala anyway) the benefit of making the Controller file smaller, so it is more quickly compiled (especially by the IDE).
  */
-object Util {
+pub struct Util {
+}
+
+impl Util {
+/* %%
   // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
   def maxNameLength: Int = math.max(math.max(Database.entityNameLength, Database.relationTypeNameLength),
                                     Database.classNameLength)
@@ -97,12 +90,14 @@ object Util {
     //val selection = new java.awt.datatransfer.StringSelection("someString")
     //clipboard.setContents(selection, null)
   }
+*/
 
-  def isWindows: Boolean = {
-    let osName = System.getProperty("os.name").toLowerCase;
-    osName.contains("win")
+  pub fn is_windows() -> bool {
+    let os = std::env::consts::OS;
+    os.eq("windows")
   }
 
+/* %%
   // Used for example after one has been deleted, to put the highlight on right next one:
   // idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
   /**
@@ -738,4 +733,15 @@ object Util {
     }
   }
 
+package org.onemodel.core
+
+import java.io.{BufferedReader, PrintWriter, StringWriter}
+import java.nio.file.{Files, Path}
+import java.util.Date
+
+import org.apache.commons.io.FilenameUtils
+import org.onemodel.core.model._
+
+import scala.annotation.tailrec
+*/
 }

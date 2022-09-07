@@ -10,6 +10,7 @@
 */
 
 use crate::TextUI;
+use crate::util::Util;
 
 /// This Controller is for user-interactive things.  The Controller class in the web module is for the REST API.  For shared code that does not fit
 /// in those, see the org.onemodel.core.Util object (in Util.rc)%%?
@@ -34,7 +35,6 @@ pub struct Controller<'a> {
 }
 impl Controller<'_> {
     // %%
-}
 /* %%
   //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
   // This should *not* be passed around as a parameter to everything, but rather those places in the code should get the DB instance from the
@@ -66,11 +66,13 @@ impl Controller<'_> {
       Some((defaultDisplayEntityId.get, entity.get))
     }
   }
+*/
 
-  def start() {
+    pub fn start(&self) {
+      /* %%
     // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  make it save their answer 'yes/i agree' or such in the DB,
     // and don't make them press the keystroke again (time-saver)!  See code at top of PostgreSQLDatabase that puts things in the db at startup: do similarly?
-    ui.displayText(Util.copyright(ui), waitForKeystrokeIn = true, Some("IF YOU DO NOT AGREE TO THOSE TERMS: " + ui.howQuit + " to exit.\n" +
+    ui.displayText(Util.copyright(ui), waitForKeystrokeIn = true, Some("IF YOU DO NOT AGREE TO THOSE TERMS: " + ui.how_quit + " to exit.\n" +
                                                              "If you agree to those terms: "))
     // Max id used as default here because it seems the least likely # to be used in the system hence the
     // most likely to cause an error as default by being missing, so the system can respond by prompting
@@ -98,8 +100,10 @@ impl Controller<'_> {
       menuLoop()
     }
     menuLoop(Some(5))
-  }
+   %%    */
+    }
 
+/* %%
   /** If the 1st parm is true, the next 2 must be omitted or None. */
   private def tryLogins(force_user_pass_prompt: Boolean = false, default_username: Option[String] = None,
                         default_password: Option[String] = None): Database = {
@@ -142,7 +146,7 @@ impl Controller<'_> {
         }
       }
       if (db.isEmpty) {
-        ui.displayText("Login failed; retrying (" + ui.howQuit + " to quit if needed):",
+        ui.displayText("Login failed; retrying (" + ui.how_quit + " to quit if needed):",
                        waitForKeystrokeIn = false)
         tryOtherLoginsOrPrompt()
       }
@@ -2081,8 +2085,10 @@ impl Controller<'_> {
       }
     }
   }
-
+*/
 }
+
+/*  %%
 package org.onemodel.core.controllers
 
 import java.io._
