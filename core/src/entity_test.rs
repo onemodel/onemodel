@@ -62,7 +62,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
   "testAddQuantityAttribute" should "work" in {
     mDB.beginTrans()
-    System.out.println("starting testAddQuantityAttribute")
+    println!("starting testAddQuantityAttribute")
     let id: i64 = mEntity.addQuantityAttribute(mQuantityAttrTypeId, mUnitId, 100, None).getId;
     let qo: QuantityAttribute = mEntity.getQuantityAttribute(id);
     if (qo == null) {
@@ -74,7 +74,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
   "testAddTextAttribute" should "also work" in {
     mDB.beginTrans()
-    System.out.println("starting testAddTextAttribute")
+    println!("starting testAddTextAttribute")
     let id: i64 = mEntity.addTextAttribute(mTextAttrTypeId, "This is someName given to an object", None).getId;
     let t: TextAttribute = mEntity.getTextAttribute(id);
     if (t == null) {
@@ -86,7 +86,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
   "testAddDateAttribute" should "also work" in {
     mDB.beginTrans()
-    System.out.println("starting testAddDateAttribute")
+    println!("starting testAddDateAttribute")
     let id: i64 = mEntity.addDateAttribute(mDateAttrTypeId, 2).getId;
     let t: DateAttribute = mEntity.getDateAttribute(id);
     assert(t != null)
@@ -98,7 +98,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
   "testAddBooleanAttribute" should "also work" in {
     mDB.beginTrans()
-    System.out.println("starting testAddBooleanAttribute")
+    println!("starting testAddBooleanAttribute")
     let startTime = System.currentTimeMillis();
     let id: i64 = mEntity.addBooleanAttribute(mBooleanAttrTypeId, inBoolean = true, None).getId;
     let t: BooleanAttribute = mEntity.getBooleanAttribute(id);
@@ -115,7 +115,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     mDB.beginTrans()
     let mut file: java.io.File = null;
     let mut fw: java.io.FileWriter = null;
-    System.out.println("starting testAddFileAttribute")
+    println!("starting testAddFileAttribute")
     try {
       file = java.io.File.createTempFile("om-test-file-attr-", null)
       fw = new java.io.FileWriter(file)

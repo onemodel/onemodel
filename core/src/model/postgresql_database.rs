@@ -1185,7 +1185,7 @@ class PostgreSQLDatabase(username: String, let mut password: String) extends Dat
       // "Idea:: BAD SMELL! The UI should do all UI communication, no?"  Maybe, pass in a UI object instead and call some generic method that will handle
       // the info properly?  Or have logs?
       // (SEE ALSO comments and code at other places with the part on previous line in quotes).
-      System.err.println("Unable to find, from the entity " + Database.systemEntityName + "(" + systemEntityId + "), " +
+      eprintln!("Unable to find, from the entity " + Database.systemEntityName + "(" + systemEntityId + "), " +
                          "any connection to its expected contained group " +
                          Database.classTemplateEntityGroupName + ".  If it was deleted, it could be replaced if you want the convenience of finding" +
                          " template " +
@@ -2336,19 +2336,19 @@ class PostgreSQLDatabase(username: String, let mut password: String) extends Dat
         if (data.size != numberOfEntries) {
           // "Idea:: BAD SMELL! The UI should do all UI communication, no?"
           // (SEE ALSO comments and code at other places with the part on previous line in quotes).
-          System.err.println()
-          System.err.println()
-          System.err.println()
-          System.err.println("--------------------------------------")
-          System.err.println("Unexpected state: data.size (" + data.size +  ") != numberOfEntries (" + numberOfEntries +  "), when they should be equal. ")
+          eprintln!()
+          eprintln!()
+          eprintln!()
+          eprintln!("--------------------------------------")
+          eprintln!("Unexpected state: data.size (" + data.size +  ") != numberOfEntries (" + numberOfEntries +  "), when they should be equal. ")
           if (data.size > numberOfEntries) {
-            System.err.println("Possibly, the database trigger \"attribute_sorting_cleanup\" (created in method createAttributeSortingDeletionTrigger) is" +
+            eprintln!("Possibly, the database trigger \"attribute_sorting_cleanup\" (created in method createAttributeSortingDeletionTrigger) is" +
             " not always cleaning up when it should or something. ")
           }
-          System.err.println("If there is a consistent way to reproduce this from scratch (with attributes of a *new* entity), or other information" +
+          eprintln!("If there is a consistent way to reproduce this from scratch (with attributes of a *new* entity), or other information" +
                              " to diagnose/improve the situation, please advise.  The program will attempt to continue anyway but a bug around sorting" +
                              " or placement in this set of entries might result.")
-          System.err.println("--------------------------------------")
+          eprintln!("--------------------------------------")
         }
         for (entry <- data) {
           if (isEntityAttrsNotGroupEntries) {

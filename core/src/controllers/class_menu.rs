@@ -63,14 +63,14 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
             classMenu(new EntityClass(classIn.mDB, classIn.getId))
           } else {
             //textui doesn't actually let the code get here, but:
-            ui.displayText("invalid response")
+            ui.display_text("invalid response")
             None
           }
         }
         else if (answer == 4) {
           let entitiesCount: i64 = classIn.mDB.getEntitiesOnlyCount(limitByClass = true, Some(classIn.getId), Some(classIn.getTemplateEntityId));
           if (entitiesCount > 0) {
-            ui.displayText("Can not delete class, because it is the class of " + entitiesCount + " entities.")
+            ui.display_text("Can not delete class, because it is the class of " + entitiesCount + " entities.")
           } else {
             let name = classIn.getName;
             let templateEntity = new Entity(classIn.mDB, classIn.getTemplateEntityId);
@@ -83,11 +83,11 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
                                           groupCount + " groups.)")
             if (ans.isDefined && ans.get) {
               classIn.delete()
-              ui.displayText("Deleted class \"" + name + "\"" + ".")
+              ui.display_text("Deleted class \"" + name + "\"" + ".")
               let selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(classIn.mDB, None, None, None, Util.ENTITY_CLASS_TYPE);
               if (selection.isDefined) classMenu(new EntityClass(classIn.mDB, selection.get._1.getId))
             } else {
-              ui.displayText("Did not delete class.", waitForKeystrokeIn = false)
+              ui.display_text("Did not delete class.", false);
             }
           }
           classMenu(classIn)
@@ -102,7 +102,7 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
           classMenu(new EntityClass(classIn.mDB, classIn.getId))
         } else {
           //textui doesn't actually let the code get here, but:
-          ui.displayText("invalid response")
+          ui.display_text("invalid response")
           classMenu(classIn)
         }
       }

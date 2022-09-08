@@ -42,12 +42,12 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
               if (selection.isDefined) {
                 showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.getId)))
               }
-            case _ => ui.displayText("unexpected: " + answer)
+            case _ => ui.display_text("unexpected: " + answer)
           }
         }
       } else if (Entity.getEntity(db, entityIn.get.getId).isEmpty) {
-        ui.displayText("The entity to be displayed, id " + entityIn.get.getId + ": " + entityIn.get.getDisplayString() + "\", is not present, " +
-                       "probably because it was deleted.  Trying the prior one viewed.", waitForKeystrokeIn = false)
+        ui.display_text("The entity to be displayed, id " + entityIn.get.getId + ": " + entityIn.get.getDisplayString() + "\", is not present, " +
+                       "probably because it was deleted.  Trying the prior one viewed.", false)
         // then allow exit from this method so the caller will thus back up one entity and re-enter this menu.
       } else {
         require(entityIn.isDefined)
@@ -110,7 +110,7 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
                 mainMenu(Some(entity))
               }
             case _: Int =>
-              ui.displayText("unexpected: " + answer)
+              ui.display_text("unexpected: " + answer)
           }
           // Show main menu here, in case user hit ESC from an entityMenu (which returns None): so they'll still see the entity they expect next.
           mainMenu(Some(entity))

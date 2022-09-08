@@ -85,7 +85,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
         if (importOrExport.isDefined) {
           if (importOrExport.get == 1) new ImportExport(ui, controller).importCollapsibleOutlineAsGroups(groupIn)
           else if (importOrExport.get == 2) {
-            ui.displayText("not yet implemented: try it from an entity rather than a group where it is supported, for now.")
+            ui.display_text("not yet implemented: try it from an entity rather than a group where it is supported, for now.")
             //exportToCollapsibleOutline(entityIn)
           }
         }
@@ -187,7 +187,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
             if (groupIn.mDB.groupKeyExists(groupIn.getId)) groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             else None
           } else {
-            ui.displayText("invalid response")
+            ui.display_text("invalid response")
             groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
           }
         }
@@ -195,16 +195,16 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
         let displayRowsStartingWithCounter: i32 = {;
           let currentPosition = displayStartingRowNumberIn + objectsToDisplay.size;
           if (currentPosition >= groupIn.getSize(4)) {
-            ui.displayText("End of attribute list found; restarting from the beginning.")
+            ui.display_text("End of attribute list found; restarting from the beginning.")
             0 // start over
           } else currentPosition
         }
         groupMenu(groupIn, displayRowsStartingWithCounter, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 7) {
-        ui.displayText("not yet implemented")
+        ui.display_text("not yet implemented")
         groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 8) {
-        ui.displayText("placeholder: nothing implemented here yet")
+        ui.display_text("placeholder: nothing implemented here yet")
         groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if (answer == 9 && answer <= choices.length) {
         new QuickGroupMenu(ui, controller).quickGroupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn = callingMenusRtgIn,
@@ -216,7 +216,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
         let choicesIndex = answer - choices.length - 1;
         // user typed a letter to select an attribute (now 0-based)
         if (choicesIndex >= objectsToDisplay.size()) {
-          ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
+          ui.display_text("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
           groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else {
           let entry = objectsToDisplay.get(choicesIndex);
@@ -224,7 +224,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
           groupMenu(groupIn, 0, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         }
       } else {
-        ui.displayText("invalid response")
+        ui.display_text("invalid response")
         groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       }
     }
@@ -258,10 +258,10 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
                                       "YOU REALLY SURE?**")
         if (ans.isDefined && ans.get) {
           groupIn.delete()
-          ui.displayText("Deleted group definition: \"" + groupDescrIn + "\"" + ".")
+          ui.display_text("Deleted group definition: \"" + groupDescrIn + "\"" + ".")
           None
         } else {
-          ui.displayText("Did not delete group definition.", waitForKeystrokeIn = false)
+          ui.display_text("Did not delete group definition.", false);
           groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         }
       } else if (ans == 2) {
@@ -286,11 +286,11 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
             //idea: could put a ck here to see if entities are members of some other group also, and give user a helpful message instead of just
             //hitting the constraint & throwing exception when the deletion is attempted.
             groupIn.deleteWithEntities()
-            ui.displayText("Deleted relation to group\"" + groupDescrIn + "\", along with the " + totalInGroup + " entities: " + ".")
+            ui.display_text("Deleted relation to group\"" + groupDescrIn + "\", along with the " + totalInGroup + " entities: " + ".")
             None
           } else None
         } else {
-          ui.displayText("Did not delete group.", waitForKeystrokeIn = false)
+          ui.display_text("Did not delete group.", false);
           groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         }
       } else if (ans == 3 && relationToGroupIn.isDefined) {
@@ -299,7 +299,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
         else
           groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else {
-        ui.displayText("invalid response")
+        ui.display_text("invalid response")
         groupMenu(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       }
     }
@@ -320,7 +320,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
       //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn)
     } else {
-      ui.displayText("Did not remove group from the entity.", waitForKeystrokeIn = false)
+      ui.display_text("Did not remove group from the entity.", false);
       false
 
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:

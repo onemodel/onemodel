@@ -35,7 +35,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
     require(entityIn != null)
     if (!entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = entityIn.mDB.includeArchivedEntities)) {
-      ui.displayText("The desired entity, " + entityIn.getId + ", has been deleted or archived, probably while browsing other entities via menu options," +
+      ui.display_text("The desired entity, " + entityIn.getId + ", has been deleted or archived, probably while browsing other entities via menu options," +
                      "and so cannot be displayed here.  Exiting to the next menu.")
       return None
     }
@@ -209,7 +209,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           goToAttributeThenRedisplayHere(entityIn, attributeRowsStartingIndexIn, targetForMovesIn, containingRelationToEntityIn, containingGroupIn,
                                          attributeTuples, attributesToDisplay, answer, highlightedIndexInObjList.get)
         } else {
-          ui.displayText("nothing selected")
+          ui.display_text("nothing selected")
           entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMovesIn, containingRelationToEntityIn, containingGroupIn)
         }
       } else if (answer == 6) {
@@ -293,7 +293,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         goToAttributeThenRedisplayHere(entityIn, attributeRowsStartingIndexIn, targetForMovesIn, containingRelationToEntityIn, containingGroupIn,
                                        attributeTuples, attributesToDisplay, answer, choicesIndex)
       } else {
-        ui.displayText("invalid response")
+        ui.display_text("invalid response")
         entityMenu(entityIn, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       }
     }
@@ -339,7 +339,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     let entryIsGoneNow = {;
       // user typed a letter to select an attribute (now 0-based)
       if (choicesIndex >= attributeTuples.length) {
-        ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
+        ui.display_text("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
         false
       } else {
         let o: Attribute = attributeTuples(choicesIndex)._2;
@@ -401,7 +401,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         let startingIndex: i32 = getNextStartingRowsIndex(attributeTuples.length, attributeRowsStartingIndexIn, numAttrsInEntity);
         entityMenu(entityIn, startingIndex, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if (searchAnswer == 2) {
-        ui.displayText("(Not yet implemented.)")
+        ui.display_text("(Not yet implemented.)")
       } else if (searchAnswer == 3) {
         // Idea: could share some code or ideas between here and Controller.findExistingObjectByText, and perhaps others like them.  For example,
         // this doesn't yet have logic to page down through the results, but maybe for now there won't be many or it can be added later.
@@ -439,7 +439,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
               // (This is to avoid the later "require" error not far from the top of TextUI.askWhichChoiceOrItsAlternate, if there are too many
               // menu items to display. It could be done better if we implement scrolling among the attrs, similarly to the other use of
               // ui.maxColumnarChoicesToDisplayAfter above, but in a way to avoid re-doing the search each time.)
-              ui.displayText("There were " + entityIds.length + " results, but truncated them to " + numDisplayableAttributes + " for display.  (If" +
+              ui.display_text("There were " + entityIds.length + " results, but truncated them to " + numDisplayableAttributes + " for display.  (If" +
                              " desired this can be improved, per the comments in the code.)")
               newarray
             }
@@ -457,7 +457,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
               //there might be more than we have room to show here...but...see "idea"s above.
               if (relatedEntitiesAnswer == 1 && relatedEntitiesAnswer <= choices.length) {
                 // (For reason behind " && answer <= choices.size", see comment where it is used elsewhere in entityMenu.)
-                ui.displayText("Nothing implemented here yet.")
+                ui.display_text("Nothing implemented here yet.")
               } else if (relatedEntitiesAnswer > choices.length && relatedEntitiesAnswer <= (choices.length + entityStatusesAndNames.length)) {
                 // those in the condition on the previous line are 1-based, not 0-based.
                 let index = relatedEntitiesAnswer - choices.length - 1;
@@ -575,7 +575,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
               targetForMovesIn.get.isInstanceOf[RelationToRemoteEntity] ||
               targetForMovesIn.get.isInstanceOf[RelationToGroup])
              )) {
-          ui.displayText("Currently, you can only move an Entity or a Group, to an Entity or a Group.  Moving thus is not yet implemented for other " +
+          ui.display_text("Currently, you can only move an Entity or a Group, to an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [1]")
           (startingDisplayRowIndexIn, false)
         } else {
@@ -606,11 +606,11 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             movingRtg.move(newContainingEntityId, getSortingIndex(entityIn.mDB, entityIn.getId, movingRtg.getFormId, movingRtg.getId))
             (startingDisplayRowIndexIn, true)
           } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
-            ui.displayText("Unsupported: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
+            ui.display_text("Unsupported: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
                            " other attributes. [1]")
             (startingDisplayRowIndexIn, false)
           } else {
-            ui.displayText("Not yet supported.")
+            ui.display_text("Not yet supported.")
             (startingDisplayRowIndexIn, false)
           }
         }
@@ -618,7 +618,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         if (!(highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] ||
               highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] ||
               highlightedAttributeIn.isInstanceOf[RelationToGroup])) {
-          ui.displayText("Currently, you can only move an Entity or a Group, *to* an Entity or a Group.  Moving thus is not yet implemented for other " +
+          ui.display_text("Currently, you can only move an Entity or a Group, *to* an Entity or a Group.  Moving thus is not yet implemented for other " +
                          "attribute types, but it shouldn't take much to add that. [2]")
           (startingDisplayRowIndexIn, false)
         } else {
@@ -656,16 +656,16 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
               rtle.moveEntityFromEntityToGroup(targetGroupId, getSortingIndex(entityIn.mDB, entityIn.getId, rtle.getFormId, rtle.getId))
               (startingDisplayRowIndexIn, true)
             } else if (highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
-              ui.displayText("Unsupported: groups cannot directly contain remote entities.  Only local entities can contain relations" +
+              ui.display_text("Unsupported: groups cannot directly contain remote entities.  Only local entities can contain relations" +
                              " to remote entities (currently at least).")
               (startingDisplayRowIndexIn, false)
             } else if (highlightedAttributeIn.isInstanceOf[RelationToGroup]) {
-              ui.displayText("Unsupported: groups can't directly contain groups or relations to remote entities.  But groups can contain entities, " +
+              ui.display_text("Unsupported: groups can't directly contain groups or relations to remote entities.  But groups can contain entities, " +
                              "and entities can contain groups and other attributes. [2]")
               (startingDisplayRowIndexIn, false)
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [2]")
           } else {
-            ui.displayText("One of the container parameters needs to be available, in order to move the highlighted attribute to the containing entity or " +
+            ui.display_text("One of the container parameters needs to be available, in order to move the highlighted attribute to the containing entity or " +
                            "group (the one from which you navigated here).")
             (startingDisplayRowIndexIn, false)
           }
@@ -773,7 +773,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     let startingIndex = {;
       let currentPosition = startingAttributeRowsIndexIn + numAttrsToDisplay;
       if (currentPosition >= numAttrsInEntity) {
-        ui.displayText("End of attribute list found; restarting from the beginning.")
+        ui.display_text("End of attribute list found; restarting from the beginning.")
         0 // start over
       } else currentPosition
 

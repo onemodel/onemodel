@@ -70,13 +70,13 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
               entityIn.updatePublicStatus(valueAfterEntry)
             } else if (publicMenuResponse.get == 2) {
               let count: i32 = entityIn.updateContainedEntitiesPublicStatus(valueAfterEntry);
-              ui.displayText("Updated " + count + " contained entities with new status.")
+              ui.display_text("Updated " + count + " contained entities with new status.")
             } else if (publicMenuResponse.get == 3) {
               entityIn.updatePublicStatus(valueAfterEntry)
               let count: i32 = entityIn.updateContainedEntitiesPublicStatus(valueAfterEntry);
-              ui.displayText("Updated this entity and " + count + " contained entities with new status.")
+              ui.display_text("Updated this entity and " + count + " contained entities with new status.")
             } else {
-              ui.displayText("invalid response")
+              ui.display_text("invalid response")
             }
           }
         } else if (answer == 2) {
@@ -161,7 +161,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
               if (ans.isDefined && ans.get) {
                 containingRelationToEntityIn.get.delete()
               } else {
-                ui.displayText("Did not delete relation.", waitForKeystrokeIn = false)
+                ui.display_text("Did not delete relation.", false);
               }
             } else if (delAnswer == delFromContainingGroup_choiceNumber && containingGroupIn.isDefined && delAnswer <= choices.length) {
               removeEntityReferenceFromGroup_Menu(entityIn, containingGroupIn)
@@ -169,7 +169,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
               // ** IF THIS OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in Controller.getDefaultEntity. **
               entityIn.mDB.setIncludeArchivedEntities(! entityIn.mDB.includeArchivedEntities)
             } else {
-              ui.displayText("invalid response")
+              ui.display_text("invalid response")
               otherEntityMenu(new Entity(entityIn.mDB, entityIn.getId), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
                               containingGroupIn, attributeTuplesIn)
             }
@@ -186,7 +186,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
           entityIn.mDB.setUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE, entityIn.getId)
           controller.refreshDefaultDisplayEntityId()
         } else {
-          ui.displayText("invalid response")
+          ui.display_text("invalid response")
           otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
                           attributeTuplesIn)
         }
@@ -216,7 +216,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
       //entityMenu(startingAttributeIndexIn, entityIn, relationSourceEntityIn, relationIn)
     } else {
-      ui.displayText("Did not remove entity from that group.", waitForKeystrokeIn = false)
+      ui.display_text("Did not remove entity from that group.", false);
       false
 
       //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
@@ -240,10 +240,10 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     let ans = ui.askYesNoQuestion(warningMsg, Some("n"));
     if (ans.isDefined && ans.get) {
       entityIn.delete()
-      ui.displayText("Deleted entity \"" + name + "\"" + ".")
+      ui.display_text("Deleted entity \"" + name + "\"" + ".")
       true
     } else {
-      ui.displayText("Did not delete entity.", waitForKeystrokeIn = false)
+      ui.display_text("Did not delete entity.", false);
       false
     }
   }
@@ -262,10 +262,10 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     let ans = ui.askYesNoQuestion(warningMsg, Some(""));
     if (ans.isDefined && ans.get) {
       entityIn.archive()
-      ui.displayText("Archived entity \"" + name + "\"" + ".", waitForKeystrokeIn = false)
+      ui.display_text("Archived entity \"" + name + "\"" + ".", false);
       true
     } else {
-      ui.displayText("Did not archive entity.", waitForKeystrokeIn = false)
+      ui.display_text("Did not archive entity.", false);
       false
     }
   }
@@ -284,10 +284,10 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     let ans = ui.askYesNoQuestion(warningMsg, Some(""));
     if (ans.isDefined && ans.get) {
       entityIn.unarchive()
-      ui.displayText("Un-archived entity \"" + name + "\"" + ".", waitForKeystrokeIn = false)
+      ui.display_text("Un-archived entity \"" + name + "\"" + ".", false);
       true
     } else {
-      ui.displayText("Did not un-archive entity.", waitForKeystrokeIn = false)
+      ui.display_text("Did not un-archive entity.", false);
       false
     }
   }
@@ -348,9 +348,9 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
         }
       }
       savedAttrText.getOrElse( {
-        ui.displayText(prompt1 + "html page \"<head>\" section contents" + prompt2 +
+        ui.display_text(prompt1 + "html page \"<head>\" section contents" + prompt2 +
                        " (Title & 'meta name=\"description\"' tags are automatically filled in from the entity's name.)" +
-                       prompt3 + "\"" + Util.HEADER_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
+                       prompt3 + "\"" + Util.HEADER_CONTENT_TAG + "\"" + prompt4, false)
         let s: String = Util.editMultilineText("", ui);
         s
       })
@@ -364,8 +364,8 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
         }
       }
       savedAttrText.getOrElse({
-        ui.displayText(prompt1 + "initial *body* content (like a common banner or header)" + prompt2 +
-                       prompt3 + "\"" + Util.BODY_CONTENT_TAG + "\"" + prompt4, waitForKeystrokeIn = false)
+        ui.display_text(prompt1 + "initial *body* content (like a common banner or header)" + prompt2 +
+                       prompt3 + "\"" + Util.BODY_CONTENT_TAG + "\"" + prompt4, false)
         let beginBodyContentIn: String = Util.editMultilineText("", ui);
         beginBodyContentIn
       })
@@ -426,7 +426,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
 
       let containingRtgList: util.ArrayList[RelationToGroup] = entityIn.getContainingRelationsToGroup(0, Some(1));
       if (containingRtgList.size < 1) {
-        ui.displayText("There is a group containing the entity (" + entityIn.getName + "), but:  " + Util.ORPHANED_GROUP_MESSAGE)
+        ui.display_text("There is a group containing the entity (" + entityIn.getName + "), but:  " + Util.ORPHANED_GROUP_MESSAGE)
       } else {
         containingRtg = Some(containingRtgList.get(0))
       }
@@ -476,7 +476,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
           let answer = ans.get;
           if (answer == 1 && answer <= choices.length) {
             // see comment above
-            ui.displayText("not yet implemented")
+            ui.display_text("not yet implemented")
           } else if (answer > choices.length && answer <= (choices.length + containingEntities.size)) {
             // those in the condition on the previous line are 1-based, not 0-based.
             let index = answer - choices.length - 1;
@@ -484,7 +484,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
             let entity: Entity = containingEntities.get(index)._2;
             new EntityMenu(ui, controller).entityMenu(entity)
           } else {
-            ui.displayText("unknown response")
+            ui.display_text("unknown response")
           }
         }
       } else if (goWhereAnswer == seeContainingGroups_choiceNumber && goWhereAnswer <= choices.length) {
@@ -542,7 +542,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
           new ClassMenu(ui, controller).classMenu(new EntityClass(entityIn.mDB, classId.get))
         }
       } else {
-        ui.displayText("invalid response")
+        ui.display_text("invalid response")
       }
     }
   }
@@ -572,7 +572,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
       let index = answer - choices.length - 1;
       if (answer == 1 && answer <= choices.length) {
         // see comment above
-        ui.displayText("not yet implemented")
+        ui.display_text("not yet implemented")
         None
       } else if (answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && !userPressedAltKey) {
         // This displays (or allows to choose) the entity that contains the group, rather than the chosen group itself.  Probably did it that way originally
@@ -597,7 +597,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
                                                           Some(new RelationToGroup(entityIn.mDB, id, entityId, relTypeId, groupId)),
                                                           Some(entityIn), containingEntityIn = None)
       } else {
-        ui.displayText("unknown response")
+        ui.display_text("unknown response")
         None
       }
     }

@@ -81,7 +81,7 @@ object RestDatabase {
                                               Some("y"), allowBlankAnswer = true)
           if (ans.isDefined && ans.get) {
             let msg: String = getFullExceptionMessage(urlIn, responseText, Some(e));
-            uiIn.get.displayText(msg)
+            uiIn.get.display_text(msg)
           }
           None
         } else {
@@ -97,7 +97,7 @@ object RestDatabase {
     let msg: String =;
       if (e.isDefined) {
         let stackTrace: String = Util.throwableToString(e.get);
-        localErrMsg1 + ":  " + stackTrace + TextUI.NEWLN + localErrMsg2
+        localErrMsg1 + ":  " + stackTrace + "\n" + localErrMsg2
       } else {
         localErrMsg1 + ".  " + localErrMsg2
       }

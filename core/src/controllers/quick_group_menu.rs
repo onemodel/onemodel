@@ -147,7 +147,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
       } else if (answer == 7 && targetForMovesIn.isDefined) {
         let targetRtgCount: i64 = targetForMovesIn.get.getRelationToGroupCount;
         if (moveTargetIndexInObjList.isEmpty) {
-          ui.displayText("Target must be selected (shows '+').")
+          ui.display_text("Target must be selected (shows '+').")
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         } else {
           if (targetRtgCount > 1) {
@@ -205,12 +205,12 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
             // And if > 1 of either or both groups/entities, ask to which of them to move it?)
             let containingGroupsIds: List[Array[Option[Any]]] = groupIn.getGroupsContainingEntitysGroupsIds();
             if (containingGroupsIds.isEmpty) {
-              ui.displayText("Unable to find any containing groups, for the group \"" + groupIn.getName + "\" (ie, nowhere \"up\" found, to move it to).")
+              ui.display_text("Unable to find any containing groups, for the group \"" + groupIn.getName + "\" (ie, nowhere \"up\" found, to move it to).")
               (None, None)
             } else if (containingGroupsIds.size == 1) {
               (Some(containingGroupsIds.head(0).get.asInstanceOf[i64]), None)
             } else {
-              ui.displayText("There are more than one containing groups, for the group \"" + groupIn.getName + "\".  You could, from an Entity Menu, " +
+              ui.display_text("There are more than one containing groups, for the group \"" + groupIn.getName + "\".  You could, from an Entity Menu, " +
                              "choose the option to 'Go to...' and explore what contains it, to see if you want to make changes to the organization.  Might " +
                              "need a feature to choose a containing group as the target for moving an entity...?")
               (None, None)
@@ -384,7 +384,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
                 if (defaultToUsingSubgroup.get) {
                   if (targetRtgCount > 1) {
                     // IDEA: (see idea at similar logic above where entry is moved into a targeted group, about guessing which one)
-                    ui.displayText("For this operation, the selection must have exactly one subgroup (a single '>'), or none.")
+                    ui.display_text("For this operation, the selection must have exactly one subgroup (a single '>'), or none.")
                     quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn,
                                    containingEntityIn)
                   } else {
@@ -436,7 +436,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
               }
               quickGroupMenu(groupIn, displayStartingRowNumber, relationToGroupIn, entryToHighlight, targetForMoves, callingMenusRtgIn, containingEntityIn)
             } else {
-              ui.displayText("unexpected selection")
+              ui.display_text("unexpected selection")
               quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
             }
           } else {
@@ -453,7 +453,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
           let (entryToHighlight: Option[Entity], displayStartingRowNumber: Int) = {;
             let nextStartPosition = startingDisplayRowIndexIn + objectsToDisplay.size;
             if (nextStartPosition >= groupIn.getSize(4)) {
-              ui.displayText("End of attribute list found; restarting from the beginning.")
+              ui.display_text("End of attribute list found; restarting from the beginning.")
               (None, 0) // start over
             } else (highlightedEntityIn, nextStartPosition)
           }
@@ -517,7 +517,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
           new GroupMenu(ui, controller).groupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         } else if (false /*can this be changed so that if they hit Enter it makes it to here ?*/ ) {
           // do something with enter: do a quick text edit & update the dates. Or quickAddEntry ?
-          ui.displayText("not yet implemented")
+          ui.display_text("not yet implemented")
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
         } else if (answer == 0) None
         else if (answer > choices.length && answer <= (choices.length + objectsToDisplay.size)) {
@@ -526,7 +526,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
           let choicesIndex = answer - choices.length - 1;
           // user typed a letter to select an attribute (now 0-based)
           if (choicesIndex >= objectsToDisplay.size()) {
-            ui.displayText("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
+            ui.display_text("The program shouldn't have let us get to this point, but the selection " + answer + " is not in the list.")
             quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
           } else {
             let userSelection: Entity = objectsToDisplay.get(choicesIndex);
@@ -552,7 +552,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
             } else None
           }
         } else {
-          ui.displayText("invalid selection")
+          ui.display_text("invalid selection")
           quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
         }
       }
@@ -567,7 +567,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
       } else if (targetRtgCount == 1) {
         Some(true)
       } else {
-        ui.displayText("There are multiple subgroups on this entity, so for now OM will just move the one entry to be contained by the" +
+        ui.display_text("There are multiple subgroups on this entity, so for now OM will just move the one entry to be contained by the" +
                        " other entity, to which you can then manually go and move it further to a subgroup as needed.")
         Some(false)
       }

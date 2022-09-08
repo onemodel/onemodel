@@ -55,7 +55,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     let mut displayStartingRowNumber = startingDisplayRowIndexIn;
 
     if (nearNewNeighborSortingIndex.isEmpty) {
-      ui.displayText("Nowhere to move it to, so doing nothing.")
+      ui.display_text("Nowhere to move it to, so doing nothing.")
     } else {
       let (newSortingIndex: i64, trouble: Boolean) = {;
         let mut (newSortingIndex: i64, trouble: Boolean, newStartingRowNum: Int) = {;

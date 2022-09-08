@@ -23,11 +23,11 @@ class TextUITest extends FlatSpec {
   //    maxLines=in
   //  }
   //  def terminalHeight: Int = { // # of items to try to display on the screen at one time.
-  //    System.out.println(new java.text.SimpleDateFormat("yyyy-mm-dd HH:mm:ss:SSSZ").format(new java.util.Date())+": testtextui.terminalheight");
+  //    println!(new java.text.SimpleDateFormat("yyyy-mm-dd HH:mm:ss:SSSZ").format(new java.util.Date())+": testtextui.terminalheight");
   //    return maxLines
   //  }
   //  def terminalWidth: Int = { // # of items to try to display on the screen at one time.
-  //    System.out.println((new java.text.SimpleDateFormat("yyyy-mm-dd HH:mm:ss:SSSZ")).format(new java.util.Date())+": testtextui.terminalwidth");
+  //    println!((new java.text.SimpleDateFormat("yyyy-mm-dd HH:mm:ss:SSSZ")).format(new java.util.Date())+": testtextui.terminalwidth");
   //    return termWidth
   //  }
   //}
@@ -37,25 +37,25 @@ class TextUITest extends FlatSpec {
   /*
   In task list is: PUT ALL THESE BACK: WHEN ready to adjust tests for new jline2 usage (& fix surrounding known issues):
   let ui:TextUI = new TextUI();
-  ui.weAreTesting(testing = true)
+  ui.we_are_testing(true)
 
   let newlnByteArray = Array[Byte](TextUI.NEWLN(0).toByte, if (TextUI.NEWLN.size ==2) TextUI.NEWLN(1).toByte else 0.toByte);
 
-  "getUserInputChar" should "return correct value, without parameters" in {
+  "get_user_input_char" should "return correct value, without parameters" in {
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](54)) //ascii for '6';
     //ui.setInput(bais)
-    let c: Char = ui.getUserInputChar;
+    let c: Char = ui.get_user_input_char;
     assert(c.asDigit == 6)
     assert(c == 54)
   }
 
-  "getUserInputChar" should "disallow disallowed chars" in {
+  "get_user_input_char" should "disallow disallowed chars" in {
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](54)) //ascii for '6';
     //ui.setInput(bais)
     let infiniteLoop = { //due to library polling for good data in jline.ConsoleReader.readCharacter(final char[] allowed)--the while loop);
       new Thread {
         override def run() {
-          ui.getUserInputChar(List('a', 'b'))
+          ui.get_user_input_char(List('a', 'b'))
         }
       }
     }
@@ -67,10 +67,10 @@ class TextUITest extends FlatSpec {
     assert(!infiniteLoop.isAlive)
   }
 
-  "getUserInputChar" should "allow allowed chars" in {
+  "get_user_input_char" should "allow allowed chars" in {
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](97)) //ascii for 'a';
     //ui.setInput(bais)
-    let c: Char = ui.getUserInputChar(List('a', 'b'));
+    let c: Char = ui.get_user_input_char(List('a', 'b'));
     assert(c == 'a')
   }
 
@@ -160,9 +160,9 @@ class TextUITest extends FlatSpec {
     assertResult(Some(5)) {
       ui.askWhich(Some(Array("some","leading","text","in 4 lines")), choices, moreChoices)
     }
-    let outputWithBlanks: Array[String] = baos.toString.split(TextUI.NEWLN);
+    let outputWithBlanks: Array[String] = baos.toString.split("\n");
     let output: Array[String] = outputWithBlanks.filterNot(_.trim().isEmpty);
-    System.out.println("ckprintedchoices size: "+output.size)
+    println!("ckprintedchoices size: "+output.size)
     for (s <- output) println("line: "+s)
     assert(outputWithBlanks.size > output.size)
     assert(output(0).startsWith("===="))
@@ -206,10 +206,10 @@ class TextUITest extends FlatSpec {
 
     ui.askWhich(Some(Array("leading text...")), choices, moreChoices)
 
-    let outputWithBlanks: Array[String] = baos.toString.split(TextUI.NEWLN);
+    let outputWithBlanks: Array[String] = baos.toString.split("\n");
     let output: Array[String] = outputWithBlanks.filterNot(_.trim().isEmpty);
-    System.out.println("ckprintedchoices size: "+output.size)
-    for (s <- output) System.out.println("line: "+s)
+    println!("ckprintedchoices size: "+output.size)
+    for (s <- output) println!("line: "+s)
     assert(outputWithBlanks.size > output.size)
     //See "put this back": OTHERWISE this is a visual test only for now, most useful if
     // you temporarily change TextUI's terminalHeight/Width methods to return 7,80 respectively.

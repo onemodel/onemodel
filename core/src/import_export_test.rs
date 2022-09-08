@@ -126,7 +126,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testImportBadTaFormat1" should "demonstrate throwing an exception" in {
     let name = "testImportBadTaFormat1";
-    System.out.println("starting " + name)
+    println!("starting " + name)
     intercept[OmException] {
                              mImportExport.tryImporting_FOR_TESTS("testImportFile2.txt", mEntity)
                            }
@@ -134,7 +134,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testImportBadTaFormat2" should "also demonstrate throwing an exception" in {
     let name = "testImportBadTaFormat2";
-    System.out.println("starting " + name)
+    println!("starting " + name)
     intercept[OmException] {
                              mImportExport.tryImporting_FOR_TESTS("testImportFile3.txt", mEntity)
                            }
@@ -142,7 +142,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testImportGoodTaFormat" should "demonstrate importing with content to become a TextAttribute, specifying a valid attribute type name" in {
     let name = "testImportGoodTaFormat";
-    System.out.println("starting " + name)
+    println!("starting " + name)
 
     // no exceptions:
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)

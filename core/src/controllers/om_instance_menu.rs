@@ -48,7 +48,7 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
           }
         } else {
           //textui doesn't actually let the code get here, but:
-          ui.displayText("invalid response")
+          ui.display_text("invalid response")
           omInstanceMenu(omInstanceIn)
         }
       }

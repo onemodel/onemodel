@@ -18,13 +18,13 @@ import org.scalatest.mockito.MockitoSugar
 class ControllerTest extends FlatSpec with MockitoSugar {
   //val mockUI = mock[TextUI] {
   let ui = new TextUI() {;
-    override def displayText(text: String, waitForKeystroke: Boolean = true, None: Option[String]) {
-      System.out.println(text)
+    override def display_text(text: String, wait_for_keystroke: Boolean = true, None: Option[String]) {
+      println!(text)
     }
     // next 2 overrides are so we don't get terminal contention: this and TextUITest both init and shut down but are not coordinated to *really*
     // get the terminal back to its original state. Thought it was a synchronization issue, but it seems more like an ordering issue.  Another
     // approach might be to make the (static) *object* TextUI keep some counter so the first one to init is always the last one to restore....
-    // Maybe a mock is also as good here, but it didn't work out earlier when overriding displayText above, for some forgotten reason.
+    // Maybe a mock is also as good here, but it didn't work out earlier when overriding display_text above, for some forgotten reason.
     override def initializeReader() = null
     override def initializeTerminal() = null
   }

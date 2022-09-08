@@ -93,7 +93,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                                   "then ESC back here to commit the changes....  (If you wait beyond some amount of time(?) or go beyond just viewing, " +
                                   "it seems that postgres will commit " +
                                   "the change whether you want it or not, even if the message at that time says 'rolled back...')"
-                ui.displayText(msg)
+                ui.display_text(msg)
                 firstContainingEntryIn match {
                   case entity: Entity => new EntityMenu(ui, controller).entityMenu(entity)
                   case group: Group => new QuickGroupMenu(ui, controller).quickGroupMenu(firstContainingEntryIn.asInstanceOf[Group], 0,
@@ -105,7 +105,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               if (keepAnswer.isEmpty || !keepAnswer.get) {
                 db.rollbackTrans()
                 //idea: look into how long that time is (see above same cmt)
-                ui.displayText("Rolled back the import: no changes made (unless you browsed farther, into code that had another commit, or " +
+                ui.display_text("Rolled back the import: no changes made (unless you browsed farther, into code that had another commit, or " +
                                "waited too long and postgres committed it anyway...?).")
               } else {
                 db.commitTrans()
@@ -125,7 +125,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                   e.printStackTrace(new PrintWriter(stringWriter))
                   stringWriter.toString
                 }
-                ui.displayText(msg + TextUI.NEWLN + "Error while importing; no changes made. ")
+                ui.display_text(msg + "\nError while importing; no changes made. ")
                 let ans = ui.askYesNoQuestion("For some errors, you can go fix the file then come back here.  Retry now?", Some("y"));
                 if (ans.isDefined && ans.get) {
                   tryIt()
@@ -325,7 +325,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         }
       }
     }
-    let text: String = restOfLine.trim + TextUI.NEWLN + {;
+    let text: String = restOfLine.trim + "\n" + {;
       def getRestOfLines(rIn: LineNumberReader, sbIn: mutable.StringBuilder): mutable.StringBuilder = {
         // Don't trim, because we want to preserve formatting/whitespace here, including blank lines (always? -- yes, editably.).
         let line = rIn.readLine();
@@ -343,7 +343,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                                                                                   "\" (end text attribute) marker must be the last text on a line.")
             sbIn.append(line.substring(0, markerStartLocation))
           } else {
-            sbIn.append(line + TextUI.NEWLN)
+            sbIn.append(line + "\n")
             getRestOfLines(rIn, sbIn)
           }
         }
@@ -539,8 +539,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
 
     if (!userWantsOut) {
-      ui.displayText("Processing..." + Util.NEWLN +
-                     "(Note: if this takes too long, you can Ctrl+C and start over with a smaller or nonzero " + levelsText + ".)", waitForKeystrokeIn = false)
+      ui.display_text("Processing...\n" + "(Note: if this takes too long, you can Ctrl+C and start over with a smaller or nonzero " + levelsText + ".)", false)
       require(levelsToExport >= 0)
       let spacesPerIndentLevel = {;
         if (wrapTheLines && !numberTheLines) {
@@ -617,7 +616,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                                  wrapAtColumn, numberTheLines)
           // flush before we report 'done' to the user:
           outputWriter.close()
-          ui.displayText("Exported to file: " + outputFile.getCanonicalPath)
+          ui.display_text("Exported to file: " + outputFile.getCanonicalPath)
         } finally {
           if (outputWriter != null) {
             try outputWriter.close()
@@ -636,7 +635,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         exportHtml(entityIn, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                    cachedGroupInfo, mutable.TreeSet[i64](), uriClassId, quoteClassId,
                    includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
-        ui.displayText("Finished export to directory: " + outputDirectory.toFile.getCanonicalPath +
+        ui.display_text("Finished export to directory: " + outputDirectory.toFile.getCanonicalPath +
                        " at " + Util.DATEFORMAT2.format(System.currentTimeMillis()))
       } else {
         throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)

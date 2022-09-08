@@ -912,7 +912,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   }
 
   "testAddQuantityAttributeWithBadParentID" should "not work" in {
-    System.out.println("starting testAddQuantityAttributeWithBadParentID")
+    println!("starting testAddQuantityAttributeWithBadParentID")
     let badParentId: i64 = mDB.findIdWhichIsNotKeyOfAnyEntity;
 
     // Database should not allow adding quantity with a bad parent (Entity) ID!
