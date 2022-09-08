@@ -31,7 +31,7 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDate: Option[i64], observationDate: i64,
+    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDate: Option[i64], observationDate: i64,
            sortingIndexIn: i64) {
     this(mDB, mId)
     assignCommonVars(parentIdIn, attrTypeIdIn, validOnDate, observationDate, sortingIndexIn)
@@ -40,7 +40,7 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
     */
-  def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = {;
       if (simplify && (typeName == "paragraph" || typeName == "quote")) getText
@@ -50,7 +50,7 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-  def getText: String = {
+    fn getText: String = {
     if (!mAlreadyReadData) readDataFromDB()
     mText
   }
@@ -65,7 +65,7 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
                            taTypeData(4).get.asInstanceOf[i64], taTypeData(5).get.asInstanceOf[i64])
   }
 
-  def update(attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64], observationDateIn: i64) {
+    fn update(attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64], observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateTextAttribute(mId, getParentId, attrTypeIdIn, textIn, validOnDateIn, observationDateIn)
@@ -76,7 +76,7 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
   }
 
   /** Removes this object from the system. */
-  def delete() = mDB.deleteTextAttribute(mId)
+    fn delete() = mDB.deleteTextAttribute(mId)
 
   /** For descriptions of the meanings of these variables, see the comments
     on createTextAttribute(...) or createTables() in PostgreSQLDatabase or Database classes.

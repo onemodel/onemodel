@@ -22,7 +22,7 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
   // to, when hitting ESC from the main menu (like the one removed with the same checkin as this writing, but perhaps simplified).
   // @tailrec
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
-  def mainMenu(entityIn: Option[Entity] = None, goDirectlyToChoice: Option[Int] = None) {
+    fn mainMenu(entityIn: Option[Entity] = None, goDirectlyToChoice: Option[Int] = None) {
     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method! (if it fits the situation)
     try {
       let numEntities = db.getEntitiesOnlyCount();
@@ -124,7 +124,7 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
     }
   }
 
-  def showInEntityMenuThenMainMenu(entityIn: Option[Entity]) {
+    fn showInEntityMenuThenMainMenu(entityIn: Option[Entity]) {
     if (entityIn.isDefined) {
       //idea: is there a better way to do this, maybe have a single entityMenu for the class instead of new.. each time?
       new EntityMenu(ui, controller).entityMenu(entityIn.get)

@@ -20,7 +20,7 @@ package org.onemodel.core.model
   (But: why not just return a i64 or Option[i64]?)
   */
 class IdWrapper(id: i64) {
-  def getId: i64 = {
+    fn getId: i64 = {
     id
   }
 }

@@ -31,7 +31,7 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(db: Database, id: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDate: Option[i64],
+    fn this(db: Database, id: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDate: Option[i64],
            observationDate: i64, sortingIndex: i64) {
     this(db, id)
     mUnitId = unitIdIn
@@ -45,7 +45,7 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
    * attribute this is. 3rd parameter really only applies in one of the subclasses of Attribute,
    * otherwise can be None.
    */
-  def getDisplayString(lengthLimitIn: Int, unused: Option[Entity]=None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity]=None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let number: Float = getNumber;
     let unitId: i64 = getUnitId;
@@ -75,7 +75,7 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
                            quantityData(5).get.asInstanceOf[i64], quantityData(6).get.asInstanceOf[i64])
   }
 
-  def update(attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64], observationDateIn: i64) {
+    fn update(attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64], observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateQuantityAttribute(mId, getParentId, attrTypeIdIn, unitIdIn, numberIn, validOnDateIn, observationDateIn)
@@ -87,7 +87,7 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
   }
 
   /** Removes this object from the system. */
-  def delete() = mDB.deleteQuantityAttribute(mId)
+    fn delete() = mDB.deleteQuantityAttribute(mId)
 
   // **idea: make these members into vals not vars, by replacing them with the next line.
   //           private let (unitId: i64, number: Float) = readDataFromDB();

@@ -28,21 +28,21 @@ object Color {
     }
   }
 
-  def red(s:String): String = {
+    fn red(s:String): String = {
     red + s + reset
   }
 
-  def cyan(s:String): String = {
+    fn cyan(s:String): String = {
     cyan + s + reset
   }
 
-  def blue(s:String) : String = cyan(s)
+    fn blue(s:String) : String = cyan(s)
 
-  def green(s:String): String = {
+    fn green(s:String): String = {
     green + s + reset
   }
 
-  def yellow(s:String): String = {
+    fn yellow(s:String): String = {
     yellow + s + reset
   }
 

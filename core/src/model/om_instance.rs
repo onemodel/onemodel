@@ -16,13 +16,13 @@ package org.onemodel.core.model
 import org.onemodel.core._
 
 object OmInstance {
-  def addressLength: Int = Database.omInstanceAddressLength
+    fn addressLength: Int = Database.omInstanceAddressLength
 
-  def isDuplicate(dbIn: Database, addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean = {
+    fn isDuplicate(dbIn: Database, addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean = {
     dbIn.isDuplicateOmInstanceAddress(addressIn, selfIdToIgnoreIn)
   }
 
-  def create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option[i64] = None): OmInstance = {
+    fn create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option[i64] = None): OmInstance = {
     // Passing false for isLocalIn because the only time that should be true is when it is created at db creation, for this site, and that is done
     // in the db class more directly.
     let insertionDate: i64 = dbIn.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn);
@@ -47,7 +47,7 @@ class OmInstance(val mDB: Database, mId: String) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: String, isLocalIn: Boolean, addressIn: String, insertionDateIn: i64, entityIdIn: Option[i64] = None) {
+    fn this(mDB: Database, mId: String, isLocalIn: Boolean, addressIn: String, insertionDateIn: i64, entityIdIn: Option[i64] = None) {
     this(mDB, mId)
     mLocal = isLocalIn
     mAddress = addressIn
@@ -58,31 +58,31 @@ class OmInstance(val mDB: Database, mId: String) {
 
   /** When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
     * */
-  def getId: String = {
+    fn getId: String = {
     if (!mAlreadyReadData) readDataFromDB()
     mId
   }
 
-  def getLocal: Boolean = {
+    fn getLocal: Boolean = {
     if (!mAlreadyReadData) readDataFromDB()
     mLocal
   }
 
-  def getCreationDate: i64 = {
+    fn getCreationDate: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mInsertionDate
   }
 
-  def getCreationDateFormatted: String = {
+    fn getCreationDateFormatted: String = {
     Util.DATEFORMAT.format(new java.util.Date(getCreationDate))
   }
 
-  def getAddress: String = {
+    fn getAddress: String = {
     if (!mAlreadyReadData) readDataFromDB()
     mAddress
   }
 
-  def getEntityId: Option[i64] = {
+    fn getEntityId: Option[i64] = {
     if (!mAlreadyReadData) readDataFromDB()
     mEntityId
   }
@@ -99,16 +99,16 @@ class OmInstance(val mDB: Database, mId: String) {
     mAlreadyReadData = true
   }
 
-  def getDisplayString: String = {
+    fn getDisplayString: String = {
     let result: String = mId + ":" + (if (mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted;
     result
   }
 
-  def update(newAddress: String): Unit = {
+    fn update(newAddress: String): Unit = {
     mDB.updateOmInstance(getId, newAddress, getEntityId)
   }
 
-  def delete() = mDB.deleteOmInstance(mId)
+    fn delete() = mDB.deleteOmInstance(mId)
 
   let mut mAlreadyReadData: bool = false;
   let mut mLocal: bool = false;

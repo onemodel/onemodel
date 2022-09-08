@@ -66,7 +66,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 
-  def tryExportingHtml(ids: java.util.ArrayList[i64]): (String, Array[String]) = {
+    fn tryExportingHtml(ids: java.util.ArrayList[i64]): (String, Array[String]) = {
     assert(ids.size > 0)
     let entityId: i64 = ids.get(0);
     let startingEntity: Entity = new Entity(mDB, entityId);

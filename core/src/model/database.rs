@@ -56,18 +56,18 @@ object Database {
   // where we create the table also calls this.
   // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
   // is needed, maybe it should be put in a TextAttribute and make those more convenient to use, instead.
-  def entityNameLength: Int = 160
+    fn entityNameLength: Int = 160
 
   // in postgres, one table "extends" the other (see comments in createTables)
-  def relationTypeNameLength: Int = entityNameLength
+    fn relationTypeNameLength: Int = entityNameLength
 
-  def classNameLength: Int = entityNameLength
+    fn classNameLength: Int = entityNameLength
 
   // (See usages. The DNS hostname max size seems to be 255 plus 1 null, but the ":<port>" part could add 6 more chars (they seem to go up to :65535).
   // Maybe someday we will have to move to a larger size in case it changes or uses unicode or I don't know what.)
-  def omInstanceAddressLength: Int = 262
+    fn omInstanceAddressLength: Int = 262
 
-  def getAttributeFormId(key: String): Int = {
+    fn getAttributeFormId(key: String): Int = {
     //MAKE SURE THESE MATCH WITH THOSE IN attributeKeyExists and getAttributeFormName, and the range in the db constraint valid_attribute_form_id ,
     // and in RestDatabase.processArrayOfTuplesAndInt !
     key match {
@@ -83,7 +83,7 @@ object Database {
       case _ => throw new OmDatabaseException("unexpected")
     }
   }
-  def getAttributeFormName(key: Int): String = {
+    fn getAttributeFormName(key: Int): String = {
     // MAKE SURE THESE MATCH WITH THOSE IN getAttributeFormId !
     //idea: put these values in a structure that is looked up both ways, instead of duplicating them?
     key match {
@@ -99,17 +99,17 @@ object Database {
     }
   }
 
-  def maxIdValue: i64 = {
+    fn maxIdValue: i64 = {
     // Max size for a Java long type, and for a postgresql 7.2.1 bigint type (which is being used, at the moment, for the id value in Entity table.
     // (these values are from file:///usr/share/doc/postgresql-doc-9.1/html/datatype-numeric.html)
     9223372036854775807L
   }
 
-  def minIdValue: i64 = {
+    fn minIdValue: i64 = {
     -9223372036854775808L
   }
 
-  def login(username: String, password: String, showError: Boolean): Option[Database] = {
+    fn login(username: String, password: String, showError: Boolean): Option[Database] = {
     try Some(new PostgreSQLDatabase(username, new String(password)))
     catch {
       case ex: org.postgresql.util.PSQLException =>
@@ -120,11 +120,11 @@ object Database {
     }
   }
 
-  def getRestDatabase(remoteAddressIn: String): RestDatabase = {
+    fn getRestDatabase(remoteAddressIn: String): RestDatabase = {
     new RestDatabase(remoteAddressIn)
   }
 
-  def currentOrRemoteDb(relationToEntityIn: Attribute, currentDb: Database): Database = {
+    fn currentOrRemoteDb(relationToEntityIn: Attribute, currentDb: Database): Database = {
     require(relationToEntityIn.isInstanceOf[RelationToLocalEntity] || relationToEntityIn.isInstanceOf[RelationToRemoteEntity])
 
     // Can't use ".isRemote" here because a RelationToRemoteEntity is stored locally (so would say false),
@@ -139,13 +139,13 @@ object Database {
 }
 
 abstract class Database {
-  def isRemote: Boolean
-  def getRemoteAddress: Option[String] = None
+    fn isRemote: Boolean
+    fn getRemoteAddress: Option[String] = None
   let id: String;
-  def includeArchivedEntities: Boolean
-  def beginTrans()
-  def rollbackTrans()
-  def commitTrans()
+    fn includeArchivedEntities: Boolean
+    fn beginTrans()
+    fn rollbackTrans()
+    fn commitTrans()
 
   /* Many of these methods are marked "protected[model]" for 2 reasons:
        1) to minimize the risk of calling db.<method> on the wrong db, when the full model object (like Entity) would contain the right db for itself
@@ -174,35 +174,35 @@ abstract class Database {
   protected[model] def createGroupAndRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false,
                                     validOnDateIn: Option[i64], observationDateIn: i64,
                                     sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean = false): (i64, i64)
-  def createEntity(nameIn: String, classIdIn: Option[i64] = None, isPublicIn: Option[Boolean] = None): /*id*/ i64
+    fn createEntity(nameIn: String, classIdIn: Option[i64] = None, isPublicIn: Option[Boolean] = None): /*id*/ i64
   protected[model] def createEntityAndRelationToLocalEntity(entityIdIn: i64, relationTypeIdIn: i64, newEntityNameIn: String, isPublicIn: Option[Boolean],
                                       validOnDateIn: Option[i64], observationDateIn: i64, callerManagesTransactionsIn: Boolean = false): (i64, i64)
   protected[model] def createRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
                             sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false): (i64, i64)
   protected[model] def addEntityToGroup(groupIdIn: i64, containedEntityIdIn: i64, sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false)
-  def createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[i64] = None, oldTableName: Boolean = false): i64
+    fn createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[i64] = None, oldTableName: Boolean = false): i64
   protected[model] def addHASRelationToLocalEntity(fromEntityIdIn: i64, toEntityIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
                              sortingIndexIn: Option[i64] = None): RelationToLocalEntity
-  def getOrCreateClassAndTemplateEntity(classNameIn: String, callerManagesTransactionsIn: Boolean): (i64, i64)
-  def createRelationType(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): /*id*/ i64
-  def createClassAndItsTemplateEntity(classNameIn: String): (i64, i64)
+    fn getOrCreateClassAndTemplateEntity(classNameIn: String, callerManagesTransactionsIn: Boolean): (i64, i64)
+    fn createRelationType(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): /*id*/ i64
+    fn createClassAndItsTemplateEntity(classNameIn: String): (i64, i64)
   protected[model] def addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: i64,
                                    makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
                                    quoteIn: Option[String] = None): (Entity, RelationToLocalEntity)
 
 
-  def attributeKeyExists(formIdIn: i64, idIn: i64): Boolean
+    fn attributeKeyExists(formIdIn: i64, idIn: i64): Boolean
   protected[model] def findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[i64], fromEntityIdIn: i64, searchStringIn: String,
                              levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true): mutable.TreeSet[i64]
-  def entityKeyExists(idIn: i64, includeArchived: Boolean = true): Boolean
+    fn entityKeyExists(idIn: i64, includeArchived: Boolean = true): Boolean
   protected[model] def relationTypeKeyExists(idIn: i64): Boolean
   protected[model] def quantityAttributeKeyExists(idIn: i64): Boolean
   protected[model] def dateAttributeKeyExists(idIn: i64): Boolean
   protected[model] def booleanAttributeKeyExists(idIn: i64): Boolean
   protected[model] def fileAttributeKeyExists(idIn: i64): Boolean
   protected[model] def textAttributeKeyExists(idIn: i64): Boolean
-  def relationToLocalEntityKeyExists(idIn: i64): Boolean
-  def groupKeyExists(idIn: i64): Boolean
+    fn relationToLocalEntityKeyExists(idIn: i64): Boolean
+    fn groupKeyExists(idIn: i64): Boolean
   protected[model] def relationToGroupKeysExistAndMatch(id: i64, entityId: i64, relTypeId: i64, groupId: i64): Boolean
   protected[model] def classKeyExists(idIn: i64): Boolean
   protected[model] def omInstanceKeyExists(idIn: String): Boolean
@@ -211,7 +211,7 @@ abstract class Database {
   protected[model] def isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[i64] = None): Boolean
   protected[model] def getSortedAttributes(entityIdIn: i64, startingObjectIndexIn: Int = 0, maxValsIn: Int = 0,
                           onlyPublicEntitiesIn: Boolean = true): (Array[(i64, Attribute)], Int)
-  def findRelationType(typeNameIn: String, expectedRows: Option[Int] = Some(1)): java.util.ArrayList[i64]
+    fn findRelationType(typeNameIn: String, expectedRows: Option[Int] = Some(1)): java.util.ArrayList[i64]
   protected[model] def getRelationTypeData(idIn: i64): Array[Option[Any]]
   protected[model] def getQuantityAttributeData(idIn: i64): Array[Option[Any]]
   protected[model] def getDateAttributeData(idIn: i64): Array[Option[Any]]
@@ -227,21 +227,21 @@ abstract class Database {
   protected[model] def getRelationToRemoteEntityData(relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64): Array[Option[Any]]
   protected[model] def getGroupData(idIn: i64): Array[Option[Any]]
   protected[model] def getGroupEntryObjects(groupIdIn: i64, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity]
-  def getGroupSize(groupIdIn: i64, includeWhichEntitiesIn: Int = 3): i64
+    fn getGroupSize(groupIdIn: i64, includeWhichEntitiesIn: Int = 3): i64
   protected[model] def getHighestSortingIndexForGroup(groupIdIn: i64): i64
   protected[model] def getRelationToGroupDataByKeys(entityId: i64, relTypeId: i64, groupId: i64): Array[Option[Any]]
   protected[model] def getRelationToGroupData(idIn: i64): Array[Option[Any]]
-  def getGroupEntriesData(groupIdIn: i64, limitIn: Option[i64] = None, includeArchivedEntitiesIn: Boolean = true): List[Array[Option[Any]]]
+    fn getGroupEntriesData(groupIdIn: i64, limitIn: Option[i64] = None, includeArchivedEntitiesIn: Boolean = true): List[Array[Option[Any]]]
   protected[model] def findRelationToAndGroup_OnEntity(entityIdIn: i64,
                                                        groupNameIn: Option[String] = None): (Option[i64], Option[i64], Option[i64], Option[String], Boolean)
-  def getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[(i64, Entity)]
+    fn getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[(i64, Entity)]
   protected[model] def getCountOfEntitiesContainingGroup(groupIdIn: i64): (i64, i64)
   protected[model] def getClassData(idIn: i64): Array[Option[Any]]
   protected[model] def getAttributeCount(entityIdIn: i64, includeArchivedEntitiesIn: Boolean = false): i64
   protected[model] def getRelationToLocalEntityCount(entityIdIn: i64, includeArchivedEntities: Boolean = false): i64
   protected[model] def getRelationToRemoteEntityCount(entityIdIn: i64): i64
   protected[model] def getRelationToGroupCount(entityIdIn: i64): i64
-  def getClassCount(entityIdIn: Option[i64] = None): i64
+    fn getClassCount(entityIdIn: Option[i64] = None): i64
   protected[model] def getClassName(idIn: i64): Option[String]
   protected[model] def getOmInstanceData(idIn: String): Array[Option[Any]]
   protected[model] def isDuplicateOmInstanceAddress(addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean
@@ -257,7 +257,7 @@ abstract class Database {
   protected[model] def isGroupEntrySortingIndexInUse(groupIdIn: i64, sortingIndexIn: i64): Boolean
   protected[model] def isAttributeSortingIndexInUse(entityIdIn: i64, sortingIndexIn: i64): Boolean
   protected[model] def findUnusedAttributeSortingIndex(entityIdIn: i64, startingWithIn: Option[i64] = None): i64
-  def findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean = false): java.util.ArrayList[i64]
+    fn findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean = false): java.util.ArrayList[i64]
   protected[model] def findUnusedGroupSortingIndex(groupIdIn: i64, startingWithIn: Option[i64] = None): i64
   protected[model] def getTextAttributeByTypeId(parentEntityIdIn: i64, typeIdIn: i64, expectedRows: Option[Int] = None): java.util.ArrayList[TextAttribute]
   protected[model] def getLocalEntitiesContainingLocalEntity(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[(i64, Entity)]
@@ -267,42 +267,42 @@ abstract class Database {
                                                      maxValsIn: Option[i64] = None): java.util.ArrayList[RelationToGroup]
 //  protected[model] def getShouldCreateDefaultAttributes(classIdIn: i64): Option[Boolean]
   protected[model] def updateClassCreateDefaultAttributes(classIdIn: i64, value: Option[Boolean])
-  def getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option[i64] = None, templateEntity: Option[i64] = None): i64
+    fn getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option[i64] = None, templateEntity: Option[i64] = None): i64
   protected[model] def getCountOfLocalEntitiesContainingLocalEntity(entityIdIn: i64): (i64, i64)
   //idea (tracked): make "*duplicate*" methods just be ... called "search"? combine w/ search, or rename? makes sense for callers?
-  def isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[i64] = None): Boolean
+    fn isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[i64] = None): Boolean
   protected[model] def getContainingRelationToGroupDescriptions(entityIdIn: i64, limitIn: Option[i64] = None): util.ArrayList[String]
-  def getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitEntityIdIn: Option[i64],
+    fn getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitEntityIdIn: Option[i64],
                           nameRegexIn: String): java.util.ArrayList[Entity]
-  def getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitGroupIdIn: Option[i64],
+    fn getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitGroupIdIn: Option[i64],
                         nameRegexIn: String): java.util.ArrayList[Group]
   protected[model] def getRelationsToGroupContainingThisGroup(groupIdIn: i64, startingIndexIn: i64,
                                                               maxValsIn: Option[i64] = None): java.util.ArrayList[RelationToGroup]
-  def getEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity]
-  def getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, classIdIn: Option[i64] = None,
+    fn getEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity]
+    fn getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, classIdIn: Option[i64] = None,
                       limitByClass: Boolean = false, templateEntity: Option[i64] = None,
                       groupToOmitIdIn: Option[i64] = None): java.util.ArrayList[Entity]
-  def getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): i64
-  def getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None,
+    fn getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): i64
+    fn getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None,
                                       quantitySeeksUnitNotTypeIn: Boolean): java.util.ArrayList[Entity]
-  def getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity]
-  def getClasses(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[EntityClass]
-  def getRelationTypeCount: i64
-  def getOmInstanceCount: i64
-  def getEntityCount: i64
-  def findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option[i64] = None): util.ArrayList[(i64, String, i64)]
-  def getGroupCount: i64
-  def getGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, groupToOmitIdIn: Option[i64] = None): java.util.ArrayList[Group]
-  def createGroup(nameIn: String, allowMixedClassesInGroupIn: Boolean = false): i64
-  def relationToGroupKeyExists(idIn: i64): Boolean
+    fn getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity]
+    fn getClasses(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[EntityClass]
+    fn getRelationTypeCount: i64
+    fn getOmInstanceCount: i64
+    fn getEntityCount: i64
+    fn findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option[i64] = None): util.ArrayList[(i64, String, i64)]
+    fn getGroupCount: i64
+    fn getGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, groupToOmitIdIn: Option[i64] = None): java.util.ArrayList[Group]
+    fn createGroup(nameIn: String, allowMixedClassesInGroupIn: Boolean = false): i64
+    fn relationToGroupKeyExists(idIn: i64): Boolean
 
 
   protected[model] def updateEntitysClass(entityId: i64, classId: Option[i64], callerManagesTransactions: Boolean = false)
   protected[model] def updateEntityOnlyNewEntriesStickToTop(idIn: i64, newEntriesStickToTop: Boolean)
   protected[model] def archiveEntity(idIn: i64, callerManagesTransactionsIn: Boolean = false)
   protected[model] def unarchiveEntity(idIn: i64, callerManagesTransactionsIn: Boolean = false)
-  def setIncludeArchivedEntities(in: Boolean): Unit
-  def setUserPreference_EntityId(nameIn: String, entityIdIn: i64)
+    fn setIncludeArchivedEntities(in: Boolean): Unit
+    fn setUserPreference_EntityId(nameIn: String, entityIdIn: i64)
   protected[model] def updateEntityOnlyPublicStatus(idIn: i64, value: Option[Boolean])
   protected[model] def updateQuantityAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
                               inObservationDate: i64)
@@ -357,8 +357,8 @@ abstract class Database {
 
 
   // (See comments above the set of these methods, in RestDatabase.scala:)
-  def getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option[Boolean] = None): Option[Boolean]
-  def getPreferencesContainerId: i64
-  def getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[i64] = None): Option[i64]
-  def getOmInstances(localIn: Option[Boolean] = None): java.util.ArrayList[OmInstance]
+    fn getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option[Boolean] = None): Option[Boolean]
+    fn getPreferencesContainerId: i64
+    fn getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[i64] = None): Option[i64]
+    fn getOmInstances(localIn: Option[Boolean] = None): java.util.ArrayList[OmInstance]
 }

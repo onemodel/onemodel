@@ -92,7 +92,7 @@ impl TextUI {
     const CHOOSER_MENU_PREFIX_LENGTH: i32 = 2;
 }
 /* %%
-  def initializeTerminal(): jline.Terminal = {
+    fn initializeTerminal(): jline.Terminal = {
     synchronized {
                    if (mCleanupStarted) null
                    else {
@@ -110,7 +110,7 @@ impl TextUI {
                  }
   }
 
-  def initializeReader(): ConsoleReader = {
+    fn initializeReader(): ConsoleReader = {
     synchronized {
                    if (mCleanupStarted) null
                    else {
@@ -150,7 +150,7 @@ impl TextUI {
 
   let mut out: PrintStream = System.out;
 
-  def setOutput(out: PrintStream) {
+    fn setOutput(out: PrintStream) {
     this.out = out
   }
 
@@ -162,11 +162,11 @@ impl TextUI {
   /**
    * The # of items to try to display on the screen at one time.
    */
-  private def terminalHeight: Int = {
+    fn terminalHeight: Int = {
     mTerminal.getHeight
   }
 
-  private def terminalWidth: Int = {
+    fn terminalWidth: Int = {
     if (!Util.isWindows) {
       mTerminal.getWidth
     } else {
@@ -181,11 +181,11 @@ impl TextUI {
     }
   }
 
-  def getUserInputChar: (Char, Boolean) = {
+    fn getUserInputChar: (Char, Boolean) = {
       getUserInputChar(Nil)
   }
 
-  def getUserInputChar(allowedCharsIn_CURRENTLY_IGNORED: List[Char]): (Char, Boolean) = {
+    fn getUserInputChar(allowedCharsIn_CURRENTLY_IGNORED: List[Char]): (Char, Boolean) = {
     let mut input: i32 = jlineReader.readCharacter(true);
     if (!input.isValidChar) {
       throw new Exception("Unexpected non-char value " + input + " from readCharacter().")
@@ -208,15 +208,15 @@ impl TextUI {
 /* %%
   /** Allows customizing the output stream, for tests.
     */
-  def println() {
+    fn println() {
     out.println()
   }
 
-  def println(s: String) {
+    fn println(s: String) {
     out.println(s)
   }
 
-  private def displayVisualSeparator() {
+    fn displayVisualSeparator() {
     for (x <- 1 to 6) println()
     println("==============================================")
   }
@@ -224,14 +224,14 @@ impl TextUI {
   let mut mTesting = false;
 
   //idea: change this to ".apply"
-  def weAreTesting(testing: Boolean) {
+    fn weAreTesting(testing: Boolean) {
     mTesting = testing
   }
 
-  def weAreTesting: Boolean = {
+    fn weAreTesting: Boolean = {
     mTesting
   }
-  def displayText(textIn: String, waitForKeystrokeIn: Boolean = true, prePromptIn: Option[String] = None) {
+    fn displayText(textIn: String, waitForKeystrokeIn: Boolean = true, prePromptIn: Option[String] = None) {
     displayVisualSeparator()
     println(textIn)
 
@@ -324,7 +324,7 @@ impl TextUI {
     }
   }
 
-  private def linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int): Int = {
+    fn linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int): Int = {
     let linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 5 // 5 as described in one caller;
     terminalHeight - linesUsedBeforeMoreChoices
   }
@@ -337,14 +337,14 @@ impl TextUI {
     * based on # of available columns and a possible max column width.
     * SEE ALSO the method linesLeft, which actually has/uses the number.
     */
-  def maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int): Int = {
+    fn maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int): Int = {
     let maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + CHOOSER_MENU_PREFIX_LENGTH);
     // the next 2 lines are in coordination with a 'require' statement in askWhich, so we don't fail it:
     let maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length;
     math.min(maxMoreChoicesBySpaceAvailable, maxMoreChoicesByMenuCharsAvailable)
   }
 
-  def columnsPossible(columnWidthIn: Int): Int = {
+    fn columnsPossible(columnWidthIn: Int): Int = {
     require(columnWidthIn > 0)
     // allow at least 1 column, even with a smaller terminal width
     math.max(terminalWidth / columnWidthIn, 1)
@@ -551,20 +551,20 @@ impl TextUI {
     }
   }
 
-  private def isValidYesNoAnswer(s: String): Boolean = {
+    fn isValidYesNoAnswer(s: String): Boolean = {
     s.toLowerCase == "y" ||
     s.toLowerCase == "yes" ||
     s.toLowerCase == "n" ||
     s.toLowerCase == "no"
   }
 
-  private def isValidYesNoOrBlankAnswer(s: String): Boolean = {
+    fn isValidYesNoOrBlankAnswer(s: String): Boolean = {
     isValidYesNoAnswer(s) ||
     s.trim.isEmpty
   }
 
   /** true means yes, None means user wants out. */
-  def askYesNoQuestion(promptIn: String, defaultValueIn: Option[String] = Some("n"), allowBlankAnswer: Boolean = false): Option[Boolean] = {
+    fn askYesNoQuestion(promptIn: String, defaultValueIn: Option[String] = Some("n"), allowBlankAnswer: Boolean = false): Option[Boolean] = {
     let ans = askForString(Some(Array[String](promptIn + " (y/n)")),;
                            if (allowBlankAnswer) Some(isValidYesNoOrBlankAnswer) else Some(isValidYesNoAnswer),
                            defaultValueIn, escKeySkipsCriteriaCheck = allowBlankAnswer)
@@ -579,7 +579,7 @@ impl TextUI {
 
   /** This is in the UI code because probably a GUI would do it very differently.
     */
-  def getExportDestination(originalPathIn: String, originalMd5HashIn: String): Option[File] = {
+    fn getExportDestination(originalPathIn: String, originalMd5HashIn: String): Option[File] = {
     def newLocation(originalNameIn: String): Option[File] = {
       let oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn);
       if (oldNameInTmpDir.getParentFile.canWrite && !oldNameInTmpDir.exists()) Some(oldNameInTmpDir)

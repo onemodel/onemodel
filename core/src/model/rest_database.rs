@@ -40,7 +40,7 @@ object RestDatabase {
   lazy let wsClient: WSClient = AhcWSClient();
   implicit let context = play.api.libs.concurrent.Execution.Implicits.defaultContext;
 
-  def restCall[T, U](urlIn: String,
+    fn restCall[T, U](urlIn: String,
                      functionToCall: (WSResponse, Option[(Seq[JsValue]) => U], Array[Any]) => T,
                      functionToCreateResultRow: Option[(Seq[JsValue]) => U],
                      inputs: Array[Any]): T = {
@@ -51,7 +51,7 @@ object RestDatabase {
    * Does error handling internally to the provided UI, only if the parameter uiIn.isDefined (ie, not None), otherwise throws the
    * exception to the caller.  Either returns a Some(data), or shows the exception in the UI then returns None, or throws an exception.
    */
-  def restCallWithOptionalErrorHandling[T, U](urlIn: String,
+    fn restCallWithOptionalErrorHandling[T, U](urlIn: String,
                                               functionToCall: (WSResponse, Option[(Seq[JsValue]) => U], Array[Any]) => T,
                                               functionToCreateResultRow: Option[(Seq[JsValue]) => U],
                                               inputs: Array[Any],
@@ -91,7 +91,7 @@ object RestDatabase {
     }
   }
 
-  def getFullExceptionMessage(urlIn: String, responseText: String, e: Option[Exception] = None): String = {
+    fn getFullExceptionMessage(urlIn: String, responseText: String, e: Option[Exception] = None): String = {
     let localErrMsg1 = "Failed to retrieve remote info for " + urlIn + " due to exception";
     let localErrMsg2 = "The actual response text was: \"" + responseText + "\"";
     let msg: String =;
@@ -120,23 +120,23 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   // Idea: There are probably nicer scala idioms for doing this wrapping instead of the 2-method approach with "process*" methods; maybe should use them.
 
   // Idea: could methods like this be combined with a type parameter [T] ? (like the git commit i reverted ~ 2016-11-17 but, another try?)
-  def processLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): i64 = {
+    fn processLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): i64 = {
     response.json.as[i64]
   }
 
-  def getLong(pathIn: String): i64 = {
+    fn getLong(pathIn: String): i64 = {
     RestDatabase.restCall[i64, Any]("http://" + mRemoteAddress + pathIn, processLong, None, Array())
   }
 
-  def processBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Boolean = {
+    fn processBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Boolean = {
     response.json.as[Boolean]
   }
 
-  def getBoolean(pathIn: String): Boolean = {
+    fn getBoolean(pathIn: String): Boolean = {
     RestDatabase.restCall[Boolean, Any]("http://" + mRemoteAddress + pathIn, processBoolean, None, Array())
   }
 
-  def processOptionString(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Option[String] = {
+    fn processOptionString(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Option[String] = {
     if (response.json == JsNull) {
       None
     } else {
@@ -144,11 +144,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  def getOptionString(pathIn: String): Option[String] = {
+    fn getOptionString(pathIn: String): Option[String] = {
     RestDatabase.restCall[Option[String], Any]("http://" + mRemoteAddress + pathIn, processOptionString, None, Array())
   }
 
-  def processOptionLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Option[i64] = {
+    fn processOptionLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Option[i64] = {
     if (response.json == JsNull) {
       None
     } else {
@@ -156,11 +156,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  def getOptionLongFromRest(pathIn: String): Option[i64] = {
+    fn getOptionLongFromRest(pathIn: String): Option[i64] = {
     RestDatabase.restCall[Option[i64], Any]("http://" + mRemoteAddress + pathIn, processOptionLong, None, Array())
   }
 
-  def processOptionBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Option[Boolean] = {
+    fn processOptionBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): Option[Boolean] = {
     if (response.json == JsNull) {
       None
     } else {
@@ -168,13 +168,13 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  def getOptionBoolean(pathIn: String): Option[Boolean] = {
+    fn getOptionBoolean(pathIn: String): Option[Boolean] = {
     RestDatabase.restCall[Option[Boolean], Any]("http://" + mRemoteAddress + pathIn, processOptionBoolean, None, Array())
   }
 
   /** (See comment on processArrayOptionAny.
     * Idea: consolidate this method and its caller with getCollection and processCollection? */
-  def processListArrayOptionAny(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], whateverUsefulInfoIn: Array[Any]): List[Array[Option[Any]]] = {
+    fn processListArrayOptionAny(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], whateverUsefulInfoIn: Array[Any]): List[Array[Option[Any]]] = {
     // (Idea: see comment at "functional-" in PostgreSQLDatabase.dbQuery.)
     let mut results: List[Array[Option[Any]]] = Nil;
     if (response.json == JsNull) {
@@ -189,7 +189,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     results.reverse
   }
 
-  def getRow(whateverUsefulInfoIn: Array[Any], values: IndexedSeq[JsValue]): Array[Option[Any]] = {
+    fn getRow(whateverUsefulInfoIn: Array[Any], values: IndexedSeq[JsValue]): Array[Option[Any]] = {
     let result: Array[Option[Any]] = new Array[Option[Any]](values.size);
     let resultTypes: String = whateverUsefulInfoIn(0).asInstanceOf[String];
     let mut index = 0;
@@ -221,7 +221,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     * clients need the keys, to go by those instead of the defined ordering the callers of this expect them to be in (which as of 2016-11 matches the
     * eventual SQL select statement).
     * */
-  def processArrayOptionAny(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], whateverUsefulInfoIn: Array[Any]): Array[Option[Any]] = {
+    fn processArrayOptionAny(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], whateverUsefulInfoIn: Array[Any]): Array[Option[Any]] = {
     if (response.json == JsNull) {
       // Nothing came back.  Preferring that a 404 (exception) only be when something broke. Idea: could return None instead maybe?
       new Array[Option[Any]](0)
@@ -236,11 +236,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  def getCollection[T](pathIn: String, inputs: Array[Any], createResultRow: Option[(Seq[JsValue]) => T]): ArrayList[T] = {
+    fn getCollection[T](pathIn: String, inputs: Array[Any], createResultRow: Option[(Seq[JsValue]) => T]): ArrayList[T] = {
     RestDatabase.restCall[ArrayList[T], T]("http://" + mRemoteAddress + pathIn, processCollection, createResultRow, inputs)
   }
 
-  def processCollection[T](response: WSResponse, createResultRow: Option[(Seq[JsValue]) => T], whateverUsefulInfoIn: Array[Any]): ArrayList[T] = {
+    fn processCollection[T](response: WSResponse, createResultRow: Option[(Seq[JsValue]) => T], whateverUsefulInfoIn: Array[Any]): ArrayList[T] = {
     if (response.json == JsNull) {
       // Nothing came back.  Preferring that a 404 (exception) only be when something broke. Idea: could return None instead maybe?
       new ArrayList[T](0)
@@ -256,40 +256,40 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  def getArrayOptionAny(pathIn: String, inputs: Array[Any]): Array[Option[Any]] = {
+    fn getArrayOptionAny(pathIn: String, inputs: Array[Any]): Array[Option[Any]] = {
     RestDatabase.restCall[Array[Option[Any]], Any]("http://" + mRemoteAddress + pathIn, processArrayOptionAny, None, inputs)
   }
 
-  def getListArrayOptionAny(pathIn: String, inputs: Array[Any]): List[Array[Option[Any]]] = {
+    fn getListArrayOptionAny(pathIn: String, inputs: Array[Any]): List[Array[Option[Any]]] = {
     RestDatabase.restCall[List[Array[Option[Any]]], Any]("http://" + mRemoteAddress + pathIn, processListArrayOptionAny, None, inputs)
   }
 
-  def isRemote: Boolean = true
+    fn isRemote: Boolean = true
 
   lazy let id: String = {;
     getIdWithOptionalErrHandling(None).getOrElse(throw new OmDatabaseException("Unexpected behavior in getId: called method should have either thrown an" +
                                                                                " exception or returned an Option with data, but it returned None."))
   }
 
-  def processString(responseIn: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): String = {
+    fn processString(responseIn: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): String = {
     responseIn.json.as[String]
   }
 
   /**
    * Same error handling behavior as in object RestDatabase.restCallWithErrorHandling.
    */
-  def getIdWithOptionalErrHandling(uiIn: Option[TextUI]): Option[String] = {
+    fn getIdWithOptionalErrHandling(uiIn: Option[TextUI]): Option[String] = {
     let url = "http://" + mRemoteAddress + "/id";
     RestDatabase.restCallWithOptionalErrorHandling[String, Any](url, processString, None, Array(), uiIn)
   }
 
-  def getDefaultEntityId: i64 = {
+    fn getDefaultEntityId: i64 = {
     getDefaultEntity(None).getOrElse(throw new OmDatabaseException("Unexpected behavior in getDefaultEntityWithOptionalErrHandling:" +
                                                                    " called method should have thrown an" +
                                                                    " exception or returned an Option with data, but returned None"))
   }
 
-  def getDefaultEntity(uiIn: Option[TextUI]): Option[i64] = {
+    fn getDefaultEntity(uiIn: Option[TextUI]): Option[i64] = {
     def getDefaultEntity_processed(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): i64 = {
       (response.json \ "id").as[i64]
     }
@@ -297,7 +297,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCallWithOptionalErrorHandling[i64, Any](url, getDefaultEntity_processed, None, Array(), uiIn)
   }
 
-  def getEntityJson_WithOptionalErrHandling(uiIn: Option[TextUI], idIn: i64): Option[String] = {
+    fn getEntityJson_WithOptionalErrHandling(uiIn: Option[TextUI], idIn: i64): Option[String] = {
     def getEntity_processed(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): String = {
       /* Why doesn't next json line ("...as[String]") work but the following one does?  The first one gets:
         Failed to retrieve remote info for http://localhost:9000/entities/-9223372036854745151 due to exception:
@@ -597,7 +597,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                           Array("i64"))
   }
 
-  def createTextAttributeRow(values: Seq[JsValue]): TextAttribute = {
+    fn createTextAttributeRow(values: Seq[JsValue]): TextAttribute = {
     new TextAttribute(this, values(0).asInstanceOf[JsNumber].as[i64], values(1).asInstanceOf[JsNumber].as[i64],
                       values(2).asInstanceOf[JsNumber].as[i64],
                       values(3).asInstanceOf[JsString].as[String],
@@ -612,15 +612,15 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                  Array(), Some(createTextAttributeRow))
   }
 
-  def createLongValueRow(values: Seq[JsValue]): i64 = {
+    fn createLongValueRow(values: Seq[JsValue]): i64 = {
     values(0).asInstanceOf[JsNumber].as[i64]
   }
 
-  def createStringValueRow(values: Seq[JsValue]): String = {
+    fn createStringValueRow(values: Seq[JsValue]): String = {
     values(0).asInstanceOf[JsString].as[String]
   }
 
-  def createLongStringLongRow(values: Seq[JsValue]): (i64, String, i64) = {
+    fn createLongStringLongRow(values: Seq[JsValue]): (i64, String, i64) = {
     (values(0).asInstanceOf[JsNumber].as[i64], values(1).asInstanceOf[JsString].as[String], values(2).asInstanceOf[JsNumber].as[i64])
   }
 
@@ -652,7 +652,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                           Array(), Some(createStringValueRow))
   }
 
-  def createRelationToGroupRow(values: Seq[JsValue]): RelationToGroup = {
+    fn createRelationToGroupRow(values: Seq[JsValue]): RelationToGroup = {
     new RelationToGroup(this, values(0).asInstanceOf[JsNumber].as[i64], values(1).asInstanceOf[JsNumber].as[i64],
                         values(2).asInstanceOf[JsNumber].as[i64],
                         values(3).asInstanceOf[JsNumber].as[i64],
@@ -691,7 +691,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   // idea: make private all methods used for the same purpose like this one:
-  def createEntityRow(values: Seq[JsValue]): Entity = {
+    fn createEntityRow(values: Seq[JsValue]): Entity = {
     new Entity(this, values(0).asInstanceOf[JsNumber].as[i64],
                values(1).asInstanceOf[JsString].as[String],
                if (values(2) == JsNull) None else Some(values(2).asInstanceOf[JsNumber].as[i64]),
@@ -701,7 +701,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                values(6).asInstanceOf[JsBoolean].as[Boolean])
   }
 
-  def createGroupRow(values: Seq[JsValue]): Group = {
+    fn createGroupRow(values: Seq[JsValue]): Group = {
     new Group(this, values(0).asInstanceOf[JsNumber].as[i64],
               values(1).asInstanceOf[JsString].as[String],
               values(2).asInstanceOf[JsNumber].as[i64],
@@ -709,7 +709,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
               values(4).asInstanceOf[JsBoolean].as[Boolean])
   }
 
-  def createEntityClassRow(values: Seq[JsValue]): EntityClass = {
+    fn createEntityClassRow(values: Seq[JsValue]): EntityClass = {
     new EntityClass(this, values(0).asInstanceOf[JsNumber].as[i64],
                     values(1).asInstanceOf[JsString].as[String],
                     values(2).asInstanceOf[JsNumber].as[i64],
@@ -778,13 +778,13 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                          Array(), Some(createGroupRow))
   }
 
-  def createRelationTypeIdAndEntityRow(values: Seq[JsValue]): (i64, Entity) = {
+    fn createRelationTypeIdAndEntityRow(values: Seq[JsValue]): (i64, Entity) = {
     let entity: Entity = createEntityRow(values);
     let relationTypeId: i64 = values(7).asInstanceOf[JsNumber].as[i64];
     (relationTypeId, entity)
   }
 
-  def createRelationTypeRow(values: Seq[JsValue]): RelationType = {
+    fn createRelationTypeRow(values: Seq[JsValue]): RelationType = {
     new RelationType(this, values(0).asInstanceOf[JsNumber].as[i64],
                      values(1).asInstanceOf[JsString].as[String],
                      values(7).asInstanceOf[JsString].as[String],
@@ -803,7 +803,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                   Array(), Some(createRelationTypeIdAndEntityRow))
   }
 
-  def process2Longs(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): (i64, i64) = {
+    fn process2Longs(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): (i64, i64) = {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
@@ -814,7 +814,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  def get2Longs(pathIn: String): (i64, i64) = {
+    fn get2Longs(pathIn: String): (i64, i64) = {
     RestDatabase.restCall[(i64, i64), Any]("http://" + mRemoteAddress + pathIn, process2Longs, None, Array())
   }
 
@@ -853,7 +853,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     (fileSize, md5hash)
   }
 
-  def processOptionLongsStringBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any],
+    fn processOptionLongsStringBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any],
                                       ignore2: Array[Any]): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) = {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
@@ -868,7 +868,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  def getOptionLongsStringBoolean(pathIn: String): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) = {
+    fn getOptionLongsStringBoolean(pathIn: String): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) = {
     RestDatabase.restCall[(Option[i64], Option[i64], Option[i64], Option[String], Boolean), Any]("http://" + mRemoteAddress + pathIn,
                                                                                                     processOptionLongsStringBoolean, None, Array())
   }
@@ -893,7 +893,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     */
   }
 
-  def getOptionLongFromJson(values: IndexedSeq[JsValue], index: Int): Option[i64] = {
+    fn getOptionLongFromJson(values: IndexedSeq[JsValue], index: Int): Option[i64] = {
     if (values(index) == JsNull) None
     else {
       Some(values(index).asInstanceOf[JsNumber].as[i64])
@@ -902,7 +902,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  def getOptionStringFromJson(values: IndexedSeq[JsValue], index: Int): Option[String] = {
+    fn getOptionStringFromJson(values: IndexedSeq[JsValue], index: Int): Option[String] = {
     if (values(index) == JsNull) None
     else {
       Some(values(index).asInstanceOf[JsString].as[String])
@@ -911,7 +911,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  def processSortedAttributes(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): (Array[(i64, Attribute)], Int) = {
+    fn processSortedAttributes(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]): (Array[(i64, Attribute)], Int) = {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
@@ -992,8 +992,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCall[(Array[(i64, Attribute)], Int), Any]("http://" + mRemoteAddress + path, processSortedAttributes, None, Array())
   }
 
-  def getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): i64 = ???
-  def getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None,
+    fn getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): i64 = ???
+    fn getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None,
                                       quantitySeeksUnitNotTypeIn: Boolean): java.util.ArrayList[Entity] = ???
 
 
@@ -1189,5 +1189,5 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override def getOmInstances(localIn: Option[Boolean]): util.ArrayList[OmInstance] = ???
 
-  def getRelationToLocalEntityDataById(idIn: i64): Array[Option[Any]] = ???
+    fn getRelationToLocalEntityDataById(idIn: i64): Array[Option[Any]] = ???
 }

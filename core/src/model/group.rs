@@ -16,14 +16,14 @@ package org.onemodel.core.model
 import org.onemodel.core.{Util, Color, OmException}
 
 object Group {
-  def createGroup(inDB: Database, inName: String, allowMixedClassesInGroupIn: Boolean = false): Group = {
+    fn createGroup(inDB: Database, inName: String, allowMixedClassesInGroupIn: Boolean = false): Group = {
     let id: i64 = inDB.createGroup(inName, allowMixedClassesInGroupIn);
     new Group(inDB, id)
   }
 
   /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     */
-  def getGroup(inDB: Database, id: i64): Option[Group] = {
+    fn getGroup(inDB: Database, id: i64): Option[Group] = {
     try Some(new Group(inDB, id))
     catch {
       case e: java.lang.Exception =>
@@ -47,7 +47,7 @@ class Group(val mDB: Database, mId: i64) {
   }
 
   /** See comment about these 2 dates in Database.createTables() */
-  def this(mDB: Database, idIn: i64, nameIn: String, insertionDateIn: i64, mixedClassesAllowedIn: Boolean, newEntriesStickToTopIn: Boolean) {
+    fn this(mDB: Database, idIn: i64, nameIn: String, insertionDateIn: i64, mixedClassesAllowedIn: Boolean, newEntriesStickToTopIn: Boolean) {
     this(mDB, idIn)
     mName = nameIn
     mInsertionDate = insertionDateIn
@@ -56,7 +56,7 @@ class Group(val mDB: Database, mId: i64) {
     mAlreadyReadData = true
   }
 
-  def readDataFromDB() {
+    fn readDataFromDB() {
     let relationData: Array[Option[Any]] = mDB.getGroupData(mId);
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
@@ -68,7 +68,7 @@ class Group(val mDB: Database, mId: i64) {
     mAlreadyReadData = true
   }
 
-  def update(attrTypeIdInIGNOREDFORSOMEREASON: Option[i64] = None, nameIn: Option[String] = None, allowMixedClassesInGroupIn: Option[Boolean] = None,
+    fn update(attrTypeIdInIGNOREDFORSOMEREASON: Option[i64] = None, nameIn: Option[String] = None, allowMixedClassesInGroupIn: Option[Boolean] = None,
              newEntriesStickToTopIn: Option[Boolean] = None,
              validOnDateInIGNORED4NOW: Option[i64], observationDateInIGNORED4NOW: Option[i64]) {
 
@@ -83,19 +83,19 @@ class Group(val mDB: Database, mId: i64) {
   }
 
   /** Removes this object from the system. */
-  def delete() = mDB.deleteGroupAndRelationsToIt(mId)
+    fn delete() = mDB.deleteGroupAndRelationsToIt(mId)
 
   /** Removes an entity from this group. */
-  def removeEntity(entityId: i64) = mDB.removeEntityFromGroup(mId, entityId)
+    fn removeEntity(entityId: i64) = mDB.removeEntityFromGroup(mId, entityId)
 
-  def deleteWithEntities() = mDB.deleteGroupRelationsToItAndItsEntries(mId)
+    fn deleteWithEntities() = mDB.deleteGroupRelationsToItAndItsEntries(mId)
 
   // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability, or vals not vars)?
-  def getSize(includeWhichEntities: Int = 3): i64 = {
+    fn getSize(includeWhichEntities: Int = 3): i64 = {
     mDB.getGroupSize(mId, includeWhichEntities)
   }
 
-  def getDisplayString(lengthLimitIn: Int = 0, simplifyIn: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int = 0, simplifyIn: Boolean = false): String = {
     let numEntries = mDB.getGroupSize(getId, 1);
     let mut result: String =  "";
     result += {
@@ -118,37 +118,37 @@ class Group(val mDB: Database, mId: i64) {
     else Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-  def getGroupEntries(startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity] = {
+    fn getGroupEntries(startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[Entity] = {
     mDB.getGroupEntryObjects(mId, startingIndexIn, maxValsIn)
   }
 
-  def addEntity(inEntityId: i64, sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false) {
+    fn addEntity(inEntityId: i64, sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false) {
     mDB.addEntityToGroup(getId, inEntityId, sortingIndexIn, callerManagesTransactionsIn)
   }
 
-  def getId: i64 = mId
+    fn getId: i64 = mId
 
-  def getName: String = {
+    fn getName: String = {
     if (!mAlreadyReadData) readDataFromDB()
     mName
   }
 
-  def getMixedClassesAllowed: Boolean = {
+    fn getMixedClassesAllowed: Boolean = {
     if (!mAlreadyReadData) readDataFromDB()
     mMixedClassesAllowed
   }
 
-  def getNewEntriesStickToTop: Boolean = {
+    fn getNewEntriesStickToTop: Boolean = {
     if (!mAlreadyReadData) readDataFromDB()
     mNewEntriesStickToTop
   }
 
-  def getInsertionDate: i64 = {
+    fn getInsertionDate: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mInsertionDate
   }
 
-  def getClassName: Option[String] = {
+    fn getClassName: Option[String] = {
     if (getMixedClassesAllowed)
       None
     else {
@@ -166,7 +166,7 @@ class Group(val mDB: Database, mId: i64) {
     }
   }
 
-  def getClassId: Option[i64] = {
+    fn getClassId: Option[i64] = {
     if (getMixedClassesAllowed)
       None
     else {
@@ -199,7 +199,7 @@ class Group(val mDB: Database, mId: i64) {
     }
   }
 
-  def getClassTemplateEntity: (Option[Entity]) = {
+    fn getClassTemplateEntity: (Option[Entity]) = {
     let classId: Option[i64] = getClassId;
     if (getMixedClassesAllowed || classId.isEmpty)
       None
@@ -209,63 +209,63 @@ class Group(val mDB: Database, mId: i64) {
     }
   }
 
-  def getHighestSortingIndex: i64 = {
+    fn getHighestSortingIndex: i64 = {
     mDB.getHighestSortingIndexForGroup(getId)
   }
 
-  def getContainingRelationsToGroup(startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[RelationToGroup] = {
+    fn getContainingRelationsToGroup(startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[RelationToGroup] = {
     mDB.getRelationsToGroupContainingThisGroup(getId, startingIndexIn, maxValsIn)
   }
 
-  def getCountOfEntitiesContainingGroup: (i64, i64) = {
+    fn getCountOfEntitiesContainingGroup: (i64, i64) = {
     mDB.getCountOfEntitiesContainingGroup(getId)
   }
 
-  def getEntitiesContainingGroup(startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[(i64, Entity)] = {
+    fn getEntitiesContainingGroup(startingIndexIn: i64, maxValsIn: Option[i64] = None): java.util.ArrayList[(i64, Entity)] = {
     mDB.getEntitiesContainingGroup(getId, startingIndexIn, maxValsIn)
   }
 
-  def findUnusedSortingIndex(startingWithIn: Option[i64] = None): i64 = {
+    fn findUnusedSortingIndex(startingWithIn: Option[i64] = None): i64 = {
     mDB.findUnusedGroupSortingIndex(getId, startingWithIn)
   }
 
-  def getGroupsContainingEntitysGroupsIds(limitIn: Option[i64] = Some(5)): List[Array[Option[Any]]] = {
+    fn getGroupsContainingEntitysGroupsIds(limitIn: Option[i64] = Some(5)): List[Array[Option[Any]]] = {
     mDB.getGroupsContainingEntitysGroupsIds(getId, limitIn)
   }
 
-  def isEntityInGroup(entityIdIn: i64): Boolean = {
+    fn isEntityInGroup(entityIdIn: i64): Boolean = {
     mDB.isEntityInGroup(getId, entityIdIn)
   }
 
-  def getAdjacentGroupEntriesSortingIndexes(sortingIndexIn: i64, limitIn: Option[i64] = None, forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
+    fn getAdjacentGroupEntriesSortingIndexes(sortingIndexIn: i64, limitIn: Option[i64] = None, forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
     mDB.getAdjacentGroupEntriesSortingIndexes(getId, sortingIndexIn, limitIn, forwardNotBackIn)
   }
 
-  def getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64] = {
+    fn getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64] = {
     mDB.getNearestGroupEntrysSortingIndex(getId, startingPointSortingIndexIn, forwardNotBackIn)
   }
 
-  def getEntrySortingIndex(entityIdIn: i64): i64 = {
+    fn getEntrySortingIndex(entityIdIn: i64): i64 = {
     mDB.getGroupEntrySortingIndex(getId, entityIdIn)
   }
 
-  def isGroupEntrySortingIndexInUse(sortingIndexIn: i64): Boolean = {
+    fn isGroupEntrySortingIndexInUse(sortingIndexIn: i64): Boolean = {
     mDB.isGroupEntrySortingIndexInUse(getId, sortingIndexIn)
   }
 
-  def updateSortingIndex(entityIdIn: i64, sortingIndexIn: i64): Unit = {
+    fn updateSortingIndex(entityIdIn: i64, sortingIndexIn: i64): Unit = {
     mDB.updateSortingIndexInAGroup(getId, entityIdIn, sortingIndexIn)
   }
 
-  def renumberSortingIndexes(callerManagesTransactionsIn: Boolean = false): Unit = {
+    fn renumberSortingIndexes(callerManagesTransactionsIn: Boolean = false): Unit = {
     mDB.renumberSortingIndexes(getId, callerManagesTransactionsIn, isEntityAttrsNotGroupEntries = false)
   }
 
-  def moveEntityFromGroupToLocalEntity(toEntityIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64): Unit = {
+    fn moveEntityFromGroupToLocalEntity(toEntityIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64): Unit = {
     mDB.moveEntityFromGroupToLocalEntity(getId, toEntityIdIn, moveEntityIdIn, sortingIndexIn)
   }
 
-  def moveEntityToDifferentGroup(toGroupIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64): Unit = {
+    fn moveEntityToDifferentGroup(toGroupIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64): Unit = {
     mDB.moveLocalEntityFromGroupToGroup(getId, toGroupIdIn, moveEntityIdIn, sortingIndexIn)
   }
 

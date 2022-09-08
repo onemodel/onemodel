@@ -15,12 +15,12 @@ package org.onemodel.core.controllers
   */
 //noinspection SpellCheckingInspection
 class EntityMenuxIT {
-  def setUp(): Unit = {
+    fn setUp(): Unit = {
   }
-  def tearDown() {
+    fn tearDown() {
   }
 
-  def testSomething(): Unit = {
+    fn testSomething(): Unit = {
     throw new Exception("adf")
   }
 }

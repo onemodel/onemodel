@@ -11,21 +11,21 @@
 package org.onemodel.core
 
 class OmException(msg:String) extends Exception(msg) {
-  def this(msg: String, t:Throwable)  {
+    fn this(msg: String, t:Throwable)  {
     this(msg)
     this.initCause(t)
   }
 }
 
 class OmFileTransferException(msg:String) extends OmException(msg) {
-  def this(msg: String, t:Throwable)  {
+    fn this(msg: String, t:Throwable)  {
     this(msg)
     this.initCause(t)
   }
 }
 
 class OmDatabaseException(msg:String) extends OmException(msg) {
-  def this(msg: String, t:Throwable)  {
+    fn this(msg: String, t:Throwable)  {
     this(msg)
     this.initCause(t)
   }

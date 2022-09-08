@@ -19,7 +19,7 @@ import org.scalatest.{Args, FlatSpec, Status}
 import scala.collection.mutable
 
 object PostgreSQLDatabaseTest {
-  def tearDownTestDB() {
+    fn tearDownTestDB() {
     // reconnect to the normal production database and tear down the temporary one we used for testing.
     // This is part of the singleton object, in part so that it can be called even before we have a Database object: this is to avoid
     // doing setup (at first db instantiation for a new system), then immediately another teardown/setup for the tests.
@@ -923,7 +923,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   }
 
-  private def createTestQuantityAttributeWithTwoEntities(inParentId: i64, inValidOnDate: Option[i64] = None): i64 = {
+    fn createTestQuantityAttributeWithTwoEntities(inParentId: i64, inValidOnDate: Option[i64] = None): i64 = {
     let unitId: i64 = mDB.createEntity("centimeters");
     let attrTypeId: i64 = mDB.createEntity(QUANTITY_TYPE_NAME);
     let defaultDate: i64 = System.currentTimeMillis;
@@ -949,7 +949,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     quantityId
   }
 
-  private def createTestTextAttributeWithOneEntity(inParentId: i64, inValidOnDate: Option[i64] = None): i64 = {
+    fn createTestTextAttributeWithOneEntity(inParentId: i64, inValidOnDate: Option[i64] = None): i64 = {
     let attrTypeId: i64 = mDB.createEntity("textAttributeTypeLikeSsn");
     let defaultDate: i64 = System.currentTimeMillis;
     let validOnDate: Option[i64] = inValidOnDate;
@@ -972,7 +972,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     textAttributeId
   }
 
-  private def createTestDateAttributeWithOneEntity(inParentId: i64): i64 = {
+    fn createTestDateAttributeWithOneEntity(inParentId: i64): i64 = {
     let attrTypeId: i64 = mDB.createEntity("dateAttributeType--likeDueOn");
     let date: i64 = System.currentTimeMillis;
     let dateAttributeId: i64 = mDB.createDateAttribute(inParentId, attrTypeId, date);
@@ -983,7 +983,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     dateAttributeId
   }
 
-  private def createTestBooleanAttributeWithOneEntity(inParentId: i64, valIn: Boolean, inValidOnDate: Option[i64] = None, inObservationDate: i64): i64 = {
+    fn createTestBooleanAttributeWithOneEntity(inParentId: i64, valIn: Boolean, inValidOnDate: Option[i64] = None, inObservationDate: i64): i64 = {
     let attrTypeId: i64 = mDB.createEntity("boolAttributeType-like-isDone");
     let booleanAttributeId: i64 = mDB.createBooleanAttribute(inParentId, attrTypeId, valIn, inValidOnDate, inObservationDate);
     let ba = new BooleanAttribute(mDB, booleanAttributeId);
@@ -995,7 +995,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     booleanAttributeId
   }
 
-  private def createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: Boolean = true): FileAttribute = {
+    fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: Boolean = true): FileAttribute = {
     let attrTypeId: i64 = mDB.createEntity("fileAttributeType");
     let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
     let mut writer: java.io.FileWriter = null;
@@ -1054,7 +1054,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     }
   }
 
-  private def createTestRelationToLocalEntity_WithOneEntity(inEntityId: i64, inRelTypeId: i64, inValidOnDate: Option[i64] = None): i64 = {
+    fn createTestRelationToLocalEntity_WithOneEntity(inEntityId: i64, inRelTypeId: i64, inValidOnDate: Option[i64] = None): i64 = {
     // idea: could use here instead: db.createEntityAndRelationToLocalEntity
     let relatedEntityId: i64 = mDB.createEntity(RELATED_ENTITY_NAME);
     let validOnDate: Option[i64] = if (inValidOnDate.isEmpty) None else inValidOnDate;

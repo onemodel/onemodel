@@ -29,7 +29,7 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDate: Option[i64], observationDate: i64,
+    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDate: Option[i64], observationDate: i64,
            sortingIndexIn: i64) {
     this(mDB, mId)
     mBoolean = booleanIn
@@ -38,14 +38,14 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
     */
-  def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = typeName + ": " + getBoolean + "";
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-  def getBoolean: Boolean = {
+    fn getBoolean: Boolean = {
     if (!mAlreadyReadData) readDataFromDB()
     mBoolean
   }
@@ -60,7 +60,7 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
                            baTypeData(4).get.asInstanceOf[i64], baTypeData(5).get.asInstanceOf[i64])
   }
 
-  def update(attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64) {
+    fn update(attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateBooleanAttribute(mId, getParentId, attrTypeIdIn, booleanIn, validOnDateIn, observationDateIn)
@@ -71,7 +71,7 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
   }
 
   /** Removes this object from the system. */
-  def delete() = mDB.deleteBooleanAttribute(mId)
+    fn delete() = mDB.deleteBooleanAttribute(mId)
 
   /** For descriptions of the meanings of these variables, see the comments
     on createBooleanAttribute(...) or createTables() in PostgreSQLDatabase or Database classes.

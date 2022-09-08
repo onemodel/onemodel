@@ -18,7 +18,7 @@ import org.onemodel.core.{OmException, Util}
 /** Represents one RelationType object in the system.
   */
 object RelationType {
-  def getNameLength: Int = {
+    fn getNameLength: Int = {
     Database.relationTypeNameLength
   }
 
@@ -88,7 +88,7 @@ class RelationType(mDB: Database, mId: i64) extends Entity(mDB, mId) {
     mAlreadyReadData = true
   }
 
-  def update(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): Unit = {
+    fn update(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): Unit = {
     if (!mAlreadyReadData) readDataFromDB()
     if (nameIn != mName || nameInReverseDirectionIn != mNameInReverseDirection || directionalityIn != mDirectionality) {
       mDB.updateRelationType(getId, nameIn, nameInReverseDirectionIn, directionalityIn)

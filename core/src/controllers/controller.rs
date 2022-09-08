@@ -44,7 +44,7 @@ impl Controller<'_> {
   let moveFarthestCount = 50;
 
   /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
-  def getDefaultEntity: Option[(i64, Entity)] = {
+    fn getDefaultEntity: Option[(i64, Entity)] = {
     if (defaultDisplayEntityId.isEmpty || ! localDb.entityKeyExists(defaultDisplayEntityId.get)) {
       None
     } else {
@@ -105,7 +105,7 @@ impl Controller<'_> {
 
 /* %%
   /** If the 1st parm is true, the next 2 must be omitted or None. */
-  private def tryLogins(force_user_pass_prompt: Boolean = false, default_username: Option[String] = None,
+    fn tryLogins(force_user_pass_prompt: Boolean = false, default_username: Option[String] = None,
                         default_password: Option[String] = None): Database = {
 
     require(if (force_user_pass_prompt) default_username.isEmpty && default_password.isEmpty else true)
@@ -188,16 +188,16 @@ impl Controller<'_> {
   // deep, for preferences.  If you check other places touched by this commit there may be a "shotgun surgery" bad smell here also.
   //Idea: Maybe these should have their cache expire after a period of time (to help when running multiple clients).
   let mut showPublicPrivateStatusPreference: Option[Boolean] = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE);
-  def refreshPublicPrivateStatusPreference(): Unit = {
+    fn refreshPublicPrivateStatusPreference(): Unit = {
     showPublicPrivateStatusPreference = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
   }
   // putting this in a var instead of recalculating it every time (too frequent) inside findDefaultDisplayEntityId:;
   let mut defaultDisplayEntityId: Option[i64] = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE);
-  def refreshDefaultDisplayEntityId(): Unit = {
+    fn refreshDefaultDisplayEntityId(): Unit = {
     defaultDisplayEntityId = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
   }
 
-  def askForClass(dbIn: Database): Option[i64] = {
+    fn askForClass(dbIn: Database): Option[i64] = {
     let msg = "CHOOSE ENTITY'S CLASS.  (Press ESC if you don't know or care about this.  Detailed explanation on the class feature will be available " +;
               "at onemodel.org when this feature is documented more (hopefully at the next release), or ask on the email list.)"
     let result: Option[(IdWrapper, Boolean, String)] = chooseOrCreateObject(dbIn, Some(List[String](msg)), None, None, Util.ENTITY_CLASS_TYPE);
@@ -212,7 +212,7 @@ impl Controller<'_> {
     * There is also editEntityName which calls askForNameAndWriteEntity: it checks if the Entity being edited is a RelationType, and if not also checks
     * for whether a group name should be changed at the same time.
     */
-  def askForClassInfoAndNameAndCreateEntity(dbIn: Database, classIdIn: Option[i64] = None): Option[Entity] = {
+    fn askForClassInfoAndNameAndCreateEntity(dbIn: Database, classIdIn: Option[i64] = None): Option[Entity] = {
     let mut newClass = false;
     let classId: Option[i64] =;
       if (classIdIn.isDefined) classIdIn
@@ -243,7 +243,7 @@ impl Controller<'_> {
     *
     * The "previous..." parameters are for the already-existing data (ie, when editing not creating).
     */
-  def askForNameAndWriteEntity(dbIn: Database, typeIn: String, existingEntityIn: Option[Entity] = None, previousNameIn: Option[String] = None,
+    fn askForNameAndWriteEntity(dbIn: Database, typeIn: String, existingEntityIn: Option[Entity] = None, previousNameIn: Option[String] = None,
                                previousDirectionalityIn: Option[String] = None,
                                previousNameInReverseIn: Option[String] = None, classIdIn: Option[i64] = None,
                                leadingTextIn: Option[String] = None, duplicateNameProbablyOK: Boolean = false): Option[Entity] = {
@@ -317,7 +317,7 @@ impl Controller<'_> {
   /** Call a provided function (method?) "askAndSaveIn", which does some work that might throw a specific OmDatabaseException.  If it does throw that,
     * let the user know the problem and call askAndSaveIn again.  I.e., allow retrying if the entered data is bad, instead of crashing the app.
     */
-  def tryAskingAndSaving[T](dbIn: Database,
+    fn tryAskingAndSaving[T](dbIn: Database,
                             errorMsgIn: String,
                             askAndSaveIn: (Database, Option[String]) => Option[T],
                             defaultNameIn: Option[String] = None): Option[T] = {
@@ -345,7 +345,7 @@ impl Controller<'_> {
     * @param classIn (1st parameter) should be None only if the call is intended to create; otherwise it is an edit.
     * @return None if user wants out, otherwise returns the new or updated classId and entityId.
     * */
-  def askForAndWriteClassAndTemplateEntityName(dbIn: Database, classIn: Option[EntityClass] = None): Option[(i64, i64)] = {
+    fn askForAndWriteClassAndTemplateEntityName(dbIn: Database, classIn: Option[EntityClass] = None): Option[(i64, i64)] = {
     if (classIn.isDefined) {
       // dbIn is required even if classIn is not provided, but if classIn is provided, make sure things are in order:
       // (Idea:  check: does scala do a deep equals so it is valid?  also tracked in tasks.)
@@ -392,7 +392,7 @@ impl Controller<'_> {
   /** SEE DESCRIPTIVE COMMENT ON askForAndWriteClassAndTemplateEntityName, WHICH APPLIES TO all such METHODS (see this cmt elsewhere).
     * @return The instance's id, or None if there was a problem or the user wants out.
     * */
-  def askForAndWriteOmInstanceInfo(dbIn: Database, oldOmInstanceIn: Option[OmInstance] = None): Option[String] = {
+    fn askForAndWriteOmInstanceInfo(dbIn: Database, oldOmInstanceIn: Option[OmInstance] = None): Option[String] = {
     let createNotUpdate: bool = oldOmInstanceIn.isEmpty;
     let addressLength = model.OmInstance.addressLength;
     def askAndSave(dbIn: Database, defaultNameIn: Option[String]): Option[String] = {
@@ -462,7 +462,7 @@ impl Controller<'_> {
   /**
    * @return true if the user made a desired change, false if they just want out.
    */
-  def askForInfoAndUpdateAttribute[T <: AttributeDataHolder](dbIn: Database, dhIn: T, askForAttrTypeId: Boolean, attrType: String,
+    fn askForInfoAndUpdateAttribute[T <: AttributeDataHolder](dbIn: Database, dhIn: T, askForAttrTypeId: Boolean, attrType: String,
                                                              promptForSelectingTypeId: String,
                                                              getOtherInfoFromUser: (Database, T, Boolean, TextUI) => Option[T],
                                                              updateTypedAttribute: (T) => Unit): Boolean = {
@@ -619,7 +619,7 @@ impl Controller<'_> {
   /**
    * @return Whether the user wants just to get out.
    */
-  def editAttributeOnSingleLine(attributeIn: Attribute): Boolean = {
+    fn editAttributeOnSingleLine(attributeIn: Attribute): Boolean = {
     require(Util.canEditAttributeOnSingleLine(attributeIn))
 
     attributeIn match {
@@ -665,7 +665,7 @@ impl Controller<'_> {
   /**
    * @return (See addAttribute method.)
    */
-  def askForInfoAndAddAttribute[T <: AttributeDataHolder](dbIn: Database, dhIn: T, askForAttrTypeId: Boolean, attrType: String,
+    fn askForInfoAndAddAttribute[T <: AttributeDataHolder](dbIn: Database, dhIn: T, askForAttrTypeId: Boolean, attrType: String,
                                                           promptForSelectingTypeId: Option[String],
                                                           getOtherInfoFromUser: (Database, T, Boolean, TextUI) => Option[T],
                                                           addTypedAttribute: (T) => Option[Attribute]): Option[Attribute] = {
@@ -682,7 +682,7 @@ impl Controller<'_> {
    *
    * @return None if user wants out.
    */
-  def editEntityName(entityIn: Entity): Option[Entity] = {
+    fn editEntityName(entityIn: Entity): Option[Entity] = {
     let editedEntity: Option[Entity] = entityIn match {;
       case relTypeIn: RelationType =>
         let previousNameInReverse: String = relTypeIn.getNameInReverseDirection //idea: check: this edits name w/ prefill also?:;
@@ -717,7 +717,7 @@ impl Controller<'_> {
     editedEntity
   }
 
-  def askForPublicNonpublicStatus(defaultForPrompt: Option[Boolean]): Option[Boolean] = {
+    fn askForPublicNonpublicStatus(defaultForPrompt: Option[Boolean]): Option[Boolean] = {
     let valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("For Public vs. Non-public, enter a yes/no value (or a space" +;
                                                               " for 'unknown/unspecified'; used e.g. during data export; display preference can be" +
                                                               " set under main menu / " + Util.menuText_viewPreferences + ")",
@@ -730,7 +730,7 @@ impl Controller<'_> {
     * @param attrType Constant referring to Attribute subtype, as used by the inObjectType parameter to the chooseOrCreateObject method
     *                 (ex., Controller.QUANTITY_TYPE).  See comment on that method, for that parm.
     * */
-  def askForAttributeData[T <: AttributeDataHolder](dbIn: Database, inoutDH: T, alsoAskForAttrTypeId: Boolean, attrType: String, attrTypeInputPrompt: Option[String],
+    fn askForAttributeData[T <: AttributeDataHolder](dbIn: Database, inoutDH: T, alsoAskForAttrTypeId: Boolean, attrType: String, attrTypeInputPrompt: Option[String],
                                                     inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[i64],
                                                     askForOtherInfo: (Database, T, Boolean, TextUI) => Option[T], editingIn: Boolean): Option[T] = {
     let (userWantsOut: Boolean, attrTypeId: i64, isRemote, remoteKey) = {;
@@ -1249,7 +1249,7 @@ impl Controller<'_> {
     }
   }
 
-  def askForNameAndSearchForEntity(dbIn: Database): Option[IdWrapper] = {
+    fn askForNameAndSearchForEntity(dbIn: Database): Option[IdWrapper] = {
     let ans = ui.askForString(Some(Array(Util.entityOrGroupNameSqlSearchPrompt(Util.ENTITY_TYPE))));
     if (ans.isEmpty) {
       None
@@ -1261,7 +1261,7 @@ impl Controller<'_> {
     }
   }
 
-  def searchById(dbIn: Database, typeNameIn: String): Option[IdWrapper] = {
+    fn searchById(dbIn: Database, typeNameIn: String): Option[IdWrapper] = {
     require(typeNameIn == Util.ENTITY_TYPE || typeNameIn == Util.GROUP_TYPE)
     let ans = ui.askForString(Some(Array("Enter the " + typeNameIn + " ID to search for:")));
     if (ans.isEmpty) {
@@ -1288,7 +1288,7 @@ impl Controller<'_> {
   }
 
   /** Returns None if user wants to cancel. */
-  def askForQuantityAttributeNumberAndUnit(dbIn: Database, dhIn: QuantityAttributeDataHolder, editingIn: Boolean, ui: TextUI): Option[QuantityAttributeDataHolder] = {
+    fn askForQuantityAttributeNumberAndUnit(dbIn: Database, dhIn: QuantityAttributeDataHolder, editingIn: Boolean, ui: TextUI): Option[QuantityAttributeDataHolder] = {
     let outDH: QuantityAttributeDataHolder = dhIn;
     let leadingText: List[String] = List("SELECT A *UNIT* FOR THIS QUANTITY (i.e., centimeters, or quarts; ESC or blank to cancel):");
     let previousSelectionDesc = if (editingIn) Some(new Entity(dbIn, dhIn.unitId).getName) else None;
@@ -1310,7 +1310,7 @@ impl Controller<'_> {
   }
 
   /** Returns None if user wants to cancel. */
-  def askForRelToGroupInfo(dbIn: Database, dhIn: RelationToGroupDataHolder, inEditingUNUSEDForNOW: Boolean = false,
+    fn askForRelToGroupInfo(dbIn: Database, dhIn: RelationToGroupDataHolder, inEditingUNUSEDForNOW: Boolean = false,
                            uiIn: TextUI): Option[RelationToGroupDataHolder] = {
     let outDH = dhIn;
 
@@ -1417,7 +1417,7 @@ impl Controller<'_> {
   }
 
   /** Returns None if user wants to cancel. */
-  def askForRelationEntityIdNumber2(dbIn: Database, dhIn: RelationToEntityDataHolder, inEditing: Boolean, uiIn: TextUI): Option[RelationToEntityDataHolder] = {
+    fn askForRelationEntityIdNumber2(dbIn: Database, dhIn: RelationToEntityDataHolder, inEditing: Boolean, uiIn: TextUI): Option[RelationToEntityDataHolder] = {
     let previousSelectionDesc = {;
       if (!inEditing) None
       else Some(new Entity(dbIn, dhIn.entityId2).getName)
@@ -1439,7 +1439,7 @@ impl Controller<'_> {
     }
   }
 
-  def goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,
+    fn goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,
                                     containingGroupIn: Option[Group] = None): (Option[Entity], Option[i64], Boolean) = {
     let (rtgId, rtId, groupId, _, moreThanOneAvailable) = userSelection.findRelationToAndGroup;
     let subEntitySelected: Option[Entity] = None;
@@ -1461,7 +1461,7 @@ impl Controller<'_> {
   }
 
   /** see comments for Entity.getContentSizePrefix. */
-  def getGroupContentSizePrefix(dbIn: Database, groupId: i64): String = {
+    fn getGroupContentSizePrefix(dbIn: Database, groupId: i64): String = {
     let grpSize = dbIn.getGroupSize(groupId, 1);
     if (grpSize == 0) ""
     else ">"
@@ -1471,7 +1471,7 @@ impl Controller<'_> {
     * multiple subgroups or attributes, and "" if contains no subgroups or the one subgroup is empty.
     * Idea: this might better be handled in the textui class instead, and the same for all the other color stuff.
     */
-  def getEntityContentSizePrefix(entityIn: Entity): String = {
+    fn getEntityContentSizePrefix(entityIn: Entity): String = {
     // attrCount counts groups also, so account for the overlap in the below.
     let attrCount = entityIn.getAttributeCount();
     // This is to not show that an entity contains more things (">" prefix...) if it only has one group which has no *non-archived* entities:
@@ -1494,7 +1494,7 @@ impl Controller<'_> {
     subgroupsCountPrefix
   }
 
-  def addEntityToGroup(groupIn: Group): Option[i64] = {
+    fn addEntityToGroup(groupIn: Group): Option[i64] = {
     let newEntityId: Option[i64] = {;
       if (!groupIn.getMixedClassesAllowed) {
         if (groupIn.getSize() == 0) {
@@ -1554,7 +1554,7 @@ impl Controller<'_> {
     newEntityId
   }
 
-  def chooseAmongEntities(containingEntities: util.ArrayList[(i64, Entity)]): Option[Entity] = {
+    fn chooseAmongEntities(containingEntities: util.ArrayList[(i64, Entity)]): Option[Entity] = {
     let leadingText = List[String]("Pick from menu, or an entity by letter");
     let choices: Array[String] = Array(Util.listNextItemsPrompt);
     //(see comments at similar location in EntityMenu, as of this writing on line 288)
@@ -1596,7 +1596,7 @@ impl Controller<'_> {
     }
   }
 
-  def getPublicStatusDisplayString(entityIn: Entity): String = {
+    fn getPublicStatusDisplayString(entityIn: Entity): String = {
     //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
     if (showPublicPrivateStatusPreference.getOrElse(false)) {
       entityIn.getPublicStatusDisplayStringWithColor(blankIfUnset = false)
@@ -1611,7 +1611,7 @@ impl Controller<'_> {
    *                   where it is a # higher than those found in db.getAttributeFormId, and in that case is handled specially here.
    * @return None if user wants out (or attrFormIn parm was an abortive mistake?), and the created Attribute if successful.
    */
-  def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, attrFormIn: Int, attrTypeIdIn: Option[i64]): Option[Attribute] = {
+    fn addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, attrFormIn: Int, attrTypeIdIn: Option[i64]): Option[Attribute] = {
     let (attrTypeId: i64, askForAttrTypeId: Boolean) = {;
       if (attrTypeIdIn.isDefined) {
         (attrTypeIdIn.get, false)
@@ -1774,7 +1774,7 @@ impl Controller<'_> {
     }
   }
 
-  def defaultAttributeCopying(targetEntityIn: Entity, attributeTuplesIn: Option[Array[(i64, Attribute)]] = None): Unit = {
+    fn defaultAttributeCopying(targetEntityIn: Entity, attributeTuplesIn: Option[Array[(i64, Attribute)]] = None): Unit = {
     if (shouldTryAddingDefaultAttributes(targetEntityIn)) {
       let attributeTuples: Array[(i64, Attribute)] = {;
         if (attributeTuplesIn.isDefined) attributeTuplesIn.get
@@ -1793,7 +1793,7 @@ impl Controller<'_> {
     }
   }
 
-  def copyAndEditAttributes(entityIn: Entity, templateAttributesToCopyIn: ArrayBuffer[Attribute]): Unit = {
+    fn copyAndEditAttributes(entityIn: Entity, templateAttributesToCopyIn: ArrayBuffer[Attribute]): Unit = {
     // userWantsOut is used like a break statement below: could be replaced with a functional idiom (see link to stackoverflow somewhere in the code).
     let mut escCounter = 0;
     let mut userWantsOut = false;
@@ -2028,7 +2028,7 @@ impl Controller<'_> {
     }
   }
 
-  def getMissingAttributes(classTemplateEntityIn: Option[Entity], existingAttributeTuplesIn: Array[(i64, Attribute)]): ArrayBuffer[Attribute] = {
+    fn getMissingAttributes(classTemplateEntityIn: Option[Entity], existingAttributeTuplesIn: Array[(i64, Attribute)]): ArrayBuffer[Attribute] = {
     let templateAttributesToSuggestCopying: ArrayBuffer[Attribute] = {;
       // This determines which attributes from the template entity (or "pattern" or "class-defining entity") are not found on this entity, so they can
       // be added if the user wishes.
@@ -2062,7 +2062,7 @@ impl Controller<'_> {
     templateAttributesToSuggestCopying
   }
 
-  def shouldTryAddingDefaultAttributes(entityIn: Entity): Boolean = {
+    fn shouldTryAddingDefaultAttributes(entityIn: Entity): Boolean = {
     if (entityIn.getClassId.isEmpty) {
       false
     } else {

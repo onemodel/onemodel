@@ -31,20 +31,20 @@ class DateAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: i64, inParentId: i64, attrTypeIdIn: i64, inDate: i64, sortingIndexIn: i64) {
+    fn this(mDB: Database, mId: i64, inParentId: i64, attrTypeIdIn: i64, inDate: i64, sortingIndexIn: i64) {
     this(mDB, mId)
     mDate = inDate
     super.assignCommonVars(inParentId, attrTypeIdIn, sortingIndexIn)
   }
 
-  def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = typeName + ": ";
     result += Attribute.usefulDateFormat(mDate)
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-  def getDate: i64 = {
+    fn getDate: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mDate
   }
@@ -58,7 +58,7 @@ class DateAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     assignCommonVars(daTypeData(0).get.asInstanceOf[i64], daTypeData(2).get.asInstanceOf[i64], daTypeData(3).get.asInstanceOf[i64])
   }
 
-  def update(inAttrTypeId: i64, inDate: i64) {
+    fn update(inAttrTypeId: i64, inDate: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateDateAttribute(mId, getParentId, inDate, inAttrTypeId)
@@ -67,7 +67,7 @@ class DateAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   }
 
   /** Removes this object from the system. */
-  def delete() = mDB.deleteDateAttribute(mId)
+    fn delete() = mDB.deleteDateAttribute(mId)
 
   /** For descriptions of the meanings of these variables, see the comments
     on createDateAttribute(...) or createTables() in PostgreSQLDatabase or Database classes

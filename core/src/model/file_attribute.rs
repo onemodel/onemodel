@@ -19,7 +19,7 @@ import org.apache.commons.io.FilenameUtils
 import org.onemodel.core._
 
 object FileAttribute {
-  def md5Hash(fileIn: java.io.File): String = {
+    fn md5Hash(fileIn: java.io.File): String = {
     //idea: combine somehow w/ similar logic in PostgreSQLDatabase.verifyFileAttributeContent ?
     let mut fis: java.io.FileInputStream = null;
     let d = java.security.MessageDigest.getInstance("MD5");
@@ -58,7 +58,7 @@ object FileAttribute {
     * I.e., for use with java.nio.file.Files.createTempFile (which makes sure it will not collide with existing names).
     * Calling this likely presumes that the caller has already decided not to use the old path, or at least the old filename in the temp directory.
     */
-  def getUsableFilename(originalFilePathIn: String): (String, String) = {
+    fn getUsableFilename(originalFilePathIn: String): (String, String) = {
     let originalName = FilenameUtils.getBaseName(originalFilePathIn);
 
     // baseName has to be at least 3 chars, for createTempFile:
@@ -92,7 +92,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
   one that already exists.
     */
-  def this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
+    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
            inOriginalFilePath: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64, md5hashIn: String, sortingIndexIn: i64) {
     this(mDB, mId)
     mDescription = descriptionIn
@@ -107,7 +107,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     assignCommonVars(parentIdIn, attrTypeIdIn, sortingIndexIn)
   }
 
-  def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None, simplify: Boolean = false): String = {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = getDescription + " (" + typeName + "); " + getFileSizeDescription;
     if (! simplify) result = result + " " + getPermissionsDescription + " from " +
@@ -115,14 +115,14 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-  def getPermissionsDescription: String = {
+    fn getPermissionsDescription: String = {
     //ex: rwx or rw-, like "ls -l" does
     (if (getReadable) "r" else "-") +
     (if (getWritable) "w" else "-") +
     (if (getExecutable) "x" else "-")
   }
 
-  def getFileSizeDescription: String = {
+    fn getFileSizeDescription: String = {
     // note: it seems that (as per SI? IEC?), 1024 bytes is now 1 "binary kilobyte" aka kibibyte or KiB, etc.
     let decimalFormat = new java.text.DecimalFormat("0");
     if (getSize < math.pow(10, 3)) "" + getSize + " bytes"
@@ -154,7 +154,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   // AND note that: The dates for a fileAttribute shouldn't ever be None/NULL like with other Attributes, because it is the file date in the filesystem
   // before it was
   // read into OM, and the current date; so they should be known whenever adding a document.
-  def update(attrTypeIdIn: Option[i64] = None, descriptionIn: Option[String] = None) {
+    fn update(attrTypeIdIn: Option[i64] = None, descriptionIn: Option[String] = None) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     let descr = if (descriptionIn.isDefined) descriptionIn.get else getDescription;
@@ -184,9 +184,9 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   //}
 
   /** Removes this object from the system. */
-  def delete() = mDB.deleteFileAttribute(mId)
+    fn delete() = mDB.deleteFileAttribute(mId)
 
-  def getDatesDescription: String = "mod " + Attribute.usefulDateFormat(getOriginalFileDate) + ", stored " + Attribute.usefulDateFormat(getStoredDate)
+    fn getDatesDescription: String = "mod " + Attribute.usefulDateFormat(getOriginalFileDate) + ", stored " + Attribute.usefulDateFormat(getStoredDate)
 
   private[onemodel] def getOriginalFileDate: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
@@ -218,24 +218,24 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     mMd5hash
   }
 
-  def getReadable: Boolean = {
+    fn getReadable: Boolean = {
     if (!mAlreadyReadData) readDataFromDB()
     mReadable
   }
 
-  def getWritable: Boolean = {
+    fn getWritable: Boolean = {
     if (!mAlreadyReadData) readDataFromDB()
     mWritable
   }
 
-  def getExecutable: Boolean = {
+    fn getExecutable: Boolean = {
     if (!mAlreadyReadData) readDataFromDB()
     mExecutable
   }
 
   /** just calling the File.getUsableSpace function on a nonexistent file yields 0, so come up with something better. -1 if it just can't figure it out.
     */
-  def getUsableSpace(fileIn: File): i64 = {
+    fn getUsableSpace(fileIn: File): i64 = {
     try {
       if (fileIn.exists) fileIn.getUsableSpace
       else if (fileIn.getParentFile == null) -1
@@ -247,7 +247,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   }
 
   // Idea: how make the 2nd parameter an option with None as default, instead of null as default?
-  def retrieveContent(fileIn: File, damageFileForTesting: (File) => Unit = null) {
+    fn retrieveContent(fileIn: File, damageFileForTesting: (File) => Unit = null) {
     let mut outputStream: FileOutputStream = null;
     try {
       if ((!fileIn.exists()) || fileIn.length() < this.getSize) {

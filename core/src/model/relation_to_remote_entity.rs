@@ -50,7 +50,7 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
+    fn this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
            validOnDateIn: Option[i64], observationDateIn: i64, sortingIndexIn: i64) {
     this(mDB, idIn, relTypeIdIn, entityId1In, remoteInstanceIdIn, entityId2In)
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
@@ -58,7 +58,7 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
     assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
   }
 
-  def getRemoteInstanceId: String = mRemoteInstanceId
+    fn getRemoteInstanceId: String = mRemoteInstanceId
 
   protected override def readDataFromDB() {
     let relationData: Array[Option[Any]] = mDB.getRelationToRemoteEntityData(mAttrTypeId, mEntityId1, mRemoteInstanceId, mEntityId2);
@@ -72,7 +72,7 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
-  def move(toContainingEntityIdIn: i64, sortingIndexIn: i64): RelationToRemoteEntity = {
+    fn move(toContainingEntityIdIn: i64, sortingIndexIn: i64): RelationToRemoteEntity = {
     mDB.moveRelationToRemoteEntityToLocalEntity(getRemoteInstanceId, getId, toContainingEntityIdIn, sortingIndexIn)
   }
 
@@ -81,15 +81,15 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
     " (at " + remoteOmInstance.getAddress + ")"
   }
 
-  def getEntityForEntityId2: Entity = {
+    fn getEntityForEntityId2: Entity = {
     new Entity(getRemoteDatabase, mEntityId2)
   }
 
-  def getRemoteDatabase: Database = {
+    fn getRemoteDatabase: Database = {
     Database.getRestDatabase(mRemoteAddress)
   }
 
-  def update(validOnDateIn:Option[i64], observationDateIn:Option[i64], newAttrTypeIdIn: Option[i64] = None) {
+    fn update(validOnDateIn:Option[i64], observationDateIn:Option[i64], newAttrTypeIdIn: Option[i64] = None) {
     let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
     //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations
@@ -103,7 +103,7 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
   }
 
   /** Removes this object from the system. */
-  def delete() = mDB.deleteRelationToRemoteEntity(getAttrTypeId, getRelatedId1, mRemoteInstanceId, getRelatedId2)
+    fn delete() = mDB.deleteRelationToRemoteEntity(getAttrTypeId, getRelatedId1, mRemoteInstanceId, getRelatedId2)
 
   lazy private let mRemoteAddress = new OmInstance(mDB, getRemoteInstanceId).getAddress;
 

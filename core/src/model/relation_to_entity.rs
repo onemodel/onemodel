@@ -32,8 +32,8 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTyp
   // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
   // to have it be like this instead, for convenience:
   override def getParentId: i64 = getRelatedId1
-  def getRelatedId1: i64 = mEntityId1
-  def getRelatedId2: i64 = mEntityId2
+    fn getRelatedId1: i64 = mEntityId1
+    fn getRelatedId2: i64 = mEntityId2
 
   /**
    * @param relatedEntityIn, could be either mEntityId2 or 1: it is always *not* the entity from whose perspective the result will be returned, ex.,
@@ -44,7 +44,7 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTyp
    *
    * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If inLengthLimit is 0 you get the whole thing.
    */
-  def getDisplayString(lengthLimitIn: Int, relatedEntityIn: Option[Entity], relationTypeIn: Option[RelationType], simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, relatedEntityIn: Option[Entity], relationTypeIn: Option[RelationType], simplify: Boolean = false): String = {
     let relType: RelationType = {;
       if (relationTypeIn.isDefined) {
         if (relationTypeIn.get.getId != getAttrTypeId) {
@@ -86,9 +86,9 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTyp
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-  def getRemoteDescription: String
+    fn getRemoteDescription: String
 
   // If relatedEntityIn is an RTRE, could be a different db so build accordingly:
-  def getEntityForEntityId2: Entity
+    fn getEntityForEntityId2: Entity
 
 }

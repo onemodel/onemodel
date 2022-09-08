@@ -23,7 +23,7 @@ import scala.collection.JavaConversions._
   */
 class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
 
-  def otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
+    fn otherEntityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, relationSourceEntityIn: Option[Entity],
                       containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates], containingGroupIn: Option[Group],
                       attributeTuplesIn: Array[(i64, Attribute)]) {
     require(containingRelationToEntityIn.isEmpty ||
@@ -202,7 +202,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     }
   }
 
-  def removeEntityReferenceFromGroup_Menu(entityIn: Entity, containingGroupIn: Option[Group]): Boolean = {
+    fn removeEntityReferenceFromGroup_Menu(entityIn: Entity, containingGroupIn: Option[Group]): Boolean = {
     let groupCount: i64 = entityIn.getCountOfContainingGroups;
     let (entityCountNonArchived, entityCountArchived) = entityIn.getCountOfContainingLocalEntities;
     let ans = ui.askYesNoQuestion("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion: the entity can still be found by searching, and " +;
@@ -226,7 +226,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
 
   /** @return whether entity was deleted.
     */
-  def deleteEntity(entityIn: Entity): Boolean = {
+    fn deleteEntity(entityIn: Entity): Boolean = {
     //IDEA: could combine this method with the following two. The only differences as of now are 3 strings and a method call, easily parameterized. Not
     //doing it immediately in case they diverge again soon.
     let name = entityIn.getName;
@@ -250,7 +250,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
 
   /** @return whether entity was archived.
     */
-  def archiveEntity(entityIn: Entity): Boolean = {
+    fn archiveEntity(entityIn: Entity): Boolean = {
     let name = entityIn.getName;
     let groupCount: i64 = entityIn.getCountOfContainingGroups;
     let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entityIn);
@@ -272,7 +272,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
 
   /** @return whether entity was un-archived.
     */
-  def unarchiveEntity(entityIn: Entity): Boolean = {
+    fn unarchiveEntity(entityIn: Entity): Boolean = {
     let name = entityIn.getName;
     let groupCount: i64 = entityIn.getCountOfContainingGroups;
     let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entityIn);
@@ -292,7 +292,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     }
   }
 
-  def getExampleAffectedGroupsDescriptions(groupCount: i64, entityIn: Entity): (String) = {
+    fn getExampleAffectedGroupsDescriptions(groupCount: i64, entityIn: Entity): (String) = {
     if (groupCount == 0) {
       ""
     } else {
@@ -310,7 +310,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     }
   }
 
-  def getOptionalContentForExportedPages(entityIn: Entity): (String, String, Option[String]) = {
+    fn getOptionalContentForExportedPages(entityIn: Entity): (String, String, Option[String]) = {
     let prompt1 = "Enter lines containing the ";
     let prompt2 = " (if any).  ";
     let prompt3 = "  (NOTE: to simplify this step in the future, you can add to this entity a single text attribute whose type is an entity named ";
@@ -397,7 +397,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
   /**
    * @param relationIn  (See comment on "@param relationIn" on method askWhetherDeleteOrArchiveEtc. )
    */
-  def goToRelatedPlaces(entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
+    fn goToRelatedPlaces(entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
                         relationIn: Option[AttributeWithValidAndObservedDates] = None, templateEntityId: Option[i64]) {
     //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
     require(relationIn.isEmpty || relationIn.get.isInstanceOf[RelationToLocalEntity] || relationIn.get.isInstanceOf[RelationToRemoteEntity])
@@ -547,7 +547,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
     }
   }
 
-  def viewContainingGroups(entityIn: Entity): Option[Entity] = {
+    fn viewContainingGroups(entityIn: Entity): Option[Entity] = {
     let leadingText = List[String]("Pick from menu, or a letter to (go to if one or) see the entities containing that group, or Alt+<letter> for the actual " +;
                                    "*group* by letter")
     let choices: Array[String] = Array(Util.listNextItemsPrompt);
@@ -610,7 +610,7 @@ class OtherEntityMenu (val ui: TextUI, let controller: Controller) {;
    *                   as to whether things need special remote logic, ie if the code is forced to choose either RTLE or RTRE.  Same reasons elsewhere.
    * @return None means "get out", or Some(choiceNum) if a choice was made.
    */
-  def askWhetherDeleteOrArchiveEtc(entityIn: Entity, relationIn: Option[AttributeWithValidAndObservedDates], relationSourceEntityIn: Option[Entity],
+    fn askWhetherDeleteOrArchiveEtc(entityIn: Entity, relationIn: Option[AttributeWithValidAndObservedDates], relationSourceEntityIn: Option[Entity],
                                    containingGroupIn: Option[Group]): (Option[Int], Int, Int, Int) = {
     require(relationIn.isEmpty || relationIn.get.isInstanceOf[RelationToLocalEntity] || relationIn.get.isInstanceOf[RelationToRemoteEntity])
 

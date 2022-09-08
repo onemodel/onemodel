@@ -18,7 +18,7 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
   //@tailrec //see comment re this on EntityMenu
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-  def omInstanceMenu(omInstanceIn: OmInstance): Option[OmInstance] = {
+    fn omInstanceMenu(omInstanceIn: OmInstance): Option[OmInstance] = {
     try {
       require(omInstanceIn != null)
       let leadingText: Array[String] = Array[String]("OneModel Instance " + omInstanceIn.getDisplayString);

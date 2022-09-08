@@ -42,7 +42,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
   // any code wanting to be inside the tail recursion and make tail recursive calls, have to be directly inside the method?)
   //@tailrec
   //
-  def groupMenu_helper(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
+    fn groupMenu_helper(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
                        //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                        callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     require(relationToGroupIn != null)
@@ -230,7 +230,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
     }
   }
 
-  def confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup], callingMenusRtgIn: Option[RelationToGroup],
+    fn confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup], callingMenusRtgIn: Option[RelationToGroup],
                                     containingEntityIn: Option[Entity], groupIn: Group, groupDescrIn: String,
                                     response: Option[Int]): Option[Entity] = {
     require(groupIn.getId == relationToGroupIn.get.getGroupId)
@@ -308,7 +308,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
   /**
    * @return If it was deleted.
    */
-  def removingGroupReferenceFromEntity_Menu(relationToGroupIn: RelationToGroup, groupIn: Group, containingEntityIn: Entity): Boolean = {
+    fn removingGroupReferenceFromEntity_Menu(relationToGroupIn: RelationToGroup, groupIn: Group, containingEntityIn: Entity): Boolean = {
     let (nonArchivedCount, archivedCount) = groupIn.getCountOfEntitiesContainingGroup;
     let ans = ui.askYesNoQuestion("REMOVE this group from being an attribute of the entity \'" + containingEntityIn.getName + "\": ARE YOU SURE? (This isn't " +;
                                   "a deletion. It can still be found by searching, and is " +

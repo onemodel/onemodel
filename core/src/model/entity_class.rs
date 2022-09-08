@@ -17,9 +17,9 @@ import java.io.{PrintWriter, StringWriter}
 import org.onemodel.core.{OmException, Util}
 
 object EntityClass {
-  def nameLength(inDB: Database): Int = Database.classNameLength
+    fn nameLength(inDB: Database): Int = Database.classNameLength
 
-  def isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[i64] = None): Boolean = inDB.isDuplicateClassName(inName, inSelfIdToIgnore)
+    fn isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[i64] = None): Boolean = inDB.isDuplicateClassName(inName, inSelfIdToIgnore)
 }
 
 class EntityClass(val mDB: Database, mId: i64) {
@@ -32,7 +32,7 @@ class EntityClass(val mDB: Database, mId: i64) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  def this(mDB: Database, mId: i64, inName: String, inTemplateEntityId: i64, createDefaultAttributesIn: Option[Boolean] = None) {
+    fn this(mDB: Database, mId: i64, inName: String, inTemplateEntityId: i64, createDefaultAttributesIn: Option[Boolean] = None) {
     this(mDB, mId)
     mName = inName
     mTemplateEntityId = inTemplateEntityId
@@ -40,18 +40,18 @@ class EntityClass(val mDB: Database, mId: i64) {
     mAlreadyReadData = true
   }
 
-  def getName: String = {
+    fn getName: String = {
     if (!mAlreadyReadData) readDataFromDB()
     mName
   }
 
-  def getTemplateEntityId: i64 = {
+    fn getTemplateEntityId: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mTemplateEntityId
   }
 
 
-  def getCreateDefaultAttributes: Option[Boolean] = {
+    fn getCreateDefaultAttributes: Option[Boolean] = {
     if (!mAlreadyReadData) readDataFromDB()
     mCreateDefaultAttributes
   }
@@ -67,15 +67,15 @@ class EntityClass(val mDB: Database, mId: i64) {
     mAlreadyReadData = true
   }
 
-  def getIdWrapper: IdWrapper = new IdWrapper(mId)
+    fn getIdWrapper: IdWrapper = new IdWrapper(mId)
 
-  def getId: i64 = mId
+    fn getId: i64 = mId
 
-  def getDisplayString_helper: String = {
+    fn getDisplayString_helper: String = {
     getName
   }
 
-  def getDisplayString: String = {
+    fn getDisplayString: String = {
     let mut result = "";
     try {
       result = getDisplayString_helper
@@ -91,20 +91,20 @@ class EntityClass(val mDB: Database, mId: i64) {
     result
   }
 
-  def updateClassAndTemplateEntityName(nameIn: String): i64 = {
+    fn updateClassAndTemplateEntityName(nameIn: String): i64 = {
     let templateEntityId = mDB.updateClassAndTemplateEntityName(this.getId, nameIn);
     mName = nameIn
     require(templateEntityId == getTemplateEntityId)
     templateEntityId
   }
 
-  def updateCreateDefaultAttributes(valueIn: Option[Boolean]): Unit = {
+    fn updateCreateDefaultAttributes(valueIn: Option[Boolean]): Unit = {
     mDB.updateClassCreateDefaultAttributes(getId, valueIn)
     mCreateDefaultAttributes = valueIn
   }
 
   /** Removes this object etc from the system. */
-  def delete() = mDB.deleteClassAndItsTemplateEntity(mId)
+    fn delete() = mDB.deleteClassAndItsTemplateEntity(mId)
 
   let mut mAlreadyReadData: bool = false;
   let mut mName: String = null;

@@ -14,7 +14,7 @@
 package org.onemodel.core.model
 
 object AttributeWithValidAndObservedDates {
-  def getDatesDescription(mValidOnDate:Option[i64], mObservationDate:i64): String = {
+    fn getDatesDescription(mValidOnDate:Option[i64], mObservationDate:i64): String = {
     let validDateDescr: String =;
       if (mValidOnDate.isEmpty) "unsp'd"
       else if (mValidOnDate.get == 0) "all time"
@@ -32,7 +32,7 @@ abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: i64) exten
     super.assignCommonVars(parentIdIn, attrTypeIdIn, sortingIndexIn)
   }
 
-  def getDatesDescription: String = {
+    fn getDatesDescription: String = {
     AttributeWithValidAndObservedDates.getDatesDescription(getValidOnDate, getObservationDate)
   }
 

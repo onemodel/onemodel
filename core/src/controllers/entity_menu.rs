@@ -26,7 +26,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     * */
   //@tailrec //removed for now until the compiler can handle it with where the method calls itself.
   //idea on scoping: make this limited like this somehow?:  private[org.onemodel] ... Same for all others like it?
-  def entityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, highlightedAttributeIn: Option[Attribute] = None,
+    fn entityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, highlightedAttributeIn: Option[Attribute] = None,
                  targetForMovesIn: Option[Attribute] = None,
                  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                  containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates] = None,
@@ -311,7 +311,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   }
 
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
-  def getChoices(entityIn: Entity, numAttrsIn: i64): Array[String] = {
+    fn getChoices(entityIn: Entity, numAttrsIn: i64): Array[String] = {
     // (idea: might be a little silly to do it this way, once this # gets very big?:)
     let mut choices = Array[String]("Add entry quickly (creates a \"has\" relation to a new Entity)",;
                                 if (numAttrsIn > 0) "Move selection (*) up/down" else "(stub)",
@@ -330,7 +330,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     choices
   }
 
-  def goToAttributeThenRedisplayHere(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
+    fn goToAttributeThenRedisplayHere(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
                                      containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates], containingGroupIn: Option[Group],
                                      attributeTuples: Array[(i64, Attribute)], attributesToDisplay: util.ArrayList[Attribute],
                                      answer: Int, choicesIndex: Int): Option[Entity] = {
@@ -386,7 +386,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     }
   }
 
-  def entitySearchSubmenu(entityIn: Entity, attributeRowsStartingIndexIn: Int, containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates],
+    fn entitySearchSubmenu(entityIn: Entity, attributeRowsStartingIndexIn: Int, containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates],
                           containingGroupIn: Option[Group], numAttrsInEntity: i64, attributeTuples: Array[(i64, Attribute)],
                           highlightedEntry: Option[Attribute], targetForMoves: Option[Attribute], answer: Int) {
     require(containingRelationToEntityIn.isEmpty ||
@@ -478,7 +478,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     }
   }
 
-  def determineNextEntryToHighlight(entityIn: Entity, attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: Boolean,
+    fn determineNextEntryToHighlight(entityIn: Entity, attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: Boolean,
                                     defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]): Option[Attribute] = {
     // The entity or an attribute could have been removed or changed by navigating around various menus, so before trying to view it again,
     // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
@@ -496,7 +496,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   /** @return A tuple containing the newStartingDisplayIndex and whether an entry moved from being listed on this entity.
     *         The parm relationSourceEntityIn is derivable from the parm containingRelationToEntityIn, but passing it in saves a db read.
     */
-  def moveSelectedEntry(entityIn: Entity, startingDisplayRowIndexIn: Int, totalAttrsAvailable: Int, targetForMovesIn: Option[Attribute] = None,
+    fn moveSelectedEntry(entityIn: Entity, startingDisplayRowIndexIn: Int, totalAttrsAvailable: Int, targetForMovesIn: Option[Attribute] = None,
                         highlightedIndexInObjListIn: Int, highlightedAttributeIn: Attribute, numObjectsToDisplayIn: Int,
                         relationSourceEntityIn: Option[Entity] = None,
                         containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates] = None,
@@ -676,7 +676,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     }
   }
 
-  def getLeadingText(leadingTextIn: Array[String], numAttributes: Int, entityIn: Entity, containingGroupIn: Option[Group] = None): Array[String] = {
+    fn getLeadingText(leadingTextIn: Array[String], numAttributes: Int, entityIn: Entity, containingGroupIn: Option[Group] = None): Array[String] = {
     leadingTextIn(0) = Util.entityMenuLeadingText(entityIn)
     if (containingGroupIn.isDefined) {
       leadingTextIn(0) += ": found via group: " + containingGroupIn.get.getName
@@ -687,7 +687,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     leadingTextIn
   }
 
-  def getItemDisplayStringsAndAttrs(attributeTuples: Array[(i64, Attribute)]): (Array[String], util.ArrayList[Attribute]) = {
+    fn getItemDisplayStringsAndAttrs(attributeTuples: Array[(i64, Attribute)]): (Array[String], util.ArrayList[Attribute]) = {
     let attributes = new util.ArrayList[Attribute];
     let attributeStatusesAndNames: Array[String] =;
       for (attributeTuple <- attributeTuples) yield {
@@ -723,7 +723,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     (attributeStatusesAndNames, attributes)
   }
 
-  def addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, highlightedAttributeIn: Option[Attribute], targetForMovesIn: Option[Attribute] = None,
+    fn addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, highlightedAttributeIn: Option[Attribute], targetForMovesIn: Option[Attribute] = None,
                    containingGroupIn: Option[Group] = None): Option[Attribute] = {
     let whichKindOfAttribute =;
       ui.askWhich(Some(Array("Choose which kind of attribute to add:")),
@@ -769,7 +769,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     }
   }
 
-  def getNextStartingRowsIndex(numAttrsToDisplay: Int, startingAttributeRowsIndexIn: Int, numAttrsInEntity: i64): Int = {
+    fn getNextStartingRowsIndex(numAttrsToDisplay: Int, startingAttributeRowsIndexIn: Int, numAttrsInEntity: i64): Int = {
     let startingIndex = {;
       let currentPosition = startingAttributeRowsIndexIn + numAttrsToDisplay;
       if (currentPosition >= numAttrsInEntity) {

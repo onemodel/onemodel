@@ -18,7 +18,7 @@ object Attribute {
   let DATEFORMAT = new java.text.SimpleDateFormat("EEE yyyy-MM-dd HH:mm:ss:SSS zzz");
   let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("EEE GGyyyy-MM-dd HH:mm:ss:SSS zzz");
 
-  def usefulDateFormat(d: i64): String = {
+    fn usefulDateFormat(d: i64): String = {
     // No need to print "AD" unless we're really close?, as in this example:
     //scala > let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz");
     //scala > DATEFORMAT_WITH_ERA.parse("ad 1-03-01 00:00:00:000 GMT").getTime //i.e., Jan 3, 1 AD.
@@ -32,7 +32,7 @@ object Attribute {
    * @param lengthLimitIn If <= 0, no change.
    * @return A value equal or shorter in length.
    */
-  def limitDescriptionLength(input: String, lengthLimitIn: Int): String = {
+    fn limitDescriptionLength(input: String, lengthLimitIn: Int): String = {
     if (lengthLimitIn != 0 && input.length > lengthLimitIn) {
       input.substring(0, lengthLimitIn - 3) + "..."
     } else input
@@ -46,21 +46,21 @@ object Attribute {
 abstract class Attribute(val mDB: Database, mId: i64) {
   // idea: somehow use scala features better to make it cleaner, so we don't need these extra 2 vars, because they are
   // used in 1-2 instances, and ignored in the rest.  One thing is that RelationTo[Local|Remote]Entity and RelationToGroup are Attributes. Should they be?
-  def getDisplayString(inLengthLimit: Int, parentEntity: Option[Entity], inRTId: Option[RelationType], simplify: Boolean = false): String
+    fn getDisplayString(inLengthLimit: Int, parentEntity: Option[Entity], inRTId: Option[RelationType], simplify: Boolean = false): String
 
   protected def readDataFromDB()
 
-  def delete()
+    fn delete()
 
   private[onemodel] def getIdWrapper: IdWrapper = {
     new IdWrapper(mId)
   }
 
-  def getId: i64 = {
+    fn getId: i64 = {
     mId
   }
 
-  def getFormId: Int = {
+    fn getFormId: Int = {
     Database.getAttributeFormId(this.getClass.getSimpleName)
   }
 
@@ -71,12 +71,12 @@ abstract class Attribute(val mDB: Database, mId: i64) {
     mAlreadyReadData = true
   }
 
-  def getAttrTypeId: i64 = {
+    fn getAttrTypeId: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mAttrTypeId
   }
 
-  def getSortingIndex: i64 = {
+    fn getSortingIndex: i64 = {
     if (!mAlreadyReadData) readDataFromDB()
     mSortingIndex
   }

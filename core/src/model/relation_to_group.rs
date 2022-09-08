@@ -23,7 +23,7 @@ object RelationToGroup {
   // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
   // new constructors just wasn't working out.
   // Idea: rename this to instantiateRelationToGroup, since create sounds like inserting a new row in the db. Not sure if there's a convention for that case.
-  def createRelationToGroup(mDB: Database, idIn: i64): RelationToGroup = {
+    fn createRelationToGroup(mDB: Database, idIn: i64): RelationToGroup = {
     let relationData: Array[Option[Any]] = mDB.getRelationToGroupData(idIn);
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + idIn)
@@ -44,19 +44,19 @@ class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, m
   }
 
   /** See comment about these 2 dates in PostgreSQLDatabase.createTables() */
-  def this(mDB: Database, idIn: i64, entityIdIn: i64, relTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+    fn this(mDB: Database, idIn: i64, entityIdIn: i64, relTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
            sortingIndexIn: i64) {
     this(mDB, idIn, entityIdIn, relTypeIdIn, groupIdIn)
     assignCommonVars(entityIdIn, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
   }
 
-  def getGroupId: i64 = mGroupId
+    fn getGroupId: i64 = mGroupId
 
-  def getGroup: Group = {
+    fn getGroup: Group = {
     new Group(mDB, getGroupId)
   }
 
-  def getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, ignoredParameter: Option[RelationType] = None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, ignoredParameter: Option[RelationType] = None, simplify: Boolean = false): String = {
     let group = new Group(mDB, mGroupId);
     let rtName = new RelationType(mDB, this.getAttrTypeId).getName;
     let mut result: String = if (simplify && rtName == Database.theHASrelationTypeName) "" else rtName + " ";
@@ -75,11 +75,11 @@ class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, m
                            relationData(5).get.asInstanceOf[i64], relationData(6).get.asInstanceOf[i64])
   }
 
-  def move(newContainingEntityIdIn: i64, sortingIndexIn: i64): i64 = {
+    fn move(newContainingEntityIdIn: i64, sortingIndexIn: i64): i64 = {
     mDB.moveRelationToGroup(getId, newContainingEntityIdIn, sortingIndexIn)
   }
 
-  def update(newRelationTypeIdIn: Option[i64], newGroupIdIn: Option[i64], validOnDateIn:Option[i64], observationDateIn:Option[i64]) {
+    fn update(newRelationTypeIdIn: Option[i64], newGroupIdIn: Option[i64], validOnDateIn:Option[i64], observationDateIn:Option[i64]) {
     //use validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
     //Idea/possible bug: see comment on similar method in RelationToEntity (or maybe in its subclasses).
     let newRelationTypeId: i64 = if (newRelationTypeIdIn.isDefined) newRelationTypeIdIn.get else getAttrTypeId;
@@ -92,8 +92,8 @@ class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, m
   }
 
   /** Removes this object from the system. */
-  def delete() = mDB.deleteRelationToGroup(mEntityId, mRelTypeId, mGroupId)
+    fn delete() = mDB.deleteRelationToGroup(mEntityId, mRelTypeId, mGroupId)
 
   /** Removes this object from the system. */
-  def deleteGroupAndRelationsToIt() = mDB.deleteGroupAndRelationsToIt(mGroupId)
+    fn deleteGroupAndRelationsToIt() = mDB.deleteGroupAndRelationsToIt(mGroupId)
 }

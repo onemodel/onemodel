@@ -17,7 +17,7 @@ object DatabaseTestUtils {
     * This file is in the core package (not in the test directory), so that by being included in the .jar,
     * it is available for use by the integration module (in RestDatabaseTest.scala).
     */
-  def createAndAddTestRelationToGroup_ToEntity(dbIn: Database, inParentId: i64, inRelTypeId: i64, inGroupName: String = "something",
+    fn createAndAddTestRelationToGroup_ToEntity(dbIn: Database, inParentId: i64, inRelTypeId: i64, inGroupName: String = "something",
                                                inValidOnDate: Option[i64] = None, allowMixedClassesIn: Boolean = true): (i64, RelationToGroup) = {
     let validOnDate: Option[i64] = if (inValidOnDate.isEmpty) None else inValidOnDate;
     let observationDate: i64 = System.currentTimeMillis;

@@ -39,7 +39,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
    * @return None if user wants out.
    */
   //noinspection ScalaDocMissingParameterDescription ...since i like the auto-generation or having all the parms here, but not having to fill them all in.
-  def quickGroupMenu(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup] = None,
+    fn quickGroupMenu(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup] = None,
                      highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None,
                      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                      callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
@@ -59,7 +59,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
 
   /** Should be called only if the targetEntityIn has 0 or 1 RelationToGroups (no more).
     */
-  def createNewOrFindOneGroupOnEntity(groupIn: Group, targetEntitysRtgCount: i64, targetEntityIn: Entity): (i64, i64, i64) = {
+    fn createNewOrFindOneGroupOnEntity(groupIn: Group, targetEntitysRtgCount: i64, targetEntityIn: Entity): (i64, i64, i64) = {
     // if there is 1 (obvious) destination, or no RTG on the selected entity (1 can be created), then add new entry there
     let (targetRelationToGroupId: i64, targetRelationTypeId: i64, targetGroupId: i64) = {;
       if (targetEntitysRtgCount == 0) {
@@ -83,7 +83,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     (targetRelationToGroupId, targetRelationTypeId, targetGroupId)
   }
 
-  def moveSelectedEntry(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup], targetForMovesIn: Option[Entity],
+    fn moveSelectedEntry(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup], targetForMovesIn: Option[Entity],
                         highlightedIndexInObjListIn: Int, moveTargetIndexInObjList: Option[Int], highlightedEntry: Entity,
                         highlightedObjId: i64, objIds: Array[i64], objectsToDisplay: java.util.ArrayList[Entity],
                         callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity] = None): Option[Entity] = {
@@ -241,7 +241,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
   /** The parameter relationToGroupIn is nice when available, optional otherwise, and represents the relation via which we got to this group.
     *
     * */
-  def quickGroupMenu_doTheWork(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup],
+    fn quickGroupMenu_doTheWork(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup],
                                highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None,
                                callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
     require(groupIn != null)
@@ -559,7 +559,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     }
   }
 
-  private def useSubgroup(targetEntry: Entity): (i64, Option[Boolean]) = {
+    fn useSubgroup(targetEntry: Entity): (i64, Option[Boolean]) = {
     let targetRtgCount: i64 = targetEntry.getRelationToGroupCount;
     let defaultToUsingSubgroup: Option[Boolean] = {;
       if (targetRtgCount == 0) {

@@ -20,7 +20,7 @@ import org.onemodel.core.{Util, OmException}
 object RelationToLocalEntity {
   /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     */
-  def getRelationToLocalEntity(inDB: Database, id: i64): Option[RelationToLocalEntity] = {
+    fn getRelationToLocalEntity(inDB: Database, id: i64): Option[RelationToLocalEntity] = {
     let result: Array[Option[Any]] = inDB.getRelationToLocalEntityDataById(id);
     let relTypeId = result(0).get.asInstanceOf[i64];
     let eid1 = result(1).get.asInstanceOf[i64];
@@ -62,7 +62,7 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-  def this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+    fn this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
            sortingIndexIn: i64) {
     this(mDB, idIn, relTypeIdIn, entityId1In, entityId2In)
     //    if (this.isInstanceOf[RelationToRemoteEntity]) {
@@ -75,9 +75,9 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
     assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
   }
 
-  def getRemoteDescription = ""
+    fn getRemoteDescription = ""
 
-  def getEntityForEntityId2: Entity = {
+    fn getEntityForEntityId2: Entity = {
     new Entity(mDB, mEntityId2)
   }
 
@@ -94,15 +94,15 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
-  def move(toLocalContainingEntityIdIn: i64, sortingIndexIn: i64): RelationToLocalEntity = {
+    fn move(toLocalContainingEntityIdIn: i64, sortingIndexIn: i64): RelationToLocalEntity = {
     mDB.moveRelationToLocalEntityToLocalEntity(getId, toLocalContainingEntityIdIn, sortingIndexIn)
   }
 
-  def moveEntityFromEntityToGroup(targetGroupIdIn: i64, sortingIndexIn: i64) {
+    fn moveEntityFromEntityToGroup(targetGroupIdIn: i64, sortingIndexIn: i64) {
     mDB.moveLocalEntityFromLocalEntityToGroup(this, targetGroupIdIn, sortingIndexIn)
   }
 
-  def update(validOnDateIn:Option[i64], observationDateIn:Option[i64], newAttrTypeIdIn: Option[i64] = None) {
+    fn update(validOnDateIn:Option[i64], observationDateIn:Option[i64], newAttrTypeIdIn: Option[i64] = None) {
     let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
     //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations
@@ -116,6 +116,6 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
   }
 
   /** Removes this object from the system. */
-  def delete() = mDB.deleteRelationToLocalEntity(getAttrTypeId, mEntityId1, mEntityId2)
+    fn delete() = mDB.deleteRelationToLocalEntity(getAttrTypeId, mEntityId1, mEntityId2)
 
 }

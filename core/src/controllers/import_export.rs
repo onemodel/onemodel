@@ -35,7 +35,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   /**
    * 1st parameter must be either an Entity or a RelationToGroup (what is the right way to do that, in the signature?).
    */
-  def importCollapsibleOutlineAsGroups(firstContainingEntryIn: AnyRef) {
+    fn importCollapsibleOutlineAsGroups(firstContainingEntryIn: AnyRef) {
     //noinspection ComparingUnrelatedTypes
     require(firstContainingEntryIn.isInstanceOf[Entity] || firstContainingEntryIn.isInstanceOf[Group])
     let db: Database = {;
@@ -149,7 +149,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
   @tailrec
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-  private def getFirstNonSpaceIndex(line: Array[Byte], index: Int): Int = {
+    fn getFirstNonSpaceIndex(line: Array[Byte], index: Int): Int = {
     //idea: this logic might need to be fixed (9?):
     if (line(index) == 9) {
       // could count tab as 1, but not testing with that for now:
@@ -162,7 +162,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: i64, isPublicIn: Option[Boolean]): Entity = {
+    fn createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: i64, isPublicIn: Option[Boolean]): Entity = {
     let entityId: i64 = group.mDB.createEntity(line.trim, group.getClassId, isPublicIn);
     group.addEntity(entityId, Some(newSortingIndex), callerManagesTransactionsIn = true)
     new Entity(group.mDB, entityId)
@@ -178,7 +178,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   */
   @tailrec
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-  private def importRestOfLines(r: LineNumberReader, lastEntityAdded: Option[Entity], lastIndentationLevel: Int, containerList: List[AnyRef],
+    fn importRestOfLines(r: LineNumberReader, lastEntityAdded: Option[Entity], lastIndentationLevel: Int, containerList: List[AnyRef],
                                 lastSortingIndexes: List[i64], observationDateIn: i64, mixedClassesAllowedDefaultIn: Boolean,
                                 makeThemPublicIn: Option[Boolean]) {
     // (see cmts just above about where we start)
@@ -298,7 +298,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def importTextAttributeContent(lineUntrimmedIn: String, r: LineNumberReader, entityIn: Entity, beginningTagMarker: String, endTaMarker: String) {
+    fn importTextAttributeContent(lineUntrimmedIn: String, r: LineNumberReader, entityIn: Entity, beginningTagMarker: String, endTaMarker: String) {
     let lineContentBeforeMarker = lineUntrimmedIn.substring(0, lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarker)).trim;
     let restOfLine = lineUntrimmedIn.substring(lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarker) + beginningTagMarker.length).trim;
     if (restOfLine.toLowerCase.contains(endTaMarker)) throw new OmException("\"Unsupported format at line " + r.getLineNumber + ": beginning and ending " +
@@ -354,7 +354,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     entityIn.createTextAttribute(attrTypeId, text, callerManagesTransactionsIn = true)
   }
 
-  def importUriContent(lineUntrimmedIn: String, beginningTagMarkerIn: String, endMarkerIn: String, lineNumberIn: Int,
+    fn importUriContent(lineUntrimmedIn: String, beginningTagMarkerIn: String, endMarkerIn: String, lineNumberIn: Int,
                         lastEntityAddedIn: Entity, observationDateIn: i64, makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean) {
     //NOTE/idea also in tasks: this all fits better in the class and action *tables*, with this code being stored there
     // also, which implies that the class doesn't need to be created because...it's already there.
@@ -379,7 +379,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
   // wait for next debian stable version--jessie?--be4 it's probably worth finding out)
-  def doTheImport(dataSourceIn: Reader, dataSourceFullPath: String, dataSourceLastModifiedDate: i64, firstContainingEntryIn: AnyRef,
+    fn doTheImport(dataSourceIn: Reader, dataSourceFullPath: String, dataSourceLastModifiedDate: i64, firstContainingEntryIn: AnyRef,
                   creatingNewStartingGroupFromTheFilenameIn: Boolean, addingToExistingGroup: Boolean,
                   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                   putEntriesAtEnd: Boolean, makeThemPublicIn: Option[Boolean], mixedClassesAllowedDefaultIn: Boolean = false, testing: Boolean = false) {
@@ -435,7 +435,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
   // idea: see comment in EntityMenu about scoping.
-  def export(entityIn: Entity, exportTypeIn: String, headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
+    fn export(entityIn: Entity, exportTypeIn: String, headerContentIn: Option[String], beginBodyContentIn: Option[String], copyrightYearAndNameIn: Option[String]) {
     def askForExportChoices: (Boolean, String, Int, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Int) = {
       let levelsText = "number of levels to export";
 
@@ -645,7 +645,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
   // This exists for the reasons commented in exportItsChildrenToHtmlFiles, and so that not all callers have to explicitly call both (ie, duplication of code).
-  def exportHtml(entity: Entity, levelsToExportIsInfinite: Boolean, levelsToExport: Int,
+    fn exportHtml(entity: Entity, levelsToExportIsInfinite: Boolean, levelsToExport: Int,
                  outputDirectory: Path, exportedEntityIdsIn: mutable.HashMap[String, Integer], cachedEntitiesIn: mutable.HashMap[String, Entity],
                  cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]], cachedGroupInfoIn: mutable.HashMap[i64, Array[i64]],
                  entitiesAlreadyProcessedInThisRefChain: mutable.TreeSet[i64],
@@ -713,7 +713,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     * If levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
     *
     */
-  def exportEntityToHtmlFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
+    fn exportEntityToHtmlFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
                              outputDirectoryIn: Path, exportedEntityIdsIn: mutable.HashMap[String, Integer], cachedEntitiesIn: mutable.HashMap[String, Entity],
                              cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]],
                              uriClassIdIn: i64, quoteClassIdIn: i64,
@@ -848,7 +848,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def printListItemForUriEntity(uriClassIdIn: i64, quoteClassIdIn: i64, printWriter: PrintWriter, uriEntity: Entity,
+    fn printListItemForUriEntity(uriClassIdIn: i64, quoteClassIdIn: i64, printWriter: PrintWriter, uriEntity: Entity,
                                 cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]]): Unit = {
     // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
     // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
@@ -883,7 +883,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, uriEntity.getName, None, quoteText)
   }
 
-  def printListItemForEntity(printWriterIn: PrintWriter, relationTypeIn: RelationType, entityIn: Entity): Unit = {
+    fn printListItemForEntity(printWriterIn: PrintWriter, relationTypeIn: RelationType, entityIn: Entity): Unit = {
     let numSubEntries = getNumSubEntries(entityIn);
     if (numSubEntries > 0) {
       let relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entityIn, ImportExport.HTML_EXPORT_TYPE);
@@ -915,7 +915,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     *
     * If parameter levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
     */
-  def exportItsChildrenToHtmlFiles(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
+    fn exportItsChildrenToHtmlFiles(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
                                    outputDirectoryIn: Path,
                                    //in this method, next parm is only used to pass along in calls to exportHtml
                                    //(idea: check: true? See also usage of entitiesAlreadyProcessedInThisRefChainIn just below, as part of ck?)
@@ -985,7 +985,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     entitiesAlreadyProcessedInThisRefChainIn.remove(entityIn.getId)
   }
 
-  def getCachedGroupData(rtg: RelationToGroup, cachedGroupInfoIn: mutable.HashMap[i64, Array[i64]]): Array[i64] = {
+    fn getCachedGroupData(rtg: RelationToGroup, cachedGroupInfoIn: mutable.HashMap[i64, Array[i64]]): Array[i64] = {
     let cachedIds: Option[Array[i64]] = cachedGroupInfoIn.get(rtg.getGroupId);
     if (cachedIds.isDefined) {
       cachedIds.get
@@ -1003,7 +1003,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def getCachedAttributes(entityIn: Entity, cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]]): Array[(i64, Attribute)] = {
+    fn getCachedAttributes(entityIn: Entity, cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]]): Array[(i64, Attribute)] = {
     let cachedInfo: Option[Array[(i64, Attribute)]] = cachedAttrsIn.get(entityIn.getId);
     if (cachedInfo.isDefined) {
       cachedInfo.get
@@ -1015,7 +1015,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def getCachedEntity(entityIdIn: i64, cachedEntitiesIn: mutable.HashMap[String, Entity], dbIn: Database): Entity = {
+    fn getCachedEntity(entityIdIn: i64, cachedEntitiesIn: mutable.HashMap[String, Entity], dbIn: Database): Entity = {
     let key: String = dbIn.id + entityIdIn.toString;
     let cachedInfo: Option[Entity] = cachedEntitiesIn.get(key);
     if (cachedInfo.isDefined) {
@@ -1029,7 +1029,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
   /** Very basic for now. Noted in task list to do more, under i18n and under "do a better job of encoding"
     */
-  def htmlEncode(in: String): String = {
+    fn htmlEncode(in: String): String = {
     let mut out = in.replace("&", "&amp;");
     out = out.replace(">", "&gt;")
     out = out.replace("<", "&lt;")
@@ -1037,7 +1037,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     out
   }
 
-  def getLineNumbers(includeOutlineNumbering: Boolean = true, currentIndentationLevels: Int, nextKnownOutlineNumbers: java.util.ArrayList[Int]): String = {
+    fn getLineNumbers(includeOutlineNumbering: Boolean = true, currentIndentationLevels: Int, nextKnownOutlineNumbers: java.util.ArrayList[Int]): String = {
     // (just a check, to learn. Maybe there is a better spot for it)
     //test fails with it, as does item noted in my om todos??:
     // require(currentIndentationLevels == nextKnownOutlineNumbers.size)
@@ -1062,7 +1062,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     *
     * @return  Whether lines were wrapped--so a later call to it can decide whether to print a leading blank line.
     */
-  def exportToSingleTextFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int,
+    fn exportToSingleTextFile(entityIn: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int,
                              printWriterIn: PrintWriter,
                              includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.HashMap[String, Integer],
                              cachedEntitiesIn: mutable.HashMap[String, Entity],
@@ -1309,7 +1309,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     return previousEntityWasWrapped
   }
 
-  def levelsRemainAndPublicEnough(entityIn: Entity, includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean,
+    fn levelsRemainAndPublicEnough(entityIn: Entity, includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean,
                                   includeUnspecifiedDataIn: Boolean, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int): Boolean = {
     if (!levelsToExportIsInfiniteIn && levelsRemainingToExportIn == 0) {
       return false
@@ -1321,7 +1321,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     publicEnoughToExport
   }
 
-  def printHtmlListItemWithLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None,
+    fn printHtmlListItemWithLink(printWriterIn: PrintWriter, preLabel: String, uri: String, linkDisplayText: String, suffix: Option[String] = None,
                                 textOnNextLineButSameHtmlListItem: Option[String] = None): Unit = {
     printWriterIn.print("<li>")
     printWriterIn.print(htmlEncode(preLabel) + "<a href=\"" + uri + "\">" + htmlEncode(linkDisplayText) + "</a>" + " " + htmlEncode(suffix.getOrElse("")))
@@ -1329,7 +1329,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     printWriterIn.println("</li>")
   }
 
-  def getNumSubEntries(entityIn: Entity): i64 = {
+    fn getNumSubEntries(entityIn: Entity): i64 = {
     let numSubEntries = {;
       let numAttrs = entityIn.getAttributeCount();
       if (numAttrs == 1) {
@@ -1342,7 +1342,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     numSubEntries
   }
 
-  def getSpaces(num: Int): String = {
+    fn getSpaces(num: Int): String = {
     let s: StringBuffer = new StringBuffer;
     for (i <- 1 to num) {
       s.append(" ")
@@ -1350,7 +1350,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     s.toString
   }
 
-  def getExportFileNamePrefix(entity: Entity, exportTypeIn: String): String = {
+    fn getExportFileNamePrefix(entity: Entity, exportTypeIn: String): String = {
     let entityIdentifier: String = {;
       if (entity.mDB.isRemote) {
         require(entity.mDB.getRemoteAddress.isDefined)
@@ -1371,7 +1371,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-  def createOutputDir(prefix: String): Path = {
+    fn createOutputDir(prefix: String): Path = {
     // even though entityIds start with a '-', it's a problem if a filename does (eg, "ls" cmd thinks it is an option, not a name):
     // (there's a similar line elsewhere)
     require(!prefix.startsWith("-"))
@@ -1379,7 +1379,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     Files.createTempDirectory(prefix + "-")
   }
 
-  def createOutputFile(prefix:String, exportTypeIn: String, exportDirectory: Option[Path]): (File, PrintWriter) = {
+    fn createOutputFile(prefix:String, exportTypeIn: String, exportDirectory: Option[Path]): (File, PrintWriter) = {
     // even though entityIds start with a '-', it's a problem if a filename does (eg, "ls" cmd thinks it is an option, not a name):
     // (there's a similar line elsewhere)
     require(!prefix.startsWith("-"))
@@ -1407,7 +1407,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
   // these methods are in this class so it can be found by both PostgreSQLDatabaseTest and ImportExportTest (not sure why it couldn't be found
   // by PostgreSQLDatabaseTest when it was in ImportExportTest).
-  def tryImporting_FOR_TESTS(filenameIn: String, entityIn: Entity): File = {
+    fn tryImporting_FOR_TESTS(filenameIn: String, entityIn: Entity): File = {
     //PROBLEM: these 2 lines make it so it's hard to test in the IDE without first building a .jar since it finds the file in the jar. How fix?
     let stream = this.getClass.getClassLoader.getResourceAsStream(filenameIn);
     let reader: java.io.Reader = new java.io.InputStreamReader(stream);
@@ -1427,7 +1427,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     tmpCopy.toFile
   }
   // (see cmt on tryImporting method)
-  def tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[i64], dbIn: Database, wrapLongLinesIn: Boolean = false,
+    fn tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[i64], dbIn: Database, wrapLongLinesIn: Boolean = false,
                                 wrapColumnIn: Int = 80, includeOutlineNumberingIn: Boolean = false): (String, File) = {
     assert(ids.size > 0)
     let entityId: i64 = ids.get(0);
