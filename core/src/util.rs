@@ -504,10 +504,14 @@ impl Util {
                     )
                     + "\n";
                 append = false;
+                // Stop doing the extra checks in vain now, since no more appending done. It cut the
+                // the ~0.5 second startup to ~0.25 sec. Oh well, it was fun to test the difference.
+                // Just moving to rust from scala, made the startup go from ~2-4 sec to ~0.5 sec.
+                break;
             } else if append {
                 text_to_show = text_to_show + line + "\n";
             } else if !append {
-                // do nothing
+                // do nothing.
             }
             line_opt = lines.next();
         }
