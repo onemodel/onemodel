@@ -81,7 +81,13 @@ impl Controller<'_> {
                     + " to exit.\n"
                     + "If you agree to those terms: ",
             ),
-        )
+        );
+
+        //%%temporary/experiment:
+        // loop {
+        //     let _x=TextUI::get_user_input_char(None);
+        //     // dbg!(_x);
+        // }
         /* %%$%
          // Max id used as default here because it seems the least likely # to be used in the system hence the
          // most likely to cause an error as default by being missing, so the system can respond by prompting

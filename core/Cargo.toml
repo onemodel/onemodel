@@ -6,5 +6,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# next line added ~1.5MB to the binary. See related notes mentioning "Cargo.toml" in util.rs .
+console = "0.15.1"
+# next line added ~4.xMB to the binary
 rustyline = "10.0.0"
 #reedline = "0.11.0"

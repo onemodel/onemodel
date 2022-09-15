@@ -485,7 +485,13 @@ impl Util {
     */
     pub fn license() -> String {
         let mut text_to_show = String::new();
-        //%%note: be4 the next line added, the binary debug size was 4,884,336
+        // Note: Before the next line was added, the binary
+        // debug size was 4,884,336 bytes.
+        // After the next line was added (with some other changes in the last commit), the binary
+        // debug size was 5,066,280 (difference of 181,944), with a LICENSE file size of 38,816 bytes.
+        // Idea: could make the binary smaller by including only the part of the LICENSE file that
+        // is used by this fn.  Maybe have similar logic against a temp file and just include that.
+        // (See related notes in Cargo.toml.)
         let text = include_str!("../../LICENSE");
         let mut append = false;
         let mut before_any_dashes = true;
