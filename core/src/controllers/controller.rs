@@ -13,7 +13,7 @@ use crate::util::Util;
 use crate::TextUI;
 
 /// This Controller is for user-interactive things.  The Controller class in the web module is for the REST API.  For shared code that does not fit
-/// in those, see the org.onemodel.core.Util object (in Util.rc)%%?
+/// in those, see struct Util (in util.rs).
 ///
 /// Improvements to this class should START WITH MAKING IT BETTER TESTED (functional testing? integration? see
 /// scalatest docs 4 ideas, & maybe use expect or the gnu testing tool that uses expect?), delaying side effects more,
@@ -22,6 +22,7 @@ use crate::TextUI;
 /// * * * *IMPORTANT * * * * * IMPORTANT* * * * * * *IMPORTANT * * * * * * * IMPORTANT* * * * * * * * *IMPORTANT * * * * * *
 /// Don't ever instantiate a Controller from a *test* without passing in username/password parameters, because it will try to log in to the user's
 /// default, live Database and run the tests there (ie, they could be destructive)!:
+/// %%: How make that better/safer!?
 /// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ///
 pub struct Controller<'a> {
@@ -120,7 +121,7 @@ impl Controller<'_> {
 
     /* %%
       /** If the 1st parm is true, the next 2 must be omitted or None. */
-        fn tryLogins(force_user_pass_prompt: Boolean = false, default_username: Option[String] = None,
+    fn tryLogins(force_user_pass_prompt: Boolean = false, default_username: Option[String] = None,
                             default_password: Option[String] = None): Database = {
 
         require(if (force_user_pass_prompt) default_username.isEmpty && default_password.isEmpty else true)
@@ -155,6 +156,9 @@ impl Controller<'_> {
                     System.gc()
                     System.gc()
                     System.gc()
+                    //BUT: IN RUST, could look into the "zeroize" and "secrecy" crates for that, per an article
+                    // i just (20221201) read in "this week in Rust" rss feed, "Rust Foundation - Secure App Development with rust's Memory Model", at
+                    //  https://foundation.rust-lang.org/news/secure-app-development-with-rust-s-memory-model/  .
                   }
                 }
               }

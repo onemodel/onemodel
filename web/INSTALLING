@@ -13,4 +13,4 @@ with OneModel.  If not, see <http://www.gnu.org/licenses/>
 --------------------------------------------------------------------------------
 
 For now, see the comments in the file:
-.../core/src/test/scala/org/onemodel/core/model/RestDatabaseTest.scala 
+.../core-scala/src/test/scala/org/onemodel/core/model/RestDatabaseTest.scala 
