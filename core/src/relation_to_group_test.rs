@@ -21,14 +21,14 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
   let mut mDB: PostgreSQLDatabase = null;
 
   // Starting to use the real db because the time savings don't seem enough to justify the work with the mocks. (?)
-  override def runTests(testName: Option[String], args: Args):Status = {
+  override fn runTests(testName: Option[String], args: Args) -> Status {
     setUp()
     let result:Status = super.runTests(testName,args);
     // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
     result
   }
 
-  protected def setUp() {
+  protected fn setUp() {
     //start fresh
     PostgreSQLDatabaseTest.tearDownTestDB()
 
@@ -36,7 +36,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
   }
 
-  protected def tearDown() {
+  protected fn tearDown() {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 
@@ -54,14 +54,14 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let grpEntryCount = 9;
     // arbitrary, in milliseconds:
     let date = 304;
-    let relationTypeName: String = Database.theHASrelationTypeName;
+    let relationTypeName: String = Database.THE_HAS_RELATION_TYPE_NAME;
     when(mockDB.groupKeyExists(groupId)).thenReturn(true)
     when(mockDB.relationTypeKeyExists(relTypeId)).thenReturn(true)
     when(mockDB.entityKeyExists(relTypeId)).thenReturn(true)
     when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, relTypeId, groupId)).thenReturn(true)
     when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true), Some(false)))
     when(mockDB.getGroupSize(groupId, 1)).thenReturn(grpEntryCount)
-    when(mockDB.getRelationTypeData(relTypeId)).thenReturn(Array[Option[Any]](Some(relationTypeName), Some(Database.theIsHadByReverseName), Some("xyz..")))
+    when(mockDB.getRelationTypeData(relTypeId)).thenReturn(Array[Option[Any]](Some(relationTypeName), Some(Database.THE_IS_HAD_BY_REVERSE_NAME), Some("xyz..")))
     when(mockDB.getRemoteAddress).thenReturn(None)
 
     // (using arbitrary numbers for the unnamed parameters):

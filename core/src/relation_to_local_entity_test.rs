@@ -17,14 +17,14 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   let mut mDB: PostgreSQLDatabase = null;
 
   // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks.
-  override def runTests(testName: Option[String], args: Args):Status = {
+  override fn runTests(testName: Option[String], args: Args) -> Status {
     setUp()
     let result:Status = super.runTests(testName,args);
     // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
     result
   }
 
-  protected def setUp() {
+  protected fn setUp() {
     //start fresh
     PostgreSQLDatabaseTest.tearDownTestDB()
 
@@ -32,7 +32,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
   }
 
-  protected def tearDown() {
+  protected fn tearDown() {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 

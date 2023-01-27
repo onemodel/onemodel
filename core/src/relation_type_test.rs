@@ -20,7 +20,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     let id = 0L;
     let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.entityKeyExists(id)).thenReturn(true)
-    let testRelTypeName = Database.theHASrelationTypeName;
+    let testRelTypeName = Database.THE_HAS_RELATION_TYPE_NAME;
     let testNameReversed = "is had";
     let testDir = "BI";
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)

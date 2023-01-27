@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, 2013-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -11,14 +10,16 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct RelationType {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core.{OmException, Util}
 
-/** Represents one RelationType object in the system.
-  */
+/* Represents one RelationType object in the system.
+  *
 object RelationType {
-    fn getNameLength: Int = {
+    fn getNameLength() -> Int {
     Database.relationTypeNameLength
   }
 
@@ -43,7 +44,7 @@ class RelationType(mDB: Database, mId: i64) extends Entity(mDB, mId) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  private[onemodel] def this(dbIn: Database, entityIdIn: i64, nameIn: String, nameInReverseDirectionIn: String,
+  private[onemodel] fn this(dbIn: Database, entityIdIn: i64, nameIn: String, nameInReverseDirectionIn: String,
                              inDirectionality: String) {
     this(dbIn, entityIdIn)
     mName = nameIn
@@ -52,32 +53,32 @@ class RelationType(mDB: Database, mId: i64) extends Entity(mDB, mId) {
     mAlreadyReadData = true
   }
 
-  private[onemodel] def getNameInReverseDirection: String = {
+  private[onemodel] fn getNameInReverseDirection() -> String {
     if (!mAlreadyReadData) {
       readDataFromDB()
     }
     mNameInReverseDirection
   }
 
-  private[onemodel] def getDirectionality: String = {
+  private[onemodel] fn getDirectionality() -> String {
     if (!mAlreadyReadData) {
       readDataFromDB()
     }
     mDirectionality
   }
 
-  override def getName: String = {
+  override fn getName() -> String {
     if (!mAlreadyReadData) {
       readDataFromDB()
     }
     mName
   }
 
-  override def getDisplayString_helper(withColorIGNOREDFORNOW: Boolean): String = {
+  override fn getDisplayString_helper(withColorIGNOREDFORNOW: Boolean)() -> String {
     getArchivedStatusDisplayString + getName + " (a relation type with: " + getDirectionality + "/'" + getNameInReverseDirection + "')"
   }
 
-  protected override def readDataFromDB() {
+  protected override fn readDataFromDB() {
     let relationTypeData: Array[Option[Any]] = mDB.getRelationTypeData(mId);
     if (relationTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
@@ -88,7 +89,7 @@ class RelationType(mDB: Database, mId: i64) extends Entity(mDB, mId) {
     mAlreadyReadData = true
   }
 
-    fn update(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): Unit = {
+    fn update(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String) -> /*%% -> Unit*/ {
     if (!mAlreadyReadData) readDataFromDB()
     if (nameIn != mName || nameInReverseDirectionIn != mNameInReverseDirection || directionalityIn != mDirectionality) {
       mDB.updateRelationType(getId, nameIn, nameInReverseDirectionIn, directionalityIn)
@@ -100,7 +101,7 @@ class RelationType(mDB: Database, mId: i64) extends Entity(mDB, mId) {
 
   /** Removes this object from the system.
     */
-  override def delete() {
+  override fn delete() {
     mDB.deleteRelationType(mId)
   }
 
@@ -109,4 +110,6 @@ class RelationType(mDB: Database, mId: i64) extends Entity(mDB, mId) {
     */
   private let mut mNameInReverseDirection: String = null;
   private let mut mDirectionality: String = null;
+ */
+ */
 }

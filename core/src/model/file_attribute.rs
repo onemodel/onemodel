@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -11,6 +10,8 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct FileAttribute {
+/*%%
 package org.onemodel.core.model
 
 import scala.annotation.tailrec
@@ -19,7 +20,7 @@ import org.apache.commons.io.FilenameUtils
 import org.onemodel.core._
 
 object FileAttribute {
-    fn md5Hash(fileIn: java.io.File): String = {
+    fn md5Hash(fileIn: java.io.File) -> String {
     //idea: combine somehow w/ similar logic in PostgreSQLDatabase.verifyFileAttributeContent ?
     let mut fis: java.io.FileInputStream = null;
     let d = java.security.MessageDigest.getInstance("MD5");
@@ -28,7 +29,7 @@ object FileAttribute {
       let buffer = new Array[Byte](2048);
       let mut numBytesRead = 0;
       @tailrec
-      def calculateRest() {
+      fn calculateRest() {
         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
         numBytesRead = fis.read(buffer)
         //noinspection RemoveRedundantReturn  //left intentionally for reading clarify
@@ -58,7 +59,7 @@ object FileAttribute {
     * I.e., for use with java.nio.file.Files.createTempFile (which makes sure it will not collide with existing names).
     * Calling this likely presumes that the caller has already decided not to use the old path, or at least the old filename in the temp directory.
     */
-    fn getUsableFilename(originalFilePathIn: String): (String, String) = {
+    fn getUsableFilename(originalFilePathIn: String) -> (String, String) {
     let originalName = FilenameUtils.getBaseName(originalFilePathIn);
 
     // baseName has to be at least 3 chars, for createTempFile:
@@ -107,7 +108,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     assignCommonVars(parentIdIn, attrTypeIdIn, sortingIndexIn)
   }
 
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType] = None, simplify: Boolean = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = getDescription + " (" + typeName + "); " + getFileSizeDescription;
     if (! simplify) result = result + " " + getPermissionsDescription + " from " +
@@ -115,14 +116,14 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-    fn getPermissionsDescription: String = {
+    fn getPermissionsDescription -> String {
     //ex: rwx or rw-, like "ls -l" does
     (if (getReadable) "r" else "-") +
     (if (getWritable) "w" else "-") +
     (if (getExecutable) "x" else "-")
   }
 
-    fn getFileSizeDescription: String = {
+    fn getFileSizeDescription -> String {
     // note: it seems that (as per SI? IEC?), 1024 bytes is now 1 "binary kilobyte" aka kibibyte or KiB, etc.
     let decimalFormat = new java.text.DecimalFormat("0");
     if (getSize < math.pow(10, 3)) "" + getSize + " bytes"
@@ -131,7 +132,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     else "" + decimalFormat.format(getSize / math.pow(10, 9)) + "GB (" + getSize + ")"
   }
 
-  protected def readDataFromDB() {
+  protected fn readDataFromDB() {
     let faTypeData = mDB.getFileAttributeData(mId);
     if (faTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
@@ -166,7 +167,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
 
   ///** Using Options for the parameters so caller can pass in only those desired (named), and other members will stay the same.
   //  */
-  //def update(attrTypeIdIn: Option[i64] = None, descriptionIn: Option[String] = None, originalFileDateIn: Option[i64] = None,
+  //fn update(attrTypeIdIn: Option[i64] = None, descriptionIn: Option[String] = None, originalFileDateIn: Option[i64] = None,
   //           storedDateIn: Option[i64] = None, originalFilePathIn: Option[String] = None, sizeIn: Option[i64] = None, md5hashIn: Option[String] = None) {
   //  // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
   //  // it all goes with
@@ -184,58 +185,62 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   //}
 
   /** Removes this object from the system. */
-    fn delete() = mDB.deleteFileAttribute(mId)
+    fn delete() {
+    mDB.deleteFileAttribute(mId)
+    }
 
-    fn getDatesDescription: String = "mod " + Attribute.usefulDateFormat(getOriginalFileDate) + ", stored " + Attribute.usefulDateFormat(getStoredDate)
+    fn getDatesDescription -> String {
+    "mod " + Attribute.usefulDateFormat(getOriginalFileDate) + ", stored " + Attribute.usefulDateFormat(getStoredDate)
+    }
 
-  private[onemodel] def getOriginalFileDate: i64 = {
+  private[onemodel] fn getOriginalFileDate -> i64 {
     if (!mAlreadyReadData) readDataFromDB()
     mOriginalFileDate
   }
 
-  private[onemodel] def getStoredDate: i64 = {
+  private[onemodel] fn getStoredDate -> i64 {
     if (!mAlreadyReadData) readDataFromDB()
     mStoredDate
   }
 
-  private[onemodel] def getDescription: String = {
+  private[onemodel] fn getDescription -> String {
     if (!mAlreadyReadData) readDataFromDB()
     mDescription
   }
 
-  private[onemodel] def getOriginalFilePath: String = {
+  private[onemodel] fn getOriginalFilePath -> String {
     if (!mAlreadyReadData) readDataFromDB()
     mOriginalFilePath
   }
 
-  private[onemodel] def getSize: i64 = {
+  private[onemodel] fn getSize -> i64 {
     if (!mAlreadyReadData) readDataFromDB()
     mSize
   }
 
-  private[onemodel] def getMd5Hash: String = {
+  private[onemodel] fn getMd5Hash -> String {
     if (!mAlreadyReadData) readDataFromDB()
     mMd5hash
   }
 
-    fn getReadable: Boolean = {
+    fn getReadable -> Boolean {
     if (!mAlreadyReadData) readDataFromDB()
     mReadable
   }
 
-    fn getWritable: Boolean = {
+    fn getWritable -> Boolean {
     if (!mAlreadyReadData) readDataFromDB()
     mWritable
   }
 
-    fn getExecutable: Boolean = {
+    fn getExecutable -> Boolean {
     if (!mAlreadyReadData) readDataFromDB()
     mExecutable
   }
 
   /** just calling the File.getUsableSpace function on a nonexistent file yields 0, so come up with something better. -1 if it just can't figure it out.
     */
-    fn getUsableSpace(fileIn: File): i64 = {
+    fn getUsableSpace(fileIn: File) -> i64 {
     try {
       if (fileIn.exists) fileIn.getUsableSpace
       else if (fileIn.getParentFile == null) -1
@@ -290,5 +295,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   private let mut mWritable: bool = false;
   private let mut mExecutable: bool = false;
   private let mut mSize: i64 = 0;
+ */
   private let mut mMd5hash: String = null;
+ */
 }

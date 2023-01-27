@@ -19,14 +19,14 @@ class TextUITest extends FlatSpec {
   //  // just the same except:
   //  private let mut maxLines=25;
   //  private let termWidth=80;
-  //  def setTerminalHeight(in:Int) {
+  //   setTerminalHeight(in:Int) {
   //    maxLines=in
   //  }
-  //  def terminalHeight: Int = { // # of items to try to display on the screen at one time.
+  //  fn terminalHeight -> Int { // # of items to try to display on the screen at one time.
   //    println!(new java.text.SimpleDateFormat("yyyy-mm-dd HH:mm:ss:SSSZ").format(new java.util.Date())+": testtextui.terminalheight");
   //    return maxLines
   //  }
-  //  def terminalWidth: Int = { // # of items to try to display on the screen at one time.
+  //  fn terminalWidth  -> Int { // # of items to try to display on the screen at one time.
   //    println!((new java.text.SimpleDateFormat("yyyy-mm-dd HH:mm:ss:SSSZ")).format(new java.util.Date())+": testtextui.terminalwidth");
   //    return termWidth
   //  }
@@ -54,7 +54,7 @@ class TextUITest extends FlatSpec {
     //ui.setInput(bais)
     let infiniteLoop = { //due to library polling for good data in jline.ConsoleReader.readCharacter(final char[] allowed)--the while loop);
       new Thread {
-        override def run() {
+        override fn run() {
           ui.get_user_input_char(List('a', 'b'))
         }
       }
@@ -76,7 +76,7 @@ class TextUITest extends FlatSpec {
 
   "askForString" should "loop if entry fails criteria" in {
     // (BUT: in this case it does that, then gets null back due to no further data provided here by bais, so just fails fully, good enough 4 test it seems)
-    def criteria(entryIn: String): Boolean = {
+    fn criteria(entryIn: String) -> Boolean {
       let entry = entryIn.trim().toUpperCase;
       entry.equals("BI") || entry.equals("UNI") || entry.equals("NON")
     }
@@ -88,7 +88,7 @@ class TextUITest extends FlatSpec {
   }
 
   "askForString" should "keep allow if entry meets criteria" in {
-    def criteria(entryIn: String): Boolean = {
+    fn criteria(entryIn: String) -> Boolean {
       let entry = entryIn.trim().toUpperCase;
       entry.equals("BI") || entry.equals("UNI") || entry.equals("NON")
     }

@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2013-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -10,6 +9,8 @@
 
     (Some code was moved to here from PostgreSQLDatabaseTest.scala, but the above year range for copyrights derived therefrom is a wild guess.)
 */
+struct DatabaseTestUtils {
+/*%%
 package org.onemodel.core.model
 
 object DatabaseTestUtils {
@@ -18,7 +19,7 @@ object DatabaseTestUtils {
     * it is available for use by the integration module (in RestDatabaseTest.scala).
     */
     fn createAndAddTestRelationToGroup_ToEntity(dbIn: Database, inParentId: i64, inRelTypeId: i64, inGroupName: String = "something",
-                                               inValidOnDate: Option[i64] = None, allowMixedClassesIn: Boolean = true): (i64, RelationToGroup) = {
+                                               inValidOnDate: Option[i64] = None, allowMixedClassesIn: Boolean = true) -> (i64, RelationToGroup) {
     let validOnDate: Option[i64] = if (inValidOnDate.isEmpty) None else inValidOnDate;
     let observationDate: i64 = System.currentTimeMillis;
     let (group:Group, rtg: RelationToGroup) = new Entity(dbIn, inParentId).;
@@ -38,4 +39,5 @@ object DatabaseTestUtils {
     (group.getId, rtg)
   }
 
+*/
 }

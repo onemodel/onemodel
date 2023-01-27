@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004, 2008-2020 inclusive, and 2022, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004, 2008-2020 inclusive, and 2022-2023 inclusive, Luke A. Call.
     (That copyright statement once said only 2013-2015, until I remembered that much of Controller came from TextUI.scala, and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -9,6 +9,8 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 
+use crate::model::postgresql_database::PostgreSQLDatabase;
+// use crate::model::database::Database;
 use crate::util::Util;
 use crate::TextUI;
 
@@ -22,31 +24,56 @@ use crate::TextUI;
 /// * * * *IMPORTANT * * * * * IMPORTANT* * * * * * *IMPORTANT * * * * * * * IMPORTANT* * * * * * * * *IMPORTANT * * * * * *
 /// Don't ever instantiate a Controller from a *test* without passing in username/password parameters, because it will try to log in to the user's
 /// default, live Database and run the tests there (ie, they could be destructive)!:
-/// %%: How make that better/safer!?
+/// %%: How make that better/safer!?--just use the new_* methods below as reminders?
 /// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ///
-pub struct Controller<'a> {
-    //%%the defas?--if needed make a ::new that sets them?:
-    // force_user_pass_prompt: Boolean = false, default_username: Option[String] = None, default_password: Option[String] = None,
-    pub ui: TextUI,
-    pub force_user_pass_prompt: bool,
-    pub default_username: Option<&'a String>,
-    //%%why really do these have to be pub?  read in book, examples...?:  Maybe have a ::new method instead that main.rs calls, so it doesnt need2be pub here?
-    pub default_password: Option<&'a String>,
-    //%%
+pub struct Controller {
+    ui: TextUI,
+    force_user_pass_prompt: bool,
+    //%%$%
+    // default_username: Option<String>,
+    // default_password: Option<String>,
+
+    // NOTE: This should *not* be passed around as a parameter to everything, but rather those
+    // places in the code should get the DB instance from the
+    // entity (or other model object) being processed, to be sure the correct db instance is used.
+    // db: dyn Database, //%%$%%use "dyn" here & below at warnings?:
+    /*%%$%%other qs looking at now:
+        consider whether to use "Database" in place of "PostgreSQLDatabase" in plces below for correctness? or wait/yagni?
+        doing what 4docs say re trait...?
+        What are the above/below T doing (the err msgs)
+        what triggered compiler asking for "dyn"?
+        doesnt dyn have to be a Box or reference?
+     */
+    move_farther_count: i32,
+    move_farthest_count: i32,
 }
-impl Controller<'_> {
+
+impl Controller {
+    pub fn new_for_non_tests(ui: TextUI, force_user_pass_prompt: bool, default_username: Option<&String>, default_password: Option<&String>) -> Controller {
+        //%%$%%
+        // let db = Self::try_logins_without_username_or_password(force_user_pass_prompt, &ui).unwrap_or_else(|e| {
+        let db = Self::try_logins(force_user_pass_prompt, &ui, default_username, default_password).unwrap_or_else(|e| {
+            ui.display_text1(e.to_string().as_str());
+            std::process::exit(1);
+        });
+        Controller {
+            ui,
+            force_user_pass_prompt,
+            //%%$%
+            // default_username,
+            // default_password,
+            //%%after the red marks are gone, can ^K on next line, and back?
+            //%%$%%
+            // db,
+            move_farther_count: 25,
+            move_farthest_count: 50,
+        }
+    }
     // %%
     /* %%
-      //idea: get more scala familiarity then change this so it has limited visibility/scope: like, protected (subclass instances) + ImportExportTest.
-      // This should *not* be passed around as a parameter to everything, but rather those places in the code should get the DB instance from the
-      // entity (or other model object) being processed.
-      private let localDb: Database = tryLogins(force_user_pass_prompt, default_username, default_password);
-      let moveFartherCount = 25;
-      let moveFarthestCount = 50;
-
       /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
-        fn getDefaultEntity: Option[(i64, Entity)] = {
+        fn getDefaultEntity: Option[(i64, Entity)] {
         if (defaultDisplayEntityId.isEmpty || ! localDb.entityKeyExists(defaultDisplayEntityId.get)) {
           None
         } else {
@@ -72,9 +99,9 @@ impl Controller<'_> {
 
     pub fn start(&self) {
         // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  make it save their answer 'yes/i agree' or such in the DB,
-        // and don't make them press the keystroke again (time-saver)!  See code at top of PostgreSQLDatabase that puts things in the db at startup: do similarly?
+        // and don't make them press the keystroke again (time-saver)!  See code at top of postgresql_database.rs that puts things in the db at startup: do similarly?
         self.ui.display_text3(
-            Util::license(),
+            Util::license().as_str(),
             true,
             Some(
                 String::from("IF YOU DO NOT AGREE TO THOSE TERMS: ")
@@ -119,110 +146,155 @@ impl Controller<'_> {
         %%    */
     }
 
-    /* %%
-      /** If the 1st parm is true, the next 2 must be omitted or None. */
-    fn tryLogins(force_user_pass_prompt: Boolean = false, default_username: Option[String] = None,
-                            default_password: Option[String] = None): Database = {
+    //%%$%%
+    // fn try_logins_without_username_or_password<'a>(force_user_pass_prompt: bool, ui: &'a TextUI) -> Result<PostgreSQLDatabase, &'a str> {
+    //     Self::try_logins(force_user_pass_prompt, ui/*%%unused?:, None, None*/)
+    // }
 
-        require(if (force_user_pass_prompt) default_username.isEmpty && default_password.isEmpty else true)
+    //%%$%%
+    /// If the 1st parm is true, the next 2 must be None.
+    fn try_logins<'a>(force_user_pass_prompt: bool, ui: &'a TextUI, default_username: Option<&String>,
+                            default_password: Option<&String>) -> Result<PostgreSQLDatabase, String> {
+        if force_user_pass_prompt {
+            assert!(default_username.is_none() && default_password.is_none());
+            
+            //%%$%put back when ready to implement TextUI.askForString l 240
+            ui.display_text1("%%$%put back when ready to implement TextUI.askForString l 240");
+            Err("%%$%put back when ready to implement TextUI.askForString l 240".to_string())
+            // Self::prompt_for_user_pass_and_login(ui)
 
-        // Tries the system username, blank password, & if that doesn't work, prompts user.
-        //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
-        @tailrec def tryOtherLoginsOrPrompt(): Database = {
-          let db = {;
-            let mut pwdOpt: Option[String] = None;
-            // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
-            let (default_username, defaultPassword) = Util.getDefaultUserInfo;
-            let dbWithSystemNameBlankPwd = Database.login(default_username, defaultPassword, showError = false);
-            if (dbWithSystemNameBlankPwd.isDefined) {
-              ui.display_text("(Using default user info...)", false);
-              dbWithSystemNameBlankPwd
-            } else {
-              let usrOpt = ui.askForString(Some(Array("Username")), None, Some(default_username));
-              if (usrOpt.isEmpty) System.exit(1)
-              let dbConnectedWithBlankPwd = Database.login(usrOpt.get, defaultPassword, showError = false);
-              if (dbConnectedWithBlankPwd.isDefined) dbConnectedWithBlankPwd
-              else {
-                try {
-                  pwdOpt = ui.askForString(Some(Array("Password")), None, None, isPasswordIn = true)
-                  if (pwdOpt.isEmpty) System.exit(1)
-                  let dbWithUserEnteredPwd = Database.login(usrOpt.get, pwdOpt.get, showError = true);
-                  dbWithUserEnteredPwd
-                } finally {
-                  if (pwdOpt.isDefined) {
-                    pwdOpt = null
-                    //garbage collect to keep the memory cleared of passwords. What's a better way? (gc isn't forced to do it all every time IIRC,
-                    // so poke it--a guess)
-                    System.gc()
-                    System.gc()
-                    System.gc()
-                    //BUT: IN RUST, could look into the "zeroize" and "secrecy" crates for that, per an article
-                    // i just (20221201) read in "this week in Rust" rss feed, "Rust Foundation - Secure App Development with rust's Memory Model", at
-                    //  https://foundation.rust-lang.org/news/secure-app-development-with-rust-s-memory-model/  .
-                  }
-                }
-              }
-            }
-          }
-          if (db.isEmpty) {
-            ui.display_text("Login failed; retrying (" + ui.how_quit + " to quit if needed):",
-                           false)
-            tryOtherLoginsOrPrompt()
-          }
-          else db.get
+        } else if default_username.is_some() && default_password.is_some() {
+            // idea: perhaps this could be enhanced and tested to allow a username parameter, but prompt for a password, if/when need exists.
+            let user = default_username.unwrap_or_else(|| {
+                ui.display_text1("How could username be absent? Just checked and it was there.");
+                std::process::exit(1);
+            });
+            let pass = default_password.unwrap_or_else(|| {
+                ui.display_text1("How could password be absent? Just checked and it was there.");
+                std::process::exit(1);
+            });
+            let db_result: Result<PostgreSQLDatabase, String> = PostgreSQLDatabase::login(user, pass);
+            // .unwrap_or_else(|e| {
+            //     ui.display_text1(e.to_string().as_str());
+            //     std::process::exit(1);
+            // });
+            // not attempting to clear that password variable because
+            // maybe the default kind is less intended to be secure, anyway?
+            db_result
+        } else {
+            //%%$%put back when ready to implement TextUI.askForString l 240
+            ui.display_text1("%%$%put back when ready to implement TextUI.askForString l 240");
+            Err("%%$%2: put back when ready to implement TextUI.askForString l 240".to_string())
+            // Self::try_other_logins_or_prompt(ui)
         }
+    }
 
-        if (force_user_pass_prompt) {
-          //IF ADDING ANY optional PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
-          @tailrec def loopPrompting: Database = {
-            let usrOpt = ui.askForString(Some(Array("Username")));
-            if (usrOpt.isEmpty) System.exit(1)
+    // //%%$%%
+    // fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<PostgreSQLDatabase, &'a str> {
+    //     loop {
+    //         let usr = ui.askForString(Some(["Username"]));
+    //         if usr.isEmpty {
+    //             //user probably wants out
+    //             std::process::exit(1);
+    //         }
+    //         let pwd = ui.askForString(Some(["Password"]), None, None, true);
+    //         if pwd.isEmpty {
+    //             //user probably wants out.
+    //             // %%But what if the pwd is really blank? could happen?
+    //             std::process::exit(1);
+    //         }
+    //         let db: Result<PostgreSQLDatabase, &str> = PostgreSQLDatabase::login(usr.get, pwd.get);
+    //         if db.isOk() {
+    //             break db;
+    //         } else {
+    //             continue;
+    //         }
+    //     }
+    // }
 
-            let pwdOpt = ui.askForString(Some(Array("Password")), None, None, isPasswordIn = true);
-            if (pwdOpt.isEmpty) System.exit(1)
+    // // %%$%%
+    // /// Tries the system username, blank password, & if that doesn't work, prompts user.
+    // // IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) (now loops) within this method, below!
+    // // %%$%is recursion best modeled w/ a loop? look up examples of that? look up loop: has a label to go to or "continue" or both? just "CPS" it?
+    // // %%$%%
+    // fn try_other_logins_or_prompt<'a>(ui: &'a TextUI) -> Result<PostgreSQLDatabase, &'a str> {
+    //     // (this loop is to simulate recursion)
+    //     loop {
+    //         // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
+    //         let (default_username, default_password) = Util::get_default_user_info().unwrap_or_else(|e| {
+    //             eprintln!("Unable to get default username/password.  Trying blank username, and password \"x\" instead.  Underlying error is: \"{}\"", e);
+    //             ("".to_string(), "x")
+    //         });
+    //         let db_with_system_name_blank_pwd = PostgreSQLDatabase::login(default_username.as_str(), default_password);
+    //         if db_with_system_name_blank_pwd.isDefined {
+    //           ui.display_text2("(Using default user info...)", false);
+    //           break db_with_system_name_blank_pwd.get;
+    //         } else {
+    //             let usr = ui.askForString(Some(["Username"]), None, Some(default_username));
+    //             if usr.isEmpty {
+    //                 // seems like the user wants out
+    //                 std::process::exit(1);
+    //             }
+    //             let db_connected_with_blank_pwd = PostgreSQLDatabase::login(usr.get, default_password);
+    //             if db_connected_with_blank_pwd.isOk() {
+    //                 break db_connected_with_blank_pwd;
+    //             } else {
+    //               let pwd = ui.askForString(Some(["Password"]), None, None, /*%%isPasswordIn = */ true);
+    //               if pwd.isEmpty {
+    //                   std::process::exit(1);
+    //               }
+    //               let db_with_user_entered_pwd = PostgreSQLDatabase::login(usr.get, pwd.get);
+    //               break db_with_user_entered_pwd;
+    //               // if (pwd.isDefined) {
+    //                 // pwd = None;
+    //                 // //garbage collect to keep the memory cleared of passwords. What's a better way? (gc isn't forced to do it all every time IIRC,
+    //                 // // so poke it--a guess)
+    //                 // System.gc()
+    //                 // System.gc()
+    //                 // System.gc()
+    //                 //%%BUT: IN RUST, could look into the "zeroize" and "secrecy" crates for that, per an article
+    //                 // i just (20221201) read in "this week in Rust" rss feed, "Rust Foundation - Secure App Development with rust's Memory Model", at
+    //                 //  https://foundation.rust-lang.org/news/secure-app-development-with-rust-s-memory-model/  .
+    //                 // OR: no need because Rust will clean up anyway? will it be reused or could hang around to be exploited?
+    //               // }
+    //             }
+    //         }
+    //         // if (db.isEmpty) {
+    //         //     ui.display_text("Login failed; retrying (" + ui.how_quit + " to quit if needed):",
+    //         //                     false)
+    //         //     continue;
+    //         // } else {
+    //         //     db.get
+    //         // }
+    //     }
+    // }
 
-            let dbWithUserEnteredPwd: Option[Database] = Database.login(usrOpt.get, pwdOpt.get, showError = false);
-            if (dbWithUserEnteredPwd.isDefined) dbWithUserEnteredPwd.get
-            else loopPrompting
-          }
-          loopPrompting
-        } else if (default_username.isDefined && default_password.isDefined) {
-          // idea: perhaps this could be enhanced and tested to allow a username parameter, but prompt for a password, if/when need exists.
-          let db = Database.login(default_username.get, default_password.get, showError = true);
-          if (db.isEmpty) {
-            ui.display_text("The program wasn't expected to get to this point in handling it (expected an exception to be thrown previously), " +
-                           "but the login with provided credentials failed.")
-            System.exit(1)
-          }
-          db.get
-          // not attempting to clear that password variable because (making the parm a var got an err msg and) maybe that kind is less intended;
-          // to be secure (anyway)?
-        } else tryOtherLoginsOrPrompt()
-      }
+    /* %%
+    // Idea: showPublicPrivateStatusPreference, refreshPublicPrivateStatusPreference, and findDefaultDisplayEntityId, feel awkward.
+    // Needs something better, but I'm not sure
+    // what, at the moment.  It was created this way as a sort of cache because looking it up every time was costly and made the app slow, like when
+    // displaying a list of entities (getting the preference every time, to N levels deep), and especially at startup when checking for the default
+    // up to N levels deep, among the preferences that can include entities with deep nesting.  So in a related change I made it also not look N levels
+    // deep, for preferences.  If you check other places touched by this commit there may be a "shotgun surgery" bad smell here also.
+    //Idea: Maybe these should have their cache expire after a period of time (to help when running multiple clients).
+    let mut showPublicPrivateStatusPreference: Option[Boolean] = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE);
+    fn refreshPublicPrivateStatusPreference() -> Unit {
+      showPublicPrivateStatusPreference = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
+    }
 
-      // Idea: From showPublicPrivateStatusPreference, on down through findDefaultDisplayEntityId, feels awkward.  Needs something better, but I'm not sure
-      // what, at the moment.  It was created this way as a sort of cache because looking it up every time was costly and made the app slow, like when
-      // displaying a list of entities (getting the preference every time, to N levels deep), and especially at startup when checking for the default
-      // up to N levels deep, among the preferences that can include entities with deep nesting.  So in a related change I made it also not look N levels
-      // deep, for preferences.  If you check other places touched by this commit there may be a "shotgun surgery" bad smell here also.
-      //Idea: Maybe these should have their cache expire after a period of time (to help when running multiple clients).
-      let mut showPublicPrivateStatusPreference: Option[Boolean] = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE);
-        fn refreshPublicPrivateStatusPreference(): Unit = {
-        showPublicPrivateStatusPreference = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
-      }
       // putting this in a var instead of recalculating it every time (too frequent) inside findDefaultDisplayEntityId:;
       let mut defaultDisplayEntityId: Option[i64] = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE);
-        fn refreshDefaultDisplayEntityId(): Unit = {
+        fn refreshDefaultDisplayEntityId() /*-> Unit%%*/  {
         defaultDisplayEntityId = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
       }
 
-        fn askForClass(dbIn: Database): Option[i64] = {
+    fn askForClass(dbIn: Database) -> Option[i64] {
         let msg = "CHOOSE ENTITY'S CLASS.  (Press ESC if you don't know or care about this.  Detailed explanation on the class feature will be available " +;
                   "at onemodel.org when this feature is documented more (hopefully at the next release), or ask on the email list.)"
         let result: Option[(IdWrapper, Boolean, String)] = chooseOrCreateObject(dbIn, Some(List[String](msg)), None, None, Util.ENTITY_CLASS_TYPE);
         if (result.isEmpty) None
         else Some(result.get._1.getId)
-      }
+    }
 
       /** In any given usage, consider whether askForNameAndWriteEntity should be used instead: it is for quick (simpler) creation situations or
         * to just edit the name when the entity already exists, or if the Entity is a RelationType,
@@ -231,7 +303,7 @@ impl Controller<'_> {
         * There is also editEntityName which calls askForNameAndWriteEntity: it checks if the Entity being edited is a RelationType, and if not also checks
         * for whether a group name should be changed at the same time.
         */
-        fn askForClassInfoAndNameAndCreateEntity(dbIn: Database, classIdIn: Option[i64] = None): Option[Entity] = {
+        fn askForClassInfoAndNameAndCreateEntity(dbIn: Database, classIdIn: Option[i64] = None) -> Option[Entity] {
         let mut newClass = false;
         let classId: Option[i64] =;
           if (classIdIn.isDefined) classIdIn
@@ -265,7 +337,7 @@ impl Controller<'_> {
         fn askForNameAndWriteEntity(dbIn: Database, typeIn: String, existingEntityIn: Option[Entity] = None, previousNameIn: Option[String] = None,
                                    previousDirectionalityIn: Option[String] = None,
                                    previousNameInReverseIn: Option[String] = None, classIdIn: Option[i64] = None,
-                                   leadingTextIn: Option[String] = None, duplicateNameProbablyOK: Boolean = false): Option[Entity] = {
+                                   leadingTextIn: Option[String] = None, duplicateNameProbablyOK: Boolean = false) -> Option[Entity] {
         if (classIdIn.isDefined) require(typeIn == Util.ENTITY_TYPE)
         let createNotUpdate: bool = existingEntityIn.isEmpty;
         if (!createNotUpdate && typeIn == Util.RELATION_TYPE_TYPE) require(previousDirectionalityIn.isDefined)
@@ -339,7 +411,11 @@ impl Controller<'_> {
         fn tryAskingAndSaving[T](dbIn: Database,
                                 errorMsgIn: String,
                                 askAndSaveIn: (Database, Option[String]) => Option[T],
-                                defaultNameIn: Option[String] = None): Option[T] = {
+                                defaultNameIn: Option[String] = None) -> Option[T] {
+          /*%%for the try/catch, see
+             https://doc.rust-lang.org/std/panic/fn.catch_unwind.html
+          ....for ideas?  OR JUST USE ERRORS INSTEAD!
+     */
         try {
           askAndSaveIn(dbIn, defaultNameIn)
         }
@@ -364,7 +440,7 @@ impl Controller<'_> {
         * @param classIn (1st parameter) should be None only if the call is intended to create; otherwise it is an edit.
         * @return None if user wants out, otherwise returns the new or updated classId and entityId.
         * */
-        fn askForAndWriteClassAndTemplateEntityName(dbIn: Database, classIn: Option[EntityClass] = None): Option[(i64, i64)] = {
+        fn askForAndWriteClassAndTemplateEntityName(dbIn: Database, classIn: Option[EntityClass] = None) -> Option[(i64, i64)] {
         if (classIn.isDefined) {
           // dbIn is required even if classIn is not provided, but if classIn is provided, make sure things are in order:
           // (Idea:  check: does scala do a deep equals so it is valid?  also tracked in tasks.)
@@ -411,7 +487,7 @@ impl Controller<'_> {
       /** SEE DESCRIPTIVE COMMENT ON askForAndWriteClassAndTemplateEntityName, WHICH APPLIES TO all such METHODS (see this cmt elsewhere).
         * @return The instance's id, or None if there was a problem or the user wants out.
         * */
-        fn askForAndWriteOmInstanceInfo(dbIn: Database, oldOmInstanceIn: Option[OmInstance] = None): Option[String] = {
+        fn askForAndWriteOmInstanceInfo(dbIn: Database, oldOmInstanceIn: Option[OmInstance] = None) -> Option[String] {
         let createNotUpdate: bool = oldOmInstanceIn.isEmpty;
         let addressLength = model.OmInstance.addressLength;
         def askAndSave(dbIn: Database, defaultNameIn: Option[String]): Option[String] = {
@@ -484,7 +560,7 @@ impl Controller<'_> {
         fn askForInfoAndUpdateAttribute[T <: AttributeDataHolder](dbIn: Database, dhIn: T, askForAttrTypeId: Boolean, attrType: String,
                                                                  promptForSelectingTypeId: String,
                                                                  getOtherInfoFromUser: (Database, T, Boolean, TextUI) => Option[T],
-                                                                 updateTypedAttribute: (T) => Unit): Boolean = {
+                                                                 updateTypedAttribute: (T) => Unit) -> Boolean {
         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
         @tailrec def askForInfoAndUpdateAttribute_helper(dhIn: T, attrType: String, promptForTypeId: String): Boolean = {
           let ans: Option[T] = askForAttributeData[T](dbIn, dhIn, askForAttrTypeId, attrType, Some(promptForTypeId),;
@@ -615,6 +691,7 @@ impl Controller<'_> {
             if (!attributeIn.isInstanceOf[FileAttribute]) throw new Exception("Menu shouldn't have allowed us to get here w/ a type other than FA (" +
                                                                               attributeIn.getClass.getName + ").")
             let fa: FileAttribute = attributeIn.asInstanceOf[FileAttribute];
+            //%%see 1st instance of try {  for rust-specific idea here.
             try {
               // this file should be confirmed by the user as ok to write, even overwriting what is there.
               let file: Option[File] = ui.getExportDestination(fa.getOriginalFilePath, fa.getMd5Hash);
@@ -638,7 +715,7 @@ impl Controller<'_> {
       /**
        * @return Whether the user wants just to get out.
        */
-        fn editAttributeOnSingleLine(attributeIn: Attribute): Boolean = {
+        fn editAttributeOnSingleLine(attributeIn: Attribute) -> Boolean {
         require(Util.canEditAttributeOnSingleLine(attributeIn))
 
         attributeIn match {
@@ -687,7 +764,7 @@ impl Controller<'_> {
         fn askForInfoAndAddAttribute[T <: AttributeDataHolder](dbIn: Database, dhIn: T, askForAttrTypeId: Boolean, attrType: String,
                                                               promptForSelectingTypeId: Option[String],
                                                               getOtherInfoFromUser: (Database, T, Boolean, TextUI) => Option[T],
-                                                              addTypedAttribute: (T) => Option[Attribute]): Option[Attribute] = {
+                                                              addTypedAttribute: (T) => Option[Attribute]) -> Option[Attribute] {
         let ans: Option[T] = askForAttributeData[T](dbIn, dhIn, askForAttrTypeId, attrType, promptForSelectingTypeId,;
                                                     None, None, getOtherInfoFromUser, editingIn = false)
         if (ans.isDefined) {
@@ -701,7 +778,7 @@ impl Controller<'_> {
        *
        * @return None if user wants out.
        */
-        fn editEntityName(entityIn: Entity): Option[Entity] = {
+        fn editEntityName(entityIn: Entity) -> Option[Entity] {
         let editedEntity: Option[Entity] = entityIn match {;
           case relTypeIn: RelationType =>
             let previousNameInReverse: String = relTypeIn.getNameInReverseDirection //idea: check: this edits name w/ prefill also?:;
@@ -736,7 +813,7 @@ impl Controller<'_> {
         editedEntity
       }
 
-        fn askForPublicNonpublicStatus(defaultForPrompt: Option[Boolean]): Option[Boolean] = {
+        fn askForPublicNonpublicStatus(defaultForPrompt: Option[Boolean]) -> Option[Boolean] {
         let valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("For Public vs. Non-public, enter a yes/no value (or a space" +;
                                                                   " for 'unknown/unspecified'; used e.g. during data export; display preference can be" +
                                                                   " set under main menu / " + Util.menuText_viewPreferences + ")",
@@ -751,8 +828,8 @@ impl Controller<'_> {
         * */
         fn askForAttributeData[T <: AttributeDataHolder](dbIn: Database, inoutDH: T, alsoAskForAttrTypeId: Boolean, attrType: String, attrTypeInputPrompt: Option[String],
                                                         inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[i64],
-                                                        askForOtherInfo: (Database, T, Boolean, TextUI) => Option[T], editingIn: Boolean): Option[T] = {
-        let (userWantsOut: Boolean, attrTypeId: i64, isRemote, remoteKey) = {;
+                                                        askForOtherInfo: (Database, T, Boolean, TextUI) => Option[T], editingIn: Boolean) -> Option[T] {
+        let (userWantsOut: Boolean, attrTypeId: i64, isRemote, remoteKey) = {
           if (alsoAskForAttrTypeId) {
             require(attrTypeInputPrompt.isDefined)
             let ans: Option[(IdWrapper, Boolean, String)] = chooseOrCreateObject(dbIn, Some(List(attrTypeInputPrompt.get)), inPreviousSelectionDesc,;
@@ -1268,7 +1345,7 @@ impl Controller<'_> {
         }
       }
 
-        fn askForNameAndSearchForEntity(dbIn: Database): Option[IdWrapper] = {
+        fn askForNameAndSearchForEntity(dbIn: Database) -> Option[IdWrapper] {
         let ans = ui.askForString(Some(Array(Util.entityOrGroupNameSqlSearchPrompt(Util.ENTITY_TYPE))));
         if (ans.isEmpty) {
           None
@@ -1280,7 +1357,7 @@ impl Controller<'_> {
         }
       }
 
-        fn searchById(dbIn: Database, typeNameIn: String): Option[IdWrapper] = {
+        fn searchById(dbIn: Database, typeNameIn: String) -> Option[IdWrapper] {
         require(typeNameIn == Util.ENTITY_TYPE || typeNameIn == Util.GROUP_TYPE)
         let ans = ui.askForString(Some(Array("Enter the " + typeNameIn + " ID to search for:")));
         if (ans.isEmpty) {
@@ -1307,7 +1384,7 @@ impl Controller<'_> {
       }
 
       /** Returns None if user wants to cancel. */
-        fn askForQuantityAttributeNumberAndUnit(dbIn: Database, dhIn: QuantityAttributeDataHolder, editingIn: Boolean, ui: TextUI): Option[QuantityAttributeDataHolder] = {
+        fn askForQuantityAttributeNumberAndUnit(dbIn: Database, dhIn: QuantityAttributeDataHolder, editingIn: Boolean, ui: TextUI) -> Option[QuantityAttributeDataHolder] {
         let outDH: QuantityAttributeDataHolder = dhIn;
         let leadingText: List[String] = List("SELECT A *UNIT* FOR THIS QUANTITY (i.e., centimeters, or quarts; ESC or blank to cancel):");
         let previousSelectionDesc = if (editingIn) Some(new Entity(dbIn, dhIn.unitId).getName) else None;
@@ -1330,7 +1407,7 @@ impl Controller<'_> {
 
       /** Returns None if user wants to cancel. */
         fn askForRelToGroupInfo(dbIn: Database, dhIn: RelationToGroupDataHolder, inEditingUNUSEDForNOW: Boolean = false,
-                               uiIn: TextUI): Option[RelationToGroupDataHolder] = {
+                               uiIn: TextUI) -> Option[RelationToGroupDataHolder] {
         let outDH = dhIn;
 
         let groupSelection = chooseOrCreateGroup(dbIn, Some(List("SELECT GROUP FOR THIS RELATION")));
@@ -1436,7 +1513,7 @@ impl Controller<'_> {
       }
 
       /** Returns None if user wants to cancel. */
-        fn askForRelationEntityIdNumber2(dbIn: Database, dhIn: RelationToEntityDataHolder, inEditing: Boolean, uiIn: TextUI): Option[RelationToEntityDataHolder] = {
+        fn askForRelationEntityIdNumber2(dbIn: Database, dhIn: RelationToEntityDataHolder, inEditing: Boolean, uiIn: TextUI) -> Option[RelationToEntityDataHolder] {
         let previousSelectionDesc = {;
           if (!inEditing) None
           else Some(new Entity(dbIn, dhIn.entityId2).getName)
@@ -1459,7 +1536,7 @@ impl Controller<'_> {
       }
 
         fn goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,
-                                        containingGroupIn: Option[Group] = None): (Option[Entity], Option[i64], Boolean) = {
+                                        containingGroupIn: Option[Group] = None) -> (Option[Entity], Option[i64], Boolean) {
         let (rtgId, rtId, groupId, _, moreThanOneAvailable) = userSelection.findRelationToAndGroup;
         let subEntitySelected: Option[Entity] = None;
         if (groupId.isDefined && !moreThanOneAvailable && userSelection.getAttributeCount() == 1) {
@@ -1480,7 +1557,7 @@ impl Controller<'_> {
       }
 
       /** see comments for Entity.getContentSizePrefix. */
-        fn getGroupContentSizePrefix(dbIn: Database, groupId: i64): String = {
+        fn getGroupContentSizePrefix(dbIn: Database, groupId: i64) -> String {
         let grpSize = dbIn.getGroupSize(groupId, 1);
         if (grpSize == 0) ""
         else ">"
@@ -1490,7 +1567,7 @@ impl Controller<'_> {
         * multiple subgroups or attributes, and "" if contains no subgroups or the one subgroup is empty.
         * Idea: this might better be handled in the textui class instead, and the same for all the other color stuff.
         */
-        fn getEntityContentSizePrefix(entityIn: Entity): String = {
+        fn getEntityContentSizePrefix(entityIn: Entity) -> String {
         // attrCount counts groups also, so account for the overlap in the below.
         let attrCount = entityIn.getAttributeCount();
         // This is to not show that an entity contains more things (">" prefix...) if it only has one group which has no *non-archived* entities:
@@ -1513,7 +1590,7 @@ impl Controller<'_> {
         subgroupsCountPrefix
       }
 
-        fn addEntityToGroup(groupIn: Group): Option[i64] = {
+        fn addEntityToGroup(groupIn: Group) -> Option[i64] {
         let newEntityId: Option[i64] = {;
           if (!groupIn.getMixedClassesAllowed) {
             if (groupIn.getSize() == 0) {
@@ -1533,6 +1610,7 @@ impl Controller<'_> {
               if (idWrapper.isEmpty) None
               else {
                 let entityId = idWrapper.get._1.getId;
+                //%%see 1st instance of try {  for rust-specific idea here.
                 try {
                   groupIn.addEntity(entityId)
                   Some(entityId)
@@ -1573,7 +1651,7 @@ impl Controller<'_> {
         newEntityId
       }
 
-        fn chooseAmongEntities(containingEntities: util.ArrayList[(i64, Entity)]): Option[Entity] = {
+        fn chooseAmongEntities(containingEntities: util.ArrayList[(i64, Entity)]) -> Option[Entity] {
         let leadingText = List[String]("Pick from menu, or an entity by letter");
         let choices: Array[String] = Array(Util.listNextItemsPrompt);
         //(see comments at similar location in EntityMenu, as of this writing on line 288)
@@ -1615,7 +1693,7 @@ impl Controller<'_> {
         }
       }
 
-        fn getPublicStatusDisplayString(entityIn: Entity): String = {
+        fn getPublicStatusDisplayString(entityIn: Entity) -> String {
         //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
         if (showPublicPrivateStatusPreference.getOrElse(false)) {
           entityIn.getPublicStatusDisplayStringWithColor(blankIfUnset = false)
@@ -1630,7 +1708,7 @@ impl Controller<'_> {
        *                   where it is a # higher than those found in db.getAttributeFormId, and in that case is handled specially here.
        * @return None if user wants out (or attrFormIn parm was an abortive mistake?), and the created Attribute if successful.
        */
-        fn addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, attrFormIn: Int, attrTypeIdIn: Option[i64]): Option[Attribute] = {
+        fn addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, attrFormIn: Int, attrTypeIdIn: Option[i64]) -> Option[Attribute] {
         let (attrTypeId: i64, askForAttrTypeId: Boolean) = {;
           if (attrTypeIdIn.isDefined) {
             (attrTypeIdIn.get, false)
@@ -1793,7 +1871,7 @@ impl Controller<'_> {
         }
       }
 
-        fn defaultAttributeCopying(targetEntityIn: Entity, attributeTuplesIn: Option[Array[(i64, Attribute)]] = None): Unit = {
+        fn defaultAttributeCopying(targetEntityIn: Entity, attributeTuplesIn: Option[Array[(i64, Attribute)]] = None) -> Unit {
         if (shouldTryAddingDefaultAttributes(targetEntityIn)) {
           let attributeTuples: Array[(i64, Attribute)] = {;
             if (attributeTuplesIn.isDefined) attributeTuplesIn.get
@@ -1812,12 +1890,12 @@ impl Controller<'_> {
         }
       }
 
-        fn copyAndEditAttributes(entityIn: Entity, templateAttributesToCopyIn: ArrayBuffer[Attribute]): Unit = {
+        fn copyAndEditAttributes(entityIn: Entity, templateAttributesToCopyIn: ArrayBuffer[Attribute]) -> Unit {
         // userWantsOut is used like a break statement below: could be replaced with a functional idiom (see link to stackoverflow somewhere in the code).
         let mut escCounter = 0;
         let mut userWantsOut = false;
 
-        def checkIfExiting(escCounterIn: Int, attributeCounterIn: Int, numAttributes: Int): Int = {
+        fn checkIfExiting(escCounterIn: Int, attributeCounterIn: Int, numAttributes: Int) -> Int {
           let mut escCounterLocal = escCounterIn + 1;
           if (escCounterLocal > 3 && attributeCounterIn < numAttributes /* <, so we don't ask when done anyway. */) {
             let outAnswer = ui.askYesNoQuestion("Stop checking/adding attributes?", Some(""));
@@ -2047,7 +2125,7 @@ impl Controller<'_> {
         }
       }
 
-        fn getMissingAttributes(classTemplateEntityIn: Option[Entity], existingAttributeTuplesIn: Array[(i64, Attribute)]): ArrayBuffer[Attribute] = {
+        fn getMissingAttributes(classTemplateEntityIn: Option[Entity], existingAttributeTuplesIn: Array[(i64, Attribute)]) -> ArrayBuffer[Attribute] {
         let templateAttributesToSuggestCopying: ArrayBuffer[Attribute] = {;
           // This determines which attributes from the template entity (or "pattern" or "class-defining entity") are not found on this entity, so they can
           // be added if the user wishes.
@@ -2081,7 +2159,7 @@ impl Controller<'_> {
         templateAttributesToSuggestCopying
       }
 
-        fn shouldTryAddingDefaultAttributes(entityIn: Entity): Boolean = {
+        fn shouldTryAddingDefaultAttributes(entityIn: Entity) -> Boolean {
         if (entityIn.getClassId.isEmpty) {
           false
         } else {

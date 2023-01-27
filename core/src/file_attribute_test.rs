@@ -1,6 +1,6 @@
 %%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014 and 2016-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014 and 2016-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -61,7 +61,7 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     when(mockDB.fileAttributeKeyExists(fileAttributeId)).thenReturn(true)
 
     let mut originalName = "";
-    let fa: FileAttribute = new FileAttribute(mockDB, fileAttributeId) {override def getOriginalFilePath: String = originalName};
+    let fa: FileAttribute = new FileAttribute(mockDB, fileAttributeId) {override fn getOriginalFilePath -> String { originalName}};
     let (basename, extension) = FileAttribute.getUsableFilename(fa.getOriginalFilePath);
     assert(basename == FileAttribute.filenameFiller && extension == "")
 

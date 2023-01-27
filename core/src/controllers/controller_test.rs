@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2013-2017 inclusive and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -8,6 +7,8 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+struct ControllerTest {
+  /*%%
 package org.onemodel.core
 
 import org.onemodel.core.model._
@@ -18,15 +19,15 @@ import org.scalatest.mockito.MockitoSugar
 class ControllerTest extends FlatSpec with MockitoSugar {
   //val mockUI = mock[TextUI] {
   let ui = new TextUI() {;
-    override def display_text(text: String, wait_for_keystroke: Boolean = true, None: Option[String]) {
+    override fn display_text(text: String, wait_for_keystroke: Boolean = true, None: Option[String]) {
       println!(text)
     }
     // next 2 overrides are so we don't get terminal contention: this and TextUITest both init and shut down but are not coordinated to *really*
     // get the terminal back to its original state. Thought it was a synchronization issue, but it seems more like an ordering issue.  Another
     // approach might be to make the (static) *object* TextUI keep some counter so the first one to init is always the last one to restore....
     // Maybe a mock is also as good here, but it didn't work out earlier when overriding display_text above, for some forgotten reason.
-    override def initializeReader() = null
-    override def initializeTerminal() = null
+    override fn initializeReader() = null
+    override fn initializeTerminal() = null
   }
 
   let controller: Controller = new Controller(ui, false, Some(Database.TEST_USER), Some(Database.TEST_PASS));
@@ -44,7 +45,7 @@ class ControllerTest extends FlatSpec with MockitoSugar {
     //      res1: java.util.Date = Tue Dec 17 17:16:09 MST 2013
 
     // (2nd parameter doesn't matter for this really)
-    def check(s: String, d: i64) = {
+    fn check(s: String, d: i64) {
       let (date: Option[i64], problem: Boolean) = Util.finishAndParseTheDate(s, ui = ui);
       assert(!problem)
       assert(date.get == d)
@@ -136,4 +137,5 @@ class ControllerTest extends FlatSpec with MockitoSugar {
 
   }
 
+*/
 }

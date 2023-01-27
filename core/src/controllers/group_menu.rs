@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004, 2008-2017, and 2019 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2017 inclusive, 2019, and 2023, Luke A. Call.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java
     s free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -9,6 +8,8 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+struct GroupMenu {
+/*%%
 package org.onemodel.core.controllers
 
 import org.onemodel.core._
@@ -22,9 +23,9 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
   // see comment on helper method about tailrec
   //@tailrec
   // idea: There's some better scala idiom for this control logic around recursion and exception handling (& there's similar code in all "*Menu" classes):
-  final def groupMenu(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
+  final fn groupMenu(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
                       //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                      callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
+                      callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn -> Option[Entity]): Option[Entity] {
     try {
       groupMenu_helper(groupIn, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     } catch {
@@ -44,7 +45,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
   //
     fn groupMenu_helper(groupIn: Group, displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup],
                        //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                       callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
+                       callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]) -> Option[Entity] {
     require(relationToGroupIn != null)
 
     let templateEntity = groupIn.getClassTemplateEntity;
@@ -144,7 +145,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
         else {
           let ans = response.get;
           if (ans == 1 && relationToGroupIn.isDefined) {
-            def updateRelationToGroup(dhInOut: RelationToGroupDataHolder) {
+            fn updateRelationToGroup(dhInOut: RelationToGroupDataHolder) {
               //idea: does this make sense, to only update the dates when we prompt for everything on initial add? change(or note2later) update everything?
               relationToGroupIn.get.update(Some(dhInOut.attrTypeId), Some(dhInOut.groupId), dhInOut.validOnDate, Some(dhInOut.observationDate))
             }
@@ -232,7 +233,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
 
     fn confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup], callingMenusRtgIn: Option[RelationToGroup],
                                     containingEntityIn: Option[Entity], groupIn: Group, groupDescrIn: String,
-                                    response: Option[Int]): Option[Entity] = {
+                                    response: Option[Int]) -> Option[Entity] {
     require(groupIn.getId == relationToGroupIn.get.getGroupId)
     let totalInGroup = groupIn.getSize(3);
     let numNonArchivedEntitiesInGroup: i64 = groupIn.getSize(1);
@@ -308,7 +309,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
   /**
    * @return If it was deleted.
    */
-    fn removingGroupReferenceFromEntity_Menu(relationToGroupIn: RelationToGroup, groupIn: Group, containingEntityIn: Entity): Boolean = {
+    fn removingGroupReferenceFromEntity_Menu(relationToGroupIn: RelationToGroup, groupIn: Group, containingEntityIn: Entity) -> Boolean {
     let (nonArchivedCount, archivedCount) = groupIn.getCountOfEntitiesContainingGroup;
     let ans = ui.askYesNoQuestion("REMOVE this group from being an attribute of the entity \'" + containingEntityIn.getName + "\": ARE YOU SURE? (This isn't " +;
                                   "a deletion. It can still be found by searching, and is " +
@@ -328,4 +329,5 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
     }
   }
 
+*/
 }

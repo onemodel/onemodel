@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2013-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -14,6 +13,8 @@
   Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
 
 */
+struct RelationToGroup {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core.{OmException, Util}
@@ -23,7 +24,7 @@ object RelationToGroup {
   // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
   // new constructors just wasn't working out.
   // Idea: rename this to instantiateRelationToGroup, since create sounds like inserting a new row in the db. Not sure if there's a convention for that case.
-    fn createRelationToGroup(mDB: Database, idIn: i64): RelationToGroup = {
+    fn createRelationToGroup(mDB: Database, idIn: i64) -> RelationToGroup {
     let relationData: Array[Option[Any]] = mDB.getRelationToGroupData(idIn);
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + idIn)
@@ -50,22 +51,24 @@ class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, m
     assignCommonVars(entityIdIn, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
   }
 
-    fn getGroupId: i64 = mGroupId
+    fn getGroupId -> i64 {
+    mGroupId
+    }
 
-    fn getGroup: Group = {
+    fn getGroup -> Group {
     new Group(mDB, getGroupId)
   }
 
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, ignoredParameter: Option[RelationType] = None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, ignoredParameter: Option[RelationType] = None, simplify: Boolean = false) -> String {
     let group = new Group(mDB, mGroupId);
     let rtName = new RelationType(mDB, this.getAttrTypeId).getName;
-    let mut result: String = if (simplify && rtName == Database.theHASrelationTypeName) "" else rtName + " ";
+    let mut result: String = if (simplify && rtName == Database.THE_HAS_RELATION_TYPE_NAME) "" else rtName + " ";
     result += group.getDisplayString(0, simplify)
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-  protected def readDataFromDB() {
+  protected fn readDataFromDB() {
     let relationData: Array[Option[Any]] = mDB.getRelationToGroupDataByKeys(mEntityId, mRelTypeId, mGroupId);
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mEntityId + ", " + mRelTypeId + ", " + mGroupId)
@@ -75,7 +78,7 @@ class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, m
                            relationData(5).get.asInstanceOf[i64], relationData(6).get.asInstanceOf[i64])
   }
 
-    fn move(newContainingEntityIdIn: i64, sortingIndexIn: i64): i64 = {
+    fn move(newContainingEntityIdIn: i64, sortingIndexIn: i64) -> i64 {
     mDB.moveRelationToGroup(getId, newContainingEntityIdIn, sortingIndexIn)
   }
 
@@ -92,8 +95,13 @@ class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, m
   }
 
   /** Removes this object from the system. */
-    fn delete() = mDB.deleteRelationToGroup(mEntityId, mRelTypeId, mGroupId)
+    fn delete() {
+    mDB.deleteRelationToGroup(mEntityId, mRelTypeId, mGroupId)
+    }
 
   /** Removes this object from the system. */
-    fn deleteGroupAndRelationsToIt() = mDB.deleteGroupAndRelationsToIt(mGroupId)
+    fn deleteGroupAndRelationsToIt() {
+    mDB.deleteGroupAndRelationsToIt(mGroupId)
+    }
+*/
 }

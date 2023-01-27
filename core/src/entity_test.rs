@@ -31,14 +31,14 @@ class EntityTest extends FlatSpec with MockitoSugar {
   let mut mFileAttrTypeId = 0L;
   let mut mRelationTypeId = 0L;
 
-  override def runTests(testName: Option[String], args: Args): Status = {
+  override fn runTests(testName: Option[String], args: Args) -> Status {
     setUp()
     let result: Status = super.runTests(testName, args);
     // (not calling tearDown: see comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
     result
   }
 
-  protected def setUp() {
+  protected fn setUp() {
     //start fresh
     PostgreSQLDatabaseTest.tearDownTestDB()
 
@@ -56,7 +56,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     mEntity = new Entity(mDB, id)
   }
 
-  protected def tearDown() {
+  protected fn tearDown() {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 

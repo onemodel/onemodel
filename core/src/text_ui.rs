@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004, 2008-2019 inclusive, and 2022, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004, 2008-2019 inclusive, and 2022-2023 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -8,7 +8,7 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 //%% use std::env;
-use crate::controllers::controller::Controller;
+// use crate::controllers::controller::Controller;
 use crate::util::Util;
 use console::{Key, Term};
 /* (Some possible alternatives if ever needed, to rustyline?
@@ -16,8 +16,8 @@ use console::{Key, Term};
     reedline
     others at crates.io as things change over time (search for "readline" maybe and at libs.rs &c.)
 */
-use rustyline::error::ReadlineError;
-use rustyline::{Editor, Result as RustyLineResult};
+// use rustyline::error::ReadlineError;
+// use rustyline::{Editor, Result as RustyLineResult};
 // use std::error::Error;
 // use std::io::{Error, ErrorKind};
 
@@ -50,15 +50,15 @@ impl TextUI {
         self.testing
     }
 
-    fn display_text1(&self, text: String) {
+    pub fn display_text1(&self, text: &str) {
         self.display_text2(text, true);
     }
-    fn display_text2(&self, text: String, wait_for_keystroke: bool) {
+    pub fn display_text2(&self, text: &str, wait_for_keystroke: bool) {
         self.display_text3(text, wait_for_keystroke, None);
     }
     pub fn display_text3(
         &self,
-        text: String,
+        text: &str,
         wait_for_keystroke: bool,
         pre_prompt: Option<String>,
     ) {
@@ -74,7 +74,7 @@ impl TextUI {
     }
 
     /* %%
-        fn initializeReader(): ConsoleReader = {
+        fn initializeReader() -> ConsoleReader {
                          let is: InputStream = if (inIn.isEmpty) System.in else inIn.get;
                          jlineReader.setBellEnabled(false)
                          //handy sometimes:
@@ -96,11 +96,11 @@ impl TextUI {
       /**
        * The # of items to try to display on the screen at one time.
        */
-        fn terminalHeight: Int = {
+        fn terminalHeight -> Int {
         mTerminal.getHeight
       }
 
-        fn terminalWidth: Int = {
+        fn terminalWidth -> Int {
         if (!Util.isWindows) {
           mTerminal.getWidth
         } else {
@@ -139,7 +139,8 @@ impl TextUI {
     /** Returns the key pressed and whether it was an alt key combo (ESC key combination).
     */
     pub fn get_user_input_char(
-        allowed_cars_in_CURRENTLY_IGNORED: Option<Vec<char>>,
+        //%%
+        // allowed_cars_in_CURRENTLY_IGNORED: Option<Vec<char>>,
     ) -> Result<(char, bool), std::io::Error> {
         //%%fix this to use the ignored parm just above, or eliminate it or the method?
         let term = Term::stdout();
@@ -236,12 +237,12 @@ impl TextUI {
        * A simple way to let the user know why it didn't meet the criteria is to put them in the leading text.
        */
       //@tailrec //see below note on 'recursive' for why removed 4 now.
-      final def askForString(leadingTextIn: Option[Array[String]],
+      final fn askForString(leadingTextIn: Option[Array[String]],
                              criteriaIn: Option[(String) => Boolean] = None,
                              defaultValueIn: Option[String] = None,
                              isPasswordIn: Boolean = false,
                              //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
-                             escKeySkipsCriteriaCheck: Boolean = true): Option[String] = {
+                             escKeySkipsCriteriaCheck: Boolean = true)  -> Option[String] {
         let mut count = 0;
         let lastLineOfPrompt: String = {;
           let mut lastLineOfPrompt = "";
@@ -278,7 +279,7 @@ impl TextUI {
 
         // thread is for causing jline to display the default text for editing, after readLine call begins.  (is there a better way?)
         new Thread {
-          override def run() {
+          override fn run() {
             // wait for the readline below to start, before putting something in it
             Thread.sleep(80)
             jlineReader.putString(defaultValueIn.getOrElse(""))
@@ -292,7 +293,7 @@ impl TextUI {
         if (line == null) {
           None
         } else {
-          def checkCriteria(line: String): Option[String] = {
+          fn checkCriteria(line: String) -> Option[String] {
             if (criteriaIn.isEmpty || criteriaIn.get(line)) {
               Some(line)
             } else {
@@ -310,7 +311,7 @@ impl TextUI {
         }
       }
 
-        fn linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int): Int = {
+        fn linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int) -> Int {
         let linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 5 // 5 as described in one caller;
         terminalHeight - linesUsedBeforeMoreChoices
       }
@@ -323,14 +324,14 @@ impl TextUI {
         * based on # of available columns and a possible max column width.
         * SEE ALSO the method linesLeft, which actually has/uses the number.
         */
-      fn maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int): Int = {
+      fn maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int) -> Int {
         let maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + CHOOSER_MENU_PREFIX_LENGTH);
         // the next 2 lines are in coordination with a 'require' statement in askWhich, so we don't fail it:
         let maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length;
         math.min(maxMoreChoicesBySpaceAvailable, maxMoreChoicesByMenuCharsAvailable)
       }
 
-        fn columnsPossible(columnWidthIn: Int): Int = {
+        fn columnsPossible(columnWidthIn: Int) -> Int {
         require(columnWidthIn > 0)
         // allow at least 1 column, even with a smaller terminal width
         math.max(terminalWidth / columnWidthIn, 1)
@@ -352,14 +353,14 @@ impl TextUI {
         * @return 1-based (see description).
         *
         */
-      final def askWhich(leadingTextIn: Option[Array[String]],
+      final fn askWhich(leadingTextIn: Option[Array[String]],
                          choicesIn: Array[String],
                          moreChoicesIn: Array[String] = Array(),
                          includeEscChoiceIn: Boolean = true,
                          trailingTextIn: Option[String] = None,
                          highlightIndexIn: Option[Int] = None,
                          secondaryHighlightIndexIn: Option[Int] = None,
-                         defaultChoiceIn: Option[Int] = None): Option[Int] = {
+                         defaultChoiceIn: Option[Int] = None) -> Option[Int] {
         let result = askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn,;
                                                   highlightIndexIn, secondaryHighlightIndexIn, defaultChoiceIn)
         if (result.isEmpty) None
@@ -370,7 +371,7 @@ impl TextUI {
         * then it tells you so in the 2nd (boolean) part of the return value.
         * */
       @tailrec
-      final def askWhichChoiceOrItsAlternate(leadingTextIn: Option[Array[String]],
+      final fn askWhichChoiceOrItsAlternate(leadingTextIn: Option[Array[String]],
                          choicesIn: Array[String],
                          moreChoicesIn: Array[String] = Array(),
                          includeEscChoiceIn: Boolean = true,
@@ -378,7 +379,7 @@ impl TextUI {
                          highlightIndexIn: Option[Int] = None,
                          //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
                          secondaryHighlightIndexIn: Option[Int] = None,
-                         defaultChoiceIn: Option[Int] = None): Option[(Int, Boolean)] = {
+                         defaultChoiceIn: Option[Int] = None) -> Option[(Int, Boolean)] {
         // This attempts to always use as menu option keystroke choices: numbers for "choices" (such as major operations available on the
         // current entity) and letters for "moreChoices" (such as attributes of the current entity to select for further work).  But if
         // there are too many "choices", it will use letters for those as well.
@@ -408,7 +409,7 @@ impl TextUI {
         let allAllowedAnswers = new StringBuffer;
 
         let mut lastMenuCharsIndex: i32 = -1;
-        def nextMenuChar(): String = {
+        fn nextMenuChar() -> String {
           let next = lastMenuCharsIndex + 1;
           lastMenuCharsIndex = next
           if (next > possibleMenuChars.length) {
@@ -418,7 +419,7 @@ impl TextUI {
           new String("" + possibleMenuChars.charAt(next))
         }
 
-        def ranOutOfVerticalSpace(): Boolean = {
+        fn ranOutOfVerticalSpace() -> Boolean {
           lineCounter = lineCounter + 1
           if (alreadyFull) {
             alreadyFull
@@ -436,7 +437,7 @@ impl TextUI {
           } else false
         }
 
-        def showChoices() {
+        fn showChoices() {
           // see containing method description: these choices are 1-based when considered from the human/UI perspective:
           let mut index: i32 = 1;
 
@@ -453,7 +454,7 @@ impl TextUI {
           }
         }
 
-        def showMoreChoices() {
+        fn showMoreChoices() {
           if (moreChoicesIn.length == 0) {
             //noinspection ScalaUselessExpression (intentional style violation, for readability):
             Unit
@@ -537,20 +538,20 @@ impl TextUI {
         }
       }
 
-        fn isValidYesNoAnswer(s: String): Boolean = {
+        fn isValidYesNoAnswer(s: String) -> Boolean {
         s.toLowerCase == "y" ||
         s.toLowerCase == "yes" ||
         s.toLowerCase == "n" ||
         s.toLowerCase == "no"
       }
 
-        fn isValidYesNoOrBlankAnswer(s: String): Boolean = {
+        fn isValidYesNoOrBlankAnswer(s: String) -> Boolean {
         isValidYesNoAnswer(s) ||
         s.trim.isEmpty
       }
 
       /** true means yes, None means user wants out. */
-        fn askYesNoQuestion(promptIn: String, defaultValueIn: Option[String] = Some("n"), allowBlankAnswer: Boolean = false): Option[Boolean] = {
+        fn askYesNoQuestion(promptIn: String, defaultValueIn: Option[String] = Some("n"), allowBlankAnswer: Boolean = false) -> Option[Boolean] {
         let ans = askForString(Some(Array[String](promptIn + " (y/n)")),;
                                if (allowBlankAnswer) Some(isValidYesNoOrBlankAnswer) else Some(isValidYesNoAnswer),
                                defaultValueIn, escKeySkipsCriteriaCheck = allowBlankAnswer)
@@ -565,8 +566,8 @@ impl TextUI {
 
       /** This is in the UI code because probably a GUI would do it very differently.
         */
-        fn getExportDestination(originalPathIn: String, originalMd5HashIn: String): Option[File] = {
-        def newLocation(originalNameIn: String): Option[File] = {
+      fn getExportDestination(originalPathIn: String, originalMd5HashIn: String) -> Option[File] {
+        fn newLocation(originalNameIn: String) -> Option[File] {
           let oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn);
           if (oldNameInTmpDir.getParentFile.canWrite && !oldNameInTmpDir.exists()) Some(oldNameInTmpDir)
           else {

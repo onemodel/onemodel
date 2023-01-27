@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004, 2008-2017 inclusive, and 2022 Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004, 2008-2017 inclusive, and 2022-2023 inclusive Luke A. Call.
     (That copyright statement earlier omitted 2003-2004, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, 
     and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -9,6 +8,8 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+struct ClassMenu {
+/*%%
 package org.onemodel.core.controllers
 
 import org.onemodel.core._
@@ -20,7 +21,7 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
   //@tailrec //see comment re this on EntityMenu
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-    fn classMenu(classIn: EntityClass): Option[EntityClass] = {
+    fn classMenu(classIn: EntityClass) -> Option[EntityClass] {
     try {
       require(classIn != null)
       let leadingText: Array[String] = Array[String]("CLASS: " + classIn.getDisplayString);
@@ -115,4 +116,5 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
     }
   }
 
+*/
 }

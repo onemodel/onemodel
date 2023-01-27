@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004, 2008-2019 inclusive, and 2022, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004, 2008-2019 inclusive, and 2022-2023 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -8,19 +8,29 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 pub mod controllers;
-pub mod util;
+pub mod model;
+pub mod color;
+pub mod om_exception;
 pub mod text_ui;
+pub mod util;
 use std::env;
 use crate::controllers::controller::Controller;
-use crate::util::Util;
+// use crate::util::Util;
 use crate::text_ui::TextUI;
 
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.
-fn main() {
+#[tokio::main] //%%%$%where put this thing fr sqlx pg example? what means/does?
+async fn main() {
+    //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
+
     let args: Vec<String> = env::args().collect();
-    let (default_username, default_password) = (args.get(1), args.get(2));
+    // dbg!(args.as_slice());
+    //%%see std::env::args() docs: next 2 args dift on windows, might be 0 & 1 not 1 & 2?
+    let default_username: Option<&String> = args.get(1);
+    let default_password: Option<&String> = args.get(2);
+    //%%let (default_username: Option<String>, default_password: Option<&String>) = (args.get(1), args.get(2));
     dbg!(default_username, default_password); //%%
     let force_user_pass_prompt: bool = if args.len() == 1 { true } else { false };
     println!("args.len: {}", args.len());//%%
@@ -33,21 +43,16 @@ fn main() {
         testing: false,
     };
 
-    let controller = Controller {
+    let controller = Controller::new_for_non_tests(
         ui,
         force_user_pass_prompt,
         default_username,
         default_password,
-    };
-    let how_quit: String = if Util::is_windows() {
-        String::from("Close the window")
-    } else {
-        String::from("Ctrl+C")
-    };
-
+    );
+    //%%:
     controller.start();
 
-    /*
+    /*%%
 let mut rl = Editor::<()>::new()?;
 
 let readline = rl.readline(">> ");

@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -11,14 +10,16 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct DateAttribute {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core.{OmException, Util}
 
-/** See TextAttribute etc for some comments.
+** See TextAttribute etc for some comments.
   * Also, though this doesn't formally extend Attribute, it still belongs to the same group conceptually (just doesn't have the same date variables so code
   * not shared (idea: model that better, and in FileAttribute).
-  */
+  *
 class DateAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.dateAttributeKeyExists(mId)) {
@@ -37,19 +38,19 @@ class DateAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     super.assignCommonVars(inParentId, attrTypeIdIn, sortingIndexIn)
   }
 
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = typeName + ": ";
     result += Attribute.usefulDateFormat(mDate)
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-    fn getDate: i64 = {
+    fn getDate -> i64 {
     if (!mAlreadyReadData) readDataFromDB()
     mDate
   }
 
-  protected def readDataFromDB() {
+  protected fn readDataFromDB() {
     let daTypeData = mDB.getDateAttributeData(mId);
     if (daTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
@@ -67,10 +68,13 @@ class DateAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   }
 
   /** Removes this object from the system. */
-    fn delete() = mDB.deleteDateAttribute(mId)
+    fn delete() {
+    mDB.deleteDateAttribute(mId)
+    }
 
   /** For descriptions of the meanings of these variables, see the comments
-    on createDateAttribute(...) or createTables() in PostgreSQLDatabase or Database classes
+    with createDateAttribute(...) or createTables() in PostgreSQLDatabase or Database classes
     */
-  private let mut mDate: i64 = 0L;
+    private let mut mDate: i64 = 0L;
+ */
 }

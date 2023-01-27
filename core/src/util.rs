@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2017 inclusive, and 2019, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2017 inclusive, 2019, and 2023, Luke A. Call.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala, and TextUI.java before that.
     And this file initially came from Controller.scala.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
@@ -10,8 +10,8 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 
-use crate::controllers::controller::Controller;
-use crate::text_ui::TextUI;
+// use crate::controllers::controller::Controller;
+// use crate::text_ui::TextUI;
 
 /** This is just a place to put shared code ("Utility") until a grouping for some, or a better idea emerges.  Using it also
  * had (in Scala anyway) the benefit of making the Controller file smaller, so it is more quickly compiled (especially by the IDE).
@@ -19,6 +19,10 @@ use crate::text_ui::TextUI;
 pub struct Util {}
 
 impl Util {
+    /// These constants are%%$%%were here because their presence in database.rs prevents Database from being used
+    /// as a trait object.  See https://doc.rust-lang.org/reference/items/traits.html#object-safety etc for details.
+    /// (Maybe they could go into model/mod.rs or some new struct file instead; haven't tried that.)
+
     /* %%
       // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
         fn maxNameLength: Int = math.max(math.max(Database.entityNameLength, Database.relationTypeNameLength),
@@ -84,7 +88,7 @@ impl Util {
 
       let LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION = "(local: not for self-connection but to serve id to remotes)";
 
-        fn getClipboardContent: String = {
+        fn getClipboardContent -> String {
         let clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard;
         let contents: String = clipboard.getContents(null).getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor).toString;
         contents.trim
@@ -108,7 +112,7 @@ impl Util {
        * @return
        */
         fn findEntityToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Entity], removedOneIn: Boolean,
-                                    previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity): Option[Entity] = {
+                                    previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity) -> Option[Entity] {
         //NOTE: SIMILAR TO findAttributeToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
         //system better.
 
@@ -129,7 +133,7 @@ impl Util {
 
       /** SEE COMMENTS FOR findEntityToHighlightNext. */
         fn findAttributeToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Attribute], removedOne: Boolean,
-                                       previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Attribute): Option[Attribute] = {
+                                       previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Attribute) -> Option[Attribute] {
         //NOTE: SIMILAR TO findEntityToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
         //system better.
         if (removedOne) {
@@ -146,11 +150,19 @@ impl Util {
           } else None
         } else Some(previouslyHighlightedEntryIn)
       }
-
-        fn getDefaultUserInfo: (String, String) = {
-        (System.getProperty("user.name"), "x")
+*/
+      pub fn get_default_user_info() -> Result<(String, &'static str), String> {
+          //%%how do platform-independently? some crate? std doesn't seem to have a clear answer.
+          //was in scala: (System.getProperty("user.name"), "x")
+          match std::env::var("USER") {
+              Ok(val) => Ok((val, "x")),
+              Err(e) => {
+                  let msg = e.to_string();
+                  Err(msg)
+              },
+          }
       }
-
+/*
       // ****** MAKE SURE THE NEXT 2 LINES MATCH THE FORMAT of Controller.DATEFORMAT, AND THE USER EXAMPLES IN THIS CLASS' OUTPUT! ******
       // Making this a var so that it can be changed for testing consistency (to use GMT for most tests so hopefully they will pass for developers in;
       // another time zone.  idea:  It seems like there's a better way to solve that though, maybe with a subclass of Controller in the test,
@@ -158,7 +170,10 @@ impl Util {
       let mut timezone: String = new java.text.SimpleDateFormat("zzz").format(System.currentTimeMillis());
       // (This isn't intended to match the date represented by a long value of "0", but is intended to be a usable value to fill in the rest of whatever a user
       // doesn't.  Perhaps assuming that the user will always put in a year if they put in anything (as currently enforced by the code at this time of writing).
-        fn blankDate = "1970-01-01 00:00:00:000 " + timezone
+        fn blankDate -> String
+        {
+        "1970-01-01 00:00:00:000 " + timezone
+        }
 
       let mRelTypeExamples = "i.e., ownership of or \"has\" another entity, family tie, &c";
 
@@ -179,11 +194,11 @@ impl Util {
                                       "\"BC\" or \"AD\" prefix allowed (before the year, with no space)."
       let tooLongMessage = "value too long for type";
 
-        fn entityMenuLeadingText(entityIn: Entity) = {
+        fn entityMenuLeadingText(entityIn: Entity) {
         "**CURRENT ENTITY " + entityIn.getId + ": " + entityIn.getDisplayString(withColor = true)
       }
 
-        fn groupMenuLeadingText(groupIn: Group) = {
+        fn groupMenuLeadingText(groupIn: Group) {
         "**CURRENT GROUP " + groupIn.getId + ": " + groupIn.getDisplayString()
       }
 
@@ -191,11 +206,13 @@ impl Util {
                                        "cancel if you need to create the needed type before selecting): "
       let textDescription: String = "TEXT (ex., serial #)";
 
-        fn canEditAttributeOnSingleLine(attributeIn: Attribute): Boolean = {
+        fn canEditAttributeOnSingleLine(attributeIn: Attribute) -> Boolean {
         ! attributeIn.isInstanceOf[FileAttribute]
       }
 
-        fn getUsableFilename(originalFilePathIn: String): (String, String) = FileAttribute.getUsableFilename(originalFilePathIn)
+        fn getUsableFilename(originalFilePathIn: String): (String, String) {
+        FileAttribute.getUsableFilename(originalFilePathIn)
+        }
 
       let entityPartsThatCanBeAffected: String = "ALL its attributes, actions, and relations, but not entities or groups the relations refer to";
 
@@ -204,7 +221,7 @@ impl Util {
       let relationToGroupNamePrompt = "Type a name for this group (ex., \"xyz list\"), then press Enter; blank or ESC to cancel";
 
         fn addRemainingCountToPrompt(choicesIn: Array[String], numDisplayedObjects: i64, totalRowsAvailableIn: i64,
-                                    startingDisplayRowIndexIn: i64): Array[String] = {
+                                    startingDisplayRowIndexIn: i64) -> Array[String] {
         let numLeft = totalRowsAvailableIn - startingDisplayRowIndexIn - numDisplayedObjects;
         let indexOfPrompt = choicesIn.indexOf(listNextItemsPrompt);
         if (numLeft > 0 && indexOfPrompt >= 0) {
@@ -213,21 +230,23 @@ impl Util {
         choicesIn
       }
 
-        fn getContainingEntitiesDescription(entityCountNonArchivedIn: i64, entityCountArchivedIn: i64): String = {
+        fn getContainingEntitiesDescription(entityCountNonArchivedIn: i64, entityCountArchivedIn: i64) -> String {
         "contained in " + entityCountNonArchivedIn + " entities, and in " + entityCountArchivedIn + " archived entities"
       }
 
       let pickFromListPrompt: String = "Pick from menu, or an item by letter to select; Alt+<letter> to go to the item then come back here";
 
-        fn searchPromptPart(typeIn: String): String = "Enter part of the " + typeIn + " name to search for."
+        fn searchPromptPart(typeIn: String) -> String {
+         "Enter part of the " + typeIn + " name to search for."
+         }
 
-        fn entityOrGroupNameSqlSearchPrompt(typeNameIn: String): String = {
+        fn entityOrGroupNameSqlSearchPrompt(typeNameIn: String) -> String {
         searchPromptPart(typeNameIn) + "  (For the curious: it will be used in matching as a " +
         "case-insensitive POSIX " +
         "regex; details at  http://www.postgresql.org/docs/current/static/functions-matching.html#FUNCTIONS-POSIX-REGEXP .)"
       }
 
-        fn isNumeric(input: String): Boolean = {
+        fn isNumeric(input: String) -> Boolean {
         // simplicity over performance in this case:
         try {
           // throws an exception if not numeric:
@@ -238,18 +257,18 @@ impl Util {
         }
       }
 
-        fn inputFileValid(path: String): Boolean = {
+        fn inputFileValid(path: String) -> Boolean {
         let file = new java.io.File(path);
         file.exists && file.canRead
       }
 
       // The check to see if a long date string is valid comes later.
       // Now that we allow 1-digit dates, there is nothing to ck really.
-        fn validOnDateCriteria(dateStr: String): Boolean = true
+        fn validOnDateCriteria(dateStr: String) -> Boolean { true }
       // Same comments as for observedDateCriteria:
-        fn observedDateCriteria(dateStr: String): Boolean = true
+        fn observedDateCriteria(dateStr: String) -> Boolean { true }
 
-        fn throwableToString(e: Throwable): String = {
+        fn throwableToString(e: Throwable) -> String {
         let stringWriter = new StringWriter();
         e.printStackTrace(new PrintWriter(stringWriter))
         stringWriter.toString
@@ -270,7 +289,7 @@ impl Util {
       }
 
       /** A helper method.  Returns the date as a i64 (java-style: ms since 1970 began), and true if there is a problem w/ the string and we need to ask again. */
-        fn finishAndParseTheDate(dateStrIn: String, blankMeansNOW: Boolean = true, ui: TextUI): (Option[i64], Boolean) = {
+        fn finishAndParseTheDate(dateStrIn: String, blankMeansNOW: Boolean = true, ui: TextUI) -> (Option[i64], Boolean) {
         //to start with, the special forms (be sure to trim the input, otherwise there's no way in the textui to convert from a previously entered (so default)
         //value to "blank/all time"!).
         let dateStrWithOptionalEra =;
@@ -354,7 +373,7 @@ impl Util {
         fn askForAttributeValidAndObservedDates(inEditing: Boolean,
                                                oldValidOnDateIn: Option[i64],
                                                oldObservedDateIn: i64,
-                                               ui: TextUI): (Option[i64], i64, Boolean) = {
+                                               ui: TextUI) -> (Option[i64], i64, Boolean) {
         //idea: make this more generic, passing in prompt strings &c, so it's more cleanly useful for DateAttribute instances. Or not: lacks shared code.
         //idea: separate these into 2 methods, 1 for each time (not much common material of significance).
         // BETTER IDEA: fix the date stuff in the DB first as noted in tasks, so that this part makes more sense (the 0 for all time, etc), and then
@@ -362,7 +381,7 @@ impl Util {
         /** Helper method made so it can be recursive, it returns the date (w/ meanings as with display_text below, and as in PostgreSQLDatabase.createTables),
           * and true if the user wants to cancel/get out). */
         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-        @tailrec def askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean): (Option[i64], Boolean) = {
+        @tailrec fn askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean) -> (Option[i64], Boolean) {
           let leadingText: Array[String] = {;
             if (dateTypeIn == VALID) {
               Array("\nPlease enter the date when this was first VALID (i.e., true) (Press Enter (blank) for unknown/unspecified, or " +
@@ -443,7 +462,7 @@ impl Util {
         }
 
         // the real action:
-        def askForBothDates(ui: TextUI): (Option[i64], i64, Boolean) = {
+        fn askForBothDates(ui: TextUI) -> (Option[i64], i64, Boolean) {
           let (validOnDate, userCancelled) = askForDate(VALID, validOnDateCriteria);
           if (userCancelled) (None, 0, userCancelled)
           else {
@@ -467,7 +486,7 @@ impl Util {
         * @return None if user wants out.
         */
       //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-      @tailrec final def askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String], ui: TextUI): Option[i64] = {
+      @tailrec final fn askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String], ui: TextUI) -> Option[i64] {
         let leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt));
         let default: String = defaultIn.getOrElse(Util.DATEFORMAT.format(System.currentTimeMillis()));
         let ans = ui.askForString(Some(leadingText), None, Some(default));
@@ -509,7 +528,7 @@ impl Util {
                         "(see the file LICENSE). If not, see",
                     )
                     + "\n";
-                append = false;
+                // append = false;  // commented out because never read; comment here for reading clarity.
                 // Stop doing the extra checks in vain now, since no more appending done. It cut the
                 // the ~0.5 second startup to ~0.25 sec. Oh well, it was fun to test the difference.
                 // Just moving to rust from scala, made the startup go from ~2-4 sec to ~0.5 sec.
@@ -557,13 +576,13 @@ impl Util {
           all
         }
 
-          fn stringTooLongErrorMessage(nameLength: Int): String = {
+          fn stringTooLongErrorMessage(nameLength: Int) -> String {
           // for details, see method PostgreSQLDatabase.escapeQuotesEtc.
           "Got an error.  Please try a shorter (" + nameLength + " chars) entry.  " +
           "(Could be due to escaped, i.e. expanded, characters like ' or \";\".  Details: %s"
         }
 
-          fn isDuplicationAProblem(isDuplicateIn: Boolean, duplicateNameProbablyOK: Boolean, ui: TextUI): Boolean = {
+          fn isDuplicationAProblem(isDuplicateIn: Boolean, duplicateNameProbablyOK: Boolean, ui: TextUI) -> Boolean {
           let mut duplicateProblemSoSkip = false;
           if (isDuplicateIn) {
             if (!duplicateNameProbablyOK) {
@@ -575,8 +594,8 @@ impl Util {
         }
 
         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
-        @tailrec final def askForNameInReverseDirection(directionalityStrIn: String, nameLengthIn: Int, nameIn: String,
-                                                        previousNameInReverseIn: Option[String] = None, ui: TextUI): String = {
+        @tailrec final fn askForNameInReverseDirection(directionalityStrIn: String, nameLengthIn: Int, nameIn: String,
+                                                        previousNameInReverseIn: Option[String] = None, ui: TextUI) -> String {
           // see createTables (or UI prompts) for meanings of bi/uni/non...
           if (directionalityStrIn == "UNI") ""
           else if (directionalityStrIn == "NON") nameIn
@@ -596,11 +615,11 @@ impl Util {
           else throw new Exception("unexpected value for directionality: " + directionalityStrIn)
         }
 
-          fn askForRelationDirectionality(previousDirectionalityIn: Option[String] = None, ui: TextUI): Option[String] = {
+          fn askForRelationDirectionality(previousDirectionalityIn: Option[String] = None, ui: TextUI) -> Option[String] {
           let msg = Array("Enter directionality (\"bi\", \"uni\", or \"non\"; examples: \"is parent of\"/\"is child of\" is bidirectional, " +;
                           "since it differs substantially by the direction but goes both ways; unidirectional might be like 'lists': the thing listed doesn't know " +
                           "it; \"is acquaintanted with\" could be nondirectional if it is an identical relationship either way  (ESC to cancel): ")
-          def criteria(entryIn: String): Boolean = {
+          fn criteria(entryIn: String) -> Boolean {
             let entry = entryIn.trim().toUpperCase;
             entry == "BI" || entry == "UNI" || entry == "NON"
           }
@@ -610,17 +629,17 @@ impl Util {
           else Some(directionality.get.toUpperCase)
         }
 
-          fn editMultilineText(input: String, ui: TextUI): String = {
+          fn editMultilineText(input: String, ui: TextUI) -> String {
           //idea: allow user to change the edit command setting (ie which editor to use) from here?
 
           //idea: allow user to prevent this message in future. Could be by using ui.askYesNoQuestion instead, adding to the  prompt "(ask this again?)", with
-          // 'y' as default, and storing the answer in the db.systemEntityName somewhere perhaps.
+          // 'y' as default, and storing the answer in the db.SYSTEM_ENTITY_NAME somewhere perhaps.
           //PUT THIS BACK (& review/test it) after taking the time to read the Process package's classes or something like
           // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
           //        let command: String = db.getTextEditorCommand;
           //        ui.display_text("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for
           // existing " +
-          //                       "entities, choose the first one (called " + PostgreSQLDatabase.systemEntityName + "), choose " +
+          //                       "entities, choose the first one (called " + PostgreSQLDatabase.SYSTEM_ENTITY_NAME + "), choose " +
           //                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
           //                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
           //                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
@@ -635,9 +654,9 @@ impl Util {
         }
 
         /** Returns None if user just wants out. */
-          fn promptWhetherTo1Add2Correct(inAttrTypeDesc: String, ui: TextUI): Option[Int] = {
+          fn promptWhetherTo1Add2Correct(inAttrTypeDesc: String, ui: TextUI) -> Option[Int] {
           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
-          @tailrec def ask: Option[Int] = {
+          @tailrec fn ask -> Option[Int] {
             let ans = ui.askWhich(None, Array("1-Save this " + inAttrTypeDesc + " attribute?", "2-Correct it?"));
             if (ans.isEmpty) return None
             let answer = ans.get;
@@ -649,7 +668,7 @@ impl Util {
           ask
         }
 
-          fn askForQuantityAttributeNumber(previousQuantity: Float, ui: TextUI): Option[Float] = {
+          fn askForQuantityAttributeNumber(previousQuantity: Float, ui: TextUI) -> Option[Float] {
           let leadingText = Array[String]("ENTER THE NUMBER FOR THE QUANTITY (i.e., 5, for 5 centimeters length)");
           let ans = ui.askForString(Some(leadingText), Some(Util.isNumeric), Some(previousQuantity.toString));
           if (ans.isEmpty) None
@@ -657,7 +676,7 @@ impl Util {
         }
 
         /** Returns None if user wants to cancel. */
-          fn askForTextAttributeText(ignore: Database, inDH: TextAttributeDataHolder, inEditing: Boolean, ui: TextUI): Option[TextAttributeDataHolder] = {
+          fn askForTextAttributeText(ignore: Database, inDH: TextAttributeDataHolder, inEditing: Boolean, ui: TextUI) -> Option[TextAttributeDataHolder] {
           let outDH = inDH.asInstanceOf[TextAttributeDataHolder];
           let defaultValue: Option[String] = if (inEditing) Some(inDH.text) else None;
           let ans = ui.askForString(Some(Array("Type or paste a single-line attribute value, then press Enter; ESC to cancel." +;
@@ -677,7 +696,7 @@ impl Util {
         /** Returns None if user wants to cancel.
           * Idea: consider combining somehow with method askForDate_generic or note here why not, perhaps.
           */
-          fn askForDateAttributeValue(ignore: Database, inDH: DateAttributeDataHolder, inEditing: Boolean, ui: TextUI): Option[DateAttributeDataHolder] = {
+          fn askForDateAttributeValue(ignore: Database, inDH: DateAttributeDataHolder, inEditing: Boolean, ui: TextUI) -> Option[DateAttributeDataHolder] {
           let outDH = inDH.asInstanceOf[DateAttributeDataHolder];
 
           // make the DateFormat omit trailing zeros, for editing convenience (to not have to backspace thru the irrelevant parts if not specified):
@@ -699,7 +718,7 @@ impl Util {
             else Util.DATEFORMAT.format(System.currentTimeMillis())
           }
 
-          def dateCriteria(date: String): Boolean = {
+          fn dateCriteria(date: String) -> Boolean {
             !Util.finishAndParseTheDate(date, ui = ui)._2
           }
           let ans = ui.askForString(Some(Array(Util.genericDatePrompt)), Some(dateCriteria), Some(defaultValue));
@@ -716,7 +735,7 @@ impl Util {
         }
 
         /** Returns None if user wants to cancel. */
-          fn askForBooleanAttributeValue(ignore: Database, inDH: BooleanAttributeDataHolder, inEditing: Boolean, ui: TextUI): Option[BooleanAttributeDataHolder] = {
+          fn askForBooleanAttributeValue(ignore: Database, inDH: BooleanAttributeDataHolder, inEditing: Boolean, ui: TextUI) -> Option[BooleanAttributeDataHolder] {
           let outDH = inDH.asInstanceOf[BooleanAttributeDataHolder];
           let ans = ui.askYesNoQuestion("Set the new value to true now? ('y' if so, 'n' for false)", if (inEditing && inDH.boolean) Some("y") else Some("n"));
           if (ans.isEmpty) None
@@ -727,7 +746,7 @@ impl Util {
         }
 
         /** Returns None if user wants to cancel. */
-          fn askForFileAttributeInfo(ignore: Database, inDH: FileAttributeDataHolder, inEditing: Boolean, ui: TextUI): Option[FileAttributeDataHolder] = {
+          fn askForFileAttributeInfo(ignore: Database, inDH: FileAttributeDataHolder, inEditing: Boolean, ui: TextUI) -> Option[FileAttributeDataHolder] {
           let outDH = inDH.asInstanceOf[FileAttributeDataHolder];
           let mut path: Option[String] = None;
           if (!inEditing) {
@@ -752,7 +771,7 @@ impl Util {
 
         /** Returns None if user just wants out; a String (user's answer, not useful outside this method) if update was done..
           */
-          fn editGroupName(groupIn: Group, ui: TextUI): Option[String] = {
+          fn editGroupName(groupIn: Group, ui: TextUI) -> Option[String] {
           // doesn't seem to make sense to ck for duplicate names here: the real identity depends on what it relates to, and dup names may be common.
           let ans = ui.askForString(Some(Array(Util.relationToGroupNamePrompt)), None, Some(groupIn.getName));
           if (ans.isEmpty || ans.get.trim.length() == 0) {

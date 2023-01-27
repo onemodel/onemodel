@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -11,12 +10,14 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct BooleanAttribute {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core.{OmException, Util}
 
-/** See TextAttribute etc for some comments.
-  */
+** See TextAttribute etc for some comments.
+  *
 class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
   // wait for an error later to see if there is a problem (ie, assuming usually not).
@@ -38,19 +39,19 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
     */
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = typeName + ": " + getBoolean + "";
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-    fn getBoolean: Boolean = {
+    fn getBoolean() -> Boolean {
     if (!mAlreadyReadData) readDataFromDB()
     mBoolean
   }
 
-  protected def readDataFromDB() {
+  protected fn readDataFromDB() {
     let baTypeData = mDB.getBooleanAttributeData(mId);
     if (baTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
@@ -71,10 +72,13 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
   }
 
   /** Removes this object from the system. */
-    fn delete() = mDB.deleteBooleanAttribute(mId)
+    fn delete() {
+    mDB.deleteBooleanAttribute(mId)
+    }
 
   /** For descriptions of the meanings of these variables, see the comments
     on createBooleanAttribute(...) or createTables() in PostgreSQLDatabase or Database classes.
     */
-  private let mut mBoolean: bool = false;
+    private let mut mBoolean: bool = false;
+ */
 }

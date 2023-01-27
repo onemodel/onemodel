@@ -1,6 +1,6 @@
 %%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2017-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2017-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -15,12 +15,12 @@ package org.onemodel.core.controllers
   */
 //noinspection SpellCheckingInspection
 class EntityMenuxIT {
-    fn setUp(): Unit = {
+    fn setUp() /*%%-> Unit*/ {
   }
     fn tearDown() {
   }
 
-    fn testSomething(): Unit = {
+    fn testSomething() /*%%-> Unit*/ {
     throw new Exception("adf")
   }
 }

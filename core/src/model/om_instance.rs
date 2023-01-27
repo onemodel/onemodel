@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2016-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2016-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -11,18 +10,22 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct OmInstance  {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core._
 
 object OmInstance {
-    fn addressLength: Int = Database.omInstanceAddressLength
+    fn addressLength -> Int {
+    Database.omInstanceAddressLength
+    }
 
-    fn isDuplicate(dbIn: Database, addressIn: String, selfIdToIgnoreIn: Option[String] = None): Boolean = {
+    fn isDuplicate(dbIn: Database, addressIn: String, selfIdToIgnoreIn: Option[String] = None) -> Boolean {
     dbIn.isDuplicateOmInstanceAddress(addressIn, selfIdToIgnoreIn)
   }
 
-    fn create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option[i64] = None): OmInstance = {
+    fn create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option[i64] = None) -> OmInstance {
     // Passing false for isLocalIn because the only time that should be true is when it is created at db creation, for this site, and that is done
     // in the db class more directly.
     let insertionDate: i64 = dbIn.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn);
@@ -58,36 +61,36 @@ class OmInstance(val mDB: Database, mId: String) {
 
   /** When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
     * */
-    fn getId: String = {
+    fn getId() -> String {
     if (!mAlreadyReadData) readDataFromDB()
     mId
   }
 
-    fn getLocal: Boolean = {
+    fn getLocal() -> Boolean {
     if (!mAlreadyReadData) readDataFromDB()
     mLocal
   }
 
-    fn getCreationDate: i64 = {
+    fn getCreationDate() -> i64 {
     if (!mAlreadyReadData) readDataFromDB()
     mInsertionDate
   }
 
-    fn getCreationDateFormatted: String = {
+    fn getCreationDateFormatted() -> String {
     Util.DATEFORMAT.format(new java.util.Date(getCreationDate))
   }
 
-    fn getAddress: String = {
+    fn getAddress() -> String {
     if (!mAlreadyReadData) readDataFromDB()
     mAddress
   }
 
-    fn getEntityId: Option[i64] = {
+    fn getEntityId() -> Option[i64] {
     if (!mAlreadyReadData) readDataFromDB()
     mEntityId
   }
 
-  protected def readDataFromDB() {
+  protected fn readDataFromDB() {
     let omInstanceData: Array[Option[Any]] = mDB.getOmInstanceData(mId);
     if (omInstanceData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
@@ -99,20 +102,23 @@ class OmInstance(val mDB: Database, mId: String) {
     mAlreadyReadData = true
   }
 
-    fn getDisplayString: String = {
+    fn getDisplayString() -> String {
     let result: String = mId + ":" + (if (mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted;
     result
   }
 
-    fn update(newAddress: String): Unit = {
+    fn update(newAddress: String) /*%%-> Unit*/ {
     mDB.updateOmInstance(getId, newAddress, getEntityId)
   }
 
-    fn delete() = mDB.deleteOmInstance(mId)
+    fn delete() {
+    mDB.deleteOmInstance(mId)
+    }
 
   let mut mAlreadyReadData: bool = false;
   let mut mLocal: bool = false;
   let mut mAddress: String = "";
   let mut mInsertionDate: i64 = 0;
-  let mut mEntityId: Option[i64] = None;
+    let mut mEntityId: Option[i64] = None;
+ */
 }

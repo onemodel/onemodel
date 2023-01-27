@@ -1,6 +1,6 @@
 %%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2018 inclusive and 2020, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2018 inclusive, 2020, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -38,14 +38,14 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   let mut mImportExport: ImportExport = null;
   let mut mDB: PostgreSQLDatabase = null;
 
-  override def runTests(testName: Option[String], args: Args): Status = {
+  override fn runTests(testName: Option[String], args: Args) -> Status {
     setUp()
     let result: Status = super.runTests(testName, args);
     // (not calling tearDown: see comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
     result
   }
 
-  protected def setUp() {
+  protected fn setUp() {
     //start fresh
     PostgreSQLDatabaseTest.tearDownTestDB()
 
@@ -62,11 +62,11 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     mEntity = new Entity(mDB, entityId)
   }
 
-  protected def tearDown() {
+  protected fn tearDown() {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 
-    fn tryExportingHtml(ids: java.util.ArrayList[i64]): (String, Array[String]) = {
+    fn tryExportingHtml(ids: java.util.ArrayList[i64]) -> (String, Array[String]) {
     assert(ids.size > 0)
     let entityId: i64 = ids.get(0);
     let startingEntity: Entity = new Entity(mDB, entityId);
@@ -151,7 +151,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     let ids: java.util.ArrayList[i64] = mDB.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt");
     assert(ids.size > 0)
     let mut foundIt = false;
-    let relationTypeId = mDB.findRelationType(Database.theHASrelationTypeName, Some(1)).get(0);
+    let relationTypeId = mDB.findRelationType(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
     for (entityId: i64 <- ids) {
       // (could have used mDB.getContainingEntities1 here perhaps)
       if (mDB.relationToLocalEntityExists(relationTypeId, mEntity.getId, entityId)) {

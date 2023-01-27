@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, 2013-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -11,11 +10,13 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct RelationToEntity {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core.{OmException, Color}
 
-/**
+*
  * Represents one RelationToEntity object in the system (usually [always, as of 9/2003] used as an attribute on a Entity).
  *
  * The intent of this being "abstract protected..." is to help make it so the class is only visible to (or at least only used by) its subclasses, so
@@ -24,16 +25,22 @@ import org.onemodel.core.{OmException, Color}
  *
  * You can use Entity.addRelationTo[Local|Remote]Entity() to create a new object.
  *
- */
+ *
 abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1: i64,
                                                             mEntityId2: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // (the next line used to be coded so instead of working it would return an exception, like this:
   //     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
   // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
   // to have it be like this instead, for convenience:
-  override def getParentId: i64 = getRelatedId1
-    fn getRelatedId1: i64 = mEntityId1
-    fn getRelatedId2: i64 = mEntityId2
+  override fn getParentId -> i64 {
+  getRelatedId1
+  }
+    fn getRelatedId1 -> i64 {
+    mEntityId1
+    }
+    fn getRelatedId2 -> i64 {
+    mEntityId2
+    }
 
   /**
    * @param relatedEntityIn, could be either mEntityId2 or 1: it is always *not* the entity from whose perspective the result will be returned, ex.,
@@ -44,7 +51,7 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTyp
    *
    * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If inLengthLimit is 0 you get the whole thing.
    */
-    fn getDisplayString(lengthLimitIn: Int, relatedEntityIn: Option[Entity], relationTypeIn: Option[RelationType], simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, relatedEntityIn: Option[Entity], relationTypeIn: Option[RelationType], simplify: Boolean = false) -> String {
     let relType: RelationType = {;
       if (relationTypeIn.isDefined) {
         if (relationTypeIn.get.getId != getAttrTypeId) {
@@ -74,7 +81,7 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTyp
     // (See method comment about the relatedEntityIn param.)
     let result: String =;
       if (simplify) {
-        if (rtName == Database.theHASrelationTypeName) relatedEntity.getName
+        if (rtName == Database.THE_HAS_RELATION_TYPE_NAME) relatedEntity.getName
         else rtName + getRemoteDescription + ": " + relatedEntity.getName
       } else {
         rtName + getRemoteDescription + ": " + Color.blue(relatedEntity.getName) + "; " + getDatesDescription
@@ -86,9 +93,10 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTyp
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-    fn getRemoteDescription: String
+    //%%?: fn getRemoteDescription -> String
 
   // If relatedEntityIn is an RTRE, could be a different db so build accordingly:
-    fn getEntityForEntityId2: Entity
+    //%%?: fn getEntityForEntityId2 -> Entity
+*/
 
 }

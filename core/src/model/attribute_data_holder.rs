@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2013-2017 inclusive and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -11,6 +10,8 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct AttributeDataHolder {
+/*%%
 package org.onemodel.core.model
 
 //idea: replace these w/ tuples?
@@ -69,3 +70,5 @@ class FileAttributeDataHolder(attrTypeId: i64,
                               let mut originalFilePath: String;
                              )
   extends AttributeDataHolder(attrTypeId)
+*/
+}

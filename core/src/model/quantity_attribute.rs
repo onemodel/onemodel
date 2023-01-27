@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -11,15 +10,17 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct QuantityAttribute {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core.{OmException, Util}
 
-/** Represents one quantity object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
+** Represents one quantity object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
   *
   * This constructor instantiates an existing object from the DB. You can use Entity.addQuantityAttribute() to
   * create a new object.
-  */
+  *
 class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.quantityAttributeKeyExists(mId)) {
@@ -45,7 +46,7 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
    * attribute this is. 3rd parameter really only applies in one of the subclasses of Attribute,
    * otherwise can be None.
    */
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity]=None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity]=None, unused2: Option[RelationType]=None, simplify: Boolean = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let number: Float = getNumber;
     let unitId: i64 = getUnitId;
@@ -54,17 +55,17 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-  private[onemodel] def getNumber: Float = {
+  private[onemodel] fn getNumber -> Float {
     if (!mAlreadyReadData) readDataFromDB()
     mNumber
   }
 
-  private[onemodel] def getUnitId: i64 = {
+  private[onemodel] fn getUnitId -> i64 {
     if (!mAlreadyReadData) readDataFromDB()
     mUnitId
   }
 
-  protected def readDataFromDB() {
+  protected fn readDataFromDB() {
     let quantityData = mDB.getQuantityAttributeData(mId);
     if (quantityData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
@@ -87,7 +88,9 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
   }
 
   /** Removes this object from the system. */
-    fn delete() = mDB.deleteQuantityAttribute(mId)
+    fn delete() {
+    mDB.deleteQuantityAttribute(mId)
+    }
 
   // **idea: make these members into vals not vars, by replacing them with the next line.
   //           private let (unitId: i64, number: Float) = readDataFromDB();
@@ -100,4 +103,5 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
    */
   private let mut mUnitId: i64 = 0L;
   private let mut mNumber: Float = .0F;
+ */
 }

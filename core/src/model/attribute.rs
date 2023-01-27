@@ -1,8 +1,7 @@
-%%
 /* . This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2017 inclusive, Luke A Call; all
-    s free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
-    distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
+    Copyright in each year of 2004, 2010, 2011, 2013-2017 inclusive, and 2023, Luke A Call.
+    OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
+    and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
@@ -11,6 +10,8 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct Attribute {
+/*%%
 package org.onemodel.core.model
 
 object Attribute {
@@ -18,7 +19,7 @@ object Attribute {
   let DATEFORMAT = new java.text.SimpleDateFormat("EEE yyyy-MM-dd HH:mm:ss:SSS zzz");
   let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("EEE GGyyyy-MM-dd HH:mm:ss:SSS zzz");
 
-    fn usefulDateFormat(d: i64): String = {
+    fn usefulDateFormat(d: i64) -> String {
     // No need to print "AD" unless we're really close?, as in this example:
     //scala > let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz");
     //scala > DATEFORMAT_WITH_ERA.parse("ad 1-03-01 00:00:00:000 GMT").getTime //i.e., Jan 3, 1 AD.
@@ -32,7 +33,7 @@ object Attribute {
    * @param lengthLimitIn If <= 0, no change.
    * @return A value equal or shorter in length.
    */
-    fn limitDescriptionLength(input: String, lengthLimitIn: Int): String = {
+    fn limitDescriptionLength(input: String, lengthLimitIn: Int) -> String {
     if (lengthLimitIn != 0 && input.length > lengthLimitIn) {
       input.substring(0, lengthLimitIn - 3) + "..."
     } else input
@@ -46,43 +47,43 @@ object Attribute {
 abstract class Attribute(val mDB: Database, mId: i64) {
   // idea: somehow use scala features better to make it cleaner, so we don't need these extra 2 vars, because they are
   // used in 1-2 instances, and ignored in the rest.  One thing is that RelationTo[Local|Remote]Entity and RelationToGroup are Attributes. Should they be?
-    fn getDisplayString(inLengthLimit: Int, parentEntity: Option[Entity], inRTId: Option[RelationType], simplify: Boolean = false): String
+    fn getDisplayString(inLengthLimit: Int, parentEntity: Option[Entity], inRTId: Option[RelationType], simplify: Boolean = false) -> String;
 
-  protected def readDataFromDB()
+  protected fn readDataFromDB();
 
-    fn delete()
+    fn delete();
 
-  private[onemodel] def getIdWrapper: IdWrapper = {
+  private[onemodel] fn getIdWrapper -> IdWrapper {
     new IdWrapper(mId)
   }
 
-    fn getId: i64 = {
+    fn getId -> i64 {
     mId
   }
 
-    fn getFormId: Int = {
+    fn getFormId -> Int {
     Database.getAttributeFormId(this.getClass.getSimpleName)
   }
 
-  protected def assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, sortingIndexIn: i64) {
+  protected fn assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, sortingIndexIn: i64) {
     mParentId = parentIdIn
     mAttrTypeId = attrTypeIdIn
     mSortingIndex = sortingIndexIn
     mAlreadyReadData = true
   }
 
-    fn getAttrTypeId: i64 = {
+    fn getAttrTypeId -> i64 {
     if (!mAlreadyReadData) readDataFromDB()
     mAttrTypeId
   }
 
-    fn getSortingIndex: i64 = {
+    fn getSortingIndex -> i64 {
     if (!mAlreadyReadData) readDataFromDB()
     mSortingIndex
   }
 
   // idea: make the scope definitions (by whatever name: "private[onemodel] ") sensible and uniform
-  private[onemodel] def getParentId: i64 = {
+  private[onemodel] fn getParentId -> i64 {
     if (!mAlreadyReadData) readDataFromDB()
     mParentId
   }
@@ -95,4 +96,5 @@ abstract class Attribute(val mDB: Database, mId: i64) {
   protected let mut mAttrTypeId: i64 = 0L;
   protected let mut mAlreadyReadData: bool = false;
   protected let mut mSortingIndex: i64 = 0L;
+*/
 }

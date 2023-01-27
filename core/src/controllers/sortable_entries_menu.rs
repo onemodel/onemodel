@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014-2018 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014-2018 inclusive and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -8,6 +7,8 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+struct SortableEntriesMenu {
+/*%%
 package org.onemodel.core.controllers
 
 import org.onemodel.core.model.Database
@@ -15,7 +16,7 @@ import org.onemodel.core.{OmException, TextUI}
 
 abstract class SortableEntriesMenu(val ui: TextUI) {
 
-  /** Returns the starting row number (in case the view window was adjusted to show other entries around the moved entity).
+  * Returns the starting row number (in case the view window was adjusted to show other entries around the moved entity).
     *
     * The dbIn should represent the *same* database as where containingObjectIdIn is stored!  (See details in comments at similar location
     * about containingObjectIdIn.)
@@ -29,11 +30,11 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     * that case, the values for movingObjsAttributeFormIdIn and objectAtThatIndexFormIdIn would NOT be the same IN THE CASE WHERE (if, someday we have the
     * feature such that) the user inserts a new attribute after an existing one (ie specifying its position immediately instead of just moving it later) and
     * therefore the attribute already in that position, and the  one added at that position are different.
-    */
-  protected def placeEntryInPosition(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64,
+    *
+  protected fn placeEntryInPosition(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64,
                                      numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: Boolean,
                                      startingDisplayRowIndexIn: Int, movingObjIdIn: i64, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option[i64],
-                                     numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]): Int = {
+                                     numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]) -> Int {
 
     require(if (objectAtThatIndexIdIn.isDefined || objectAtThatIndexFormIdIn.isDefined) {
                 objectAtThatIndexIdIn.isDefined && objectAtThatIndexFormIdIn.isDefined
@@ -104,21 +105,21 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     displayStartingRowNumber
   }
 
-  protected def getSortingIndex(dbIn: Database, containingObjectIdIn: i64, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: i64): i64
+  protected fn getSortingIndex(dbIn: Database, containingObjectIdIn: i64, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: i64) -> i64
 
   /** The dbIn should represent the *same* database as where containingObjectIdIn is stored!  (Idea: enforce that by passing in a containingObject instead
     * of a containingObjectIdIn (ie an Entity or Group, using scala's type system), or a boolean saying which it is, then get the db from it instead of
     * passing it as a parm?  Same in location(s) w/ similar comment about containingObjectIdIn.)
     */
-  protected def getNewSortingIndex(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64, startingDisplayRowIndexIn: Int,
+  protected fn getNewSortingIndex(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64, startingDisplayRowIndexIn: Int,
                                    nearNewNeighborSortingIndex: Option[i64], farNewNeighborSortingIndex: Option[i64], forwardNotBack: Boolean,
                                    byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: i64, moveFromRelativeIndexInObjListIn: Int,
-                                   numDisplayLines: Int): (i64, Boolean, Int) = {
+                                   numDisplayLines: Int) -> (i64, Boolean, Int) {
     if (nearNewNeighborSortingIndex.isEmpty) {
       throw new OmException("never should have got here: should have been the logic of ~nowhere to go so doing nothing")
     }
 
-    def ensureNonDuplicate(groupOrEntityIdIn: i64, newIndexIn: i64): Option[i64] = {
+    fn ensureNonDuplicate(groupOrEntityIdIn: i64, newIndexIn: i64) -> Option[i64] {
       // At this point we might have as newIndexIn, the dup of an archived entity's sorting index, since archived entities are ignored the in
       // logic that calculated our *NewNeighborSortingIndex variable
       // values.  If so, find another candidate (feels like a kludge and knowledge scattered across code, but not sure of a better algorithm right now).
@@ -207,8 +208,8 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
   /** The dbIn should represent the *same* database as where groupOrEntityIdIn is stored!  (See details in comments at similar location
     * about containingObjectIdIn.)
     */
-  protected def findNewNeighbors(dbIn: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forwardNotBackIn: Boolean,
-                                 movingFromPosition_sortingIndex: i64): (Int, Option[i64], Option[i64]) = {
+  protected fn findNewNeighbors(dbIn: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forwardNotBackIn: Boolean,
+                                 movingFromPosition_sortingIndex: i64) -> (Int, Option[i64], Option[i64]) {
 
     // (idea: this could probably be made more efficient by combining the 2nd part of the (fixed) algorithm (the call to mDB.getNearestEntry)
     // with the first part.  I.e., maybe we don't need to calculate the farNewNeighborSortingIndex at first, since we're just going to soon replace
@@ -264,17 +265,18 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     (byHowManyEntriesMoving, nearNewNeighborSortingIndex, adjustedFarNewNeighborSortingIndex)
   }
 
-  protected def getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
-                                                 forwardNotBackIn: Boolean): List[Array[Option[Any]]]
+  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
+                                                 forwardNotBackIn: Boolean) -> List[Array[Option[Any]]]
 
-  protected def getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64]
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64]
 
-  protected def renumberSortingIndexes(dbIn: Database, containingObjectIdIn: i64)
+  protected fn renumberSortingIndexes(dbIn: Database, containingObjectIdIn: i64)
 
-  protected def updateSortedEntry(dbIn: Database, containingObjectIdIn: i64, movingObjsAttributeFormIdIn: Int, movingObjIdIn: i64, sortingIndexIn: i64)
+  protected fn updateSortedEntry(dbIn: Database, containingObjectIdIn: i64, movingObjsAttributeFormIdIn: Int, movingObjIdIn: i64, sortingIndexIn: i64)
 
-  protected def indexIsInUse(dbIn: Database, groupOrEntityIdIn: i64, sortingIndexIn: i64): Boolean
+  protected fn indexIsInUse(dbIn: Database, groupOrEntityIdIn: i64, sortingIndexIn: i64) -> Boolean
 
-  protected def findUnusedSortingIndex(dbIn: Database, groupOrEntityIdIn: i64, startingWithIn: i64): i64
+  protected fn findUnusedSortingIndex(dbIn: Database, groupOrEntityIdIn: i64, startingWithIn: i64) -> i64
 
+*/
 }

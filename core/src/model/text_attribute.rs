@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -11,15 +10,17 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct TextAttribute {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core.{OmException, Util}
 
-/** Represents one String object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
+* Represents one String object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
 
     This constructor instantiates an existing object from the DB. You can use Entity.addTextAttribute() to
     create a new object.
-  */
+  *
 class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
   if (!mDB.isRemote && !mDB.textAttributeKeyExists(mId)) {
@@ -40,7 +41,7 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
     */
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false): String = {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = {;
       if (simplify && (typeName == "paragraph" || typeName == "quote")) getText
@@ -50,12 +51,12 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-    fn getText: String = {
+    fn getText -> String {
     if (!mAlreadyReadData) readDataFromDB()
     mText
   }
 
-  protected def readDataFromDB() {
+  protected fn readDataFromDB() {
     let taTypeData = mDB.getTextAttributeData(mId);
     if (taTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
@@ -81,5 +82,6 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
   /** For descriptions of the meanings of these variables, see the comments
     on createTextAttribute(...) or createTables() in PostgreSQLDatabase or Database classes.
     */
-  private let mut mText: String = null;
+    private let mut mText: String = null;
+ */
 }

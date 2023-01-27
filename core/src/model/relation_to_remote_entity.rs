@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, 2013-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -13,11 +12,13 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct RelationToRemoteEntity {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core.{OmException, Util}
 
-/**
+**
  * Represents one RelationToRemoteEntity object in the system, used as an attribute on a Entity.
  *
  * RelationToLocalEntity and RelationToRemoteEntity in the db are separate due to needing a different column and different indexes.  And they are
@@ -31,7 +32,7 @@ import org.onemodel.core.{OmException, Util}
    would have a db parameter which is remote (i.e., an instance of RestDatabase; see Entity.addRelationToRemoteEntity).
 
    *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:
- */
+ *
 class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1: i64, mRemoteInstanceId: String,
                        mEntityId2: i64) extends RelationToEntity(mDB, mId, mRelTypeId, mEntityId1, mEntityId2) {
   // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
@@ -58,9 +59,11 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
     assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
   }
 
-    fn getRemoteInstanceId: String = mRemoteInstanceId
+    fn getRemoteInstanceId -> String {
+    mRemoteInstanceId
+    }
 
-  protected override def readDataFromDB() {
+  protected override fn readDataFromDB() {
     let relationData: Array[Option[Any]] = mDB.getRelationToRemoteEntityData(mAttrTypeId, mEntityId1, mRemoteInstanceId, mEntityId2);
     // No other local variables to assign.  All are either in the superclass or the primary key.
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
@@ -72,20 +75,20 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
-    fn move(toContainingEntityIdIn: i64, sortingIndexIn: i64): RelationToRemoteEntity = {
+    fn move(toContainingEntityIdIn: i64, sortingIndexIn: i64) -> RelationToRemoteEntity {
     mDB.moveRelationToRemoteEntityToLocalEntity(getRemoteInstanceId, getId, toContainingEntityIdIn, sortingIndexIn)
   }
 
-  override def getRemoteDescription = {
+  override fn getRemoteDescription() {
     let remoteOmInstance = new OmInstance(mDB, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId);
     " (at " + remoteOmInstance.getAddress + ")"
   }
 
-    fn getEntityForEntityId2: Entity = {
+    fn getEntityForEntityId2() -> Entity {
     new Entity(getRemoteDatabase, mEntityId2)
   }
 
-    fn getRemoteDatabase: Database = {
+    fn getRemoteDatabase() -> Database {
     Database.getRestDatabase(mRemoteAddress)
   }
 
@@ -103,8 +106,11 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
   }
 
   /** Removes this object from the system. */
-    fn delete() = mDB.deleteRelationToRemoteEntity(getAttrTypeId, getRelatedId1, mRemoteInstanceId, getRelatedId2)
+    fn delete() {
+    mDB.deleteRelationToRemoteEntity(getAttrTypeId, getRelatedId1, mRemoteInstanceId, getRelatedId2)
+    }
 
   lazy private let mRemoteAddress = new OmInstance(mDB, getRemoteInstanceId).getAddress;
 
+*/
 }

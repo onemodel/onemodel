@@ -1,6 +1,6 @@
 %%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -48,7 +48,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   // instantiation does DB setup (creates tables, default data, etc):
   private let mDB: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS) {;
-    override def damageBuffer(buffer: Array[Byte]): Unit = {
+    override fn damageBuffer(buffer: Array[Byte]) /*%%-> Unit*/ {
       if (mDoDamageBuffer) {
         if (buffer.length < 1 || buffer(0) == '0') throw new OmException("Nothing to damage here")
         else {
@@ -67,7 +67,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   // connect to existing database first
   private final let RELATED_ENTITY_NAME: String = "someRelatedEntityName";
 
-  override def runTests(testName: Option[String], args: Args): Status = {
+  override fn runTests(testName: Option[String], args: Args): -> Status {
     // no longer doing db setup/teardown here, because we need to do teardown as a constructor-like command above,
     // before instantiating the DB (and that instantiation does setup).  Leaving tables in place after to allow adhoc manual test access.
     let result: Status = super.runTests(testName, args);
@@ -923,7 +923,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   }
 
-    fn createTestQuantityAttributeWithTwoEntities(inParentId: i64, inValidOnDate: Option[i64] = None): i64 = {
+    fn createTestQuantityAttributeWithTwoEntities(inParentId: i64, inValidOnDate: Option[i64] = None) -> i64 {
     let unitId: i64 = mDB.createEntity("centimeters");
     let attrTypeId: i64 = mDB.createEntity(QUANTITY_TYPE_NAME);
     let defaultDate: i64 = System.currentTimeMillis;
@@ -949,7 +949,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     quantityId
   }
 
-    fn createTestTextAttributeWithOneEntity(inParentId: i64, inValidOnDate: Option[i64] = None): i64 = {
+    fn createTestTextAttributeWithOneEntity(inParentId: i64, inValidOnDate: Option[i64] = None) -> i64 {
     let attrTypeId: i64 = mDB.createEntity("textAttributeTypeLikeSsn");
     let defaultDate: i64 = System.currentTimeMillis;
     let validOnDate: Option[i64] = inValidOnDate;
@@ -972,7 +972,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     textAttributeId
   }
 
-    fn createTestDateAttributeWithOneEntity(inParentId: i64): i64 = {
+    fn createTestDateAttributeWithOneEntity(inParentId: i64) -> i64 {
     let attrTypeId: i64 = mDB.createEntity("dateAttributeType--likeDueOn");
     let date: i64 = System.currentTimeMillis;
     let dateAttributeId: i64 = mDB.createDateAttribute(inParentId, attrTypeId, date);
@@ -983,7 +983,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     dateAttributeId
   }
 
-    fn createTestBooleanAttributeWithOneEntity(inParentId: i64, valIn: Boolean, inValidOnDate: Option[i64] = None, inObservationDate: i64): i64 = {
+    fn createTestBooleanAttributeWithOneEntity(inParentId: i64, valIn: Boolean, inValidOnDate: Option[i64] = None, inObservationDate: i64) -> i64 {
     let attrTypeId: i64 = mDB.createEntity("boolAttributeType-like-isDone");
     let booleanAttributeId: i64 = mDB.createBooleanAttribute(inParentId, attrTypeId, valIn, inValidOnDate, inObservationDate);
     let ba = new BooleanAttribute(mDB, booleanAttributeId);
@@ -995,7 +995,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     booleanAttributeId
   }
 
-    fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: Boolean = true): FileAttribute = {
+    fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: Boolean = true) -> FileAttribute {
     let attrTypeId: i64 = mDB.createEntity("fileAttributeType");
     let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
     let mut writer: java.io.FileWriter = null;
@@ -1054,7 +1054,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     }
   }
 
-    fn createTestRelationToLocalEntity_WithOneEntity(inEntityId: i64, inRelTypeId: i64, inValidOnDate: Option[i64] = None): i64 = {
+    fn createTestRelationToLocalEntity_WithOneEntity(inEntityId: i64, inRelTypeId: i64, inValidOnDate: Option[i64] = None) -> i64 {
     // idea: could use here instead: db.createEntityAndRelationToLocalEntity
     let relatedEntityId: i64 = mDB.createEntity(RELATED_ENTITY_NAME);
     let validOnDate: Option[i64] = if (inValidOnDate.isEmpty) None else inValidOnDate;
@@ -1076,19 +1076,23 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   "rollbackWithCatch" should "catch and return chained exception showing failed rollback" in {
     let db = new PostgreSQLDatabase("abc", "defg") {;
-      override def connect(inDbName: String, username: String, password: String) {
+      override fn connect(inDbName: String, username: String, password: String) {
         // leave it null so calling it will fail as desired below.
         mConn = null
       }
-      override def createAndCheckExpectedData(): Unit = {
+      override fn createAndCheckExpectedData() -> Unit {
         // Overriding because it is not needed for this test, and normally uses mConn, which by being set to null just above, breaks the method.
         // (intentional style violation for readability)
         //noinspection ScalaUselessExpression
         None
       }
-      override def modelTablesExist: Boolean = true
-      //noinspection ScalaUselessExpression  (intentional style violation, for readability)
-      override def doDatabaseUpgradesIfNeeded() = Unit
+      override fn modelTablesExist()  -> Boolean {
+true
+}
+//noinspection ScalaUselessExpression  (intentional style violation, for readability)
+override fn doDatabaseUpgradesIfNeeded() {
+Unit
+}
     }
     let mut found = false;
     let originalErrMsg: String = "testing123";
@@ -1114,7 +1118,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   "have worked right in earlier db setup and now" in {
     let PERSON_TEMPLATE: String = "person" + Database.TEMPLATE_NAME_SUFFIX;
     let systemEntityId = mDB.getSystemEntityId;
-    let groupIdOfClassTemplates = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(Database.classTemplateEntityGroupName))._3;
+    let groupIdOfClassTemplates = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
 
     // (Should be some value, but the activity on the test DB wouldn't have ids incremented to 0 yet,so that one would be invalid. Could use the
     // other method to find an unused id, instead of 0.)
@@ -1303,7 +1307,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     let systemEntityId = mDB.getSystemEntityId;
     // idea: (noted at other use of this method)
-    let classGroupId = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(Database.classTemplateEntityGroupName))._3;
+    let classGroupId = mDB.findRelationToAndGroup_OnEntity(systemEntityId, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
     assert(mDB.areMixedClassesAllowed(classGroupId.get))
 
     let groupSizeBeforeRemoval = mDB.getGroupSize(groupId);

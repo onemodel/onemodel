@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2019 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004 and 2008-2019 inclusive, and 2023, Luke A. Call.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -9,14 +8,16 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+struct QuickGroupMenu {
+/*%%
 package org.onemodel.core.controllers
 
 import org.onemodel.core._
 import org.onemodel.core.model._
 import org.onemodel.core.{Color, OmException, TextUI}
 
-/** Allows sorting of group entries, quick work like for brainstorming.
-  */
+* Allows sorting of group entries, quick work like for brainstorming.
+  *
 class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extends SortableEntriesMenu(ui) {;
   // The @tailrec is desired when possible,
   // because it seems that otherwise we might try to ESC back to a menu instance which is attempting to view a deleted entity, & crash!  But see the comment
@@ -42,7 +43,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     fn quickGroupMenu(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup] = None,
                      highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None,
                      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                     callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
+                     callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]) -> Option[Entity] {
     try {
       quickGroupMenu_doTheWork(groupIn, startingDisplayRowIndexIn, relationToGroupIn, highlightedEntityIn, targetForMovesIn, callingMenusRtgIn,
                                containingEntityIn)
@@ -59,7 +60,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
 
   /** Should be called only if the targetEntityIn has 0 or 1 RelationToGroups (no more).
     */
-    fn createNewOrFindOneGroupOnEntity(groupIn: Group, targetEntitysRtgCount: i64, targetEntityIn: Entity): (i64, i64, i64) = {
+    fn createNewOrFindOneGroupOnEntity(groupIn: Group, targetEntitysRtgCount: i64, targetEntityIn: Entity) -> (i64, i64, i64) {
     // if there is 1 (obvious) destination, or no RTG on the selected entity (1 can be created), then add new entry there
     let (targetRelationToGroupId: i64, targetRelationTypeId: i64, targetGroupId: i64) = {;
       if (targetEntitysRtgCount == 0) {
@@ -86,7 +87,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     fn moveSelectedEntry(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup], targetForMovesIn: Option[Entity],
                         highlightedIndexInObjListIn: Int, moveTargetIndexInObjList: Option[Int], highlightedEntry: Entity,
                         highlightedObjId: i64, objIds: Array[i64], objectsToDisplay: java.util.ArrayList[Entity],
-                        callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity] = None): Option[Entity] = {
+                        callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity] = None) -> Option[Entity] {
     let choices = Array[String](// these are ordered for convenience in doing them w/ the left hand: by frequency of use, and what seems easiest to remember;
                                 // for common operations with the 4 fingers sitting on the '1234' keys.  Using LH more in this because my RH gets tired more,
                                 // and it seems like often people have their RH on the mouse.
@@ -243,7 +244,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     * */
     fn quickGroupMenu_doTheWork(groupIn: Group, startingDisplayRowIndexIn: Int, relationToGroupIn: Option[RelationToGroup],
                                highlightedEntityIn: Option[Entity] = None, targetForMovesIn: Option[Entity] = None,
-                               callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]): Option[Entity] = {
+                               callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option[Entity]) -> Option[Entity] {
     require(groupIn != null)
     let choices = Array[String]("Create new entry quickly",;
                                 "Move selection (*) up/down, in, out... (choose this then ESC to re-center from current selection, maybe)",
@@ -559,7 +560,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     }
   }
 
-    fn useSubgroup(targetEntry: Entity): (i64, Option[Boolean]) = {
+    fn useSubgroup(targetEntry: Entity) -> (i64, Option[Boolean]) {
     let targetRtgCount: i64 = targetEntry.getRelationToGroupCount;
     let defaultToUsingSubgroup: Option[Boolean] = {;
       if (targetRtgCount == 0) {
@@ -575,40 +576,41 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     (targetRtgCount, defaultToUsingSubgroup)
   }
 
-  protected def getAdjacentEntriesSortingIndexes(dbIn: Database, groupIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
-                                        forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
+  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
+                                        forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
     let group = new Group(dbIn, groupIdIn);
     group.getAdjacentGroupEntriesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected def getSortingIndexOfNearestEntry(dbIn: Database, groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64] = {
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64] {
     let group = new Group(dbIn, groupIdIn);
     group.getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }
 
-  protected def renumberSortingIndexes(dbIn: Database, groupIdIn: i64): Unit = {
+  protected fn renumberSortingIndexes(dbIn: Database, groupIdIn: i64) /* -> Unit%%*/ {
     let group = new Group(dbIn, groupIdIn);
     group.renumberSortingIndexes()
   }
 
-  protected def updateSortedEntry(dbIn: Database, groupIdIn: i64, ignoredParameter: Int, movingEntityIdIn: i64, sortingIndexIn: i64): Unit = {
+  protected fn updateSortedEntry(dbIn: Database, groupIdIn: i64, ignoredParameter: Int, movingEntityIdIn: i64, sortingIndexIn: i64) /* -> Unit%%*/ {
     let group = new Group(dbIn, groupIdIn);
     group.updateSortingIndex(movingEntityIdIn, sortingIndexIn)
   }
 
-  protected def getSortingIndex(dbIn: Database, groupIdIn: i64, ignoredParameter: Int, entityIdIn: i64): i64 = {
+  protected fn getSortingIndex(dbIn: Database, groupIdIn: i64, ignoredParameter: Int, entityIdIn: i64) -> i64 {
     let group = new Group(dbIn, groupIdIn);
     group.getEntrySortingIndex(entityIdIn)
   }
 
-  protected def indexIsInUse(dbIn: Database, groupIdIn: i64, sortingIndexIn: i64): Boolean = {
+  protected fn indexIsInUse(dbIn: Database, groupIdIn: i64, sortingIndexIn: i64) -> Boolean {
     let group = new Group(dbIn, groupIdIn);
     group.isGroupEntrySortingIndexInUse(sortingIndexIn)
   }
 
-  protected def findUnusedSortingIndex(dbIn: Database, groupIdIn: i64, startingWithIn: i64): i64 = {
+  protected fn findUnusedSortingIndex(dbIn: Database, groupIdIn: i64, startingWithIn: i64) -> i64 {
     let group = new Group(dbIn, groupIdIn);
     group.findUnusedSortingIndex(Some(startingWithIn))
   }
 
+*/
 }

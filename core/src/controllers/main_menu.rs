@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2017 inclusive, Luke A. Call; all rights reserved.}
+    Copyright in each year of 2003-2004 and 2008-2017 inclusive, and 2023, Luke A. Call.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -9,6 +8,8 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+struct MainMenu {
+/*%%
 package org.onemodel.core.controllers
 
 import org.onemodel.core._
@@ -134,4 +135,5 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
     }
   }
 
+*/
 }

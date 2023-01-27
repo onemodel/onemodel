@@ -11,3 +11,8 @@ console = "0.15.1"
 # next line added ~4.xMB to the binary
 rustyline = "10.0.0"
 #reedline = "0.11.0"
+# next lines added 62MB to the binary (from 6.9MB to 69MB, debug version)
+sqlx = { version = "0.6.2", features = [ "runtime-tokio-rustls", "postgres" ] }
+tokio = { version = "1", features = ["full"] }
+# next line added 9MB to the binary (from 69MB to 78MB, debug version; 4.1MB release, 2.7MB stripped!)
+futures = "0.3.25"

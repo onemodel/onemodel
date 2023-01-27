@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2014 and 2016-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2014 and 2016-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule, 
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -12,6 +11,8 @@
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 
 */
+/*
+%%
 package org.onemodel.core
 
 object Color {
@@ -28,22 +29,24 @@ object Color {
     }
   }
 
-    fn red(s:String): String = {
+    fn red(s:String) -> String {
     red + s + reset
   }
 
-    fn cyan(s:String): String = {
+    fn cyan(s:String) -> String {
     cyan + s + reset
   }
 
-    fn blue(s:String) : String = cyan(s)
+    fn blue(s:String) -> String { cyan(s); }
 
-    fn green(s:String): String = {
+    fn green(s:String) -> String {
     green + s + reset
   }
 
-    fn yellow(s:String): String = {
+    fn yellow(s:String) -> String {
     yellow + s + reset
   }
 
 }
+
+ */

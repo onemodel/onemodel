@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, and 2013-2017 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2004, 2010, 2011, 2013-2017 inclusive, and 2023, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -13,6 +12,8 @@
   ---------------------------------------------------
   (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
+struct RelationToLocalEntity {
+/*%%
 package org.onemodel.core.model
 
 import org.onemodel.core.{Util, OmException}
@@ -20,7 +21,7 @@ import org.onemodel.core.{Util, OmException}
 object RelationToLocalEntity {
   /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     */
-    fn getRelationToLocalEntity(inDB: Database, id: i64): Option[RelationToLocalEntity] = {
+    fn getRelationToLocalEntity(inDB: Database, id: i64) -> Option[RelationToLocalEntity] {
     let result: Array[Option[Any]] = inDB.getRelationToLocalEntityDataById(id);
     let relTypeId = result(0).get.asInstanceOf[i64];
     let eid1 = result(1).get.asInstanceOf[i64];
@@ -75,13 +76,16 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
     assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
   }
 
-    fn getRemoteDescription = ""
+    fn getRemoteDescription() -> String {
+    //%%have it throw an err instead or?  what do callers expect?
+    ""
+    }
 
-    fn getEntityForEntityId2: Entity = {
+    fn getEntityForEntityId2 -> Entity {
     new Entity(mDB, mEntityId2)
   }
 
-  protected def readDataFromDB() {
+  protected fn readDataFromDB() {
     let relationData: Array[Option[Any]] = mDB.getRelationToLocalEntityData(mAttrTypeId, mEntityId1, mEntityId2);
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mAttrTypeId + ", " + mEntityId1 + ", " + mEntityId2)
@@ -94,7 +98,7 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
-    fn move(toLocalContainingEntityIdIn: i64, sortingIndexIn: i64): RelationToLocalEntity = {
+    fn move(toLocalContainingEntityIdIn: i64, sortingIndexIn: i64) -> RelationToLocalEntity {
     mDB.moveRelationToLocalEntityToLocalEntity(getId, toLocalContainingEntityIdIn, sortingIndexIn)
   }
 
@@ -116,6 +120,9 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
   }
 
   /** Removes this object from the system. */
-    fn delete() = mDB.deleteRelationToLocalEntity(getAttrTypeId, mEntityId1, mEntityId2)
+    fn delete() {
+    mDB.deleteRelationToLocalEntity(getAttrTypeId, mEntityId1, mEntityId2)
+    }
 
+*/
 }

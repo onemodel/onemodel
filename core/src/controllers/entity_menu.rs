@@ -1,6 +1,5 @@
-%%
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2020 inclusive, Luke A. Call; all rights reserved.
+    Copyright in each year of 2003-2004, 2008-2020 inclusive, and 2023, Luke A. Call.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
@@ -9,6 +8,8 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+struct EntityMenu {
+/*%%
 package org.onemodel.core.controllers
 
 import java.util
@@ -26,11 +27,11 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     * */
   //@tailrec //removed for now until the compiler can handle it with where the method calls itself.
   //idea on scoping: make this limited like this somehow?:  private[org.onemodel] ... Same for all others like it?
-    fn entityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, highlightedAttributeIn: Option[Attribute] = None,
+  fn entityMenu(entityIn: Entity, attributeRowsStartingIndexIn: Int = 0, highlightedAttributeIn: Option[Attribute] = None,
                  targetForMovesIn: Option[Attribute] = None,
                  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
                  containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates] = None,
-                 containingGroupIn: Option[Group] = None): Option[Entity] = try {
+                 containingGroupIn: Option[Group] = None) -> Option[Entity] {
     require(containingRelationToEntityIn.isEmpty ||
             containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
     require(entityIn != null)
@@ -311,7 +312,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   }
 
   // 2nd return value is whether entityIsDefault (ie whether default object when launching OM is already this entity)
-    fn getChoices(entityIn: Entity, numAttrsIn: i64): Array[String] = {
+    fn getChoices(entityIn: Entity, numAttrsIn: i64) -> Array[String] {
     // (idea: might be a little silly to do it this way, once this # gets very big?:)
     let mut choices = Array[String]("Add entry quickly (creates a \"has\" relation to a new Entity)",;
                                 if (numAttrsIn > 0) "Move selection (*) up/down" else "(stub)",
@@ -333,7 +334,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     fn goToAttributeThenRedisplayHere(entityIn: Entity, attributeRowsStartingIndexIn: Int, targetForMovesIn: Option[Attribute],
                                      containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates], containingGroupIn: Option[Group],
                                      attributeTuples: Array[(i64, Attribute)], attributesToDisplay: util.ArrayList[Attribute],
-                                     answer: Int, choicesIndex: Int): Option[Entity] = {
+                                     answer: Int, choicesIndex: Int) -> Option[Entity] {
     require(containingRelationToEntityIn.isEmpty ||
             containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
     let entryIsGoneNow = {;
@@ -450,7 +451,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                                                                                  entity.getArchivedStatusDisplayString + entity.getName
                                                                              }
           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-          @tailrec def showSearchResults() {
+          @tailrec fn showSearchResults() {
             let relatedEntitiesResult = ui.askWhich(Some(leadingText2), choices, entityStatusesAndNames);
             if (relatedEntitiesResult.isDefined) {
               let relatedEntitiesAnswer = relatedEntitiesResult.get;
@@ -479,7 +480,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   }
 
     fn determineNextEntryToHighlight(entityIn: Entity, attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: Boolean,
-                                    defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]): Option[Attribute] = {
+                                    defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]) -> Option[Attribute] {
     // The entity or an attribute could have been removed or changed by navigating around various menus, so before trying to view it again,
     // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
     if (entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
@@ -500,7 +501,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                         highlightedIndexInObjListIn: Int, highlightedAttributeIn: Attribute, numObjectsToDisplayIn: Int,
                         relationSourceEntityIn: Option[Entity] = None,
                         containingRelationToEntityIn: Option[AttributeWithValidAndObservedDates] = None,
-                        containingGroupIn: Option[Group] = None): (Int, Boolean) = {
+                        containingGroupIn: Option[Group] = None) -> (Int, Boolean) {
     require(containingRelationToEntityIn.isEmpty ||
             containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
 
@@ -676,7 +677,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     }
   }
 
-    fn getLeadingText(leadingTextIn: Array[String], numAttributes: Int, entityIn: Entity, containingGroupIn: Option[Group] = None): Array[String] = {
+    fn getLeadingText(leadingTextIn: Array[String], numAttributes: Int, entityIn: Entity, containingGroupIn: Option[Group] = None) -> Array[String] {
     leadingTextIn(0) = Util.entityMenuLeadingText(entityIn)
     if (containingGroupIn.isDefined) {
       leadingTextIn(0) += ": found via group: " + containingGroupIn.get.getName
@@ -687,7 +688,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     leadingTextIn
   }
 
-    fn getItemDisplayStringsAndAttrs(attributeTuples: Array[(i64, Attribute)]): (Array[String], util.ArrayList[Attribute]) = {
+    fn getItemDisplayStringsAndAttrs(attributeTuples: Array[(i64, Attribute)]) -> (Array[String], util.ArrayList[Attribute]) {
     let attributes = new util.ArrayList[Attribute];
     let attributeStatusesAndNames: Array[String] =;
       for (attributeTuple <- attributeTuples) yield {
@@ -724,7 +725,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   }
 
     fn addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, highlightedAttributeIn: Option[Attribute], targetForMovesIn: Option[Attribute] = None,
-                   containingGroupIn: Option[Group] = None): Option[Attribute] = {
+                   containingGroupIn: Option[Group] = None) -> Option[Attribute] {
     let whichKindOfAttribute =;
       ui.askWhich(Some(Array("Choose which kind of attribute to add:")),
                   // THESE ARRAY INDICES (after being converted by askWhich to 1-based) MUST MATCH THOSE LISTED IN THE MATCH STATEMENT
@@ -769,7 +770,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     }
   }
 
-    fn getNextStartingRowsIndex(numAttrsToDisplay: Int, startingAttributeRowsIndexIn: Int, numAttrsInEntity: i64): Int = {
+    fn getNextStartingRowsIndex(numAttrsToDisplay: Int, startingAttributeRowsIndexIn: Int, numAttrsInEntity: i64) -> Int {
     let startingIndex = {;
       let currentPosition = startingAttributeRowsIndexIn + numAttrsToDisplay;
       if (currentPosition >= numAttrsInEntity) {
@@ -781,40 +782,41 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     startingIndex
   }
 
-  protected def getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
-                                                 forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
+  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
+                                                 forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getAdjacentAttributesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected def getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean): Option[i64] = {
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64] {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }
 
-  protected def renumberSortingIndexes(dbIn: Database, entityIdIn: i64): Unit = {
+  protected fn renumberSortingIndexes(dbIn: Database, entityIdIn: i64) -> /*Unit%%*/ {
     let entity = new Entity(dbIn, entityIdIn);
     entity.renumberSortingIndexes()
   }
 
-  protected def updateSortedEntry(dbIn: Database, entityIdIn: i64, movingAttributeFormIdIn: Int, movingAttributeIdIn: i64, sortingIndexIn: i64): Unit = {
+  protected fn updateSortedEntry(dbIn: Database, entityIdIn: i64, movingAttributeFormIdIn: Int, movingAttributeIdIn: i64, sortingIndexIn: i64) /*-> Unit%%*/ {
     let entity = new Entity(dbIn, entityIdIn);
     entity.updateAttributeSortingIndex(movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
   }
 
-  protected def getSortingIndex(dbIn: Database, entityIdIn: i64, attributeFormIdIn: Int, attributeIdIn: i64): i64 = {
+  protected fn getSortingIndex(dbIn: Database, entityIdIn: i64, attributeFormIdIn: Int, attributeIdIn: i64) -> i64 {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getAttributeSortingIndex(attributeFormIdIn, attributeIdIn)
   }
 
-  protected def indexIsInUse(dbIn: Database, entityIdIn: i64, sortingIndexIn: i64): Boolean = {
+  protected fn indexIsInUse(dbIn: Database, entityIdIn: i64, sortingIndexIn: i64) -> Boolean {
     let entity = new Entity(dbIn, entityIdIn);
     entity.isAttributeSortingIndexInUse(sortingIndexIn)
   }
 
-  protected def findUnusedSortingIndex(dbIn: Database, entityIdIn: i64, startingWithIn: i64): i64 = {
+  protected fn findUnusedSortingIndex(dbIn: Database, entityIdIn: i64, startingWithIn: i64) -> i64 {
     let entity = new Entity(dbIn, entityIdIn);
     entity.findUnusedAttributeSortingIndex(Some(startingWithIn))
   }
 
+*/
 }
