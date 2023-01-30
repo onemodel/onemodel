@@ -37,9 +37,9 @@ pub struct Controller {
     // NOTE: This should *not* be passed around as a parameter to everything, but rather those
     // places in the code should get the DB instance from the
     // entity (or other model object) being processed, to be sure the correct db instance is used.
-    // db: dyn Database, //%%$%%use "dyn" here & below at warnings?:
+    db: PostgreSQLDatabase, //%%$%%use "dyn" here & below at warnings?:
     /*%%$%%other qs looking at now:
-        consider whether to use "Database" in place of "PostgreSQLDatabase" in plces below for correctness? or wait/yagni?
+        consider whether to use "Database" in place of "PostgreSQLDatabase" in places below for correctness? or wait/YAGNI?
         doing what 4docs say re trait...?
         What are the above/below T doing (the err msgs)
         what triggered compiler asking for "dyn"?
@@ -53,8 +53,11 @@ impl Controller {
     pub fn new_for_non_tests(ui: TextUI, force_user_pass_prompt: bool, default_username: Option<&String>, default_password: Option<&String>) -> Controller {
         //%%$%%
         // let db = Self::try_logins_without_username_or_password(force_user_pass_prompt, &ui).unwrap_or_else(|e| {
-        let db = Self::try_logins(force_user_pass_prompt, &ui, default_username, default_password).unwrap_or_else(|e| {
-            ui.display_text1(e.to_string().as_str());
+        let db = Self::try_db_logins(force_user_pass_prompt, &ui, default_username, default_password).unwrap_or_else(|e| {
+            //%%should panic instead, at all places like this? to get a stack trace and for style?
+            //%%should eprintln at other places like this also?
+            // ui.display_text1(e.to_string().as_str());
+            eprintln!("{}", e.to_string().as_str());
             std::process::exit(1);
         });
         Controller {
@@ -65,7 +68,7 @@ impl Controller {
             // default_password,
             //%%after the red marks are gone, can ^K on next line, and back?
             //%%$%%
-            // db,
+            db,
             move_farther_count: 25,
             move_farthest_count: 50,
         }
@@ -153,14 +156,14 @@ impl Controller {
 
     //%%$%%
     /// If the 1st parm is true, the next 2 must be None.
-    fn try_logins<'a>(force_user_pass_prompt: bool, ui: &'a TextUI, default_username: Option<&String>,
+    fn try_db_logins<'a>(force_user_pass_prompt: bool, ui: &'a TextUI, default_username: Option<&String>,
                             default_password: Option<&String>) -> Result<PostgreSQLDatabase, String> {
         if force_user_pass_prompt {
-            assert!(default_username.is_none() && default_password.is_none());
-            
-            //%%$%put back when ready to implement TextUI.askForString l 240
-            ui.display_text1("%%$%put back when ready to implement TextUI.askForString l 240");
-            Err("%%$%put back when ready to implement TextUI.askForString l 240".to_string())
+            //%%why had this assertion before?:  delete it now?  (it was a "require" in Controller.scala .)
+            // assert!(default_username.is_none() && default_password.is_none());
+
+            ui.display_text1("%%$%put back when ready to implement TextUI.ask_for_string l 240");
+            Err("%%$%put back next line when ready to implement TextUI.ask_for_string l 240".to_string())
             // Self::prompt_for_user_pass_and_login(ui)
 
         } else if default_username.is_some() && default_password.is_some() {
@@ -174,30 +177,24 @@ impl Controller {
                 std::process::exit(1);
             });
             let db_result: Result<PostgreSQLDatabase, String> = PostgreSQLDatabase::login(user, pass);
-            // .unwrap_or_else(|e| {
-            //     ui.display_text1(e.to_string().as_str());
-            //     std::process::exit(1);
-            // });
             // not attempting to clear that password variable because
             // maybe the default kind is less intended to be secure, anyway?
             db_result
         } else {
-            //%%$%put back when ready to implement TextUI.askForString l 240
-            ui.display_text1("%%$%put back when ready to implement TextUI.askForString l 240");
-            Err("%%$%2: put back when ready to implement TextUI.askForString l 240".to_string())
-            // Self::try_other_logins_or_prompt(ui)
+            println!("{}","%%$%2: put back next line when ready to implement TextUI.ask_for_string l 240".to_string());
+            Self::try_other_logins_or_prompt(ui)
         }
     }
 
     // //%%$%%
     // fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<PostgreSQLDatabase, &'a str> {
     //     loop {
-    //         let usr = ui.askForString(Some(["Username"]));
+    //         let usr = ui::ask_for_string1(Some(["Username"]));
     //         if usr.isEmpty {
     //             //user probably wants out
     //             std::process::exit(1);
     //         }
-    //         let pwd = ui.askForString(Some(["Password"]), None, None, true);
+    //         let pwd = ui::ask_for_string1(Some(["Password"]), None, None, true);
     //         if pwd.isEmpty {
     //             //user probably wants out.
     //             // %%But what if the pwd is really blank? could happen?
@@ -212,62 +209,60 @@ impl Controller {
     //     }
     // }
 
-    // // %%$%%
-    // /// Tries the system username, blank password, & if that doesn't work, prompts user.
-    // // IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) (now loops) within this method, below!
-    // // %%$%is recursion best modeled w/ a loop? look up examples of that? look up loop: has a label to go to or "continue" or both? just "CPS" it?
-    // // %%$%%
-    // fn try_other_logins_or_prompt<'a>(ui: &'a TextUI) -> Result<PostgreSQLDatabase, &'a str> {
-    //     // (this loop is to simulate recursion)
-    //     loop {
-    //         // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
-    //         let (default_username, default_password) = Util::get_default_user_info().unwrap_or_else(|e| {
-    //             eprintln!("Unable to get default username/password.  Trying blank username, and password \"x\" instead.  Underlying error is: \"{}\"", e);
-    //             ("".to_string(), "x")
-    //         });
-    //         let db_with_system_name_blank_pwd = PostgreSQLDatabase::login(default_username.as_str(), default_password);
-    //         if db_with_system_name_blank_pwd.isDefined {
-    //           ui.display_text2("(Using default user info...)", false);
-    //           break db_with_system_name_blank_pwd.get;
-    //         } else {
-    //             let usr = ui.askForString(Some(["Username"]), None, Some(default_username));
-    //             if usr.isEmpty {
-    //                 // seems like the user wants out
-    //                 std::process::exit(1);
-    //             }
-    //             let db_connected_with_blank_pwd = PostgreSQLDatabase::login(usr.get, default_password);
-    //             if db_connected_with_blank_pwd.isOk() {
-    //                 break db_connected_with_blank_pwd;
-    //             } else {
-    //               let pwd = ui.askForString(Some(["Password"]), None, None, /*%%isPasswordIn = */ true);
-    //               if pwd.isEmpty {
-    //                   std::process::exit(1);
-    //               }
-    //               let db_with_user_entered_pwd = PostgreSQLDatabase::login(usr.get, pwd.get);
-    //               break db_with_user_entered_pwd;
-    //               // if (pwd.isDefined) {
-    //                 // pwd = None;
-    //                 // //garbage collect to keep the memory cleared of passwords. What's a better way? (gc isn't forced to do it all every time IIRC,
-    //                 // // so poke it--a guess)
-    //                 // System.gc()
-    //                 // System.gc()
-    //                 // System.gc()
-    //                 //%%BUT: IN RUST, could look into the "zeroize" and "secrecy" crates for that, per an article
-    //                 // i just (20221201) read in "this week in Rust" rss feed, "Rust Foundation - Secure App Development with rust's Memory Model", at
-    //                 //  https://foundation.rust-lang.org/news/secure-app-development-with-rust-s-memory-model/  .
-    //                 // OR: no need because Rust will clean up anyway? will it be reused or could hang around to be exploited?
-    //               // }
-    //             }
-    //         }
-    //         // if (db.isEmpty) {
-    //         //     ui.display_text("Login failed; retrying (" + ui.how_quit + " to quit if needed):",
-    //         //                     false)
-    //         //     continue;
-    //         // } else {
-    //         //     db.get
-    //         // }
-    //     }
-    // }
+    // %%$%%
+    /// Tries the system username & default password, & if that doesn't work, prompts user.
+    fn try_other_logins_or_prompt(ui: &TextUI) -> Result<PostgreSQLDatabase, String> {
+        // (this loop is to simulate recursion, and let the user retry entering username/password)
+        loop {
+            // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
+            let (default_username, default_password) = Util::get_default_user_login().unwrap_or_else(|e| {
+                eprintln!("Unable to get default username/password.  Trying blank username, and password \"x\" instead.  Underlying error is: \"{}\"", e);
+                ("".to_string(), "x")
+            });
+            let db_with_system_name_blank_pwd = PostgreSQLDatabase::login(default_username.as_str(), default_password);
+            if db_with_system_name_blank_pwd.is_ok() {
+              ui.display_text2("(Using default user info...)", false);
+              break db_with_system_name_blank_pwd;
+            } else {
+                let usr = ui.ask_for_string3(vec!("Username".to_string()), None, Some(default_username));
+                match usr {
+                    None => {
+                        // seems like the user wants out
+                        std::process::exit(1);
+                    },
+                    Some(username) => {
+                        let db_connected_with_default_pwd = PostgreSQLDatabase::login(username.as_str(), default_password);
+                        if db_connected_with_default_pwd.is_ok() {
+                            break db_connected_with_default_pwd;
+                        } else {
+                            let pwd = ui.ask_for_string4(vec!("Password".to_string()), None, None, true);
+                            match pwd {
+                                None => {
+                                    // seems like the user wants out
+                                    std::process::exit(1);
+                                },
+                                Some(password) => {
+                                    let db_with_user_entered_pwd = PostgreSQLDatabase::login(username.as_str(), password.as_str());
+                                    match db_with_user_entered_pwd {
+                                        Ok(db) => break Ok(db),
+                                        Err(e) => {
+                                            let msg = format!("Login failed; retrying ({}) to quit if needed):  {}", ui.how_quit(), e);
+                                            ui.display_text2(msg.as_str(), false)
+                                        }
+                                    }
+                                    //%%AND: IN RUST instead of setting to null & doing gc(), could
+                                    // look into the "zeroize" and "secrecy" crates for that, per an article
+                                    // i just (20221201) read in "this week in Rust" rss feed, "Rust Foundation - Secure App Development with rust's Memory Model", at
+                                    //  https://foundation.rust-lang.org/news/secure-app-development-with-rust-s-memory-model/  .
+                                    // OR: no need because Rust will clean up anyway? will it be reused or could hang around to be exploited?
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     /* %%
     // Idea: showPublicPrivateStatusPreference, refreshPublicPrivateStatusPreference, and findDefaultDisplayEntityId, feel awkward.
@@ -354,7 +349,7 @@ impl Controller {
         /** 2nd i64 in return value is ignored in this particular case.
           */
         def askAndSave(dbIn: Database, defaultNameIn: Option[String] = None): Option[(i64, i64)] = {
-          let nameOpt = ui.askForString(Some(Array[String](leadingTextIn.getOrElse(""),;
+          let nameOpt = ui::ask_for_string3(Some(Array[String](leadingTextIn.getOrElse(""),;
                                                            "Enter " + typeIn + " name (up to " + maxNameLength + " characters" + example + "; ESC to cancel)")),
                                         None, defaultNameIn)
           if (nameOpt.isEmpty) None
@@ -457,7 +452,7 @@ impl Controller {
           }
         }
         def askAndSave(dbIn: Database, defaultNameIn: Option[String]): Option[(i64, i64)] = {
-          let nameOpt = ui.askForString(Some(Array("Enter class name (up to " + nameLength + " characters; will also be used for its template entity name" +;
+          let nameOpt = ui::ask_for_string3(Some(Array("Enter class name (up to " + nameLength + " characters; will also be used for its template entity name" +;
                                                    oldTemplateNamePrompt + "; ESC to cancel): ")),
                                         None, defaultNameIn)
           if (nameOpt.isEmpty) None
@@ -491,7 +486,7 @@ impl Controller {
         let createNotUpdate: bool = oldOmInstanceIn.isEmpty;
         let addressLength = model.OmInstance.addressLength;
         def askAndSave(dbIn: Database, defaultNameIn: Option[String]): Option[String] = {
-          let addressOpt = ui.askForString(Some(Array("Enter the internet address with optional port of a remote OneModel instance (for " +;
+          let addressOpt = ui::ask_for_string3(Some(Array("Enter the internet address with optional port of a remote OneModel instance (for " +;
                                                       "example, \"om.example.com:9000\", up to " + addressLength + " characters; ESC to cancel;" +
                                                       " Other examples include (omit commas):  localhost,  127.0.0.1:2345,  ::1 (?)," +
                                                       "  my.example.com:80,  your.example.com:8080  .): ")), None, defaultNameIn)
@@ -1251,8 +1246,8 @@ impl Controller {
                 let restDb = Database.getRestDatabase(remoteOmInstance.getAddress);
                 let remoteEntityId: Option[i64] = {;
                   if (remoteEntityEntryTypeAnswer.get == 1) {
-                    let remoteEntityAnswer = ui.askForString(Some(Array("Enter the remote entity's id # (for example, \"-9223372036854745151\"")),;
-                                                             Some(Util.isNumeric))
+                    let remoteEntityAnswer = ui::ask_for_string2(Some(Array("Enter the remote entity's id # (for example, \"-9223372036854745151\"")),;
+                                                             Some(Util.isNumeric), None)
                     if (remoteEntityAnswer.isEmpty) None
                     else {
                       let id: String = remoteEntityAnswer.get.trim();
@@ -1346,7 +1341,7 @@ impl Controller {
       }
 
         fn askForNameAndSearchForEntity(dbIn: Database) -> Option[IdWrapper] {
-        let ans = ui.askForString(Some(Array(Util.entityOrGroupNameSqlSearchPrompt(Util.ENTITY_TYPE))));
+        let ans = ui::ask_for_string1(Some(Array(Util.entityOrGroupNameSqlSearchPrompt(Util.ENTITY_TYPE))));
         if (ans.isEmpty) {
           None
         } else {
@@ -1359,7 +1354,7 @@ impl Controller {
 
         fn searchById(dbIn: Database, typeNameIn: String) -> Option[IdWrapper] {
         require(typeNameIn == Util.ENTITY_TYPE || typeNameIn == Util.GROUP_TYPE)
-        let ans = ui.askForString(Some(Array("Enter the " + typeNameIn + " ID to search for:")));
+        let ans = ui::ask_for_string1(Some(Array("Enter the " + typeNameIn + " ID to search for:")));
         if (ans.isEmpty) {
           None
         } else {
@@ -1466,7 +1461,7 @@ impl Controller {
             let nextStartingIndex: i64 = getNextStartingObjectIndex(objectsToDisplay.size);
             chooseOrCreateGroup(dbIn, leadingTextIn, nextStartingIndex, containingGroupIn)
           } else if (answer == 2 && answer <= choices.length) {
-            let ans = ui.askForString(Some(Array(Util.relationToGroupNamePrompt)));
+            let ans = ui::ask_for_string1(Some(Array(Util.relationToGroupNamePrompt)));
             if (ans.isEmpty || ans.get.trim.length() == 0) None
             else {
               let name = ans.get;
@@ -1480,7 +1475,7 @@ impl Controller {
               }
             }
           } else if (answer == 3 && answer <= choices.length) {
-            let ans = ui.askForString(Some(Array(Util.entityOrGroupNameSqlSearchPrompt(Util.GROUP_TYPE))));
+            let ans = ui::ask_for_string1(Some(Array(Util.entityOrGroupNameSqlSearchPrompt(Util.GROUP_TYPE))));
             if (ans.isEmpty) None
             else {
               // Allow relation to self, so None in 2nd parm.
@@ -1814,7 +1809,7 @@ impl Controller {
             }
           }
         } else if (attrFormIn == 101  /*re "101": an "external web page"; for details see comments etc at javadoc above for attrFormIn.*/) {
-          let newEntityName: Option[String] = ui.askForString(Some(Array {"Enter a name (or description) for this web page or other URI"}));
+          let newEntityName: Option[String] = ui::ask_for_string1(Some(Array {"Enter a name (or description) for this web page or other URI"}));
           if (newEntityName.isEmpty || newEntityName.get.isEmpty) return None
 
           let ans1 = ui.askWhich(Some(Array[String]("Do you want to enter the URI via the keyboard (typing or directly pasting), or" +;
@@ -1823,7 +1818,7 @@ impl Controller {
           if (ans1.isEmpty) return None
           let keyboardOrClipboard1 = ans1.get;
           let uri: String = if (keyboardOrClipboard1 == 1) {;
-            let text = ui.askForString(Some(Array("Enter the URI:")));
+            let text = ui::ask_for_string1(Some(Array("Enter the URI:")));
             if (text.isEmpty || text.get.isEmpty) return None else text.get
           } else {
             let uriReady = ui.askYesNoQuestion("Put the url on the system clipboard, then Enter to continue (or hit ESC or answer 'n' to get out)", Some("y"));
@@ -1841,7 +1836,7 @@ impl Controller {
           } else {
             let keyboardOrClipboard2 = ans2.get;
             if (keyboardOrClipboard2 == 1) {
-              let text = ui.askForString(Some(Array("Enter the quote")));
+              let text = ui::ask_for_string1(Some(Array("Enter the quote")));
               if (text.isEmpty || text.get.isEmpty) return None else text
             } else {
               let clip = ui.askYesNoQuestion("Put a quote on the system clipboard, then Enter to continue (or answer 'n' to get out)", Some("y"));

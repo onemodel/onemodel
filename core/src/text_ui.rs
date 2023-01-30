@@ -56,12 +56,7 @@ impl TextUI {
     pub fn display_text2(&self, text: &str, wait_for_keystroke: bool) {
         self.display_text3(text, wait_for_keystroke, None);
     }
-    pub fn display_text3(
-        &self,
-        text: &str,
-        wait_for_keystroke: bool,
-        pre_prompt: Option<String>,
-    ) {
+    pub fn display_text3(&self, text: &str, wait_for_keystroke: bool, pre_prompt: Option<String>) {
         TextUI::display_visual_separator();
         println!("{}", text);
 
@@ -230,91 +225,149 @@ impl TextUI {
         println!("==============================================")
     }
 
-    /* %%
-      /* Returns the string entered (None if the user just wants out of this question or whatever, unless escKeySkipsCriteriaCheck is false).
-       * The parameter "criteria"'s Option is a function which takes a String (which will be the user input), which it checks for validity.
-       * If the entry didn't meet the criteria, it repeats the question until it does or user gets out w/ ESC.
-       * A simple way to let the user know why it didn't meet the criteria is to put them in the leading text.
-       */
-      //@tailrec //see below note on 'recursive' for why removed 4 now.
-      final fn askForString(leadingTextIn: Option[Array[String]],
-                             criteriaIn: Option[(String) => Boolean] = None,
-                             defaultValueIn: Option[String] = None,
-                             isPasswordIn: Boolean = false,
-                             //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
-                             escKeySkipsCriteriaCheck: Boolean = true)  -> Option[String] {
+    pub fn ask_for_string1(&self, leading_text: Vec<String>) -> Option<String> {
+        self.ask_for_string5(leading_text, None, None, false, true)
+    }
+    pub fn ask_for_string3(&self, leading_text: Vec<String>,
+                       criteria: Option<fn (s: &str) -> bool>,
+                       default_value: Option<String>) -> Option<String> {
+        self.ask_for_string5(leading_text, criteria, default_value, false, true)
+    }
+    pub fn ask_for_string4(&self, leading_text: Vec<String>,
+                       criteria: Option<fn (s: &str) -> bool>,
+                       default_value: Option<String>,
+                       is_password: bool) -> Option<String> {
+        self.ask_for_string5(leading_text, criteria, default_value, is_password, true)
+    }
+    /// Returns the string entered (None if the user just wants out of this question or whatever, unless escKeySkipsCriteriaCheck is false).
+    /// The parameter "criteria"'s Option is a function which takes a String (which will be the user input), which it checks for validity.
+    /// If the entry didn't meet the criteria, it repeats the question until it does or user gets out w/ ESC.
+    /// A simple way to let the user know why it didn't meet the criteria is to put them in the leading text.
+    /// The same-named functions with fewer parameters default to, after the first: None, None, false, true, respectively.
+    //%%@tailrec //see below note on 'recursive' for why removed 4 now.
+    pub fn ask_for_string5(&self, leading_text_in: Vec<String>,
+                       // idea: is there a way to make this Option take a closure or function, instead of
+                       // just a function, as suggested by "The Rust Programming Language" ("the Book"),
+                       // where it mentions "FnMut"?
+                       criteria_in: Option<fn (s: &str) -> bool>,
+                       default_value_in: Option<String>,
+                       is_password_in: bool,
+                       esc_key_skips_criteria_check_in: bool) -> Option<String> {
         let mut count = 0;
-        let lastLineOfPrompt: String = {;
-          let mut lastLineOfPrompt = "";
-          if (leadingTextIn.isDefined) {
-            for (prompt <- leadingTextIn.get) {
-              count = count + 1
-              if (count < leadingTextIn.get.length) {
+        let last_line_of_prompt: String = {
+          let mut last_line_of_prompt = String::new();
+            let num_prompt_lines = leading_text_in.len();
+            for prompt in leading_text_in {
+              count = count + 1;
+              if count < num_prompt_lines {
                 // all but the last one
-                println(prompt)
+                println!("{}", prompt);
               } else {
-                //print(prompt)
-                //if (inDefaultValue.isDefined && inDefaultValue.get.length() > 0) {
-                //  print(" [defaults to " + inDefaultValue.get + "]")
-                //}
-                //println(": ")
-                lastLineOfPrompt = prompt + ": "
+                last_line_of_prompt = prompt + ": "
               }
             }
-          }
-          lastLineOfPrompt
-        }
-        // idea: make this better by using features of or tweaking jline2? Or...? But at least make it easy to see when out of room!
+            last_line_of_prompt
+        };
+        // idea: make this any better by using features of the ~ readline library? Or...?  At least make it
+        // easier to see when out of room?
         //val promptToShowStringSizeLimit = "(Max name length is  " + Controller.maxNameLength
-        let endPrompt = "(... which ends here: |)";
-        if (lastLineOfPrompt.length > 1 && lastLineOfPrompt.length + endPrompt.length - 1 <= Util.maxNameLength) {
-          let spaces: StringBuilder = new StringBuilder("");
-          // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker
-          let padLength: i32 = Util.maxNameLength - lastLineOfPrompt.length - endPrompt.length + 1;
-          for (x <- 0 until padLength) {
-            spaces.append(" ")
+        let end_prompt = "(... which ends here: |)";
+        if last_line_of_prompt.chars().count() > 1 && last_line_of_prompt.chars().count() + end_prompt.chars().count() - 1 <= Util::max_name_length() as usize {
+          let mut spaces: String = String::new();
+          // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker in end_prompt.
+          let pad_length: u32 = Util::max_name_length() - last_line_of_prompt.chars().count() as u32 - end_prompt.chars().count() as u32 + 1;
+          for _ in 0..pad_length {
+            spaces.push(' ')
           }
-          println(lastLineOfPrompt + spaces + endPrompt)
-        } else println(lastLineOfPrompt)
-
-        // thread is for causing jline to display the default text for editing, after readLine call begins.  (is there a better way?)
-        new Thread {
-          override fn run() {
-            // wait for the readline below to start, before putting something in it
-            Thread.sleep(80)
-            jlineReader.putString(defaultValueIn.getOrElse(""))
-            jlineReader.redrawLine()
-            jlineReader.flush()
-          }
-        }.start()
-
-        //jlineReader.readLine()
-        let line = jlineReader.readLine(null, if (isPasswordIn) '*' else null);
-        if (line == null) {
-          None
+          println!("{}{}{}",last_line_of_prompt, spaces, end_prompt)
         } else {
-          fn checkCriteria(line: String) -> Option[String] {
-            if (criteriaIn.isEmpty || criteriaIn.get(line)) {
-              Some(line)
-            } else {
-              display_text("Didn't pass the criteria; please re-enter.")
-              // this gets "recursive call not in tail position", until new version of jvm that allows scala2do it?
-              askForString(leadingTextIn, criteriaIn, defaultValueIn, isPasswordIn, escKeySkipsCriteriaCheck)
-            }
-          }
-
-          if (line.isEmpty && escKeySkipsCriteriaCheck) {
-            None
-          } else {
-            checkCriteria(line)
-          }
+            println!("{last_line_of_prompt}");
         }
-      }
 
-        fn linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int) -> Int {
+        use rustyline::error::ReadlineError;
+        use rustyline::{Editor, Result};
+        // `()` can be used when no completer is required
+        let initial_text = match default_value_in {
+            None => "".to_string(),
+            Some(s) => s,
+        };
+        let user_input: Option<String> = loop {
+            let r = Editor::<()>::new();
+            match r {
+                Err(e) => {
+                    eprintln!("Unable to create line editor in ask_for_string5():  {}", e.to_string());
+                    break None;
+                },
+                Ok(mut editor) => {
+                    let line = editor.readline_with_initial("", (initial_text.as_str(), ""));
+                    match line {
+                        Ok(l) => {
+                            match criteria_in {
+                                None => break Some(l),
+                                Some(check_criteria_function) => {
+                                    if check_criteria_function(l.as_str()) {
+                                        break Some(l);
+                                    } else {
+                                        self.display_text1("Didn't pass the criteria; please re-enter.");
+                                        continue;
+                                    }
+                                }
+                            }
+                        },
+                        Err(ReadlineError::Interrupted) => {
+                            println!("CTRL-C");
+                            // user wants out.
+                            // %%but shouldn't controller be doing that? pass none back instead or
+                            // what? or just reqd here to make ^C work?
+                            std::process::exit(1);
+                        },
+                        Err(err) => {
+                            println!("Error: {:?}", err);
+                            break None;
+                        }
+                    }
+                }
+            };
+        };
+
+        //%%see if ESC does get user out (or blank)?
+        //%%test use of esc_key_skips_criteria_check_in ? is it called w/ that parm = true, ever? fr where--test that?
+        // if (line != null) {
+        //   fn checkCriteria(line: String) -> Option[String] {
+        //     if (criteria_in.isEmpty || criteria_in.get(line)) {
+        //       Some(line)
+        //     } else {
+        //       display_text("Didn't pass the criteria; please re-enter.")
+        //       // this gets "recursive call not in tail position", until new version of jvm that allows scala2do it?
+        //       ask_for_string(leading_text_in, criteria_in, default_value_in, is_password_in, esc_key_skips_criteria_check_in)
+        //     }
+        //   }
+        //   if (line.isEmpty && esc_key_skips_criteria_check_in) {
+        //     None
+        //   } else {
+        //     checkCriteria(line)
+        //   }
+        // }
+
+        let x = user_input.unwrap_or("None".to_string());
+        let y = format!("{}", x);
+        println!("user input: {}", y);//%%
+        // return user_input;
+        return Some(y);
+
+        //%%$%%%
+        //%%why did blank pwd not give any err nor exit? try gdb or how best2debug? (was when util.get_default_user_login alw returned a bad def pwd)
+        //%%see if the editor history has password in it? is there any edi hist or have2specify?see docs
+        //%%add password mask -- use dialoguer crate? or ask/ck issue tracker for rustyline?
+            // let line = jlineReader.readLine(null, if (is_password_in) '*' else null);
+        //%%make ^C work to get out of prompt! ?  see where trapped ("Error: ..."), just above.
+    }
+
+    /* %%
+    fn linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int) -> Int {
         let linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 5 // 5 as described in one caller;
         terminalHeight - linesUsedBeforeMoreChoices
-      }
+    }
 
       /** The # of attributes ("moreChoices" elsewhere) that will likely fit in the space available on the
         * screen AFTER the preceding leadingText lines + menu size + 5: 1 line added by askWhich(...) (for the 0/ESC menu option), 1 line for the visual separator,
@@ -552,7 +605,7 @@ impl TextUI {
 
       /** true means yes, None means user wants out. */
         fn askYesNoQuestion(promptIn: String, defaultValueIn: Option[String] = Some("n"), allowBlankAnswer: Boolean = false) -> Option[Boolean] {
-        let ans = askForString(Some(Array[String](promptIn + " (y/n)")),;
+        let ans = ask_for_string(Some(Array[String](promptIn + " (y/n)")),;
                                if (allowBlankAnswer) Some(isValidYesNoOrBlankAnswer) else Some(isValidYesNoAnswer),
                                defaultValueIn, escKeySkipsCriteriaCheck = allowBlankAnswer)
         if (allowBlankAnswer && (ans.isEmpty || ans.get.trim.isEmpty)) None

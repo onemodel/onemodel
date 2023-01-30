@@ -21,18 +21,28 @@ use crate::text_ui::TextUI;
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.
+// Next line and "async" needed due to use of sqlx crate.
 #[tokio::main] //%%%$%where put this thing fr sqlx pg example? what means/does?
 async fn main() {
     //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
+    /*%%$%%next tasks?:
+        cont in textui.rs the ask_for_string5 ~282
+        going2use the database trait in pg.rs/controller? read more there & try it or wait?
+        other %%$%%s &c
+     */
 
     let args: Vec<String> = env::args().collect();
     // dbg!(args.as_slice());
-    //%%see std::env::args() docs: next 2 args dift on windows, might be 0 & 1 not 1 & 2?
+    //%%see std::env::args() docs: next 2 args dift on windows, might be 0 & 1 not 1 & 2? If a change,
+    // see next cmt also about args.len() and adjust if needed, for windows.
     let default_username: Option<&String> = args.get(1);
     let default_password: Option<&String> = args.get(2);
-    //%%let (default_username: Option<String>, default_password: Option<&String>) = (args.get(1), args.get(2));
-    dbg!(default_username, default_password); //%%
-    let force_user_pass_prompt: bool = if args.len() == 1 { true } else { false };
+    // If user provides a single command-line argument to the app, consider that a request to
+    // prompt for username & password. (The first argument, in my environment, is always the name
+    // of the app, so when the user provides another that makes 2.  That was not true under
+    // java, only user-provided arguments being included in args, so the length check then was
+    // just 1 to set forceUsernamePasswordPrompt to true.)
+    let force_user_pass_prompt: bool = if args.len() == 2 { true } else { false };
     println!("args.len: {}", args.len());//%%
     println!( //%%
         "forceUsernamePasswordPrompt: {}",

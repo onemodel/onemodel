@@ -21,7 +21,7 @@ use futures::executor::block_on;
 pub struct PostgreSQLDatabase {
     // connection: Connection,
     //%%$%%
-    // pool: PgPool,
+    pool: PgPool,
     // When true, this means to override the usual settings and show the archived entities too (like a global temporary "un-archive"):
     include_archived_entities: bool,
 }
@@ -239,6 +239,7 @@ impl PostgreSQLDatabase {
     // class PostgreSQLDatabase(username: String, let mut password: String) extends Database {;
     //%%$%%
     pub fn login(username: &str, password: &str) -> Result<PostgreSQLDatabase, String/*%%&'static str*/> {
+    //     %%del next 3 lines?
     //     PostgreSQLDatabase::new(username, password)
     // }
     // pub async fn new(username: &str, password: &str) -> Result<PostgreSQLDatabase, sqlx::Error> {
@@ -264,8 +265,7 @@ impl PostgreSQLDatabase {
 
         Ok(PostgreSQLDatabase {
             include_archived_entities,
-            //%%$%%
-            // pool,
+            pool,
         })
     }
     /*
@@ -295,38 +295,24 @@ impl PostgreSQLDatabase {
         }
       }
 %%$%*/
-    // async fn connect(db_name_without_prefix: &str, username: &str, password: &str) -> Result<Connection, sqlx::Error> {
     fn connect(db_name_without_prefix: &str, username: &str, password: &str) -> Result<PgPool, sqlx::Error> {
-        // try {
-        //   if (connection != null) {
-        //%%?:     connection.close()
-        //   }
-        // } catch {
-        //   case e: Exception => throw new RuntimeException(e)
-        // }
-        // connection = DriverManager.getConnection(PostgreSQLDatabase.jdbcUrl(db_name_without_prefix), username, password)
         //%%$% connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
         // (to connect to remote hosts, see logic in the connect() method and jdbcUrl(), in the older
         // PostgreSQLDatabase.scala file.  db_name() has replaced it here for now.)
         let connect_str = format!("postgres://{}:{}@localhost/{}", username, password, Self::db_name(db_name_without_prefix));
-        //%%$%%% let pool = PgPoolOptions::new()
         let future = PgPoolOptions::new()
             .max_connections(5)
             // .connect(connect_str.as_str()).await?;
             .connect(connect_str.as_str());
         let pool = block_on(future)?;
-        // let row: (i64,) = sqlx::query_as("SELECT count(1) from entity")
-        // let row: (i64, ) = sqlx::query_as("SELECT $1")
-        //%%$%%
-        // let row: (i64, ) = sqlx::query_as("SELECT $1")
-        let future = sqlx::query_as("SELECT $1")
-            .bind(150_i64)
-            .fetch_one(&pool);
-        let row: (i64, ) = block_on(future).unwrap();
-        assert_eq!(row.0, 150);
-        println!("Result returned from sql!: {}  ******************************", row.0);
-
-        // Ok(connection)
+        //%%$%just some testing, can delete after next commit, or use for a while for reference.
+        // // let future = sqlx::query_as("SELECT $1")
+        // let future = sqlx::query_as("SELECT count(1) from entity")
+        //     .bind(150_i64)
+        //     .fetch_one(&pool);
+        // let row: (i64, ) = block_on(future).unwrap();
+        // // assert_eq!(row.0, 150);
+        // println!("Result returned from sql!: {}  ******************************", row.0);
         Ok(pool)
     }
 }

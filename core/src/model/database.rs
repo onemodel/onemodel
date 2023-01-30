@@ -76,17 +76,6 @@ pub trait Database {
         // where we create the table also calls this.
         // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
         // is needed, maybe it should be put in a TextAttribute and make those more convenient to use, instead.
-        pub fn entityNameLength() -> Int { 160 }
-
-        // in postgres, one table "extends" the other (see comments in createTables)
-        pub fn relationTypeNameLength() -> Int {
-            entityNameLength
-        }
-
-        pub fn classNameLength() -> Int {
-            entityNameLength
-        }
-
         // (See usages. The DNS hostname max size seems to be 255 plus 1 null, but the ":<port>" part could add 6 more chars (they seem to go up to :65535).
         // Maybe someday we will have to move to a larger size in case it changes or uses unicode or I don't know what.)
         pub fn omInstanceAddressLength() -> Int {

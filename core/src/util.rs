@@ -9,7 +9,6 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-
 // use crate::controllers::controller::Controller;
 // use crate::text_ui::TextUI;
 
@@ -19,14 +18,31 @@
 pub struct Util {}
 
 impl Util {
-    /// These constants are%%$%%were here because their presence in database.rs prevents Database from being used
+    /// These constants are%%$%%/were here because their presence in database.rs prevents Database from being used
     /// as a trait object.  See https://doc.rust-lang.org/reference/items/traits.html#object-safety etc for details.
     /// (Maybe they could go into model/mod.rs or some new struct file instead; haven't tried that.)
+    fn entity_name_length() -> u32 { 160 }
 
+    // in postgres, one table "extends" the other (see comments in createTables)
+    fn relation_type_name_length() -> u32 {
+        Self::entity_name_length()
+    }
+
+    fn class_name_length() -> u32 {
+        Self::entity_name_length()
+    }
+
+
+    pub fn max_name_length() -> u32 {
+        std::cmp::max(std::cmp::max(Self::entity_name_length(),
+                                    Self::relation_type_name_length()),
+                      Self::class_name_length())
+        // std::cmp::max(std::cmp::max(crate::model::database::Database::entityNameLength(),
+        //                             Database::relationTypeNameLength()),
+        //               Database::classNameLength())
+    }
     /* %%
       // should these be more consistently upper-case? What is the scala style for constants?  similarly in other classes.
-        fn maxNameLength: Int = math.max(math.max(Database.entityNameLength, Database.relationTypeNameLength),
-                                        Database.classNameLength)
       let NEWLN: String = System.getProperty("line.separator");
       // Might not be the most familiar date form for us Americans, but it seems the most useful in the widest
       // variety of situations, and more readable than with the "T" embedded in place of
@@ -151,7 +167,7 @@ impl Util {
         } else Some(previouslyHighlightedEntryIn)
       }
 */
-      pub fn get_default_user_info() -> Result<(String, &'static str), String> {
+      pub fn get_default_user_login() -> Result<(String, &'static str), String> {
           //%%how do platform-independently? some crate? std doesn't seem to have a clear answer.
           //was in scala: (System.getProperty("user.name"), "x")
           match std::env::var("USER") {
