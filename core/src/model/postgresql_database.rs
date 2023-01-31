@@ -6,12 +6,6 @@
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
-
-  ---------------------------------------------------
-  A possible alternative to this use of jdbc is to use jdbc escapes (but this actually might be even more work?):
-      http://jdbc.postgresql.org/documentation/head/escapes.html  .
-  Another alternative is a layer like JPA, ibatis, hibernate  etc etc.
-  (The above comment is referenced in many files that say: "See comment in this place in PostgreSQLDatabase.scala about ....")
 */
 use crate::model::database::Database;
 use sqlx::postgres::PgPoolOptions;
@@ -28,7 +22,6 @@ pub struct PostgreSQLDatabase {
 impl PostgreSQLDatabase {
     const CURRENT_DB_VERSION: i32 = 7;
     //%%
-    // override fn isRemote: Boolean = false;
     const ENTITY_ONLY_SELECT_PART: &'static str = "SELECT e.id";
 
     /*%%
@@ -235,7 +228,7 @@ impl PostgreSQLDatabase {
      * turned back on.
      */
  */
-    pub fn login(username: &str, password: &str) -> Result<PostgreSQLDatabase, String> {
+    pub fn login(username: &str, password: &str) -> Result<Box<dyn Database>, String> {
         let include_archived_entities = false;
         let r = Self::connect(username, username, password); //%%.await;
         let pool: PgPool;
@@ -251,10 +244,10 @@ impl PostgreSQLDatabase {
         // doDatabaseUpgradesIfNeeded()
         // createAndCheckExpectedData()
 
-        Ok(PostgreSQLDatabase {
+        Ok(Box::new(PostgreSQLDatabase {
             include_archived_entities,
             pool,
-        })
+        }))
     }
     /*%%
       /** For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
@@ -306,6 +299,7 @@ impl PostgreSQLDatabase {
 }
 
 impl Database for PostgreSQLDatabase {
+    fn is_remote(&self) -> bool { false }
 
     /*
       /** @param skipCheckForBadSqlIn   Avoid using this parameter! See comment on PostgreSQLDatabase.dbAction.
@@ -2843,11 +2837,11 @@ impl Database for PostgreSQLDatabase {
         doesThisExist("SELECT count(1) from FileAttribute where id=" + idIn)
         }
 
-        fn relationToLocalentity_key_exists(idIn: i64) -> Boolean {
+        fn relationToLocal_entity_key_exists(idIn: i64) -> Boolean {
          doesThisExist("SELECT count(1) from RelationToEntity where id=" + idIn)
          }
 
-        fn relationToRemoteentity_key_exists(idIn: i64) -> Boolean {
+        fn relationToRemote_entity_key_exists(idIn: i64) -> Boolean {
         doesThisExist("SELECT count(1) from RelationToRemoteEntity where id=" + idIn)
         }
 
@@ -2867,9 +2861,9 @@ impl Database for PostgreSQLDatabase {
             case 3 => booleanAttributeKeyExists(idIn)
             case 4 => fileAttributeKeyExists(idIn)
             case 5 => textAttributeKeyExists(idIn)
-            case 6 => relationToLocalentity_key_exists(idIn)
+            case 6 => relationToLocal_entity_key_exists(idIn)
             case 7 => relationToGroupKeyExists(idIn)
-            case 8 => relationToRemoteentity_key_exists(idIn)
+            case 8 => relationToRemote_entity_key_exists(idIn)
             case _ => throw new OmDatabaseException("unexpected")
           }
       }

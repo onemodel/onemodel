@@ -6,9 +6,6 @@
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
-
-  ---------------------------------------------------
-  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 struct OmInstance  {
 /*%%
@@ -40,8 +37,8 @@ object OmInstance {
   */
 class OmInstance(val mDB: Database, mId: String) {
   //Idea: make mId *etc* private in all model classes? and rename mDB to just db ("uniform access principle")?
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
-  if (!mDB.isRemote && !mDB.omInstanceKeyExists(mId)) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
+  if (!mDB.is_remote && !mDB.omInstanceKeyExists(mId)) {
     throw new OmException("Key " + mId + Util.DOES_NOT_EXIST)
   }
 

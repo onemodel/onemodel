@@ -6,9 +6,6 @@
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
-
-  ---------------------------------------------------
-  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 struct Group {
 /*%%
@@ -42,8 +39,8 @@ object Group {
   * Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
   * */
 class Group(val mDB: Database, mId: i64) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
-  if (!mDB.isRemote && !mDB.groupKeyExists(mId: i64)) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
+  if (!mDB.is_remote && !mDB.groupKeyExists(mId: i64)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 

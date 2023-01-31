@@ -36,8 +36,8 @@ object RelationToGroup {
 
 /** See comments on similar methods in RelationToEntity (or maybe its subclasses). */
 class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, mGroupId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.)
-  if (mDB.isRemote || mDB.relationToGroupKeysExistAndMatch(mId, mEntityId, mRelTypeId, mGroupId)) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
+  if (mDB.is_remote || mDB.relationToGroupKeysExistAndMatch(mId, mEntityId, mRelTypeId, mGroupId)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' let mut doesn't overwrite this w/ 0:;
     mAttrTypeId = mRelTypeId
   } else {

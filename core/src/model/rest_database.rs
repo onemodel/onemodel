@@ -265,7 +265,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCall[List[Array[Option[Any]]], Any]("http://" + mRemoteAddress + pathIn, processListArrayOptionAny, None, inputs)
   }
 
-    fn isRemote() -> Boolean {
+    fn is_remote() -> Boolean {
     true
     }
 

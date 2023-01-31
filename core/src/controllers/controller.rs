@@ -10,7 +10,7 @@
 */
 
 use crate::model::postgresql_database::PostgreSQLDatabase;
-// use crate::model::database::Database;
+use crate::model::database::Database;
 use crate::util::Util;
 use crate::TextUI;
 
@@ -34,14 +34,7 @@ pub struct Controller {
     // NOTE: This should *not* be passed around as a parameter to everything, but rather those
     // places in the code should get the DB instance from the
     // entity (or other model object) being processed, to be sure the correct db instance is used.
-    db: PostgreSQLDatabase, //%%$%use "dyn" here & below at warnings?:
-    /*%%$%other qs looking at now:
-        consider whether to use "Database" in place of "PostgreSQLDatabase" in places below for correctness? or wait/YAGNI?
-        doing what 4docs say re trait...?
-        What are the above/below T doing (the err msgs)
-        what triggered compiler asking for "dyn"?
-        doesnt dyn have to be a Box or reference?
-     */
+    db: Box<dyn Database>,
     // putting this in a var instead of recalculating it every time (too frequent) inside find_default_display_entity_id:
     //%%$%%
     // show_public_private_status_preference: Option<bool>,
@@ -146,7 +139,7 @@ impl Controller {
 
     /// If the 1st parm is true, the next 2 must be None.
     fn try_db_logins<'a>(force_user_pass_prompt: bool, ui: &'a TextUI, default_username: Option<&String>,
-                            default_password: Option<&String>) -> Result<PostgreSQLDatabase, String> {
+                            default_password: Option<&String>) -> Result<Box<dyn Database>, String> {
         if force_user_pass_prompt {
             //%%why had this assertion before?:  delete it now?  (it was a "require" in Controller.scala .)
             // assert!(default_username.is_none() && default_password.is_none());
@@ -162,17 +155,16 @@ impl Controller {
                 ui.display_text1("How could password be absent? Just checked and it was there.");
                 std::process::exit(1);
             });
-            let db_result: Result<PostgreSQLDatabase, String> = PostgreSQLDatabase::login(user, pass);
+            let db_result = PostgreSQLDatabase::login(user, pass);
             // not attempting to clear that password variable because
             // maybe the default kind is less intended to be secure, anyway?
             db_result
         } else {
-            println!("{}","%%$%2: put back next line when ready to implement TextUI.ask_for_string l 240".to_string());
             Self::try_other_logins_or_prompt(ui)
         }
     }
 
-    fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<PostgreSQLDatabase, String> {
+    fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<Box<dyn Database>, String> {
         loop {
             let usr = ui.ask_for_string1(vec!("Username".to_string()));
             match usr {
@@ -204,7 +196,7 @@ impl Controller {
     }
 
     /// Tries the system username & default password, & if that doesn't work, prompts user.
-    fn try_other_logins_or_prompt(ui: &TextUI) -> Result<PostgreSQLDatabase, String> {
+    fn try_other_logins_or_prompt(ui: &TextUI) -> Result<Box<dyn Database>, String> {
         // (this loop is to simulate recursion, and let the user retry entering username/password)
         loop {
             // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank
@@ -257,7 +249,7 @@ impl Controller {
         }
     }
 
-    // Idea: show_public_private_status_preference, refresh_public_private_status_preference, and finddefault_display_entity_id, feel awkward.
+    // Idea: show_public_private_status_preference, refresh_public_private_status_preference, and find_default_display_entity_id(), feel awkward.
     // Needs something better, but I'm not sure
     // what, at the moment.  It was created this way as a sort of cache because looking it up every time was costly and made the app slow, like when
     // displaying a list of entities (getting the preference every time, to N levels deep), and especially at startup when checking for the default
@@ -815,7 +807,7 @@ impl Controller {
         fn askForAttributeData[T <: AttributeDataHolder](dbIn: Database, inoutDH: T, alsoAskForAttrTypeId: Boolean, attrType: String, attrTypeInputPrompt: Option[String],
                                                         inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option<i64>,
                                                         askForOtherInfo: (Database, T, Boolean, TextUI) => Option[T], editingIn: Boolean) -> Option[T] {
-        let (userWantsOut: Boolean, attrTypeId: i64, isRemote, remoteKey) = {
+        let (userWantsOut: Boolean, attrTypeId: i64, is_remote, remoteKey) = {
           if (alsoAskForAttrTypeId) {
             require(attrTypeInputPrompt.isDefined)
             let ans: Option[(IdWrapper, Boolean, String)] = chooseOrCreateObject(dbIn, Some(List(attrTypeInputPrompt.get)), inPreviousSelectionDesc,;
@@ -827,15 +819,15 @@ impl Controller {
             }
           } else {
             // maybe not ever reached under current system logic. not certain.
-            let (isRemote, remoteKey) = {;
+            let (is_remote, remoteKey) = {;
               //noinspection TypeCheckCanBeMatch
               if (inoutDH.isInstanceOf[RelationToEntityDataHolder]) {
-                (inoutDH.asInstanceOf[RelationToEntityDataHolder].isRemote, inoutDH.asInstanceOf[RelationToEntityDataHolder].remoteInstanceId)
+                (inoutDH.asInstanceOf[RelationToEntityDataHolder].is_remote, inoutDH.asInstanceOf[RelationToEntityDataHolder].remoteInstanceId)
               } else {
                 (false, "")
               }
             }
-            (false, inoutDH.attrTypeId, isRemote, remoteKey)
+            (false, inoutDH.attrTypeId, is_remote, remoteKey)
           }
         }
 
@@ -845,7 +837,7 @@ impl Controller {
           inoutDH.attrTypeId = attrTypeId
           //noinspection TypeCheckCanBeMatch
           if (inoutDH.isInstanceOf[RelationToEntityDataHolder]) {
-            inoutDH.asInstanceOf[RelationToEntityDataHolder].isRemote = isRemote
+            inoutDH.asInstanceOf[RelationToEntityDataHolder].is_remote = is_remote
             inoutDH.asInstanceOf[RelationToEntityDataHolder].remoteInstanceId = remoteKey
           }
           let ans2: Option[T] = askForOtherInfo(dbIn, inoutDH, editingIn, ui);
@@ -1515,7 +1507,7 @@ impl Controller {
           let outDH = dhIn;
           let id: i64 = selection.get._1.getId;
           outDH.entityId2 = id
-          outDH.isRemote = selection.get._2
+          outDH.is_remote = selection.get._2
           outDH.remoteInstanceId = selection.get._3
           Some(outDH)
         }
@@ -1751,7 +1743,7 @@ impl Controller {
           //(This is in a condition that says "...LOCAL..." but is also for RELATION_TO_REMOTE_ENTITY_TYPE.  See caller for details if interested.)
           def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[AttributeWithValidAndObservedDates] = {
             let relation = {;
-              if (dhIn.isRemote) {
+              if (dhIn.is_remote) {
                 entityIn.addRelationToRemoteEntity(dhIn.attrTypeId, dhIn.entityId2, None, dhIn.validOnDate, dhIn.observationDate, dhIn.remoteInstanceId)
               } else {
                 entityIn.addRelationToLocalEntity(dhIn.attrTypeId, dhIn.entityId2, None, dhIn.validOnDate, dhIn.observationDate)
@@ -2076,8 +2068,8 @@ impl Controller {
                 if (dh.isDefined) {
       //            let relation = entityIn.addRelationToEntity(dh.get.attrTypeId, dh.get.entityId2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
       //                                                        dh.get.validOnDate, dh.get.observationDate,
-      //                                                        dh.get.isRemote, if (!dh.get.isRemote) None else Some(dh.get.remoteInstanceId))
-                  if (dh.get.isRemote) {
+      //                                                        dh.get.is_remote, if (!dh.get.is_remote) None else Some(dh.get.remoteInstanceId))
+                  if (dh.get.is_remote) {
                     let rtre = entityIn.addRelationToRemoteEntity(dh.get.attrTypeId, dh.get.entityId2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
                                                                   dh.get.validOnDate, dh.get.observationDate, dh.get.remoteInstanceId)
                     (Some(rtre), askEveryTime)
@@ -2091,7 +2083,7 @@ impl Controller {
                 }
               } else if (allKeepReference || (howCopyRteResponse.isDefined && howCopyRteResponse.get == keepSameReferenceAsInTemplateChoiceNum)) {
                 let relation = {;
-                  if (relationToEntityAttributeFromTemplateIn.mDB.isRemote) {
+                  if (relationToEntityAttributeFromTemplateIn.mDB.is_remote) {
                     entityIn.addRelationToRemoteEntity(relationToEntityAttributeFromTemplateIn.getAttrTypeId, relatedId2,
                                                        Some(relationToEntityAttributeFromTemplateIn.getSortingIndex), None, System.currentTimeMillis(),
                                                        relationToEntityAttributeFromTemplateIn.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId)

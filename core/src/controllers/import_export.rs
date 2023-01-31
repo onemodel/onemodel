@@ -1353,7 +1353,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
     fn getExportFileNamePrefix(entity: Entity, exportTypeIn: String) -> String {
     let entityIdentifier: String = {;
-      if (entity.mDB.isRemote) {
+      if (entity.mDB.is_remote) {
         require(entity.mDB.getRemoteAddress.isDefined)
         "remote-" + entity.readableIdentifier
       } else {

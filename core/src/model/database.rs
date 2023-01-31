@@ -20,52 +20,9 @@ import scala.collection.mutable
 // }
 
 pub trait Database {
-    const DB_NAME_PREFIX: &'static str = "om_";
-    // If next line ever changes, search the code for other places that also have it hard-coded, to change also
-    // (ex., INSTALLING, first.exp or its successors, any .psql scripts, ....  "t1/x" is shorter to type
-    // during manual testing than "testrunner/testrunner".
-    const TEST_USER: &'static str = "t1";
-    const TEST_PASS: &'static str = "x";
-    /*%%$%WHY cant i see the below constants in other scopes? mbe make things compile w/ lifetimes per beleow then retry? (i nfiles database, main, ~pgdb.rs).
-    then cont reading re lifetimes and fix below errs and others in cr or build ^B output
-    BETR IDEA: see if any used in stdlib, how referred to?
-    ideas: make pub? put in dift/broader scope like main then move here until i see?
-    idea: use static instead? read more re static & const?
-    */
-    const MIXED_CLASSES_EXCEPTION: &'static str = "All the entities in a group should be of the same class.";
-    // so named to make it unlikely to collide by name with anything else:
-    const SYSTEM_ENTITY_NAME: &'static str = ".system-use-only";
-    // aka template entities:
-    const CLASS_TEMPLATE_ENTITY_GROUP_NAME: &'static str = "class-defining entities";
-    const THE_HAS_RELATION_TYPE_NAME: &'static str = "has";
-    const THE_IS_HAD_BY_REVERSE_NAME: &'static str = "is had by";
-    const EDITOR_INFO_ENTITY_NAME: &'static str = "editorInfo";
-    const TEXT_EDITOR_INFO_ENTITY_NAME: &'static str = "textEditorInfo";
-    const TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME: &'static str = "textEditorCommand";
-    const PREF_TYPE_BOOLEAN: &'static str = "boolean";
-    const PREF_TYPE_ENTITY_ID: &'static str = "entityId";
-    const TEMPLATE_NAME_SUFFIX: &'static str = "-template";
-    const UNUSED_GROUP_ERR1: &'static str = "No available index found which is not already used. How would so many be used?";
-    const UNUSED_GROUP_ERR2: &'static str = "Very unexpected, but could it be that you are running out of available sorting indexes!?  Have someone check, before you need to create, for example, a thousand more entities.";
-    const GET_CLASS_DATA__RESULT_TYPES: &'static str = "String,i64,Boolean";
-    const GET_RELATION_TYPE_DATA__RESULT_TYPES: &'static str = "String,String,String";
-    const GET_OM_INSTANCE_DATA__RESULT_TYPES: &'static str = "Boolean,String,i64,i64";
-    const GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,i64,Float,i64,i64,i64,i64";
-    const GET_DATE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
-    const GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,Boolean,i64,i64,i64,i64";
-    const GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,String,i64,i64,i64,String,Boolean,Boolean,Boolean,i64,String,i64";
-    const GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,String,i64,i64,i64,i64";
-    const GET_RELATION_TO_GROUP_DATA_BY_ID__RESULT_TYPES: &'static str = "i64,i64,i64,i64,i64,i64,i64";
-    const GET_RELATION_TO_GROUP_DATA_BY_KEYS__RESULT_TYPES: &'static str = "i64,i64,i64,i64,i64,i64,i64";
-    const GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
-    const GET_RELATION_TO_REMOTE_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
-    const GET_GROUP_DATA__RESULT_TYPES: &'static str = "String,i64,Boolean,Boolean";
-    const GET_ENTITY_DATA__RESULT_TYPES: &'static str = "String,i64,i64,Boolean,Boolean,Boolean";
-    const GET_GROUP_ENTRIES_DATA__RESULT_TYPES: &'static str = "i64,i64";
+        fn is_remote(&self) -> bool;
 
-    /*
-        //%%$% next?: read up on traits and using them. the fns below, to be impld by pgdb .rs file.
-        fn isRemote() -> bool;
+        /* //%%$% next?: read up on traits and using them. the fns below, to be impl'ed by pgDb .rs file.
         fn getRemoteAddress() -> Option[String] = None;
         // let id: String; // %%used for?
         fn includeArchivedEntities() -> bool;
@@ -140,7 +97,7 @@ pub trait Database {
     pub fn currentOrRemoteDb(relationToEntityIn: Attribute, currentDb: Database) -> Database {
       require(relationToEntityIn.isInstanceOf[RelationToLocalEntity] || relationToEntityIn.isInstanceOf[RelationToRemoteEntity])
 
-      // Can't use ".isRemote" here because a RelationToRemoteEntity is stored locally (so would say false),
+      // Can't use ".is_remote" here because a RelationToRemoteEntity is stored locally (so would say false),
       // but refers to an entity which is remote (so we want the next line to be true in that case):
       //noinspection TypeCheckCanBeMatch
       if (relationToEntityIn.isInstanceOf[RelationToRemoteEntity]) {
@@ -204,7 +161,7 @@ pub trait Database {
     fn booleanAttributeKeyExists(idIn: i64) -> Boolean;
     fn fileAttributeKeyExists(idIn: i64) -> Boolean;
     fn textAttributeKeyExists(idIn: i64) -> Boolean;
-    pub fn relationToLocalentity_key_exists(idIn: i64) -> Boolean;
+    pub fn relationToLocal_entity_key_exists(idIn: i64) -> Boolean;
     pub fn groupKeyExists(idIn: i64) -> Boolean;
     fn relationToGroupKeysExistAndMatch(id: i64, entityId: i64, relTypeId: i64, groupId: i64) -> Boolean;
     fn classKeyExists(idIn: i64) -> Boolean;
@@ -223,7 +180,7 @@ pub trait Database {
     fn getFileAttributeContent(fileAttributeIdIn: i64, outputStreamIn: java.io.OutputStream) -> (i64, String);
     fn getTextAttributeData(idIn: i64) -> Array[Option[Any]];
     fn relationToLocalEntityKeysExistAndMatch(idIn: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64) -> Boolean;
-    fn relationToRemoteentity_key_exists(idIn: i64) -> Boolean;
+    fn relationToRemote_entity_key_exists(idIn: i64) -> Boolean;
     fn relationToRemoteEntityKeysExistAndMatch(idIn: i64, relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64) -> Boolean;
     fn getRelationToLocalEntityData(relTypeIdIn: i64, entityId1In: i64, entityId2In: i64) -> Array[Option[Any]];
     fn getRelationToLocalEntityDataById(idIn: i64) -> Array[Option[Any]];
@@ -354,7 +311,7 @@ pub trait Database {
     fn deleteGroupAndRelationsToIt(idIn: i64);
     fn deleteRelationType(idIn: i64);
     fn deleteClassAndItsTemplateEntity(classIdIn: i64);
-    fn deleteGroupRelationsToItAndItsEntries(groupidIn: i64);
+    fn deleteGroupRelationsToItAndItsEntries(groupIdIn: i64);
     fn deleteOmInstance(idIn: String) -> Unit;
     fn removeEntityFromGroup(groupIdIn: i64, containedEntityIdIn: i64, callerManagesTransactionsIn: Boolean = false);
 

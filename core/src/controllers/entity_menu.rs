@@ -327,7 +327,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     choices = choices :+ "Select target (entry move destination: gets a '+' marker)"
     // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
     choices = choices :+ (if (numAttrsIn > 0) "Select attribute to highlight (with '*'; type a letter to go to its attr menu)" else "(stub)")
-    choices = choices :+ (if (controller.getDefaultEntity.isEmpty && !entityIn.mDB.isRemote) "****TRY ME---> " else "") + "Other entity operations..."
+    choices = choices :+ (if (controller.getDefaultEntity.isEmpty && !entityIn.mDB.is_remote) "****TRY ME---> " else "") + "Other entity operations..."
     choices
   }
 

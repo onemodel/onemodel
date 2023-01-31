@@ -6,9 +6,6 @@
     OneModel is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
-
-  ---------------------------------------------------
-  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 struct BooleanAttribute {
 /*%%
@@ -21,7 +18,7 @@ import org.onemodel.core.{OmException, Util}
 class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
   // wait for an error later to see if there is a problem (ie, assuming usually not).
-  if (!mDB.isRemote && !mDB.booleanAttributeKeyExists(mId)) {
+  if (!mDB.is_remote && !mDB.booleanAttributeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 

@@ -8,9 +8,6 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 
     (This was originally cloned from RelationToEntity which has the above copyright years for its contents.)
-
-  ---------------------------------------------------
-  (See comment in this place in PostgreSQLDatabase.scala about possible alternatives to this use of the db via this layer and jdbc.)
 */
 struct RelationToLocalEntity {
 /*%%
@@ -47,10 +44,10 @@ object RelationToLocalEntity {
 class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1: i64,
                              mEntityId2: i64) extends RelationToEntity(mDB, mId, mRelTypeId, mEntityId1, mEntityId2) {
   // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
-  // Even a RelationToRemoteEntity can have mDB.isRemote == true, if it is viewing data *in* a remote OM instance
+  // Even a RelationToRemoteEntity can have mDB.is_remote == true, if it is viewing data *in* a remote OM instance
   // looking at RTLEs that are remote to that remote instance.
-  // See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.isRemote.
-  if (mDB.isRemote || mDB.relationToLocalEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mEntityId2)) {
+  // See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.
+  if (mDB.is_remote || mDB.relationToLocalEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mEntityId2)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:;
     mAttrTypeId = mRelTypeId
   } else {

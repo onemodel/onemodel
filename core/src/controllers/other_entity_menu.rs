@@ -43,7 +43,7 @@ struct OtherEntityMenu {
           let defaultEntity: Option<i64> = if (defaultEntityTuple.isEmpty) None else Some(defaultEntityTuple.get._1);
           let entityIsAlreadyTheDefault: bool = defaultEntity.isDefined && defaultEntity.get == entityIn.getId;
           if (! entityIsAlreadyTheDefault) {
-            choices = choices :+ ((if (defaultEntity.isEmpty && !entityIn.mDB.isRemote) "****TRY ME---> " else "") +
+            choices = choices :+ ((if (defaultEntity.isEmpty && !entityIn.mDB.is_remote) "****TRY ME---> " else "") +
                                   "Set current entity as default (first to come up when launching this program.)")
           } else choices = choices :+ "(stub)"
 
@@ -182,7 +182,7 @@ struct OtherEntityMenu {
               if (entityIn.mDB.entity_key_exists(entityIn.getId, includeArchived = false)) {
                 new EntityMenu(ui, controller).entityMenu(entityIn, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
               }
-            } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault && !entityIn.mDB.isRemote) {
+            } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault && !entityIn.mDB.is_remote) {
               // updates user preferences such that this obj will be the one displayed by default in future.
               entityIn.mDB.setUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE, entityIn.getId)
               controller.refreshDefaultDisplayEntityId()
@@ -523,7 +523,7 @@ struct OtherEntityMenu {
             }
             let relationToEntityDH: RelationToEntityDataHolder = new RelationToEntityDataHolder(relationIn.get.getAttrTypeId, relationIn.get.getValidOnDate,;
                                                                                                 relationIn.get.getObservationDate, relatedId2,
-                                                                                                relationIn.get.mDB.isRemote, relationIn.get.mDB.id)
+                                                                                                relationIn.get.mDB.is_remote, relationIn.get.mDB.id)
             controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationIn.get.mDB, relationToEntityDH, askForAttrTypeId = true,
                                                                                 Util.RELATION_TO_LOCAL_ENTITY_TYPE,
                                                                                 "CHOOSE TYPE OF Relation to Entity:", dummyMethod, updateRelationToEntity)
