@@ -57,7 +57,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let relationTypeName: String = Database.THE_HAS_RELATION_TYPE_NAME;
     when(mockDB.groupKeyExists(groupId)).thenReturn(true)
     when(mockDB.relationTypeKeyExists(relTypeId)).thenReturn(true)
-    when(mockDB.entityKeyExists(relTypeId)).thenReturn(true)
+    when(mockDB.entity_key_exists(relTypeId)).thenReturn(true)
     when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, relTypeId, groupId)).thenReturn(true)
     when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true), Some(false)))
     when(mockDB.getGroupSize(groupId, 1)).thenReturn(grpEntryCount)
@@ -84,7 +84,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     assert(all2.contains(", class: (unspecified)"))
 
     let relationToGroup3 = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0);
-    when(mockDB.entityKeyExists(classTemplateEntityId)).thenReturn(true)
+    when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
     let list = new java.util.ArrayList[Entity](1);
     list.add(new Entity(mockDB, classTemplateEntityId, "asdf", None, 0L, None, false, false))
     when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(list)
@@ -96,7 +96,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let relationToGroup4 = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0);
     let list4 = new java.util.ArrayList[Entity](1);
     list4.add(new Entity(mockDB, classTemplateEntityId, "asdf", Some(classId), 0L, Some(true), false, false))
-    when(mockDB.entityKeyExists(classTemplateEntityId)).thenReturn(true)
+    when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
     when(mockDB.classKeyExists(classId)).thenReturn(true)
     when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(list4)
     let className = "someClassName";
@@ -118,14 +118,14 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let className = "someclassname";
     let grpName: String = "somename";
     when(mockDB.relationTypeKeyExists(relTypeId)).thenReturn(true)
-    when(mockDB.entityKeyExists(relTypeId)).thenReturn(true)
+    when(mockDB.entity_key_exists(relTypeId)).thenReturn(true)
     when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, relTypeId, groupId)).thenReturn(true)
     when(mockDB.groupKeyExists(groupId)).thenReturn(true)
 
     let group = new Group(mockDB, groupId);
     when(mockDB.groupKeyExists(groupId)).thenReturn(true)
-    when(mockDB.entityKeyExists(entityId)).thenReturn(true)
-    when(mockDB.entityKeyExists(classTemplateEntityId)).thenReturn(true)
+    when(mockDB.entity_key_exists(entityId)).thenReturn(true)
+    when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
     when(mockDB.classKeyExists(classId)).thenReturn(true)
     when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(new java.util.ArrayList[Entity](0))
     when(mockDB.getClassData(classId)).thenReturn(Array[Option[Any]](Some(className), Some(classTemplateEntityId), Some(true)))

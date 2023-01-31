@@ -76,7 +76,7 @@ class TextUITest extends FlatSpec {
 
   "askForString" should "loop if entry fails criteria" in {
     // (BUT: in this case it does that, then gets null back due to no further data provided here by bais, so just fails fully, good enough 4 test it seems)
-    fn criteria(entryIn: String) -> Boolean {
+    fn criteria(entryIn: String) -> bool {
       let entry = entryIn.trim().toUpperCase;
       entry.equals("BI") || entry.equals("UNI") || entry.equals("NON")
     }
@@ -88,7 +88,7 @@ class TextUITest extends FlatSpec {
   }
 
   "askForString" should "keep allow if entry meets criteria" in {
-    fn criteria(entryIn: String) -> Boolean {
+    fn criteria(entryIn: String) -> bool {
       let entry = entryIn.trim().toUpperCase;
       entry.equals("BI") || entry.equals("UNI") || entry.equals("NON")
     }

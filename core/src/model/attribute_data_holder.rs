@@ -18,25 +18,25 @@ package org.onemodel.core.model
 class AttributeDataHolder(var attrTypeId: i64)
 
 class AttributeDataHolderWithVODates(attrTypeId: i64,
-                          let mut validOnDate: Option[i64],;
+                          let mut validOnDate: Option<i64>,;
                           let mut observationDate: i64);
   extends AttributeDataHolder(attrTypeId)
 
 class QuantityAttributeDataHolder(attrTypeIdIn: i64,
-                                  validOnDateIn: Option[i64],
+                                  validOnDateIn: Option<i64>,
                                   observationDateIn: i64,
                                   let mut number: Float,;
                                   let mut unitId: i64);
     extends AttributeDataHolderWithVODates(attrTypeIdIn, validOnDateIn, observationDateIn)
 
 class TextAttributeDataHolder(attrTypeIdIn: i64,
-                                validOnDateIn: Option[i64],
+                                validOnDateIn: Option<i64>,
                                 observationDateIn: i64,
                                 let mut text: String);
     extends AttributeDataHolderWithVODates(attrTypeIdIn, validOnDateIn, observationDateIn)
 
 class RelationToEntityDataHolder(relTypeIdIn: i64,
-                                 validOnDateIn: Option[i64],
+                                 validOnDateIn: Option<i64>,
                                  observationDateIn: i64,
                                  let mut entityId2: i64,;
                                  let mut isRemote: Boolean,;
@@ -45,13 +45,13 @@ class RelationToEntityDataHolder(relTypeIdIn: i64,
 
 class GroupDataHolder(var id:i64,
                       let mut name: String,;
-                      let mut insertionDateIn: Option[i64],;
+                      let mut insertionDateIn: Option<i64>,;
                       let mut mixedClassesAllowed: Boolean);
 
 class RelationToGroupDataHolder(var entityId:i64,
                          relTypeIdIn: i64,
                          let mut groupId: i64,;
-                         validOnDateIn: Option[i64],
+                         validOnDateIn: Option<i64>,
                          observationDateIn: i64)
   extends AttributeDataHolderWithVODates(relTypeIdIn, validOnDateIn, observationDateIn)
 
@@ -60,7 +60,7 @@ class DateAttributeDataHolder(attrTypeId: i64,
   extends AttributeDataHolder(attrTypeId)
 
 class BooleanAttributeDataHolder(attrTypeIdIn: i64,
-                                 validOnDateIn: Option[i64],
+                                 validOnDateIn: Option<i64>,
                                  observationDateIn: i64,
                               let mut boolean: Boolean);
   extends AttributeDataHolderWithVODates(attrTypeIdIn, validOnDateIn, observationDateIn)

@@ -63,7 +63,7 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+    fn this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
            sortingIndexIn: i64) {
     this(mDB, idIn, relTypeIdIn, entityId1In, entityId2In)
     //    if (this.isInstanceOf[RelationToRemoteEntity]) {
@@ -94,7 +94,7 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
     assignCommonVars(mEntityId1, mAttrTypeId,
-                     relationData(1).asInstanceOf[Option[i64]],
+                     relationData(1).asInstanceOf[Option<i64>],
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
@@ -106,7 +106,7 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
     mDB.moveLocalEntityFromLocalEntityToGroup(this, targetGroupIdIn, sortingIndexIn)
   }
 
-    fn update(validOnDateIn:Option[i64], observationDateIn:Option[i64], newAttrTypeIdIn: Option[i64] = None) {
+    fn update(validOnDateIn:Option<i64>, observationDateIn:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
     let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
     //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations

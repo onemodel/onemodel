@@ -40,7 +40,7 @@ struct OtherEntityMenu {
                                       "(stub)")
           //  don't show the "set default" option if it's already been done w/ this same one:
           let defaultEntityTuple: Option[(i64, Entity)] = controller.getDefaultEntity;
-          let defaultEntity: Option[i64] = if (defaultEntityTuple.isEmpty) None else Some(defaultEntityTuple.get._1);
+          let defaultEntity: Option<i64> = if (defaultEntityTuple.isEmpty) None else Some(defaultEntityTuple.get._1);
           let entityIsAlreadyTheDefault: bool = defaultEntity.isDefined && defaultEntity.get == entityIn.getId;
           if (! entityIsAlreadyTheDefault) {
             choices = choices :+ ((if (defaultEntity.isEmpty && !entityIn.mDB.isRemote) "****TRY ME---> " else "") +
@@ -51,8 +51,8 @@ struct OtherEntityMenu {
           if (response.isDefined) {
             let answer = response.get;
             if (answer == 1) {
-              let valueBeforeEntry: Option[Boolean] = entityIn.getPublic;
-              let valueAfterEntry: Option[Boolean] = controller.askForPublicNonpublicStatus(valueBeforeEntry);
+              let valueBeforeEntry: Option<bool> = entityIn.getPublic;
+              let valueAfterEntry: Option<bool> = controller.askForPublicNonpublicStatus(valueBeforeEntry);
               let rteCount: i64 = entityIn.getRelationToLocalEntityCount(includeArchivedEntitiesIn = false);
               let rtgCount: i64 = entityIn.getRelationToGroupCount;
               let whichToUpdateChoices = {;
@@ -126,7 +126,7 @@ struct OtherEntityMenu {
                   otherEntityMenu(if (editedEntity.isDefined) editedEntity.get else entityIn, attributeRowsStartingIndexIn, relationSourceEntityIn,
                                   containingRelationToEntityIn, containingGroupIn, attributeTuplesIn)
                 } else if (editAnswer.get == 2) {
-                  let classId: Option[i64] = controller.askForClass(entityIn.mDB);
+                  let classId: Option<i64> = controller.askForClass(entityIn.mDB);
                   if (classId.isDefined) {
                     entityIn.updateClass(classId)
 
@@ -176,10 +176,10 @@ struct OtherEntityMenu {
                 }
               }
             } else if (answer == 5) {
-              let templateEntityId: Option[i64] = entityIn.getClassTemplateEntityId;
+              let templateEntityId: Option<i64> = entityIn.getClassTemplateEntityId;
               goToRelatedPlaces(entityIn, relationSourceEntityIn, containingRelationToEntityIn, templateEntityId)
               //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
-              if (entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
+              if (entityIn.mDB.entity_key_exists(entityIn.getId, includeArchived = false)) {
                 new EntityMenu(ui, controller).entityMenu(entityIn, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
               }
             } else if (answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault && !entityIn.mDB.isRemote) {
@@ -399,7 +399,7 @@ struct OtherEntityMenu {
        * @param relationIn  (See comment on "@param relationIn" on method askWhetherDeleteOrArchiveEtc. )
        *
         fn goToRelatedPlaces(entityIn: Entity, relationSourceEntityIn: Option[Entity] = None,
-                            relationIn: Option[AttributeWithValidAndObservedDates] = None, templateEntityId: Option[i64]) {
+                            relationIn: Option[AttributeWithValidAndObservedDates] = None, templateEntityId: Option<i64>) {
         //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
         require(relationIn.isEmpty || relationIn.get.isInstanceOf[RelationToLocalEntity] || relationIn.get.isInstanceOf[RelationToRemoteEntity])
         let leadingText = Some(Array("Go to..."));
@@ -440,7 +440,7 @@ struct OtherEntityMenu {
                                       "See groups containing this entity (" + numContainingGroups + ")"
                                     })
         // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
-        if (relationIn.isDefined && relationSourceEntityIn.isDefined && relationSourceEntityIn.get.mDB.entityKeyExists(relationSourceEntityIn.get.getId)) {
+        if (relationIn.isDefined && relationSourceEntityIn.isDefined && relationSourceEntityIn.get.mDB.entity_key_exists(relationSourceEntityIn.get.getId)) {
           choices = choices :+ "Go edit the relation to entity that led here: " +
                                relationIn.get.getDisplayString(15, Some(entityIn), Some(new RelationType(relationIn.get.mDB, relationIn.get.getAttrTypeId)))
           choices = choices :+ "Go to the type, for the relation that led here: " + new Entity(relationIn.get.mDB, relationIn.get.getAttrTypeId).getName
@@ -536,7 +536,7 @@ struct OtherEntityMenu {
           } else if (goWhereAnswer == goToTemplateEntity_choiceNumber && templateEntityId.isDefined && goWhereAnswer <= choices.length) {
             new EntityMenu(ui, controller).entityMenu(new Entity(entityIn.mDB, templateEntityId.get))
           } else if (goWhereAnswer == goToClass_choiceNumber && templateEntityId.isDefined && goWhereAnswer <= choices.length) {
-            let classId: Option[i64] = entityIn.getClassId;
+            let classId: Option<i64> = entityIn.getClassId;
             if (classId.isEmpty) {
               throw new OmException("Unexpectedly, this entity doesn't seem to have a class id.  That is probably a bug.")
             } else {
@@ -671,7 +671,7 @@ struct OtherEntityMenu {
         let mut delFromContainingGroup_choiceNumber: i32 = 3;
         let mut showAllArchivedEntities_choiceNumber: i32 = 3;
         // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
-        if (relationIn.isDefined && relationSourceEntityIn.isDefined && relationSourceEntityIn.get.mDB.entityKeyExists(relationSourceEntityIn.get.getId)) {
+        if (relationIn.isDefined && relationSourceEntityIn.isDefined && relationSourceEntityIn.get.mDB.entity_key_exists(relationSourceEntityIn.get.getId)) {
           // means we got here by selecting a Relation attribute on another entity, so entityIn is the "entityId2" in that relation; so show some options,
           // because
           // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.

@@ -55,7 +55,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                                                Some(Util.inputFileValid))
     if (ans1.isDefined) {
       let path = ans1.get;
-      let makeThemPublic: Option[Boolean] = ui.askYesNoQuestion("Do you want the entities imported to be marked as public?  Set it to the value the " +;
+      let makeThemPublic: Option<bool> = ui.askYesNoQuestion("Do you want the entities imported to be marked as public?  Set it to the value the " +;
                                                       "majority of imported data should have; you can then edit the individual settings afterward as " +
                                                       "needed.  Enter y for public, n for nonpublic, or a space for 'unknown/unspecified', aka decide later.",
                                                       Some(""), allowBlankAnswer = true)
@@ -67,7 +67,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         //noinspection ComparingUnrelatedTypes
         let addingToExistingGroup: bool = firstContainingEntryIn.isInstanceOf[Group] && !creatingNewStartingGroupFromTheFilename;
 
-        let putEntriesAtEndOption: Option[Boolean] = {;
+        let putEntriesAtEndOption: Option<bool> = {;
           if (addingToExistingGroup) {
             ui.askYesNoQuestion("Put the new entries at the end of the list? (No means put them at the beginning, the default.)")
           } else
@@ -88,7 +88,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               doTheImport(reader, fileToImport.getCanonicalPath, fileToImport.lastModified(), firstContainingEntryIn, creatingNewStartingGroupFromTheFilename,
                           addingToExistingGroup, putEntriesAtEnd, makeThemPublic)
 
-              let keepAnswer: Option[Boolean] = {;
+              let keepAnswer: Option<bool> = {;
                 //idea: look into how long that time is (see below same cmt):
                 let msg: String = "Group imported, but browse around to see if you want to keep it, " +;
                                   "then ESC back here to commit the changes....  (If you wait beyond some amount of time(?) or go beyond just viewing, " +
@@ -163,7 +163,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-    fn createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: i64, isPublicIn: Option[Boolean]) -> Entity {
+    fn createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: i64, isPublicIn: Option<bool>) -> Entity {
     let entityId: i64 = group.mDB.createEntity(line.trim, group.getClassId, isPublicIn);
     group.addEntity(entityId, Some(newSortingIndex), callerManagesTransactionsIn = true)
     new Entity(group.mDB, entityId)
@@ -181,7 +181,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
     fn importRestOfLines(r: LineNumberReader, lastEntityAdded: Option[Entity], lastIndentationLevel: Int, containerList: List[AnyRef],
                                 lastSortingIndexes: List[i64], observationDateIn: i64, mixedClassesAllowedDefaultIn: Boolean,
-                                makeThemPublicIn: Option[Boolean]) {
+                                makeThemPublicIn: Option<bool>) {
     // (see cmts just above about where we start)
     require(containerList.size == lastIndentationLevel + 1)
     // always should at least have an entry for the entity or group from where the user initiated this import, the base of all the adding.
@@ -358,7 +358,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
     fn importUriContent(lineUntrimmedIn: String, beginningTagMarkerIn: String, endMarkerIn: String, lineNumberIn: Int,
-                        lastEntityAddedIn: Entity, observationDateIn: i64, makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean) {
+                        lastEntityAddedIn: Entity, observationDateIn: i64, makeThemPublicIn: Option<bool>, callerManagesTransactionsIn: Boolean) {
     //NOTE/idea also in tasks: this all fits better in the class and action *tables*, with this code being stored there
     // also, which implies that the class doesn't need to be created because...it's already there.
 
@@ -385,7 +385,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     fn doTheImport(dataSourceIn: Reader, dataSourceFullPath: String, dataSourceLastModifiedDate: i64, firstContainingEntryIn: AnyRef,
                   creatingNewStartingGroupFromTheFilenameIn: Boolean, addingToExistingGroup: Boolean,
                   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                  putEntriesAtEnd: Boolean, makeThemPublicIn: Option[Boolean], mixedClassesAllowedDefaultIn: Boolean = false, testing: Boolean = false) {
+                  putEntriesAtEnd: Boolean, makeThemPublicIn: Option<bool>, mixedClassesAllowedDefaultIn: Boolean = false, testing: Boolean = false) {
     let mut r: LineNumberReader = null;
     r = new LineNumberReader(dataSourceIn)
     let containingEntry: AnyRef = {;
@@ -447,22 +447,22 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       if (ans.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
       let levelsToExport: i32 = ans.get.toInt;
 
-      let ans2: Option[Boolean] = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?");
+      let ans2: Option<bool> = ui.askYesNoQuestion("Include metadata (verbose detail: id's, types...)?");
       if (ans2.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
       let includeMetadata: bool = ans2.get;
 
       //idea: make these choice strings into an enum? and/or the answers into an enum? what's the scala idiom? see same issue elsewhere
-      let ans3: Option[Boolean] = ui.askYesNoQuestion("Include public data?  (Note: Whether an entity is public, non-public, or unset can be " +;
+      let ans3: Option<bool> = ui.askYesNoQuestion("Include public data?  (Note: Whether an entity is public, non-public, or unset can be " +;
                                                                    "marked on each entity's menu, and the preference as to whether to display that status on " +
                                                                    "each entity in a list can be set via the main menu.)", Some("y"), allowBlankAnswer = true)
       if (ans3.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
       let includePublicData: bool = ans3.get;
 
-      let ans4: Option[Boolean] = ui.askYesNoQuestion("Include data marked non-public?", Some("n"), allowBlankAnswer = true);
+      let ans4: Option<bool> = ui.askYesNoQuestion("Include data marked non-public?", Some("n"), allowBlankAnswer = true);
       if (ans4.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
       let includeNonPublicData: bool = ans4.get;
 
-      let ans5: Option[Boolean] = ui.askYesNoQuestion("Include data not specified as public or non-public?", ;
+      let ans5: Option<bool> = ui.askYesNoQuestion("Include data not specified as public or non-public?", ;
                                                       (if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) 
                                                         Some("y") else Some("n")),
                                                       allowBlankAnswer = true)
@@ -473,12 +473,12 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       let mut wrapTheLines: bool = false;
       let mut wrapAtColumn: i32 = 1;
       if (exportTypeIn == ImportExport.TEXT_EXPORT_TYPE) {
-        let ans6: Option[Boolean] = ui.askYesNoQuestion("Number the entries in outline form (ex, 3.1.5)?  (Prevents directly re-importing.)", Some("y"), allowBlankAnswer = true);
+        let ans6: Option<bool> = ui.askYesNoQuestion("Number the entries in outline form (ex, 3.1.5)?  (Prevents directly re-importing.)", Some("y"), allowBlankAnswer = true);
         if (ans6.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
         numberTheLines = ans6.get
 
         // (See for more explanation on this prompt, the "adjustedCurrentIndentationLevels" variable used in a different method below.
-        let ans7: Option[Boolean] = ui.askYesNoQuestion("Wrap long lines and add whitespace for readability?  (Prevents directly re-importing; also removes one level of indentation, needless in that case.)", Some("y"), allowBlankAnswer = true);
+        let ans7: Option<bool> = ui.askYesNoQuestion("Wrap long lines and add whitespace for readability?  (Prevents directly re-importing; also removes one level of indentation, needless in that case.)", Some("y"), allowBlankAnswer = true);
         if (ans7.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
         wrapTheLines = ans7.get
 
@@ -1315,7 +1315,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     if (!levelsToExportIsInfiniteIn && levelsRemainingToExportIn == 0) {
       return false
     }
-    let entityPublicStatus: Option[Boolean] = entityIn.getPublic;
+    let entityPublicStatus: Option<bool> = entityIn.getPublic;
     let publicEnoughToExport = (entityPublicStatus.isDefined && entityPublicStatus.get && includePublicDataIn) ||;
                           (entityPublicStatus.isDefined && !entityPublicStatus.get && includeNonPublicDataIn) ||
                           (entityPublicStatus.isEmpty && includeUnspecifiedDataIn)

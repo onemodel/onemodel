@@ -158,60 +158,60 @@ pub trait Database {
        ...but should be avoided when going through the model object (like Entity) causes enough more db hits to not be worth it (performance vs.
        clarity & ease of maintenance).
     * */
-    fn createQuantityAttribute(parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
-                                inObservationDate: i64, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option[i64] = None) -> /*id*/ i64;
-    fn createDateAttribute(parentIdIn: i64, attrTypeIdIn: i64, dateIn: i64, sortingIndexIn: Option[i64] = None) -> /*id*/ i64;
-    fn createBooleanAttribute(parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64,
-                               sortingIndexIn: Option[i64] = None) -> /*id*/ i64;
+    fn createQuantityAttribute(parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option<i64>,
+                                inObservationDate: i64, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option<i64> = None) -> /*id*/ i64;
+    fn createDateAttribute(parentIdIn: i64, attrTypeIdIn: i64, dateIn: i64, sortingIndexIn: Option<i64> = None) -> /*id*/ i64;
+    fn createBooleanAttribute(parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option<i64>, observationDateIn: i64,
+                               sortingIndexIn: Option<i64> = None) -> /*id*/ i64;
     fn createFileAttribute(parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
                             originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64,
-                            md5hashIn: String, inputStreamIn: java.io.FileInputStream, sortingIndexIn: Option[i64] = None) -> /*id*/ i64;
-    fn createTextAttribute(parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64] = None,
+                            md5hashIn: String, inputStreamIn: java.io.FileInputStream, sortingIndexIn: Option<i64> = None) -> /*id*/ i64;
+    fn createTextAttribute(parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option<i64> = None,
                             observationDateIn: i64 = System.currentTimeMillis(), callerManagesTransactionsIn: Boolean = false,
-                            sortingIndexIn: Option[i64] = None) -> /*id*/ i64;
-    fn createRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                               sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false) -> RelationToLocalEntity;
-    fn createRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                                     remoteInstanceIdIn: String, sortingIndexIn: Option[i64] = None,
+                            sortingIndexIn: Option<i64> = None) -> /*id*/ i64;
+    fn createRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                               sortingIndexIn: Option<i64> = None, callerManagesTransactionsIn: Boolean = false) -> RelationToLocalEntity;
+    fn createRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                     remoteInstanceIdIn: String, sortingIndexIn: Option<i64> = None,
                                      callerManagesTransactionsIn: Boolean = false) -> RelationToRemoteEntity;
     fn createGroupAndRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false,
-                                      validOnDateIn: Option[i64], observationDateIn: i64,
-                                      sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean = false) -> (i64, i64);
-    pub fn createEntity(nameIn: String, classIdIn: Option[i64] = None, isPublicIn: Option[Boolean] = None) -> /*id*/ i64;
-    fn createEntityAndRelationToLocalEntity(entityIdIn: i64, relationTypeIdIn: i64, newEntityNameIn: String, isPublicIn: Option[Boolean],
-                                        validOnDateIn: Option[i64], observationDateIn: i64, callerManagesTransactionsIn: Boolean = false) -> (i64, i64);
-    fn createRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                              sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false) -> (i64, i64);
-    fn addEntityToGroup(groupIdIn: i64, containedEntityIdIn: i64, sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false);
-    pub fn createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[i64] = None, oldTableName: Boolean = false) -> i64;
-    fn addHASRelationToLocalEntity(fromEntityIdIn: i64, toEntityIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                               sortingIndexIn: Option[i64] = None) -> RelationToLocalEntity;
+                                      validOnDateIn: Option<i64>, observationDateIn: i64,
+                                      sortingIndexIn: Option<i64>, callerManagesTransactionsIn: Boolean = false) -> (i64, i64);
+    pub fn createEntity(nameIn: String, classIdIn: Option<i64> = None, isPublicIn: Option<bool> = None) -> /*id*/ i64;
+    fn createEntityAndRelationToLocalEntity(entityIdIn: i64, relationTypeIdIn: i64, newEntityNameIn: String, isPublicIn: Option<bool>,
+                                        validOnDateIn: Option<i64>, observationDateIn: i64, callerManagesTransactionsIn: Boolean = false) -> (i64, i64);
+    fn createRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                              sortingIndexIn: Option<i64> = None, callerManagesTransactionsIn: Boolean = false) -> (i64, i64);
+    fn addEntityToGroup(groupIdIn: i64, containedEntityIdIn: i64, sortingIndexIn: Option<i64> = None, callerManagesTransactionsIn: Boolean = false);
+    pub fn createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option<i64> = None, oldTableName: Boolean = false) -> i64;
+    fn addHASRelationToLocalEntity(fromEntityIdIn: i64, toEntityIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                               sortingIndexIn: Option<i64> = None) -> RelationToLocalEntity;
     pub fn getOrCreateClassAndTemplateEntity(classNameIn: String, callerManagesTransactionsIn: Boolean) -> (i64, i64);
     pub fn createRelationType(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String) -> /*id*/ i64;
     pub fn createClassAndItsTemplateEntity(classNameIn: String) -> (i64, i64);
     fn addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: i64,
-                                     makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
+                                     makeThemPublicIn: Option<bool>, callerManagesTransactionsIn: Boolean,
                                      quoteIn: Option[String] = None) -> (Entity, RelationToLocalEntity);
 
 
     pub fn attributeKeyExists(formIdIn: i64, idIn: i64) -> Boolean;
     fn findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[i64], fromEntityIdIn: i64, searchStringIn: String,
                                levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true) -> mutable.TreeSet[i64];
-    pub fn entityKeyExists(idIn: i64, includeArchived: Boolean = true) -> Boolean;
+    pub fn entity_key_exists(idIn: i64, includeArchived: Boolean = true) -> Boolean;
     fn relationTypeKeyExists(idIn: i64) -> Boolean;
     fn quantityAttributeKeyExists(idIn: i64) -> Boolean;
     fn dateAttributeKeyExists(idIn: i64) -> Boolean;
     fn booleanAttributeKeyExists(idIn: i64) -> Boolean;
     fn fileAttributeKeyExists(idIn: i64) -> Boolean;
     fn textAttributeKeyExists(idIn: i64) -> Boolean;
-    pub fn relationToLocalEntityKeyExists(idIn: i64) -> Boolean;
+    pub fn relationToLocalentity_key_exists(idIn: i64) -> Boolean;
     pub fn groupKeyExists(idIn: i64) -> Boolean;
     fn relationToGroupKeysExistAndMatch(id: i64, entityId: i64, relTypeId: i64, groupId: i64) -> Boolean;
     fn classKeyExists(idIn: i64) -> Boolean;
     fn omInstanceKeyExists(idIn: String) -> Boolean;
     fn getEntityData(idIn: i64) -> Array[Option[Any]];
     fn getEntityName(idIn: i64) -> Option[String];
-    fn isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[i64] = None) -> Boolean;
+    fn isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option<i64> = None) -> Boolean;
     fn getSortedAttributes(entityIdIn: i64, startingObjectIndexIn: Int = 0, maxValsIn: Int = 0,
                             onlyPublicEntitiesIn: Boolean = true) -> (Array[(i64, Attribute)], Int);
     pub fn findRelationType(typeNameIn: String, expectedRows: Option[Int] = Some(1)) -> java.util.ArrayList[i64];
@@ -223,108 +223,108 @@ pub trait Database {
     fn getFileAttributeContent(fileAttributeIdIn: i64, outputStreamIn: java.io.OutputStream) -> (i64, String);
     fn getTextAttributeData(idIn: i64) -> Array[Option[Any]];
     fn relationToLocalEntityKeysExistAndMatch(idIn: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64) -> Boolean;
-    fn relationToRemoteEntityKeyExists(idIn: i64) -> Boolean;
+    fn relationToRemoteentity_key_exists(idIn: i64) -> Boolean;
     fn relationToRemoteEntityKeysExistAndMatch(idIn: i64, relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64) -> Boolean;
     fn getRelationToLocalEntityData(relTypeIdIn: i64, entityId1In: i64, entityId2In: i64) -> Array[Option[Any]];
     fn getRelationToLocalEntityDataById(idIn: i64) -> Array[Option[Any]];
     fn getRelationToRemoteEntityData(relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64) -> Array[Option[Any]];
     fn getGroupData(idIn: i64) -> Array[Option[Any]];
-    fn getGroupEntryObjects(groupIdIn: i64, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[Entity];
+    fn getGroupEntryObjects(groupIdIn: i64, startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[Entity];
     pub fn getGroupSize(groupIdIn: i64, includeWhichEntitiesIn: Int = 3) -> i64;
     fn getHighestSortingIndexForGroup(groupIdIn: i64) -> i64;
     fn getRelationToGroupDataByKeys(entityId: i64, relTypeId: i64, groupId: i64) -> Array[Option[Any]];
     fn getRelationToGroupData(idIn: i64) -> Array[Option[Any]];
-    pub fn getGroupEntriesData(groupIdIn: i64, limitIn: Option[i64] = None, includeArchivedEntitiesIn: Boolean = true) -> List[Array[Option[Any]]];
+    pub fn getGroupEntriesData(groupIdIn: i64, limitIn: Option<i64> = None, includeArchivedEntitiesIn: Boolean = true) -> List[Array[Option[Any]]];
     fn findRelationToAndGroup_OnEntity(entityIdIn: i64,
-                                                         groupNameIn: Option[String] = None) -> (Option[i64], Option[i64], Option[i64], Option[String], Boolean);
-    pub fn getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[(i64, Entity)];
+                                                         groupNameIn: Option[String] = None) -> (Option<i64>, Option<i64>, Option<i64>, Option[String], Boolean);
+    pub fn getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)];
     fn getCountOfEntitiesContainingGroup(groupIdIn: i64) -> (i64, i64);
     fn getClassData(idIn: i64) -> Array[Option[Any]];
     fn getAttributeCount(entityIdIn: i64, includeArchivedEntitiesIn: Boolean = false) -> i64;
     fn getRelationToLocalEntityCount(entityIdIn: i64, includeArchivedEntities: Boolean = false) -> i64;
     fn getRelationToRemoteEntityCount(entityIdIn: i64) -> i64;
     fn getRelationToGroupCount(entityIdIn: i64) -> i64;
-    pub fn getClassCount(entityIdIn: Option[i64] = None) -> i64;
+    pub fn getClassCount(entityIdIn: Option<i64> = None) -> i64;
     fn getClassName(idIn: i64) -> Option[String];
     fn getOmInstanceData(idIn: String) -> Array[Option[Any]];
     fn isDuplicateOmInstanceAddress(addressIn: String, selfIdToIgnoreIn: Option[String] = None) -> Boolean;
-    fn  getGroupsContainingEntitysGroupsIds(groupIdIn: i64, limitIn: Option[i64] = Some(5)) -> List[Array[Option[Any]]];
+    fn  getGroupsContainingEntitysGroupsIds(groupIdIn: i64, limitIn: Option<i64> = Some(5)) -> List[Array[Option[Any]]];
     fn isEntityInGroup(groupIdIn: i64, entityIdIn: i64) -> Boolean;
-    fn getAdjacentGroupEntriesSortingIndexes(groupIdIn: i64, sortingIndexIn: i64, limitIn: Option[i64] = None,
+    fn getAdjacentGroupEntriesSortingIndexes(groupIdIn: i64, sortingIndexIn: i64, limitIn: Option<i64> = None,
                                               forwardNotBackIn: Boolean) -> List[Array[Option[Any]]];
-    fn getNearestGroupEntrysSortingIndex(groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64];
-    fn getAdjacentAttributesSortingIndexes(entityIdIn: i64, sortingIndexIn: i64, limitIn: Option[i64], forwardNotBackIn: Boolean) -> List[Array[Option[Any]]];
-    fn getNearestAttributeEntrysSortingIndex(entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64];
+    fn getNearestGroupEntrysSortingIndex(groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64>;
+    fn getAdjacentAttributesSortingIndexes(entityIdIn: i64, sortingIndexIn: i64, limitIn: Option<i64>, forwardNotBackIn: Boolean) -> List[Array[Option[Any]]];
+    fn getNearestAttributeEntrysSortingIndex(entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64>;
     fn getEntityAttributeSortingIndex(entityIdIn: i64, attributeFormIdIn: i64, attributeIdIn: i64) -> i64;
     fn getGroupEntrySortingIndex(groupIdIn: i64, entityIdIn: i64) -> i64;
     fn isGroupEntrySortingIndexInUse(groupIdIn: i64, sortingIndexIn: i64) -> Boolean;
     fn isAttributeSortingIndexInUse(entityIdIn: i64, sortingIndexIn: i64) -> Boolean;
-    fn findUnusedAttributeSortingIndex(entityIdIn: i64, startingWithIn: Option[i64] = None) -> i64;
+    fn findUnusedAttributeSortingIndex(entityIdIn: i64, startingWithIn: Option<i64> = None) -> i64;
     pub fn findAllEntityIdsByName(nameIn: String, caseSensitive: Boolean = false) -> java.util.ArrayList[i64];
-    fn findUnusedGroupSortingIndex(groupIdIn: i64, startingWithIn: Option[i64] = None) -> i64;
+    fn findUnusedGroupSortingIndex(groupIdIn: i64, startingWithIn: Option<i64> = None) -> i64;
     fn getTextAttributeByTypeId(parentEntityIdIn: i64, typeIdIn: i64, expectedRows: Option[Int] = None) -> java.util.ArrayList[TextAttribute];
-    fn getLocalEntitiesContainingLocalEntity(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[(i64, Entity)];
+    fn getLocalEntitiesContainingLocalEntity(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)];
     fn getCountOfGroupsContainingEntity(entityIdIn: i64) -> i64;
     fn getContainingGroupsIds(entityIdIn: i64) -> java.util.ArrayList[i64];
     fn getContainingRelationsToGroup(entityIdIn: i64, startingIndexIn: i64,
-                                                       maxValsIn: Option[i64] = None) -> java.util.ArrayList[RelationToGroup];
-  //  fn getShouldCreateDefaultAttributes(classIdIn: i64) -> Option[Boolean];
-    fn updateClassCreateDefaultAttributes(classIdIn: i64, value -> Option[Boolean]);
-    pub fn getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option[i64] = None, templateEntity: Option[i64] = None) -> i64;
+                                                       maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup];
+  //  fn getShouldCreateDefaultAttributes(classIdIn: i64) -> Option<bool>;
+    fn updateClassCreateDefaultAttributes(classIdIn: i64, value -> Option<bool>);
+    pub fn getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option<i64> = None, templateEntity: Option<i64> = None) -> i64;
     fn getCountOfLocalEntitiesContainingLocalEntity(entityIdIn: i64) -> (i64, i64);
     //idea (tracked): make "*duplicate*" methods just be ... called "search"? combine w/ search, or rename? makes sense for callers?
-    pub fn isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[i64] = None) -> Boolean;
-    fn getContainingRelationToGroupDescriptions(entityIdIn: i64, limitIn: Option[i64] = None) -> util.ArrayList[String];
-    pub fn getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitEntityIdIn: Option[i64],
+    pub fn isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option<i64> = None) -> Boolean;
+    fn getContainingRelationToGroupDescriptions(entityIdIn: i64, limitIn: Option<i64> = None) -> util.ArrayList[String];
+    pub fn getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, omitEntityIdIn: Option<i64>,
                             nameRegexIn: String) -> java.util.ArrayList[Entity];
-    pub fn getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitGroupIdIn: Option[i64],
+    pub fn getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, omitGroupIdIn: Option<i64>,
                           nameRegexIn: String) -> java.util.ArrayList[Group];
     fn getRelationsToGroupContainingThisGroup(groupIdIn: i64, startingIndexIn: i64,
-                                                                maxValsIn: Option[i64] = None) -> java.util.ArrayList[RelationToGroup];
-    pub fn getEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[Entity];
-    pub fn getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, classIdIn: Option[i64] = None,
-                        limitByClass: Boolean = false, templateEntity: Option[i64] = None,
-                        groupToOmitIdIn: Option[i64] = None) -> java.util.ArrayList[Entity];
+                                                                maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup];
+    pub fn getEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[Entity];
+    pub fn getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, classIdIn: Option<i64> = None,
+                        limitByClass: Boolean = false, templateEntity: Option<i64> = None,
+                        groupToOmitIdIn: Option<i64> = None) -> java.util.ArrayList[Entity];
     pub fn getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean) -> i64;
-    pub fn getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None,
+    pub fn getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option<i64> = None,
                                         quantitySeeksUnitNotTypeIn: Boolean) -> java.util.ArrayList[Entity];
-    pub fn getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[Entity];
-    pub fn getClasses(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[EntityClass];
+    pub fn getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[Entity];
+    pub fn getClasses(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[EntityClass];
     pub fn getRelationTypeCount -> i64;
     pub fn getOmInstanceCount -> i64;
     pub fn getEntityCount -> i64;
-    pub fn findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option[i64] = None) -> util.ArrayList[(i64, String, i64)];
+    pub fn findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option<i64> = None) -> util.ArrayList[(i64, String, i64)];
     pub fn getGroupCount -> i64;
-    pub fn getGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, groupToOmitIdIn: Option[i64] = None) -> java.util.ArrayList[Group];
+    pub fn getGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, groupToOmitIdIn: Option<i64> = None) -> java.util.ArrayList[Group];
     pub fn createGroup(nameIn: String, allowMixedClassesInGroupIn: Boolean = false) -> i64;
     pub fn relationToGroupKeyExists(idIn: i64) -> Boolean;
 
 
-    fn updateEntitysClass(entityId: i64, classId: Option[i64], callerManagesTransactions -> Boolean = false);
+    fn updateEntitysClass(entityId: i64, classId: Option<i64>, callerManagesTransactions -> Boolean = false);
     fn updateEntityOnlyNewEntriesStickToTop(idIn: i64, newEntriesStickToTop -> Boolean);
     fn archiveEntity(idIn: i64, callerManagesTransactionsIn -> Boolean = false);
     fn unarchiveEntity(idIn: i64, callerManagesTransactionsIn -> Boolean = false);
     pub fn setIncludeArchivedEntities(in: Boolean) -> Unit;
     pub fn setUserPreference_EntityId(nameIn: String, entityIdIn -> i64);
-    fn updateEntityOnlyPublicStatus(idIn: i64, value -> Option[Boolean]);
-    fn updateQuantityAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
+    fn updateEntityOnlyPublicStatus(idIn: i64, value -> Option<bool>);
+    fn updateQuantityAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option<i64>,
                                 inObservationDate -> i64);
     fn updateDateAttribute(idIn: i64, parentIdIn: i64, dateIn: i64, attrTypeIdIn -> i64);
-    fn updateBooleanAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64],
+    fn updateBooleanAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option<i64>,
                                inObservationDate -> i64);
     fn updateFileAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn -> String);
     fn updateFileAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String,
                                              originalFileDateIn: i64, storedDateIn: i64,
                             originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64, md5hashIn: String);
-    fn updateTextAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64],
+    fn updateTextAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option<i64>,
                                              observationDateIn -> i64);
     fn updateRelationToLocalEntity(oldRelationTypeIdIn: i64, entityId1In: i64, entityId2In: i64,
-                               newRelationTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn -> i64);
+                               newRelationTypeIdIn: i64, validOnDateIn: Option<i64>, observationDateIn -> i64);
     fn updateRelationToRemoteEntity(oldRelationTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
-                                     newRelationTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn -> i64);
+                                     newRelationTypeIdIn: i64, validOnDateIn: Option<i64>, observationDateIn -> i64);
     fn updateGroup(groupIdIn: i64, nameIn: String, allowMixedClassesInGroupIn: Boolean = false, newEntriesStickToTopIn -> Boolean = false);
     fn updateRelationToGroup(entityIdIn: i64, oldRelationTypeIdIn: i64, newRelationTypeIdIn: i64, oldGroupIdIn: i64, newGroupIdIn: i64,
-                              validOnDateIn: Option[i64], observationDateIn -> i64);
+                              validOnDateIn: Option<i64>, observationDateIn -> i64);
     fn moveRelationToLocalEntityToLocalEntity(rtleIdIn: i64, newContainingEntityIdIn: i64,
                                                                 sortingIndexIn: i64) -> RelationToLocalEntity;
     fn moveRelationToRemoteEntityToLocalEntity(remoteInstanceIdIn: String, relationToRemoteEntityIdIn: i64, toContainingEntityIdIn: i64,
@@ -340,7 +340,7 @@ pub trait Database {
     fn updateEntityOnlyName(idIn: i64, nameIn: String);
     fn updateRelationType(idIn: i64, nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String);
     fn updateClassAndTemplateEntityName(classIdIn: i64, name: String) -> i64;
-    fn updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option[i64]);
+    fn updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option<i64>);
 
     fn deleteEntity(idIn: i64, callerManagesTransactionsIn: Boolean = false);
     fn deleteQuantityAttribute(idIn: i64);
@@ -360,10 +360,10 @@ pub trait Database {
 
 
     // (See comments above the set of these methods, in RestDatabase.scala:)
-    pub fn getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option[Boolean] = None) -> Option[Boolean];
+    pub fn getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option<bool> = None) -> Option<bool>;
     pub fn getPreferencesContainerId() -> i64;
-    pub fn getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[i64] = None) -> Option[i64];
-    pub fn getOmInstances(localIn: Option[Boolean] = None) -> java.util.ArrayList[OmInstance];
+    pub fn getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option<i64> = None) -> Option<i64>;
+    pub fn getOmInstances(localIn: Option<bool> = None) -> java.util.ArrayList[OmInstance];
 
  */
 }

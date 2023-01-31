@@ -267,7 +267,7 @@ impl PostgreSQLDatabase {
         let HASrelationTypeId = findRelationType(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
 
         let preferencesContainerId: i64 = {;
-          let preferencesEntityId: Option[i64] = getRelationToLocalEntityByName(getSystemEntityId, Util.USER_PREFERENCES);
+          let preferencesEntityId: Option<i64> = getRelationToLocalEntityByName(getSystemEntityId, Util.USER_PREFERENCES);
           if (preferencesEntityId.isDefined) {
             preferencesEntityId.get
           } else {
@@ -856,7 +856,7 @@ impl Database for PostgreSQLDatabase {
 
       // See comment in ImportExport.processUriContent method which uses it, about where the code should really go. Not sure if that idea includes this
       // method or not.
-        fn findFIRSTClassIdByName(nameIn: String, caseSensitive: Boolean = false) -> Option[i64] {
+        fn findFIRSTClassIdByName(nameIn: String, caseSensitive: Boolean = false) -> Option<i64> {
         // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
         // a performance issue then look at it?
         let nameClause = {;
@@ -1053,7 +1053,7 @@ impl Database for PostgreSQLDatabase {
       }
 
       /** Returns the id of a specific group under the system entity.  This group is the one that contains class-defining (template) entities. */
-        fn getSystemEntitysClassGroupId -> Option[i64] {
+        fn getSystemEntitysClassGroupId -> Option<i64> {
         let systemEntityId: i64 = getSystemEntityId;
 
         // idea: maybe this stuff would be less breakable by the user if we put this kind of info in some system table
@@ -1095,7 +1095,7 @@ impl Database for PostgreSQLDatabase {
         * to know there is only one or deal with the None.
         */
         fn findRelationToAndGroup_OnEntity(entityIdIn: i64,
-                                          groupNameIn: Option[String] = None): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) {
+                                          groupNameIn: Option[String] = None): (Option<i64>, Option<i64>, Option<i64>, Option[String], Boolean) {
         let nameCondition = if (groupNameIn.isDefined) {;
           let name = escapeQuotesEtc(groupNameIn.get);
           "g.name='" + name + "'"
@@ -1111,9 +1111,9 @@ impl Database for PostgreSQLDatabase {
           (None, None, None, None, false)
         else {
           let row = rows.head;
-          let id: Option[i64] = Some(row(0).get.asInstanceOf[i64]);
-          let relTypeId: Option[i64] = Some(row(1).get.asInstanceOf[i64]);
-          let groupId: Option[i64] = Some(row(2).get.asInstanceOf[i64]);
+          let id: Option<i64> = Some(row(0).get.asInstanceOf[i64]);
+          let relTypeId: Option<i64> = Some(row(1).get.asInstanceOf[i64]);
+          let groupId: Option<i64> = Some(row(2).get.asInstanceOf[i64]);
           let name: Option[String] = Some(row(3).get.asInstanceOf[String]);
           (id, relTypeId, groupId, name, rows.size > 1)
         }
@@ -1122,8 +1122,8 @@ impl Database for PostgreSQLDatabase {
       /**
        * @return the id of the new RTE
        */
-        fn addHASRelationToLocalEntity(fromEntityIdIn: i64, toEntityIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                                      sortingIndexIn: Option[i64] = None):  -> RelationToLocalEntity {
+        fn addHASRelationToLocalEntity(fromEntityIdIn: i64, toEntityIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                      sortingIndexIn: Option<i64> = None):  -> RelationToLocalEntity {
         let relationTypeId = findRelationType(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
         let newRte = createRelationToLocalEntity(relationTypeId, fromEntityIdIn, toEntityIdIn, validOnDateIn, observationDateIn, sortingIndexIn);
         newRte
@@ -1142,7 +1142,7 @@ impl Database for PostgreSQLDatabase {
         // there could be none found, or more than one, but
         let finalResult = new ArrayList[i64](rows.size);
         for (row <- rows) {
-          let id: Option[i64] = Some(row(0).get.asInstanceOf[i64]);
+          let id: Option<i64> = Some(row(0).get.asInstanceOf[i64]);
           finalResult.add(id.get)
         }
         finalResult
@@ -1183,8 +1183,8 @@ impl Database for PostgreSQLDatabase {
        * <p/>
        * Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
        */
-        fn createQuantityAttribute(parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
-                                  inObservationDate: i64, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option[i64] = None) -> /*id*/ i64 {
+        fn createQuantityAttribute(parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option<i64>,
+                                  inObservationDate: i64, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option<i64> = None) -> /*id*/ i64 {
         if (!callerManagesTransactionsIn) beginTrans()
         let mut id: i64 = 0L;
         try {
@@ -1211,7 +1211,7 @@ impl Database for PostgreSQLDatabase {
         PostgreSQLDatabase.checkForBadSql(s)
       }
 
-        fn updateQuantityAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
+        fn updateQuantityAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option<i64>,
                                   inObservationDate: i64) {
         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
         // in memory when the db updates, and the behavior gets weird.
@@ -1220,7 +1220,7 @@ impl Database for PostgreSQLDatabase {
                  "" + inObservationDate + ") where id=" + idIn + " and  entity_id=" + parentIdIn)
       }
 
-        fn updateTextAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64], observationDateIn: i64) {
+        fn updateTextAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option<i64>, observationDateIn: i64) {
         let text: String = escapeQuotesEtc(textIn);
         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
         // in memory when the db updates, and the behavior gets weird.
@@ -1236,7 +1236,7 @@ impl Database for PostgreSQLDatabase {
                  "entity_id=" + parentIdIn)
       }
 
-        fn updateBooleanAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64) {
+        fn updateBooleanAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option<i64>, observationDateIn: i64) {
         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
         // in memory when the db updates, and the behavior gets weird.
         dbAction("update BooleanAttribute set (booleanValue, attr_type_id, valid_on_date, observation_date) = (" + booleanIn + "," + attrTypeIdIn + "," +
@@ -1275,7 +1275,7 @@ impl Database for PostgreSQLDatabase {
         dbAction("update Entity set (name) = ROW('" + name + "') where id=" + idIn)
       }
 
-        fn updateEntityOnlyPublicStatus(idIn: i64, value: Option[Boolean]) {
+        fn updateEntityOnlyPublicStatus(idIn: i64, value: Option<bool>) {
         dbAction("update Entity set (public) = ROW(" +
                  (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
                  ") where id=" + idIn)
@@ -1305,7 +1305,7 @@ impl Database for PostgreSQLDatabase {
         dbAction("update class set (name) = ROW('" + name + "') where id=" + idIn)
       }
 
-        fn updateEntitysClass(entityId: i64, classId: Option[i64], callerManagesTransactions: Boolean = false) {
+        fn updateEntitysClass(entityId: i64, classId: Option<i64>, callerManagesTransactions: Boolean = false) {
         if (!callerManagesTransactions) beginTrans()
         dbAction("update Entity set (class_id) = ROW(" +
                  (if (classId.isEmpty) "NULL" else classId.get) +
@@ -1343,9 +1343,9 @@ impl Database for PostgreSQLDatabase {
       }
 
       /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
-        fn createTextAttribute(parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64] = None,
+        fn createTextAttribute(parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option<i64> = None,
                               observationDateIn: i64 = System.currentTimeMillis(), callerManagesTransactionsIn: Boolean = false,
-                              sortingIndexIn: Option[i64] = None) -> /*id*/ i64 {
+                              sortingIndexIn: Option<i64> = None) -> /*id*/ i64 {
         let text: String = escapeQuotesEtc(textIn);
         let id: i64 = getNewKey("TextAttributeKeySequence");
         if (!callerManagesTransactionsIn) beginTrans()
@@ -1364,7 +1364,7 @@ impl Database for PostgreSQLDatabase {
         id
       }
 
-        fn createDateAttribute(parentIdIn: i64, attrTypeIdIn: i64, dateIn: i64, sortingIndexIn: Option[i64] = None) -> /*id*/ i64 {
+        fn createDateAttribute(parentIdIn: i64, attrTypeIdIn: i64, dateIn: i64, sortingIndexIn: Option<i64> = None) -> /*id*/ i64 {
         let id: i64 = getNewKey("DateAttributeKeySequence");
         beginTrans()
         try {
@@ -1379,8 +1379,8 @@ impl Database for PostgreSQLDatabase {
         id
       }
 
-        fn createBooleanAttribute(parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64,
-                                 sortingIndexIn: Option[i64] = None) -> /*id*/ i64 {
+        fn createBooleanAttribute(parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                 sortingIndexIn: Option<i64> = None) -> /*id*/ i64 {
         let id: i64 = getNewKey("BooleanAttributeKeySequence");
         beginTrans()
         try {
@@ -1398,7 +1398,7 @@ impl Database for PostgreSQLDatabase {
 
         fn createFileAttribute(parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
                               originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64,
-                              md5hashIn: String, inputStreamIn: java.io.FileInputStream, sortingIndexIn: Option[i64] = None) -> /*id*/ i64 {
+                              md5hashIn: String, inputStreamIn: java.io.FileInputStream, sortingIndexIn: Option<i64> = None) -> /*id*/ i64 {
         let description: String = escapeQuotesEtc(descriptionIn);
         // (Next 2 for completeness but there shouldn't ever be a problem if other code is correct.)
         let originalFilePath: String = escapeQuotesEtc(originalFilePathIn);
@@ -1466,8 +1466,8 @@ impl Database for PostgreSQLDatabase {
       }
 
       /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
-        fn createRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                                      sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false) -> RelationToLocalEntity {
+        fn createRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                      sortingIndexIn: Option<i64> = None, callerManagesTransactionsIn: Boolean = false) -> RelationToLocalEntity {
         let rteId: i64 = getNewKey("RelationToEntityKeySequence");
         if (!callerManagesTransactionsIn) beginTrans()
         try {
@@ -1486,8 +1486,8 @@ impl Database for PostgreSQLDatabase {
       }
 
       /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
-        fn createRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                                       remoteInstanceIdIn: String, sortingIndexIn: Option[i64] = None,
+        fn createRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                       remoteInstanceIdIn: String, sortingIndexIn: Option<i64> = None,
                                        callerManagesTransactionsIn: Boolean = false) ->  -> RelationToRemoteEntity {
         if (!callerManagesTransactionsIn) beginTrans()
         let rteId: i64 = getNewKey("RelationToRemoteEntityKeySequence");
@@ -1509,7 +1509,7 @@ impl Database for PostgreSQLDatabase {
 
       /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
         fn updateRelationToLocalEntity(oldRelationTypeIdIn: i64, entityId1In: i64, entityId2In: i64,
-                                 newRelationTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64) {
+                                 newRelationTypeIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64) {
         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
         // in memory when the db updates, and the behavior gets weird.
         dbAction("UPDATE RelationToEntity SET (rel_type_id, valid_on_date, observation_date)" +
@@ -1519,7 +1519,7 @@ impl Database for PostgreSQLDatabase {
 
       /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables). */
         fn updateRelationToRemoteEntity(oldRelationTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
-                                 newRelationTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64) {
+                                 newRelationTypeIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64) {
         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
         // in memory when the db updates, and the behavior gets weird.
         dbAction("UPDATE RelationToRemoteEntity SET (rel_type_id, valid_on_date, observation_date)" +
@@ -1540,7 +1540,7 @@ impl Database for PostgreSQLDatabase {
           let oldRteRelType: i64 = rteData(2).get.asInstanceOf[i64];
           let oldRteEntity1: i64 = rteData(3).get.asInstanceOf[i64];
           let oldRteEntity2: i64 = rteData(4).get.asInstanceOf[i64];
-          let validOnDate: Option[i64] = rteData(5).asInstanceOf[Option[i64]];
+          let validOnDate: Option<i64> = rteData(5).asInstanceOf[Option<i64>];
           let observedDate: i64 = rteData(6).get.asInstanceOf[i64];
           deleteRelationToLocalEntity(oldRteRelType, oldRteEntity1, oldRteEntity2)
           let newRTE: RelationToLocalEntity = createRelationToLocalEntity(oldRteRelType, toContainingEntityIdIn, oldRteEntity2, validOnDate, observedDate,;
@@ -1569,7 +1569,7 @@ impl Database for PostgreSQLDatabase {
           let oldRteRelType: i64 = rteData(2).get.asInstanceOf[i64];
           let oldRteEntity1: i64 = rteData(3).get.asInstanceOf[i64];
           let oldRteEntity2: i64 = rteData(4).get.asInstanceOf[i64];
-          let validOnDate: Option[i64] = rteData(5).asInstanceOf[Option[i64]];
+          let validOnDate: Option<i64> = rteData(5).asInstanceOf[Option<i64>];
           let observedDate: i64 = rteData(6).get.asInstanceOf[i64];
           deleteRelationToRemoteEntity(oldRteRelType, oldRteEntity1, remoteInstanceIdIn, oldRteEntity2)
           let newRTE: RelationToRemoteEntity = createRelationToRemoteEntity(oldRteRelType, toContainingEntityIdIn, oldRteEntity2, validOnDate, observedDate,;
@@ -1594,8 +1594,8 @@ impl Database for PostgreSQLDatabase {
         * Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
         */
         fn createGroupAndRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false,
-                                        validOnDateIn: Option[i64], observationDateIn: i64,
-                                        sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean = false) -> (i64, i64) {
+                                        validOnDateIn: Option<i64>, observationDateIn: i64,
+                                        sortingIndexIn: Option<i64>, callerManagesTransactionsIn: Boolean = false) -> (i64, i64) {
         if (!callerManagesTransactionsIn) beginTrans()
         let groupId: i64 = createGroup(newGroupNameIn, allowMixedClassesInGroupIn);
         let (rtgId,_) = createRelationToGroup(entityIdIn, relationTypeIdIn, groupId, validOnDateIn, observationDateIn, sortingIndexIn, callerManagesTransactionsIn);
@@ -1606,8 +1606,8 @@ impl Database for PostgreSQLDatabase {
       /** I.e., make it so the entity has a relation to a new entity in it.
         * Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
         */
-        fn createEntityAndRelationToLocalEntity(entityIdIn: i64, relationTypeIdIn: i64, newEntityNameIn: String, isPublicIn: Option[Boolean],
-                                               validOnDateIn: Option[i64], observationDateIn: i64, callerManagesTransactionsIn: Boolean = false) -> (i64, i64) {
+        fn createEntityAndRelationToLocalEntity(entityIdIn: i64, relationTypeIdIn: i64, newEntityNameIn: String, isPublicIn: Option<bool>,
+                                               validOnDateIn: Option<i64>, observationDateIn: i64, callerManagesTransactionsIn: Boolean = false) -> (i64, i64) {
         let name: String = escapeQuotesEtc(newEntityNameIn);
         if (!callerManagesTransactionsIn) beginTrans()
         let newEntityId: i64 = createEntity(name, isPublicIn = isPublicIn);
@@ -1621,8 +1621,8 @@ impl Database for PostgreSQLDatabase {
         * Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
         * @return a tuple containing the id and new sortingIndex: (id, sortingIndex)
         */
-        fn createRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                                sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false) -> (i64, i64) {
+        fn createRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                sortingIndexIn: Option<i64> = None, callerManagesTransactionsIn: Boolean = false) -> (i64, i64) {
         if (!callerManagesTransactionsIn) beginTrans()
         let id: i64 = getNewKey("RelationToGroupKeySequence2");
         let sortingIndex = {;
@@ -1654,7 +1654,7 @@ impl Database for PostgreSQLDatabase {
       /** Re dates' meanings: see usage notes elsewhere in code (like inside createTables).
         */
         fn updateRelationToGroup(entityIdIn: i64, oldRelationTypeIdIn: i64, newRelationTypeIdIn: i64, oldGroupIdIn: i64, newGroupIdIn: i64,
-                                validOnDateIn: Option[i64], observationDateIn: i64) {
+                                validOnDateIn: Option<i64>, observationDateIn: i64) {
         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
         // in memory when the db updates, and the behavior gets weird.
         dbAction("UPDATE RelationToGroup SET (rel_type_id, group_id, valid_on_date, observation_date)" +
@@ -1674,7 +1674,7 @@ impl Database for PostgreSQLDatabase {
           let oldRtgEntityId: i64 = rtgData(2).get.asInstanceOf[i64];
           let oldRtgRelType: i64 = rtgData(3).get.asInstanceOf[i64];
           let oldRtgGroupId: i64 = rtgData(4).get.asInstanceOf[i64];
-          let validOnDate: Option[i64] = rtgData(5).asInstanceOf[Option[i64]];
+          let validOnDate: Option<i64> = rtgData(5).asInstanceOf[Option<i64>];
           let observedDate: i64 = rtgData(6).get.asInstanceOf[i64];
           deleteRelationToGroup(oldRtgEntityId, oldRtgRelType, oldRtgGroupId)
           let (newRtgId: i64,_) = createRelationToGroup(newContainingEntityIdIn, oldRtgRelType, oldRtgGroupId, validOnDate, observedDate, Some(sortingIndexIn),;
@@ -1725,7 +1725,7 @@ impl Database for PostgreSQLDatabase {
       // SEE ALSO METHOD findUnusedAttributeSortingIndex **AND DO MAINTENANCE IN BOTH PLACES**
       // idea: this needs a test, and/or combining with findIdWhichIsNotKeyOfAnyEntity.
       // **ABOUT THE SORTINGINDEX:  SEE the related comment on method addAttributeSortingRow.
-        fn findUnusedGroupSortingIndex(groupIdIn: i64, startingWithIn: Option[i64] = None) -> i64 {
+        fn findUnusedGroupSortingIndex(groupIdIn: i64, startingWithIn: Option<i64> = None) -> i64 {
         //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
         //only one iteration, ever.  (See similar comments elsewhere.)
         @tailrec fn findUnusedSortingIndex_helper(gId: i64, workingIndex: i64, counter: i64) -> i64 {
@@ -1746,7 +1746,7 @@ impl Database for PostgreSQLDatabase {
 
       // SEE COMMENTS IN findUnusedGroupSortingIndex **AND DO MAINTENANCE IN BOTH PLACES
       // **ABOUT THE SORTINGINDEX:  SEE the related comment on method addAttributeSortingRow.
-        fn findUnusedAttributeSortingIndex(entityIdIn: i64, startingWithIn: Option[i64] = None) -> i64 {
+        fn findUnusedAttributeSortingIndex(entityIdIn: i64, startingWithIn: Option<i64> = None) -> i64 {
         @tailrec fn findUnusedSortingIndex_helper(eId: i64, workingIndex: i64, counter: i64) -> i64 {
           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
           if (isAttributeSortingIndexInUse(eId, workingIndex)) {
@@ -1764,7 +1764,7 @@ impl Database for PostgreSQLDatabase {
         * the max (ie putting it at the end) might be the least often surprising if the user wonders where one went....
         * **ABOUT THE SORTINGINDEX*:  SEE the related comment on method addAttributeSortingRow.
         */
-        fn addEntityToGroup(groupIdIn: i64, containedEntityIdIn: i64, sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false) {
+        fn addEntityToGroup(groupIdIn: i64, containedEntityIdIn: i64, sortingIndexIn: Option<i64> = None, callerManagesTransactionsIn: Boolean = false) {
         // IF THIS CHANGES ALSO DO MAINTENANCE IN SIMILAR METHOD addAttributeSortingRow
         if (!callerManagesTransactionsIn) beginTrans()
 
@@ -1800,7 +1800,7 @@ impl Database for PostgreSQLDatabase {
        *                       good value or call the renumberSortingIndexes method in SortableEntriesMenu.
        * @return the sorting_index value that is actually used.
        */
-        fn addAttributeSortingRow(entityIdIn: i64, attributeFormIdIn: i64, attributeIdIn: i64, sortingIndexIn: Option[i64] = None) -> i64 {
+        fn addAttributeSortingRow(entityIdIn: i64, attributeFormIdIn: i64, attributeIdIn: i64, sortingIndexIn: Option<i64> = None) -> i64 {
         // SEE COMMENTS IN SIMILAR METHOD: addEntityToGroup.  **AND DO MAINTENANCE. IN BOTH PLACES.
         // Should probably be called from inside a transaction (which isn't managed in this method, since all its current callers do it.)
         let sortingIndex = {;
@@ -1851,7 +1851,7 @@ impl Database for PostgreSQLDatabase {
         } else false
       }
 
-        fn createEntity(nameIn: String, classIdIn: Option[i64] = None, isPublicIn: Option[Boolean] = None) -> /*id*/ i64 {
+        fn createEntity(nameIn: String, classIdIn: Option<i64> = None, isPublicIn: Option<bool> = None) -> /*id*/ i64 {
         let name: String = escapeQuotesEtc(nameIn);
         if (name == null || name.length == 0) throw new OmDatabaseException("Name must have a value.")
         let id: i64 = getNewKey("EntityKeySequence");
@@ -2041,7 +2041,7 @@ impl Database for PostgreSQLDatabase {
         }
       }
 
-        fn getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option[Boolean] = None) -> Option[Boolean] {
+        fn getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option<bool> = None) -> Option<bool> {
         let pref = getUserPreference2(getPreferencesContainerId, preferenceNameIn, Database.PREF_TYPE_BOOLEAN);
         if (pref.isEmpty) {
           defaultValueIn
@@ -2073,7 +2073,7 @@ impl Database for PostgreSQLDatabase {
         }
       }
 
-        fn getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[i64] = None) -> Option[i64] {
+        fn getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option<i64> = None) -> Option<i64> {
         let pref = getUserPreference2(getPreferencesContainerId, preferenceNameIn, Database.PREF_TYPE_ENTITY_ID);
         if (pref.isEmpty) {
           defaultValueIn
@@ -2145,7 +2145,7 @@ impl Database for PostgreSQLDatabase {
         }
       }
 
-        fn getRelationToLocalEntityByName(containingEntityIdIn: i64, nameIn: String) -> Option[i64] {
+        fn getRelationToLocalEntityByName(containingEntityIdIn: i64, nameIn: String) -> Option<i64> {
         let sql = "select rte.entity_id_2 from relationtoentity rte, entity e where rte.entity_id=" + containingEntityIdIn +;
                   (if (!includeArchivedEntities) {
                     " and (not e.archived)"
@@ -2183,7 +2183,7 @@ impl Database for PostgreSQLDatabase {
                                                               );
                                                               }
 
-        fn getClassCount(templateEntityIdIn: Option[i64] = None) -> i64 {
+        fn getClassCount(templateEntityIdIn: Option<i64> = None) -> i64 {
         let whereClause = if (templateEntityIdIn.isDefined) " where defining_entity_id=" + templateEntityIdIn.get else "";
         extractRowCountFromCountQuery("SELECT count(1) from class" + whereClause)
       }
@@ -2290,7 +2290,7 @@ impl Database for PostgreSQLDatabase {
         }
       }
 
-        fn classLimit(limitByClass: Boolean, classIdIn: Option[i64]) -> String {
+        fn classLimit(limitByClass: Boolean, classIdIn: Option<i64>) -> String {
         if (limitByClass) {
           if (classIdIn.isDefined) {
             " and e.class_id=" + classIdIn.get + " "
@@ -2308,8 +2308,8 @@ impl Database for PostgreSQLDatabase {
         * The parameter templateEntity *further* limits, if limitByClass is true, by omitting the templateEntity from the results (ex., to help avoid
         * counting that one when deciding whether it is OK to delete the class).
         * */
-        fn getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option[i64] = None,
-                               templateEntity: Option[i64] = None) -> i64 {
+        fn getEntitiesOnlyCount(limitByClass: Boolean = false, classIdIn: Option<i64> = None,
+                               templateEntity: Option<i64> = None) -> i64 {
         extractRowCountFromCountQuery("SELECT count(1) from Entity e where " +
                                       (if (!includeArchivedEntities) {
                                         "(not archived) and "
@@ -2339,7 +2339,7 @@ impl Database for PostgreSQLDatabase {
         getRelationToGroupCount(entityIdIn)
       }
 
-        fn getAttributeSortingRowsCount(entityIdIn: Option[i64] = None) -> i64 {
+        fn getAttributeSortingRowsCount(entityIdIn: Option<i64> = None) -> i64 {
         let sql = "select count(1) from AttributeSorting " + (if (entityIdIn.isDefined) "where entity_id=" + entityIdIn.get else "");
         extractRowCountFromCountQuery(sql)
       }
@@ -2388,7 +2388,7 @@ impl Database for PostgreSQLDatabase {
       }
 
       // Idea: make maxValsIn do something here.  How was that missed?  Is it needed?
-        fn getRelationsToGroupContainingThisGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[RelationToGroup] {
+        fn getRelationsToGroupContainingThisGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
         let sql: String = "select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, asort.sorting_index" +;
                           " from RelationToGroup rtg, AttributeSorting asort where group_id=" + groupIdIn +
                           " and rtg.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.getAttributeFormId(Util.RELATION_TO_GROUP_TYPE) +
@@ -2441,7 +2441,7 @@ impl Database for PostgreSQLDatabase {
         * This is useful for example when one is about
         * to delete an entity and we want to warn first, showing where it is contained.
         */
-        fn getContainingRelationToGroupDescriptions(entityIdIn: i64, limitIn: Option[i64] = None) -> ArrayList[String] {
+        fn getContainingRelationToGroupDescriptions(entityIdIn: i64, limitIn: Option<i64> = None) -> ArrayList[String] {
         let rows: List[Array[Option[Any]]] = dbQuery("select e.name, grp.name, grp.id from entity e, relationtogroup rtg, " +;
                                                      "grupo grp where " +
                                                      (if (!includeArchivedEntities) {
@@ -2465,7 +2465,7 @@ impl Database for PostgreSQLDatabase {
       /** For a given group, find all the RelationsToGroup that contain entities that contain the provided group id, and return their groupIds.
         * What is really the best name for this method (concise but clear on what it does)?
         */
-        fn getGroupsContainingEntitysGroupsIds(groupIdIn: i64, limitIn: Option[i64] = Some(5)) -> List[Array[Option[Any]]] {
+        fn getGroupsContainingEntitysGroupsIds(groupIdIn: i64, limitIn: Option<i64> = Some(5)) -> List[Array[Option[Any]]] {
         //get every entity that contains a rtg that contains this group:
         let containingEntityIdList: List[Array[Option[Any]]] = dbQuery("SELECT entity_id from relationtogroup where group_id=" + groupIdIn +;
                                                                        " order by entity_id limit " + checkIfShouldBeAllResults(limitIn), "i64")
@@ -2488,7 +2488,7 @@ impl Database for PostgreSQLDatabase {
 
       /** Intended to show something like an activity log. Could be used for someone to show their personal journal or for other reporting.
         */
-        fn findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option[i64] = None) -> ArrayList[(i64, String, i64)] {
+        fn findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option<i64> = None) -> ArrayList[(i64, String, i64)] {
         let rows: List[Array[Option[Any]]] = dbQuery("select insertion_date, 'Added: ' || name, id from entity where insertion_date >= " + startTimeIn +;
                                                             " and insertion_date <= " + endTimeIn +
                                                      " UNION " +
@@ -2774,8 +2774,8 @@ impl Database for PostgreSQLDatabase {
           // even though we're not storing data, the instructions (see createTables re this...) said to have it in a transaction.
           beginTrans()
           let lobjManager: LargeObjectManager = connection.asInstanceOf[org.postgresql.PGConnection].getLargeObjectAPI;
-          let oidOption: Option[i64] = dbQueryWrapperForOneRow("select contents_oid from FileAttributeContent where file_attribute_id=" + fileAttributeIdIn,;
-                                                                "i64")(0).asInstanceOf[Option[i64]]
+          let oidOption: Option<i64> = dbQueryWrapperForOneRow("select contents_oid from FileAttributeContent where file_attribute_id=" + fileAttributeIdIn,;
+                                                                "i64")(0).asInstanceOf[Option<i64>]
           if (oidOption.isEmpty) throw new OmDatabaseException("No contents found for file attribute id " + fileAttributeIdIn)
           let oid: i64 = oidOption.get;
           obj = lobjManager.open(oid, LargeObjectManager.READ)
@@ -2843,11 +2843,11 @@ impl Database for PostgreSQLDatabase {
         doesThisExist("SELECT count(1) from FileAttribute where id=" + idIn)
         }
 
-        fn relationToLocalEntityKeyExists(idIn: i64) -> Boolean {
+        fn relationToLocalentity_key_exists(idIn: i64) -> Boolean {
          doesThisExist("SELECT count(1) from RelationToEntity where id=" + idIn)
          }
 
-        fn relationToRemoteEntityKeyExists(idIn: i64) -> Boolean {
+        fn relationToRemoteentity_key_exists(idIn: i64) -> Boolean {
         doesThisExist("SELECT count(1) from RelationToRemoteEntity where id=" + idIn)
         }
 
@@ -2867,9 +2867,9 @@ impl Database for PostgreSQLDatabase {
             case 3 => booleanAttributeKeyExists(idIn)
             case 4 => fileAttributeKeyExists(idIn)
             case 5 => textAttributeKeyExists(idIn)
-            case 6 => relationToLocalEntityKeyExists(idIn)
+            case 6 => relationToLocalentity_key_exists(idIn)
             case 7 => relationToGroupKeyExists(idIn)
-            case 8 => relationToRemoteEntityKeyExists(idIn)
+            case 8 => relationToRemoteentity_key_exists(idIn)
             case _ => throw new OmDatabaseException("unexpected")
           }
       }
@@ -2886,7 +2886,7 @@ impl Database for PostgreSQLDatabase {
        * @param includeArchived See comment on similar parameter to method getGroupSize.
        */
       //idea: see if any callers should pass the includeArchived parameter differently, now that the system can be used with archived entities displayed.
-        fn entityKeyExists(idIn: i64, includeArchived: Boolean = true) -> Boolean {
+        fn entity_key_exists(idIn: i64, includeArchived: Boolean = true) -> Boolean {
         let condition = if (!includeArchived) " and not archived" else "";
         doesThisExist("SELECT count(1) from Entity where id=" + idIn + condition)
       }
@@ -2942,7 +2942,7 @@ impl Database for PostgreSQLDatabase {
        * Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
        * 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
        */
-        fn getEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[Entity] {
+        fn getEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[Entity] {
         getEntitiesGeneric(startingObjectIndexIn, maxValsIn, Util.ENTITY_TYPE)
       }
 
@@ -2955,14 +2955,14 @@ impl Database for PostgreSQLDatabase {
         * The parameter omitEntity is (at this writing) used for the id of a class-defining (template) entity, which we shouldn't show for editing when showing all the
         * entities in the class (editing that is a separate menu option), otherwise it confuses things.
         * */
-        fn getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, classIdIn: Option[i64] = None,
-                          limitByClass: Boolean = false, templateEntity: Option[i64] = None,
-                          groupToOmitIdIn: Option[i64] = None) -> java.util.ArrayList[Entity] {
+        fn getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, classIdIn: Option<i64> = None,
+                          limitByClass: Boolean = false, templateEntity: Option<i64> = None,
+                          groupToOmitIdIn: Option<i64> = None) -> java.util.ArrayList[Entity] {
         getEntitiesGeneric(startingObjectIndexIn, maxValsIn, "EntityOnly", classIdIn, limitByClass, templateEntity, groupToOmitIdIn)
       }
 
       /** similar to getEntities */
-        fn getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[Entity] {
+        fn getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[Entity] {
         getEntitiesGeneric(startingObjectIndexIn, maxValsIn, Util.RELATION_TYPE_TYPE)
       }
 
@@ -2971,12 +2971,12 @@ impl Database for PostgreSQLDatabase {
         fn addNewEntityToResults(finalResults: java.util.ArrayList[Entity], intermediateResultIn: Array[Option[Any]]) -> Boolean {
         let result = intermediateResultIn;
         // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-        finalResults.add(new Entity(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option[i64]],
-                                    result(3).get.asInstanceOf[i64], result(4).asInstanceOf[Option[Boolean]], result(5).get.asInstanceOf[Boolean],
+        finalResults.add(new Entity(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option<i64>],
+                                    result(3).get.asInstanceOf[i64], result(4).asInstanceOf[Option<bool>], result(5).get.asInstanceOf[Boolean],
                                     result(6).get.asInstanceOf[Boolean]))
       }
 
-        fn getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitEntityIdIn: Option[i64],
+        fn getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, omitEntityIdIn: Option<i64>,
                               nameRegexIn: String) -> java.util.ArrayList[Entity] {
         let nameRegex = escapeQuotesEtc(nameRegexIn);
         let omissionExpression: String = if (omitEntityIdIn.isEmpty) "true" else "(not id=" + omitEntityIdIn.get + ")";
@@ -3009,7 +3009,7 @@ impl Database for PostgreSQLDatabase {
         finalResults
       }
 
-        fn getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, omitGroupIdIn: Option[i64],
+        fn getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, omitGroupIdIn: Option<i64>,
                             nameRegexIn: String) -> java.util.ArrayList[Group] {
         let nameRegex = escapeQuotesEtc(nameRegexIn);
         let omissionExpression: String = if (omitGroupIdIn.isEmpty) "true" else "(not id=" + omitGroupIdIn.get + ")";
@@ -3043,7 +3043,7 @@ impl Database for PostgreSQLDatabase {
         finalResults
       }
 
-        fn getLocalEntitiesContainingLocalEntity(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[(i64, Entity)] {
+        fn getLocalEntitiesContainingLocalEntity(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)] {
         let sql: String = "select rel_type_id, entity_id from relationtoentity rte, entity e where rte.entity_id=e.id and rte.entity_id_2=" + entityIdIn +;
                           (if (!includeArchivedEntities) {
                             " and (not e.archived)"
@@ -3056,7 +3056,7 @@ impl Database for PostgreSQLDatabase {
         getContainingEntities_helper(sql)
       }
 
-        fn getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[(i64, Entity)] {
+        fn getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)] {
         let sql: String = "select rel_type_id, entity_id from relationtogroup where group_id=" + groupIdIn +;
                           " order by entity_id, rel_type_id limit " +
                           checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
@@ -3090,7 +3090,7 @@ impl Database for PostgreSQLDatabase {
         (nonArchived, archived)
       }
 
-        fn getContainingRelationsToGroup(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[RelationToGroup] {
+        fn getContainingRelationsToGroup(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
         // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
         // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
         // So, could: see the expectation of the place(s) calling this method, if uniform, make these 2 methods more uniform in what they do in meeting that,
@@ -3197,7 +3197,7 @@ impl Database for PostgreSQLDatabase {
         extractRowCountFromCountQuery(sql)
       }
 
-        fn getEntitiesUsedAsAttributeTypes(attributeTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None,
+        fn getEntitiesUsedAsAttributeTypes(attributeTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option<i64> = None,
                                           quantitySeeksUnitNotTypeIn: Boolean) -> java.util.ArrayList[Entity] {
         let sql: String = selectEntityStart + getEntitiesUsedAsAttributeTypes_sql(attributeTypeIn, quantitySeeksUnitNotTypeIn);
         let earlyResults = dbQuery(sql, "i64,String,i64,i64,Boolean,Boolean,Boolean");
@@ -3212,9 +3212,9 @@ impl Database for PostgreSQLDatabase {
       }
 
       // 1st parm is 0-based index to start with, 2nd parm is # of obj's to return (if None, means no limit).
-        fn getEntitiesGeneric(startingObjectIndexIn: i64, maxValsIn: Option[i64], tableNameIn: String,
-                                     classIdIn: Option[i64] = None, limitByClass: Boolean = false,
-                                     templateEntity: Option[i64] = None, groupToOmitIdIn: Option[i64] = None) -> java.util.ArrayList[Entity] {
+        fn getEntitiesGeneric(startingObjectIndexIn: i64, maxValsIn: Option<i64>, tableNameIn: String,
+                                     classIdIn: Option<i64> = None, limitByClass: Boolean = false,
+                                     templateEntity: Option<i64> = None, groupToOmitIdIn: Option<i64> = None) -> java.util.ArrayList[Entity] {
         let sql: String = selectEntityStart +;
                           (if (tableNameIn.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) ", r.name_in_reverse_direction, r.directionality " else "") +
                           " from Entity e " +
@@ -3268,7 +3268,7 @@ impl Database for PostgreSQLDatabase {
       /** Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
         * 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
         */
-        fn getGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None, groupToOmitIdIn: Option[i64] = None) -> java.util.ArrayList[Group] {
+        fn getGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, groupToOmitIdIn: Option<i64> = None) -> java.util.ArrayList[Group] {
         let omissionExpression: String = {;
           if (groupToOmitIdIn.isEmpty) {
             "true"
@@ -3293,7 +3293,7 @@ impl Database for PostgreSQLDatabase {
       }
 
 
-        fn getClasses(startingObjectIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[EntityClass] {
+        fn getClasses(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[EntityClass] {
         let sql: String = "SELECT id, name, defining_entity_id, create_default_attributes from class order by id limit " +;
                           checkIfShouldBeAllResults(maxValsIn) + " offset " + startingObjectIndexIn
         let earlyResults = dbQuery(sql, "i64,String,i64,Boolean");
@@ -3309,13 +3309,13 @@ impl Database for PostgreSQLDatabase {
         finalResults
       }
 
-        fn checkIfShouldBeAllResults(maxValsIn: Option[i64]) -> String {
+        fn checkIfShouldBeAllResults(maxValsIn: Option<i64>) -> String {
         if (maxValsIn.isEmpty) "ALL"
         else if (maxValsIn.get <= 0) "1"
         else maxValsIn.get.toString
       }
 
-        fn getGroupEntriesData(groupIdIn: i64, limitIn: Option[i64] = None, includeArchivedEntitiesIn: Boolean = true) -> List[Array[Option[Any]]] {
+        fn getGroupEntriesData(groupIdIn: i64, limitIn: Option<i64> = None, includeArchivedEntitiesIn: Boolean = true) -> List[Array[Option[Any]]] {
         // LIKE THE OTHER 3 BELOW SIMILAR METHODS:
         // Need to make sure it gets the desired rows, rather than just some, so the order etc matters at each step, probably.
         // idea: needs automated tests (in task list also).
@@ -3327,7 +3327,7 @@ impl Database for PostgreSQLDatabase {
         results
       }
 
-        fn getEntityAttributeSortingData(entityIdIn: i64, limitIn: Option[i64] = None) -> List[Array[Option[Any]]] {
+        fn getEntityAttributeSortingData(entityIdIn: i64, limitIn: Option<i64> = None) -> List[Array[Option[Any]]] {
         // see comments in getGroupEntriesData
         let results = dbQuery("select attribute_form_id, attribute_id, sorting_index from AttributeSorting where entity_id = " + entityIdIn +;
                               " order by sorting_index limit " + checkIfShouldBeAllResults(limitIn),
@@ -3335,7 +3335,7 @@ impl Database for PostgreSQLDatabase {
         results
       }
 
-        fn getAdjacentGroupEntriesSortingIndexes(groupIdIn: i64, sortingIndexIn: i64, limitIn: Option[i64] = None,
+        fn getAdjacentGroupEntriesSortingIndexes(groupIdIn: i64, sortingIndexIn: i64, limitIn: Option<i64> = None,
                                                 forwardNotBackIn: Boolean) -> ListArray[Option[Any]]] {
         // see comments in getGroupEntriesData.
         // Doing "not e.archived", because the caller is probably trying to move entries up/down in the UI, and if we count archived entries but
@@ -3356,7 +3356,7 @@ impl Database for PostgreSQLDatabase {
         results
       }
 
-        fn getAdjacentAttributesSortingIndexes(entityIdIn: i64, sortingIndexIn: i64, limitIn: Option[i64], forwardNotBackIn: Boolean) -> ListArray[Option[Any]]] {
+        fn getAdjacentAttributesSortingIndexes(entityIdIn: i64, sortingIndexIn: i64, limitIn: Option<i64>, forwardNotBackIn: Boolean) -> ListArray[Option[Any]]] {
         let results = dbQuery("select sorting_index from AttributeSorting where entity_id=" + entityIdIn +;
                               " and sorting_index" + (if (forwardNotBackIn) ">" else "<") + sortingIndexIn +
                               " order by sorting_index " + (if (forwardNotBackIn) "ASC" else "DESC") +
@@ -3367,7 +3367,7 @@ impl Database for PostgreSQLDatabase {
 
       /** This one should explicitly NOT omit archived entities (unless parameterized for that later). See caller's comments for more, on purpose.
         */
-        fn getNearestGroupEntrysSortingIndex(groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64] {
+        fn getNearestGroupEntrysSortingIndex(groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64> {
         let results = dbQuery("select sorting_index from entitiesinagroup where group_id=" + groupIdIn + " and sorting_index " +;
                               (if (forwardNotBackIn) ">" else "<") + startingPointSortingIndexIn +
                               " order by sorting_index " + (if (forwardNotBackIn) "ASC" else "DESC") +
@@ -3377,22 +3377,22 @@ impl Database for PostgreSQLDatabase {
           None
         } else {
           if (results.size > 1) throw new OmDatabaseException("Probably the caller didn't expect this to get >1 results...Is that even meaningful?")
-          else results.head(0).asInstanceOf[Option[i64]]
+          else results.head(0).asInstanceOf[Option<i64>]
         }
       }
 
-        fn getNearestAttributeEntrysSortingIndex(entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64] {
+        fn getNearestAttributeEntrysSortingIndex(entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64> {
         let results: List[Array[Option[Any]]] = getAdjacentAttributesSortingIndexes(entityIdIn, startingPointSortingIndexIn, Some(1), forwardNotBackIn = forwardNotBackIn);
         if (results.isEmpty) {
           None
         } else {
           if (results.size > 1) throw new OmDatabaseException("Probably the caller didn't expect this to get >1 results...Is that even meaningful?")
-          else results.head(0).asInstanceOf[Option[i64]]
+          else results.head(0).asInstanceOf[Option<i64>]
         }
       }
 
       // 2nd parm is 0-based index to start with, 3rd parm is # of obj's to return (if < 1 then it means "all"):
-        fn getGroupEntryObjects(groupIdIn: i64, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[Entity] {
+        fn getGroupEntryObjects(groupIdIn: i64, startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[Entity] {
         // see comments in getGroupEntriesData
         let sql = "select entity_id, sorting_index from entity e, EntitiesInAGroup eiag where e.id=eiag.entity_id" +;
                   (if (!includeArchivedEntities) {
@@ -3454,7 +3454,7 @@ impl Database for PostgreSQLDatabase {
       /**
        * @return the create_default_attributes boolean value from a given class.
        */
-        fn updateClassCreateDefaultAttributes(classIdIn: i64, value: Option[Boolean]) {
+        fn updateClassCreateDefaultAttributes(classIdIn: i64, value: Option<bool>) {
         dbAction("update class set (create_default_attributes) = ROW(" +
                  (if (value.isEmpty) "NULL" else if (value.get) "true" else "false") +
                  ") where id=" + classIdIn)
@@ -3475,7 +3475,7 @@ impl Database for PostgreSQLDatabase {
         ta.getText
       }
 
-        fn getEntitiesFromRelationsToLocalEntity(parentEntityIdIn: i64, nameIn: String, relTypeIdIn: Option[i64] = None,
+        fn getEntitiesFromRelationsToLocalEntity(parentEntityIdIn: i64, nameIn: String, relTypeIdIn: Option<i64> = None,
                                          expectedRows: Option[Int] = None) -> Array[Entity] {
         // (not getting all the attributes in this case, and doing another query to the entity table (less efficient), to save programming
         // time for the case that the entity table changes, we don't have to carefully update all the columns selected here & the mappings.  This is a more
@@ -3513,7 +3513,7 @@ impl Database for PostgreSQLDatabase {
           let textAttributeId: i64 = r(0).get.asInstanceOf[i64];
           let textValue: String = r(1).get.asInstanceOf[String];
           let attrTypeId: i64 = r(2).get.asInstanceOf[i64];
-          let validOnDate: Option[i64] = if (r(3).isEmpty) None else Some(r(3).get.asInstanceOf[i64]);
+          let validOnDate: Option<i64> = if (r(3).isEmpty) None else Some(r(3).get.asInstanceOf[i64]);
           let observationDate: i64 = r(4).get.asInstanceOf[i64];
           let sortingIndex: i64 = r(5).get.asInstanceOf[i64];
           finalResult.add(new TextAttribute(this, textAttributeId, parentEntityIdIn, attrTypeId, textValue, validOnDate, observationDate, sortingIndex))
@@ -3535,7 +3535,7 @@ impl Database for PostgreSQLDatabase {
         */
         fn getSortedAttributes(entityIdIn: i64, startingObjectIndexIn: Int = 0, maxValsIn: Int = 0,
                               onlyPublicEntitiesIn: Boolean = true): (Array[(i64, Attribute)], Int) {
-        let allResults: java.util.ArrayList[(Option[i64], Attribute)] = new java.util.ArrayList[(Option[i64], Attribute)];
+        let allResults: java.util.ArrayList[(Option<i64>, Attribute)] = new java.util.ArrayList[(Option<i64>, Attribute)];
         // First select the counts from each table, keep a running total so we know when to select attributes (compared to inStartingObjectIndex)
         // and when to stop.
         let tables: Array[String] = Array(Util.QUANTITY_TYPE, Util.BOOLEAN_TYPE, Util.DATE_TYPE, Util.TEXT_TYPE, Util.FILE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE,;
@@ -3704,7 +3704,7 @@ impl Database for PostgreSQLDatabase {
 
         let allResultsArray: Array[(i64, Attribute)] = new Array[(i64, Attribute)](allResults.size);
         let mut index = -1;
-        for (element: (Option[i64], Attribute) <- allResults.toArray(new Array[(Option[i64], Attribute)](0))) {
+        for (element: (Option<i64>, Attribute) <- allResults.toArray(new Array[(Option<i64>, Attribute)](0))) {
           index += 1
           // using maxIdValue as the max value of a long so those w/o sorting information will just sort last:
           allResultsArray(index) = (element._1.getOrElse(maxIdValue), element._2)
@@ -3720,7 +3720,7 @@ impl Database for PostgreSQLDatabase {
       }
 
       /** The 2nd parameter is to avoid saying an entity is a duplicate of itself: checks for all others only. */
-        fn isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[i64] = None) -> Boolean {
+        fn isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option<i64> = None) -> Boolean {
         let first = isDuplicateRow(nameIn, Util.ENTITY_TYPE, "id", "name",;
                                    if (!includeArchivedEntities) {
                                      Some("(not archived)")
@@ -3752,7 +3752,7 @@ impl Database for PostgreSQLDatabase {
 
 
       /** The 2nd parameter is to avoid saying a class is a duplicate of itself: checks for all others only. */
-        fn isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[i64] = None) -> Boolean {
+        fn isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option<i64> = None) -> Boolean {
         isDuplicateRow[i64](nameIn, "class", "id", "name", None, selfIdToIgnoreIn)
       }
 
@@ -3884,7 +3884,7 @@ impl Database for PostgreSQLDatabase {
 
         @tailrec fn findIdWhichIsNotKeyOfAnyEntity_helper(workingId: i64, counter: i64) -> i64 {
           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-          if (entityKeyExists(workingId)) {
+          if (entity_key_exists(workingId)) {
             if (workingId == maxIdValue) {
               // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
               throw new OmDatabaseException("No id found which is not a key of any entity in the system. How could all id's be used??")
@@ -3902,7 +3902,7 @@ impl Database for PostgreSQLDatabase {
 
       // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
         fn addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: i64,
-                                       makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
+                                       makeThemPublicIn: Option<bool>, callerManagesTransactionsIn: Boolean,
                                        quoteIn: Option[String] = None) -> (Entity, RelationToLocalEntity) {
         if (quoteIn.isDefined) require(!quoteIn.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
         if (!callerManagesTransactionsIn) beginTrans()
@@ -3968,7 +3968,7 @@ impl Database for PostgreSQLDatabase {
         extractRowCountFromCountQuery("SELECT count(1) from omInstance")
       }
 
-        fn createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[i64] = None,
+        fn createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option<i64> = None,
                            oldTableName: Boolean = false) -> i64 {
         if (idIn == null || idIn.length == 0) throw new OmDatabaseException("ID must have a value.")
         if (addressIn == null || addressIn.length == 0) throw new OmDatabaseException("Address must have a value.")
@@ -4014,7 +4014,7 @@ impl Database for PostgreSQLDatabase {
         doesThisExist("SELECT count(1) from omInstance where id='" + idIn + "'")
       }
 
-        fn getOmInstances(localIn: Option[Boolean] = None) -> java.util.ArrayList[OmInstance] {
+        fn getOmInstances(localIn: Option<bool> = None) -> java.util.ArrayList[OmInstance] {
         let sql = "select id, local, address, insertion_date, entity_id from omInstance" +;
                   (if (localIn.isDefined) {
                     if (localIn.get) {
@@ -4042,7 +4042,7 @@ impl Database for PostgreSQLDatabase {
         finalResults
       }
 
-        fn updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option[i64]) {
+        fn updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option<i64>) {
         let address: String = escapeQuotesEtc(addressIn);
         let sql = "UPDATE omInstance SET (address, entity_id)" +;
                   " = ('" + address + "', " +

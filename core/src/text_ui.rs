@@ -410,7 +410,7 @@ impl TextUI {
       final fn askWhich(leadingTextIn: Option[Array[String]],
                          choicesIn: Array[String],
                          moreChoicesIn: Array[String] = Array(),
-                         includeEscChoiceIn: Boolean = true,
+                         includeEscChoiceIn: bool = true,
                          trailingTextIn: Option[String] = None,
                          highlightIndexIn: Option[Int] = None,
                          secondaryHighlightIndexIn: Option[Int] = None,
@@ -428,12 +428,12 @@ impl TextUI {
       final fn askWhichChoiceOrItsAlternate(leadingTextIn: Option[Array[String]],
                          choicesIn: Array[String],
                          moreChoicesIn: Array[String] = Array(),
-                         includeEscChoiceIn: Boolean = true,
+                         includeEscChoiceIn: bool = true,
                          trailingTextIn: Option[String] = None,
                          highlightIndexIn: Option[Int] = None,
                          //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
                          secondaryHighlightIndexIn: Option[Int] = None,
-                         defaultChoiceIn: Option[Int] = None) -> Option[(Int, Boolean)] {
+                         defaultChoiceIn: Option[Int] = None) -> Option[(Int, bool)] {
         // This attempts to always use as menu option keystroke choices: numbers for "choices" (such as major operations available on the
         // current entity) and letters for "moreChoices" (such as attributes of the current entity to select for further work).  But if
         // there are too many "choices", it will use letters for those as well.
@@ -473,7 +473,7 @@ impl TextUI {
           new String("" + possibleMenuChars.charAt(next))
         }
 
-        fn ranOutOfVerticalSpace() -> Boolean {
+        fn ranOutOfVerticalSpace() -> bool {
           lineCounter = lineCounter + 1
           if (alreadyFull) {
             alreadyFull
@@ -573,7 +573,7 @@ impl TextUI {
         showMoreChoices()
         if (trailingTextIn.isDefined && trailingTextIn.get.nonEmpty) println(trailingTextIn.get)
 
-        let (answer: Char, userChoseAlternate: Boolean) = get_user_input_char;
+        let (answer: Char, userChoseAlternate: bool) = get_user_input_char;
         if (answer != 27 && answer != '0' && answer != 13 && (!allAllowedAnswers.toString.contains(answer.toChar))) {
           println("unknown choice: " + answer)
           askWhichChoiceOrItsAlternate(leadingTextIn, choicesIn, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn,
@@ -592,20 +592,20 @@ impl TextUI {
         }
       }
 
-        fn isValidYesNoAnswer(s: String) -> Boolean {
+        fn isValidYesNoAnswer(s: String) -> bool {
         s.toLowerCase == "y" ||
         s.toLowerCase == "yes" ||
         s.toLowerCase == "n" ||
         s.toLowerCase == "no"
       }
 
-        fn isValidYesNoOrBlankAnswer(s: String) -> Boolean {
+        fn isValidYesNoOrBlankAnswer(s: String) -> bool {
         isValidYesNoAnswer(s) ||
         s.trim.isEmpty
       }
 
       /** true means yes, None means user wants out. */
-        fn askYesNoQuestion(promptIn: String, defaultValueIn: Option[String] = Some("n"), allowBlankAnswer: Boolean = false) -> Option[Boolean] {
+        fn askYesNoQuestion(promptIn: String, defaultValueIn: Option[String] = Some("n"), allowBlankAnswer: bool = false) -> Option<bool> {
         let ans = ask_for_string(Some(Array[String](promptIn + " (y/n)")),;
                                if (allowBlankAnswer) Some(isValidYesNoOrBlankAnswer) else Some(isValidYesNoAnswer),
                                defaultValueIn, escKeySkipsCriteriaCheck = allowBlankAnswer)
@@ -642,7 +642,7 @@ impl TextUI {
             else newLocation(originalName)
           }
         } else {
-          let yesExportTheFile: Option[Boolean] = {;
+          let yesExportTheFile: Option<bool> = {;
             if (originalFile.exists) {
               if (FileAttribute.md5Hash(originalFile) != originalMd5HashIn) Some(true)
               else {

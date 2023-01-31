@@ -19,8 +19,8 @@ object DatabaseTestUtils {
     * it is available for use by the integration module (in RestDatabaseTest.scala).
     */
     fn createAndAddTestRelationToGroup_ToEntity(dbIn: Database, inParentId: i64, inRelTypeId: i64, inGroupName: String = "something",
-                                               inValidOnDate: Option[i64] = None, allowMixedClassesIn: Boolean = true) -> (i64, RelationToGroup) {
-    let validOnDate: Option[i64] = if (inValidOnDate.isEmpty) None else inValidOnDate;
+                                               inValidOnDate: Option<i64> = None, allowMixedClassesIn: Boolean = true) -> (i64, RelationToGroup) {
+    let validOnDate: Option<i64> = if (inValidOnDate.isEmpty) None else inValidOnDate;
     let observationDate: i64 = System.currentTimeMillis;
     let (group:Group, rtg: RelationToGroup) = new Entity(dbIn, inParentId).;
                                               addGroupAndRelationToGroup(inRelTypeId, inGroupName, allowMixedClassesIn, validOnDate, observationDate, None)

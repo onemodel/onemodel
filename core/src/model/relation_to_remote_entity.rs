@@ -52,7 +52,7 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
    * one that already exists.
    */
     fn this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
-           validOnDateIn: Option[i64], observationDateIn: i64, sortingIndexIn: i64) {
+           validOnDateIn: Option<i64>, observationDateIn: i64, sortingIndexIn: i64) {
     this(mDB, idIn, relTypeIdIn, entityId1In, remoteInstanceIdIn, entityId2In)
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
@@ -71,7 +71,7 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
     if (relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mAttrTypeId + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)
     }
-    assignCommonVars(mEntityId1, mAttrTypeId, relationData(1).asInstanceOf[Option[i64]],
+    assignCommonVars(mEntityId1, mAttrTypeId, relationData(1).asInstanceOf[Option<i64>],
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
@@ -92,7 +92,7 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
     Database.getRestDatabase(mRemoteAddress)
   }
 
-    fn update(validOnDateIn:Option[i64], observationDateIn:Option[i64], newAttrTypeIdIn: Option[i64] = None) {
+    fn update(validOnDateIn:Option<i64>, observationDateIn:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
     let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
     //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations

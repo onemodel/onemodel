@@ -70,8 +70,8 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
         (newRTG.getId, newRTG.getAttrTypeId, newGroup.getId)
       } else {
         // given above conditions (w/ moveTargetIndexInObjList, and rtgCount twice), there must be exactly one, or there's a bug:
-        let (rtgId, relTypeId, gid, _, moreAvailable): (Option[i64], Option[i64],;
-          Option[i64], Option[String], Boolean) = targetEntityIn.findRelationToAndGroup
+        let (rtgId, relTypeId, gid, _, moreAvailable): (Option<i64>, Option<i64>,;
+          Option<i64>, Option[String], Boolean) = targetEntityIn.findRelationToAndGroup
 
         if (gid.isEmpty || relTypeId.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier " +
                                                                                      "checks, " +
@@ -158,7 +158,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
                                                                                          highlightedIndexInObjListIn, highlightedEntry)
             quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
           } else {
-            let (_, defaultToUsingSubgroup: Option[Boolean]) = useSubgroup(targetForMovesIn.get);
+            let (_, defaultToUsingSubgroup: Option<bool>) = useSubgroup(targetForMovesIn.get);
             if (defaultToUsingSubgroup.isEmpty) {
               // user just wanted out of the question (whether the code can get here depends on parms passed to the ui question in above call to useSubgroup)
               quickGroupMenu(groupIn, startingDisplayRowIndexIn, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn,
@@ -182,7 +182,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
         }
       } else if (answer == 8) {
         // if there is 1 (provided or guessable) destination), then move it there
-        let (targetGroupId: Option[i64], targetEntity: Option[Entity]) = {;
+        let (targetGroupId: Option<i64>, targetEntity: Option[Entity]) = {;
           // see whether will be moving it to an entity or a group, if anywhere.
           // ONLY RETURN ONE OF THE TWO, since the below relies on that to know which to do.
           if (callingMenusRtgIn.isDefined && containingEntityIn.isDefined) {
@@ -380,7 +380,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
           if (response.isDefined) {
             let addEntryAnswer = response.get;
             if (addEntryAnswer == 1) {
-              let (targetRtgCount: i64, defaultToUsingSubgroup: Option[Boolean]) = useSubgroup(highlightedEntry);
+              let (targetRtgCount: i64, defaultToUsingSubgroup: Option<bool>) = useSubgroup(highlightedEntry);
               if (defaultToUsingSubgroup.isDefined) {
                 if (defaultToUsingSubgroup.get) {
                   if (targetRtgCount > 1) {
@@ -532,7 +532,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
           } else {
             let userSelection: Entity = objectsToDisplay.get(choicesIndex);
 
-            let (_ /*subEntitySelected:Option[Entity]*/ , groupId: Option[i64], moreThanOneGroupAvailable) =;
+            let (_ /*subEntitySelected:Option[Entity]*/ , groupId: Option<i64>, moreThanOneGroupAvailable) =;
               controller.goToEntityOrItsSoleGroupsMenu(userSelection, relationToGroupIn, Some(groupIn))
 
             let removedOne: bool = !groupIn.isEntityInGroup(userSelection.getId);
@@ -560,9 +560,9 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     }
   }
 
-    fn useSubgroup(targetEntry: Entity) -> (i64, Option[Boolean]) {
+    fn useSubgroup(targetEntry: Entity) -> (i64, Option<bool>) {
     let targetRtgCount: i64 = targetEntry.getRelationToGroupCount;
-    let defaultToUsingSubgroup: Option[Boolean] = {;
+    let defaultToUsingSubgroup: Option<bool> = {;
       if (targetRtgCount == 0) {
         Some(false)
       } else if (targetRtgCount == 1) {
@@ -576,13 +576,13 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     (targetRtgCount, defaultToUsingSubgroup)
   }
 
-  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
+  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
                                         forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
     let group = new Group(dbIn, groupIdIn);
     group.getAdjacentGroupEntriesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64] {
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64> {
     let group = new Group(dbIn, groupIdIn);
     group.getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }

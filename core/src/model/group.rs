@@ -69,9 +69,9 @@ class Group(val mDB: Database, mId: i64) {
     mAlreadyReadData = true
   }
 
-    fn update(attrTypeIdInIGNOREDFORSOMEREASON: Option[i64] = None, nameIn: Option[String] = None, allowMixedClassesInGroupIn: Option[Boolean] = None,
-             newEntriesStickToTopIn: Option[Boolean] = None,
-             validOnDateInIGNORED4NOW: Option[i64], observationDateInIGNORED4NOW: Option[i64]) {
+    fn update(attrTypeIdInIGNOREDFORSOMEREASON: Option<i64> = None, nameIn: Option[String] = None, allowMixedClassesInGroupIn: Option<bool> = None,
+             newEntriesStickToTopIn: Option<bool> = None,
+             validOnDateInIGNORED4NOW: Option<i64>, observationDateInIGNORED4NOW: Option<i64>) {
 
     mDB.updateGroup(mId,
                     if (nameIn.isEmpty) getName else nameIn.get,
@@ -125,11 +125,11 @@ class Group(val mDB: Database, mId: i64) {
     else Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-    fn getGroupEntries(startingIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[Entity] {
+    fn getGroupEntries(startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[Entity] {
     mDB.getGroupEntryObjects(mId, startingIndexIn, maxValsIn)
   }
 
-    fn addEntity(inEntityId: i64, sortingIndexIn: Option[i64] = None, callerManagesTransactionsIn: Boolean = false) {
+    fn addEntity(inEntityId: i64, sortingIndexIn: Option<i64> = None, callerManagesTransactionsIn: Boolean = false) {
     mDB.addEntityToGroup(getId, inEntityId, sortingIndexIn, callerManagesTransactionsIn)
   }
 
@@ -161,7 +161,7 @@ class Group(val mDB: Database, mId: i64) {
     if (getMixedClassesAllowed)
       None
     else {
-      let classId: Option[i64] = getClassId;
+      let classId: Option<i64> = getClassId;
       if (classId.isEmpty && getSize() == 0) {
         // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
         Some("(unspecified)")
@@ -175,7 +175,7 @@ class Group(val mDB: Database, mId: i64) {
     }
   }
 
-    fn getClassId -> Option[i64] {
+    fn getClassId -> Option<i64> {
     if (getMixedClassesAllowed)
       None
     else {
@@ -209,7 +209,7 @@ class Group(val mDB: Database, mId: i64) {
   }
 
     fn getClassTemplateEntity -> (Option[Entity]) {
-    let classId: Option[i64] = getClassId;
+    let classId: Option<i64> = getClassId;
     if (getMixedClassesAllowed || classId.isEmpty)
       None
     else {
@@ -222,7 +222,7 @@ class Group(val mDB: Database, mId: i64) {
     mDB.getHighestSortingIndexForGroup(getId)
   }
 
-    fn getContainingRelationsToGroup(startingIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[RelationToGroup] {
+    fn getContainingRelationsToGroup(startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
     mDB.getRelationsToGroupContainingThisGroup(getId, startingIndexIn, maxValsIn)
   }
 
@@ -230,15 +230,15 @@ class Group(val mDB: Database, mId: i64) {
     mDB.getCountOfEntitiesContainingGroup(getId)
   }
 
-    fn getEntitiesContainingGroup(startingIndexIn: i64, maxValsIn: Option[i64] = None) -> java.util.ArrayList[(i64, Entity)] {
+    fn getEntitiesContainingGroup(startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)] {
     mDB.getEntitiesContainingGroup(getId, startingIndexIn, maxValsIn)
   }
 
-    fn findUnusedSortingIndex(startingWithIn: Option[i64] = None) -> i64 {
+    fn findUnusedSortingIndex(startingWithIn: Option<i64> = None) -> i64 {
     mDB.findUnusedGroupSortingIndex(getId, startingWithIn)
   }
 
-    fn getGroupsContainingEntitysGroupsIds(limitIn: Option[i64] = Some(5)) -> List[Array[Option[Any]]] {
+    fn getGroupsContainingEntitysGroupsIds(limitIn: Option<i64> = Some(5)) -> List[Array[Option[Any]]] {
     mDB.getGroupsContainingEntitysGroupsIds(getId, limitIn)
   }
 
@@ -246,11 +246,11 @@ class Group(val mDB: Database, mId: i64) {
     mDB.isEntityInGroup(getId, entityIdIn)
   }
 
-    fn getAdjacentGroupEntriesSortingIndexes(sortingIndexIn: i64, limitIn: Option[i64] = None, forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
+    fn getAdjacentGroupEntriesSortingIndexes(sortingIndexIn: i64, limitIn: Option<i64> = None, forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
     mDB.getAdjacentGroupEntriesSortingIndexes(getId, sortingIndexIn, limitIn, forwardNotBackIn)
   }
 
-    fn getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64] {
+    fn getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64> {
     mDB.getNearestGroupEntrysSortingIndex(getId, startingPointSortingIndexIn, forwardNotBackIn)
   }
 

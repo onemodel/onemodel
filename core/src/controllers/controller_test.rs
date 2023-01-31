@@ -46,7 +46,7 @@ class ControllerTest extends FlatSpec with MockitoSugar {
 
     // (2nd parameter doesn't matter for this really)
     fn check(s: String, d: i64) {
-      let (date: Option[i64], problem: Boolean) = Util.finishAndParseTheDate(s, ui = ui);
+      let (date: Option<i64>, problem: Boolean) = Util.finishAndParseTheDate(s, ui = ui);
       assert(!problem)
       assert(date.get == d)
     }

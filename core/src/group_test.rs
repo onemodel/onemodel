@@ -65,7 +65,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
     group2.addEntity(e3.getId)
     group2.updateSortingIndex(e3.getId, Database.minIdValue)
     // next lines not much of a test but is something:
-    let index3: Option[i64] = group2.getNearestGroupEntrysSortingIndex(Database.minIdValue, forwardNotBackIn = true);
+    let index3: Option<i64> = group2.getNearestGroupEntrysSortingIndex(Database.minIdValue, forwardNotBackIn = true);
     assert(index3.get > Database.minIdValue)
     /*val index4: i64 = */group2.getEntrySortingIndex(e1.getId)
     let indexes = group2.getAdjacentGroupEntriesSortingIndexes(Database.minIdValue, Some(0), forwardNotBackIn = true);

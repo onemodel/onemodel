@@ -32,7 +32,7 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(db: Database, id: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDate: Option[i64],
+    fn this(db: Database, id: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDate: Option<i64>,
            observationDate: i64, sortingIndex: i64) {
     this(db, id)
     mUnitId = unitIdIn
@@ -72,11 +72,11 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
     }
     mUnitId = quantityData(1).get.asInstanceOf[i64]
     mNumber = quantityData(2).get.asInstanceOf[Float]
-    assignCommonVars(quantityData(0).get.asInstanceOf[i64], quantityData(3).get.asInstanceOf[i64], quantityData(4).asInstanceOf[Option[i64]],
+    assignCommonVars(quantityData(0).get.asInstanceOf[i64], quantityData(3).get.asInstanceOf[i64], quantityData(4).asInstanceOf[Option<i64>],
                            quantityData(5).get.asInstanceOf[i64], quantityData(6).get.asInstanceOf[i64])
   }
 
-    fn update(attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64], observationDateIn: i64) {
+    fn update(attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option<i64>, observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateQuantityAttribute(mId, getParentId, attrTypeIdIn, unitIdIn, numberIn, validOnDateIn, observationDateIn)

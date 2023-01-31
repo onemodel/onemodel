@@ -33,7 +33,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     *
   protected fn placeEntryInPosition(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64,
                                      numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: Boolean,
-                                     startingDisplayRowIndexIn: Int, movingObjIdIn: i64, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option[i64],
+                                     startingDisplayRowIndexIn: Int, movingObjIdIn: i64, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option<i64>,
                                      numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]) -> Int {
 
     require(if (objectAtThatIndexIdIn.isDefined || objectAtThatIndexFormIdIn.isDefined) {
@@ -50,7 +50,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       }
     }
 
-    let (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option[i64], farNewNeighborSortingIndex: Option[i64]) =;
+    let (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option<i64>, farNewNeighborSortingIndex: Option<i64>) =;
       findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex)
 
     let mut displayStartingRowNumber = startingDisplayRowIndexIn;
@@ -78,7 +78,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
               Database.minIdValue + 990
             }
           }
-          let (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option[i64], farNewNeighborSortingIndex2: Option[i64]) =;
+          let (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option<i64>, farNewNeighborSortingIndex2: Option<i64>) =;
             findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex2)
           // (for some reason, can't reassign the results directly to the vars like this "(newSortingIndex, trouble, newStartingRowNum) = ..."?
           let (a: i64, b: Boolean, c: Int) = getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,;
@@ -112,14 +112,14 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     * passing it as a parm?  Same in location(s) w/ similar comment about containingObjectIdIn.)
     */
   protected fn getNewSortingIndex(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64, startingDisplayRowIndexIn: Int,
-                                   nearNewNeighborSortingIndex: Option[i64], farNewNeighborSortingIndex: Option[i64], forwardNotBack: Boolean,
+                                   nearNewNeighborSortingIndex: Option<i64>, farNewNeighborSortingIndex: Option<i64>, forwardNotBack: Boolean,
                                    byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: i64, moveFromRelativeIndexInObjListIn: Int,
                                    numDisplayLines: Int) -> (i64, Boolean, Int) {
     if (nearNewNeighborSortingIndex.isEmpty) {
       throw new OmException("never should have got here: should have been the logic of ~nowhere to go so doing nothing")
     }
 
-    fn ensureNonDuplicate(groupOrEntityIdIn: i64, newIndexIn: i64) -> Option[i64] {
+    fn ensureNonDuplicate(groupOrEntityIdIn: i64, newIndexIn: i64) -> Option<i64> {
       // At this point we might have as newIndexIn, the dup of an archived entity's sorting index, since archived entities are ignored the in
       // logic that calculated our *NewNeighborSortingIndex variable
       // values.  If so, find another candidate (feels like a kludge and knowledge scattered across code, but not sure of a better algorithm right now).
@@ -144,7 +144,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
           //     scala> -3074457345618258604L + ((9223372036854775807L - -3074457345618258604L) / 2)
           //     res2: i64 = -6148914691236517206
           let newIndex = (nearNewNeighborSortingIndex.get + ((Database.maxIdValue.asInstanceOf[Float] - nearNewNeighborSortingIndex.get) / 2)).asInstanceOf[i64];
-          let nonDuplicatedNewIndex: Option[i64] = ensureNonDuplicate(containingObjectIdIn, newIndex);
+          let nonDuplicatedNewIndex: Option<i64> = ensureNonDuplicate(containingObjectIdIn, newIndex);
           // leaving it to communicate intent, but won't be '>' because a i64 would just wrap, so...
           let trouble: bool = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get > Database.maxIdValue ||;
                                  nonDuplicatedNewIndex.get <= movingFromPosition_sortingIndex || nonDuplicatedNewIndex.get <= nearNewNeighborSortingIndex.get
@@ -152,7 +152,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
         } else {
           // Leaving it to communicate intent, but won't be '<' because a i64 would just wrap, so...
           let newIndex = nearNewNeighborSortingIndex.get - math.abs((math.abs(Database.minIdValue) - math.abs(nearNewNeighborSortingIndex.get)) / 2);
-          let nonDuplicatedNewIndex: Option[i64] = ensureNonDuplicate(containingObjectIdIn, newIndex);
+          let nonDuplicatedNewIndex: Option<i64> = ensureNonDuplicate(containingObjectIdIn, newIndex);
           let trouble: bool = nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get < Database.minIdValue ||;
                                  nonDuplicatedNewIndex.get >= movingFromPosition_sortingIndex ||
                                  nonDuplicatedNewIndex.get >= nearNewNeighborSortingIndex.get
@@ -209,7 +209,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     * about containingObjectIdIn.)
     */
   protected fn findNewNeighbors(dbIn: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forwardNotBackIn: Boolean,
-                                 movingFromPosition_sortingIndex: i64) -> (Int, Option[i64], Option[i64]) {
+                                 movingFromPosition_sortingIndex: i64) -> (Int, Option<i64>, Option<i64>) {
 
     // (idea: this could probably be made more efficient by combining the 2nd part of the (fixed) algorithm (the call to mDB.getNearestEntry)
     // with the first part.  I.e., maybe we don't need to calculate the farNewNeighborSortingIndex at first, since we're just going to soon replace
@@ -222,10 +222,10 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
                                                                      forwardNotBackIn = forwardNotBackIn).toArray
     require(results.length <= queryLimit)
     // (get the last result's sortingIndex, if possible; 0-based of course; i.e., that of the first entry beyond where we're moving to):
-    let farNewNeighborSortingIndex: Option[i64] =;
-      if (results.length > 0 && results.length == queryLimit) results(results.length - 1)(0).asInstanceOf[Option[i64]]
+    let farNewNeighborSortingIndex: Option<i64> =;
+      if (results.length > 0 && results.length == queryLimit) results(results.length - 1)(0).asInstanceOf[Option<i64>]
       else None
-    let (nearNewNeighborSortingIndex: Option[i64], byHowManyEntriesMoving: Int) = {;
+    let (nearNewNeighborSortingIndex: Option<i64>, byHowManyEntriesMoving: Int) = {;
       if (results.length == 0) {
         // It could be a new entry trying to be moved to the a first or last position, or a mistake with the current entity. Both seem OK if we
         // just say we need to move from a slightly incremented/decremented position.  Maybe the increment/decrement isn't even needed, but harmless & cheap.
@@ -238,12 +238,12 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
         if (queryLimit == 1) (Some(movingFromPosition_sortingIndex), 1)
         else {
           // get the next-to-last result's sortingIndex
-          (results(queryLimit - 2)(0).asInstanceOf[Option[i64]], results.length - 1)
+          (results(queryLimit - 2)(0).asInstanceOf[Option<i64>], results.length - 1)
         }
       } else {
         // given the 'require' statement above, results.size now has to be between 0 and queryLimit, so use the last result as the "near new neighbor", and
         // move just beyond that
-        (results(results.length - 1)(0).asInstanceOf[Option[i64]], results.length)
+        (results(results.length - 1)(0).asInstanceOf[Option<i64>], results.length)
       }
     }
 
@@ -255,7 +255,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       So, now account for the fact that there could be archived entities between the 2 new neighbors, previously ignored, but at this point we will
       recalculate the farNewNeighbor, so that the later calculation of the sorting_index doesn't collide with an existing, but archived, entity:
       */
-    let adjustedFarNewNeighborSortingIndex:Option[i64] = {;
+    let adjustedFarNewNeighborSortingIndex:Option<i64> = {;
       if (nearNewNeighborSortingIndex.isEmpty || farNewNeighborSortingIndex.isEmpty)
         None
       else
@@ -265,10 +265,10 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     (byHowManyEntriesMoving, nearNewNeighborSortingIndex, adjustedFarNewNeighborSortingIndex)
   }
 
-  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
+  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
                                                  forwardNotBackIn: Boolean) -> List[Array[Option[Any]]]
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64]
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64>
 
   protected fn renumberSortingIndexes(dbIn: Database, containingObjectIdIn: i64)
 

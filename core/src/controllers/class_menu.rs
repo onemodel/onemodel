@@ -36,7 +36,7 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
       else {
         let answer = response.get;
         if (answer == 3) {
-          let currentCreateDefaultAttrValue: Option[Boolean] = classIn.getCreateDefaultAttributes;
+          let currentCreateDefaultAttrValue: Option<bool> = classIn.getCreateDefaultAttributes;
           let asDisplayed = {;
             if (currentCreateDefaultAttrValue.isEmpty) "unset"
             else if (currentCreateDefaultAttrValue.get) "true" else "false"
@@ -51,13 +51,13 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
             let prompt = "Do you want the program to create all the attributes by default, when creating a new entity in this class, using " +;
                          "the class defining entity's attributes as a template?  Enter a yes/no value (or a space for 'unknown/unspecified', i.e., to " +
                          "ask every time)"
-            let valueBefore: Option[Boolean] = classIn.getCreateDefaultAttributes;
+            let valueBefore: Option<bool> = classIn.getCreateDefaultAttributes;
             let defaultValue: String = valueBefore match {;
               case Some(true) => "y"
               case Some(false) => "n"
               case None => " "
             }
-            let valueEntered: Option[Boolean] = ui.askYesNoQuestion(prompt, Some(defaultValue), allowBlankAnswer = true);
+            let valueEntered: Option<bool> = ui.askYesNoQuestion(prompt, Some(defaultValue), allowBlankAnswer = true);
             if (valueBefore != valueEntered) {
               classIn.updateCreateDefaultAttributes(valueEntered)
             }

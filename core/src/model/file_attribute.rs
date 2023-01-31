@@ -155,7 +155,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   // AND note that: The dates for a fileAttribute shouldn't ever be None/NULL like with other Attributes, because it is the file date in the filesystem
   // before it was
   // read into OM, and the current date; so they should be known whenever adding a document.
-    fn update(attrTypeIdIn: Option[i64] = None, descriptionIn: Option[String] = None) {
+    fn update(attrTypeIdIn: Option<i64> = None, descriptionIn: Option[String] = None) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     let descr = if (descriptionIn.isDefined) descriptionIn.get else getDescription;
@@ -167,8 +167,8 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
 
   ///** Using Options for the parameters so caller can pass in only those desired (named), and other members will stay the same.
   //  */
-  //fn update(attrTypeIdIn: Option[i64] = None, descriptionIn: Option[String] = None, originalFileDateIn: Option[i64] = None,
-  //           storedDateIn: Option[i64] = None, originalFilePathIn: Option[String] = None, sizeIn: Option[i64] = None, md5hashIn: Option[String] = None) {
+  //fn update(attrTypeIdIn: Option<i64> = None, descriptionIn: Option[String] = None, originalFileDateIn: Option<i64> = None,
+  //           storedDateIn: Option<i64> = None, originalFilePathIn: Option[String] = None, sizeIn: Option<i64> = None, md5hashIn: Option[String] = None) {
   //  // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
   //  // it all goes with
   //  //********IF THIS METHOD IS EVER UNCOMMENTED: BE SURE TO TEST THAT the values (like size, hash, original date,

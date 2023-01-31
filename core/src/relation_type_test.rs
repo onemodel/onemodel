@@ -19,7 +19,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     // idea: parts of this test should probably be moved back up to the EntityTest class.
     let id = 0L;
     let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.entityKeyExists(id)).thenReturn(true)
+    when(mockDB.entity_key_exists(id)).thenReturn(true)
     let testRelTypeName = Database.THE_HAS_RELATION_TYPE_NAME;
     let testNameReversed = "is had";
     let testDir = "BI";
@@ -39,7 +39,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     // (But should this issue go away w/ better design involving more use of immutability or something?)
     let id = 0L;
     let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.entityKeyExists(id)).thenReturn(true)
+    when(mockDB.entity_key_exists(id)).thenReturn(true)
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
     when(mockDB.getRemoteAddress).thenReturn(None)
     let relationType = new RelationType(mockDB, id);

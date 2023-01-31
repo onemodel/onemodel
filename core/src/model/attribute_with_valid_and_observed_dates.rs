@@ -15,7 +15,7 @@ struct AttributeWithValidAndObservedDates {
 package org.onemodel.core.model
 
 object AttributeWithValidAndObservedDates {
-    fn getDatesDescription(mValidOnDate:Option[i64], mObservationDate:i64) -> String {
+    fn getDatesDescription(mValidOnDate:Option<i64>, mObservationDate:i64) -> String {
     let validDateDescr: String =;
       if (mValidOnDate.isEmpty) "unsp'd"
       else if (mValidOnDate.get == 0) "all time"
@@ -26,7 +26,7 @@ object AttributeWithValidAndObservedDates {
 }
 
 abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
-  protected fn assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64, sortingIndexIn: i64) {
+  protected fn assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64, sortingIndexIn: i64) {
     mValidOnDate = validOnDateIn
     // observationDate is not expected to be None, like mValidOnDate can be. See let mut def for more info.;
     mObservationDate = observationDateIn
@@ -37,7 +37,7 @@ abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: i64) exten
     AttributeWithValidAndObservedDates.getDatesDescription(getValidOnDate, getObservationDate)
   }
 
-  private[onemodel] fn getValidOnDate -> Option[i64] {
+  private[onemodel] fn getValidOnDate -> Option<i64> {
     if (!mAlreadyReadData) readDataFromDB()
     mValidOnDate
   }
@@ -51,7 +51,7 @@ abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: i64) exten
    * For descriptions of the meanings of these variables, see the comments
    * on createTables(...), and examples in the database testing code in PostgreSQLDatabase or Database classes.
    */
-  protected let mut mValidOnDate: Option[i64] = None;
+  protected let mut mValidOnDate: Option<i64> = None;
   protected let mut mObservationDate: i64 = 0L;
  */
 }

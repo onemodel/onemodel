@@ -30,7 +30,7 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDate: Option[i64], observationDate: i64,
+    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: bool, validOnDate: Option<i64>, observationDate: i64,
            sortingIndexIn: i64) {
     this(mDB, mId)
     mBoolean = booleanIn
@@ -39,14 +39,14 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
     */
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false) -> String {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = typeName + ": " + getBoolean + "";
     if (! simplify) result += "; " + getDatesDescription
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-    fn getBoolean() -> Boolean {
+    fn getBoolean() -> bool {
     if (!mAlreadyReadData) readDataFromDB()
     mBoolean
   }
@@ -57,11 +57,11 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
       throw new OmException("No results returned from data request for: " + mId)
     }
     mBoolean = baTypeData(1).get.asInstanceOf[Boolean]
-    super.assignCommonVars(baTypeData(0).get.asInstanceOf[i64], baTypeData(2).get.asInstanceOf[i64], baTypeData(3).asInstanceOf[Option[i64]],
+    super.assignCommonVars(baTypeData(0).get.asInstanceOf[i64], baTypeData(2).get.asInstanceOf[i64], baTypeData(3).asInstanceOf[Option<i64>],
                            baTypeData(4).get.asInstanceOf[i64], baTypeData(5).get.asInstanceOf[i64])
   }
 
-    fn update(attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64) {
+    fn update(attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option<i64>, observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateBooleanAttribute(mId, getParentId, attrTypeIdIn, booleanIn, validOnDateIn, observationDateIn)

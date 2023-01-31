@@ -93,7 +93,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let group = new Group(mDB, groupId);
     assert(! group.isEntityInGroup(entity2.getId))
     newRtle.moveEntityFromEntityToGroup(groupId, 0)
-    assert(! mDB.relationToLocalEntityKeyExists(newRtle.getId))
+    assert(! mDB.relationToLocalentity_key_exists(newRtle.getId))
     assert(group.isEntityInGroup(entity2.getId))
   }
 

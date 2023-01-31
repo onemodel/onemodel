@@ -30,21 +30,22 @@ use crate::TextUI;
 pub struct Controller {
     ui: TextUI,
     force_user_pass_prompt: bool,
-    //%%$%
-    // default_username: Option<String>,
-    // default_password: Option<String>,
 
     // NOTE: This should *not* be passed around as a parameter to everything, but rather those
     // places in the code should get the DB instance from the
     // entity (or other model object) being processed, to be sure the correct db instance is used.
-    db: PostgreSQLDatabase, //%%$%%use "dyn" here & below at warnings?:
-    /*%%$%%other qs looking at now:
+    db: PostgreSQLDatabase, //%%$%use "dyn" here & below at warnings?:
+    /*%%$%other qs looking at now:
         consider whether to use "Database" in place of "PostgreSQLDatabase" in places below for correctness? or wait/YAGNI?
         doing what 4docs say re trait...?
         What are the above/below T doing (the err msgs)
         what triggered compiler asking for "dyn"?
         doesnt dyn have to be a Box or reference?
      */
+    // putting this in a var instead of recalculating it every time (too frequent) inside find_default_display_entity_id:
+    //%%$%%
+    // show_public_private_status_preference: Option<bool>,
+    // default_display_entity_id: Option<i64>,
     move_farther_count: i32,
     move_farthest_count: i32,
 }
@@ -53,26 +54,34 @@ impl Controller {
     pub fn new_for_non_tests(ui: TextUI, force_user_pass_prompt: bool, default_username: Option<&String>, default_password: Option<&String>) -> Controller {
         let db = Self::try_db_logins(force_user_pass_prompt, &ui, default_username, default_password).unwrap_or_else(|e| {
             //%%should panic instead, at all places like this? to get a stack trace and for style?
+            //%%OR, only if it is truly something unanticipated? Are there not times when returning a failure is expected?
             //%%should eprintln at other places like this also?
             // ui.display_text1(e.to_string().as_str());
             eprintln!("{}", e.to_string().as_str());
             std::process::exit(1);
         });
+        //%%$%%
+        // let show_public_private_status_preference: Option<bool> = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE);
+        // let default_display_entity_id: Option<i64> = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE);
         Controller {
             ui,
             force_user_pass_prompt,
             db,
+            //%%$%%
+            // show_public_private_status_preference,
+            // default_display_entity_id,
             move_farther_count: 25,
             move_farthest_count: 50,
         }
     }
-    /* %%
-      /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
-        fn getDefaultEntity: Option[(i64, Entity)] {
-        if (defaultDisplayEntityId.isEmpty || ! localDb.entityKeyExists(defaultDisplayEntityId.get)) {
+/*
+    /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
+    fn getDefaultEntity(&self) -> Option<(i64, Entity)> {
+        if self.default_display_entity_id.is_none() || ! self.db.entity_key_exists(self.default_display_entity_id.unwrap()) {
           None
         } else {
-          let entity: Option[Entity] = Entity.getEntity(localDb, defaultDisplayEntityId.get);
+        //%%$%%
+          let entity: Option<Entity> = Entity.get_entity(&self.db, self.default_display_entity_id.get);
           if (entity.isDefined && entity.get.isArchived) {
             let msg = "The default entity \n" + "    " + entity.get.getId + ": \"" + entity.get.getName + "\"\n" +;
                       "... was found but is archived.  You might run" +
@@ -87,11 +96,10 @@ impl Controller {
               }
             }
           }
-          Some((defaultDisplayEntityId.get, entity.get))
+          Some((default_display_entity_id.get, entity.get))
         }
-      }
-    */
-
+    }
+*/
     pub fn start(&self) {
         // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  make it save their answer 'yes/i agree' or such in the DB,
         // and don't make them press the keystroke again (time-saver)!  See code at top of postgresql_database.rs that puts things in the db at startup: do similarly?
@@ -106,12 +114,7 @@ impl Controller {
             ),
         );
 
-        //%%temporary/experiment:
-        // loop {
-        //     let _x=TextUI::get_user_input_char(None);
-        //     // dbg!(_x);
-        // }
-        /* %%$%
+        /* %%$%%
          // Max id used as default here because it seems the least likely # to be used in the system hence the
          // most likely to cause an error as default by being missing, so the system can respond by prompting
          // the user in some other way for a use.
@@ -254,26 +257,24 @@ impl Controller {
         }
     }
 
-    /* %%
-    // Idea: showPublicPrivateStatusPreference, refreshPublicPrivateStatusPreference, and findDefaultDisplayEntityId, feel awkward.
+    // Idea: show_public_private_status_preference, refresh_public_private_status_preference, and finddefault_display_entity_id, feel awkward.
     // Needs something better, but I'm not sure
     // what, at the moment.  It was created this way as a sort of cache because looking it up every time was costly and made the app slow, like when
     // displaying a list of entities (getting the preference every time, to N levels deep), and especially at startup when checking for the default
     // up to N levels deep, among the preferences that can include entities with deep nesting.  So in a related change I made it also not look N levels
     // deep, for preferences.  If you check other places touched by this commit there may be a "shotgun surgery" bad smell here also.
     //Idea: Maybe these should have their cache expire after a period of time (to help when running multiple clients).
-    let mut showPublicPrivateStatusPreference: Option[Boolean] = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE);
-    fn refreshPublicPrivateStatusPreference() -> Unit {
-      showPublicPrivateStatusPreference = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
-    }
+    /* %%$%%
+    // fn refresh_public_private_status_preference() -> Unit {
+    //     show_public_private_status_preference = localDb.getUserPreference_Boolean(Util.SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE)
+    // }
+    //
+    // //%%never called? should be? remove or leave4now?
+    // fn refresh_default_display_entity_id() /*-> Unit%%*/  {
+    //     default_display_entity_id = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
+    // }
 
-      // putting this in a var instead of recalculating it every time (too frequent) inside findDefaultDisplayEntityId:;
-      let mut defaultDisplayEntityId: Option[i64] = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE);
-        fn refreshDefaultDisplayEntityId() /*-> Unit%%*/  {
-        defaultDisplayEntityId = localDb.getUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE)
-      }
-
-    fn askForClass(dbIn: Database) -> Option[i64] {
+    fn askForClass(dbIn: Database) -> Option<i64> {
         let msg = "CHOOSE ENTITY'S CLASS.  (Press ESC if you don't know or care about this.  Detailed explanation on the class feature will be available " +;
                   "at onemodel.org when this feature is documented more (hopefully at the next release), or ask on the email list.)"
         let result: Option[(IdWrapper, Boolean, String)] = chooseOrCreateObject(dbIn, Some(List[String](msg)), None, None, Util.ENTITY_CLASS_TYPE);
@@ -288,9 +289,9 @@ impl Controller {
         * There is also editEntityName which calls askForNameAndWriteEntity: it checks if the Entity being edited is a RelationType, and if not also checks
         * for whether a group name should be changed at the same time.
         */
-        fn askForClassInfoAndNameAndCreateEntity(dbIn: Database, classIdIn: Option[i64] = None) -> Option[Entity] {
+        fn askForClassInfoAndNameAndCreateEntity(dbIn: Database, classIdIn: Option<i64> = None) -> Option[Entity] {
         let mut newClass = false;
-        let classId: Option[i64] =;
+        let classId: Option<i64> =;
           if (classIdIn.isDefined) classIdIn
           else {
             newClass = true
@@ -321,7 +322,7 @@ impl Controller {
         */
         fn askForNameAndWriteEntity(dbIn: Database, typeIn: String, existingEntityIn: Option[Entity] = None, previousNameIn: Option[String] = None,
                                    previousDirectionalityIn: Option[String] = None,
-                                   previousNameInReverseIn: Option[String] = None, classIdIn: Option[i64] = None,
+                                   previousNameInReverseIn: Option[String] = None, classIdIn: Option<i64> = None,
                                    leadingTextIn: Option[String] = None, duplicateNameProbablyOK: Boolean = false) -> Option[Entity] {
         if (classIdIn.isDefined) require(typeIn == Util.ENTITY_TYPE)
         let createNotUpdate: bool = existingEntityIn.isEmpty;
@@ -353,7 +354,7 @@ impl Controller {
                 ui.display_text(Util.stringTooLongErrorMessage(maxNameLength).format(Util.tooLongMessage) + ".")
                 askAndSave(dbIn, Some(name))
               } else {
-                let selfIdToIgnore: Option[i64] = if (existingEntityIn.isDefined) Some(existingEntityIn.get.getId) else None;
+                let selfIdToIgnore: Option<i64> = if (existingEntityIn.isDefined) Some(existingEntityIn.get.getId) else None;
                 if (Util.isDuplicationAProblem(model.Entity.isDuplicate(dbIn, name, selfIdToIgnore), duplicateNameProbablyOK, ui)) None
                 else {
                   if (typeIn == Util.ENTITY_TYPE) {
@@ -502,7 +503,7 @@ impl Controller {
                       oldOmInstanceIn.get.update(address)
                       Some(oldOmInstanceIn.get.getId)
                     } else {
-                      let ans: Option[Boolean] = ui.askYesNoQuestion("The IDs of the old and new remote instances don't match (old " +;
+                      let ans: Option<bool> = ui.askYesNoQuestion("The IDs of the old and new remote instances don't match (old " +;
                                                                      "id/address: " + oldOmInstanceIn.get.getId + "/" +
                                                                      oldOmInstanceIn.get.getAddress + ", new id/address: " +
                                                                      remoteId.get + "/" + address + ".  Instead of updating the old one, you should create a new" +
@@ -798,8 +799,8 @@ impl Controller {
         editedEntity
       }
 
-        fn askForPublicNonpublicStatus(defaultForPrompt: Option[Boolean]) -> Option[Boolean] {
-        let valueAfterEdit: Option[Boolean] = ui.askYesNoQuestion("For Public vs. Non-public, enter a yes/no value (or a space" +;
+        fn askForPublicNonpublicStatus(defaultForPrompt: Option<bool>) -> Option<bool> {
+        let valueAfterEdit: Option<bool> = ui.askYesNoQuestion("For Public vs. Non-public, enter a yes/no value (or a space" +;
                                                                   " for 'unknown/unspecified'; used e.g. during data export; display preference can be" +
                                                                   " set under main menu / " + Util.menuText_viewPreferences + ")",
                                                                   if (defaultForPrompt.isEmpty) Some("") else if (defaultForPrompt.get) Some("y") else Some("n"),
@@ -812,7 +813,7 @@ impl Controller {
         *                 (ex., Controller.QUANTITY_TYPE).  See comment on that method, for that parm.
         * */
         fn askForAttributeData[T <: AttributeDataHolder](dbIn: Database, inoutDH: T, alsoAskForAttrTypeId: Boolean, attrType: String, attrTypeInputPrompt: Option[String],
-                                                        inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option[i64],
+                                                        inPreviousSelectionDesc: Option[String], inPreviousSelectionId: Option<i64>,
                                                         askForOtherInfo: (Database, T, Boolean, TextUI) => Option[T], editingIn: Boolean) -> Option[T] {
         let (userWantsOut: Boolean, attrTypeId: i64, isRemote, remoteKey) = {
           if (alsoAskForAttrTypeId) {
@@ -854,7 +855,7 @@ impl Controller {
             // (the ide/intellij preferred to have it this way instead of 'if')
             inoutDH match {
               case dhWithVOD: AttributeDataHolderWithVODates =>
-                let (validOnDate: Option[i64], observationDate: i64, userWantsToCancelInner: Boolean) =;
+                let (validOnDate: Option<i64>, observationDate: i64, userWantsToCancelInner: Boolean) =;
                   Util.askForAttributeValidAndObservedDates(editingIn, dhWithVOD.validOnDate, dhWithVOD.observationDate, ui)
 
                 if (userWantsToCancelInner) userWantsToCancel = true
@@ -878,7 +879,7 @@ impl Controller {
         */
       @tailrec final def findExistingObjectByText(dbIn: Database, startingDisplayRowIndexIn: i64 = 0, attrTypeIn: String,
                                                   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                                                  idToOmitIn: Option[i64] = None, regexIn: String): Option[IdWrapper] = {
+                                                  idToOmitIn: Option<i64> = None, regexIn: String): Option[IdWrapper] = {
         let leadingText = List[String]("SEARCH RESULTS: " + Util.pickFromListPrompt);
         let choices: Array[String] = Array(Util.listNextItemsPrompt);
         let numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leadingText.size, choices.length, Util.maxNameLength);
@@ -973,11 +974,11 @@ impl Controller {
         */
       /*@tailrec  //idea (and is tracked):  putting this back gets compiler error on line 1218 call to chooseOrCreateObject. */
       final def chooseOrCreateObject(dbIn: Database, leadingTextIn: Option[List[String]], previousSelectionDescIn: Option[String],
-                                     previousSelectionIdIn: Option[i64], objectTypeIn: String, startingDisplayRowIndexIn: i64 = 0,
-                                     classIdIn: Option[i64] = None, limitByClassIn: Boolean = false,
-                                     containingGroupIn: Option[i64] = None,
+                                     previousSelectionIdIn: Option<i64>, objectTypeIn: String, startingDisplayRowIndexIn: i64 = 0,
+                                     classIdIn: Option<i64> = None, limitByClassIn: Boolean = false,
+                                     containingGroupIn: Option<i64> = None,
                                      markPreviousSelectionIn: Boolean = false,
-                                     showOnlyAttributeTypesIn: Option[Boolean] = None,
+                                     showOnlyAttributeTypesIn: Option<bool> = None,
                                      quantitySeeksUnitNotTypeIn: Boolean = false
                                      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method! (not
                                      // necessary if calling for a separate object type, but just when intended to ~"start over with the same thing").
@@ -1196,10 +1197,10 @@ impl Controller {
               // could keep this text output as an option?
             let yDate = new java.util.Date(System.currentTimeMillis() - (24 * 60 * 60 * 1000));
             let yesterday: String = new java.text.SimpleDateFormat("yyyy-MM-dd").format(yDate);
-            let beginDate: Option[i64] = Util.askForDate_generic(Some("BEGINNING date in the time range: " + Util.genericDatePrompt), Some(yesterday), ui);
+            let beginDate: Option<i64> = Util.askForDate_generic(Some("BEGINNING date in the time range: " + Util.genericDatePrompt), Some(yesterday), ui);
             if (beginDate.isEmpty) None
             else {
-              let endDate: Option[i64] = Util.askForDate_generic(Some("ENDING date in the time range: " + Util.genericDatePrompt), None, ui);
+              let endDate: Option<i64> = Util.askForDate_generic(Some("ENDING date in the time range: " + Util.genericDatePrompt), None, ui);
               if (endDate.isEmpty) None
               else {
                 let mut dayCurrentlyShowing: String = "";
@@ -1234,7 +1235,7 @@ impl Controller {
                 None
               } else {
                 let restDb = Database.getRestDatabase(remoteOmInstance.getAddress);
-                let remoteEntityId: Option[i64] = {;
+                let remoteEntityId: Option<i64> = {;
                   if (remoteEntityEntryTypeAnswer.get == 1) {
                     let remoteEntityAnswer = ui::ask_for_string2(Some(Array("Enter the remote entity's id # (for example, \"-9223372036854745151\"")),;
                                                              Some(Util.isNumeric), None)
@@ -1245,7 +1246,7 @@ impl Controller {
                       else  Some(id.toLong)
                     }
                   } else if (remoteEntityEntryTypeAnswer.get == 2) {
-                    let defaultEntityId: Option[i64] = restDb.getDefaultEntity(Some(ui));
+                    let defaultEntityId: Option<i64> = restDb.getDefaultEntity(Some(ui));
                     if (defaultEntityId.isEmpty) None
                     else defaultEntityId
                   } else {
@@ -1258,7 +1259,7 @@ impl Controller {
                   if (entityInJson.isEmpty) {
                     None
                   } else {
-                    let saveEntityAnswer: Option[Boolean] = ui.askYesNoQuestion("Here is the entity's data: \n" + "======================" +;
+                    let saveEntityAnswer: Option<bool> = ui.askYesNoQuestion("Here is the entity's data: \n" + "======================" +;
                                                                                 entityInJson.get + "\n" + "======================\n" +
                                                                                 "So do you want to save a reference to that entity?", Some("y"))
                     if (saveEntityAnswer.isDefined && saveEntityAnswer.get) {
@@ -1355,9 +1356,9 @@ impl Controller {
             None
           } else {
             // (BTW, do allow relation to self, ex., picking self as 2nd part of a RelationToLocalEntity.)
-            // (Also, the call to entityKeyExists should here include archived entities so the user can find out if the one
+            // (Also, the call to entity_key_exists should here include archived entities so the user can find out if the one
             // needed is archived, even if the hard way.)
-            if ((typeNameIn == Util.ENTITY_TYPE && dbIn.entityKeyExists(idString.toLong)) ||
+            if ((typeNameIn == Util.ENTITY_TYPE && dbIn.entity_key_exists(idString.toLong)) ||
                 (typeNameIn == Util.GROUP_TYPE && dbIn.groupKeyExists(idString.toLong))) {
               Some(new IdWrapper(idString.toLong))
             } else {
@@ -1396,7 +1397,7 @@ impl Controller {
         let outDH = dhIn;
 
         let groupSelection = chooseOrCreateGroup(dbIn, Some(List("SELECT GROUP FOR THIS RELATION")));
-        let groupId: Option[i64] = {;
+        let groupId: Option<i64> = {;
           if (groupSelection.isEmpty) {
             uiIn.display_text("Blank, so assuming you want to cancel; if not come back & add again.", false);
             None
@@ -1415,7 +1416,7 @@ impl Controller {
         */
       @tailrec final def chooseOrCreateGroup(dbIn: Database, leadingTextIn: Option[List[String]], startingDisplayRowIndexIn: i64 = 0,
                                              //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                                             containingGroupIn: Option[i64] = None /*ie group to omit from pick list*/): Option[IdWrapper] = {
+                                             containingGroupIn: Option<i64> = None /*ie group to omit from pick list*/): Option[IdWrapper] = {
         let totalExisting: i64 = dbIn.getGroupCount;
         def getNextStartingObjectIndex(currentListLength: i64): i64 = {
           let x = startingDisplayRowIndexIn + currentListLength;
@@ -1521,7 +1522,7 @@ impl Controller {
       }
 
         fn goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,
-                                        containingGroupIn: Option[Group] = None) -> (Option[Entity], Option[i64], Boolean) {
+                                        containingGroupIn: Option[Group] = None) -> (Option[Entity], Option<i64>, Boolean) {
         let (rtgId, rtId, groupId, _, moreThanOneAvailable) = userSelection.findRelationToAndGroup;
         let subEntitySelected: Option[Entity] = None;
         if (groupId.isDefined && !moreThanOneAvailable && userSelection.getAttributeCount() == 1) {
@@ -1560,7 +1561,7 @@ impl Controller {
           let numGroups: i64 = entityIn.getRelationToGroupCount;
           if (numGroups != 1) false
           else {
-            let (_, _, gid: Option[i64], _, moreAvailable) = entityIn.findRelationToAndGroup;
+            let (_, _, gid: Option<i64>, _, moreAvailable) = entityIn.findRelationToAndGroup;
             if (gid.isEmpty || moreAvailable) throw new OmException("Found " + (if (gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
                                                                             "there should be exactly one group in entity " + entityIn.getId + " .")
             let groupSize = entityIn.mDB.getGroupSize(gid.get, 1);
@@ -1575,8 +1576,8 @@ impl Controller {
         subgroupsCountPrefix
       }
 
-        fn addEntityToGroup(groupIn: Group) -> Option[i64] {
-        let newEntityId: Option[i64] = {;
+        fn addEntityToGroup(groupIn: Group) -> Option<i64> {
+        let newEntityId: Option<i64> = {;
           if (!groupIn.getMixedClassesAllowed) {
             if (groupIn.getSize() == 0) {
               // adding 1st entity to this group, so:
@@ -1589,7 +1590,7 @@ impl Controller {
               } else None
             } else {
               // it's not the 1st entry in the group, so add an entity using the same class as those previously added (or None as case may be).
-              let entityClassInUse: Option[i64] = groupIn.getClassId;
+              let entityClassInUse: Option<i64> = groupIn.getClassId;
               let idWrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(groupIn.mDB, None, None, None, Util.ENTITY_TYPE, 0, entityClassInUse,;
                                                                               limitByClassIn = true, containingGroupIn = Some(groupIn.getId))
               if (idWrapper.isEmpty) None
@@ -1680,7 +1681,7 @@ impl Controller {
 
         fn getPublicStatusDisplayString(entityIn: Entity) -> String {
         //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
-        if (showPublicPrivateStatusPreference.getOrElse(false)) {
+        if (show_public_private_status_preference.getOrElse(false)) {
           entityIn.getPublicStatusDisplayStringWithColor(blankIfUnset = false)
         } else {
           ""
@@ -1693,7 +1694,7 @@ impl Controller {
        *                   where it is a # higher than those found in db.getAttributeFormId, and in that case is handled specially here.
        * @return None if user wants out (or attrFormIn parm was an abortive mistake?), and the created Attribute if successful.
        */
-        fn addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, attrFormIn: Int, attrTypeIdIn: Option[i64]) -> Option[Attribute] {
+        fn addAttribute(entityIn: Entity, startingAttributeIndexIn: Int, attrFormIn: Int, attrTypeIdIn: Option<i64>) -> Option[Attribute] {
         let (attrTypeId: i64, askForAttrTypeId: Boolean) = {;
           if (attrTypeIdIn.isDefined) {
             (attrTypeIdIn.get, false)
@@ -1845,7 +1846,7 @@ impl Controller {
                                                                                               entityIn.getPublic, callerManagesTransactionsIn = false, quote)
           new EntityMenu(ui, this).entityMenu(newEntity, containingRelationToEntityIn = Some(newRTE))
           // user could have deleted the new result: check that before returning it as something to act upon:
-          if (entityIn.mDB.relationToLocalEntityKeyExists(newRTE.getId) && entityIn.mDB.entityKeyExists(newEntity.getId)) {
+          if (entityIn.mDB.relationToLocalentity_key_exists(newRTE.getId) && entityIn.mDB.entity_key_exists(newEntity.getId)) {
             Some(newRTE)
           } else {
             None
@@ -1863,7 +1864,7 @@ impl Controller {
             else targetEntityIn.getSortedAttributes(onlyPublicEntitiesIn = false)._1
           }
           let templateEntity: Option[Entity] = {;
-            let templateId: Option[i64] = targetEntityIn.getClassTemplateEntityId;
+            let templateId: Option<i64> = targetEntityIn.getClassTemplateEntityId;
             if (templateId.isEmpty) {
               None
             } else {
@@ -1894,7 +1895,7 @@ impl Controller {
           escCounterLocal
         }
 
-        let mut askAboutRteEveryTime: Option[Boolean] = None;
+        let mut askAboutRteEveryTime: Option<bool> = None;
         let mut (allCopy: Boolean, allCreateOrSearch: Boolean, allKeepReference: Boolean) = (false, false, false);
         let mut attrCounter = 0;
         for (attributeFromTemplate: Attribute <- templateAttributesToCopyIn) {
@@ -1965,7 +1966,7 @@ impl Controller {
           }
         }
         def copyAndEditRelationToEntity(entityIn: Entity, relationToEntityAttributeFromTemplateIn: Attribute,
-                                        askEveryTimeIn: Option[Boolean] = None): (Option[Attribute], Option[Boolean]) = {
+                                        askEveryTimeIn: Option<bool> = None): (Option[Attribute], Option<bool>) = {
           require(relationToEntityAttributeFromTemplateIn.isInstanceOf[RelationToLocalEntity] ||
                   relationToEntityAttributeFromTemplateIn.isInstanceOf[RelationToRemoteEntity])
           let choice1text = "Copy the template entity, editing its name (**MOST LIKELY CHOICE)";
@@ -1975,7 +1976,7 @@ impl Controller {
           let choice3text = "Keep a reference to the same entity as in the template (least likely choice)";
           let keepSameReferenceAsInTemplateChoiceNum = 3;
 
-          let mut askEveryTime: Option[Boolean] = None;
+          let mut askEveryTime: Option<bool> = None;
           askEveryTime = {
             if (askEveryTimeIn.isDefined) {
               askEveryTimeIn
@@ -2148,7 +2149,7 @@ impl Controller {
         if (entityIn.getClassId.isEmpty) {
           false
         } else {
-          let createAttributes: Option[Boolean] = new EntityClass(entityIn.mDB, entityIn.getClassId.get).getCreateDefaultAttributes;
+          let createAttributes: Option<bool> = new EntityClass(entityIn.mDB, entityIn.getClassId.get).getCreateDefaultAttributes;
           if (createAttributes.isDefined) {
             createAttributes.get
           } else {

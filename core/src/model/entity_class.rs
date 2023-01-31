@@ -22,7 +22,7 @@ object EntityClass {
      Database.classNameLength
      }
 
-    fn isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option[i64] = None) -> Boolean {
+    fn isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option<i64> = None) -> Boolean {
     inDB.isDuplicateClassName(inName, inSelfIdToIgnore)
     }
 }
@@ -37,7 +37,7 @@ class EntityClass(val mDB: Database, mId: i64) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(mDB: Database, mId: i64, inName: String, inTemplateEntityId: i64, createDefaultAttributesIn: Option[Boolean] = None) {
+    fn this(mDB: Database, mId: i64, inName: String, inTemplateEntityId: i64, createDefaultAttributesIn: Option<bool> = None) {
     this(mDB, mId)
     mName = inName
     mTemplateEntityId = inTemplateEntityId
@@ -56,7 +56,7 @@ class EntityClass(val mDB: Database, mId: i64) {
   }
 
 
-    fn getCreateDefaultAttributes -> Option[Boolean] {
+    fn getCreateDefaultAttributes -> Option<bool> {
     if (!mAlreadyReadData) readDataFromDB()
     mCreateDefaultAttributes
   }
@@ -68,7 +68,7 @@ class EntityClass(val mDB: Database, mId: i64) {
     }
     mName = classData(0).get.asInstanceOf[String]
     mTemplateEntityId = classData(1).get.asInstanceOf[i64]
-    mCreateDefaultAttributes = classData(2).asInstanceOf[Option[Boolean]]
+    mCreateDefaultAttributes = classData(2).asInstanceOf[Option<bool>]
     mAlreadyReadData = true
   }
 
@@ -107,7 +107,7 @@ class EntityClass(val mDB: Database, mId: i64) {
     templateEntityId
   }
 
-    fn updateCreateDefaultAttributes(valueIn: Option[Boolean]) /*%%-> Unit*/ {
+    fn updateCreateDefaultAttributes(valueIn: Option<bool>) /*%%-> Unit*/ {
     mDB.updateClassCreateDefaultAttributes(getId, valueIn)
     mCreateDefaultAttributes = valueIn
   }
@@ -120,6 +120,6 @@ class EntityClass(val mDB: Database, mId: i64) {
   let mut mAlreadyReadData: bool = false;
   let mut mName: String = null;
   let mut mTemplateEntityId: i64 = 0;
-  let mut mCreateDefaultAttributes: Option[Boolean] = None;
+  let mut mCreateDefaultAttributes: Option<bool> = None;
 */
 }

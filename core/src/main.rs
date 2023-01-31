@@ -21,13 +21,14 @@ use crate::text_ui::TextUI;
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.
-// Next line and "async" needed due to use of sqlx crate.
-#[tokio::main] //%%%$%where put this thing fr sqlx pg example? what means/does?
+// Next line and "async" needed due to use of sqlx crate, per its example.
+#[tokio::main]
 async fn main() {
     //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
     /*%%$%%next tasks?:
-        going2use the database trait in pg.rs/controller? read more there & try it or wait?
-        other %%$%%s &c
+        get more features working first
+        going2use the database trait in pg.rs/controller? read more/again re traits & try it or wait?
+        other %%$%s, %%s &c
      */
 
     let args: Vec<String> = env::args().collect();
@@ -58,41 +59,5 @@ async fn main() {
         default_username,
         default_password,
     );
-    //%%:
     controller.start();
-
-    /*%%
-let mut rl = Editor::<()>::new()?;
-
-let readline = rl.readline(">> ");
-        match readline {
-            Ok(line) => {
-                rl.add_history_entry(line.as_str());
-                println!("Line: {}", line);
-            },
-            Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
-                break
-            },
-            Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
-                break
-            },
-            Err(err) => {
-                println!("Error: {:?}", err);
-                break
-            }
-        }
-
-        let mTerminal: jline.Terminal = initializeTerminal();
-        let jlineReader: ConsoleReader = initializeReader();
-
-        // used to coordinate the mTerminal initialization (problems still happened when it wasn't lazy), and the cleanup thread, so that
-        // the cleanup actually happens.
-        private let mCleanupStarted: bool = false;
-
-        private let mut mJlineTerminalInitFinished: bool = false;
-        private let mut mJlineReaderInitFinished: bool = false;
-        %%
-    */
 }

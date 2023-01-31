@@ -174,7 +174,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       fail("getEntityCount after adding doesn't match prior count+1! Before: " + entityCountBeforeCreating + " and " + entitiesOnlyNewCount + ", " +
            "after: " + entityCountAfter1stCreate + " and " + entitiesOnlyNewCount + ".")
     }
-    assert(mDB.entityKeyExists(id))
+    assert(mDB.entity_key_exists(id))
 
     let newName = "test: ' org.onemodel.PSQLDbTest.entityupdate...";
     mDB.updateEntityOnlyName(id, newName)
@@ -188,11 +188,11 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     // now should not exist
     let entityCountAfterRollback = mDB.getEntityCount;
     assert(entityCountAfterRollback == entityCountBeforeCreating)
-    assert(!mDB.entityKeyExists(id))
+    assert(!mDB.entity_key_exists(id))
   }
 
   "findIdWhichIsNotKeyOfAnyEntity" should "find a nonexistent entity key" in {
-    assert(!mDB.entityKeyExists(mDB.findIdWhichIsNotKeyOfAnyEntity))
+    assert(!mDB.entity_key_exists(mDB.findIdWhichIsNotKeyOfAnyEntity))
   }
 
   "entityOnlyKeyExists" should "not find RelationToLocalEntity record" in {
@@ -394,7 +394,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let entityId = mDB.createEntity("test: org.onemodel.PSQLDbTest.testBooleanAttrs");
     let val1 = true;
     let observationDate: i64 = System.currentTimeMillis;
-    let validOnDate: Option[i64] = Some(1234L);
+    let validOnDate: Option<i64> = Some(1234L);
     assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 0)
     let booleanAttributeId: i64 = createTestBooleanAttributeWithOneEntity(entityId, val1, validOnDate, observationDate);
     assert(mDB.getAttributeSortingRowsCount(Some(entityId)) == 1)
@@ -431,7 +431,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below; and to verify behavior with other values)
     let testval2: bool = true;
-    let validOnDate2: Option[i64] = None;
+    let validOnDate2: Option<i64> = None;
     let boolAttributeId2: i64 = mDB.createBooleanAttribute(pid1, atid1, testval2, validOnDate2, observationDate);
     let ba3: BooleanAttribute = new BooleanAttribute(mDB, boolAttributeId2);
     assert(ba3.getBoolean == testval2)
@@ -923,11 +923,11 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   }
 
-    fn createTestQuantityAttributeWithTwoEntities(inParentId: i64, inValidOnDate: Option[i64] = None) -> i64 {
+    fn createTestQuantityAttributeWithTwoEntities(inParentId: i64, inValidOnDate: Option<i64> = None) -> i64 {
     let unitId: i64 = mDB.createEntity("centimeters");
     let attrTypeId: i64 = mDB.createEntity(QUANTITY_TYPE_NAME);
     let defaultDate: i64 = System.currentTimeMillis;
-    let validOnDate: Option[i64] = inValidOnDate;
+    let validOnDate: Option<i64> = inValidOnDate;
     let observationDate: i64 = defaultDate;
     let number: Float = 50;
     let quantityId: i64 = mDB.createQuantityAttribute(inParentId, attrTypeId, unitId, number, validOnDate, observationDate);
@@ -949,10 +949,10 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     quantityId
   }
 
-    fn createTestTextAttributeWithOneEntity(inParentId: i64, inValidOnDate: Option[i64] = None) -> i64 {
+    fn createTestTextAttributeWithOneEntity(inParentId: i64, inValidOnDate: Option<i64> = None) -> i64 {
     let attrTypeId: i64 = mDB.createEntity("textAttributeTypeLikeSsn");
     let defaultDate: i64 = System.currentTimeMillis;
-    let validOnDate: Option[i64] = inValidOnDate;
+    let validOnDate: Option<i64> = inValidOnDate;
     let observationDate: i64 = defaultDate;
     let text: String = "some test text";
     let textAttributeId: i64 = mDB.createTextAttribute(inParentId, attrTypeId, text, validOnDate, observationDate);
@@ -983,7 +983,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     dateAttributeId
   }
 
-    fn createTestBooleanAttributeWithOneEntity(inParentId: i64, valIn: Boolean, inValidOnDate: Option[i64] = None, inObservationDate: i64) -> i64 {
+    fn createTestBooleanAttributeWithOneEntity(inParentId: i64, valIn: bool, inValidOnDate: Option<i64> = None, inObservationDate: i64) -> i64 {
     let attrTypeId: i64 = mDB.createEntity("boolAttributeType-like-isDone");
     let booleanAttributeId: i64 = mDB.createBooleanAttribute(inParentId, attrTypeId, valIn, inValidOnDate, inObservationDate);
     let ba = new BooleanAttribute(mDB, booleanAttributeId);
@@ -995,7 +995,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     booleanAttributeId
   }
 
-    fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: Boolean = true) -> FileAttribute {
+    fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: bool = true) -> FileAttribute {
     let attrTypeId: i64 = mDB.createEntity("fileAttributeType");
     let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
     let mut writer: java.io.FileWriter = null;
@@ -1054,10 +1054,10 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     }
   }
 
-    fn createTestRelationToLocalEntity_WithOneEntity(inEntityId: i64, inRelTypeId: i64, inValidOnDate: Option[i64] = None) -> i64 {
+    fn createTestRelationToLocalEntity_WithOneEntity(inEntityId: i64, inRelTypeId: i64, inValidOnDate: Option<i64> = None) -> i64 {
     // idea: could use here instead: db.createEntityAndRelationToLocalEntity
     let relatedEntityId: i64 = mDB.createEntity(RELATED_ENTITY_NAME);
-    let validOnDate: Option[i64] = if (inValidOnDate.isEmpty) None else inValidOnDate;
+    let validOnDate: Option<i64> = if (inValidOnDate.isEmpty) None else inValidOnDate;
     let observationDate: i64 = System.currentTimeMillis;
     let id = mDB.createRelationToLocalEntity(inRelTypeId, inEntityId, relatedEntityId, validOnDate, observationDate).getId;
 
@@ -1086,7 +1086,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
         //noinspection ScalaUselessExpression
         None
       }
-      override fn modelTablesExist()  -> Boolean {
+      override fn modelTablesExist()  -> bool {
 true
 }
 //noinspection ScalaUselessExpression  (intentional style violation, for readability)
@@ -1240,13 +1240,13 @@ Unit
     mDB.updateClassName(classId, name)
 
     mDB.updateClassCreateDefaultAttributes(classId, Some(false))
-    let should1: Option[Boolean] = new EntityClass(mDB, classId).getCreateDefaultAttributes;
+    let should1: Option<bool> = new EntityClass(mDB, classId).getCreateDefaultAttributes;
     assert(!should1.get)
     mDB.updateClassCreateDefaultAttributes(classId, None)
-    let should2: Option[Boolean] = new EntityClass(mDB, classId).getCreateDefaultAttributes;
+    let should2: Option<bool> = new EntityClass(mDB, classId).getCreateDefaultAttributes;
     assert(should2.isEmpty)
     mDB.updateClassCreateDefaultAttributes(classId, Some(true))
-    let should3: Option[Boolean] = new EntityClass(mDB, classId).getCreateDefaultAttributes;
+    let should3: Option<bool> = new EntityClass(mDB, classId).getCreateDefaultAttributes;
     assert(should3.get)
 
     mDB.updateEntitysClass(entityId, None)

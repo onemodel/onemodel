@@ -30,7 +30,7 @@ object RelationToGroup {
       throw new OmException("No results returned from data request for: " + idIn)
     }
     new RelationToGroup(mDB, idIn, relationData(1).get.asInstanceOf[i64], relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64],
-                     relationData(4).asInstanceOf[Option[i64]], relationData(5).get.asInstanceOf[i64], relationData(6).get.asInstanceOf[i64])
+                     relationData(4).asInstanceOf[Option<i64>], relationData(5).get.asInstanceOf[i64], relationData(6).get.asInstanceOf[i64])
   }
 }
 
@@ -45,7 +45,7 @@ class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, m
   }
 
   /** See comment about these 2 dates in PostgreSQLDatabase.createTables() */
-    fn this(mDB: Database, idIn: i64, entityIdIn: i64, relTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
+    fn this(mDB: Database, idIn: i64, entityIdIn: i64, relTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
            sortingIndexIn: i64) {
     this(mDB, idIn, entityIdIn, relTypeIdIn, groupIdIn)
     assignCommonVars(entityIdIn, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
@@ -74,7 +74,7 @@ class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, m
       throw new OmException("No results returned from data request for: " + mEntityId + ", " + mRelTypeId + ", " + mGroupId)
     }
     super.assignCommonVars(mEntityId, mRelTypeId,
-                           relationData(4).asInstanceOf[Option[i64]],
+                           relationData(4).asInstanceOf[Option<i64>],
                            relationData(5).get.asInstanceOf[i64], relationData(6).get.asInstanceOf[i64])
   }
 
@@ -82,7 +82,7 @@ class RelationToGroup(mDB: Database, mId: i64, mEntityId:i64, mRelTypeId: i64, m
     mDB.moveRelationToGroup(getId, newContainingEntityIdIn, sortingIndexIn)
   }
 
-    fn update(newRelationTypeIdIn: Option[i64], newGroupIdIn: Option[i64], validOnDateIn:Option[i64], observationDateIn:Option[i64]) {
+    fn update(newRelationTypeIdIn: Option<i64>, newGroupIdIn: Option<i64>, validOnDateIn:Option<i64>, observationDateIn:Option<i64>) {
     //use validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others
     //Idea/possible bug: see comment on similar method in RelationToEntity (or maybe in its subclasses).
     let newRelationTypeId: i64 = if (newRelationTypeIdIn.isDefined) newRelationTypeIdIn.get else getAttrTypeId;

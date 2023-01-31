@@ -149,7 +149,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCall[Option[String], Any]("http://" + mRemoteAddress + pathIn, processOptionString, None, Array())
   }
 
-    fn processOptionLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]) -> Option[i64] {
+    fn processOptionLong(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]) -> Option<i64> {
     if (response.json == JsNull) {
       None
     } else {
@@ -157,11 +157,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-    fn getOptionLongFromRest(pathIn: String) -> Option[i64] {
-    RestDatabase.restCall[Option[i64], Any]("http://" + mRemoteAddress + pathIn, processOptionLong, None, Array())
+    fn getOptionLongFromRest(pathIn: String) -> Option<i64> {
+    RestDatabase.restCall[Option<i64>, Any]("http://" + mRemoteAddress + pathIn, processOptionLong, None, Array())
   }
 
-    fn processOptionBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]) -> Option[Boolean] {
+    fn processOptionBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]) -> Option<bool> {
     if (response.json == JsNull) {
       None
     } else {
@@ -169,8 +169,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-    fn getOptionBoolean(pathIn: String) -> Option[Boolean] {
-    RestDatabase.restCall[Option[Boolean], Any]("http://" + mRemoteAddress + pathIn, processOptionBoolean, None, Array())
+    fn getOptionBoolean(pathIn: String) -> Option<bool> {
+    RestDatabase.restCall[Option<bool>, Any]("http://" + mRemoteAddress + pathIn, processOptionBoolean, None, Array())
   }
 
   /** (See comment on processArrayOptionAny.
@@ -292,7 +292,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                                                    " exception or returned an Option with data, but returned None"))
   }
 
-    fn getDefaultEntity(uiIn: Option[TextUI]) -> Option[i64] {
+    fn getDefaultEntity(uiIn: Option[TextUI]) -> Option<i64> {
     fn getDefaultEntity_processed(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], ignore2: Array[Any]) -> i64 {
       (response.json \ "id").as[i64]
     }
@@ -323,7 +323,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getLong("/groups/" + groupIdIn + "/size/" + includeWhichEntitiesIn)
   }
 
-  override fn findUnusedGroupSortingIndex(groupIdIn: i64, startingWithIn: Option[i64]) -> i64 {
+  override fn findUnusedGroupSortingIndex(groupIdIn: i64, startingWithIn: Option<i64>) -> i64 {
     getLong("/groups/" + groupIdIn + "/unusedSortingIndex/" + startingWithIn.getOrElse(""))
   }
 
@@ -339,7 +339,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getLong("/entities/" + entityIdIn + "/sortingIndex/" + attributeFormIdIn + "/" + attributeIdIn)
   }
 
-  override fn getEntitiesOnlyCount(limitByClass: Boolean, classIdIn: Option[i64], templateEntity: Option[i64]) -> i64 {
+  override fn getEntitiesOnlyCount(limitByClass: Boolean, classIdIn: Option<i64>, templateEntity: Option<i64>) -> i64 {
     getLong("/entities/entitiesOnlyCount/" + limitByClass +
             (if (classIdIn.isEmpty) ""
             else {
@@ -372,11 +372,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getLong("/entities/" + entityIdIn + "/countOfRelationsToGroup")
   }
 
-  override fn getClassCount(templateEntityIdIn: Option[i64]) -> i64 {
+  override fn getClassCount(templateEntityIdIn: Option<i64>) -> i64 {
     getLong("/classes/count/" + templateEntityIdIn.getOrElse(""))
   }
 
-  override fn findUnusedAttributeSortingIndex(entityIdIn: i64, startingWithIn: Option[i64]) -> i64 {
+  override fn findUnusedAttributeSortingIndex(entityIdIn: i64, startingWithIn: Option<i64>) -> i64 {
     getLong("/entities/" + entityIdIn + "/unusedAttributeSortingIndex/" + startingWithIn.getOrElse(""))
   }
 
@@ -396,7 +396,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getLong("/entities/count")
   }
 
-  override fn isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option[i64]) -> Boolean {
+  override fn isDuplicateClassName(nameIn: String, selfIdToIgnoreIn: Option<i64>) -> Boolean {
     let name = UriEncoding.encodePathSegment(nameIn, "UTF-8");
     getBoolean("/classes/isDuplicate/" + name + "/" + selfIdToIgnoreIn.getOrElse(""))
   }
@@ -413,7 +413,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getBoolean("/groups/" + groupIdIn + "/isEntrySortingIndexInUse/" + sortingIndexIn)
   }
 
-  override fn entityKeyExists(idIn: i64, includeArchived: Boolean) -> Boolean {
+  override fn entity_key_exists(idIn: i64, includeArchived: Boolean) -> Boolean {
     getBoolean("/entities/" + idIn + "/exists/" + includeArchived)
   }
 
@@ -457,11 +457,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getBoolean("/relationsToEntity/" + idIn + "/existsWith/" + relationTypeIdIn + "/" + entityId1In + "/" + entityId2In)
   }
 
-  override fn  relationToLocalEntityKeyExists(idIn: i64) -> Boolean {
+  override fn  relationToLocalentity_key_exists(idIn: i64) -> Boolean {
     getBoolean("/relationsToEntity/" + idIn + "/exists")
   }
 
-  override fn  relationToRemoteEntityKeyExists(idIn: i64) -> Boolean {
+  override fn  relationToRemoteentity_key_exists(idIn: i64) -> Boolean {
     getBoolean("/relationsToRemoteEntity/" + idIn + "/exists")
   }
 
@@ -478,7 +478,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getBoolean("/groups/" + idIn + "/exists")
   }
 
-  override fn isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option[i64]) -> Boolean {
+  override fn isDuplicateEntityName(nameIn: String, selfIdToIgnoreIn: Option<i64>) -> Boolean {
     //If we need to change the 2nd parameter from UTF-8 to something else below, see javadocs for a class about encode/encoding, IIRC.
     let name = UriEncoding.encodePathSegment(nameIn, "UTF-8");
     getBoolean("/entities/isDuplicate/" + name + "/" + selfIdToIgnoreIn.getOrElse(""))
@@ -505,11 +505,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getOptionString("/entities/" + idIn + "/name")
   }
 
-  override fn getNearestGroupEntrysSortingIndex(groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64] {
+  override fn getNearestGroupEntrysSortingIndex(groupIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64> {
     getOptionLongFromRest("/groups/" + groupIdIn + "/nearestEntrysSortingIndex/" + startingPointSortingIndexIn + "/" + forwardNotBackIn)
   }
 
-  override fn getNearestAttributeEntrysSortingIndex(entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64] {
+  override fn getNearestAttributeEntrysSortingIndex(entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64> {
     getOptionLongFromRest("/entities/" + entityIdIn + "/nearestAttributeSortingIndex/" + startingPointSortingIndexIn + "/" + forwardNotBackIn)
   }
 
@@ -572,7 +572,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getArrayOptionAny("/entities/" + idIn, Array(Database.GET_ENTITY_DATA__RESULT_TYPES))
   }
 
-  override fn  getAdjacentGroupEntriesSortingIndexes(groupIdIn: i64, adjacentToEntrySortingIndexIn: i64, limitIn: Option[i64],
+  override fn  getAdjacentGroupEntriesSortingIndexes(groupIdIn: i64, adjacentToEntrySortingIndexIn: i64, limitIn: Option<i64>,
                                                      forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
     getListArrayOptionAny("/groups/" + groupIdIn + "/adjacentEntriesSortingIndexes/" + adjacentToEntrySortingIndexIn + "/" + forwardNotBackIn +
                           (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
@@ -583,16 +583,16 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   // like now). Some
   //of the other methods return less generic structures and they are more work to consume in this class because they are different/nonstandard so more
   //methods needed to handle each kind.
-  override fn getGroupsContainingEntitysGroupsIds(groupIdIn: i64, limitIn: Option[i64]) -> List[Array[Option[Any]]] {
+  override fn getGroupsContainingEntitysGroupsIds(groupIdIn: i64, limitIn: Option<i64>) -> List[Array[Option[Any]]] {
     getListArrayOptionAny("/groups/" + groupIdIn + "/containingEntitysGroupsIds" + (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get), Array("i64"))
   }
 
-  override fn getGroupEntriesData(groupIdIn: i64, limitIn: Option[i64], includeArchivedEntitiesIn: Boolean) -> List[Array[Option[Any]]] {
+  override fn getGroupEntriesData(groupIdIn: i64, limitIn: Option<i64>, includeArchivedEntitiesIn: Boolean) -> List[Array[Option[Any]]] {
     getListArrayOptionAny("/groups/" + groupIdIn + "/entriesData/" + includeArchivedEntitiesIn + (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
                           Array(Database.GET_GROUP_ENTRIES_DATA__RESULT_TYPES))
   }
 
-  override fn getAdjacentAttributesSortingIndexes(entityIdIn: i64, sortingIndexIn: i64, limitIn: Option[i64],
+  override fn getAdjacentAttributesSortingIndexes(entityIdIn: i64, sortingIndexIn: i64, limitIn: Option<i64>,
                                                    forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
     getListArrayOptionAny("/entities/" + entityIdIn + "/adjacentAttributesSortingIndexes/" + sortingIndexIn + "/" + forwardNotBackIn +
                           (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
@@ -648,7 +648,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getCollection[i64]("/entities/" + entityIdIn + "/containingGroupsIds", Array(), Some(createLongValueRow))
   }
 
-  override fn getContainingRelationToGroupDescriptions(entityIdIn: i64, limitIn: Option[i64]) -> ArrayList[String] {
+  override fn getContainingRelationToGroupDescriptions(entityIdIn: i64, limitIn: Option<i64>) -> ArrayList[String] {
     getCollection[String]("/entities/" + entityIdIn + "/containingRelationsToGroupDescriptions" +
                           (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
                           Array(), Some(createStringValueRow))
@@ -663,7 +663,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                         values(6).asInstanceOf[JsNumber].as[i64])
   }
 
-  override fn getContainingRelationsToGroup(entityIdIn: i64, startingIndexIn: i64, limitIn: Option[i64]) -> ArrayList[RelationToGroup] {
+  override fn getContainingRelationsToGroup(entityIdIn: i64, startingIndexIn: i64, limitIn: Option<i64>) -> ArrayList[RelationToGroup] {
     // (The 2nd parameter has to match the types in the 2nd (1st alternate) constructor for RelationToGroup.  Consider putting it in a constant like
     // Database.GET_CLASS_DATA__RESULT_TYPES etc.)
     getCollection[RelationToGroup]("/entities/" + entityIdIn + "/containingRelationsToGroup/" + startingIndexIn +
@@ -672,14 +672,14 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                    Some(createRelationToGroupRow))
   }
 
-  override fn getRelationsToGroupContainingThisGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64]) -> ArrayList[RelationToGroup] {
+  override fn getRelationsToGroupContainingThisGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option<i64>) -> ArrayList[RelationToGroup] {
     getCollection[RelationToGroup]("/groups/" + groupIdIn + "/relationsToGroupContainingThisGroup/" + startingIndexIn +
                                    (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
                                    Array(),
                                    Some(createRelationToGroupRow))
   }
 
-  override fn findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option[i64]) -> ArrayList[(i64, String, i64)] {
+  override fn findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option<i64>) -> ArrayList[(i64, String, i64)] {
     getCollection[(i64, String, i64)]("/entities/addedAndArchivedByDate/" + startTimeIn + "/" + endTimeIn +
                                         (if (limitIn.isEmpty) "" else "?limit=" + limitIn.get),
                                         Array(),
@@ -718,14 +718,14 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                     if (values(3) == JsNull) None else Some(values(3).asInstanceOf[JsBoolean].as[Boolean]))
   }
 
-  override fn getGroupEntryObjects(groupIdIn: i64, startingObjectIndexIn: i64, maxValsIn: Option[i64]) -> ArrayList[Entity] {
+  override fn getGroupEntryObjects(groupIdIn: i64, startingObjectIndexIn: i64, maxValsIn: Option<i64>) -> ArrayList[Entity] {
     getCollection[Entity]("/groups/" + groupIdIn + "/entries/" + startingObjectIndexIn +
                           (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
                           Array(), Some(createEntityRow))
   }
 
-  override fn getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option[i64], classIdIn: Option[i64],
-                               limitByClass: Boolean, templateEntityIn: Option[i64], groupToOmitIdIn: Option[i64]) -> util.ArrayList[Entity] {
+  override fn getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option<i64>, classIdIn: Option<i64>,
+                               limitByClass: Boolean, templateEntityIn: Option<i64>, groupToOmitIdIn: Option<i64>) -> util.ArrayList[Entity] {
     let url = "/entities/" + startingObjectIndexIn + "/" + limitByClass +;
               (if (maxValsIn.isDefined || classIdIn.isDefined || templateEntityIn.isDefined || groupToOmitIdIn.isDefined) "?" else "") +
               (if (maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
@@ -735,13 +735,13 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getCollection[Entity](url, Array(), Some(createEntityRow))
   }
 
-  override fn getEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64]) -> util.ArrayList[Entity] {
+  override fn getEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64>) -> util.ArrayList[Entity] {
     let url: String = "/entities/all/" + startingObjectIndexIn +;
                       (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
     getCollection[Entity](url, Array(), Some(createEntityRow))
   }
 
-  override fn getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option[i64], omitEntityIdIn: Option[i64],
+  override fn getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64>, omitEntityIdIn: Option<i64>,
                                    nameRegexIn: String) -> util.ArrayList[Entity] {
     let nameRegex = UriEncoding.encodePathSegment(nameRegexIn, "UTF-8");
     let url: String = "/entities/search/" + nameRegex + "/" + startingObjectIndexIn +;
@@ -751,7 +751,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getCollection[Entity](url, Array(), Some(createEntityRow))
   }
 
-  override fn getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64], omitGroupIdIn: Option[i64],
+  override fn getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64>, omitGroupIdIn: Option<i64>,
                                  nameRegexIn: String) -> util.ArrayList[Group] {
     getCollection[Group]("/groups/search/" + UriEncoding.encodePathSegment(nameRegexIn, "UTF-8") + "/" + startingObjectIndexIn +
                          (if (maxValsIn.isDefined || omitGroupIdIn.isDefined) "?" else "") +
@@ -760,19 +760,19 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                          Array(), Some(createGroupRow))
   }
 
-  override fn getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option[i64]) -> util.ArrayList[Entity] {
+  override fn getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option<i64>) -> util.ArrayList[Entity] {
     let url = "/relationTypes/all/" + startingObjectIndexIn +;
               (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
     getCollection[RelationType](url, Array(), Some(createRelationTypeRow)).asInstanceOf[util.ArrayList[Entity]]
   }
 
-  override fn getClasses(startingObjectIndexIn: i64, maxValsIn: Option[i64]) -> util.ArrayList[EntityClass] {
+  override fn getClasses(startingObjectIndexIn: i64, maxValsIn: Option<i64>) -> util.ArrayList[EntityClass] {
     let url = "/classes/all/" + startingObjectIndexIn +;
               (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
     getCollection[EntityClass](url, Array(), Some(createEntityClassRow))
   }
 
-  override fn getGroups(startingObjectIndexIn: i64, maxValsIn: Option[i64], groupToOmitIdIn: Option[i64]) -> util.ArrayList[Group] {
+  override fn getGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64>, groupToOmitIdIn: Option<i64>) -> util.ArrayList[Group] {
     getCollection[Group]("/groups/all/" + startingObjectIndexIn +
                          (if (maxValsIn.isDefined || groupToOmitIdIn.isDefined) "?" else "") +
                          (if (maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
@@ -793,13 +793,13 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                      values(8).asInstanceOf[JsString].as[String])
   }
 
-  override fn getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64]) -> ArrayList[(i64, Entity)] {
+  override fn getEntitiesContainingGroup(groupIdIn: i64, startingIndexIn: i64, maxValsIn: Option<i64>) -> ArrayList[(i64, Entity)] {
     getCollection[(i64, Entity)]("/groups/" + groupIdIn + "/containingEntities/" + startingIndexIn +
                                   (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
                                   Array(), Some(createRelationTypeIdAndEntityRow))
   }
 
-  override fn getLocalEntitiesContainingLocalEntity(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option[i64]) -> ArrayList[(i64, Entity)] {
+  override fn getLocalEntitiesContainingLocalEntity(entityIdIn: i64, startingIndexIn: i64, maxValsIn: Option<i64>) -> ArrayList[(i64, Entity)] {
     getCollection[(i64, Entity)]("/entities/" + entityIdIn + "/containingEntities/" + startingIndexIn +
                                   (if (maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
                                   Array(), Some(createRelationTypeIdAndEntityRow))
@@ -856,27 +856,27 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
     fn processOptionLongsStringBoolean(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any],
-                                      ignore2: Array[Any]): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) {
+                                      ignore2: Array[Any]): (Option<i64>, Option<i64>, Option<i64>, Option[String], Boolean) {
     if (response.json == JsNull) {
       throw new OmDatabaseException("Unexpected: null result in the REST response (basically the remote side saying \"found nothing\".")
     } else {
       let values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq;
-      let first: Option[i64] = getOptionLongFromJson(values, 0);
-      let second: Option[i64] = getOptionLongFromJson(values, 1);
-      let third: Option[i64] = getOptionLongFromJson(values, 2);
+      let first: Option<i64> = getOptionLongFromJson(values, 0);
+      let second: Option<i64> = getOptionLongFromJson(values, 1);
+      let third: Option<i64> = getOptionLongFromJson(values, 2);
       let fourth: Option[String] = getOptionStringFromJson(values, 3);
       let last: bool = values(4).asInstanceOf[JsBoolean].as[Boolean];
       (first, second, third, fourth, last)
     }
   }
 
-    fn getOptionLongsStringBoolean(pathIn: String): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) {
-    RestDatabase.restCall[(Option[i64], Option[i64], Option[i64], Option[String], Boolean), Any]("http://" + mRemoteAddress + pathIn,
+    fn getOptionLongsStringBoolean(pathIn: String): (Option<i64>, Option<i64>, Option<i64>, Option[String], Boolean) {
+    RestDatabase.restCall[(Option<i64>, Option<i64>, Option<i64>, Option[String], Boolean), Any]("http://" + mRemoteAddress + pathIn,
                                                                                                     processOptionLongsStringBoolean, None, Array())
   }
 
   override fn findRelationToAndGroup_OnEntity(entityIdIn: i64,
-                                               groupNameIn: Option[String]): (Option[i64], Option[i64], Option[i64], Option[String], Boolean) {
+                                               groupNameIn: Option[String]): (Option<i64>, Option<i64>, Option<i64>, Option[String], Boolean) {
     getOptionLongsStringBoolean("/entities/" + entityIdIn + "/findRelationToAndGroup" +
                                 (if (groupNameIn.isEmpty) "" else "?groupName=" + java.net.URLEncoder.encode(groupNameIn.get, "UTF-8")))
     // Note: using a different kind of encoder/encoding for a query part of a URI (vs. the path, as elsewhere), per info at:
@@ -895,7 +895,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     */
   }
 
-    fn getOptionLongFromJson(values: IndexedSeq[JsValue], index: Int) -> Option[i64] {
+    fn getOptionLongFromJson(values: IndexedSeq[JsValue], index: Int) -> Option<i64> {
     if (values(index) == JsNull) None
     else {
       Some(values(index).asInstanceOf[JsNumber].as[i64])
@@ -996,7 +996,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
     //%%???:
     fn getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: Boolean): i64 = ???
-    fn getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option[i64] = None,
+    fn getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option<i64> = None,
                                       quantitySeeksUnitNotTypeIn: Boolean): java.util.ArrayList[Entity] = ???
 
 
@@ -1017,13 +1017,13 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   override fn moveRelationToGroup(relationToGroupIdIn: i64, newContainingEntityIdIn: i64, sortingIndexIn: i64): i64 = ???
 
   override fn updateRelationToRemoteEntity(oldRelationTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
-                                            newRelationTypeIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64): Unit = ???
+                                            newRelationTypeIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64): Unit = ???
 
   override fn unarchiveEntity(idIn: i64, callerManagesTransactionsIn: Boolean): Unit = ???
 
   override fn  setIncludeArchivedEntities(in: Boolean): Unit = ???
 
-  override fn  createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option[i64], oldTableName: Boolean): i64 = ???
+  override fn  createOmInstance(idIn: String, isLocalIn: Boolean, addressIn: String, entityIdIn: Option<i64>, oldTableName: Boolean): i64 = ???
 
   override fn  deleteOmInstance(idIn: String): Unit = ???
 
@@ -1032,7 +1032,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   override fn  updateDateAttribute(idIn: i64, parentIdIn: i64, dateIn: i64, attrTypeIdIn: i64): Unit = ???
 
   override fn updateRelationToGroup(entityIdIn: i64, oldRelationTypeIdIn: i64, newRelationTypeIdIn: i64, oldGroupIdIn: i64, newGroupIdIn: i64,
-                                     validOnDateIn: Option[i64], observationDateIn: i64): Unit = ???
+                                     validOnDateIn: Option<i64>, observationDateIn: i64): Unit = ???
 
   override  fn archiveEntity(idIn: i64, callerManagesTransactionsIn: Boolean): Unit = ???
 
@@ -1040,8 +1040,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn  deleteClassAndItsTemplateEntity(classIdIn: i64): Unit = ???
 
-  override fn  createRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                                           sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean): RelationToLocalEntity = ???
+  override fn  createRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                           sortingIndexIn: Option<i64>, callerManagesTransactionsIn: Boolean): RelationToLocalEntity = ???
 
   override fn deleteRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64): Unit = ???
 
@@ -1049,7 +1049,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn removeEntityFromGroup(groupIdIn: i64, containedEntityIdIn: i64, callerManagesTransactionsIn: Boolean): Unit = ???
 
-  override fn addEntityToGroup(groupIdIn: i64, containedEntityIdIn: i64, sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean): Unit = ???
+  override fn addEntityToGroup(groupIdIn: i64, containedEntityIdIn: i64, sortingIndexIn: Option<i64>, callerManagesTransactionsIn: Boolean): Unit = ???
 
   override fn deleteRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64): Unit = ???
 
@@ -1061,12 +1061,12 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                    originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64,
                                    md5hashIn: String): Unit = ???
 
-  override fn  updateQuantityAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
+  override fn  updateQuantityAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option<i64>,
                                        inObservationDate: i64): Unit = ???
 
   override fn  deleteGroupRelationsToItAndItsEntries(groupidIn: i64): Unit = ???
 
-  override fn  updateEntitysClass(entityId: i64, classId: Option[i64], callerManagesTransactions: Boolean): Unit = ???
+  override fn  updateEntitysClass(entityId: i64, classId: Option<i64>, callerManagesTransactions: Boolean): Unit = ???
 
   override fn  deleteBooleanAttribute(idIn: i64): Unit = ???
 
@@ -1076,17 +1076,17 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn  updateEntityOnlyNewEntriesStickToTop(idIn: i64, newEntriesStickToTop: Boolean): Unit = ???
 
-  override fn  createDateAttribute(parentIdIn: i64, attrTypeIdIn: i64, dateIn: i64, sortingIndexIn: Option[i64]): i64 = ???
+  override fn  createDateAttribute(parentIdIn: i64, attrTypeIdIn: i64, dateIn: i64, sortingIndexIn: Option<i64>): i64 = ???
 
   override fn  createGroupAndRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean,
-                                             validOnDateIn: Option[i64], observationDateIn: i64, sortingIndexIn: Option[i64],
+                                             validOnDateIn: Option<i64>, observationDateIn: i64, sortingIndexIn: Option<i64>,
                                              callerManagesTransactionsIn: Boolean): (i64, i64) = ???
 
-  override fn  addHASRelationToLocalEntity(fromEntityIdIn: i64, toEntityIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                                           sortingIndexIn: Option[i64]): RelationToLocalEntity = ???
+  override fn  addHASRelationToLocalEntity(fromEntityIdIn: i64, toEntityIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                           sortingIndexIn: Option<i64>): RelationToLocalEntity = ???
 
   override fn  updateRelationToLocalEntity(oldRelationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, newRelationTypeIdIn: i64,
-                                           validOnDateIn: Option[i64], observationDateIn: i64): Unit = ???
+                                           validOnDateIn: Option<i64>, observationDateIn: i64): Unit = ???
 
   override fn  updateSortingIndexInAGroup(groupIdIn: i64, entityIdIn: i64, sortingIndexIn: i64): Unit = ???
 
@@ -1112,52 +1112,52 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override  fn createFileAttribute(parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
                                    originalFilePathIn: String, readableIn: Boolean, writableIn: Boolean, executableIn: Boolean, sizeIn: i64,
-                                   md5hashIn: String, inputStreamIn: FileInputStream, sortingIndexIn: Option[i64]): i64 = ???
+                                   md5hashIn: String, inputStreamIn: FileInputStream, sortingIndexIn: Option<i64>): i64 = ???
 
   override fn deleteTextAttribute(idIn: i64): Unit = ???
 
-  override fn createEntityAndRelationToLocalEntity(entityIdIn: i64, relationTypeIdIn: i64, newEntityNameIn: String, isPublicIn: Option[Boolean],
-                                                    validOnDateIn: Option[i64], observationDateIn: i64,
+  override fn createEntityAndRelationToLocalEntity(entityIdIn: i64, relationTypeIdIn: i64, newEntityNameIn: String, isPublicIn: Option<bool>,
+                                                    validOnDateIn: Option<i64>, observationDateIn: i64,
                                                     callerManagesTransactionsIn: Boolean): (i64, i64) = ???
 
   override fn moveEntityFromGroupToLocalEntity(fromGroupIdIn: i64, toEntityIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64): Unit = ???
 
-  override fn  updateTextAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64],
+  override fn  updateTextAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option<i64>,
                                    observationDateIn: i64): Unit = ???
 
   override fn  getOrCreateClassAndTemplateEntity(classNameIn: String, callerManagesTransactionsIn: Boolean): (i64, i64) = ???
 
   override fn  addUriEntityWithUriAttribute(containingEntityIn: Entity, newEntityNameIn: String, uriIn: String, observationDateIn: i64,
-                                            makeThemPublicIn: Option[Boolean], callerManagesTransactionsIn: Boolean,
+                                            makeThemPublicIn: Option<bool>, callerManagesTransactionsIn: Boolean,
                                             quoteIn: Option[String] = None): (Entity, RelationToLocalEntity) = ???
 
-  override fn  updateEntityOnlyPublicStatus(idIn: i64, value: Option[Boolean]): Unit = ???
+  override fn  updateEntityOnlyPublicStatus(idIn: i64, value: Option<bool>): Unit = ???
 
-  override fn createRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option[i64],
-                                            observationDateIn: i64, remoteInstanceIdIn: String, sortingIndexIn: Option[i64],
+  override fn createRelationToRemoteEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option<i64>,
+                                            observationDateIn: i64, remoteInstanceIdIn: String, sortingIndexIn: Option<i64>,
                                             callerManagesTransactionsIn: Boolean): RelationToRemoteEntity = ???
 
-  override  fn createRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option[i64], observationDateIn: i64,
-                                     sortingIndexIn: Option[i64], callerManagesTransactionsIn: Boolean): (i64, i64) = ???
+  override  fn createRelationToGroup(entityIdIn: i64, relationTypeIdIn: i64, groupIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                     sortingIndexIn: Option<i64>, callerManagesTransactionsIn: Boolean): (i64, i64) = ???
 
-  override  fn  createBooleanAttribute(parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option[i64], observationDateIn: i64,
-                                      sortingIndexIn: Option[i64]): i64 = ???
+  override  fn  createBooleanAttribute(parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option<i64>, observationDateIn: i64,
+                                      sortingIndexIn: Option<i64>): i64 = ???
 
-  override fn createEntity(nameIn: String, classIdIn: Option[i64], isPublicIn: Option[Boolean]): i64 = ???
+  override fn createEntity(nameIn: String, classIdIn: Option<i64>, isPublicIn: Option<bool>): i64 = ???
 
   override  fn deleteRelationToLocalEntity(relationTypeIdIn: i64, entityId1In: i64, entityId2In: i64): Unit = ???
 
-  override  fn  updateClassCreateDefaultAttributes(classIdIn: i64, value: Option[Boolean]) = ???
+  override  fn  updateClassCreateDefaultAttributes(classIdIn: i64, value: Option<bool>) = ???
 
   override fn updateBooleanAttribute(idIn: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: Boolean,
-                                      validOnDateIn: Option[i64], inObservationDate: i64): Unit = ???
+                                      validOnDateIn: Option<i64>, inObservationDate: i64): Unit = ???
 
-  override fn createQuantityAttribute(parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option[i64],
-                                       inObservationDate: i64, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option[i64] = None): /*id*/
+  override fn createQuantityAttribute(parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option<i64>,
+                                       inObservationDate: i64, callerManagesTransactionsIn: Boolean = false, sortingIndexIn: Option<i64> = None): /*id*/
   i64 = ???
 
-  override  fn  createTextAttribute(parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64],
-                                   observationDateIn: i64, callerManagesTransactionsIn: Boolean, sortingIndexIn: Option[i64]): i64 = ???
+  override  fn  createTextAttribute(parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDateIn: Option<i64>,
+                                   observationDateIn: i64, callerManagesTransactionsIn: Boolean, sortingIndexIn: Option<i64>): i64 = ???
 
   override fn  createRelationType(nameIn: String, nameInReverseDirectionIn: String, directionalityIn: String): i64 = ???
 
@@ -1171,7 +1171,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn updateClassAndTemplateEntityName(classIdIn: i64, name: String): i64 = ???
 
-  override fn updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option[i64]): Unit = ???
+  override fn updateOmInstance(idIn: String, addressIn: String, entityIdIn: Option<i64>): Unit = ???
 
 
   // NOTE: those below, like getUserPreference_Boolean or getPreferencesContainerId, are intentionally unimplemented, not because they are
@@ -1184,13 +1184,13 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   // be accessed (the default local DB, or a determined remote per the model object), so that for example we properly handle the distinction between
   // RelationToLocalEntity vs RelationToRemoteEntity, etc.
   // Idea: improve & shorten that rambling explanation.
-  override fn getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option[Boolean]): Option[Boolean] = ???
+  override fn getUserPreference_Boolean(preferenceNameIn: String, defaultValueIn: Option<bool>): Option<bool> = ???
 
   override fn getPreferencesContainerId: i64 = ???
 
-  override fn getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option[i64]): Option[i64] = ???
+  override fn getUserPreference_EntityId(preferenceNameIn: String, defaultValueIn: Option<i64>): Option<i64> = ???
 
-  override fn getOmInstances(localIn: Option[Boolean]): util.ArrayList[OmInstance] = ???
+  override fn getOmInstances(localIn: Option<bool>): util.ArrayList[OmInstance] = ???
 
     fn getRelationToLocalEntityDataById(idIn: i64): Array[Option[Any]] = ???
 */

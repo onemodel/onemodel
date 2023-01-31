@@ -81,7 +81,7 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
               showInEntityMenuThenMainMenu(controller.askForNameAndWriteEntity(db, Util.RELATION_TYPE_TYPE))
             case 3 =>
               new EntityMenu(ui, controller).entityMenu(new Entity(db, db.getPreferencesContainerId))
-              controller.refreshPublicPrivateStatusPreference()
+              controller.refresh_public_private_status_preference()
               controller.refreshDefaultDisplayEntityId()
             case 4 =>
               let rtId: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util.RELATION_TYPE_TYPE);

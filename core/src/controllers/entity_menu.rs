@@ -35,12 +35,12 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     require(containingRelationToEntityIn.isEmpty ||
             containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
     require(entityIn != null)
-    if (!entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = entityIn.mDB.includeArchivedEntities)) {
+    if (!entityIn.mDB.entity_key_exists(entityIn.getId, includeArchived = entityIn.mDB.includeArchivedEntities)) {
       ui.display_text("The desired entity, " + entityIn.getId + ", has been deleted or archived, probably while browsing other entities via menu options," +
                      "and so cannot be displayed here.  Exiting to the next menu.")
       return None
     }
-    let (containingRelationToEntityIn_relatedId1: Option[i64], containingRelationToEntityIn_relatedId2: Option[i64]) = {;
+    let (containingRelationToEntityIn_relatedId1: Option<i64>, containingRelationToEntityIn_relatedId2: Option<i64>) = {;
       if (containingRelationToEntityIn.isDefined) {
         //noinspection TypeCheckCanBeMatch
         if (containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity]) {
@@ -64,7 +64,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     let leadingText: Array[String] = new Array[String](2);
     let relationSourceEntity: Option[Entity] = {;
       // (checking if exists also, because it could have been removed in another menu option)
-      if (containingRelationToEntityIn.isEmpty || !containingRelationToEntityIn.get.mDB.entityKeyExists(containingRelationToEntityIn_relatedId1.get)) {
+      if (containingRelationToEntityIn.isEmpty || !containingRelationToEntityIn.get.mDB.entity_key_exists(containingRelationToEntityIn_relatedId1.get)) {
         None
       } else {
         Some(new Entity(containingRelationToEntityIn.get.mDB, containingRelationToEntityIn.get.getParentId))
@@ -271,7 +271,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       } else if (answer == 9 && answer <= choices.length) {
         new OtherEntityMenu(ui, controller).otherEntityMenu(entityIn, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
                                                             containingGroupIn, attributeTuples)
-        if (!entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
+        if (!entityIn.mDB.entity_key_exists(entityIn.getId, includeArchived = false)) {
           // entity could have been deleted by some operation in OtherEntityMenu
           None
         } else {
@@ -354,14 +354,14 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           case relToEntity: RelationToLocalEntity =>
             let db = relToEntity.mDB;
             entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
-            let stillThere: bool = db.entityKeyExists(relToEntity.getRelatedId2, includeArchived = false) &&;
+            let stillThere: bool = db.entity_key_exists(relToEntity.getRelatedId2, includeArchived = false) &&;
                                       db.attributeKeyExists(relToEntity.getFormId, relToEntity.getId)
             !stillThere
           case relToRemoteEntity: RelationToRemoteEntity =>
             // (An entity can be remote, but referred to by a local RelationToLocalEntity:)
             let remoteDb: Database = relToRemoteEntity.getRemoteDatabase;
             entityMenu(new Entity(remoteDb, relToRemoteEntity.getRelatedId2), 0, None, None, Some(relToRemoteEntity))
-            let stillThere: bool = remoteDb.entityKeyExists(relToRemoteEntity.getRelatedId2, includeArchived = false) &&;
+            let stillThere: bool = remoteDb.entity_key_exists(relToRemoteEntity.getRelatedId2, includeArchived = false) &&;
                                       remoteDb.attributeKeyExists(relToRemoteEntity.getFormId, relToRemoteEntity.getId)
             !stillThere
           case relToGroup: RelationToGroup =>
@@ -374,7 +374,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       }
     }
 
-    if (!entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
+    if (!entityIn.mDB.entity_key_exists(entityIn.getId, includeArchived = false)) {
       // (entity could have been deleted or archived while browsing among containers via submenus)
       None
     } else {
@@ -483,7 +483,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                                     defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]) -> Option[Attribute] {
     // The entity or an attribute could have been removed or changed by navigating around various menus, so before trying to view it again,
     // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
-    if (entityIn.mDB.entityKeyExists(entityIn.getId, includeArchived = false)) {
+    if (entityIn.mDB.entity_key_exists(entityIn.getId, includeArchived = false)) {
       if (highlightingIndex.isDefined && entryIsGoneNow) {
         Util.findAttributeToHighlightNext(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight.get)
       } else {
@@ -782,13 +782,13 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     startingIndex
   }
 
-  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option[i64],
+  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
                                                  forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getAdjacentAttributesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option[i64] {
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64> {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }

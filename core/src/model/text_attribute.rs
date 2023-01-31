@@ -32,7 +32,7 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDate: Option[i64], observationDate: i64,
+    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDate: Option<i64>, observationDate: i64,
            sortingIndexIn: i64) {
     this(mDB, mId)
     assignCommonVars(parentIdIn, attrTypeIdIn, validOnDate, observationDate, sortingIndexIn)
@@ -41,7 +41,7 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
 
   /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
     */
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false) -> String {
+    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = {;
       if (simplify && (typeName == "paragraph" || typeName == "quote")) getText
@@ -62,11 +62,11 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
       throw new OmException("No results returned from data request for: " + mId)
     }
     mText = taTypeData(1).get.asInstanceOf[String]
-    super.assignCommonVars(taTypeData(0).get.asInstanceOf[i64], taTypeData(2).get.asInstanceOf[i64], taTypeData(3).asInstanceOf[Option[i64]],
+    super.assignCommonVars(taTypeData(0).get.asInstanceOf[i64], taTypeData(2).get.asInstanceOf[i64], taTypeData(3).asInstanceOf[Option<i64>],
                            taTypeData(4).get.asInstanceOf[i64], taTypeData(5).get.asInstanceOf[i64])
   }
 
-    fn update(attrTypeIdIn: i64, textIn: String, validOnDateIn: Option[i64], observationDateIn: i64) {
+    fn update(attrTypeIdIn: i64, textIn: String, validOnDateIn: Option<i64>, observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
     mDB.updateTextAttribute(mId, getParentId, attrTypeIdIn, textIn, validOnDateIn, observationDateIn)

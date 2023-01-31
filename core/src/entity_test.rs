@@ -156,7 +156,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     // (But should this issue go away w/ better design involving more use of immutability or something?)
     let id = 0L;
     let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.entityKeyExists(id)).thenReturn(true)
+    when(mockDB.entity_key_exists(id)).thenReturn(true)
     when(mockDB.getEntityData(id)).thenThrow(new RuntimeException("some exception"))
     when(mockDB.getRemoteAddress).thenReturn(None)
     let entity = new Entity(mockDB, id);
@@ -170,7 +170,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let id = 0L;
     let classId = 1L;
     let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.entityKeyExists(id)).thenReturn(true)
+    when(mockDB.entity_key_exists(id)).thenReturn(true)
     when(mockDB.getClassName(classId)).thenReturn(Some("class1Name"))
     when(mockDB.getEntityData(id)).thenReturn(Array[Option[Any]](Some("entity1Name"), Some(classId)))
     // idea (is in tracked tasks): put next 3 lines back after color refactoring is done (& places w/ similar comment elsewhere)
@@ -182,7 +182,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let classId2 = 4L;
     let name2 = "entity2Name";
     let mockDB2 = mock[PostgreSQLDatabase];
-    when(mockDB2.entityKeyExists(id2)).thenReturn(true)
+    when(mockDB2.entity_key_exists(id2)).thenReturn(true)
     when(mockDB2.getEntityData(id2)).thenReturn(Array[Option[Any]](Some(name2), None))
     when(mockDB2.getClassName(classId2)).thenReturn(None)
     // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
@@ -203,7 +203,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let classId = 2L;
     let className = "classname";
     let templateEntityId = 3L;
-    when(mockDB.entityKeyExists(id)).thenReturn(true)
+    when(mockDB.entity_key_exists(id)).thenReturn(true)
     let e = new Entity(mockDB, id, "entityname", None, 0L, Some(true), false, false);
     assert(e.getClassTemplateEntityId.isEmpty)
 

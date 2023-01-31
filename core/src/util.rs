@@ -63,7 +63,7 @@ impl Util {
       let QUANTITY_TYPE: String = "QuantityAttribute";
       let TEXT_TYPE: String = "TextAttribute";
       let DATE_TYPE: String = "DateAttribute";
-      let BOOLEAN_TYPE: String = "BooleanAttribute";
+      let BOOLEAN_TYPE: String = "boolAttribute";
       let FILE_TYPE: String = "FileAttribute";
       let nonRelationAttrTypeNames = Array(Util.QUANTITY_TYPE, Util.DATE_TYPE, Util.BOOLEAN_TYPE, Util.FILE_TYPE, Util.TEXT_TYPE);
       //i.e., "relationTypeType", or the thing that we sometimes put in an attribute type parameter, though not exactly an attribute type, which is "RelationType":
@@ -127,7 +127,7 @@ impl Util {
        * @param objectsToDisplayIn  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
        * @return
        */
-        fn findEntityToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Entity], removedOneIn: Boolean,
+        fn findEntityToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Entity], removedOneIn: bool,
                                     previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Entity) -> Option[Entity] {
         //NOTE: SIMILAR TO findAttributeToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
         //system better.
@@ -148,7 +148,7 @@ impl Util {
       }
 
       /** SEE COMMENTS FOR findEntityToHighlightNext. */
-        fn findAttributeToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Attribute], removedOne: Boolean,
+        fn findAttributeToHighlightNext(objectSetSize: Int, objectsToDisplayIn: java.util.ArrayList[Attribute], removedOne: bool,
                                        previouslyHighlightedIndexInObjListIn: Int, previouslyHighlightedEntryIn: Attribute) -> Option[Attribute] {
         //NOTE: SIMILAR TO findEntityToHighlightNext: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
         //system better.
@@ -222,7 +222,7 @@ impl Util {
                                        "cancel if you need to create the needed type before selecting): "
       let textDescription: String = "TEXT (ex., serial #)";
 
-        fn canEditAttributeOnSingleLine(attributeIn: Attribute) -> Boolean {
+        fn canEditAttributeOnSingleLine(attributeIn: Attribute) -> bool {
         ! attributeIn.isInstanceOf[FileAttribute]
       }
 
@@ -262,7 +262,7 @@ impl Util {
         "regex; details at  http://www.postgresql.org/docs/current/static/functions-matching.html#FUNCTIONS-POSIX-REGEXP .)"
       }
 
-        fn isNumeric(input: String) -> Boolean {
+        fn isNumeric(input: String) -> bool {
         // simplicity over performance in this case:
         try {
           // throws an exception if not numeric:
@@ -273,16 +273,16 @@ impl Util {
         }
       }
 
-        fn inputFileValid(path: String) -> Boolean {
+        fn inputFileValid(path: String) -> bool {
         let file = new java.io.File(path);
         file.exists && file.canRead
       }
 
       // The check to see if a long date string is valid comes later.
       // Now that we allow 1-digit dates, there is nothing to ck really.
-        fn validOnDateCriteria(dateStr: String) -> Boolean { true }
+        fn validOnDateCriteria(dateStr: String) -> bool { true }
       // Same comments as for observedDateCriteria:
-        fn observedDateCriteria(dateStr: String) -> Boolean { true }
+        fn observedDateCriteria(dateStr: String) -> bool { true }
 
         fn throwableToString(e: Throwable) -> String {
         let stringWriter = new StringWriter();
@@ -305,7 +305,7 @@ impl Util {
       }
 
       /** A helper method.  Returns the date as a i64 (java-style: ms since 1970 began), and true if there is a problem w/ the string and we need to ask again. */
-        fn finishAndParseTheDate(dateStrIn: String, blankMeansNOW: Boolean = true, ui: TextUI) -> (Option[i64], Boolean) {
+        fn finishAndParseTheDate(dateStrIn: String, blankMeansNOW: bool = true, ui: TextUI) -> (Option<i64>, bool) {
         //to start with, the special forms (be sure to trim the input, otherwise there's no way in the textui to convert from a previously entered (so default)
         //value to "blank/all time"!).
         let dateStrWithOptionalEra =;
@@ -386,10 +386,10 @@ impl Util {
       }
 
       /** Returns (validOnDate, observationDate, userWantsToCancel) */
-        fn askForAttributeValidAndObservedDates(inEditing: Boolean,
-                                               oldValidOnDateIn: Option[i64],
+        fn askForAttributeValidAndObservedDates(inEditing: bool,
+                                               oldValidOnDateIn: Option<i64>,
                                                oldObservedDateIn: i64,
-                                               ui: TextUI) -> (Option[i64], i64, Boolean) {
+                                               ui: TextUI) -> (Option<i64>, i64, bool) {
         //idea: make this more generic, passing in prompt strings &c, so it's more cleanly useful for DateAttribute instances. Or not: lacks shared code.
         //idea: separate these into 2 methods, 1 for each time (not much common material of significance).
         // BETTER IDEA: fix the date stuff in the DB first as noted in tasks, so that this part makes more sense (the 0 for all time, etc), and then
@@ -397,7 +397,7 @@ impl Util {
         /** Helper method made so it can be recursive, it returns the date (w/ meanings as with display_text below, and as in PostgreSQLDatabase.createTables),
           * and true if the user wants to cancel/get out). */
         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-        @tailrec fn askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => Boolean) -> (Option[i64], Boolean) {
+        @tailrec fn askForDate(dateTypeIn: String, acceptanceCriteriaIn: (String) => bool) -> (Option<i64>, bool) {
           let leadingText: Array[String] = {;
             if (dateTypeIn == VALID) {
               Array("\nPlease enter the date when this was first VALID (i.e., true) (Press Enter (blank) for unknown/unspecified, or " +
@@ -468,7 +468,7 @@ impl Util {
             else if (!acceptanceCriteriaIn(dateStr)) askForDate(dateTypeIn, acceptanceCriteriaIn)
             else {
               // (special values like "0" or blank are already handled above)
-              let (newDate: Option[i64], retry: Boolean) = finishAndParseTheDate(dateStr, dateTypeIn == OBSERVED, ui);
+              let (newDate: Option<i64>, retry: bool) = finishAndParseTheDate(dateStr, dateTypeIn == OBSERVED, ui);
               if (retry) askForDate(dateTypeIn, acceptanceCriteriaIn)
               else {
                 (newDate, false)
@@ -478,7 +478,7 @@ impl Util {
         }
 
         // the real action:
-        fn askForBothDates(ui: TextUI) -> (Option[i64], i64, Boolean) {
+        fn askForBothDates(ui: TextUI) -> (Option<i64>, i64, bool) {
           let (validOnDate, userCancelled) = askForDate(VALID, validOnDateCriteria);
           if (userCancelled) (None, 0, userCancelled)
           else {
@@ -502,14 +502,14 @@ impl Util {
         * @return None if user wants out.
         */
       //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-      @tailrec final fn askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String], ui: TextUI) -> Option[i64] {
+      @tailrec final fn askForDate_generic(promptTextIn: Option[String] = None, defaultIn: Option[String], ui: TextUI) -> Option<i64> {
         let leadingText: Array[String] = Array(promptTextIn.getOrElse(genericDatePrompt));
         let default: String = defaultIn.getOrElse(Util.DATEFORMAT.format(System.currentTimeMillis()));
         let ans = ui.askForString(Some(leadingText), None, Some(default));
         if (ans.isEmpty) None
         else {
           let dateStr = ans.get.trim;
-          let (newDate: Option[i64], retry: Boolean) = finishAndParseTheDate(dateStr, ui = ui);
+          let (newDate: Option<i64>, retry: bool) = finishAndParseTheDate(dateStr, ui = ui);
           if (retry) askForDate_generic(promptTextIn, defaultIn, ui)
           else newDate
         }
@@ -598,7 +598,7 @@ impl Util {
           "(Could be due to escaped, i.e. expanded, characters like ' or \";\".  Details: %s"
         }
 
-          fn isDuplicationAProblem(isDuplicateIn: Boolean, duplicateNameProbablyOK: Boolean, ui: TextUI) -> Boolean {
+          fn isDuplicationAProblem(isDuplicateIn: bool, duplicateNameProbablyOK: bool, ui: TextUI) -> bool {
           let mut duplicateProblemSoSkip = false;
           if (isDuplicateIn) {
             if (!duplicateNameProbablyOK) {
@@ -635,7 +635,7 @@ impl Util {
           let msg = Array("Enter directionality (\"bi\", \"uni\", or \"non\"; examples: \"is parent of\"/\"is child of\" is bidirectional, " +;
                           "since it differs substantially by the direction but goes both ways; unidirectional might be like 'lists': the thing listed doesn't know " +
                           "it; \"is acquaintanted with\" could be nondirectional if it is an identical relationship either way  (ESC to cancel): ")
-          fn criteria(entryIn: String) -> Boolean {
+          fn criteria(entryIn: String) -> bool {
             let entry = entryIn.trim().toUpperCase;
             entry == "BI" || entry == "UNI" || entry == "NON"
           }
@@ -692,7 +692,7 @@ impl Util {
         }
 
         /** Returns None if user wants to cancel. */
-          fn askForTextAttributeText(ignore: Database, inDH: TextAttributeDataHolder, inEditing: Boolean, ui: TextUI) -> Option[TextAttributeDataHolder] {
+          fn askForTextAttributeText(ignore: Database, inDH: TextAttributeDataHolder, inEditing: bool, ui: TextUI) -> Option[TextAttributeDataHolder] {
           let outDH = inDH.asInstanceOf[TextAttributeDataHolder];
           let defaultValue: Option[String] = if (inEditing) Some(inDH.text) else None;
           let ans = ui.askForString(Some(Array("Type or paste a single-line attribute value, then press Enter; ESC to cancel." +;
@@ -712,7 +712,7 @@ impl Util {
         /** Returns None if user wants to cancel.
           * Idea: consider combining somehow with method askForDate_generic or note here why not, perhaps.
           */
-          fn askForDateAttributeValue(ignore: Database, inDH: DateAttributeDataHolder, inEditing: Boolean, ui: TextUI) -> Option[DateAttributeDataHolder] {
+          fn askForDateAttributeValue(ignore: Database, inDH: DateAttributeDataHolder, inEditing: bool, ui: TextUI) -> Option[DateAttributeDataHolder] {
           let outDH = inDH.asInstanceOf[DateAttributeDataHolder];
 
           // make the DateFormat omit trailing zeros, for editing convenience (to not have to backspace thru the irrelevant parts if not specified):
@@ -734,13 +734,13 @@ impl Util {
             else Util.DATEFORMAT.format(System.currentTimeMillis())
           }
 
-          fn dateCriteria(date: String) -> Boolean {
+          fn dateCriteria(date: String) -> bool {
             !Util.finishAndParseTheDate(date, ui = ui)._2
           }
           let ans = ui.askForString(Some(Array(Util.genericDatePrompt)), Some(dateCriteria), Some(defaultValue));
           if (ans.isEmpty) None
           else {
-            let (newDate: Option[i64], retry: Boolean) = Util.finishAndParseTheDate(ans.get, ui = ui);
+            let (newDate: Option<i64>, retry: bool) = Util.finishAndParseTheDate(ans.get, ui = ui);
             if (retry) throw new Exception("Programmer error: date indicated it was parseable, but the same function said afterward it couldn't be parsed.  Why?")
             else if (newDate.isEmpty) throw new Exception("There is a bug: the program shouldn't have got to this point.")
             else {
@@ -751,7 +751,7 @@ impl Util {
         }
 
         /** Returns None if user wants to cancel. */
-          fn askForBooleanAttributeValue(ignore: Database, inDH: BooleanAttributeDataHolder, inEditing: Boolean, ui: TextUI) -> Option[BooleanAttributeDataHolder] {
+          fn askForboolAttributeValue(ignore: Database, inDH: BooleanAttributeDataHolder, inEditing: bool, ui: TextUI) -> Option[BooleanAttributeDataHolder] {
           let outDH = inDH.asInstanceOf[BooleanAttributeDataHolder];
           let ans = ui.askYesNoQuestion("Set the new value to true now? ('y' if so, 'n' for false)", if (inEditing && inDH.boolean) Some("y") else Some("n"));
           if (ans.isEmpty) None
