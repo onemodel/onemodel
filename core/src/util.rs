@@ -18,7 +18,7 @@
 pub struct Util {}
 
 impl Util {
-    /// These constants are%%$%%/were here because their presence in database.rs prevents Database from being used
+    /// These constants are%%/were here because their presence in database.rs prevents Database from being used
     /// as a trait object.  See https://doc.rust-lang.org/reference/items/traits.html#object-safety etc for details.
     /// (Maybe they could go into model/mod.rs or some new struct file instead; haven't tried that.)
     fn entity_name_length() -> u32 { 160 }

@@ -19,8 +19,7 @@ use sqlx::PgPool;
 use futures::executor::block_on;
 
 pub struct PostgreSQLDatabase {
-    // connection: Connection,
-    //%%$%%
+    //%% connection: Connection,
     pool: PgPool,
     // When true, this means to override the usual settings and show the archived entities too (like a global temporary "un-archive"):
     include_archived_entities: bool,
@@ -236,26 +235,15 @@ impl PostgreSQLDatabase {
      * turned back on.
      */
  */
-    // class PostgreSQLDatabase(username: String, let mut password: String) extends Database {;
-    //%%$%%
-    pub fn login(username: &str, password: &str) -> Result<PostgreSQLDatabase, String/*%%&'static str*/> {
-    //     %%del next 3 lines?
-    //     PostgreSQLDatabase::new(username, password)
-    // }
-    // pub async fn new(username: &str, password: &str) -> Result<PostgreSQLDatabase, sqlx::Error> {
+    pub fn login(username: &str, password: &str) -> Result<PostgreSQLDatabase, String> {
         let include_archived_entities = false;
-        let r = Self::connect(username, username, password); //%%$%%%.await;
+        let r = Self::connect(username, username, password); //%%.await;
         let pool: PgPool;
         match r {
             Ok(x) => pool = x,
             Err(e) => return Err(e.to_string()),
         }
-        // let pool: PgPool = Self::connect(username, username, password).
-        //     await.unwrap_or_else(|e| {
-        //     let x: String = e.to_string();
-        //     return Err(x.as_str());
-        // });
-        //%%$%%
+        //%%
         // if (!modelTablesExist()) {
         //   createTables()
         //   createBaseData()
@@ -268,7 +256,7 @@ impl PostgreSQLDatabase {
             pool,
         })
     }
-    /*
+    /*%%
       /** For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
         * after an OM release was done.  This puts it into existing databases if needed.
         */

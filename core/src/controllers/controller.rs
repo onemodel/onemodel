@@ -51,8 +51,6 @@ pub struct Controller {
 
 impl Controller {
     pub fn new_for_non_tests(ui: TextUI, force_user_pass_prompt: bool, default_username: Option<&String>, default_password: Option<&String>) -> Controller {
-        //%%$%%
-        // let db = Self::try_logins_without_username_or_password(force_user_pass_prompt, &ui).unwrap_or_else(|e| {
         let db = Self::try_db_logins(force_user_pass_prompt, &ui, default_username, default_password).unwrap_or_else(|e| {
             //%%should panic instead, at all places like this? to get a stack trace and for style?
             //%%should eprintln at other places like this also?
@@ -63,17 +61,11 @@ impl Controller {
         Controller {
             ui,
             force_user_pass_prompt,
-            //%%$%
-            // default_username,
-            // default_password,
-            //%%after the red marks are gone, can ^K on next line, and back?
-            //%%$%%
             db,
             move_farther_count: 25,
             move_farthest_count: 50,
         }
     }
-    // %%
     /* %%
       /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
         fn getDefaultEntity: Option[(i64, Entity)] {
@@ -149,12 +141,6 @@ impl Controller {
         %%    */
     }
 
-    //%%$%%
-    // fn try_logins_without_username_or_password<'a>(force_user_pass_prompt: bool, ui: &'a TextUI) -> Result<PostgreSQLDatabase, &'a str> {
-    //     Self::try_logins(force_user_pass_prompt, ui/*%%unused?:, None, None*/)
-    // }
-
-    //%%$%%
     /// If the 1st parm is true, the next 2 must be None.
     fn try_db_logins<'a>(force_user_pass_prompt: bool, ui: &'a TextUI, default_username: Option<&String>,
                             default_password: Option<&String>) -> Result<PostgreSQLDatabase, String> {
@@ -162,10 +148,7 @@ impl Controller {
             //%%why had this assertion before?:  delete it now?  (it was a "require" in Controller.scala .)
             // assert!(default_username.is_none() && default_password.is_none());
 
-            ui.display_text1("%%$%put back when ready to implement TextUI.ask_for_string l 240");
-            Err("%%$%put back next line when ready to implement TextUI.ask_for_string l 240".to_string())
-            // Self::prompt_for_user_pass_and_login(ui)
-
+            Self::prompt_for_user_pass_and_login(ui)
         } else if default_username.is_some() && default_password.is_some() {
             // idea: perhaps this could be enhanced and tested to allow a username parameter, but prompt for a password, if/when need exists.
             let user = default_username.unwrap_or_else(|| {
@@ -186,30 +169,37 @@ impl Controller {
         }
     }
 
-    // //%%$%%
-    // fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<PostgreSQLDatabase, &'a str> {
-    //     loop {
-    //         let usr = ui::ask_for_string1(Some(["Username"]));
-    //         if usr.isEmpty {
-    //             //user probably wants out
-    //             std::process::exit(1);
-    //         }
-    //         let pwd = ui::ask_for_string1(Some(["Password"]), None, None, true);
-    //         if pwd.isEmpty {
-    //             //user probably wants out.
-    //             // %%But what if the pwd is really blank? could happen?
-    //             std::process::exit(1);
-    //         }
-    //         let db: Result<PostgreSQLDatabase, &str> = PostgreSQLDatabase::login(usr.get, pwd.get);
-    //         if db.isOk() {
-    //             break db;
-    //         } else {
-    //             continue;
-    //         }
-    //     }
-    // }
+    fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<PostgreSQLDatabase, String> {
+        loop {
+            let usr = ui.ask_for_string1(vec!("Username".to_string()));
+            match usr {
+                None => {
+                    //user probably wants out
+                    std::process::exit(1);
+                },
+                Some(username) => {
+                    let pwd = ui.ask_for_string4(vec!("Password".to_string()),
+                                                 None, None, true);
+                    match pwd {
+                        None => {
+                            //user probably wants out
+                            std::process::exit(1);
+                        },
+                        Some(password) => {
+                            let db = PostgreSQLDatabase::login(username.as_str(), password.as_str());
+                            if db.is_ok() {
+                                break db;
+                            } else {
+                                // bad username/password combo? Let user retry.
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-    // %%$%%
     /// Tries the system username & default password, & if that doesn't work, prompts user.
     fn try_other_logins_or_prompt(ui: &TextUI) -> Result<PostgreSQLDatabase, String> {
         // (this loop is to simulate recursion, and let the user retry entering username/password)

@@ -26,7 +26,6 @@ use crate::text_ui::TextUI;
 async fn main() {
     //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
     /*%%$%%next tasks?:
-        cont in textui.rs the ask_for_string5 ~282
         going2use the database trait in pg.rs/controller? read more there & try it or wait?
         other %%$%%s &c
      */

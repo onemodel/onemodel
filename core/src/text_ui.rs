@@ -355,7 +355,8 @@ impl TextUI {
         // return user_input;
         return Some(y);
 
-        //%%$%%%
+        //%%how to make ESC exit the prompt and return None as some things expect!??
+            // then try that w/ username/password forced w/ x parm.
         //%%why did blank pwd not give any err nor exit? try gdb or how best2debug? (was when util.get_default_user_login alw returned a bad def pwd)
         //%%see if the editor history has password in it? is there any edi hist or have2specify?see docs
         //%%add password mask -- use dialoguer crate? or ask/ck issue tracker for rustyline?
