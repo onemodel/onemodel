@@ -9,20 +9,20 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use std::error::Error;
-use std::str::FromStr;
-use crate::model::entity::Entity;
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 use crate::model::database::Database;
+use crate::model::entity::Entity;
+use std::error::Error;
+use std::str::FromStr;
 // use crate::controllers::controller::Controller;
-use crate::text_ui::TextUI;
 use crate::model::relation_type::*;
-use chrono::prelude::*;
-use chrono::offset::LocalResult;
+use crate::text_ui::TextUI;
 use chrono::format::ParseResult;
+use chrono::offset::LocalResult;
+use chrono::prelude::*;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use std::string::ToString;
 use futures::stream_select;
+use std::string::ToString;
 
 /// This is just a place to put shared code ("Utility") until a grouping for some, or a better idea emerges.  Using it also
 /// had (in Scala anyway) the benefit of making the Controller file smaller, so it is more quickly compiled (especially by the IDE).
@@ -44,7 +44,8 @@ impl Util {
     // during manual testing than "testrunner/testrunner".
     pub const TEST_USER: &'static str = "t1";
     pub const TEST_PASS: &'static str = "x";
-    pub const MIXED_CLASSES_EXCEPTION: &'static str = "All the entities in a group should be of the same class.";
+    pub const MIXED_CLASSES_EXCEPTION: &'static str =
+        "All the entities in a group should be of the same class.";
     // so named to make it unlikely to collide by name with anything else:
     pub const SYSTEM_ENTITY_NAME: &'static str = ".system-use-only";
     // aka template entities:
@@ -57,26 +58,34 @@ impl Util {
     pub const PREF_TYPE_BOOLEAN: &'static str = "boolean";
     pub const PREF_TYPE_ENTITY_ID: &'static str = "entityId";
     pub const TEMPLATE_NAME_SUFFIX: &'static str = "-template";
-    pub const UNUSED_GROUP_ERR1: &'static str = "No available index found which is not already used. How would so many be used?";
+    pub const UNUSED_GROUP_ERR1: &'static str =
+        "No available index found which is not already used. How would so many be used?";
     pub const UNUSED_GROUP_ERR2: &'static str = "Very unexpected, but could it be that you are running out of available sorting indexes!?  Have someone check, before you need to create, for example, a thousand more entities.";
     pub const GET_CLASS_DATA__RESULT_TYPES: &'static str = "String,i64,Boolean";
     pub const GET_RELATION_TYPE_DATA__RESULT_TYPES: &'static str = "String,String,String";
     pub const GET_OM_INSTANCE_DATA__RESULT_TYPES: &'static str = "Boolean,String,i64,i64";
-    pub const GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,i64,Float,i64,i64,i64,i64";
+    pub const GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
+        "i64,i64,Float,i64,i64,i64,i64";
     pub const GET_DATE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
-    pub const GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,Boolean,i64,i64,i64,i64";
-    pub const GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,String,i64,i64,i64,String,Boolean,Boolean,Boolean,i64,String,i64";
+    pub const GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
+        "i64,Boolean,i64,i64,i64,i64";
+    pub const GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
+        "i64,String,i64,i64,i64,String,Boolean,Boolean,Boolean,i64,String,i64";
     pub const GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,String,i64,i64,i64,i64";
-    pub const GET_RELATION_TO_GROUP_DATA_BY_ID__RESULT_TYPES: &'static str = "i64,i64,i64,i64,i64,i64,i64";
-    pub const GET_RELATION_TO_GROUP_DATA_BY_KEYS__RESULT_TYPES: &'static str = "i64,i64,i64,i64,i64,i64,i64";
+    pub const GET_RELATION_TO_GROUP_DATA_BY_ID__RESULT_TYPES: &'static str =
+        "i64,i64,i64,i64,i64,i64,i64";
+    pub const GET_RELATION_TO_GROUP_DATA_BY_KEYS__RESULT_TYPES: &'static str =
+        "i64,i64,i64,i64,i64,i64,i64";
     pub const GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
     pub const GET_RELATION_TO_REMOTE_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
     pub const GET_GROUP_DATA__RESULT_TYPES: &'static str = "String,i64,Boolean,Boolean";
-    pub const GET_ENTITY_DATA__RESULT_TYPES: &'static str = "String,i64,i64,Boolean,Boolean,Boolean";
+    pub const GET_ENTITY_DATA__RESULT_TYPES: &'static str =
+        "String,i64,i64,Boolean,Boolean,Boolean";
     pub const GET_GROUP_ENTRIES_DATA__RESULT_TYPES: &'static str = "i64,i64";
 
-
-    pub fn entity_name_length() -> u32 { 160 }
+    pub fn entity_name_length() -> u32 {
+        160
+    }
 
     // in postgres, one table "extends" the other (see comments in createTables)
     pub fn relation_type_name_length() -> u32 {
@@ -87,11 +96,14 @@ impl Util {
         Self::entity_name_length()
     }
 
-
     pub fn max_name_length() -> u32 {
-        std::cmp::max(std::cmp::max(Self::entity_name_length(),
-                                    Self::relation_type_name_length()),
-                      Self::class_name_length())
+        std::cmp::max(
+            std::cmp::max(
+                Self::entity_name_length(),
+                Self::relation_type_name_length(),
+            ),
+            Self::class_name_length(),
+        )
     }
 
     // %%use \n for now but maybe do platform-specifically, per this advice later, per
@@ -100,69 +112,83 @@ impl Util {
     // or just use fns like "is_windows()" below, instead of compilation flags? is either preferred/faster one?
     pub const NEWLN: &'static str = "\n"; //was on JVM: System.getProperty("line.separator");
 
-      // Might not be the most familiar date form for us Americans, but it seems the most useful in the widest
-      // variety of situations, and more readable than with the "T" embedded in place of
-      // the 1st space.  So, this approximates iso-8601.
-      // these are for input.
+    // Might not be the most familiar date form for us Americans, but it seems the most useful in the widest
+    // variety of situations, and more readable than with the "T" embedded in place of
+    // the 1st space.  So, this approximates iso-8601.
+    // these are for input.
     //was: new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS zzz");
-      pub const DATEFORMAT: &'static str = "%Y-%m-%d %H:%M:%S:%3f %Z"; //the %Z output can be > 3 characters.
+    pub const DATEFORMAT: &'static str = "%Y-%m-%d %H:%M:%S:%3f %Z"; //the %Z output can be > 3 characters.
     pub const DATEFORMAT2: &'static str = "%Y-%m-%d %H:%M:%S %Z";
     pub const DATEFORMAT3: &'static str = "%Y-%m-%d %H:%M %Z";
     pub const DATEFORMAT4: &'static str = "%Y-%m-%d %H:%M";
     pub const DATEFORMAT5: &'static str = "%Y-%m-%d";
-      // the chrono crate does not seem to support the ERA (BC/AD), but instead shows negative years.
-      // const DATEFORMAT_WITH_ERA: &'static str = "%Y-%m-%d %H:%M:%S:%3f %Z";
-      // const DATEFORMAT_WITH_ERA: &'static str = "GGyyyy-MM-dd HH:mm:ss:SSS zzz";
-      // const DATEFORMAT2_WITH_ERA: &'static str = "GGyyyy-MM-dd HH:mm:ss zzz";
-      // const DATEFORMAT2_WITH_ERA: &'static str = "%Y-%m-%d %H:%M:%S %Z";
-      // const DATEFORMAT3_WITH_ERA: &'static str = "GGyyyy-MM-dd HH:mm zzz";
-      // const DATEFORMAT3_WITH_ERA: &'static str = "%Y-%m-%d %H:%M %Z";
-      pub const DOES_NOT_EXIST: &'static str = " does not exist in database.";
+    // the chrono crate does not seem to support the ERA (BC/AD), but instead shows negative years.
+    // const DATEFORMAT_WITH_ERA: &'static str = "%Y-%m-%d %H:%M:%S:%3f %Z";
+    // const DATEFORMAT_WITH_ERA: &'static str = "GGyyyy-MM-dd HH:mm:ss:SSS zzz";
+    // const DATEFORMAT2_WITH_ERA: &'static str = "GGyyyy-MM-dd HH:mm:ss zzz";
+    // const DATEFORMAT2_WITH_ERA: &'static str = "%Y-%m-%d %H:%M:%S %Z";
+    // const DATEFORMAT3_WITH_ERA: &'static str = "GGyyyy-MM-dd HH:mm zzz";
+    // const DATEFORMAT3_WITH_ERA: &'static str = "%Y-%m-%d %H:%M %Z";
+    pub const DOES_NOT_EXIST: &'static str = " does not exist in database.";
 
-      //these are here to avoid colliding with use of the same names within other code inside the class.
-      // idea: see re enums and/or constants; update this style?
-      pub const ENTITY_TYPE: &'static str = "Entity";
-      pub const QUANTITY_TYPE: &'static str = "QuantityAttribute";
+    //these are here to avoid colliding with use of the same names within other code inside the class.
+    // idea: see re enums and/or constants; update this style?
+    pub const ENTITY_TYPE: &'static str = "Entity";
+    pub const QUANTITY_TYPE: &'static str = "QuantityAttribute";
     pub const TEXT_TYPE: &'static str = "TextAttribute";
     pub const DATE_TYPE: &'static str = "DateAttribute";
     pub const BOOLEAN_TYPE: &'static str = "boolAttribute";
     pub const FILE_TYPE: &'static str = "FileAttribute";
-    pub const NON_RELATION_ATTR_TYPE_NAMES: [&'static str; 5] = [Util::QUANTITY_TYPE, Util::DATE_TYPE, Util::BOOLEAN_TYPE, Util::FILE_TYPE, Util::TEXT_TYPE];
-      //i.e., "relationTypeType", or the thing that we sometimes put in an attribute type parameter, though not exactly an attribute type, which is "RelationType":
-      pub const RELATION_TYPE_TYPE: &'static str = "RelationType";
-      // IF/WHEN EVER UPDATING THESE TABLE NAMES, also update in cleanTestAccount.psql:
-      pub const RELATION_TO_LOCAL_ENTITY_TYPE: &'static str = "RelationToEntity";
+    pub const NON_RELATION_ATTR_TYPE_NAMES: [&'static str; 5] = [
+        Util::QUANTITY_TYPE,
+        Util::DATE_TYPE,
+        Util::BOOLEAN_TYPE,
+        Util::FILE_TYPE,
+        Util::TEXT_TYPE,
+    ];
+    //i.e., "relationTypeType", or the thing that we sometimes put in an attribute type parameter, though not exactly an attribute type, which is "RelationType":
+    pub const RELATION_TYPE_TYPE: &'static str = "RelationType";
+    // IF/WHEN EVER UPDATING THESE TABLE NAMES, also update in cleanTestAccount.psql:
+    pub const RELATION_TO_LOCAL_ENTITY_TYPE: &'static str = "RelationToEntity";
     pub const RELATION_TO_GROUP_TYPE: &'static str = "RelationToGroup";
     pub const RELATION_TO_REMOTE_ENTITY_TYPE: &'static str = "RelationToRemoteEntity";
-      //%%change this to an enum? and similar things used the same way at places where it is used?
-      //%%move this to the attribute.rs file or its mod.rs maybe?:
-      pub const RELATION_ATTR_TYPE_NAMES: [&'static str; 4] = [Util::RELATION_TYPE_TYPE, Util::RELATION_TO_LOCAL_ENTITY_TYPE, Util::RELATION_TO_REMOTE_ENTITY_TYPE,
-                                        Util::RELATION_TO_GROUP_TYPE];
+    //%%change this to an enum? and similar things used the same way at places where it is used?
+    //%%move this to the attribute.rs file or its mod.rs maybe?:
+    pub const RELATION_ATTR_TYPE_NAMES: [&'static str; 4] = [
+        Util::RELATION_TYPE_TYPE,
+        Util::RELATION_TO_LOCAL_ENTITY_TYPE,
+        Util::RELATION_TO_REMOTE_ENTITY_TYPE,
+        Util::RELATION_TO_GROUP_TYPE,
+    ];
     pub const GROUP_TYPE: &'static str = "Group";
     pub const ENTITY_CLASS_TYPE: &'static str = "Class";
     pub const OM_INSTANCE_TYPE: &'static str = "Instance";
-      const ORPHANED_GROUP_MESSAGE: &'static str = "There is no entity with a containing relation to the group (orphaned).  You might search for it \
+    const ORPHANED_GROUP_MESSAGE: &'static str = "There is no entity with a containing relation to the group (orphaned).  You might search for it \
                                            (by adding it as an attribute to some entity), \
                                            & see if it should be deleted, kept with an entity, or left out there floating.  \
                                            (While this is not an expected usage, it is allowed and does not imply data corruption.)";
-      const UNSELECT_MOVE_TARGET_PROMPT_TEXT: &'static str = "Unselect current move target (if present; not necessary really)";
-      // This says 'same screenful' because it's easier to assume that the returned index refers to the currently available
-      // local collections (a subset of all possible entries, for display), than calling chooseOrCreateObject, and sounds as useful:
-      const UNSELECT_MOVE_TARGET_LEADING_TEXT: &'static str = "CHOOSE AN ENTRY (that contains only one subgroup) FOR THE TARGET OF MOVES (choose from SAME SCREENFUL as \
+    const UNSELECT_MOVE_TARGET_PROMPT_TEXT: &'static str =
+        "Unselect current move target (if present; not necessary really)";
+    // This says 'same screenful' because it's easier to assume that the returned index refers to the currently available
+    // local collections (a subset of all possible entries, for display), than calling chooseOrCreateObject, and sounds as useful:
+    const UNSELECT_MOVE_TARGET_LEADING_TEXT: &'static str = "CHOOSE AN ENTRY (that contains only one subgroup) FOR THE TARGET OF MOVES (choose from SAME SCREENFUL as \
                                                   now;  if the target contains 0 subgroups, or 2 or more subgroups, \
                                                   use other means to move entities to it until some kind of \"move anywhere\" feature is added):";
-      // unused?:
-      const DEFAULT_PREFERENCES_DEPTH: i32 = 10;
-      // Don't change these: they get set and looked up in the data for preferences. Changing it would just require users to reset it though, and would
-      // leave the old as clutter in the data.
-      const USER_PREFERENCES: &'static str = "User preferences";
-      const SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE: &'static str = "Should entity lists show public/private status for each?";
-      const DEFAULT_ENTITY_PREFERENCE: &'static str = "Which entity should be displayed as default, when starting the program?";
-      // (If change next line, also change the hard-coded use in the file first.exp.)
-      const HEADER_CONTENT_TAG: &'static str = "htmlHeaderContent";
-      const BODY_CONTENT_TAG: &'static str = "htmlInitialBodyContent";
-      const FOOTER_CONTENT_TAG: &'static str = "htmlFooterContent";
-      const LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION: &'static str = "(local: not for self-connection but to serve id to remotes)";
+    // unused?:
+    const DEFAULT_PREFERENCES_DEPTH: i32 = 10;
+    // Don't change these: they get set and looked up in the data for preferences. Changing it would just require users to reset it though, and would
+    // leave the old as clutter in the data.
+    const USER_PREFERENCES: &'static str = "User preferences";
+    const SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE: &'static str =
+        "Should entity lists show public/private status for each?";
+    const DEFAULT_ENTITY_PREFERENCE: &'static str =
+        "Which entity should be displayed as default, when starting the program?";
+    // (If change next line, also change the hard-coded use in the file first.exp.)
+    const HEADER_CONTENT_TAG: &'static str = "htmlHeaderContent";
+    const BODY_CONTENT_TAG: &'static str = "htmlInitialBodyContent";
+    const FOOTER_CONTENT_TAG: &'static str = "htmlFooterContent";
+    const LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION: &'static str =
+        "(local: not for self-connection but to serve id to remotes)";
 
     fn get_clipboard_content() -> String {
         // let clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard;
@@ -174,31 +200,34 @@ impl Util {
 
         //%%implement above
         "not yet implemented".to_string()
-      }
+    }
 
     pub fn is_windows() -> bool {
         let os = std::env::consts::OS;
         os.to_lowercase().eq("windows")
     }
 
-      /// Used for example after one has been deleted, to put the highlight on right next one:
-      /// idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
-      /**%%fix doc formatting:
-       * @param object_set_size  # of all the possible entries, not reduced by what fits in the available display space (I think).
-       * @param objects_to_display_in  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
-       * @return
-       */
-      fn find_entity_to_highlight_next(object_set_size: usize, objects_to_display_in: Vec<Entity>,
-                                       removed_one_in: bool,
-                                       previously_highlighted_index_in_obj_list_in: usize,
-                                       previously_highlighted_entry_in: Entity) -> Option<Entity> {
+    /// Used for example after one has been deleted, to put the highlight on right next one:
+    /// idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
+    /**%%fix doc formatting:
+     * @param object_set_size  # of all the possible entries, not reduced by what fits in the available display space (I think).
+     * @param objects_to_display_in  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
+     * @return
+     */
+    fn find_entity_to_highlight_next(
+        object_set_size: usize,
+        objects_to_display_in: Vec<Entity>,
+        removed_one_in: bool,
+        previously_highlighted_index_in_obj_list_in: usize,
+        previously_highlighted_entry_in: Entity,
+    ) -> Option<Entity> {
         //NOTE: SIMILAR TO find_attribute_to_highlight_next: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the type
         //system better.
 
         // Here of course, previously_highlighted_index_in_obj_list_in and obj_ids.size were calculated prior to the deletion.
 
         if removed_one_in {
-            if object_set_size <=1 {
+            if object_set_size <= 1 {
                 return None;
             }
             let new_obj_list_size: usize = object_set_size - 1;
@@ -206,67 +235,72 @@ impl Util {
                 //(redundant with above test/None, but for clarity in reading)
                 None
             } else {
-              let new_index_to_highlight = std::cmp::min(new_obj_list_size - 1, previously_highlighted_index_in_obj_list_in);
-              if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
-                  // %%why doesn't Rust know the element is an Entity, vs. <Unknown>? why can't just return
-                  // objects_to_display_in.get(new_index_to_highlight)? Maybe rustc would do OK but the IDE doesn't? try changing at first 1 of the
-                  // 3 below places back, and see if rustc gets it right? or am I mistaken?
-                  match objects_to_display_in.get(new_index_to_highlight) {
-                      None => None,
-                      Some(&e) => Some(e),
-                  }
-              } else {
-                  if new_index_to_highlight + 1 < new_obj_list_size - 1 {
-                      match objects_to_display_in.get(new_index_to_highlight + 1) {
-                          None => None,
-                          Some(&e) => Some(e),
-                      }
-                  } else if new_index_to_highlight >= 1 {
-                      match objects_to_display_in.get(new_index_to_highlight - 1) {
-                          None => None,
-                          Some(&e) => Some(e),
-                      }
-                  } else {
-                      None
-                  }
-              }
-          }
-        } else { Some(previously_highlighted_entry_in) }
-      }
+                let new_index_to_highlight = std::cmp::min(
+                    new_obj_list_size - 1,
+                    previously_highlighted_index_in_obj_list_in,
+                );
+                if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
+                    // %%why doesn't Rust know the element is an Entity, vs. <Unknown>? why can't just return
+                    // objects_to_display_in.get(new_index_to_highlight)? Maybe rustc would do OK but the IDE doesn't? try changing at first 1 of the
+                    // 3 below places back, and see if rustc gets it right? or am I mistaken?
+                    match objects_to_display_in.get(new_index_to_highlight) {
+                        None => None,
+                        Some(&e) => Some(e),
+                    }
+                } else {
+                    if new_index_to_highlight + 1 < new_obj_list_size - 1 {
+                        match objects_to_display_in.get(new_index_to_highlight + 1) {
+                            None => None,
+                            Some(&e) => Some(e),
+                        }
+                    } else if new_index_to_highlight >= 1 {
+                        match objects_to_display_in.get(new_index_to_highlight - 1) {
+                            None => None,
+                            Some(&e) => Some(e),
+                        }
+                    } else {
+                        None
+                    }
+                }
+            }
+        } else {
+            Some(previously_highlighted_entry_in)
+        }
+    }
 
     //%%
-      /// SEE COMMENTS FOR find_entity_to_highlight_next.
-      //%%AND SEE ITS RECENT MODS, to match here, to deal w/ usize issue, can't be negative, - 1 logic....  Not critical though.
-      // fn find_attribute_to_highlight_next(object_set_size: Int, objects_to_display_in: Vec<Attribute>, removedOne: bool,
-      //                                  previously_highlighted_index_in_obj_list_in: Int, previously_highlighted_entry_in: Attribute) -> Option[Attribute] {
-      //   //NOTE: SIMILAR TO find_entity_to_highlight_next: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
-      //   //system better.
-      //   if removedOne {
-      //     let new_obj_list_size = object_set_size - 1;
-      //     let new_index_to_highlight = math.min(new_obj_list_size - 1, previously_highlighted_index_in_obj_list_in);
-      //     if new_index_to_highlight >= 0 {
-      //       if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
-      //         Some(objects_to_display_in.get(new_index_to_highlight))
-      //       } else {
-      //         if new_index_to_highlight + 1 < new_obj_list_size - 1 { Some(objects_to_display_in.get(new_index_to_highlight + 1)) }
-      //         } else if new_index_to_highlight - 1 >= 0 { Some(objects_to_display_in.get(new_index_to_highlight - 1)) }
-      //         } else { None }
-      //       }
-      //     } else { None }
-      //   } else { Some(previously_highlighted_entry_in) }
-      // }
+    /// SEE COMMENTS FOR find_entity_to_highlight_next.
+    //%%AND SEE ITS RECENT MODS, to match here, to deal w/ usize issue, can't be negative, - 1 logic....  Not critical though.
+    // fn find_attribute_to_highlight_next(object_set_size: Int, objects_to_display_in: Vec<Attribute>, removedOne: bool,
+    //                                  previously_highlighted_index_in_obj_list_in: Int, previously_highlighted_entry_in: Attribute) -> Option[Attribute] {
+    //   //NOTE: SIMILAR TO find_entity_to_highlight_next: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the scala type
+    //   //system better.
+    //   if removedOne {
+    //     let new_obj_list_size = object_set_size - 1;
+    //     let new_index_to_highlight = math.min(new_obj_list_size - 1, previously_highlighted_index_in_obj_list_in);
+    //     if new_index_to_highlight >= 0 {
+    //       if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
+    //         Some(objects_to_display_in.get(new_index_to_highlight))
+    //       } else {
+    //         if new_index_to_highlight + 1 < new_obj_list_size - 1 { Some(objects_to_display_in.get(new_index_to_highlight + 1)) }
+    //         } else if new_index_to_highlight - 1 >= 0 { Some(objects_to_display_in.get(new_index_to_highlight - 1)) }
+    //         } else { None }
+    //       }
+    //     } else { None }
+    //   } else { Some(previously_highlighted_entry_in) }
+    // }
 
-      pub fn get_default_user_login() -> Result<(String, &'static str), String> {
-          //%%how do this on other platforms? windows at least? some crate? std doesn't seem to have a clear answer.
-          //was in scala: (System.getProperty("user.name"), "x")
-          match std::env::var("USER") {
-              Ok(val) => Ok((val, "x")),
-              Err(e) => {
-                  let msg = e.to_string();
-                  Err(msg)
-              },
-          }
-      }
+    pub fn get_default_user_login() -> Result<(String, &'static str), String> {
+        //%%how do this on other platforms? windows at least? some crate? std doesn't seem to have a clear answer.
+        //was in scala: (System.getProperty("user.name"), "x")
+        match std::env::var("USER") {
+            Ok(val) => Ok((val, "x")),
+            Err(e) => {
+                let msg = e.to_string();
+                Err(msg)
+            }
+        }
+    }
 
     // ****** MAKE SURE THE NEXT 2 LINES MATCH THE FORMAT of Controller.DATEFORMAT, AND THE USER EXAMPLES IN THIS CLASS' OUTPUT! ******
     // Making this mutable so that it can be changed for testing consistency (to use GMT for most tests so hopefully they will pass for developers in;
@@ -282,44 +316,46 @@ impl Util {
     //     "1970-01-01 00:00:00:000 " + timezone
     // }
 
-      const REL_TYPE_EXAMPLES: &'static str = "i.e., ownership of or \"has\" another entity, family tie, &c";
+    const REL_TYPE_EXAMPLES: &'static str =
+        "i.e., ownership of or \"has\" another entity, family tie, &c";
 
-      // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
-      const MENUTEXT_CREATE_ENTITY_OR_ATTR_TYPE: &'static str = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)";
+    // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
+    const MENUTEXT_CREATE_ENTITY_OR_ATTR_TYPE: &'static str = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)";
 
-      pub fn menutext_create_relation_type() -> String {
-          format!("Add new relation type ({})", Util::REL_TYPE_EXAMPLES)
-      }
+    pub fn menutext_create_relation_type() -> String {
+        format!("Add new relation type ({})", Util::REL_TYPE_EXAMPLES)
+    }
 
-      const MAIN_SEARCH_PROMPT: &'static str = "Search all / list existing entities (except quantity units, attr types, & relation types)";
+    const MAIN_SEARCH_PROMPT: &'static str =
+        "Search all / list existing entities (except quantity units, attr types, & relation types)";
     const MENUTEXT_VIEW_PREFERENCES: &'static str = "View preferences";
 
-
-    const GENERIC_DATE_PROMPT: &'static str = "Please enter the date like this, w/ at least the year, \
+    const GENERIC_DATE_PROMPT: &'static str =
+        "Please enter the date like this, w/ at least the year, \
     and other parts as desired: \"2013-01-31 23:59:59:999 MDT\"; zeros are allowed in all but the \
     yyyy-mm-dd).  \"BC\" or \"AD\" prefix allowed (before the year, with no space).";
-                      //%%THIS LINE CAN BE PUT BACK AFTER the bug is fixed so ESC really works.  See similar cmt elsewhere; tracked in tasks:
-                      //(in the above, after the "yyyy-mm-dd)."
-                      //"  Or ESC to exit.  " +
-      const TOO_LONG_MESSAGE: &'static str = "value too long for type";
+    //%%THIS LINE CAN BE PUT BACK AFTER the bug is fixed so ESC really works.  See similar cmt elsewhere; tracked in tasks:
+    //(in the above, after the "yyyy-mm-dd)."
+    //"  Or ESC to exit.  " +
+    const TOO_LONG_MESSAGE: &'static str = "value too long for type";
 
     /*
-        fn entity_menu_leading_text(entity_in: Entity) {
-        "**CURRENT ENTITY " + entity_in.get_id() + ": " + entity_in.get_display_string(/*%%withColor = */true)
-      }
-     */
+       fn entity_menu_leading_text(entity_in: Entity) {
+       "**CURRENT ENTITY " + entity_in.get_id() + ": " + entity_in.get_display_string(/*%%withColor = */true)
+     }
+    */
 
     /*
-        fn group_menu_leading_text(group_in: Group) {
-        "**CURRENT GROUP " + group_in.get_id + ": " + group_in.get_display_string()
-      }
-*/
+            fn group_menu_leading_text(group_in: Group) {
+            "**CURRENT GROUP " + group_in.get_id + ": " + group_in.get_display_string()
+          }
+    */
 
-      const QUANTITY_TYPE_PROMPT: &'static str = "SELECT TYPE OF QUANTITY (type is like length or \
+    const QUANTITY_TYPE_PROMPT: &'static str = "SELECT TYPE OF QUANTITY (type is like length or \
       volume, but not the measurement unit); ESC or leave both blank to cancel; \
       cancel if you need to create the needed type before selecting): ";
 
-      const TEXT_DESCRIPTION: &'static str = "TEXT (ex., serial #)";
+    const TEXT_DESCRIPTION: &'static str = "TEXT (ex., serial #)";
 
     // //%%
     //     fn can_edit_attribute_on_single_line(attributeIn: Attribute) -> bool {
@@ -327,15 +363,16 @@ impl Util {
     //   }
 
     //%%
-        // fn get_usable_filename(original_file_path_in: &str) -> (String, String) {
-        // FileAttribute.get_usable_filename(original_file_path_in)
-        // }
+    // fn get_usable_filename(original_file_path_in: &str) -> (String, String) {
+    // FileAttribute.get_usable_filename(original_file_path_in)
+    // }
 
-      const ENTITY_PARTS_THAT_CAN_BE_AFFECTED: &'static str = "ALL its attributes, actions, and relations, but not entities or groups the relations refer to";
+    const ENTITY_PARTS_THAT_CAN_BE_AFFECTED: &'static str = "ALL its attributes, actions, and relations, but not entities or groups the relations refer to";
 
-      const LIST_NEXT_ITEMS_PROMPT: &'static str = "List next items";
-      const LIST_PREV_ITEMS_PROMPT: &'static str = "List previous items";
-      const RELATION_TO_GROUP_NAME_PROMPT: &'static str = "Type a name for this group (ex., \"xyz list\"), then press Enter; blank or ESC to cancel";
+    const LIST_NEXT_ITEMS_PROMPT: &'static str = "List next items";
+    const LIST_PREV_ITEMS_PROMPT: &'static str = "List previous items";
+    const RELATION_TO_GROUP_NAME_PROMPT: &'static str =
+        "Type a name for this group (ex., \"xyz list\"), then press Enter; blank or ESC to cancel";
 
     // // %%
     //     fn add_remaining_count_to_prompt(mut choices_in: Vec<String>, num_displayed_objects: i64, total_rows_available_in: i64,
@@ -362,45 +399,52 @@ impl Util {
     //     choices_in
     //   }
 
-        fn get_containing_entities_description(entity_count_non_archived_in: i64, entity_count_archived_in: i64) -> String {
-            format!("contained in {entity_count_non_archived_in} entities, and in {entity_count_archived_in} archived entities")
-      }
+    fn get_containing_entities_description(
+        entity_count_non_archived_in: i64,
+        entity_count_archived_in: i64,
+    ) -> String {
+        format!("contained in {entity_count_non_archived_in} entities, and in {entity_count_archived_in} archived entities")
+    }
 
-      const PICK_FROM_LIST_PROMPT: &'static str = "Pick from menu, or an item by letter to select; Alt+<letter> to go to the item then come back here";
+    const PICK_FROM_LIST_PROMPT: &'static str = "Pick from menu, or an item by letter to select; Alt+<letter> to go to the item then come back here";
 
-        fn search_prompt_part(type_in: &str) -> String {
-         format!("Enter part of the {type_in} name to search for.")
-         }
+    fn search_prompt_part(type_in: &str) -> String {
+        format!("Enter part of the {type_in} name to search for.")
+    }
 
-        fn entity_or_group_name_sql_search_prompt(type_name_in: &str) -> String {
-            let part = Self::search_prompt_part(type_name_in);
-            format!("{}  (For the curious: it will be used in matching as a case-insensitive POSIX regex; details at  http://www.postgresql.org/docs/current/static/functions-matching.html#FUNCTIONS-POSIX-REGEXP .)",
+    fn entity_or_group_name_sql_search_prompt(type_name_in: &str) -> String {
+        let part = Self::search_prompt_part(type_name_in);
+        format!("{}  (For the curious: it will be used in matching as a case-insensitive POSIX regex; details at  http://www.postgresql.org/docs/current/static/functions-matching.html#FUNCTIONS-POSIX-REGEXP .)",
                     part)
-      }
+    }
 
-        fn is_numeric(input: &str, _: &TextUI) -> bool {
-            match f64::from_str(input) {
-                Err(_) => false,
-                Ok(_) => true,
-            }
-      }
-
-        /// this makes sure it exists and can open readonly w/o errors (so, :exists & readable).
-        fn input_file_valid(path: &str) -> bool {
-            let file = std::fs::OpenOptions::new().read(true).open(path);
-            match file {
-                Err(_) => false,
-                Ok(_) => true,
-            }
+    fn is_numeric(input: &str, _: &TextUI) -> bool {
+        match f64::from_str(input) {
+            Err(_) => false,
+            Ok(_) => true,
         }
+    }
 
-      /// The check to see if a long date string is valid comes later.
-      /// Now that we allow 1-digit dates, there is nothing to ck really.
-      // %%get rid of this and observed_date_criteria--unused or needed really?
-        fn valid_on_date_criteria(_: &str) -> bool { true }
+    /// this makes sure it exists and can open readonly w/o errors (so, :exists & readable).
+    fn input_file_valid(path: &str) -> bool {
+        let file = std::fs::OpenOptions::new().read(true).open(path);
+        match file {
+            Err(_) => false,
+            Ok(_) => true,
+        }
+    }
 
-      /// Same comments as for valid_on_date_criteria:
-        fn observed_date_criteria(_: &str) -> bool { true }
+    /// The check to see if a long date string is valid comes later.
+    /// Now that we allow 1-digit dates, there is nothing to ck really.
+    // %%get rid of this and observed_date_criteria--unused or needed really?
+    fn valid_on_date_criteria(_: &str) -> bool {
+        true
+    }
+
+    /// Same comments as for valid_on_date_criteria:
+    fn observed_date_criteria(_: &str) -> bool {
+        true
+    }
 
     // //%%used from places that we will keep, and which still need this?:
     //   fn throwableToString(e: Throwable) -> String {
@@ -517,44 +561,64 @@ impl Util {
     //     }
     //   }
 
-      /// Returns (valid_on_date, observationDate, userWantsToCancel)
-      /// The editing_in parameter (I think) being true means we are editing data, not adding new data.
-        fn ask_for_attribute_valid_and_observed_dates(old_valid_on_date_in: Option<i64>,
-                                               old_observed_date_in: i64,
-                                               ui: &TextUI,
-                                               editing_in: bool) -> (Option<i64>, i64, bool) {
-          loop {
-              //%% was: fn askForBothDates(ui: TextUI) -> (Option<i64>, i64, bool) {
-              let (valid_on_date, user_cancelled) = Self::ask_for_date(DateType::VALID, Self::valid_on_date_criteria, old_valid_on_date_in, &ui, editing_in);
-              if user_cancelled {
-                  break (None, 0, user_cancelled);
-              } else {
-                  let (observed_date, user_cancelled) = Self::ask_for_date(DateType::OBSERVED, Self::observed_date_criteria, Some(old_observed_date_in), &ui, editing_in);
-                  if user_cancelled {
-                      break (Some(0), 0, user_cancelled);
-                  } else {
-                      // (for why valid_on_date is sometimes allowed to be None, but not observed_date: see let validOnPrompt.);
-                      match observed_date {
-                          None => {
-                              // There is probably a smoother Rust way for this; this is what the scala code did.
-                              assert!(observed_date.is_some());
-                          },
-                          Some(od) => {
-                              let prompt = format!("Dates are: {}: right?", AttributeWithValidAndObservedDates::get_dates_description(valid_on_date, od));
-                              let answer = ui.ask_yes_no_question(prompt, "y", false);
-                              match answer {
-                                  Some(ans) if ans => {
-                                      break (valid_on_date, od, user_cancelled);
-                                  },
-                                  _ => continue,
-                              }
-                          }
-                      }
-                  }
-              }
-          }
-          // }%%
-      }
+    /// Returns (valid_on_date, observationDate, userWantsToCancel)
+    /// The editing_in parameter (I think) being true means we are editing data, not adding new data.
+    fn ask_for_attribute_valid_and_observed_dates(
+        old_valid_on_date_in: Option<i64>,
+        old_observed_date_in: i64,
+        ui: &TextUI,
+        editing_in: bool,
+    ) -> (Option<i64>, i64, bool) {
+        loop {
+            //%% was: fn askForBothDates(ui: TextUI) -> (Option<i64>, i64, bool) {
+            let (valid_on_date, user_cancelled) = Self::ask_for_date(
+                DateType::VALID,
+                Self::valid_on_date_criteria,
+                old_valid_on_date_in,
+                &ui,
+                editing_in,
+            );
+            if user_cancelled {
+                break (None, 0, user_cancelled);
+            } else {
+                let (observed_date, user_cancelled) = Self::ask_for_date(
+                    DateType::OBSERVED,
+                    Self::observed_date_criteria,
+                    Some(old_observed_date_in),
+                    &ui,
+                    editing_in,
+                );
+                if user_cancelled {
+                    break (Some(0), 0, user_cancelled);
+                } else {
+                    // (for why valid_on_date is sometimes allowed to be None, but not observed_date: see let validOnPrompt.);
+                    match observed_date {
+                        None => {
+                            // There is probably a smoother Rust way for this; this is what the scala code did.
+                            assert!(observed_date.is_some());
+                        }
+                        Some(od) => {
+                            let prompt = format!(
+                                "Dates are: {}: right?",
+                                AttributeWithValidAndObservedDates::get_dates_description(
+                                    valid_on_date,
+                                    od
+                                )
+                            );
+                            let answer = ui.ask_yes_no_question(prompt, "y", false);
+                            match answer {
+                                Some(ans) if ans => {
+                                    break (valid_on_date, od, user_cancelled);
+                                }
+                                _ => continue,
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // }%%
+    }
 
     //idea: make this more generic, passing in prompt strings &c, so it's more cleanly useful for DateAttribute instances. Or not: lacks shared code.
     //idea: separate these into 2 methods, 1 for each time (not much common material of significance).
@@ -563,10 +627,14 @@ impl Util {
     /// Returns the date (w/ meanings as with display_text below, and as in PostgreSQLDatabase.createTables),
     /// and true if the user wants to cancel/get out).
     /// The editing_in parameter (I think) being true means we are editing data, not adding new data.
-    fn ask_for_date(date_type_in: DateType, acceptance_criteria_in: fn (&str) -> bool, old_date_in: Option<i64>, ui: &TextUI, editing_in: bool)
-        -> (Option<i64>, bool) {
-
-        let leading_text: String = match date_type_in  {
+    fn ask_for_date(
+        date_type_in: DateType,
+        acceptance_criteria_in: fn(&str) -> bool,
+        old_date_in: Option<i64>,
+        ui: &TextUI,
+        editing_in: bool,
+    ) -> (Option<i64>, bool) {
+        let leading_text: String = match date_type_in {
             DateType::VALID => {
                 format!("\nPlease enter the date when this was first VALID (i.e., true) (Press Enter (blank) for unknown/unspecified, or {}{}{}{}{}",
                     //%%put back when allowing more formats:
@@ -599,11 +667,14 @@ impl Util {
                 // **SO:** it is already in the task list to have a separate flag in the database for "all time".
                 // AND: how does Rust (chrono crate?) address all that?  Are we storing dates in UTC or what? sch code for GMT, MST, UTC.
                 // and how does om know to show mst vs. mdt in the output of entities created in summer vs. winter?
-            },
+            }
             DateType::OBSERVED => {
                 // vec![format!("\nWHEN OBSERVED?: {} (\"unknown\" not allowed here.) ", Self::GENERIC_DATE_PROMPT).as_str()]
-                format!("\nWHEN OBSERVED?: {} (\"unknown\" not allowed here.) ", Self::GENERIC_DATE_PROMPT)
-            },
+                format!(
+                    "\nWHEN OBSERVED?: {} (\"unknown\" not allowed here.) ",
+                    Self::GENERIC_DATE_PROMPT
+                )
+            }
         };
 
         let default_value: String = match date_type_in {
@@ -623,13 +694,13 @@ impl Util {
                                     default
                                 }
                             }
-                        },
+                        }
                         _ => "".to_string(),
                     }
                 } else {
                     "".to_string()
                 }
-            },
+            }
             DateType::OBSERVED => {
                 match old_date_in {
                     Some(old_date) if editing_in => {
@@ -644,14 +715,14 @@ impl Util {
                                 default
                             }
                         }
-                    },
+                    }
                     _ => {
                         // was: Some(Util.DATEFORMAT_WITH_ERA.format(new Date(System.currentTimeMillis())))
                         let default = Utc::now().to_string();
                         default
-                    },
+                    }
                 }
-            },
+            }
         };
 
         // let default: Option<&str> = match default_value {
@@ -668,33 +739,34 @@ impl Util {
                             // consistent probably meant figuring out how to modify jline2 (again, now) so that it will distinguish between user pressing ESC and user
                             // pressing Enter with a blank line: now IIRC it just returns a blank line for both.
                             // Or something, now that using a readline library in Rust.
-                            break (None, false)
-                        },
+                            break (None, false);
+                        }
                         DateType::OBSERVED => {
                             //getting out, but observed date not allowed to be None (see caller for details)
-                            break (Some(0), true)
+                            break (Some(0), true);
                         }
                     }
-                },
+                }
                 Some(answer) => {
                     let date: &str = answer.as_str().trim();
                     if date_type_in == DateType::VALID && date.len() == 0 {
-                        break (None, false)
+                        break (None, false);
                     } else if date_type_in == DateType::VALID && date == "0" {
-                        break (Some(0), false)
+                        break (Some(0), false);
                     } else if !acceptance_criteria_in(date) {
                         continue;
                     } else {
                         // (special values like "0" or blank are already handled above)
                         //%% let (new_date, retry): (Option<i64>, bool) = finish_and_parse_the_date(date, date_type_in == DateType::OBSERVED, ui);
-                        let new_date: ParseResult<DateTime<FixedOffset>> = DateTime::parse_from_str(date, Util::DATEFORMAT4);
+                        let new_date: ParseResult<DateTime<FixedOffset>> =
+                            DateTime::parse_from_str(date, Util::DATEFORMAT4);
                         match new_date {
                             Ok(dt) => break (Some(dt.timestamp()), false),
                             Err(e) => {
                                 let text: String = format!("Unable to parse provided date, with error: \"{}\"  Please retry.", e.to_string());
                                 ui.display_text2(text.as_str(), true);
                                 continue;
-                            },
+                            }
                         }
                     }
                 }
@@ -702,36 +774,43 @@ impl Util {
         }
     }
 
-
-      /// Cloned from Controller.ask_for_date; see its comments in the code.
-      /// Idea: consider combining somehow with method ask_for_date_attribute_value.
-      /// Return None if user wants out.
-      fn ask_for_date_generic(prompt_text_in: Option<&str>/*%% = None*/, default_in: Option<&str>, ui: &TextUI) -> Option<DateTime<FixedOffset>> {
-          loop {
+    /// Cloned from Controller.ask_for_date; see its comments in the code.
+    /// Idea: consider combining somehow with method ask_for_date_attribute_value.
+    /// Return None if user wants out.
+    fn ask_for_date_generic(
+        prompt_text_in: Option<&str>, /*%% = None*/
+        default_in: Option<&str>,
+        ui: &TextUI,
+    ) -> Option<DateTime<FixedOffset>> {
+        loop {
             let leading_text: Vec<&str> = vec![prompt_text_in.unwrap_or(Self::GENERIC_DATE_PROMPT)];
-              let df: String = Utc::now().format(Util::DATEFORMAT4).to_string();
+            let df: String = Utc::now().format(Util::DATEFORMAT4).to_string();
             let default: &str = default_in.unwrap_or(df.as_str());
             let ans = ui.ask_for_string3(leading_text, None, default);
-              match ans {
-                  None => return None,
-                  Some(answer) => {
-                      let date = answer.trim();
-                      // let (new_date: Option<i64>, retry: bool) = finish_and_parse_the_date(date, true, ui);
-                      let new_date: ParseResult<DateTime<FixedOffset>> = DateTime::parse_from_str(date, Util::DATEFORMAT4);
-                      match new_date {
-                          Ok(dt) => return Some(dt), //%%type? & at similar plc/es after finish_and_parse_the_date ?
-                          Err(e) => {
-                              let text: String = format!("Unable to parse provided date, with error: \"{}\"  Please retry.", e.to_string());
-                              ui.display_text2(text.as_str(), true);
-                              //%% but how does the get out w/o entry, from this & similar places after finish_and_parse_the_date or any other loop?
-                              //%% test/try it?
-                              continue;
-                          },
-                      }
-                  },
-              }
-          }
-      }
+            match ans {
+                None => return None,
+                Some(answer) => {
+                    let date = answer.trim();
+                    // let (new_date: Option<i64>, retry: bool) = finish_and_parse_the_date(date, true, ui);
+                    let new_date: ParseResult<DateTime<FixedOffset>> =
+                        DateTime::parse_from_str(date, Util::DATEFORMAT4);
+                    match new_date {
+                        Ok(dt) => return Some(dt), //%%type? & at similar plc/es after finish_and_parse_the_date ?
+                        Err(e) => {
+                            let text: String = format!(
+                                "Unable to parse provided date, with error: \"{}\"  Please retry.",
+                                e.to_string()
+                            );
+                            ui.display_text2(text.as_str(), true);
+                            //%% but how does the get out w/o entry, from this & similar places after finish_and_parse_the_date or any other loop?
+                            //%% test/try it?
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     /// This gets the an abbreviated part of the copyright text to be used by the UI.  It is
     /// customized to the actual content of the LICENSE file, to extract & modify suitably for UI display.
@@ -758,9 +837,9 @@ impl Util {
             } else if append && line.contains("(see below). If not, see") {
                 text_to_show = text_to_show
                     + &line.replace(
-                    "(see below). If not, see",
-                    "(see the file LICENSE). If not, see",
-                )
+                        "(see below). If not, see",
+                        "(see the file LICENSE). If not, see",
+                    )
                     + "\n";
                 // append = false;  // commented out because never read; comment here for reading clarity.
                 // Stop doing the extra checks in vain now, since no more appending done. It cut the
@@ -775,228 +854,258 @@ impl Util {
             line_opt = lines.next();
         }
         text_to_show
-      /*idea: do this again somehow, or drop the idea?  There is the issue of providing the AGPL (etc/mine?) with the app,
-        and maybe it could also address that:
-            case e: Exception =>
-              let ans = ui.ask_yes_no_question("\n\nThe file LICENSE is missing from the distribution of this program or for " +;
-                                            "some other reason can't be displayed normally;
-                            } please let us know to " +
-                                            " correct that, and please be aware of the license.  You can go to this URL to see it:\n" +
-                                            "    http://onemodel.org/download/OM-LICENSE \n" +
-                                            ".  (Do you want to see the detailed error output?)")
-*/
+        /*idea: do this again somehow, or drop the idea?  There is the issue of providing the AGPL (etc/mine?) with the app,
+                and maybe it could also address that:
+                    case e: Exception =>
+                      let ans = ui.ask_yes_no_question("\n\nThe file LICENSE is missing from the distribution of this program or for " +;
+                                                    "some other reason can't be displayed normally;
+                                    } please let us know to " +
+                                                    " correct that, and please be aware of the license.  You can go to this URL to see it:\n" +
+                                                    "    http://onemodel.org/download/OM-LICENSE \n" +
+                                                    ".  (Do you want to see the detailed error output?)")
+        */
     }
 
-        fn string_too_long_error_message(name_length: i32) -> String {
-          // for details, see method PostgreSQLDatabase.escapeQuotesEtc.
-          format!("Got an error.  Please try a shorter ({}) chars) entry.  \
+    fn string_too_long_error_message(name_length: i32) -> String {
+        // for details, see method PostgreSQLDatabase.escapeQuotesEtc.
+        format!(
+            "Got an error.  Please try a shorter ({}) chars) entry.  \
           (Could be due to escaped, i.e. expanded, characters like ' or \";\".  Details: %s",
-              name_length)
-        }
+            name_length
+        )
+    }
 
-        fn is_duplication_a_problem(is_duplicate_in: bool, duplicate_name_probably_ok: bool, ui: &TextUI) -> bool {
-          let mut duplicate_problem_so_skip = false;
-          if is_duplicate_in {
+    fn is_duplication_a_problem(
+        is_duplicate_in: bool,
+        duplicate_name_probably_ok: bool,
+        ui: &TextUI,
+    ) -> bool {
+        let mut duplicate_problem_so_skip = false;
+        if is_duplicate_in {
             if !duplicate_name_probably_ok {
-                let answer_opt = ui.ask_for_string3(vec!["That name is a duplicate--proceed anyway? (y/n)"],
-                                                    None, "n");
+                let answer_opt = ui.ask_for_string3(
+                    vec!["That name is a duplicate--proceed anyway? (y/n)"],
+                    None,
+                    "n",
+                );
                 match answer_opt {
                     None => duplicate_problem_so_skip = true,
                     Some(ans) => {
-                        if ! ans.eq_ignore_ascii_case("y") {
+                        if !ans.eq_ignore_ascii_case("y") {
                             duplicate_problem_so_skip = true
                         }
                     }
                 }
             }
-          }
-          duplicate_problem_so_skip
         }
+        duplicate_problem_so_skip
+    }
 
-        //%%move to some *relation* struct like RelationType? same w/ others below? Or keep together for maintenance?
-        //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
-        fn ask_for_name_in_reverse_direction(directionality_in: String, name_length_in: i32, name_in: String,
-                                                        previous_name_in_reverse_in: Option<&str> /*%%= None*/, ui: &TextUI) -> String {
-          // see createTables (or UI prompts) for meanings of bi/uni/non...
-          //   match directionality_in {
-          //       RelationType::RelationDirectionality::UNI => "".to_string(),
-          //       RelationType::RelationDirectionality::NON => name_in,
-          //       RelationType::RelationDirectionality::BI => {
-          //           loop {
-          //               // see createTables (or UI prompts) for meanings...
-          //               let msg = vec![format!("Enter relation name when direction is reversed (i.e., 'is husband to' becomes 'is wife to', 'employs' becomes 'is employed by' by; up to {name_length_in} characters (ESC to cancel): ").as_str()];
-          //               let name_in_reverse: String = {
-          //                   let answer: Option<String> = ui.ask_for_string3(msg, None, previous_name_in_reverse_in);
-          //                   match answer {
-          //                       None => "".to_string(),
-          //                       Some(ans) => ans.get.trim() //see above comment about trim (??)
-          //                   }
-          //               };
-          //               let answer = ui.ask_which(Some(vec!["Is this the correct name for the relationship in reverse direction?: "]), vec!["Yes", "No"]);
-          //               match answer {
-          //                   None => continue,
-          //                   Some(ans) if ans == 2 => continue,
-          //                   _ => name_in_reverse
-          //               }
-          //           }
-          //       }
-          //   }
-            //%%temp, to compile:
-            "".to_string()
-        }
+    //%%move to some *relation* struct like RelationType? same w/ others below? Or keep together for maintenance?
+    //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
+    fn ask_for_name_in_reverse_direction(
+        directionality_in: String,
+        name_length_in: i32,
+        name_in: String,
+        previous_name_in_reverse_in: Option<&str>, /*%%= None*/
+        ui: &TextUI,
+    ) -> String {
+        // see createTables (or UI prompts) for meanings of bi/uni/non...
+        //   match directionality_in {
+        //       RelationType::RelationDirectionality::UNI => "".to_string(),
+        //       RelationType::RelationDirectionality::NON => name_in,
+        //       RelationType::RelationDirectionality::BI => {
+        //           loop {
+        //               // see createTables (or UI prompts) for meanings...
+        //               let msg = vec![format!("Enter relation name when direction is reversed (i.e., 'is husband to' becomes 'is wife to', 'employs' becomes 'is employed by' by; up to {name_length_in} characters (ESC to cancel): ").as_str()];
+        //               let name_in_reverse: String = {
+        //                   let answer: Option<String> = ui.ask_for_string3(msg, None, previous_name_in_reverse_in);
+        //                   match answer {
+        //                       None => "".to_string(),
+        //                       Some(ans) => ans.get.trim() //see above comment about trim (??)
+        //                   }
+        //               };
+        //               let answer = ui.ask_which(Some(vec!["Is this the correct name for the relationship in reverse direction?: "]), vec!["Yes", "No"]);
+        //               match answer {
+        //                   None => continue,
+        //                   Some(ans) if ans == 2 => continue,
+        //                   _ => name_in_reverse
+        //               }
+        //           }
+        //       }
+        //   }
+        //%%temp, to compile:
+        "".to_string()
+    }
 
-        fn ask_for_relation_directionality(previous_directionality_in: &str /*%%= None*/, ui: &TextUI) -> Option<String> {
-          let msg = vec!["Enter directionality (\"bi\", \"uni\", or \"non\"; examples: \"is parent of\"/\"is child of\" is bidirectional, \
+    fn ask_for_relation_directionality(
+        previous_directionality_in: &str, /*%%= None*/
+        ui: &TextUI,
+    ) -> Option<String> {
+        let msg = vec!["Enter directionality (\"bi\", \"uni\", or \"non\"; examples: \"is parent of\"/\"is child of\" is bidirectional, \
                           since it differs substantially by the direction but goes both ways; unidirectional might be like 'lists': the thing listed doesn't know \
                           it; \"is acquaintanted with\" could be nondirectional if it is an identical relationship either way  (ESC to cancel): "];
-          fn criteria_for_ask_for_relation_directionality(entry_in: &str, _ui: &TextUI) -> bool {
+        fn criteria_for_ask_for_relation_directionality(entry_in: &str, _ui: &TextUI) -> bool {
             let entry = entry_in.trim().to_uppercase();
             entry == "BI" || entry == "UNI" || entry == "NON"
-          }
-
-          let directionality = ui.ask_for_string3(msg, Some(criteria_for_ask_for_relation_directionality), previous_directionality_in);
-            match directionality {
-                None => None,
-                Some(d) => Some(d.to_uppercase()),
-            }
         }
 
-        fn edit_multiline_text(input: &String, ui: &TextUI) -> Result<String, String> {
-            //idea: allow user to change the edit command setting (ie which editor to use) from here?
-            //idea: allow user to prevent this message in future. Could be by using ui.ask_yes_no_question instead, adding to the  prompt "(ask this again?)", with
-            // 'y' as default, and storing the answer in the db.SYSTEM_ENTITY_NAME somewhere perhaps.
-            //PUT THIS BACK (& review/test it) after taking the time to read the (Rust equivalent of the) Process package's classes or something like
-            // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
-            //        let command: String = db.getTextEditorCommand;
-            //        ui.display_text("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for
-            // existing " +
-            //                       "entities, choose the first one (called " + PostgreSQLDatabase.SYSTEM_ENTITY_NAME + "), choose " +
-            //                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
-            //                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
-            //                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
+        let directionality = ui.ask_for_string3(
+            msg,
+            Some(criteria_for_ask_for_relation_directionality),
+            previous_directionality_in,
+        );
+        match directionality {
+            None => None,
+            Some(d) => Some(d.to_uppercase()),
+        }
+    }
 
-            //%%test (all paths?) & clean up:
-            //   let path: Path = Files.createTempFile("om-edit-", ".txt");
-            let mut rng = randlib::Rand::new();
-            let rand_num: u64 = rng.rand_u64();
-            let filename = format!("om-edit-{}.txt", rand_num.to_string());
-            let msg_possibly = format!("Unable to convert OS temp path, and filename {} to a UTF8 string.", filename);
-            let path_buf: std::path::PathBuf = std::env::temp_dir().with_file_name(filename);
-            // Files.write(path, input.getBytes)
-            let (write_result, full_path) = {
-                // let psr = path.as_str();
-                let psr = path_buf.to_str();
-                match psr {
-                    // Err(e) => {
-                    None => {
-                        // let msg = format!("Unable to convert temp path and filename {} to a UTF8 string: {}", filename, e.to_string());
-                        return Err(msg_possibly);
-                    },
-                    // Ok(ps) => {
-                    Some(ps) => {
-                        (std::fs::write(ps, input), ps)
-                    }
+    fn edit_multiline_text(input: &String, ui: &TextUI) -> Result<String, String> {
+        //idea: allow user to change the edit command setting (ie which editor to use) from here?
+        //idea: allow user to prevent this message in future. Could be by using ui.ask_yes_no_question instead, adding to the  prompt "(ask this again?)", with
+        // 'y' as default, and storing the answer in the db.SYSTEM_ENTITY_NAME somewhere perhaps.
+        //PUT THIS BACK (& review/test it) after taking the time to read the (Rust equivalent of the) Process package's classes or something like
+        // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
+        //        let command: String = db.getTextEditorCommand;
+        //        ui.display_text("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for
+        // existing " +
+        //                       "entities, choose the first one (called " + PostgreSQLDatabase.SYSTEM_ENTITY_NAME + "), choose " +
+        //                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
+        //                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
+        //                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
+
+        //%%test (all paths?) & clean up:
+        //   let path: Path = Files.createTempFile("om-edit-", ".txt");
+        let mut rng = randlib::Rand::new();
+        let rand_num: u64 = rng.rand_u64();
+        let filename = format!("om-edit-{}.txt", rand_num.to_string());
+        let msg_possibly = format!(
+            "Unable to convert OS temp path, and filename {} to a UTF8 string.",
+            filename
+        );
+        let path_buf: std::path::PathBuf = std::env::temp_dir().with_file_name(filename);
+        // Files.write(path, input.getBytes)
+        let (write_result, full_path) = {
+            // let psr = path.as_str();
+            let psr = path_buf.to_str();
+            match psr {
+                // Err(e) => {
+                None => {
+                    // let msg = format!("Unable to convert temp path and filename {} to a UTF8 string: {}", filename, e.to_string());
+                    return Err(msg_possibly);
                 }
-            };
-            //                   std::fs::write(path.to_str(), input)?;
-            match write_result {
-                Err(e) => {
-                    // ui.display_text1(format!("Unable to write temporary file for editing: {}", e.to_string()).as_str());
-                    // e
-                    // Instead of using "?" to return the error, creating a new one so I know what type to return from the function.
-                    // And similarly just below.
-                    let msg = format!("Unable to write temporary file for editing: {}", e.to_string());
-                    Err(msg)
-                },
-                Ok(_) => {
-                    ui.display_text1(format!("Until we improve this, you can now go edit the content in this temporary file, & save it:\n{}\n...then come back here when ready to import that text.",
+                // Ok(ps) => {
+                Some(ps) => (std::fs::write(ps, input), ps),
+            }
+        };
+        //                   std::fs::write(path.to_str(), input)?;
+        match write_result {
+            Err(e) => {
+                // ui.display_text1(format!("Unable to write temporary file for editing: {}", e.to_string()).as_str());
+                // e
+                // Instead of using "?" to return the error, creating a new one so I know what type to return from the function.
+                // And similarly just below.
+                let msg = format!(
+                    "Unable to write temporary file for editing: {}",
+                    e.to_string()
+                );
+                Err(msg)
+            }
+            Ok(_) => {
+                ui.display_text1(format!("Until we improve this, you can now go edit the content in this temporary file, & save it:\n{}\n...then come back here when ready to import that text.",
                                              full_path).as_str());
-                    // let new_content: String = new Predef.String(Files.readAllBytes(path));
-                    let result2 = std::fs::read(&path_buf);
-                    // let new_content: Vec<u8> = std::fs::read(path)?;
-                    match result2 {
-                        Err(e) => {
-                            // ui.display_text1(format!("Unable to read temporary file from editing session: {}", e.to_string()).as_str());
-                            let msg = format!("Unable to read temporary file from editing session: {} .  File not deleted and edits not saved to OneModel.", e.to_string());
-                            Err(msg)
-                        },
-                        Ok(new_content) => {
-                            match String::from_utf8(new_content) {
-                                Err(e) => {
-                                    //%%test. Is this a problem when edited with LO or other/whatever tools?  Find
-                                    // another way so can just slurp in whatever, if not UTF8???!!
-                                    // ui.display_text1(format!("Unable to convert the content to a UTF8 string.  Will leave the temporary file in place for you to view, but edits have not been saved back to OneModel:  {}", e.to_string()).as_str());
-                                    let msg = format!("Unable to convert the content to a UTF8 string.  Will leave the temporary file in place for you to view, but edits have not been saved back to OneModel:  {}", e.to_string());
-                                    Err(msg)
-                                },
-                                Ok(new_content_checked) => {
-                                    //%%ask whether to delete the temp copy? leave as an idea? Next 2 ops seem out of order, no? But what best instead?
-                                    //(Maybe just deleting poses no greater risk than removing contents of a file and saving it? But
-                                    // transactionality/safety-- should save the new content to DB
-                                    // (in caller?) before deleting the temp file?? Like, what if we
-                                    // delete the file and then due to some hw or sw error, can't save it?)
-                                    let result3 = std::fs::remove_file(&path_buf);
-                                    match result3 {
-                                        Err(e) => {
-                                            ui.display_text1(format!("Unable to delete the temporary file with the edited info; \
+                // let new_content: String = new Predef.String(Files.readAllBytes(path));
+                let result2 = std::fs::read(&path_buf);
+                // let new_content: Vec<u8> = std::fs::read(path)?;
+                match result2 {
+                    Err(e) => {
+                        // ui.display_text1(format!("Unable to read temporary file from editing session: {}", e.to_string()).as_str());
+                        let msg = format!("Unable to read temporary file from editing session: {} .  File not deleted and edits not saved to OneModel.", e.to_string());
+                        Err(msg)
+                    }
+                    Ok(new_content) => {
+                        match String::from_utf8(new_content) {
+                            Err(e) => {
+                                //%%test. Is this a problem when edited with LO or other/whatever tools?  Find
+                                // another way so can just slurp in whatever, if not UTF8???!!
+                                // ui.display_text1(format!("Unable to convert the content to a UTF8 string.  Will leave the temporary file in place for you to view, but edits have not been saved back to OneModel:  {}", e.to_string()).as_str());
+                                let msg = format!("Unable to convert the content to a UTF8 string.  Will leave the temporary file in place for you to view, but edits have not been saved back to OneModel:  {}", e.to_string());
+                                Err(msg)
+                            }
+                            Ok(new_content_checked) => {
+                                //%%ask whether to delete the temp copy? leave as an idea? Next 2 ops seem out of order, no? But what best instead?
+                                //(Maybe just deleting poses no greater risk than removing contents of a file and saving it? But
+                                // transactionality/safety-- should save the new content to DB
+                                // (in caller?) before deleting the temp file?? Like, what if we
+                                // delete the file and then due to some hw or sw error, can't save it?)
+                                let result3 = std::fs::remove_file(&path_buf);
+                                match result3 {
+                                    Err(e) => {
+                                        ui.display_text1(format!("Unable to delete the temporary file with the edited info; \
                                             no harm done except clutter until the OS cleans it up, but probably want to check on why: \
                                             {}", e.to_string()).as_str());
-                                        },
-                                        _ => {}
                                     }
-                                    Ok(new_content_checked)
+                                    _ => {}
                                 }
+                                Ok(new_content_checked)
                             }
                         }
                     }
                 }
             }
         }
+    }
 
-/*
-        /// Returns None if user wants to cancel.
-        //%%move to TextUI?
-        fn prompt_whether_to_1add_2correct(attr_type_desc_in: &String, ui: &TextUI) -> Option<i32> {
-            loop {
-                let answer = ui.ask_which(None, vec![format!("1-Save this {} attribute?", attr_type_desc_in).as_str(), "2-Correct it?"]);
-                match answer {
-                    None => None,
-                    Some(ans) => {
-                        if ans < 1 || ans > 2 {
-                            ui.display_text1("invalid response");
+    /*
+            /// Returns None if user wants to cancel.
+            //%%move to TextUI?
+            fn prompt_whether_to_1add_2correct(attr_type_desc_in: &String, ui: &TextUI) -> Option<i32> {
+                loop {
+                    let answer = ui.ask_which(None, vec![format!("1-Save this {} attribute?", attr_type_desc_in).as_str(), "2-Correct it?"]);
+                    match answer {
+                        None => None,
+                        Some(ans) => {
+                            if ans < 1 || ans > 2 {
+                                ui.display_text1("invalid response");
+                                continue;
+                            } else {
+                                answer
+                            }
+                        }
+                    }
+              }
+            }
+    */
+
+    //%%move to quantityattr struct or ui? same w/ others below? Or keep together for maintenance?
+    /// Returns None if user wants to cancel.
+    fn ask_for_quantity_attribute_number(previous_quantity: f64, ui: &TextUI) -> Option<f64> {
+        loop {
+            let leading_text =
+                vec!["ENTER THE NUMBER FOR THE QUANTITY (i.e., 5, for 5 centimeters length)"];
+            let answer = ui.ask_for_string3(
+                leading_text,
+                Some(Util::is_numeric),
+                format!("{previous_quantity}").as_str(),
+            );
+            match answer {
+                None => return None,
+                Some(ans) => {
+                    let result = f64::from_str(ans.as_str());
+                    match result {
+                        Err(e) => {
+                            ui.display_text2(format!("Not a valid number. Please retry. (Developer: is_numeric should have already checked this. How did we get here?.  Error message: \"{}\")", e.to_string()).as_str(), true);
                             continue;
-                        } else {
-                            answer
+                        }
+                        Ok(f) => {
+                            return Some(f);
                         }
                     }
                 }
-          }
-        }
-*/
-
-        //%%move to quantityattr struct or ui? same w/ others below? Or keep together for maintenance?
-        /// Returns None if user wants to cancel.
-        fn ask_for_quantity_attribute_number(previous_quantity: f64, ui: &TextUI) -> Option<f64> {
-            loop {
-              let leading_text = vec!["ENTER THE NUMBER FOR THE QUANTITY (i.e., 5, for 5 centimeters length)"];
-              let answer = ui.ask_for_string3(leading_text, Some(Util::is_numeric), format!("{previous_quantity}").as_str());
-                match answer {
-                    None => return None,
-                    Some(ans) => {
-                        let result = f64::from_str(ans.as_str());
-                        match result {
-                            Err(e) => {
-                                ui.display_text2(format!("Not a valid number. Please retry. (Developer: is_numeric should have already checked this. How did we get here?.  Error message: \"{}\")", e.to_string()).as_str(), true);
-                                continue;
-                            },
-                            Ok(f) => {
-                                return Some(f);
-                            },
-                        }
-                    },
-                }
             }
         }
+    }
 
     /*
         /// Returns None if user wants to cancel.
@@ -1101,121 +1210,121 @@ impl Util {
         }
 
      */
-/* just to quick ref/view code copied from above:
-            let path: std::path::PathBuf = std::env::temp_dir().with_file_name(filename);
-            let file = std::fs::OpenOptions::new().read(true).open(path);
-            match file {
-                Err(_) => false,
-                Ok(_) => true,
-            std::fs::write(path.to_str(), input)?;
+    /* just to quick ref/view code copied from above:
+               let path: std::path::PathBuf = std::env::temp_dir().with_file_name(filename);
+               let file = std::fs::OpenOptions::new().read(true).open(path);
+               match file {
+                   Err(_) => false,
+                   Ok(_) => true,
+               std::fs::write(path.to_str(), input)?;
 
- */
+    */
     /*
-        /// Returns None if user wants to cancel/get out.
-        //%%NEED TO TEST THIS EXPLICITLY
-        fn ask_for_file_attribute_info(_: Box<dyn Database>, mut dh: &FileAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<FileAttributeDataHolder> {
-          let mut path: Option<String> = None;
-          if !editing_in {
-              // I.e., not editing an existing fileAttribute, but adding a new fileAttribute (%%right??).
-              // we don't want the original path to be editable after the fact, because that's a historical observation and there is no sense in changing it.
-              path = ui.ask_for_string3(vec!["Enter file path (must exist and be readable), then press Enter; ESC to cancel"], Some(Util.input_file_valid), None);
-          }
-            //%%deletable attempt at new logic w/ match, but too confusing to maintain old ideas
-            // match path {
-            //     None => {
-            //         if !editing_in {
-            //             None
-            //         } else {
-            //             %%?
-            //         }
-            //     },
-            //     Some(p) => {
-            //         if !editing_in {
-            //             dh.original_file_path = p;
-            //         } else {
-            //             %%?
-            //         }
-            //         dh
-            //     }
-            // }
+            /// Returns None if user wants to cancel/get out.
+            //%%NEED TO TEST THIS EXPLICITLY
+            fn ask_for_file_attribute_info(_: Box<dyn Database>, mut dh: &FileAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<FileAttributeDataHolder> {
+              let mut path: Option<String> = None;
+              if !editing_in {
+                  // I.e., not editing an existing fileAttribute, but adding a new fileAttribute (%%right??).
+                  // we don't want the original path to be editable after the fact, because that's a historical observation and there is no sense in changing it.
+                  path = ui.ask_for_string3(vec!["Enter file path (must exist and be readable), then press Enter; ESC to cancel"], Some(Util.input_file_valid), None);
+              }
+                //%%deletable attempt at new logic w/ match, but too confusing to maintain old ideas
+                // match path {
+                //     None => {
+                //         if !editing_in {
+                //             None
+                //         } else {
+                //             %%?
+                //         }
+                //     },
+                //     Some(p) => {
+                //         if !editing_in {
+                //             dh.original_file_path = p;
+                //         } else {
+                //             %%?
+                //         }
+                //         dh
+                //     }
+                // }
 
-            // %%new logic, trying to emulate old in rust.  (Idea: Would this method's intent and
-            // logic be clearer if we refactor the method to have one branch for editing and another
-            // for adding (!editing_in)?)
-            if !editing_in && path.is_none() {
-                None
-            } else {
-                // if we can't fill in the path variables by now, there is a bug:
-                if !editing_in {
-                    // unwrap guaranteed to work here due to "if" condition just above
-                    dh.original_file_path = path.unwrap();
+                // %%new logic, trying to emulate old in rust.  (Idea: Would this method's intent and
+                // logic be clearer if we refactor the method to have one branch for editing and another
+                // for adding (!editing_in)?)
+                if !editing_in && path.is_none() {
+                    None
                 } else {
-                    path = Some(dh.original_file_path);
-                }
-                let default_description_value: Option<String> = if editing_in {
-                    Some(dh.description)
-                } else {
-                    // unwrap guaranteed to work due to above conditional logic setting path.
-                    match std::path::Path::new(&path.unwrap()).file_stem() {
-                        None => temp_path.to_str(),
-                        Some(s) => s.to_str(),
+                    // if we can't fill in the path variables by now, there is a bug:
+                    if !editing_in {
+                        // unwrap guaranteed to work here due to "if" condition just above
+                        dh.original_file_path = path.unwrap();
+                    } else {
+                        path = Some(dh.original_file_path);
                     }
-                };
-                let answer = ui.ask_for_string(vec!["Type file description, then press Enter; ESC to cancel"], None, default_description_value);
+                    let default_description_value: Option<String> = if editing_in {
+                        Some(dh.description)
+                    } else {
+                        // unwrap guaranteed to work due to above conditional logic setting path.
+                        match std::path::Path::new(&path.unwrap()).file_stem() {
+                            None => temp_path.to_str(),
+                            Some(s) => s.to_str(),
+                        }
+                    };
+                    let answer = ui.ask_for_string(vec!["Type file description, then press Enter; ESC to cancel"], None, default_description_value);
+                    match answer {
+                        None => None,
+                        Some(ans) => {
+                            dh.description = ans;
+                            dh
+                        }
+                    }
+                }
+
+                    //%%old scala logic, partly rustified but same logic for temp reference
+              // if !editing_in && path.isEmpty {
+              //     None
+              // } else {
+              //   // if we can't fill in the path variables by now, there is a bug:
+              //   if !editing_in dh.original_file_path = path.get
+              //   else path = Some(dh.original_file_path)
+              //
+              //   let default_value: Option<String> = if editing_in Some(dh_in.description) else Some(FilenameUtils.getBaseName(path.get));
+              //   let ans = ui.ask_for_string(Some(Array("Type file description, then press Enter; ESC to cancel")), None, default_value);
+              //   if ans.isEmpty None
+              //   else {
+              //     outDH.description = ans.get
+              //     Some(outDH)
+              //   }
+              // }
+            }
+            /// Returns None if user just wants out; a String (user's answer, not useful outside this method) if update was done.
+            fn edit_group_name(&mut group_in: Group, ui: &TextUI) -> Option<String> {
+              // doesn't seem to make sense to ck for duplicate names here: the real identity depends on what it relates to, and dup names may be common.
+              let answer = ui.ask_for_string(vec![Util::RELATION_TO_GROUP_NAME_PROMPT], None, Some(group_in.get_name));
                 match answer {
                     None => None,
                     Some(ans) => {
-                        dh.description = ans;
-                        dh
+                        if ans.trim().len() == 0 {
+                            None
+                        } else {
+                            group_in.update(None, Some(ans.trim()), None, None, None, None);
+                            answer
+                        }
                     }
                 }
             }
-
-                //%%old scala logic, partly rustified but same logic for temp reference
-          // if !editing_in && path.isEmpty {
-          //     None
-          // } else {
-          //   // if we can't fill in the path variables by now, there is a bug:
-          //   if !editing_in dh.original_file_path = path.get
-          //   else path = Some(dh.original_file_path)
-          //
-          //   let default_value: Option<String> = if editing_in Some(dh_in.description) else Some(FilenameUtils.getBaseName(path.get));
-          //   let ans = ui.ask_for_string(Some(Array("Type file description, then press Enter; ESC to cancel")), None, default_value);
-          //   if ans.isEmpty None
-          //   else {
-          //     outDH.description = ans.get
-          //     Some(outDH)
-          //   }
-          // }
-        }
-        /// Returns None if user just wants out; a String (user's answer, not useful outside this method) if update was done.
-        fn edit_group_name(&mut group_in: Group, ui: &TextUI) -> Option<String> {
-          // doesn't seem to make sense to ck for duplicate names here: the real identity depends on what it relates to, and dup names may be common.
-          let answer = ui.ask_for_string(vec![Util::RELATION_TO_GROUP_NAME_PROMPT], None, Some(group_in.get_name));
-            match answer {
-                None => None,
-                Some(ans) => {
-                    if ans.trim().len() == 0 {
-                        None
-                    } else {
-                        group_in.update(None, Some(ans.trim()), None, None, None, None);
-                        answer
-                    }
-                }
-            }
-        }
-*/
+    */
 
     /*%
-      package org.onemodel.core
+    package org.onemodel.core
 
-      import java.io.{BufferedReader, PrintWriter, StringWriter}
-      import java.nio.file.{Files, Path}
-      import java.util.Date
+    import java.io.{BufferedReader, PrintWriter, StringWriter}
+    import java.nio.file.{Files, Path}
+    import java.util.Date
 
-      import org.apache.commons.io.FilenameUtils
-      import org.onemodel.core.model._
+    import org.apache.commons.io.FilenameUtils
+    import org.onemodel.core.model._
 
-      import scala.annotation.tailrec
-      */
+    import scala.annotation.tailrec
+    */
 }

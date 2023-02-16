@@ -9,11 +9,11 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 
-use sqlx::Error;
-use crate::model::postgresql_database::PostgreSQLDatabase;
 use crate::model::database::Database;
+use crate::model::postgresql_database::PostgreSQLDatabase;
 use crate::util::Util;
 use crate::TextUI;
+use sqlx::Error;
 
 /// This Controller is for user-interactive things.  The Controller class in the web module is for the REST API.  For shared code that does not fit
 /// in those, see struct Util (in util.rs).
@@ -44,8 +44,19 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn new_for_non_tests(ui: TextUI, force_user_pass_prompt: bool, default_username: Option<&String>, default_password: Option<&String>) -> Controller {
-        let db = Self::try_db_logins(force_user_pass_prompt, &ui, default_username, default_password).unwrap_or_else(|e| {
+    pub fn new_for_non_tests(
+        ui: TextUI,
+        force_user_pass_prompt: bool,
+        default_username: Option<&String>,
+        default_password: Option<&String>,
+    ) -> Controller {
+        let db = Self::try_db_logins(
+            force_user_pass_prompt,
+            &ui,
+            default_username,
+            default_password,
+        )
+        .unwrap_or_else(|e| {
             //%%should panic instead, at all places like this? to get a stack trace and for style?
             //%%OR, only if it is truly something unanticipated? Are there not times when returning a failure is expected?
             //%%should eprintln at other places like this also?
@@ -71,39 +82,39 @@ impl Controller {
     }
 
     /*
-    /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
-    fn get_default_entity(&self) -> Option<(i64, Entity)> {
-        match self.default_display_entity_id {
-            None => None,
-            Some(ddei) => {
-                //%%$%%
-                let entity: Option<Entity> = Entity::get_entity(&self.db, ddei);
-                match entity {
-                    None => None,
-                    Some(entity) => {
-                        if entity.is_archived() {
-                            let msg = format!("The default entity \n    {}: \"{} + "
-                                \"\n" +
-                                "... was found but is archived.  You might run" +
-                                " into problems unless you un-archive it, or choose a different entity to make the default, or display all archived" +
-                                " entities then search for this entity and un-archive it under its Entity Menu options 9, 4.",
-                                entity.get_id(), entity.get_name());
-                            let ans = ui.ask_which(Some(vec!(msg)), vec!("Un-archive the default entity now", "Display archived entities"));
-                            if ans.is_defined() {
-                                if ans.get == 1 {
-                                    entity.unarchive();
-                                } else if ans.get == 2 {
-                                    localDb.set_include_archived_entities(true);
+        /** Returns the id and the entity, if they are available from the preferences lookup (id) and then finding that in the db (Entity). */
+        fn get_default_entity(&self) -> Option<(i64, Entity)> {
+            match self.default_display_entity_id {
+                None => None,
+                Some(ddei) => {
+                    //%%$%%
+                    let entity: Option<Entity> = Entity::get_entity(&self.db, ddei);
+                    match entity {
+                        None => None,
+                        Some(entity) => {
+                            if entity.is_archived() {
+                                let msg = format!("The default entity \n    {}: \"{} + "
+                                    \"\n" +
+                                    "... was found but is archived.  You might run" +
+                                    " into problems unless you un-archive it, or choose a different entity to make the default, or display all archived" +
+                                    " entities then search for this entity and un-archive it under its Entity Menu options 9, 4.",
+                                    entity.get_id(), entity.get_name());
+                                let ans = ui.ask_which(Some(vec!(msg)), vec!("Un-archive the default entity now", "Display archived entities"));
+                                if ans.is_defined() {
+                                    if ans.get == 1 {
+                                        entity.unarchive();
+                                    } else if ans.get == 2 {
+                                        localDb.set_include_archived_entities(true);
+                                    }
                                 }
                             }
+                            Some((entity.get_id(), entity))
                         }
-                        Some((entity.get_id(), entity))
                     }
                 }
             }
         }
-    }
-*/
+    */
 
     pub fn start(&self) {
         // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  make it save their answer 'yes/i agree' or such in the DB,
@@ -150,8 +161,12 @@ impl Controller {
     }
 
     /// If the 1st parm is true, the next 2 must be None.
-    fn try_db_logins<'a>(force_user_pass_prompt: bool, ui: &'a TextUI, default_username: Option<&String>,
-                            default_password: Option<&String>) -> Result<Box<dyn Database>, sqlx::Error> {
+    fn try_db_logins<'a>(
+        force_user_pass_prompt: bool,
+        ui: &'a TextUI,
+        default_username: Option<&String>,
+        default_password: Option<&String>,
+    ) -> Result<Box<dyn Database>, sqlx::Error> {
         if force_user_pass_prompt {
             //%%why had this assertion before?:  delete it now?  (it was a "require" in Controller.scala .)
             // assert!(default_username.is_none() && default_password.is_none());
@@ -178,20 +193,19 @@ impl Controller {
 
     fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<Box<dyn Database>, sqlx::Error> {
         loop {
-            let usr = ui.ask_for_string1(vec!("Username"));
+            let usr = ui.ask_for_string1(vec!["Username"]);
             match usr {
                 None => {
                     //user probably wants out
                     std::process::exit(1);
-                },
+                }
                 Some(username) => {
-                    let pwd = ui.ask_for_string4(vec!("Password"),
-                                                 None, "", true);
+                    let pwd = ui.ask_for_string4(vec!["Password"], None, "", true);
                     match pwd {
                         None => {
                             //user probably wants out
                             std::process::exit(1);
-                        },
+                        }
                         Some(password) => {
                             let db = PostgreSQLDatabase::new(username.as_str(), password.as_str());
                             if db.is_ok() {
@@ -216,30 +230,35 @@ impl Controller {
                 eprintln!("Unable to get default username/password.  Trying blank username, and password \"x\" instead.  Underlying error is: \"{}\"", e);
                 ("".to_string(), "x")
             });
-            let db_with_system_name_blank_pwd = PostgreSQLDatabase::new(default_username.as_str(), default_password);
+            let db_with_system_name_blank_pwd =
+                PostgreSQLDatabase::new(default_username.as_str(), default_password);
             if db_with_system_name_blank_pwd.is_ok() {
-              ui.display_text2("(Using default user info...)", false);
-              break db_with_system_name_blank_pwd;
+                ui.display_text2("(Using default user info...)", false);
+                break db_with_system_name_blank_pwd;
             } else {
-                let usr = ui.ask_for_string3(vec!("Username"), None, default_username.as_str());
+                let usr = ui.ask_for_string3(vec!["Username"], None, default_username.as_str());
                 match usr {
                     None => {
                         // seems like the user wants out
                         std::process::exit(1);
-                    },
+                    }
                     Some(username) => {
-                        let db_connected_with_default_pwd = PostgreSQLDatabase::new(username.as_str(), default_password);
+                        let db_connected_with_default_pwd =
+                            PostgreSQLDatabase::new(username.as_str(), default_password);
                         if db_connected_with_default_pwd.is_ok() {
                             break db_connected_with_default_pwd;
                         } else {
-                            let pwd = ui.ask_for_string4(vec!("Password"), None, "", true);
+                            let pwd = ui.ask_for_string4(vec!["Password"], None, "", true);
                             match pwd {
                                 None => {
                                     // seems like the user wants out
                                     std::process::exit(1);
-                                },
+                                }
                                 Some(password) => {
-                                    let db_with_user_entered_pwd = PostgreSQLDatabase::new(username.as_str(), password.as_str());
+                                    let db_with_user_entered_pwd = PostgreSQLDatabase::new(
+                                        username.as_str(),
+                                        password.as_str(),
+                                    );
                                     match db_with_user_entered_pwd {
                                         Ok(db) => break Ok(db),
                                         Err(e) => {

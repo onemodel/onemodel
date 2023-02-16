@@ -131,11 +131,10 @@ impl TextUI {
     }
 
     /** Returns the key pressed and whether it was an alt key combo (ESC key combination).
-    */
+     */
     pub fn get_user_input_char(
-        //%%
-        // allowed_cars_in_CURRENTLY_IGNORED: Option<Vec<char>>,
     ) -> Result<(char, bool), std::io::Error> {
+        //%% allowed_cars_in_CURRENTLY_IGNORED: Option<Vec<char>>,
         //%%fix this to use the ignored parm just above, or eliminate it or the method?
         let term = Term::stdout();
         let key_read = term.read_key()?;
@@ -227,16 +226,29 @@ impl TextUI {
     pub fn ask_for_string1(&self, leading_text: Vec<&str>) -> Option<String> {
         TextUI::ask_for_string5(self, leading_text, None, "", false, true)
     }
-    pub fn ask_for_string3(&self, leading_text: Vec<&str>,
-                       criteria: Option<fn (s: &str, ui: &TextUI) -> bool>,
-                       default_value: &str) -> Option<String> {
+    pub fn ask_for_string3(
+        &self,
+        leading_text: Vec<&str>,
+        criteria: Option<fn(s: &str, ui: &TextUI) -> bool>,
+        default_value: &str,
+    ) -> Option<String> {
         TextUI::ask_for_string5(self, leading_text, criteria, default_value, false, true)
     }
-    pub fn ask_for_string4(&self, leading_text: Vec<&str>,
-                       criteria: Option<fn (s: &str, ui: &TextUI) -> bool>,
-                       default_value: &str,
-                       is_password: bool) -> Option<String> {
-        TextUI::ask_for_string5(self, leading_text, criteria, default_value, is_password, true)
+    pub fn ask_for_string4(
+        &self,
+        leading_text: Vec<&str>,
+        criteria: Option<fn(s: &str, ui: &TextUI) -> bool>,
+        default_value: &str,
+        is_password: bool,
+    ) -> Option<String> {
+        TextUI::ask_for_string5(
+            self,
+            leading_text,
+            criteria,
+            default_value,
+            is_password,
+            true,
+        )
     }
     /// Returns the string entered (None if the user just wants out of this question or whatever, unless escKeySkipsCriteriaCheck is false).
     /// The parameter "criteria"'s Option is a function which takes a String (which will be the user input), which it checks for validity.
@@ -244,28 +256,31 @@ impl TextUI {
     /// A simple way to let the user know why it didn't meet the criteria is to put them in the leading text.
     /// The same-named functions with fewer parameters default to, after the first: None, None, false, true, respectively.
     //%%@tailrec //see below note on 'recursive' for why removed 4 now.
-    pub fn ask_for_string5(&self, leading_text_in: Vec<&str>,
-                       // idea: is there a way to make this Option take a closure or function, instead of
-                       // just a function, as suggested by "The Rust Programming Language" ("the Book"),
-                       // where it mentions "FnMut"?
-                       criteria_in: Option<fn (s: &str, ui: &TextUI) -> bool>,
-                       default_value_in: &str,
-                       //%%use rest of parms
-                       //%%for pwd entry, sch crates.ui for "password entry" and/or use dialoguer and/or can rustyline do it/modify it/ask somewhere anyway?
-                       is_password_in: bool,
-                       esc_key_skips_criteria_check_in: bool) -> Option<String> {
+    pub fn ask_for_string5(
+        &self,
+        leading_text_in: Vec<&str>,
+        // idea: is there a way to make this Option take a closure or function, instead of
+        // just a function, as suggested by "The Rust Programming Language" ("the Book"),
+        // where it mentions "FnMut"?
+        criteria_in: Option<fn(s: &str, ui: &TextUI) -> bool>,
+        default_value_in: &str,
+        //%%use rest of parms
+        //%%for pwd entry, sch crates.ui for "password entry" and/or use dialoguer and/or can rustyline do it/modify it/ask somewhere anyway?
+        is_password_in: bool,
+        esc_key_skips_criteria_check_in: bool,
+    ) -> Option<String> {
         let mut count = 0;
         let last_line_of_prompt: String = {
-          let mut last_line_of_prompt = String::new();
+            let mut last_line_of_prompt = String::new();
             let num_prompt_lines = leading_text_in.len();
             for prompt in leading_text_in {
-              count = count + 1;
-              if count < num_prompt_lines {
-                // all but the last one
-                println!("{}", prompt);
-              } else {
-                last_line_of_prompt = format!("prompt{}", ": ");
-              }
+                count = count + 1;
+                if count < num_prompt_lines {
+                    // all but the last one
+                    println!("{}", prompt);
+                } else {
+                    last_line_of_prompt = format!("prompt{}", ": ");
+                }
             }
             last_line_of_prompt
         };
@@ -273,14 +288,20 @@ impl TextUI {
         // easier to see when out of room?
         //val promptToShowStringSizeLimit = "(Max name length is  " + Controller.maxNameLength
         let end_prompt = "(... which ends here: |)";
-        if last_line_of_prompt.chars().count() > 1 && last_line_of_prompt.chars().count() + end_prompt.chars().count() - 1 <= Util::max_name_length() as usize {
-          let mut spaces: String = String::new();
-          // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker in end_prompt.
-          let pad_length: u32 = Util::max_name_length() - last_line_of_prompt.chars().count() as u32 - end_prompt.chars().count() as u32 + 1;
-          for _ in 0..pad_length {
-            spaces.push(' ')
-          }
-          println!("{}{}{}",last_line_of_prompt, spaces, end_prompt)
+        if last_line_of_prompt.chars().count() > 1
+            && last_line_of_prompt.chars().count() + end_prompt.chars().count() - 1
+                <= Util::max_name_length() as usize
+        {
+            let mut spaces: String = String::new();
+            // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker in end_prompt.
+            let pad_length: u32 = Util::max_name_length()
+                - last_line_of_prompt.chars().count() as u32
+                - end_prompt.chars().count() as u32
+                + 1;
+            for _ in 0..pad_length {
+                spaces.push(' ')
+            }
+            println!("{}{}{}", last_line_of_prompt, spaces, end_prompt)
         } else {
             println!("{last_line_of_prompt}");
         }
@@ -296,23 +317,26 @@ impl TextUI {
             let r = Editor::<()>::new();
             match r {
                 Err(e) => {
-                    eprintln!("Unable to create line editor in ask_for_string5():  {}", e.to_string());
+                    eprintln!(
+                        "Unable to create line editor in ask_for_string5():  {}",
+                        e.to_string()
+                    );
                     break None;
-                },
+                }
                 Ok(mut editor) => {
                     // let line = editor.readline_with_initial("", (initial_text, ""));
                     let line = editor.readline_with_initial("", (default_value_in, ""));
                     match line {
-                        Ok(l) => {
-                            match criteria_in {
-                                None => break Some(l),
-                                Some(check_criteria_function) => {
-                                    if check_criteria_function(l.as_str(), self) {
-                                        break Some(l);
-                                    } else {
-                                        self.display_text1("Didn't pass the criteria; please re-enter.");
-                                        continue;
-                                    }
+                        Ok(l) => match criteria_in {
+                            None => break Some(l),
+                            Some(check_criteria_function) => {
+                                if check_criteria_function(l.as_str(), self) {
+                                    break Some(l);
+                                } else {
+                                    self.display_text1(
+                                        "Didn't pass the criteria; please re-enter.",
+                                    );
+                                    continue;
                                 }
                             }
                         },
@@ -322,7 +346,7 @@ impl TextUI {
                             // %%but shouldn't controller be doing that? pass none back instead or
                             // what? or just reqd here to make ^C work?
                             std::process::exit(1);
-                        },
+                        }
                         Err(err) => {
                             println!("Error: {:?}", err);
                             break None;
@@ -353,283 +377,289 @@ impl TextUI {
 
         let x = user_input.unwrap_or("None".to_string());
         let y = format!("{}", x);
-        println!("user input: {}", y);//%%
-        // return user_input;
+        println!("user input: {}", y); //%%
+                                       // return user_input;
         return Some(y);
 
         //%%how to make ESC exit the prompt and return None as some things expect!??
-            // then try that w/ username/password forced w/ x parm.
+        // then try that w/ username/password forced w/ x parm.
         //%%why did blank pwd not give any err nor exit? try gdb or how best2debug? (was when util.get_default_user_login alw returned a bad def pwd)
         //%%see if the editor history has password in it? is there any edi hist or have2specify?see docs
         //%%add password mask -- use dialoguer crate? or ask/ck issue tracker for rustyline?
-            // let line = jlineReader.readLine(null, if is_password_in { '*' } else { null } );
+        // let line = jlineReader.readLine(null, if is_password_in { '*' } else { null } );
         //%%make ^C work to get out of prompt! ?  see where trapped ("Error: ..."), just above.
     }
 
     /* %%
-    fn linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int) -> Int {
-        let linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 5 // 5 as described in one caller;
-        terminalHeight - linesUsedBeforeMoreChoices
+        fn linesLeft(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int) -> Int {
+            let linesUsedBeforeMoreChoices = numOfLeadingTextLinesIn + numChoicesAboveColumnsIn + 5 // 5 as described in one caller;
+            terminalHeight - linesUsedBeforeMoreChoices
+        }
+
+          /** The # of attributes ("moreChoices" elsewhere) that will likely fit in the space available on the
+            * screen AFTER the preceding leading_text lines + menu size + 5: 1 line added by ask_which(...) (for the 0/ESC menu option), 1 line for the visual separator,
+            * and 1 line for the cursor at the bottom to not push things off the top, and 2 more because entity/group names and the line that shows them at the
+            * top of a menu are long & wrap, so they were still pushing things off the top of the visual space (could have made it 3 more for small windows, but that
+            * might make the list of data too short in some cases, and 2 is probably usually enough if windows aren't too narrow).
+            * based on # of available columns and a possible max column width.
+            * SEE ALSO the method linesLeft, which actually has/uses the number.
+            */
+          fn maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int) -> Int {
+            let maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + CHOOSER_MENU_PREFIX_LENGTH);
+            // the next 2 lines are in coordination with a 'require' statement in ask_which, so we don't fail it:
+            let maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length;
+            math.min(maxMoreChoicesBySpaceAvailable, maxMoreChoicesByMenuCharsAvailable)
+          }
+
+            fn columnsPossible(columnWidthIn: Int) -> Int {
+            require(columnWidthIn > 0)
+            // allow at least 1 column, even with a smaller terminal width
+            math.max(terminalWidth / columnWidthIn, 1)
+          }
+
+          /** The parm "choices" are shown in a single-column list; the "moreChoices" are shown in columns as space allows.
+            *
+            * The return value is either None (if user just wants out), or Some(the # of the result chosen) (1-based, where the index is
+            * against the *combined* choices and moreChoices).  Ex., if the choices parameter has 3 elements, and moreChoices has 5, the
+            * return value can range from 1-8 (1-based, not 0-based!).
+            *
+            * If calling methods are kept small, it should be easy for them to visually determine which 'choice's go with the return value;
+            * see current callers for examples of how to easily determine which 'moreChoice's go with the return value.
+            *
+            * @param highlightIndexIn 0-based (like almost everything; exceptions are noted.).
+            * @param secondaryHighlightIndexIn 0-based.
+            * @param defaultChoiceIn 1-based.
+            *
+            * @return 1-based (see description).
+            *
+            */
+          final fn ask_which(leading_textIn: Option[Vec<String>],
+                             choices_in: Vec<String>,
+                             moreChoicesIn: Vec<String> = Array(),
+                             includeEscChoiceIn: bool = true,
+                             trailingTextIn: Option<String> = None,
+                             highlightIndexIn: Option[Int] = None,
+                             secondaryHighlightIndexIn: Option[Int] = None,
+                             defaultChoiceIn: Option[Int] = None) -> Option[Int] {
+            let result = ask_whichChoiceOrItsAlternate(leading_textIn, choices_in, moreChoicesIn, includeEscChoiceIn, trailingTextIn,;
+                                                      highlightIndexIn, secondaryHighlightIndexIn, defaultChoiceIn)
+            if result.isEmpty None
+            else Some(result.get._1)
+          }
+
+          /** Like ask_which but if user makes the alternate action on a choice (eg, double-click, click+differentButton, right-click, presses "alt+letter"),
+            * then it tells you so in the 2nd (boolean) part of the return value.
+            * */
+          @tailrec
+          final fn ask_whichChoiceOrItsAlternate(leading_textIn: Option[Vec<String>],
+                             choices_in: Vec<String>,
+                             moreChoicesIn: Vec<String> = Array(),
+                             includeEscChoiceIn: bool = true,
+                             trailingTextIn: Option<String> = None,
+                             highlightIndexIn: Option[Int] = None,
+                             //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
+                             secondaryHighlightIndexIn: Option[Int] = None,
+                             defaultChoiceIn: Option[Int] = None) -> Option[(Int, bool)] {
+            // This attempts to always use as menu option keystroke choices: numbers for "choices" (such as major operations available on the
+            // current entity) and letters for "moreChoices" (such as attributes of the current entity to select for further work).  But if
+            // there are too many "choices", it will use letters for those as well.
+            // I.e., 2nd part of menu ("moreChoices") always starts with a letter, not a #, but the 1st part can use numbers+letters as necessary.
+            // This is for the user experience: it seems will be easier to remember how to get around one's own model if attributes always start with
+            // 'a' and go from there.
+            require(choices_in.length > 0)
+
+            let maxChoiceLength = Util.maxNameLength;
+
+            let firstMenuChars: StringBuffer = {;
+              //up to: "123456789"
+              let chars = new StringBuffer;
+              for (number: Int <- 1 to 9) if number <= choices_in.length {
+                chars.append(number)
+              }
+              chars
+            }
+            let possibleMenuChars = firstMenuChars + TextUI.menuCharsList;
+            // make sure caller didn't send more than the # of things we can handle
+            require((choices_in.length + moreChoicesIn.length) <= possibleMenuChars.length, "Programming error: there are more choices provided (" +
+                                                                                       (choices_in.length + moreChoicesIn.length) + ") than the menu can handle (" +
+                                                                                       possibleMenuChars.length + ")")
+
+            let alreadyFull = false;
+            let mut lineCounter: i32 = 0;
+            let allAllowedAnswers = new StringBuffer;
+
+            let mut lastMenuCharsIndex: i32 = -1;
+            fn nextMenuChar() -> String {
+              let next = lastMenuCharsIndex + 1;
+              lastMenuCharsIndex = next
+              if next > possibleMenuChars.length {
+                return "(ran out)"
+              }
+              allAllowedAnswers.append(possibleMenuChars.charAt(next))
+              new String("" + possibleMenuChars.charAt(next))
+            }
+
+            fn ranOutOfVerticalSpace() -> bool {
+              lineCounter = lineCounter + 1
+              if alreadyFull {
+                alreadyFull
+              } else if !alreadyFull) && lineCounter > terminalHeight {
+                // (+ 1 above to leave room for the error message line, below)
+                let unshownCount: i32 = choices_in.length + moreChoicesIn.length - lineCounter - 1;
+                println("==============================")
+                println("FYI: Unable to show remaining " + unshownCount + " items in the available screen space(!?). Consider code change to pass the " +
+                "right number of them, relaunching w/ larger terminal, or grouping things?  (ref: " + alreadyFull + "/" + lineCounter + "/" +
+                        terminalHeight + "/" + terminalWidth + "/" + mTerminal.getClass.getCanonicalName + ")")
+                println("Not going to fail over this, but it might be fixed, especially if you can reproduce it consistently.")
+                println("==============================")
+                //alreadyFull = true //not failing after all (setting this to false causes ExpectIt tests to fail when run in IDE)
+                alreadyFull
+              } else false
+            }
+
+            fn showChoices() {
+              // see containing method description: these choices are 1-based when considered from the human/UI perspective:
+              let mut index: i32 = 1;
+
+              for (choice <- choices_in) {
+                if !ranOutOfVerticalSpace {
+                  println(nextMenuChar() +
+                          (if defaultChoiceIn.is_defined && index == defaultChoiceIn.get) "/Enter" else "" +
+                          "-" + choice)
+                }
+                index += 1
+              }
+              if includeEscChoiceIn && !ranOutOfVerticalSpace {
+                println("0/ESC - back/previous menu")
+              }
+            }
+
+            fn showMoreChoices() {
+              if moreChoicesIn.length == 0 {
+                //noinspection ScalaUselessExpression (intentional style violation, for readability):
+                Unit
+              } else {
+                // this collection size might be much larger than needed (given multiple columns of display) but that's better than having more complex calculations.
+                let moreLines = new Array[StringBuffer](moreChoicesIn.length);
+                for (i <- moreLines.indices) {
+                  moreLines(i) = new StringBuffer()
+                }
+                let linesLeftHere = linesLeft(leading_textIn.size, choices_in.length);
+                let mut lineCounter = -1;
+                // now build the lines out of columns be4 displaying them.
+                let mut index = -1;
+                for (choice <- moreChoicesIn) {
+                  index += 1
+                  lineCounter = lineCounter + 1
+                  if lineCounter >= linesLeftHere {
+                    // 1st is 0-based, 2nd is 1-based
+                    lineCounter = 0 //wraps to next column
+                  }
+                  // Not explicitly putting extra space between columns, because space can be in short supply, and probably some of the choices
+                  // will be shorter than the max length, to provide enough visual alignment/separation anyway.  But make them equal length:
+                  let lineMarker: String =;
+                    if highlightIndexIn.getOrElse(None) == index { Color.blue("*") }
+                    else if secondaryHighlightIndexIn.getOrElse(None) == index { Color.green("+") }
+                    else { " " }
+                  let padLength = maxChoiceLength - choice.length - CHOOSER_MENU_PREFIX_LENGTH - 1;
+                  moreLines(lineCounter).append(lineMarker + nextMenuChar() + "-" + choice)
+                  for (x <- 0 until padLength) {
+                    moreLines(lineCounter).append(" ")
+                  }
+                }
+                let mut linesTooLong = false;
+                for (line <- moreLines) {
+                  if line.toString.trim.length > 0 && !ranOutOfVerticalSpace {
+                    // idea for bugfix: adjust the effectiveLineLength for non-displaying chars that make up the color of the lineMarker above!
+                    let effectiveLineLength = line.toString.trim.length;
+                    if effectiveLineLength > terminalWidth {
+                      linesTooLong = true
+                    }
+                    // (Appending Color.reset to the string in case it got cut with the substring cmd, allowing the color to bleed to subsequent lines.)
+                    println(line.toString.substring(0, math.min(line.length, terminalWidth)) + Color.reset)
+                  }
+                }
+                if linesTooLong {
+                  // This could mean that either the terminal width is less than " + Controller.maxNameLength + " characters, or
+                  // that there is a bug in the display logic:
+                  println("(Some lines were longer than the terminal width and have been truncated.)")
+                }
+              }
+            }
+
+
+            display_visual_separator()
+            if leading_textIn.is_defined && leading_textIn.get.length > 0 {
+              for (prompt <- leading_textIn.get) {
+                lineCounter = lineCounter + 1
+                println(prompt)
+              }
+            }
+            showChoices()
+            showMoreChoices()
+            if trailingTextIn.is_defined && trailingTextIn.get.nonEmpty { println(trailingTextIn.get) }
+
+            let (answer: Char, userChoseAlternate: bool) = get_user_input_char;
+            if answer != 27 && answer != '0' && answer != 13 && (!allAllowedAnswers.toString.contains(answer.toChar)) {
+              println("unknown choice: " + answer)
+              ask_whichChoiceOrItsAlternate(leading_textIn, choices_in, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn,
+                                           defaultChoiceIn)
+            } else if answer == 13 && (defaultChoiceIn.is_defined() || highlightIndexIn.is_defined()) {
+              // user hit Enter ie '\r', so take the one that was passed in as default, or highlighted
+              if defaultChoiceIn.is_defined {
+                Some(defaultChoiceIn.get, userChoseAlternate)
+              } else {
+                Some(choices_in.length + highlightIndexIn.get + 1, userChoseAlternate)
+              }
+            } else if includeEscChoiceIn && (answer == '0' || answer == 27) {
+              None
+            } else {
+              Some(possibleMenuChars.indexOf(answer) + 1, userChoseAlternate) // result from this function is 1-based, but 'answer' is 0-based.
+            }
+          }
+
+    */
+    fn is_valid_yes_no_answer(s: &str, _: &TextUI) -> bool {
+        s.to_lowercase() == "y"
+            || s.to_lowercase() == "yes"
+            || s.to_lowercase() == "n"
+            || s.to_lowercase() == "no"
     }
 
-      /** The # of attributes ("moreChoices" elsewhere) that will likely fit in the space available on the
-        * screen AFTER the preceding leading_text lines + menu size + 5: 1 line added by ask_which(...) (for the 0/ESC menu option), 1 line for the visual separator,
-        * and 1 line for the cursor at the bottom to not push things off the top, and 2 more because entity/group names and the line that shows them at the
-        * top of a menu are long & wrap, so they were still pushing things off the top of the visual space (could have made it 3 more for small windows, but that
-        * might make the list of data too short in some cases, and 2 is probably usually enough if windows aren't too narrow).
-        * based on # of available columns and a possible max column width.
-        * SEE ALSO the method linesLeft, which actually has/uses the number.
-        */
-      fn maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int) -> Int {
-        let maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + CHOOSER_MENU_PREFIX_LENGTH);
-        // the next 2 lines are in coordination with a 'require' statement in ask_which, so we don't fail it:
-        let maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length;
-        math.min(maxMoreChoicesBySpaceAvailable, maxMoreChoicesByMenuCharsAvailable)
-      }
+    fn is_valid_yes_no_or_blank_answer(s: &str, ui: &TextUI) -> bool {
+        Self::is_valid_yes_no_answer(s, ui) || s.trim().is_empty()
+    }
 
-        fn columnsPossible(columnWidthIn: Int) -> Int {
-        require(columnWidthIn > 0)
-        // allow at least 1 column, even with a smaller terminal width
-        math.max(terminalWidth / columnWidthIn, 1)
-      }
-
-      /** The parm "choices" are shown in a single-column list; the "moreChoices" are shown in columns as space allows.
-        *
-        * The return value is either None (if user just wants out), or Some(the # of the result chosen) (1-based, where the index is
-        * against the *combined* choices and moreChoices).  Ex., if the choices parameter has 3 elements, and moreChoices has 5, the
-        * return value can range from 1-8 (1-based, not 0-based!).
-        *
-        * If calling methods are kept small, it should be easy for them to visually determine which 'choice's go with the return value;
-        * see current callers for examples of how to easily determine which 'moreChoice's go with the return value.
-        *
-        * @param highlightIndexIn 0-based (like almost everything; exceptions are noted.).
-        * @param secondaryHighlightIndexIn 0-based.
-        * @param defaultChoiceIn 1-based.
-        *
-        * @return 1-based (see description).
-        *
-        */
-      final fn ask_which(leading_textIn: Option[Vec<String>],
-                         choices_in: Vec<String>,
-                         moreChoicesIn: Vec<String> = Array(),
-                         includeEscChoiceIn: bool = true,
-                         trailingTextIn: Option<String> = None,
-                         highlightIndexIn: Option[Int] = None,
-                         secondaryHighlightIndexIn: Option[Int] = None,
-                         defaultChoiceIn: Option[Int] = None) -> Option[Int] {
-        let result = ask_whichChoiceOrItsAlternate(leading_textIn, choices_in, moreChoicesIn, includeEscChoiceIn, trailingTextIn,;
-                                                  highlightIndexIn, secondaryHighlightIndexIn, defaultChoiceIn)
-        if result.isEmpty None
-        else Some(result.get._1)
-      }
-
-      /** Like ask_which but if user makes the alternate action on a choice (eg, double-click, click+differentButton, right-click, presses "alt+letter"),
-        * then it tells you so in the 2nd (boolean) part of the return value.
-        * */
-      @tailrec
-      final fn ask_whichChoiceOrItsAlternate(leading_textIn: Option[Vec<String>],
-                         choices_in: Vec<String>,
-                         moreChoicesIn: Vec<String> = Array(),
-                         includeEscChoiceIn: bool = true,
-                         trailingTextIn: Option<String> = None,
-                         highlightIndexIn: Option[Int] = None,
-                         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
-                         secondaryHighlightIndexIn: Option[Int] = None,
-                         defaultChoiceIn: Option[Int] = None) -> Option[(Int, bool)] {
-        // This attempts to always use as menu option keystroke choices: numbers for "choices" (such as major operations available on the
-        // current entity) and letters for "moreChoices" (such as attributes of the current entity to select for further work).  But if
-        // there are too many "choices", it will use letters for those as well.
-        // I.e., 2nd part of menu ("moreChoices") always starts with a letter, not a #, but the 1st part can use numbers+letters as necessary.
-        // This is for the user experience: it seems will be easier to remember how to get around one's own model if attributes always start with
-        // 'a' and go from there.
-        require(choices_in.length > 0)
-
-        let maxChoiceLength = Util.maxNameLength;
-
-        let firstMenuChars: StringBuffer = {;
-          //up to: "123456789"
-          let chars = new StringBuffer;
-          for (number: Int <- 1 to 9) if number <= choices_in.length {
-            chars.append(number)
-          }
-          chars
-        }
-        let possibleMenuChars = firstMenuChars + TextUI.menuCharsList;
-        // make sure caller didn't send more than the # of things we can handle
-        require((choices_in.length + moreChoicesIn.length) <= possibleMenuChars.length, "Programming error: there are more choices provided (" +
-                                                                                   (choices_in.length + moreChoicesIn.length) + ") than the menu can handle (" +
-                                                                                   possibleMenuChars.length + ")")
-
-        let alreadyFull = false;
-        let mut lineCounter: i32 = 0;
-        let allAllowedAnswers = new StringBuffer;
-
-        let mut lastMenuCharsIndex: i32 = -1;
-        fn nextMenuChar() -> String {
-          let next = lastMenuCharsIndex + 1;
-          lastMenuCharsIndex = next
-          if next > possibleMenuChars.length {
-            return "(ran out)"
-          }
-          allAllowedAnswers.append(possibleMenuChars.charAt(next))
-          new String("" + possibleMenuChars.charAt(next))
-        }
-
-        fn ranOutOfVerticalSpace() -> bool {
-          lineCounter = lineCounter + 1
-          if alreadyFull {
-            alreadyFull
-          } else if !alreadyFull) && lineCounter > terminalHeight {
-            // (+ 1 above to leave room for the error message line, below)
-            let unshownCount: i32 = choices_in.length + moreChoicesIn.length - lineCounter - 1;
-            println("==============================")
-            println("FYI: Unable to show remaining " + unshownCount + " items in the available screen space(!?). Consider code change to pass the " +
-            "right number of them, relaunching w/ larger terminal, or grouping things?  (ref: " + alreadyFull + "/" + lineCounter + "/" +
-                    terminalHeight + "/" + terminalWidth + "/" + mTerminal.getClass.getCanonicalName + ")")
-            println("Not going to fail over this, but it might be fixed, especially if you can reproduce it consistently.")
-            println("==============================")
-            //alreadyFull = true //not failing after all (setting this to false causes ExpectIt tests to fail when run in IDE)
-            alreadyFull
-          } else false
-        }
-
-        fn showChoices() {
-          // see containing method description: these choices are 1-based when considered from the human/UI perspective:
-          let mut index: i32 = 1;
-
-          for (choice <- choices_in) {
-            if !ranOutOfVerticalSpace {
-              println(nextMenuChar() +
-                      (if defaultChoiceIn.is_defined && index == defaultChoiceIn.get) "/Enter" else "" +
-                      "-" + choice)
-            }
-            index += 1
-          }
-          if includeEscChoiceIn && !ranOutOfVerticalSpace {
-            println("0/ESC - back/previous menu")
-          }
-        }
-
-        fn showMoreChoices() {
-          if moreChoicesIn.length == 0 {
-            //noinspection ScalaUselessExpression (intentional style violation, for readability):
-            Unit
-          } else {
-            // this collection size might be much larger than needed (given multiple columns of display) but that's better than having more complex calculations.
-            let moreLines = new Array[StringBuffer](moreChoicesIn.length);
-            for (i <- moreLines.indices) {
-              moreLines(i) = new StringBuffer()
-            }
-            let linesLeftHere = linesLeft(leading_textIn.size, choices_in.length);
-            let mut lineCounter = -1;
-            // now build the lines out of columns be4 displaying them.
-            let mut index = -1;
-            for (choice <- moreChoicesIn) {
-              index += 1
-              lineCounter = lineCounter + 1
-              if lineCounter >= linesLeftHere {
-                // 1st is 0-based, 2nd is 1-based
-                lineCounter = 0 //wraps to next column
-              }
-              // Not explicitly putting extra space between columns, because space can be in short supply, and probably some of the choices
-              // will be shorter than the max length, to provide enough visual alignment/separation anyway.  But make them equal length:
-              let lineMarker: String =;
-                if highlightIndexIn.getOrElse(None) == index { Color.blue("*") }
-                else if secondaryHighlightIndexIn.getOrElse(None) == index { Color.green("+") }
-                else { " " }
-              let padLength = maxChoiceLength - choice.length - CHOOSER_MENU_PREFIX_LENGTH - 1;
-              moreLines(lineCounter).append(lineMarker + nextMenuChar() + "-" + choice)
-              for (x <- 0 until padLength) {
-                moreLines(lineCounter).append(" ")
-              }
-            }
-            let mut linesTooLong = false;
-            for (line <- moreLines) {
-              if line.toString.trim.length > 0 && !ranOutOfVerticalSpace {
-                // idea for bugfix: adjust the effectiveLineLength for non-displaying chars that make up the color of the lineMarker above!
-                let effectiveLineLength = line.toString.trim.length;
-                if effectiveLineLength > terminalWidth {
-                  linesTooLong = true
+    /// true means yes, None means user wants out.
+    pub fn ask_yes_no_question(
+        &self,
+        prompt_in: String,
+        default_value_in: &str,   /*= Some("n")%%*/
+        allow_blank_answer: bool, /*%% = false*/
+    ) -> Option<bool> {
+        let answer = self.ask_for_string5(
+            vec![format!("{} (y/n)", prompt_in).as_str()],
+            if allow_blank_answer {
+                Some(Self::is_valid_yes_no_or_blank_answer)
+            } else {
+                Some(Self::is_valid_yes_no_answer)
+            },
+            default_value_in,
+            false,
+            /*%%escKeySkipsCriteriaCheck = */ allow_blank_answer,
+        );
+        match answer {
+            None if allow_blank_answer => None,
+            Some(ans) if allow_blank_answer && ans.trim().is_empty() => None,
+            Some(ans) => {
+                if ans.to_lowercase().starts_with("y") {
+                    Some(true)
+                } else {
+                    Some(false)
                 }
-                // (Appending Color.reset to the string in case it got cut with the substring cmd, allowing the color to bleed to subsequent lines.)
-                println(line.toString.substring(0, math.min(line.length, terminalWidth)) + Color.reset)
-              }
             }
-            if linesTooLong {
-              // This could mean that either the terminal width is less than " + Controller.maxNameLength + " characters, or
-              // that there is a bug in the display logic:
-              println("(Some lines were longer than the terminal width and have been truncated.)")
-            }
-          }
+            _ => Some(false),
         }
-
-
-        display_visual_separator()
-        if leading_textIn.is_defined && leading_textIn.get.length > 0 {
-          for (prompt <- leading_textIn.get) {
-            lineCounter = lineCounter + 1
-            println(prompt)
-          }
-        }
-        showChoices()
-        showMoreChoices()
-        if trailingTextIn.is_defined && trailingTextIn.get.nonEmpty { println(trailingTextIn.get) }
-
-        let (answer: Char, userChoseAlternate: bool) = get_user_input_char;
-        if answer != 27 && answer != '0' && answer != 13 && (!allAllowedAnswers.toString.contains(answer.toChar)) {
-          println("unknown choice: " + answer)
-          ask_whichChoiceOrItsAlternate(leading_textIn, choices_in, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn,
-                                       defaultChoiceIn)
-        } else if answer == 13 && (defaultChoiceIn.is_defined() || highlightIndexIn.is_defined()) {
-          // user hit Enter ie '\r', so take the one that was passed in as default, or highlighted
-          if defaultChoiceIn.is_defined {
-            Some(defaultChoiceIn.get, userChoseAlternate)
-          } else {
-            Some(choices_in.length + highlightIndexIn.get + 1, userChoseAlternate)
-          }
-        } else if includeEscChoiceIn && (answer == '0' || answer == 27) {
-          None
-        } else {
-          Some(possibleMenuChars.indexOf(answer) + 1, userChoseAlternate) // result from this function is 1-based, but 'answer' is 0-based.
-        }
-      }
-
-*/
-      fn is_valid_yes_no_answer(s: &str, _: &TextUI) -> bool {
-        s.to_lowercase() == "y" ||
-        s.to_lowercase() == "yes" ||
-        s.to_lowercase() == "n" ||
-        s.to_lowercase() == "no"
-      }
-
-      fn is_valid_yes_no_or_blank_answer(s: &str, ui: &TextUI) -> bool {
-        Self::is_valid_yes_no_answer(s, ui) ||
-        s.trim().is_empty()
-      }
-
-      /// true means yes, None means user wants out.
-      pub fn ask_yes_no_question(&self, prompt_in: String, default_value_in: &str/*= Some("n")%%*/, allow_blank_answer: bool /*%% = false*/) -> Option<bool> {
-        let answer = self.ask_for_string5(vec![format!("{} (y/n)", prompt_in).as_str()],
-                               if allow_blank_answer {
-                                   Some(Self::is_valid_yes_no_or_blank_answer)
-                               } else {
-                                   Some(Self::is_valid_yes_no_answer)
-                               },
-                               default_value_in,
-                                       false,
-                                       /*%%escKeySkipsCriteriaCheck = */allow_blank_answer);
-          match answer {
-              None if allow_blank_answer => None,
-              Some(ans) if allow_blank_answer && ans.trim().is_empty() => None,
-              Some(ans) => {
-                  if ans.to_lowercase().starts_with("y") {
-                      Some(true)
-                  } else {
-                      Some(false)
-                  }
-              },
-              _ => Some(false)
-          }
         // if allow_blank_answer && (ans.isEmpty || ans.get.trim.isEmpty) { None }
         // else if !allow_blank_answer && (ans.isEmpty || ans.get.trim.isEmpty) {
         //   throw new OmException("A blank answer was not allowed by the caller but was somehow found here; probably a programming mistake.")
@@ -637,7 +667,7 @@ impl TextUI {
         // else if ans.isEmpty { throw new OmException("How did we get here?")
         // else if ans.get.toLowerCase.startsWith("y")) Some(true)
         // else Some(false)
-      }
+    }
 
     /*
       /** This is in the UI code because probably a GUI would do it very differently.
