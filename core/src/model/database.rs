@@ -83,12 +83,12 @@ pub trait Database {
             i64::MIN
         }
 
-    //%%$%%
     // mbe moving to be inside pgsql .rs instead..?
     // fn login(username: &str, password: &str) -> Result<Database, &'static str> {
     //     PostgreSQLDatabase::new(username, password)
     // }
-/*
+
+    /*  %%$%%
     pub fn getRestDatabase(remoteAddressIn: String) -> RestDatabase {
       new RestDatabase(remoteAddressIn)
     }
@@ -154,8 +154,6 @@ pub trait Database {
     fn findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[i64], fromEntityIdIn: i64, searchStringIn: String,
                                levelsRemaining: Int = 20, stopAfterAnyFound: Boolean = true) -> mutable.TreeSet[i64];
 
- */
-        /*%%$%%
     fn entity_key_exists(&self, id_in: i64, include_archived: Boolean /*= true%%*/) -> bool;
     fn relationTypeKeyExists(id_in: i64) -> Boolean;
     fn quantityAttributeKeyExists(id_in: i64) -> Boolean;

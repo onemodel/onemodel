@@ -37,7 +37,6 @@ pub struct Controller {
     // entity (or other model object) being processed, to be sure the correct db instance is used.
     db: Box<dyn Database>,
     // putting this in a var instead of recalculating it every time (too frequent) inside find_default_display_entity_id:
-    //%%$%%
     show_public_private_status_preference: Option<bool>,
     default_display_entity_id: Option<i64>,
     move_farther_count: i32,

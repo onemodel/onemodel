@@ -86,8 +86,7 @@ impl TextUI {
       fn setOutput(out: PrintStream) {
         this.out = out
       }
-    */
-    /* %%$%
+
       /**
        * The # of items to try to display on the screen at one time.
        */
@@ -149,7 +148,7 @@ impl TextUI {
                     dbg!(keystrokes.len(), keystrokes);
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
-                        //%%$%add more info, the key to err msg. use Display trait methods of the char, and +?
+                        //%% add more info, the key to err msg. use Display trait methods of the char, and +?
                         "Unexpected key(s) pressed?  Expected a length of 1.",
                     ));
                 }
@@ -163,7 +162,7 @@ impl TextUI {
                 } else {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
-                        //%%$%add more info, the key to err msg. use Display trait methods of the char, and +?
+                        //%%add more info, the key to err msg. use Display trait methods of the char, and +?
                         "Unexpected state: from_u32(27) returned None.",
                     ));
                 }
@@ -175,7 +174,7 @@ impl TextUI {
                 } else {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
-                        //%%$%add more info, the key to err msg. use Display trait methods of the char, and +?
+                        //%%add more info, the key to err msg. use Display trait methods of the char, and +?
                         "Unexpected state: from_u32(32) returned None.",
                     ));
                 }
@@ -185,7 +184,7 @@ impl TextUI {
                 // return Err(& String::from("unexpected key pressed?" + "abc"));
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
-                    //%%$%add more info, the key to err msg. use Display trait methods of the char, and +?
+                    //%%add more info, the key to err msg. use Display trait methods of the char, and +?
                     "unexpected key pressed?  This function expects ASCII.",
                 ));
             }
@@ -202,7 +201,7 @@ impl TextUI {
         // some chars, like Ctrl+D, are shown just above as a space. So...?:
         // println!("{:?}", key_read);
 
-        // %%$%Is there a test for this method? use, now?
+        // %%Is there a test for this method? use, now?
         Ok((key, alt_combo))
     }
 

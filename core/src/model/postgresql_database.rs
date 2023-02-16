@@ -412,10 +412,15 @@ impl PostgreSQLDatabase {
         // // assert_eq!(row.0, 150);
         // println!("Result returned from sql!: {}  ******************************", row.0);
 
-        //%%$%%%another experiment, from examples at:
+        //%%query examples at:
         //      https://gist.github.com/jeremychone/34d1e3daffc38eb602b1a9ab21298d10
         //      https://betterprogramming.pub/how-to-interact-with-postgresql-from-rust-using-sqlx-cfa2a7c758e7?gi=bfc149911f80
         //      from ddg/web search for:  rust sqlx examples postgres
+
+        //%%the below does not show anything, and it is probably not set.  Maybe later if there is a
+        // way to seek support or q/a for sqlx, ask how to set/check it?  Could maybe set it by the
+        // options method when getting a single connection (but it seems not to be there for getting
+        // a pool).
         let future = sqlx::query("show transaction isolation level").execute(&pool);
         let x = block_on(future)?;
         println!("Query result re transaction isolation lvl:  {:?}", x);
@@ -439,9 +444,7 @@ impl Database for PostgreSQLDatabase {
     /// explicitly and will automatically turn autocommit on/off as needed to allow that.
     fn begin_trans(&self) -> Result<Transaction<Postgres>, sqlx::Error> {
         let tx = block_on(self.pool.begin())?;
-        //%%$%!:
-        //mbe ck docs for how this is done (mbe "SET AUTOCOMMIT" or such?) AND test changing back/forth/seeing!  Then 2 below ones also.
-        //OR see pool.connect_options or pool.options methods & what they return--can set there?
+        //%% see comments in fn connect() re this
         // connection.setAutoCommit(false);
         Ok(tx)
     }
@@ -449,14 +452,14 @@ impl Database for PostgreSQLDatabase {
     fn rollback_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error> {
         block_on(tx.rollback())
         // so future work is auto- committed unless programmer explicitly opens another transaction
-        //%%$%!:
+        //%% see comments in fn connect() re this
         // connection.setAutoCommit(true);
     }
 
     fn commit_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error> {
         block_on(tx.commit())
         // so future work is auto- committed unless programmer explicitly opens another transaction
-        //%%$%!:
+        //%% see comments in fn connect() re this
         // connection.setAutoCommit(true);
     }
 

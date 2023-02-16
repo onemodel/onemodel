@@ -44,12 +44,6 @@ impl Util {
     // during manual testing than "testrunner/testrunner".
     pub const TEST_USER: &'static str = "t1";
     pub const TEST_PASS: &'static str = "x";
-    /*%%$%WHY cant i see the below constants in other scopes? mbe make things compile w/ lifetimes per below then retry? (in files database, main, ~pgdb.rs).
-    then cont reading re lifetimes and fix below errs and others in cr or build ^B output
-    BETTER IDEA: see if any used in stdlib, how referred to?
-    ideas: make pub? put in different/broader scope like main then move here until i see?
-    idea: use static instead? read more re static & const?
-    */
     pub const MIXED_CLASSES_EXCEPTION: &'static str = "All the entities in a group should be of the same class.";
     // so named to make it unlikely to collide by name with anything else:
     pub const SYSTEM_ENTITY_NAME: &'static str = ".system-use-only";
@@ -203,13 +197,13 @@ impl Util {
 
         // Here of course, previously_highlighted_index_in_obj_list_in and obj_ids.size were calculated prior to the deletion.
 
-        // (logic below assumes this assertion)
-        // (%%should it return an error instead of panicking? Or None?)
-        assert!(object_set_size >= 1);
-
         if removed_one_in {
+            if object_set_size <=1 {
+                return None;
+            }
             let new_obj_list_size: usize = object_set_size - 1;
             if new_obj_list_size == 0 {
+                //(redundant with above test/None, but for clarity in reading)
                 None
             } else {
               let new_index_to_highlight = std::cmp::min(new_obj_list_size - 1, previously_highlighted_index_in_obj_list_in);

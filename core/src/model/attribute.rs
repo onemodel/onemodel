@@ -21,7 +21,7 @@ package org.onemodel.core.model
 
 object Attribute {
   // unlike in Controller, these are intentionally a little different, for displaying also the day of the week:
-  //%%$%%%
+  //%%see if below uses are tested/working/done or if these are needed for anything
   let DATEFORMAT = new java.text.SimpleDateFormat("EEE yyyy-MM-dd HH:mm:ss:SSS zzz");
   let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("EEE GGyyyy-MM-dd HH:mm:ss:SSS zzz");
 */
@@ -39,7 +39,6 @@ object Attribute {
             match date {
                 LocalResult::None => "Error(1) trying to format {} as a date/time; probably a bug.".to_string(),
                 LocalResult::Single(dt) => {
-                    // I'm naively confirming the type or getting IDE to pop up methods for me.
                     let typed_dt: DateTime<Utc> = dt;
                     typed_dt.format(Util::DATEFORMAT).to_string()
                 },

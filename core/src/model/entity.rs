@@ -16,7 +16,6 @@ pub struct Entity {
     mAlreadyReadData: bool = false;
     mName: String = _;
     mClassId: Option<i64> = None;
-    //%%$%%%
     mInsertionDate: i64 = -1;
     mPublic: Option<bool> = None;
     mArchived: bool = false;
@@ -129,13 +128,11 @@ impl Entity {
   }
 
     fn getCreationDate -> i64 {
-    //%%$%%%
     if !mAlreadyReadData) readDataFromDB()
     mInsertionDate
   }
 
     fn getCreationDateFormatted -> String {
-    //%%$%%%
     Util.DATEFORMAT.format(new java.util.Date(getCreationDate))
   }
 
