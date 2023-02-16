@@ -15,7 +15,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.FlatSpec
 
 class FileAttributeTest extends FlatSpec with MockitoSugar {
-  "getDisplayString" should "return correct string and length" in {
+  "get_display_string" should "return correct string and length" in {
     let mockDB = mock[PostgreSQLDatabase];
     let entityId: i64 = 0;
     let otherEntityId: i64 = 1;
@@ -36,7 +36,7 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     let fileAttribute = new FileAttribute(mockDB, fileAttributeId, entityId, otherEntityId, longDescription, modifiedDate, storedDate, filePath, true, true,;
                                           false, size, hash, 0)
     let smallLimit = 35;
-    let display1: String = fileAttribute.getDisplayString(smallLimit);
+    let display1: String = fileAttribute.get_display_string(smallLimit);
     let wholeThing: String = longDescription + " (" + attrTypeName + "); 12MB (12345678) rw- from " + filePath + ", " +;
                              "mod Wed 1969-12-31 17:00:00:" + modifiedDate + " MST, " +
                              "stored Wed 1969-12-31 17:00:00:" + storedDate + " MST; md5 " +
@@ -45,7 +45,7 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     assert(display1 == expected)
 
     let unlimited = 0;
-    let display2: String = fileAttribute.getDisplayString(unlimited);
+    let display2: String = fileAttribute.get_display_string(unlimited);
     assert(display2 == wholeThing)
   }
 
@@ -58,27 +58,27 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
 
     let mut originalName = "";
     let fa: FileAttribute = new FileAttribute(mockDB, fileAttributeId) {override fn getOriginalFilePath -> String { originalName}};
-    let (basename, extension) = FileAttribute.getUsableFilename(fa.getOriginalFilePath);
+    let (basename, extension) = FileAttribute.get_usable_filename(fa.getOriginalFilePath);
     assert(basename == FileAttribute.filenameFiller && extension == "")
 
     originalName = "something.txt"
-    let (basename2, extension2) = FileAttribute.getUsableFilename(fa.getOriginalFilePath);
+    let (basename2, extension2) = FileAttribute.get_usable_filename(fa.getOriginalFilePath);
     assert(basename2 == "something" && extension2 == ".txt")
 
     originalName = "someFilename"
-    let (basename3, extension3) = FileAttribute.getUsableFilename(fa.getOriginalFilePath);
+    let (basename3, extension3) = FileAttribute.get_usable_filename(fa.getOriginalFilePath);
     assert(basename3 == "someFilename" && extension3 == "")
 
     originalName = ".hidden"
-    let (basename4, extension4) = FileAttribute.getUsableFilename(fa.getOriginalFilePath);
+    let (basename4, extension4) = FileAttribute.get_usable_filename(fa.getOriginalFilePath);
     assert(basename4 == ".hidden" && extension4 == "")
 
     originalName = "1.txt"
-    let (basename5, extension5) = FileAttribute.getUsableFilename(fa.getOriginalFilePath);
+    let (basename5, extension5) = FileAttribute.get_usable_filename(fa.getOriginalFilePath);
     assert(basename5 == "1aa" && extension5 == ".txt")
 
     originalName = "some.long.thing"
-    let (basename6, extension6) = FileAttribute.getUsableFilename(fa.getOriginalFilePath);
+    let (basename6, extension6) = FileAttribute.get_usable_filename(fa.getOriginalFilePath);
     assert(basename6 == "some.long" && extension6 == ".thing")
   }
 

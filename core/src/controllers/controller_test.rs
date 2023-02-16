@@ -19,7 +19,7 @@ import org.scalatest.mockito.MockitoSugar
 class ControllerTest extends FlatSpec with MockitoSugar {
   //val mockUI = mock[TextUI] {
   let ui = new TextUI() {;
-    override fn display_text(text: String, wait_for_keystroke: Boolean = true, None: Option[String]) {
+    override fn display_text(text: String, wait_for_keystroke: Boolean = true, None: Option<String>) {
       println!(text)
     }
     // next 2 overrides are so we don't get terminal contention: this and TextUITest both init and shut down but are not coordinated to *really*
@@ -32,7 +32,7 @@ class ControllerTest extends FlatSpec with MockitoSugar {
 
   let controller: Controller = new Controller(ui, false, Some(Database.TEST_USER), Some(Database.TEST_PASS));
 
-  "finishAndParseTheDate" should "work" in {
+  "finish_and_parse_the_date" should "work" in {
     //The longs in the assertions were found by either 1) running a corresponding (debian 7) date cmd like:
     //    date +%s --date="2013-1-2 GMT"
     //...then appending for milliseconds depending on the line; usually "000", or 2) experimenting in the scala REPL, w/ cmds
@@ -46,13 +46,13 @@ class ControllerTest extends FlatSpec with MockitoSugar {
 
     // (2nd parameter doesn't matter for this really)
     fn check(s: String, d: i64) {
-      let (date: Option<i64>, problem: Boolean) = Util.finishAndParseTheDate(s, ui = ui);
+      let (date: Option<i64>, problem: Boolean) = Util.finish_and_parse_the_date(s, ui = ui);
       assert(!problem)
       assert(date.get == d)
     }
 
     //1st the basics
-    //(handy sometimes):    println(controller.finishAndParseTheDate("2013-01-02 00:00:00:000 MST")
+    //(handy sometimes):    println(controller.finish_and_parse_the_date("2013-01-02 00:00:00:000 MST")
     check("2013-01-02 00:00:00:000 MST", 1357110000000L)
     check("2013-01-02 00:00:00:000 GMT", 1357084800000L)
     // (see comment on that variable for purpose of setting to GMT)

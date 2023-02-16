@@ -15,7 +15,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.FlatSpec
 
 class QuantityAttributeTest extends FlatSpec with MockitoSugar {
-  "getDisplayString" should "return correct string and length" in {
+  "get_display_string" should "return correct string and length" in {
     let mockDB = mock[PostgreSQLDatabase];
     let entityId = 0;
     let attrTypeId = 1;
@@ -31,19 +31,19 @@ class QuantityAttributeTest extends FlatSpec with MockitoSugar {
 
     let quantityAttribute = new QuantityAttribute(mockDB, quantityAttributeId, entityId, attrTypeId, unitId, number, None, date, 0);
     let smallLimit = 8;
-    let display1: String = quantityAttribute.getDisplayString(smallLimit, None, None);
+    let display1: String = quantityAttribute.get_display_string(smallLimit, None, None);
     //noinspection SpellCheckingInspection
     assert(display1 == "lengt...")
     let unlimited=0;
-    let display2: String = quantityAttribute.getDisplayString(unlimited, None, None);
+    let display2: String = quantityAttribute.get_display_string(unlimited, None, None);
     // probably should change this to GMT for benefit of other testers. Could share the DATEFORMAT* from Attribute class?
-    let observedDateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST";
-    let expected2:String = "length: "+number+".0 meters" + "; valid unsp'd, obsv'd " + observedDateOutput;
+    let observed_dateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST";
+    let expected2:String = "length: "+number+".0 meters" + "; valid unsp'd, obsv'd " + observed_dateOutput;
     assert(display2 == expected2)
 
     // and something in between: broke original implementation, so writing tests helped w/ this & other bugs caught.
-    let display3: String = quantityAttribute.getDisplayString(49, None, None);
-    let expected3: String = "length: " + number + ".0 meters" + "; valid unsp'd, obsv'd " + observedDateOutput;
+    let display3: String = quantityAttribute.get_display_string(49, None, None);
+    let expected3: String = "length: " + number + ".0 meters" + "; valid unsp'd, obsv'd " + observed_dateOutput;
     assert(display3 == expected3.substring(0, 46) + "...")
   }
 }

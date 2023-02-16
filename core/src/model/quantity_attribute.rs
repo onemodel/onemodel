@@ -20,7 +20,7 @@ import org.onemodel.core.{OmException, Util}
   *
 class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if (!mDB.is_remote && !mDB.quantityAttributeKeyExists(mId)) {
+  if !mDB.is_remote && !mDB.quantityAttributeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
@@ -29,12 +29,12 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(db: Database, id: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDate: Option<i64>,
+    fn this(db: Database, id: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, valid_on_date: Option<i64>,
            observationDate: i64, sortingIndex: i64) {
     this(db, id)
     mUnitId = unitIdIn
     mNumber = numberIn
-    assignCommonVars(parentIdIn, attrTypeIdIn, validOnDate, observationDate, sortingIndex)
+    assignCommonVars(parentIdIn, attrTypeIdIn, valid_on_date, observationDate, sortingIndex)
   }
 
   /**
@@ -43,28 +43,28 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
    * attribute this is. 3rd parameter really only applies in one of the subclasses of Attribute,
    * otherwise can be None.
    */
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity]=None, unused2: Option[RelationType]=None, simplify: Boolean = false) -> String {
+    fn get_display_string(lengthLimitIn: Int, unused: Option<Entity>=None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let number: Float = getNumber;
     let unitId: i64 = getUnitId;
     let mut result: String = typeName + ": " + number + " " + mDB.getEntityName(unitId).get;
-    if (! simplify) result += "; " + getDatesDescription
+    if ! simplify) result += "; " + get_dates_description
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
   private[onemodel] fn getNumber -> Float {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mNumber
   }
 
   private[onemodel] fn getUnitId -> i64 {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mUnitId
   }
 
   protected fn readDataFromDB() {
     let quantityData = mDB.getQuantityAttributeData(mId);
-    if (quantityData.length == 0) {
+    if quantityData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
     mUnitId = quantityData(1).get.asInstanceOf[i64]
@@ -73,15 +73,15 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
                            quantityData(5).get.asInstanceOf[i64], quantityData(6).get.asInstanceOf[i64])
   }
 
-    fn update(attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, validOnDateIn: Option<i64>, observationDateIn: i64) {
+    fn update(attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>, observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    mDB.updateQuantityAttribute(mId, getParentId, attrTypeIdIn, unitIdIn, numberIn, validOnDateIn, observationDateIn)
+    mDB.updateQuantityAttribute(mId, getParentId, attrTypeIdIn, unitIdIn, numberIn, valid_on_date_in, observationDateIn)
     mAttrTypeId = attrTypeIdIn
     mUnitId = unitIdIn
     mNumber = numberIn
-    mValidOnDate = validOnDateIn
-    mObservationDate = observationDateIn
+    valid_on_date = valid_on_date_in
+    observation_date = observationDateIn
   }
 
   /** Removes this object from the system. */

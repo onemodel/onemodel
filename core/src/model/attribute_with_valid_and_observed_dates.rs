@@ -7,48 +7,53 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-struct AttributeWithValidAndObservedDates {
-/*%%
-package org.onemodel.core.model
+use crate::model::attribute::Attribute;
 
-object AttributeWithValidAndObservedDates {
-    fn getDatesDescription(mValidOnDate:Option<i64>, mObservationDate:i64) -> String {
-    let validDateDescr: String =;
-      if (mValidOnDate.isEmpty) "unsp'd"
-      else if (mValidOnDate.get == 0) "all time"
-      else Attribute.usefulDateFormat(mValidOnDate.get)
-    let observedDateDescr: String = Attribute.usefulDateFormat(mObservationDate);
-    "valid " + validDateDescr + ", obsv'd " + observedDateDescr
-  }
+pub struct AttributeWithValidAndObservedDates {
+
 }
 
+impl AttributeWithValidAndObservedDates {
+  pub fn get_dates_description(valid_on_date:Option<i64>, observation_date:i64) -> String {
+    let valid_date_descr: String = {
+      match valid_on_date {
+        None => "unsp'd".to_string(),
+        Some(date) if date == 0 => "all time".to_string(),
+        Some(date) => Attribute::useful_date_format(date),
+      }
+    };
+    let observed_date_descr: String = Attribute::useful_date_format(observation_date);
+    format!("valid {}, obsv'd {}", valid_date_descr, observed_date_descr)
+  }
+
+/*%%
 abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
-  protected fn assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, validOnDateIn: Option<i64>, observationDateIn: i64, sortingIndexIn: i64) {
-    mValidOnDate = validOnDateIn
-    // observationDate is not expected to be None, like mValidOnDate can be. See let mut def for more info.;
-    mObservationDate = observationDateIn
+  protected fn assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, valid_on_date_in: Option<i64>, observationDateIn: i64, sortingIndexIn: i64) {
+    valid_on_date = valid_on_date_in
+    // observationDate is not expected to be None, like valid_on_date can be. See let mut def for more info.;
+    observation_date = observationDateIn
     super.assignCommonVars(parentIdIn, attrTypeIdIn, sortingIndexIn)
   }
 
-    fn getDatesDescription -> String {
-    AttributeWithValidAndObservedDates.getDatesDescription(getValidOnDate, getObservationDate)
+    fn get_dates_description -> String {
+    AttributeWithValidAndObservedDates.get_dates_description(getValidOnDate, getObservationDate)
   }
 
   private[onemodel] fn getValidOnDate -> Option<i64> {
-    if (!mAlreadyReadData) readDataFromDB()
-    mValidOnDate
+    if !mAlreadyReadData) readDataFromDB()
+    valid_on_date
   }
 
   private[onemodel] fn getObservationDate -> i64 {
-    if (!mAlreadyReadData) readDataFromDB()
-    mObservationDate
+    if !mAlreadyReadData) readDataFromDB()
+    observation_date
   }
 
   /**
    * For descriptions of the meanings of these variables, see the comments
    * on createTables(...), and examples in the database testing code in PostgreSQLDatabase or Database classes.
    */
-  protected let mut mValidOnDate: Option<i64> = None;
-  protected let mut mObservationDate: i64 = 0L;
+  protected let mut valid_on_date: Option<i64> = None;
+  protected let mut observation_date: i64 = 0L;
  */
 }

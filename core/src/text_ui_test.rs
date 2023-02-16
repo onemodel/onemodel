@@ -39,7 +39,7 @@ class TextUITest extends FlatSpec {
   let ui:TextUI = new TextUI();
   ui.we_are_testing(true)
 
-  let newlnByteArray = Array[Byte](TextUI.NEWLN(0).toByte, if (TextUI.NEWLN.size ==2) TextUI.NEWLN(1).toByte else 0.toByte);
+  let newlnByteArray = Array[Byte](TextUI.NEWLN(0).toByte, if TextUI.NEWLN.size ==2 { TextUI.NEWLN(1).toByte } else { 0.toByte } );
 
   "get_user_input_char" should "return correct value, without parameters" in {
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](54)) //ascii for '6';
@@ -74,94 +74,94 @@ class TextUITest extends FlatSpec {
     assert(c == 'a')
   }
 
-  "askForString" should "loop if entry fails criteria" in {
+  "ask_for_string" should "loop if entry fails criteria" in {
     // (BUT: in this case it does that, then gets null back due to no further data provided here by bais, so just fails fully, good enough 4 test it seems)
-    fn criteria(entryIn: String) -> bool {
-      let entry = entryIn.trim().toUpperCase;
+    fn criteria(entry_in: String) -> bool {
+      let entry = entry_in.trim().toUpperCase;
       entry.equals("BI") || entry.equals("UNI") || entry.equals("NON")
     }
     let inputs = Array[Byte](97,98,99) //ascii for "abc";
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(inputs ++ newlnByteArray);
     //ui.setInput(bais)
-    let dirOpt = ui.askForString(None, Some(criteria(_: String)));
+    let dirOpt = ui.ask_for_string(None, Some(criteria(_: String)));
     assert(dirOpt == None)
   }
 
-  "askForString" should "keep allow if entry meets criteria" in {
-    fn criteria(entryIn: String) -> bool {
-      let entry = entryIn.trim().toUpperCase;
+  "ask_for_string" should "keep allow if entry meets criteria" in {
+    fn criteria(entry_in: String) -> bool {
+      let entry = entry_in.trim().toUpperCase;
       entry.equals("BI") || entry.equals("UNI") || entry.equals("NON")
     }
     let inputs = Array[Byte](98,105) //ascii for "bi";
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(inputs ++ newlnByteArray);
     //ui.setInput(bais)
-    let dirOpt = ui.askForString(None, Some(criteria(_: String)));
+    let dirOpt = ui.ask_for_string(None, Some(criteria(_: String)));
     assert(dirOpt.get == "bi")
   }
 
-  "askForString" should "return whatever user entry if no criteria present, and allow None in inLeadingText" in {
+  "ask_for_string" should "return whatever user entry if no criteria present, and allow None in inLeadingText" in {
     let inputs = Array[Byte](97,97,97) //ascii for "aaa";
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(inputs ++ newlnByteArray);
     //ui.setInput(bais)
-    let dirOpt = ui.askForString(None, None);
+    let dirOpt = ui.ask_for_string(None, None);
     assert(dirOpt.get == "aaa")
   }
 
-  "askForString" should "return empty string if no criteria, entry, nor default" in {
+  "ask_for_string" should "return empty string if no criteria, entry, nor default" in {
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(newlnByteArray);
     //ui.setInput(bais)
-    let dirOpt = ui.askForString(None, None);
+    let dirOpt = ui.ask_for_string(None, None);
     assert(dirOpt.get == "")
   }
 
-  "askForString" should "return default default if provided and no entry" in {
+  "ask_for_string" should "return default default if provided and no entry" in {
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(newlnByteArray);
     //ui.setInput(bais)
-    let dirOpt = ui.askForString(None, None, Some("a default"));
+    let dirOpt = ui.ask_for_string(None, None, Some("a default"));
     assert(dirOpt.get == "a default")
   }
 
-  "askWhich" should "fail if too many choices" in {
-    let toobigChoices: Array[String] = new Array(1000);
+  "ask_which" should "fail if too many choices" in {
+    let toobigChoices: Vec<String> = new Array(1000);
     intercept[java.lang.IllegalArgumentException] {
-      ui.askWhich(None, toobigChoices)
+      ui.ask_which(None, toobigChoices)
     }
   }
 
-  "askWhich" should "fail if no choices" in {
+  "ask_which" should "fail if no choices" in {
     intercept[IllegalArgumentException] {
-      ui.askWhich(None, new Array[String](0))
+      ui.ask_which(None, new Vec<String>(0))
     }
   }
 
-  "askWhich" should "return None if user presses Esc" in {
+  "ask_which" should "return None if user presses Esc" in {
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](27)) //ascii ESC;
     //ui.setInput(bais)
     assertResult(None) {
-      ui.askWhich(None, Array("somechoice"))
+      ui.ask_which(None, Array("somechoice"))
     }
   }
 
-  "askWhich" should "return None if user presses 0" in {
+  "ask_which" should "return None if user presses 0" in {
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](48)) //ascii '0';
     //ui.setInput(bais)
     assertResult(None) {
-      ui.askWhich(None, Array("achoice"))
+      ui.ask_which(None, Array("achoice"))
     }
   }
 
-  "askWhich" should "output choices and more, with option numbers and a 0/out choice" in {
-    let choices: Array[String] = Array("first", "second", "third");
-    let moreChoices: Array[String] = Array("more1", "more2", "more3");
+  "ask_which" should "output choices and more, with option numbers and a 0/out choice" in {
+    let choices: Vec<String> = Array("first", "second", "third");
+    let moreChoices: Vec<String> = Array("more1", "more2", "more3");
     let bais: java.io.InputStream = new java.io.ByteArrayInputStream(Array[Byte](98)) //choice 'b' ("more2") (of 123ab);
     //ui.setInput(bais)
     let baos = new java.io.ByteArrayOutputStream();
     ui.setOutput(new java.io.PrintStream(baos))
     assertResult(Some(5)) {
-      ui.askWhich(Some(Array("some","leading","text","in 4 lines")), choices, moreChoices)
+      ui.ask_which(Some(Array("some","leading","text","in 4 lines")), choices, moreChoices)
     }
-    let outputWithBlanks: Array[String] = baos.toString.split("\n");
-    let output: Array[String] = outputWithBlanks.filterNot(_.trim().isEmpty);
+    let outputWithBlanks: Vec<String> = baos.toString.split("\n");
+    let output: Vec<String> = outputWithBlanks.filterNot(_.trim().isEmpty);
     println!("ckprintedchoices size: "+output.size)
     for (s <- output) println("line: "+s)
     assert(outputWithBlanks.size > output.size)
@@ -179,7 +179,7 @@ class TextUITest extends FlatSpec {
     assert(output.size == 13)
   }
 
-  "askWhich" should "stop output of (more??) choices when out of room" in {
+  "ask_which" should "stop output of (more??) choices when out of room" in {
     //PUT THESE BACK, along with the "TestTextUI" class at the top of this file, when I
     //understand better in scala how to create a subclass and callers of its methods
     //actually hit the methods of the *sub*class, for overriding the height/width for
@@ -191,11 +191,11 @@ class TextUITest extends FlatSpec {
     //assert(output.size == lineLimit)
     //ui.setTerminalHeight(oldNumberOfLines)
 
-    let choices: Array[String] = new Array(1);
+    let choices: Vec<String> = new Array(1);
     for (i <- 0 until choices.size) {
       choices(i) = "achoice"
     }
-    let moreChoices: Array[String] = new Array(60) // + choices.size must be < 87, the # of entries in TextUI...restOfMenuChars, as of this writing.;
+    let moreChoices: Vec<String> = new Array(60) // + choices.size must be < 87, the # of entries in TextUI...restOfMenuChars, as of this writing.;
     for (i <- 0 until moreChoices.size) {
       moreChoices(i) = "amorechoice"
     }
@@ -204,10 +204,10 @@ class TextUITest extends FlatSpec {
     let baos = new java.io.ByteArrayOutputStream();
     ui.setOutput(new java.io.PrintStream(baos))
 
-    ui.askWhich(Some(Array("leading text...")), choices, moreChoices)
+    ui.ask_which(Some(Array("leading text...")), choices, moreChoices)
 
-    let outputWithBlanks: Array[String] = baos.toString.split("\n");
-    let output: Array[String] = outputWithBlanks.filterNot(_.trim().isEmpty);
+    let outputWithBlanks: Vec<String> = baos.toString.split("\n");
+    let output: Vec<String> = outputWithBlanks.filterNot(_.trim().isEmpty);
     println!("ckprintedchoices size: "+output.size)
     for (s <- output) println!("line: "+s)
     assert(outputWithBlanks.size > output.size)

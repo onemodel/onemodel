@@ -26,8 +26,11 @@ use crate::text_ui::TextUI;
 async fn main() {
     //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
     /*%%$%%next tasks?:
-        get more features working first
-        going2use the database trait in pg.rs/controller? read more/again re traits & try it or wait?
+        do all util, db, pg, & their tests at once: style and compile and test.
+        MAKE TESTS for code be4 ckin! see them each fail then pass.  Debug/breakpoints...?
+        make code compile that i have now?
+        AND rustfmt  (separate commit tho?)
+        In OM,  using #[derive(Debug)] on a all? And fmt::Display (vs fmt::Debug) on all public types.
         other %%$%s, %%s &c
      */
 

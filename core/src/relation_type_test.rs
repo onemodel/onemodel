@@ -15,7 +15,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.FlatSpec
 
 class RelationTypeTest extends FlatSpec with MockitoSugar {
-  "getDisplayString" should "work with a populated entity or relationtype" in {
+  "get_display_string" should "work with a populated entity or relationtype" in {
     // idea: parts of this test should probably be moved back up to the EntityTest class.
     let id = 0L;
     let mockDB = mock[PostgreSQLDatabase];
@@ -24,16 +24,16 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     let testNameReversed = "is had";
     let testDir = "BI";
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
-    when(mockDB.getRemoteAddress).thenReturn(None)
+    when(mockDB.get_remote_address).thenReturn(None)
     /*val reltype: RelationType = */new RelationType(mockDB, id, testRelTypeName, testNameReversed, testDir)
     // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
     //val testName = "thisIsAName"
     //val entity = new Entity(mockDB, id, testName, Some(1L), 2L, Some(true), false)
-    //assert(entity.getDisplayString == testName)
-    //assert(reltype.getDisplayString == "" + testRelTypeName + " (a relation type with: " + testDir + "/'" + testNameReversed + "')")
+    //assert(entity.get_display_string == testName)
+    //assert(reltype.get_display_string == "" + testRelTypeName + " (a relation type with: " + testDir + "/'" + testNameReversed + "')")
   }
 
-  "getDisplayString" should "return a useful stack trace string, with called with a nonexistent entity" in {
+  "get_display_string" should "return a useful stack trace string, with called with a nonexistent entity" in {
     // for example, if the entity has been deleted by one part of the code, or one user process in a console window (as an example), and is still
     // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an entity that's gone due to a bug).
     // (But should this issue go away w/ better design involving more use of immutability or something?)
@@ -41,9 +41,9 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.entity_key_exists(id)).thenReturn(true)
     when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
-    when(mockDB.getRemoteAddress).thenReturn(None)
+    when(mockDB.get_remote_address).thenReturn(None)
     let relationType = new RelationType(mockDB, id);
-    let sr = relationType.getDisplayString();
+    let sr = relationType.get_display_string();
     assert(sr.contains("Unable to get entity description due to"))
     assert(sr.toLowerCase.contains("exception"))
     assert(sr.toLowerCase.contains("at org.onemodel"))

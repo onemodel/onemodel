@@ -15,18 +15,18 @@ import org.onemodel.core._
 
 object OmInstance {
     fn addressLength -> Int {
-    Database.omInstanceAddressLength
+    Database.om_instance_address_length
     }
 
-    fn isDuplicate(dbIn: Database, addressIn: String, selfIdToIgnoreIn: Option[String] = None) -> Boolean {
+    fn isDuplicate(dbIn: Database, addressIn: String, selfIdToIgnoreIn: Option<String> = None) -> bool {
     dbIn.isDuplicateOmInstanceAddress(addressIn, selfIdToIgnoreIn)
   }
 
-    fn create(dbIn: Database, idIn: String, addressIn: String, entityIdIn: Option<i64> = None) -> OmInstance {
+    fn create(dbIn: Database, id_in: String, addressIn: String, entityIdIn: Option<i64> = None) -> OmInstance {
     // Passing false for isLocalIn because the only time that should be true is when it is created at db creation, for this site, and that is done
     // in the db class more directly.
-    let insertionDate: i64 = dbIn.createOmInstance(idIn, isLocalIn = false, addressIn, entityIdIn);
-    new OmInstance(dbIn, idIn, isLocalIn = false, addressIn = addressIn, insertionDateIn = insertionDate, entityIdIn = entityIdIn)
+    let insertionDate: i64 = dbIn.createOmInstance(id_in, isLocalIn = false, addressIn, entityIdIn);
+    new OmInstance(dbIn, id_in, isLocalIn = false, addressIn = addressIn, insertionDateIn = insertionDate, entityIdIn = entityIdIn)
   }
 }
 
@@ -38,7 +38,7 @@ object OmInstance {
 class OmInstance(val mDB: Database, mId: String) {
   //Idea: make mId *etc* private in all model classes? and rename mDB to just db ("uniform access principle")?
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if (!mDB.is_remote && !mDB.omInstanceKeyExists(mId)) {
+  if !mDB.is_remote && !mDB.omInstanceKeyExists(mId)) {
     throw new OmException("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
@@ -47,7 +47,7 @@ class OmInstance(val mDB: Database, mId: String) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(mDB: Database, mId: String, isLocalIn: Boolean, addressIn: String, insertionDateIn: i64, entityIdIn: Option<i64> = None) {
+    fn this(mDB: Database, mId: String, isLocalIn: bool, addressIn: String, insertionDateIn: i64, entityIdIn: Option<i64> = None) {
     this(mDB, mId)
     mLocal = isLocalIn
     mAddress = addressIn
@@ -58,18 +58,18 @@ class OmInstance(val mDB: Database, mId: String) {
 
   /** When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
     * */
-    fn getId() -> String {
-    if (!mAlreadyReadData) readDataFromDB()
+    fn get_id() -> String {
+    if !mAlreadyReadData) readDataFromDB()
     mId
   }
 
-    fn getLocal() -> Boolean {
-    if (!mAlreadyReadData) readDataFromDB()
+    fn getLocal() -> bool {
+    if !mAlreadyReadData) readDataFromDB()
     mLocal
   }
 
     fn getCreationDate() -> i64 {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mInsertionDate
   }
 
@@ -78,34 +78,34 @@ class OmInstance(val mDB: Database, mId: String) {
   }
 
     fn getAddress() -> String {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mAddress
   }
 
     fn getEntityId() -> Option<i64> {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mEntityId
   }
 
   protected fn readDataFromDB() {
     let omInstanceData: Array[Option[Any]] = mDB.getOmInstanceData(mId);
-    if (omInstanceData.length == 0) {
+    if omInstanceData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
-    mLocal = omInstanceData(0).get.asInstanceOf[Boolean]
+    mLocal = omInstanceData(0).get.asInstanceOf[bool]
     mAddress = omInstanceData(1).get.asInstanceOf[String]
     mInsertionDate = omInstanceData(2).get.asInstanceOf[i64]
     mEntityId = omInstanceData(3).asInstanceOf[Option<i64>]
     mAlreadyReadData = true
   }
 
-    fn getDisplayString() -> String {
-    let result: String = mId + ":" + (if (mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted;
+    fn get_display_string() -> String {
+    let result: String = mId + ":" + (if mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted;
     result
   }
 
     fn update(newAddress: String) /*%%-> Unit*/ {
-    mDB.updateOmInstance(getId, newAddress, getEntityId)
+    mDB.updateOmInstance(get_id, newAddress, getEntityId)
   }
 
     fn delete() {

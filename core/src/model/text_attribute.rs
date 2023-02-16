@@ -20,7 +20,7 @@ import org.onemodel.core.{OmException, Util}
   *
 class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if (!mDB.is_remote && !mDB.textAttributeKeyExists(mId)) {
+  if !mDB.is_remote && !mDB.textAttributeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
@@ -29,33 +29,33 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, validOnDate: Option<i64>, observationDate: i64,
+    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, textIn: String, valid_on_date: Option<i64>, observationDate: i64,
            sortingIndexIn: i64) {
     this(mDB, mId)
-    assignCommonVars(parentIdIn, attrTypeIdIn, validOnDate, observationDate, sortingIndexIn)
+    assignCommonVars(parentIdIn, attrTypeIdIn, valid_on_date, observationDate, sortingIndexIn)
     mText = textIn
   }
 
-  /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
+  /** return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
     */
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
+    fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = {;
-      if (simplify && (typeName == "paragraph" || typeName == "quote")) getText
+      if simplify && (typeName == "paragraph" || typeName == "quote")) getText
       else typeName + ": \"" + getText + "\""
     }
-    if (! simplify) result += "; " + getDatesDescription
+    if ! simplify) result += "; " + get_dates_description
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
     fn getText -> String {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mText
   }
 
   protected fn readDataFromDB() {
     let taTypeData = mDB.getTextAttributeData(mId);
-    if (taTypeData.length == 0) {
+    if taTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
     mText = taTypeData(1).get.asInstanceOf[String]
@@ -63,14 +63,14 @@ class TextAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObserv
                            taTypeData(4).get.asInstanceOf[i64], taTypeData(5).get.asInstanceOf[i64])
   }
 
-    fn update(attrTypeIdIn: i64, textIn: String, validOnDateIn: Option<i64>, observationDateIn: i64) {
+    fn update(attrTypeIdIn: i64, textIn: String, valid_on_date_in: Option<i64>, observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    mDB.updateTextAttribute(mId, getParentId, attrTypeIdIn, textIn, validOnDateIn, observationDateIn)
+    mDB.updateTextAttribute(mId, getParentId, attrTypeIdIn, textIn, valid_on_date_in, observationDateIn)
     mText = textIn
     mAttrTypeId = attrTypeIdIn
-    mValidOnDate = validOnDateIn
-    mObservationDate = observationDateIn
+    valid_on_date = valid_on_date_in
+    observation_date = observationDateIn
   }
 
   /** Removes this object from the system. */

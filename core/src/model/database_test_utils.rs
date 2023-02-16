@@ -20,13 +20,13 @@ object DatabaseTestUtils {
     */
     fn createAndAddTestRelationToGroup_ToEntity(dbIn: Database, inParentId: i64, inRelTypeId: i64, inGroupName: String = "something",
                                                inValidOnDate: Option<i64> = None, allowMixedClassesIn: Boolean = true) -> (i64, RelationToGroup) {
-    let validOnDate: Option<i64> = if (inValidOnDate.isEmpty) None else inValidOnDate;
+    let valid_on_date: Option<i64> = if inValidOnDate.isEmpty) None else inValidOnDate;
     let observationDate: i64 = System.currentTimeMillis;
     let (group:Group, rtg: RelationToGroup) = new Entity(dbIn, inParentId).;
-                                              addGroupAndRelationToGroup(inRelTypeId, inGroupName, allowMixedClassesIn, validOnDate, observationDate, None)
+                                              addGroupAndRelationToGroup(inRelTypeId, inGroupName, allowMixedClassesIn, valid_on_date, observationDate, None)
 
     // and verify it:
-    if (inValidOnDate.isEmpty) {
+    if inValidOnDate.isEmpty) {
       assert(rtg.getValidOnDate.isEmpty)
     } else {
       let inDt: i64 = inValidOnDate.get;
@@ -34,9 +34,9 @@ object DatabaseTestUtils {
       assert(inDt == gotDt)
     }
     assert(group.getMixedClassesAllowed == allowMixedClassesIn)
-    assert(group.getName == inGroupName)
+    assert(group.get_name == inGroupName)
     assert(rtg.getObservationDate == observationDate)
-    (group.getId, rtg)
+    (group.get_id, rtg)
   }
 
 */

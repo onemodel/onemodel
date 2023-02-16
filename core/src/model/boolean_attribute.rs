@@ -18,7 +18,7 @@ import org.onemodel.core.{OmException, Util}
 class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
   // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
   // wait for an error later to see if there is a problem (ie, assuming usually not).
-  if (!mDB.is_remote && !mDB.booleanAttributeKeyExists(mId)) {
+  if !mDB.is_remote && !mDB.booleanAttributeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
@@ -27,30 +27,30 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: bool, validOnDate: Option<i64>, observationDate: i64,
+    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, booleanIn: bool, valid_on_date: Option<i64>, observationDate: i64,
            sortingIndexIn: i64) {
     this(mDB, mId)
     mBoolean = booleanIn
-    assignCommonVars(parentIdIn, attrTypeIdIn, validOnDate, observationDate, sortingIndexIn)
+    assignCommonVars(parentIdIn, attrTypeIdIn, valid_on_date, observationDate, sortingIndexIn)
   }
 
-  /** return some string. See comments on QuantityAttribute.getDisplayString regarding the parameters.
+  /** return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
     */
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
+    fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = typeName + ": " + getBoolean + "";
-    if (! simplify) result += "; " + getDatesDescription
+    if ! simplify) result += "; " + get_dates_description
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
     fn getBoolean() -> bool {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mBoolean
   }
 
   protected fn readDataFromDB() {
     let baTypeData = mDB.getBooleanAttributeData(mId);
-    if (baTypeData.length == 0) {
+    if baTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
     mBoolean = baTypeData(1).get.asInstanceOf[Boolean]
@@ -58,14 +58,14 @@ class BooleanAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObs
                            baTypeData(4).get.asInstanceOf[i64], baTypeData(5).get.asInstanceOf[i64])
   }
 
-    fn update(attrTypeIdIn: i64, booleanIn: Boolean, validOnDateIn: Option<i64>, observationDateIn: i64) {
+    fn update(attrTypeIdIn: i64, booleanIn: bool, valid_on_date_in: Option<i64>, observationDateIn: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    mDB.updateBooleanAttribute(mId, getParentId, attrTypeIdIn, booleanIn, validOnDateIn, observationDateIn)
+    mDB.updateBooleanAttribute(mId, getParentId, attrTypeIdIn, booleanIn, valid_on_date_in, observationDateIn)
     mAttrTypeId = attrTypeIdIn
     mBoolean = booleanIn
-    mValidOnDate = validOnDateIn
-    mObservationDate = observationDateIn
+    valid_on_date = valid_on_date_in
+    observation_date = observationDateIn
   }
 
   /** Removes this object from the system. */

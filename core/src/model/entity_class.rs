@@ -15,18 +15,18 @@ import java.io.{PrintWriter, StringWriter}
 import org.onemodel.core.{OmException, Util}
 
 object EntityClass {
-    fn nameLength(inDB: Database) -> Int {
+    fn name_length(in_db: Database) -> Int {
      Database.classNameLength
      }
 
-    fn isDuplicate(inDB: Database, inName: String, inSelfIdToIgnore: Option<i64> = None) -> Boolean {
-    inDB.isDuplicateClassName(inName, inSelfIdToIgnore)
+    fn isDuplicate(in_db: Database, inName: String, inSelfIdToIgnore: Option<i64> = None) -> bool {
+    in_db.isDuplicateClassName(inName, inSelfIdToIgnore)
     }
 }
 
 class EntityClass(val mDB: Database, mId: i64) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if (!mDB.is_remote && !mDB.classKeyExists(mId)) {
+  if !mDB.is_remote && !mDB.classKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
@@ -42,25 +42,25 @@ class EntityClass(val mDB: Database, mId: i64) {
     mAlreadyReadData = true
   }
 
-    fn getName -> String {
-    if (!mAlreadyReadData) readDataFromDB()
+    fn get_name -> String {
+    if !mAlreadyReadData) readDataFromDB()
     mName
   }
 
     fn getTemplateEntityId -> i64 {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mTemplateEntityId
   }
 
 
     fn getCreateDefaultAttributes -> Option<bool> {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mCreateDefaultAttributes
   }
 
   protected fn readDataFromDB() {
     let classData: Array[Option[Any]] = mDB.getClassData(mId);
-    if (classData.length == 0) {
+    if classData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
     mName = classData(0).get.asInstanceOf[String]
@@ -69,22 +69,22 @@ class EntityClass(val mDB: Database, mId: i64) {
     mAlreadyReadData = true
   }
 
-    fn getIdWrapper -> IdWrapper {
+    fn get_idWrapper -> IdWrapper {
      new IdWrapper(mId)
      }
 
-    fn getId -> i64 {
+    fn get_id -> i64 {
     mId
     }
 
-    fn getDisplayString_helper -> String {
-    getName
+    fn get_display_string_helper -> String {
+    get_name
   }
 
-    fn getDisplayString -> String {
+    fn get_display_string -> String {
     let mut result = "";
     try {
-      result = getDisplayString_helper
+      result = get_display_string_helper
     } catch {
       case e: Exception =>
         result += "Unable to get class description due to: "
@@ -97,15 +97,15 @@ class EntityClass(val mDB: Database, mId: i64) {
     result
   }
 
-    fn updateClassAndTemplateEntityName(nameIn: String) -> i64 {
-    let templateEntityId = mDB.updateClassAndTemplateEntityName(this.getId, nameIn);
-    mName = nameIn
+    fn updateClassAndTemplateEntityName(name_in: String) -> i64 {
+    let templateEntityId = mDB.updateClassAndTemplateEntityName(this.get_id, name_in);
+    mName = name_in
     require(templateEntityId == getTemplateEntityId)
     templateEntityId
   }
 
     fn updateCreateDefaultAttributes(valueIn: Option<bool>) /*%%-> Unit*/ {
-    mDB.updateClassCreateDefaultAttributes(getId, valueIn)
+    mDB.updateClassCreateDefaultAttributes(get_id, valueIn)
     mCreateDefaultAttributes = valueIn
   }
 

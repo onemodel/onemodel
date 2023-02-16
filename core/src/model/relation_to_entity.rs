@@ -48,10 +48,10 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTyp
    *
    * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If inLengthLimit is 0 you get the whole thing.
    */
-    fn getDisplayString(lengthLimitIn: Int, relatedEntityIn: Option[Entity], relationTypeIn: Option[RelationType], simplify: Boolean = false) -> String {
+    fn get_display_string(lengthLimitIn: Int, relatedEntityIn: Option<Entity>, relationTypeIn: Option[RelationType], simplify: bool = false) -> String {
     let relType: RelationType = {;
-      if (relationTypeIn.isDefined) {
-        if (relationTypeIn.get.getId != getAttrTypeId) {
+      if relationTypeIn.is_defined) {
+        if relationTypeIn.get.get_id != getAttrTypeId) {
           // It can be ignored, but in cases called generically (the same as other Attribute types) it should have the right value or that indicates a
           // misunderstanding in the caller's code. Also, if passed in and this were changed to use it again, it can save processing time re-instantiating one.
           throw new OmException("inRT parameter should be the same as the relationType on this relation.")
@@ -66,25 +66,25 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTyp
       relatedEntityIn.getOrElse(getEntityForEntityId2)
     }
     let rtName: String = {;
-      if (relatedEntity.getId == mEntityId2) {
-        relType.getName
-      } else if (relatedEntity.getId == mEntityId1) {
-        relType.getNameInReverseDirection
+      if relatedEntity.get_id == mEntityId2) {
+        relType.get_name
+      } else if relatedEntity.get_id == mEntityId1) {
+        relType.get_name_in_reverseDirection
       } else {
-        throw new OmException("Unrelated parent entity parameter?: '" + relatedEntity.getId + "', '" + relatedEntity.getName + "'")
+        throw new OmException("Unrelated parent entity parameter?: '" + relatedEntity.get_id + "', '" + relatedEntity.get_name + "'")
       }
     }
 
     // (See method comment about the relatedEntityIn param.)
     let result: String =;
-      if (simplify) {
-        if (rtName == Database.THE_HAS_RELATION_TYPE_NAME) relatedEntity.getName
-        else rtName + getRemoteDescription + ": " + relatedEntity.getName
+      if simplify) {
+        if rtName == Database.THE_HAS_RELATION_TYPE_NAME) relatedEntity.get_name
+        else rtName + getRemoteDescription + ": " + relatedEntity.get_name
       } else {
-        rtName + getRemoteDescription + ": " + Color.blue(relatedEntity.getName) + "; " + getDatesDescription
+        rtName + getRemoteDescription + ": " + Color.blue(relatedEntity.get_name) + "; " + get_dates_description
       }
 
-//    if (this.isInstanceOf[RelationToRemoteEntity]) {
+//    if this.isInstanceOf[RelationToRemoteEntity]) {
 //      result = "[remote]" + result
 //    }
     Attribute.limitDescriptionLength(result, lengthLimitIn)

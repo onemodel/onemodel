@@ -19,7 +19,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
   let mut mDB: PostgreSQLDatabase = null;
 
   // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks. (?)
-  override fn runTests(testName: Option[String], args: Args) -> Status {
+  override fn runTests(testName: Option<String>, args: Args) -> Status {
     setUp()
     let result:Status = super.runTests(testName,args);
     // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
@@ -42,43 +42,43 @@ class GroupTest extends FlatSpec with MockitoSugar {
     let group1 = new Group(mDB, mDB.createGroup("groupName1"));
     let group2 = new Group(mDB, mDB.createGroup("groupName2"));
     let e1 = new Entity(mDB, mDB.createEntity("e1"));
-    group1.addEntity(e1.getId)
-    assert(group1.isEntityInGroup(e1.getId))
-    assert(! group2.isEntityInGroup(e1.getId))
-    group1.moveEntityToDifferentGroup(group2.getId, e1.getId, -1)
-    assert(! group1.isEntityInGroup(e1.getId))
-    assert(group2.isEntityInGroup(e1.getId))
+    group1.addEntity(e1.get_id)
+    assert(group1.isEntityInGroup(e1.get_id))
+    assert(! group2.isEntityInGroup(e1.get_id))
+    group1.moveEntityToDifferentGroup(group2.get_id, e1.get_id, -1)
+    assert(! group1.isEntityInGroup(e1.get_id))
+    assert(group2.isEntityInGroup(e1.get_id))
 
-    let index1 = group2.getEntrySortingIndex(e1.getId);
+    let index1 = group2.getEntrySortingIndex(e1.get_id);
     assert(index1 == -1)
-    group2.updateSortingIndex(e1.getId, -2)
-    assert(group2.getEntrySortingIndex(e1.getId) == -2)
+    group2.updateSortingIndex(e1.get_id, -2)
+    assert(group2.getEntrySortingIndex(e1.get_id) == -2)
     group2.renumberSortingIndexes()
-    assert(group2.getEntrySortingIndex(e1.getId) != -1)
-    assert(group2.getEntrySortingIndex(e1.getId) != -2)
+    assert(group2.getEntrySortingIndex(e1.get_id) != -1)
+    assert(group2.getEntrySortingIndex(e1.get_id) != -2)
     assert(! group2.isGroupEntrySortingIndexInUse(-1))
     assert(! group2.isGroupEntrySortingIndexInUse(-2))
 
-    let index2: i64 = group2.getEntrySortingIndex(e1.getId);
+    let index2: i64 = group2.getEntrySortingIndex(e1.get_id);
     assert(group2.findUnusedSortingIndex(None) != index2)
     let e3: Entity = new Entity(mDB, mDB.createEntity("e3"));
-    group2.addEntity(e3.getId)
-    group2.updateSortingIndex(e3.getId, Database.minIdValue)
+    group2.addEntity(e3.get_id)
+    group2.updateSortingIndex(e3.get_id, Database.min_id_value)
     // next lines not much of a test but is something:
-    let index3: Option<i64> = group2.getNearestGroupEntrysSortingIndex(Database.minIdValue, forwardNotBackIn = true);
-    assert(index3.get > Database.minIdValue)
-    /*val index4: i64 = */group2.getEntrySortingIndex(e1.getId)
-    let indexes = group2.getAdjacentGroupEntriesSortingIndexes(Database.minIdValue, Some(0), forwardNotBackIn = true);
+    let index3: Option<i64> = group2.getNearestGroupEntrysSortingIndex(Database.min_id_value, forwardNotBackIn = true);
+    assert(index3.get > Database.min_id_value)
+    /*val index4: i64 = */group2.getEntrySortingIndex(e1.get_id)
+    let indexes = group2.getAdjacentGroupEntriesSortingIndexes(Database.min_id_value, Some(0), forwardNotBackIn = true);
     assert(indexes.nonEmpty)
 
     let e2 = new Entity(mDB, mDB.createEntity("e2"));
     let resultsInOut1: mutable.TreeSet[i64] = e2.findContainedLocalEntityIds(new mutable.TreeSet[i64], "e2");
     assert(resultsInOut1.isEmpty)
-    group2.moveEntityFromGroupToLocalEntity(e2.getId, e1.getId, 0)
-    assert(! group2.isEntityInGroup(e1.getId))
+    group2.moveEntityFromGroupToLocalEntity(e2.get_id, e1.get_id, 0)
+    assert(! group2.isEntityInGroup(e1.get_id))
     let resultsInOut2: mutable.TreeSet[i64] = e2.findContainedLocalEntityIds(new mutable.TreeSet[i64], "e1");
     assert(resultsInOut2.size == 1)
-    assert(resultsInOut2.contains(e1.getId))
+    assert(resultsInOut2.contains(e1.get_id))
   }
 
   "getGroupsContainingEntitysGroupsIds etc" should "work" in {
@@ -87,11 +87,11 @@ class GroupTest extends FlatSpec with MockitoSugar {
     let group3 = new Group(mDB, mDB.createGroup("g3"));
     let entity1 = new Entity(mDB, mDB.createEntity("e1"));
     let entity2 = new Entity(mDB, mDB.createEntity("e2"));
-    group1.addEntity(entity1.getId)
-    group2.addEntity(entity2.getId)
+    group1.addEntity(entity1.get_id)
+    group2.addEntity(entity2.get_id)
     let rt = new RelationType(mDB, mDB.createRelationType("rt", "rtReversed", "BI"));
-    entity1.addRelationToGroup(rt.getId, group3.getId, None)
-    entity2.addRelationToGroup(rt.getId, group3.getId, None)
+    entity1.addRelationToGroup(rt.get_id, group3.get_id, None)
+    entity2.addRelationToGroup(rt.get_id, group3.get_id, None)
     let results = group3.getGroupsContainingEntitysGroupsIds();
     assert(results.size == 2)
 
@@ -100,7 +100,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
     assert(group3.getCountOfEntitiesContainingGroup._1 == 2)
     assert(group3.getContainingRelationsToGroup(0).size == 2)
 
-    assert(Group.getGroup(mDB, group3.getId).isDefined)
+    assert(Group.getGroup(mDB, group3.get_id).is_defined)
   }
 
 }

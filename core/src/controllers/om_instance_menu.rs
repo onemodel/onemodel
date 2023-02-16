@@ -22,26 +22,26 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
     fn omInstanceMenu(omInstanceIn: OmInstance) -> Option[OmInstance] {
     try {
       require(omInstanceIn != null)
-      let leadingText: Array[String] = Array[String]("OneModel Instance " + omInstanceIn.getDisplayString);
-      let choices = Array[String]("(stub)", /*"Add" would typically be here if needed, but that is provided off the MainMenu. */;
+      let leading_text: Vec<String> = Vec<String>("OneModel Instance " + omInstanceIn.get_display_string);
+      let choices = Vec<String>("(stub)", /*"Add" would typically be here if needed, but that is provided off the MainMenu. */;
                                   "(stub)" /*"sort" if needed*/ ,
                                   "Edit...",
-                                  if (!omInstanceIn.getLocal) "Delete" else "(Can't delete a local instance)")
-      let response = ui.askWhich(Some(leadingText), choices);
-      if (response.isEmpty) None
+                                  if !omInstanceIn.getLocal) "Delete" else "(Can't delete a local instance)")
+      let response = ui.ask_which(Some(leading_text), choices);
+      if response.isEmpty) None
       else {
         let answer = response.get;
-        if (answer == 3) {
-          let id: Option[String] = controller.askForAndWriteOmInstanceInfo(omInstanceIn.mDB, Some(omInstanceIn));
-          if (id.isDefined) {
+        if answer == 3) {
+          let id: Option<String> = controller.askForAndWriteOmInstanceInfo(omInstanceIn.mDB, Some(omInstanceIn));
+          if id.is_defined) {
             // possible was some modification; reread from db to get new values:
             omInstanceMenu(new OmInstance(omInstanceIn.mDB, id.get))
           } else {
             omInstanceMenu(omInstanceIn)
           }
-        } else if (answer == 4 && !omInstanceIn.getLocal) {
-          let deleteAnswer = ui.askYesNoQuestion("Delete this link to a separate OneModel instance: are you sure?", allowBlankAnswer = true);
-          if (deleteAnswer.isDefined && deleteAnswer.get) {
+        } else if answer == 4 && !omInstanceIn.getLocal) {
+          let deleteAnswer = ui.ask_yes_no_question("Delete this link to a separate OneModel instance: are you sure?", allow_blank_answer = true);
+          if deleteAnswer.is_defined && deleteAnswer.get) {
             omInstanceIn.delete()
             None
           } else {
@@ -56,8 +56,8 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
     } catch {
       case e: Exception =>
         org.onemodel.core.Util.handleException(e, ui, omInstanceIn.mDB)
-        let ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"));
-        if (ans.isDefined && ans.get) omInstanceMenu(omInstanceIn)
+        let ans = ui.ask_yes_no_question("Go back to what you were doing (vs. going out)?",Some("y"));
+        if ans.is_defined && ans.get) omInstanceMenu(omInstanceIn)
         else None
     }
   }

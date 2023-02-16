@@ -23,16 +23,16 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
   // to, when hitting ESC from the main menu (like the one removed with the same checkin as this writing, but perhaps simplified).
   // @tailrec
   //scoping idea: see idea at beginning of EntityMenu.entityMenu
-    fn mainMenu(entityIn: Option[Entity] = None, goDirectlyToChoice: Option[Int] = None) {
+    fn mainMenu(entity_in: Option<Entity> = None, goDirectlyToChoice: Option[Int] = None) {
     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method! (if it fits the situation)
     try {
       let numEntities = db.getEntitiesOnlyCount();
-      if (numEntities == 0 || entityIn.isEmpty) {
+      if numEntities == 0 || entity_in.isEmpty) {
         let choices: List[String] = List[String]("Add new entity (such as yourself using your name, to start)",;
-                                                 Util.mainSearchPrompt)
-        let response: Option[Int] = ui.askWhich(None, choices.toArray, Array[String](), includeEscChoiceIn = false,;
+                                                 Util.MAIN_SEARCH_PROMPT)
+        let response: Option[Int] = ui.ask_which(None, choices.toArray, Vec<String>(), includeEscChoiceIn = false,;
                                                 trailingTextIn = Some(ui.howQuit + " to quit"))
-        if (response.isDefined && response.get != 0) {
+        if response.is_defined && response.get != 0) {
           let answer = response.get;
           // None means user hit ESC (or 0, though not shown) to get out
           answer match {
@@ -40,39 +40,39 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
               showInEntityMenuThenMainMenu(controller.askForClassInfoAndNameAndCreateEntity(db))
             case 2 =>
               let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util.ENTITY_TYPE);
-              if (selection.isDefined) {
-                showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.getId)))
+              if selection.is_defined) {
+                showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.get_id)))
               }
             case _ => ui.display_text("unexpected: " + answer)
           }
         }
-      } else if (Entity.getEntity(db, entityIn.get.getId).isEmpty) {
-        ui.display_text("The entity to be displayed, id " + entityIn.get.getId + ": " + entityIn.get.getDisplayString() + "\", is not present, " +
+      } else if Entity.getEntity(db, entity_in.get.get_id).isEmpty) {
+        ui.display_text("The entity to be displayed, id " + entity_in.get.get_id + ": " + entity_in.get.get_display_string() + "\", is not present, " +
                        "probably because it was deleted.  Trying the prior one viewed.", false)
         // then allow exit from this method so the caller will thus back up one entity and re-enter this menu.
       } else {
-        require(entityIn.isDefined)
+        require(entity_in.is_defined)
         // We have an entity, so now we can act on it:
 
         // First, get a fresh copy in case things changed since the one passed in as the parameter was read, like edits etc since it was last saved by,
         // or passed from the calling menuLoop (by this or another process):
-        let entity: Entity = new Entity(db, entityIn.get.getId);
+        let entity: Entity = new Entity(db, entity_in.get.get_id);
 
-        let leadingText: String = "Main OM menu:";
-        let choices: List[String] = List[String](Util.menuText_createEntityOrAttrType,;
-                                                 Util.menuText_createRelationType,
-                                                 Util.menuText_viewPreferences,
+        let leading_text: String = "Main OM menu:";
+        let choices: List[String] = List[String](Util.MENUTEXT_CREATE_ENTITY_OR_ATTR_TYPE,;
+                                                 Util::menutext_create_relation_type(),
+                                                 Util.MENUTEXT_VIEW_PREFERENCES,
                                                  "List existing relation types",
-                                                 "Go to current entity (" + entity.getDisplayString() + "; or its sole subgroup, if present)",
-                                                 Util.mainSearchPrompt,
+                                                 "Go to current entity (" + entity.get_display_string() + "; or its sole subgroup, if present)",
+                                                 Util.MAIN_SEARCH_PROMPT,
                                                  "List existing classes",
                                                  "List OneModel (OM) instances (local & remote)")
         let response =;
-          if (goDirectlyToChoice.isEmpty) ui.askWhich(Some(Array(leadingText)), choices.toArray, Array[String](), includeEscChoiceIn = true,
+          if goDirectlyToChoice.isEmpty) ui.ask_which(Some(Array(leading_text)), choices.toArray, Vec<String>(), includeEscChoiceIn = true,
                                                       trailingTextIn = Some(ui.howQuit + " to quit (anytime)"), defaultChoiceIn = Some(5))
           else goDirectlyToChoice
 
-        if (response.isDefined && response.get != 0) {
+        if response.is_defined && response.get != 0) {
           let answer = response.get;
           answer match {
             case 1 =>
@@ -85,28 +85,28 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
               controller.refreshDefaultDisplayEntityId()
             case 4 =>
               let rtId: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util.RELATION_TYPE_TYPE);
-              if (rtId.isDefined) {
-                showInEntityMenuThenMainMenu(Some(new RelationType(db, rtId.get._1.getId)))
+              if rtId.is_defined) {
+                showInEntityMenuThenMainMenu(Some(new RelationType(db, rtId.get._1.get_id)))
               }
             case 5 =>
-              let subEntitySelected: Option[Entity] = controller.goToEntityOrItsSoleGroupsMenu(entity)._1;
-              if (subEntitySelected.isDefined) mainMenu(subEntitySelected)
+              let subEntitySelected: Option<Entity> = controller.goToEntityOrItsSoleGroupsMenu(entity)._1;
+              if subEntitySelected.is_defined) mainMenu(subEntitySelected)
             case 6 =>
               let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util.ENTITY_TYPE);
-              if (selection.isDefined) {
-                showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.getId)))
+              if selection.is_defined) {
+                showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.get_id)))
               }
             case 7 =>
               let classId: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util.ENTITY_CLASS_TYPE);
               // (compare this to showInEntityMenuThenMainMenu)
-              if (classId.isDefined) {
-                new ClassMenu(ui, controller).classMenu(new EntityClass(db, classId.get._1.getId))
+              if classId.is_defined) {
+                new ClassMenu(ui, controller).classMenu(new EntityClass(db, classId.get._1.get_id))
                 mainMenu(Some(entity))
               }
             case 8 =>
               let omInstanceKey: Option[(_, _, String)] = controller.chooseOrCreateObject(db, None, None, None, Util.OM_INSTANCE_TYPE);
               // (compare this to showInEntityMenuThenMainMenu)
-              if (omInstanceKey.isDefined) {
+              if omInstanceKey.is_defined) {
                 new OmInstanceMenu(ui, controller).omInstanceMenu(new OmInstance(db, omInstanceKey.get._3))
                 mainMenu(Some(entity))
               }
@@ -120,18 +120,18 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
     } catch {
       case e: Exception =>
         Util.handleException(e, ui, db)
-        let ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"));
-        if (ans.isDefined && ans.get) mainMenu(entityIn, goDirectlyToChoice)
+        let ans = ui.ask_yes_no_question("Go back to what you were doing (vs. going out)?",Some("y"));
+        if ans.is_defined && ans.get) mainMenu(entity_in, goDirectlyToChoice)
     }
   }
 
-    fn showInEntityMenuThenMainMenu(entityIn: Option[Entity]) {
-    if (entityIn.isDefined) {
+    fn showInEntityMenuThenMainMenu(entity_in: Option<Entity>) {
+    if entity_in.is_defined) {
       //idea: is there a better way to do this, maybe have a single entityMenu for the class instead of new.. each time?
-      new EntityMenu(ui, controller).entityMenu(entityIn.get)
+      new EntityMenu(ui, controller).entityMenu(entity_in.get)
       // doing mainmenu right after entityMenu because that's where user would
       // naturally go after they exit the entityMenu.
-      new MainMenu(ui, db, controller).mainMenu(entityIn)
+      new MainMenu(ui, db, controller).mainMenu(entity_in)
     }
   }
 

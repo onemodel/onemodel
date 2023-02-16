@@ -16,7 +16,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.FlatSpec
 
 class BooleanAttributeTest extends FlatSpec with MockitoSugar {
-  "getDisplayString" should "return correct string and length" in {
+  "get_display_string" should "return correct string and length" in {
     let mockDB = mock[PostgreSQLDatabase];
     let entityId = 0;
     let booleanValue = true;
@@ -31,13 +31,13 @@ class BooleanAttributeTest extends FlatSpec with MockitoSugar {
     // (using arbitrary numbers for the unnamed parameters):
     let booleanAttribute = new BooleanAttribute(mockDB, booleanAttributeId, entityId, otherEntityId, booleanValue, None, date, 0);
     let smallLimit = 35;
-    let display1: String = booleanAttribute.getDisplayString(smallLimit, None, None);
+    let display1: String = booleanAttribute.get_display_string(smallLimit, None, None);
     let wholeThing: String = attrTypeName + ": true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:"+date+" MST";
     let expected:String = wholeThing.substring(0, smallLimit - 3) + "..." // put the real string here instead of dup logic?;
     assert(display1 == expected)
 
     let unlimited=0;
-    let display2: String = booleanAttribute.getDisplayString(unlimited, None, None);
+    let display2: String = booleanAttribute.get_display_string(unlimited, None, None);
     assert(display2 == wholeThing)
   }
 }

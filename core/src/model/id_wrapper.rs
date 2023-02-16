@@ -18,7 +18,7 @@ struct IdWrapper {
       (But: why not just return a i64 or Option<i64>?)
       *
     class IdWrapper(id: i64) {
-        fn getId: i64 = {
+        fn get_id: i64 = {
         id
     }
      */

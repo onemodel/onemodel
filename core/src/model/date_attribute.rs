@@ -19,7 +19,7 @@ import org.onemodel.core.{OmException, Util}
   *
 class DateAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if (!mDB.is_remote && !mDB.dateAttributeKeyExists(mId)) {
+  if !mDB.is_remote && !mDB.dateAttributeKeyExists(mId)) {
     throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
   }
 
@@ -35,21 +35,21 @@ class DateAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     super.assignCommonVars(inParentId, attrTypeIdIn, sortingIndexIn)
   }
 
-    fn getDisplayString(lengthLimitIn: Int, unused: Option[Entity] = None, unused2: Option[RelationType]=None, simplify: Boolean = false) -> String {
+    fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: Boolean = false) -> String {
     let typeName: String = mDB.getEntityName(getAttrTypeId).get;
     let mut result: String = typeName + ": ";
-    result += Attribute.usefulDateFormat(mDate)
+    result += Attribute.useful_date_format(mDate)
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
     fn getDate -> i64 {
-    if (!mAlreadyReadData) readDataFromDB()
+    if !mAlreadyReadData) readDataFromDB()
     mDate
   }
 
   protected fn readDataFromDB() {
     let daTypeData = mDB.getDateAttributeData(mId);
-    if (daTypeData.length == 0) {
+    if daTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + mId)
     }
     mDate = daTypeData(1).get.asInstanceOf[i64]

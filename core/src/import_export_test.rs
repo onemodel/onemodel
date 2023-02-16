@@ -38,7 +38,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   let mut mImportExport: ImportExport = null;
   let mut mDB: PostgreSQLDatabase = null;
 
-  override fn runTests(testName: Option[String], args: Args) -> Status {
+  override fn runTests(testName: Option<String>, args: Args) -> Status {
     setUp()
     let result: Status = super.runTests(testName, args);
     // (not calling tearDown: see comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
@@ -56,7 +56,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     // idea: fix the bad smell: shouldn't need a ui (& maybe not a Controller?) to run tests of logic.  Noted in tasks to fix.
     //(ALSO FIX SIMILAR USAGE IN PostgreSQLDatabaseTest.)
     mImportExport = new ImportExport(ui, new Controller(ui, forceUserPassPromptIn = false,
-                                                             defaultUsernameIn = Some(Database.TEST_USER), defaultPasswordIn = Some(Database.TEST_PASS)))
+                                                             defaultUsername_in = Some(Database.TEST_USER), defaultPasswordIn = Some(Database.TEST_PASS)))
 
     let entityId: i64 = mDB.createEntity("test object");
     mEntity = new Entity(mDB, entityId)
@@ -66,7 +66,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 
-    fn tryExportingHtml(ids: java.util.ArrayList[i64]) -> (String, Array[String]) {
+    fn tryExportingHtml(ids: java.util.ArrayList[i64]) -> (String, Vec<String>) {
     assert(ids.size > 0)
     let entityId: i64 = ids.get(0);
     let startingEntity: Entity = new Entity(mDB, entityId);
@@ -86,7 +86,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
                              includeUnspecifiedData = true, None, None, Some("2015 thisisatestpersonname"))
 
     assert(outputDirectory.toFile.exists)
-    let newFiles: Array[String] = outputDirectory.toFile.list;
+    let newFiles: Vec<String> = outputDirectory.toFile.list;
     let firstNewFileName = "e" + entityId + ".html";
     let firstNewFile = new File(outputDirectory.toFile, firstNewFileName);
     let firstNewFileContents: String = new Predef.String(Files.readAllBytes(firstNewFile.toPath));
@@ -101,15 +101,15 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   // Better yet, is there a way to tell in code if anything called between two lines tries to start or commit a transaction? (ie, "I want to control this, none else.")
   // Maybe this should really be in a db test class since db logic is what it's actually checking.
   "testImport" should "not persist if rollback attempted" in {
-    mDB.beginTrans()
+    mDB.begin_trans()
     mImportExport.tryImporting_FOR_TESTS("testImportFile0.txt", mEntity)
-    mDB.rollbackTrans()
+    mDB.rollback_trans()
     assert(mDB.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db").isEmpty)
 
     //check it again with data that has a text attribute, since it adds an operation to the import, and any such could have a transaction issue
-    mDB.beginTrans()
+    mDB.begin_trans()
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
-    mDB.rollbackTrans()
+    mDB.rollback_trans()
     assert(mDB.findAllEntityIdsByName("vsgeer4").isEmpty)
   }
 
@@ -154,7 +154,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     let relationTypeId = mDB.findRelationType(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
     for (entityId: i64 <- ids) {
       // (could have used mDB.getContainingEntities1 here perhaps)
-      if (mDB.relationToLocalEntityExists(relationTypeId, mEntity.getId, entityId)) {
+      if mDB.relationToLocalEntityExists(relationTypeId, mEntity.get_id, entityId) {
         foundIt = true
       }
     }
@@ -164,7 +164,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
   "testExportHtml" should "work" in {
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
     let ids: java.util.ArrayList[i64] = mDB.findAllEntityIdsByName("vsgeer4");
-    let (firstNewFileContents: String, newFiles: Array[String]) = tryExportingHtml(ids);
+    let (firstNewFileContents: String, newFiles: Vec<String>) = tryExportingHtml(ids);
 
     assert(firstNewFileContents.contains("<a href=\"e-"), "unexpected file contents: no href?:  " + firstNewFileContents)
     assert(firstNewFileContents.contains("purpose"), "unexpected file contents: no 'purpose'?:  " + firstNewFileContents)

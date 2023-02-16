@@ -18,16 +18,16 @@ import org.onemodel.core.{Util, OmException}
 object RelationToLocalEntity {
   /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     */
-    fn getRelationToLocalEntity(inDB: Database, id: i64) -> Option[RelationToLocalEntity] {
-    let result: Array[Option[Any]] = inDB.getRelationToLocalEntityDataById(id);
+    fn getRelationToLocalEntity(in_db: Database, id: i64) -> Option[RelationToLocalEntity] {
+    let result: Array[Option[Any]] = in_db.getRelationToLocalEntityDataById(id);
     let relTypeId = result(0).get.asInstanceOf[i64];
     let eid1 = result(1).get.asInstanceOf[i64];
     let eid2 = result(2).get.asInstanceOf[i64];
-    try Some(new RelationToLocalEntity(inDB, id, relTypeId, eid1, eid2))
+    try Some(new RelationToLocalEntity(in_db, id, relTypeId, eid1, eid2))
     catch {
       case e: java.lang.Exception =>
         //idea: see comment here in Entity.scala.
-        if (e.toString.indexOf(Util.DOES_NOT_EXIST) >= 0) {
+        if e.toString.indexOf(Util.DOES_NOT_EXIST) >= 0) {
           None
         }
         else throw e
@@ -47,7 +47,7 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
   // Even a RelationToRemoteEntity can have mDB.is_remote == true, if it is viewing data *in* a remote OM instance
   // looking at RTLEs that are remote to that remote instance.
   // See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.
-  if (mDB.is_remote || mDB.relationToLocalEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mEntityId2)) {
+  if mDB.is_remote || mDB.relationToLocalEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mEntityId2)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:;
     mAttrTypeId = mRelTypeId
   } else {
@@ -60,17 +60,17 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(mDB: Database, idIn: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64, validOnDateIn: Option<i64>, observationDateIn: i64,
+    fn this(mDB: Database, id_in: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64, valid_on_date_in: Option<i64>, observationDateIn: i64,
            sortingIndexIn: i64) {
-    this(mDB, idIn, relTypeIdIn, entityId1In, entityId2In)
-    //    if (this.isInstanceOf[RelationToRemoteEntity]) {
+    this(mDB, id_in, relTypeIdIn, entityId1In, entityId2In)
+    //    if this.isInstanceOf[RelationToRemoteEntity]) {
     //      //idea: this test & exception feel awkward. What is the better approach?  Maybe using scala's type features?
     //      throw new OmException("This constructor should not be called by the subclass.")
     //    }
 
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
-    assignCommonVars(entityId1In, relTypeIdIn, validOnDateIn, observationDateIn, sortingIndexIn)
+    assignCommonVars(entityId1In, relTypeIdIn, valid_on_date_in, observationDateIn, sortingIndexIn)
   }
 
     fn getRemoteDescription() -> String {
@@ -84,7 +84,7 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
 
   protected fn readDataFromDB() {
     let relationData: Array[Option[Any]] = mDB.getRelationToLocalEntityData(mAttrTypeId, mEntityId1, mEntityId2);
-    if (relationData.length == 0) {
+    if relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mAttrTypeId + ", " + mEntityId1 + ", " + mEntityId2)
     }
     // No other local variables to assign.  All are either in the superclass or the primary key.
@@ -96,23 +96,23 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
   }
 
     fn move(toLocalContainingEntityIdIn: i64, sortingIndexIn: i64) -> RelationToLocalEntity {
-    mDB.moveRelationToLocalEntityToLocalEntity(getId, toLocalContainingEntityIdIn, sortingIndexIn)
+    mDB.moveRelationToLocalEntityToLocalEntity(get_id, toLocalContainingEntityIdIn, sortingIndexIn)
   }
 
     fn moveEntityFromEntityToGroup(targetGroupIdIn: i64, sortingIndexIn: i64) {
     mDB.moveLocalEntityFromLocalEntityToGroup(this, targetGroupIdIn, sortingIndexIn)
   }
 
-    fn update(validOnDateIn:Option<i64>, observationDateIn:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
+    fn update(valid_on_date_in:Option<i64>, observationDateIn:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
     let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
-    //Using validOnDateIn rather than validOnDateIn.get because validOnDate allows None, unlike others.
+    //Using valid_on_date_in rather than valid_on_date_in.get because valid_on_date allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations
     // & how to be most clear (could be the same in RelationToGroup & other Attribute subclasses).)
-    let vod = if (validOnDateIn.isDefined) validOnDateIn else getValidOnDate;
-    let od = if (observationDateIn.isDefined) observationDateIn.get else getObservationDate;
+    let vod = if valid_on_date_in.is_defined) valid_on_date_in else getValidOnDate;
+    let od = if observationDateIn.is_defined) observationDateIn.get else getObservationDate;
     mDB.updateRelationToLocalEntity(mAttrTypeId, mEntityId1, mEntityId2, newAttrTypeId, vod, od)
-    mValidOnDate = vod
-    mObservationDate = od
+    valid_on_date = vod
+    observation_date = od
     mAttrTypeId = newAttrTypeId
   }
 

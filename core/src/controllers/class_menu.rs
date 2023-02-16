@@ -24,83 +24,83 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
     fn classMenu(classIn: EntityClass) -> Option[EntityClass] {
     try {
       require(classIn != null)
-      let leadingText: Array[String] = Array[String]("CLASS: " + classIn.getDisplayString);
-      let choices = Array[String]("(stub: classes can be added while creating a new entity)" /*"add"' option, if needed*/ ,;
+      let leading_text: Vec<String> = Vec<String>("CLASS: " + classIn.get_display_string);
+      let choices = Vec<String>("(stub: classes can be added while creating a new entity)" /*"add"' option, if needed*/ ,;
                                   "(stub)" /*"sort" if needed*/ ,
                                   "Edit...",
                                   "Delete",
                                   "Go to class's template entity",
                                   "Search (List all entities in this class)")
-      let response = ui.askWhich(Some(leadingText), choices);
-      if (response.isEmpty) None
+      let response = ui.ask_which(Some(leading_text), choices);
+      if response.isEmpty) None
       else {
         let answer = response.get;
-        if (answer == 3) {
+        if answer == 3) {
           let currentCreateDefaultAttrValue: Option<bool> = classIn.getCreateDefaultAttributes;
           let asDisplayed = {;
-            if (currentCreateDefaultAttrValue.isEmpty) "unset"
-            else if (currentCreateDefaultAttrValue.get) "true" else "false"
+            if currentCreateDefaultAttrValue.isEmpty) "unset"
+            else if currentCreateDefaultAttrValue.get) "true" else "false"
           }
-          let editResponse = ui.askWhich(None, Array[String]("Edit class name",;
+          let editResponse = ui.ask_which(None, Vec<String>("Edit class name",;
                                                              "Edit \"Create template attributes by default on new entities\" value (currently " + asDisplayed + ")"))
-          if (editResponse.isEmpty) None
-          else if (editResponse.get == 1) {
+          if editResponse.isEmpty) None
+          else if editResponse.get == 1) {
             controller.askForAndWriteClassAndTemplateEntityName(classIn.mDB, Some(classIn))
-            classMenu(new EntityClass(classIn.mDB, classIn.getId))
-          } else if (editResponse.get == 2) {
+            classMenu(new EntityClass(classIn.mDB, classIn.get_id))
+          } else if editResponse.get == 2) {
             let prompt = "Do you want the program to create all the attributes by default, when creating a new entity in this class, using " +;
                          "the class defining entity's attributes as a template?  Enter a yes/no value (or a space for 'unknown/unspecified', i.e., to " +
                          "ask every time)"
             let valueBefore: Option<bool> = classIn.getCreateDefaultAttributes;
-            let defaultValue: String = valueBefore match {;
+            let default_value: String = valueBefore match {;
               case Some(true) => "y"
               case Some(false) => "n"
               case None => " "
             }
-            let valueEntered: Option<bool> = ui.askYesNoQuestion(prompt, Some(defaultValue), allowBlankAnswer = true);
-            if (valueBefore != valueEntered) {
+            let valueEntered: Option<bool> = ui.ask_yes_no_question(prompt, Some(default_value), allow_blank_answer = true);
+            if valueBefore != valueEntered) {
               classIn.updateCreateDefaultAttributes(valueEntered)
             }
-            classMenu(new EntityClass(classIn.mDB, classIn.getId))
+            classMenu(new EntityClass(classIn.mDB, classIn.get_id))
           } else {
             //textui doesn't actually let the code get here, but:
             ui.display_text("invalid response")
             None
           }
         }
-        else if (answer == 4) {
-          let entitiesCount: i64 = classIn.mDB.getEntitiesOnlyCount(limitByClass = true, Some(classIn.getId), Some(classIn.getTemplateEntityId));
-          if (entitiesCount > 0) {
+        else if answer == 4) {
+          let entitiesCount: i64 = classIn.mDB.getEntitiesOnlyCount(limitByClass = true, Some(classIn.get_id), Some(classIn.getTemplateEntityId));
+          if entitiesCount > 0) {
             ui.display_text("Can not delete class, because it is the class of " + entitiesCount + " entities.")
           } else {
-            let name = classIn.getName;
+            let name = classIn.get_name;
             let templateEntity = new Entity(classIn.mDB, classIn.getTemplateEntityId);
-            let templateEntityName: String = templateEntity.getName;
+            let templateEntityName: String = templateEntity.get_name;
             let groupCount: i64 = templateEntity.getCountOfContainingGroups;
             let (entityCountNonArchived, entityCountArchived) = templateEntity.getCountOfContainingLocalEntities;
-            let ans = ui.askYesNoQuestion("DELETE CLASS \"" + name + "\" AND its template ENTITY \"" + templateEntityName + "\" with " +;
-                                          Util.entityPartsThatCanBeAffected + ".  \n**ARE YOU REALLY SURE?**  (The template entity is " +
-                                          Util.getContainingEntitiesDescription(entityCountNonArchived, entityCountArchived) + ", and " +
+            let ans = ui.ask_yes_no_question("DELETE CLASS \"" + name + "\" AND its template ENTITY \"" + templateEntityName + "\" with " +;
+                                          Util.ENTITY_PARTS_THAT_CAN_BE_AFFECTED + ".  \n**ARE YOU REALLY SURE?**  (The template entity is " +
+                                          Util.get_containing_entities_description(entityCountNonArchived, entityCountArchived) + ", and " +
                                           groupCount + " groups.)")
-            if (ans.isDefined && ans.get) {
+            if ans.is_defined && ans.get) {
               classIn.delete()
               ui.display_text("Deleted class \"" + name + "\"" + ".")
               let selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(classIn.mDB, None, None, None, Util.ENTITY_CLASS_TYPE);
-              if (selection.isDefined) classMenu(new EntityClass(classIn.mDB, selection.get._1.getId))
+              if selection.is_defined) classMenu(new EntityClass(classIn.mDB, selection.get._1.get_id))
             } else {
               ui.display_text("Did not delete class.", false);
             }
           }
           classMenu(classIn)
-        } else if (answer == 5) {
+        } else if answer == 5) {
           new EntityMenu(ui, controller).entityMenu(new Entity(classIn.mDB, classIn.getTemplateEntityId))
-          classMenu(new EntityClass(classIn.mDB, classIn.getId))
-        } else if (answer == 6) {
+          classMenu(new EntityClass(classIn.mDB, classIn.get_id))
+        } else if answer == 6) {
           let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(classIn.mDB, None, None, Some(classIn.getTemplateEntityId), Util.ENTITY_TYPE, 0,;
-                                                                               Some(classIn.getId),
+                                                                               Some(classIn.get_id),
                                                                                limitByClassIn = true)
-          if (selection.isDefined) new EntityMenu(ui, controller).entityMenu(new Entity(classIn.mDB, selection.get._1.getId))
-          classMenu(new EntityClass(classIn.mDB, classIn.getId))
+          if selection.is_defined) new EntityMenu(ui, controller).entityMenu(new Entity(classIn.mDB, selection.get._1.get_id))
+          classMenu(new EntityClass(classIn.mDB, classIn.get_id))
         } else {
           //textui doesn't actually let the code get here, but:
           ui.display_text("invalid response")
@@ -110,8 +110,8 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
     } catch {
       case e: Exception =>
         Util.handleException(e, ui, classIn.mDB)
-        let ans = ui.askYesNoQuestion("Go back to what you were doing (vs. going out)?",Some("y"));
-        if (ans.isDefined && ans.get) classMenu(classIn)
+        let ans = ui.ask_yes_no_question("Go back to what you were doing (vs. going out)?",Some("y"));
+        if ans.is_defined && ans.get) classMenu(classIn)
         else None
     }
   }

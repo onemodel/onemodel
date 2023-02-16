@@ -21,7 +21,7 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
   let mut mEntityClass: EntityClass = null;
   let mut mDB: PostgreSQLDatabase = null;
 
-  override fn runTests(testName: Option[String], args: Args) -> Status {
+  override fn runTests(testName: Option<String>, args: Args) -> Status {
     setUp()
     let result:Status = super.runTests(testName,args);
     // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
@@ -45,7 +45,7 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 
-  "getDisplayString" should "return a useful stack trace string, when called with a nonexistent class" in {
+  "get_display_string" should "return a useful stack trace string, when called with a nonexistent class" in {
     // for example, if the class has been deleted by one part of the code, or one user process in a console window (as an example), and is still
     // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an class that's gone due to a bug).
     // (But should this issue go away w/ better design involving more use of immutability or something?)
@@ -55,13 +55,13 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     when(mockDB.getClassData(id)).thenThrow(new RuntimeException("some exception"))
 
     let entityClass = new EntityClass(mockDB, id);
-    let ec = entityClass.getDisplayString;
+    let ec = entityClass.get_display_string;
     assert(ec.contains("Unable to get class description due to"))
     assert(ec.toLowerCase.contains("exception"))
     assert(ec.toLowerCase.contains("at org.onemodel"))
   }
 
-  "getDisplayString" should "return name" in {
+  "get_display_string" should "return name" in {
     let id = 0L;
     let templateEntityId = 1L;
     let mockDB = mock[PostgreSQLDatabase];
@@ -70,31 +70,31 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     when(mockDB.getClassData(id)).thenReturn(Array[Option[Any]](Some("class1Name"), Some(templateEntityId), Some(true)))
 
     let entityClass = new EntityClass(mockDB, id);
-    let ds = entityClass.getDisplayString;
+    let ds = entityClass.get_display_string;
     assert(ds == "class1Name")
   }
 
   "updateClassAndTemplateEntityName" should "work" in {
     //about begintrans: see comment farther below.
-//    mDB.beginTrans()
+//    mDB.begin_trans()
     let tmpName = "garbage-temp";
     mEntityClass.updateClassAndTemplateEntityName(tmpName)
     assert(mEntityClass.mName == tmpName)
     // have to reread to see the change:
-    assert(new EntityClass(mDB, mEntityClass.getId).getName == tmpName)
-    assert(new Entity(mDB, mTemplateEntity.getId).getName == tmpName + "-template")
-    // See comment about next 3 lines, at the rollbackTrans call at the end of the PostgreSQLDatabaseTest.scala test
+    assert(new EntityClass(mDB, mEntityClass.get_id).get_name == tmpName)
+    assert(new Entity(mDB, mTemplateEntity.get_id).get_name == tmpName + "-template")
+    // See comment about next 3 lines, at the rollback_trans call at the end of the PostgreSQLDatabaseTest.scala test
     // "getAttrCount, getAttributeSortingRowsCount".
-//    mDB.rollbackTrans()
-//    assert(new EntityClass(mDB, mEntityClass.getId).getName != tmpName)
-//    assert(new Entity(mDB, mTemplateEntity.getId).getName != tmpName + "-template")
+//    mDB.rollback_trans()
+//    assert(new EntityClass(mDB, mEntityClass.get_id).get_name != tmpName)
+//    assert(new Entity(mDB, mTemplateEntity.get_id).get_name != tmpName + "-template")
   }
 
   "updateCreateDefaultAttributes" should "work" in {
     assert(mEntityClass.getCreateDefaultAttributes.isEmpty)
     mEntityClass.updateCreateDefaultAttributes(Some(true))
     assert(mEntityClass.getCreateDefaultAttributes.get)
-    assert(new EntityClass(mDB, mEntityClass.getId).getCreateDefaultAttributes.get)
+    assert(new EntityClass(mDB, mEntityClass.get_id).getCreateDefaultAttributes.get)
   }
 
 }

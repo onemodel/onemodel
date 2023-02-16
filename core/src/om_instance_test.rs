@@ -17,7 +17,7 @@ class OmInstanceTest extends FlatSpec with MockitoSugar {
   let mut mDB: PostgreSQLDatabase = null;
 
   // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks. (?)
-  override fn runTests(testName: Option[String], args: Args) -> Status {
+  override fn runTests(testName: Option<String>, args: Args) -> Status {
     setUp()
     let result:Status = super.runTests(testName,args);
     // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
@@ -41,7 +41,7 @@ class OmInstanceTest extends FlatSpec with MockitoSugar {
     let omi = OmInstance.create(mDB, java.util.UUID.randomUUID().toString, address);
     assert(omi.getAddress == address)
     omi.update("newAddress")
-    assert(new OmInstance(mDB, omi.getId).getAddress != address)
+    assert(new OmInstance(mDB, omi.get_id).getAddress != address)
   }
 
 }

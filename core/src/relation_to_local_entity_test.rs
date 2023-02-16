@@ -17,7 +17,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   let mut mDB: PostgreSQLDatabase = null;
 
   // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks.
-  override fn runTests(testName: Option[String], args: Args) -> Status {
+  override fn runTests(testName: Option<String>, args: Args) -> Status {
     setUp()
     let result:Status = super.runTests(testName,args);
     // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
@@ -36,7 +36,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
   }
 
-  "getDisplayString" should "return correct strings and length" in {
+  "get_display_string" should "return correct strings and length" in {
     let relationTypeName: String = "is husband to";
     let relationTypeNameInReverseDirection: String = "is wife to";
     let relationTypeId: i64 = mDB.createRelationType(relationTypeName, relationTypeNameInReverseDirection, "BI");
@@ -46,20 +46,20 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let entity1 = new Entity(mDB, mDB.createEntity(entity1Name));
     let entity2 = new Entity(mDB, mDB.createEntity(entity2Name));
     let date = 304;
-    let rtle: RelationToLocalEntity = mDB.createRelationToLocalEntity(relationTypeId, entity1.getId, entity2.getId, None, date, Some(0));
+    let rtle: RelationToLocalEntity = mDB.createRelationToLocalEntity(relationTypeId, entity1.get_id, entity2.get_id, None, date, Some(0));
 
     let smallLimit = 15;
-    let displayed1: String = rtle.getDisplayString(smallLimit, Some(entity2), Some(relationType));
+    let displayed1: String = rtle.get_display_string(smallLimit, Some(entity2), Some(relationType));
     let expectedDateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST";
     let wholeExpectedThing: String = relationTypeName + ": " + entity2Name + "; valid unsp'd, obsv'd "+expectedDateOutput;
     let expected = wholeExpectedThing.substring(0, smallLimit - 3) + "...";
     assert(displayed1 == expected, "unexpected contents: " + displayed1)
 
-    let displayed2: String = rtle.getDisplayString(0, Some(entity1), Some(relationType));
+    let displayed2: String = rtle.get_display_string(0, Some(entity1), Some(relationType));
     let expected2:String = relationTypeNameInReverseDirection + ": \033[36m" + entity1Name + "\033[0m; valid unsp'd, obsv'd "+expectedDateOutput;
     assert(displayed2 == expected2)
 
-    let displayed3: String = rtle.getDisplayString(smallLimit, Some(entity2), Some(relationType), simplify = true);
+    let displayed3: String = rtle.get_display_string(smallLimit, Some(entity2), Some(relationType), simplify = true);
     assert(displayed3 == "is husband t...")
 
   }
@@ -69,14 +69,14 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let entity2 = new Entity(mDB, mDB.createEntity("entity2"));
     let entity3 = new Entity(mDB, mDB.createEntity("entity3"));
     let relType = new RelationType(mDB, mDB.createRelationType("reltype1", "", "UNI"));
-    let rtle: RelationToLocalEntity = mDB.createRelationToLocalEntity(relType.getId, entity1.getId, entity2.getId, Some(0L), 0);
+    let rtle: RelationToLocalEntity = mDB.createRelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
     let firstParent = rtle.getRelatedId1;
-    assert(firstParent == entity1.getId)
-    let newRtle: RelationToLocalEntity = rtle.move(entity3.getId, 0);
+    assert(firstParent == entity1.get_id)
+    let newRtle: RelationToLocalEntity = rtle.move(entity3.get_id, 0);
     // reread to get new data
-    assert(newRtle.getParentId == entity3.getId)
-    assert(newRtle.getAttrTypeId == relType.getId)
-    assert(newRtle.getRelatedId2 == entity2.getId)
+    assert(newRtle.getParentId == entity3.get_id)
+    assert(newRtle.getAttrTypeId == relType.get_id)
+    assert(newRtle.getRelatedId2 == entity2.get_id)
 
     newRtle.getValidOnDate
     newRtle.getObservationDate
@@ -85,34 +85,34 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let newVod = 345L;
     let newOd = 456L;
     newRtle.update(Some(newVod), Some(newOd), Some(newAttrTypeId))
-    let updatedRtle = new RelationToLocalEntity(mDB, newRtle.getId, newAttrTypeId, newRtle.getRelatedId1, newRtle.getRelatedId2);
+    let updatedRtle = new RelationToLocalEntity(mDB, newRtle.get_id, newAttrTypeId, newRtle.getRelatedId1, newRtle.getRelatedId2);
     assert(updatedRtle.getValidOnDate.get == newVod)
     assert(updatedRtle.getObservationDate == newOd)
 
     let groupId = mDB.createGroup("group");
     let group = new Group(mDB, groupId);
-    assert(! group.isEntityInGroup(entity2.getId))
+    assert(! group.isEntityInGroup(entity2.get_id))
     newRtle.moveEntityFromEntityToGroup(groupId, 0)
-    assert(! mDB.relationToLocalentity_key_exists(newRtle.getId))
-    assert(group.isEntityInGroup(entity2.getId))
+    assert(! mDB.relationToLocalentity_key_exists(newRtle.get_id))
+    assert(group.isEntityInGroup(entity2.get_id))
   }
 
   "delete etc" should "work" in {
     let entity1 = new Entity(mDB, mDB.createEntity("entity1"));
     let entity2 = new Entity(mDB, mDB.createEntity("entity2"));
     let relType = new RelationType(mDB, mDB.createRelationType("reltype1", "", "UNI"));
-    let rtle: RelationToLocalEntity = mDB.createRelationToLocalEntity(relType.getId, entity1.getId, entity2.getId, Some(0L), 0);
-    assert(mDB.relationToLocalEntityExists(relType.getId, entity1.getId, entity2.getId))
+    let rtle: RelationToLocalEntity = mDB.createRelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
+    assert(mDB.relationToLocalEntityExists(relType.get_id, entity1.get_id, entity2.get_id))
     rtle.delete()
-    assert(!mDB.relationToLocalEntityExists(relType.getId, entity1.getId, entity2.getId))
+    assert(!mDB.relationToLocalEntityExists(relType.get_id, entity1.get_id, entity2.get_id))
 
     // throwing in this test for ease & faster running: otherwise should be in RelationTypeTest:
     let newName = "new-reltype-name";
     let newInReverseName = "new-in-reverse";
     relType.update(newName, newInReverseName, "NON")
-    let updatedRelationType = new RelationType(mDB, relType.getId);
-    assert(updatedRelationType.getName == newName)
-    assert(updatedRelationType.getNameInReverseDirection == newInReverseName)
+    let updatedRelationType = new RelationType(mDB, relType.get_id);
+    assert(updatedRelationType.get_name == newName)
+    assert(updatedRelationType.get_name_in_reverseDirection == newInReverseName)
     assert(updatedRelationType.getDirectionality == "NON")
   }
 }
