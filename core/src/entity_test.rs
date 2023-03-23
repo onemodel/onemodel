@@ -19,11 +19,11 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
   let mut mEntity: Entity = null;
   let mut mUnitId: i64 = 0;
-  let mut mDB: PostgreSQLDatabase = null;
+  let mut m_db: PostgreSQLDatabase = null;
   let mut mQuantityAttrTypeId: i64 = 0;
   let mut mTextAttrTypeId: i64 = 0;
   let mut mDateAttrTypeId = 0L;
-  let mut mBooleanAttrTypeId = 0L;
+  let mut m_booleanAttrTypeId = 0L;
   let mut mFileAttrTypeId = 0L;
   let mut mRelationTypeId = 0L;
 
@@ -39,17 +39,17 @@ class EntityTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
 
     // instantiation does DB setup (creates tables, default data, etc):
-    mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+    m_db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
 
-    mUnitId = mDB.createEntity("centimeters")
-    mQuantityAttrTypeId = mDB.createEntity("length")
-    mTextAttrTypeId = mDB.createEntity("someName")
-    mDateAttrTypeId = mDB.createEntity("someName")
-    mBooleanAttrTypeId = mDB.createEntity("someName")
-    mFileAttrTypeId = mDB.createEntity("someName")
-    mRelationTypeId = mDB.createRelationType("someRelationType", "reversedName", "NON")
-    let id: i64 = mDB.createEntity("test object");
-    mEntity = new Entity(mDB, id)
+    mUnitId = m_db.createEntity("centimeters")
+    mQuantityAttrTypeId = m_db.createEntity("length")
+    mTextAttrTypeId = m_db.createEntity("someName")
+    mDateAttrTypeId = m_db.createEntity("someName")
+    m_booleanAttrTypeId = m_db.createEntity("someName")
+    mFileAttrTypeId = m_db.createEntity("someName")
+    mRelationTypeId = m_db.createRelationType("someRelationType", "reversedName", "NON")
+    let id: i64 = m_db.createEntity("test object");
+    mEntity = new Entity(m_db, id)
   }
 
   protected fn tearDown() {
@@ -57,7 +57,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
   }
 
   "testAddQuantityAttribute" should "work" in {
-    mDB.begin_trans()
+    m_db.begin_trans()
     println!("starting testAddQuantityAttribute")
     let id: i64 = mEntity.addQuantityAttribute(mQuantityAttrTypeId, mUnitId, 100, None).get_id;
     let qo: QuantityAttribute = mEntity.getQuantityAttribute(id);
@@ -65,11 +65,11 @@ class EntityTest extends FlatSpec with MockitoSugar {
       fail("addQuantityAttribute then getQuantityAttribute returned null")
     }
     assert(qo.get_id == id)
-    mDB.rollback_trans()
+    m_db.rollback_trans()
   }
 
   "testAddTextAttribute" should "also work" in {
-    mDB.begin_trans()
+    m_db.begin_trans()
     println!("starting testAddTextAttribute")
     let id: i64 = mEntity.addTextAttribute(mTextAttrTypeId, "This is someName given to an object", None).get_id;
     let t: TextAttribute = mEntity.getTextAttribute(id);
@@ -77,38 +77,38 @@ class EntityTest extends FlatSpec with MockitoSugar {
       fail("addTextAttribute then getTextAttribute returned null")
     }
     assert(t.get_id == id)
-    mDB.rollback_trans()
+    m_db.rollback_trans()
   }
 
   "testAddDateAttribute" should "also work" in {
-    mDB.begin_trans()
+    m_db.begin_trans()
     println!("starting testAddDateAttribute")
     let id: i64 = mEntity.addDateAttribute(mDateAttrTypeId, 2).get_id;
     let t: DateAttribute = mEntity.getDateAttribute(id);
     assert(t != null)
     assert(t.get_id == id)
-    assert(t.getAttrTypeId == mDateAttrTypeId)
+    assert(t.get_attr_type_id() == mDateAttrTypeId)
     assert(t.getDate == 2)
-    mDB.rollback_trans()
+    m_db.rollback_trans()
   }
 
   "testAddBooleanAttribute" should "also work" in {
-    mDB.begin_trans()
+    m_db.begin_trans()
     println!("starting testAddBooleanAttribute")
     let startTime = System.currentTimeMillis();
-    let id: i64 = mEntity.addBooleanAttribute(mBooleanAttrTypeId, inBoolean = true, None).get_id;
-    let t: BooleanAttribute = mEntity.getBooleanAttribute(id);
+    let id: i64 = mEntity.addBooleanAttribute(m_booleanAttrTypeId, inBoolean = true, None).get_id;
+    let t: BooleanAttribute = mEntity.get_booleanAttribute(id);
     assert(t != null)
     assert(t.get_id == id)
-    assert(t.getBoolean)
-    assert(t.getParentId == mEntity.get_id)
-    assert(t.getValidOnDate.isEmpty)
-    assert(t.getObservationDate > (startTime - 1) && t.getObservationDate < (System.currentTimeMillis() + 1))
-    mDB.rollback_trans()
+    assert(t.get_boolean)
+    assert(t.get_parent_id() == mEntity.get_id)
+    assert(t.get_valid_on_date().isEmpty)
+    assert(t.get_observation_date() > (startTime - 1) && t.get_observation_date() < (System.currentTimeMillis() + 1))
+    m_db.rollback_trans()
   }
 
   "testAddFileAttribute" should "also work" in {
-    mDB.begin_trans()
+    m_db.begin_trans()
     let mut file: java.io.File = null;
     let mut fw: java.io.FileWriter = null;
     println!("starting testAddFileAttribute")
@@ -127,8 +127,8 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
       let id: i64 = mEntity.addFileAttribute(mFileAttrTypeId, "file desc here, long or short", file).get_id;
       let t: FileAttribute = mEntity.getFileAttribute(id);
-      assert(t.getParentId == mEntity.get_id)
-      assert(t.getAttrTypeId == mFileAttrTypeId)
+      assert(t.get_parent_id() == mEntity.get_id)
+      assert(t.get_attr_type_id() == mFileAttrTypeId)
       assert(t.getDescription == "file desc here, long or short")
       assert(t.getOriginalFileDate > 1389461364000L)
       let now = System.currentTimeMillis();
@@ -143,7 +143,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
       if fw != null { fw.close() }
       if file != null { file.delete() }
     }
-    mDB.rollback_trans()
+    m_db.rollback_trans()
   }
 
   "get_display_string" should "return a useful stack trace string, when called with a nonexistent entity" in {
@@ -153,7 +153,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let id = 0L;
     let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.entity_key_exists(id)).thenReturn(true)
-    when(mockDB.getEntityData(id)).thenThrow(new RuntimeException("some exception"))
+    when(mockDB.get_entity_data(id)).thenThrow(new RuntimeException("some exception"))
     when(mockDB.get_remote_address).thenReturn(None)
     let entity = new Entity(mockDB, id);
     let se = entity.get_display_string();
@@ -168,7 +168,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.entity_key_exists(id)).thenReturn(true)
     when(mockDB.getClassName(classId)).thenReturn(Some("class1Name"))
-    when(mockDB.getEntityData(id)).thenReturn(Array[Option[Any]](Some("entity1Name"), Some(classId)))
+    when(mockDB.get_entity_data(id)).thenReturn(Array[Option[Any]](Some("entity1Name"), Some(classId)))
     // idea (is in tracked tasks): put next 3 lines back after color refactoring is done (& places w/ similar comment elsewhere)
     //val entity = new Entity(mockDB, id)
     //val ds = entity.get_display_string
@@ -179,7 +179,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let name2 = "entity2Name";
     let mockDB2 = mock[PostgreSQLDatabase];
     when(mockDB2.entity_key_exists(id2)).thenReturn(true)
-    when(mockDB2.getEntityData(id2)).thenReturn(Array[Option[Any]](Some(name2), None))
+    when(mockDB2.get_entity_data(id2)).thenReturn(Array[Option[Any]](Some(name2), None))
     when(mockDB2.getClassName(classId2)).thenReturn(None)
     // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
     //val entity2 = new Entity(mockDB2, id2, name2, Some(false), Some(classId2))
@@ -188,7 +188,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
     when(mockDB2.getClassName(classId2)).thenReturn(Some("class2Name"))
     when(mockDB2.getClassCount(Some(id2))).thenReturn(1)
-    when(mockDB2.getEntityData(id2)).thenReturn(Array[Option[Any]](Some(name2), Some(classId2)))
+    when(mockDB2.get_entity_data(id2)).thenReturn(Array[Option[Any]](Some(name2), Some(classId2)))
     // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
     //assert(entity2.get_display_string == name2 + " (template entity (template) for class: " + "class2Name)")
   }
@@ -210,31 +210,31 @@ class EntityTest extends FlatSpec with MockitoSugar {
   }
 
   "updateContainedEntitiesPublicStatus" should "work" in {
-    let e1Id: i64 = mDB.createEntity("test object1");
-    let e1 = new Entity(mDB, e1Id);
+    let e1Id: i64 = m_db.createEntity("test object1");
+    let e1 = new Entity(m_db, e1Id);
     mEntity.addHASRelationToLocalEntity(e1.get_id, Some(0), 0)
     let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.addGroupAndRelationToGroup(mRelationTypeId, "grpName",;
                                                                                     allowMixedClassesInGroupIn = true, Some(0), 0, None)
-    let e2Id: i64 = mDB.createEntity("test object2");
-    let e2 = new Entity(mDB, e1Id);
+    let e2Id: i64 = m_db.createEntity("test object2");
+    let e2 = new Entity(m_db, e1Id);
     group.addEntity(e2Id)
 
     assert(e1.getPublic.isEmpty)
     assert(e2.getPublic.isEmpty)
     mEntity.updateContainedEntitiesPublicStatus(Some(true))
-    let e1reRead = new Entity(mDB, e1Id);
-    let e2reRead = new Entity(mDB, e2Id);
+    let e1reRead = new Entity(m_db, e1Id);
+    let e2reRead = new Entity(m_db, e2Id);
     assert(e1reRead.getPublic.get)
     assert(e2reRead.getPublic.get)
   }
 
   "getCountOfContainingLocalEntities etc" should "work" in {
-    let e1 = Entity.createEntity(mDB, "e1");
-    let (e2id: i64, rteId: i64) = mDB.createEntityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e2", None, None, 0L);
-    let e2: Option<Entity> = Entity.getEntity(mDB, e2id);
+    let e1 = Entity.createEntity(m_db, "e1");
+    let (e2id: i64, rteId: i64) = m_db.createEntityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e2", None, None, 0L);
+    let e2: Option<Entity> = Entity.getEntity(m_db, e2id);
     assert(e2.get.getCountOfContainingLocalEntities._1 == 1)
     assert(e2.get.getLocalEntitiesContainingEntity().size == 1)
-    /*val (e3id: i64, rte2id: i64) = */mDB.createEntityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e3", None, None, 0L)
+    /*val (e3id: i64, rte2id: i64) = */m_db.createEntityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e3", None, None, 0L)
     assert(e1.getAdjacentAttributesSortingIndexes(Database.min_id_value).nonEmpty)
     let nearestSortingIndex = e1.getNearestAttributeEntrysSortingIndex(Database.min_id_value).get;
     assert(nearestSortingIndex > Database.min_id_value)
@@ -242,27 +242,27 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let nearestSortingIndex2 = e1.getNearestAttributeEntrysSortingIndex(Database.min_id_value).get;
     assert(nearestSortingIndex2 > nearestSortingIndex)
 
-    let rte = RelationToLocalEntity.getRelationToLocalEntity(mDB, rteId).get;
-    assert(! e1.isAttributeSortingIndexInUse(Database.max_id_value))
-    e1.updateAttributeSortingIndex(rte.getFormId, rte.get_id, Database.max_id_value)
-    assert(e1.getAttributeSortingIndex(rte.getFormId, rte.get_id) == Database.max_id_value)
-    assert(e1.isAttributeSortingIndexInUse(Database.max_id_value))
-    assert(e1.findUnusedAttributeSortingIndex() != Database.max_id_value)
-    assert(e1.getRelationToLocalEntityCount() == 2)
+    let rte = RelationToLocalEntity.getRelationToLocalEntity(m_db, rteId).get;
+    assert(! e1.is_attribute_sorting_index_in_use(Database.max_id_value))
+    e1.updateAttributeSortingIndex(rte.get_form_id, rte.get_id, Database.max_id_value)
+    assert(e1.getAttributeSortingIndex(rte.get_form_id, rte.get_id) == Database.max_id_value)
+    assert(e1.is_attribute_sorting_index_in_use(Database.max_id_value))
+    assert(e1.find_unused_attribute_sorting_index() != Database.max_id_value)
+    assert(e1.get_relation_to_local_entity_count() == 2)
     e2.get.archive()
-    assert(e1.getRelationToLocalEntityCount(include_archived_entitiesIn = false) == 1)
-    assert(e1.getRelationToLocalEntityCount(include_archived_entitiesIn = true) == 2)
+    assert(e1.get_relation_to_local_entity_count(include_archived_entitiesIn = false) == 1)
+    assert(e1.get_relation_to_local_entity_count(include_archived_entitiesIn = true) == 2)
     assert(e1.getTextAttributeByTypeId(mRelationTypeId).size == 0)
     e1.addTextAttribute(mRelationTypeId, "abc", None)
     assert(e1.getTextAttributeByTypeId(mRelationTypeId).size == 1)
 
-    assert(Entity.getEntity(mDB, e1.get_id).get.get_name != "updated")
+    assert(Entity.getEntity(m_db, e1.get_id).get.get_name != "updated")
     e1.updateName("updated")
-    assert(Entity.getEntity(mDB, e1.get_id).get.get_name == "updated")
-    assert(Entity.isDuplicate(mDB, "updated"))
-    assert(! Entity.isDuplicate(mDB, "xyzNOTANAMEupdated"))
+    assert(Entity.getEntity(m_db, e1.get_id).get.get_name == "updated")
+    assert(Entity.isDuplicate(m_db, "updated"))
+    assert(! Entity.isDuplicate(m_db, "xyzNOTANAMEupdated"))
 
-    let g1 = Group.createGroup(mDB, "g1");
+    let g1 = Group.create_group(m_db, "g1");
     g1.addEntity(e1.get_id)
     assert(e1.getContainingGroupsIds.size == 1)
     assert(e1.getCountOfContainingGroups == 1)

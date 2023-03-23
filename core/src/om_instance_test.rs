@@ -14,7 +14,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Status, Args}
 
 class OmInstanceTest extends FlatSpec with MockitoSugar {
-  let mut mDB: PostgreSQLDatabase = null;
+  let mut m_db: PostgreSQLDatabase = null;
 
   // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks. (?)
   override fn runTests(testName: Option<String>, args: Args) -> Status {
@@ -29,7 +29,7 @@ class OmInstanceTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
 
     // instantiation does DB setup (creates tables, default data, etc):
-    mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+    m_db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
   }
 
   protected fn tearDown() {
@@ -38,10 +38,10 @@ class OmInstanceTest extends FlatSpec with MockitoSugar {
 
   "update" should "work" in {
     let address = "nohost.onemodel.org";
-    let omi = OmInstance.create(mDB, java.util.UUID.randomUUID().toString, address);
+    let omi = OmInstance.create(m_db, java.util.UUID.randomUUID().toString, address);
     assert(omi.getAddress == address)
     omi.update("newAddress")
-    assert(new OmInstance(mDB, omi.get_id).getAddress != address)
+    assert(new OmInstance(m_db, omi.get_id).getAddress != address)
   }
 
 }

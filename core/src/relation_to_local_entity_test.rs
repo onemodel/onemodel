@@ -14,7 +14,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Status, Args, FlatSpec}
 
 class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
-  let mut mDB: PostgreSQLDatabase = null;
+  let mut m_db: PostgreSQLDatabase = null;
 
   // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks.
   override fn runTests(testName: Option<String>, args: Args) -> Status {
@@ -29,7 +29,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
 
     // instantiation does DB setup (creates tables, default data, etc):
-    mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+    m_db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
   }
 
   protected fn tearDown() {
@@ -39,14 +39,14 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct strings and length" in {
     let relationTypeName: String = "is husband to";
     let relationTypeNameInReverseDirection: String = "is wife to";
-    let relationTypeId: i64 = mDB.createRelationType(relationTypeName, relationTypeNameInReverseDirection, "BI");
-    let relationType = new RelationType(mDB, relationTypeId);
+    let relationTypeId: i64 = m_db.createRelationType(relationTypeName, relationTypeNameInReverseDirection, "BI");
+    let relationType = new RelationType(m_db, relationTypeId);
     let entity1Name = "husbandName";
     let entity2Name = "wifeName";
-    let entity1 = new Entity(mDB, mDB.createEntity(entity1Name));
-    let entity2 = new Entity(mDB, mDB.createEntity(entity2Name));
+    let entity1 = new Entity(m_db, m_db.createEntity(entity1Name));
+    let entity2 = new Entity(m_db, m_db.createEntity(entity2Name));
     let date = 304;
-    let rtle: RelationToLocalEntity = mDB.createRelationToLocalEntity(relationTypeId, entity1.get_id, entity2.get_id, None, date, Some(0));
+    let rtle: RelationToLocalEntity = m_db.createRelationToLocalEntity(relationTypeId, entity1.get_id, entity2.get_id, None, date, Some(0));
 
     let smallLimit = 15;
     let displayed1: String = rtle.get_display_string(smallLimit, Some(entity2), Some(relationType));
@@ -65,52 +65,52 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   }
 
   "move and update" should "work" in {
-    let entity1 = new Entity(mDB, mDB.createEntity("entity1"));
-    let entity2 = new Entity(mDB, mDB.createEntity("entity2"));
-    let entity3 = new Entity(mDB, mDB.createEntity("entity3"));
-    let relType = new RelationType(mDB, mDB.createRelationType("reltype1", "", "UNI"));
-    let rtle: RelationToLocalEntity = mDB.createRelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
+    let entity1 = new Entity(m_db, m_db.createEntity("entity1"));
+    let entity2 = new Entity(m_db, m_db.createEntity("entity2"));
+    let entity3 = new Entity(m_db, m_db.createEntity("entity3"));
+    let relType = new RelationType(m_db, m_db.createRelationType("reltype1", "", "UNI"));
+    let rtle: RelationToLocalEntity = m_db.createRelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
     let firstParent = rtle.getRelatedId1;
     assert(firstParent == entity1.get_id)
     let newRtle: RelationToLocalEntity = rtle.move(entity3.get_id, 0);
     // reread to get new data
-    assert(newRtle.getParentId == entity3.get_id)
-    assert(newRtle.getAttrTypeId == relType.get_id)
+    assert(newRtle.get_parent_id() == entity3.get_id)
+    assert(newRtle.get_attr_type_id() == relType.get_id)
     assert(newRtle.getRelatedId2 == entity2.get_id)
 
-    newRtle.getValidOnDate
-    newRtle.getObservationDate
-    newRtle.getAttrTypeId
-    let newAttrTypeId = mDB.createRelationType("newAttrType", "reversed", "NON");
+    newRtle.get_valid_on_date()
+    newRtle.get_observation_date()
+    newRtle.get_attr_type_id()
+    let newAttrTypeId = m_db.createRelationType("newAttrType", "reversed", "NON");
     let newVod = 345L;
     let newOd = 456L;
     newRtle.update(Some(newVod), Some(newOd), Some(newAttrTypeId))
-    let updatedRtle = new RelationToLocalEntity(mDB, newRtle.get_id, newAttrTypeId, newRtle.getRelatedId1, newRtle.getRelatedId2);
-    assert(updatedRtle.getValidOnDate.get == newVod)
-    assert(updatedRtle.getObservationDate == newOd)
+    let updatedRtle = new RelationToLocalEntity(m_db, newRtle.get_id, newAttrTypeId, newRtle.getRelatedId1, newRtle.getRelatedId2);
+    assert(updatedRtle.get_valid_on_date().get == newVod)
+    assert(updatedRtle.get_observation_date() == newOd)
 
-    let groupId = mDB.createGroup("group");
-    let group = new Group(mDB, groupId);
+    let groupId = m_db.create_group("group");
+    let group = new Group(m_db, groupId);
     assert(! group.isEntityInGroup(entity2.get_id))
     newRtle.moveEntityFromEntityToGroup(groupId, 0)
-    assert(! mDB.relationToLocalentity_key_exists(newRtle.get_id))
+    assert(! m_db.relationToLocalentity_key_exists(newRtle.get_id))
     assert(group.isEntityInGroup(entity2.get_id))
   }
 
   "delete etc" should "work" in {
-    let entity1 = new Entity(mDB, mDB.createEntity("entity1"));
-    let entity2 = new Entity(mDB, mDB.createEntity("entity2"));
-    let relType = new RelationType(mDB, mDB.createRelationType("reltype1", "", "UNI"));
-    let rtle: RelationToLocalEntity = mDB.createRelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
-    assert(mDB.relationToLocalEntityExists(relType.get_id, entity1.get_id, entity2.get_id))
+    let entity1 = new Entity(m_db, m_db.createEntity("entity1"));
+    let entity2 = new Entity(m_db, m_db.createEntity("entity2"));
+    let relType = new RelationType(m_db, m_db.createRelationType("reltype1", "", "UNI"));
+    let rtle: RelationToLocalEntity = m_db.createRelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
+    assert(m_db.relationToLocalEntityExists(relType.get_id, entity1.get_id, entity2.get_id))
     rtle.delete()
-    assert(!mDB.relationToLocalEntityExists(relType.get_id, entity1.get_id, entity2.get_id))
+    assert(!m_db.relationToLocalEntityExists(relType.get_id, entity1.get_id, entity2.get_id))
 
     // throwing in this test for ease & faster running: otherwise should be in RelationTypeTest:
     let newName = "new-reltype-name";
     let newInReverseName = "new-in-reverse";
     relType.update(newName, newInReverseName, "NON")
-    let updatedRelationType = new RelationType(mDB, relType.get_id);
+    let updatedRelationType = new RelationType(m_db, relType.get_id);
     assert(updatedRelationType.get_name == newName)
     assert(updatedRelationType.get_name_in_reverseDirection == newInReverseName)
     assert(updatedRelationType.getDirectionality == "NON")

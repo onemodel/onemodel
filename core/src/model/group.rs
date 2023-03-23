@@ -14,19 +14,19 @@ package org.onemodel.core.model
 import org.onemodel.core.{Util, Color, OmException}
 
 object Group {
-    fn createGroup(in_db: Database, inName: String, allowMixedClassesInGroupIn: Boolean = false) -> Group {
-    let id: i64 = in_db.createGroup(inName, allowMixedClassesInGroupIn);
-    new Group(in_db, id)
+    fn create_group(db_in: Database, inName: String, allow_mixed_classes_in_group_in: bool = false) -> Group {
+    let id: i64 = db_in.create_group(inName, allow_mixed_classes_in_group_in);
+    new Group(db_in, id)
   }
 
   /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     */
-    fn getGroup(in_db: Database, id: i64) -> Option[Group] {
-    try Some(new Group(in_db, id))
+    fn getGroup(db_in: Database, id: i64) -> Option[Group] {
+    try Some(new Group(db_in, id))
     catch {
       case e: java.lang.Exception =>
         //idea: see comment here in Entity.scala.
-        if e.toString.indexOf(Util.DOES_NOT_EXIST) >= 0) {
+        if e.toString.indexOf(Util::DOES_NOT_EXIST) >= 0) {
           None
         }
         else throw e
@@ -38,135 +38,135 @@ object Group {
   *
   * Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
   * */
-class Group(val mDB: Database, mId: i64) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if !mDB.is_remote && !mDB.groupKeyExists(mId: i64)) {
-    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
+class Group(val m_db: Database, m_id: i64) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
+  if !m_db.is_remote && !m_db.groupKeyExists(m_id: i64)) {
+    throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
-  /** See comment about these 2 dates in Database.createTables() */
-    fn this(mDB: Database, id_in: i64, name_in: String, insertionDateIn: i64, mixedClassesAllowedIn: Boolean, newEntriesStickToTopIn: Boolean) {
-    this(mDB, id_in)
-    mName = name_in
-    mInsertionDate = insertionDateIn
-    mMixedClassesAllowed = mixedClassesAllowedIn
-    mNewEntriesStickToTop = newEntriesStickToTopIn
-    mAlreadyReadData = true
+  /** See comment about these 2 dates in Database.create_tables() */
+    fn this(m_db: Database, id_in: i64, name_in: String, insertion_dateIn: i64, mixed_classes_allowedIn: bool, newEntriesStickToTopIn: bool) {
+    this(m_db, id_in)
+    m_name = name_in
+    m_insertion_date = insertion_dateIn
+    mMixedClassesAllowed = mixed_classes_allowedIn
+    m_new_entries_stick_to_top = newEntriesStickToTopIn
+    m_already_read_data = true
   }
 
-    fn readDataFromDB() {
-    let relationData: Array[Option[Any]] = mDB.getGroupData(mId);
+    fn read_data_from_db() {
+    let relationData: Array[Option[Any]] = m_db.getGroupData(m_id);
     if relationData.length == 0) {
-      throw new OmException("No results returned from data request for: " + mId)
+      throw new OmException("No results returned from data request for: " + m_id)
     }
-    mName = relationData(0).get.asInstanceOf[String]
-    mInsertionDate = relationData(1).get.asInstanceOf[i64]
+    m_name = relationData(0).get.asInstanceOf[String]
+    m_insertion_date = relationData(1).get.asInstanceOf[i64]
     mMixedClassesAllowed = relationData(2).get.asInstanceOf[Boolean]
-    mNewEntriesStickToTop = relationData(3).get.asInstanceOf[Boolean]
-    mAlreadyReadData = true
+    m_new_entries_stick_to_top = relationData(3).get.asInstanceOf[Boolean]
+    m_already_read_data = true
   }
 
-    fn update(attrTypeIdInIGNOREDFORSOMEREASON: Option<i64> = None, name_in: Option<String> = None, allowMixedClassesInGroupIn: Option<bool> = None,
+    fn update(attr_type_id_inIGNOREDFORSOMEREASON: Option<i64> = None, name_in: Option<String> = None, allow_mixed_classes_in_group_in: Option<bool> = None,
              newEntriesStickToTopIn: Option<bool> = None,
-             valid_on_date_inIGNORED4NOW: Option<i64>, observationDateInIGNORED4NOW: Option<i64>) {
+             valid_on_date_inIGNORED4NOW: Option<i64>, observation_date_inIGNORED4NOW: Option<i64>) {
 
-    mDB.updateGroup(mId,
+    m_db.updateGroup(m_id,
                     if name_in.isEmpty) get_name else name_in.get,
-                    if allowMixedClassesInGroupIn.isEmpty) getMixedClassesAllowed else allowMixedClassesInGroupIn.get,
+                    if allow_mixed_classes_in_group_in.isEmpty) getMixedClassesAllowed else allow_mixed_classes_in_group_in.get,
                     if newEntriesStickToTopIn.isEmpty) getNewEntriesStickToTop else newEntriesStickToTopIn.get)
 
-    if name_in.is_defined) mName = name_in.get
-    if allowMixedClassesInGroupIn.is_defined) mMixedClassesAllowed = allowMixedClassesInGroupIn.get
-    if newEntriesStickToTopIn.is_defined) mNewEntriesStickToTop = newEntriesStickToTopIn.get
+    if name_in.is_some()) m_name = name_in.get
+    if allow_mixed_classes_in_group_in.is_some()) mMixedClassesAllowed = allow_mixed_classes_in_group_in.get
+    if newEntriesStickToTopIn.is_some()) m_new_entries_stick_to_top = newEntriesStickToTopIn.get
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    mDB.deleteGroupAndRelationsToIt(mId)
+    m_db.deleteGroupAndRelationsToIt(m_id)
     }
 
   /** Removes an entity from this group. */
-    fn removeEntity(entityId: i64) {
-    mDB.removeEntityFromGroup(mId, entityId)
+    fn removeEntity(entity_id: i64) {
+    m_db.removeEntityFromGroup(m_id, entity_id)
     }
 
     fn deleteWithEntities() {
-    mDB.deleteGroupRelationsToItAndItsEntries(mId)
+    m_db.deleteGroupRelationsToItAndItsEntries(m_id)
     }
 
   // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability, or vals not vars)?
     fn getSize(includeWhichEntities: Int = 3) -> i64 {
-    mDB.getGroupSize(mId, includeWhichEntities)
+    m_db.get_group_size(m_id, includeWhichEntities)
   }
 
-    fn get_display_string(lengthLimitIn: Int = 0, simplifyIn: Boolean = false) -> String {
-    let numEntries = mDB.getGroupSize(get_id, 1);
+    fn get_display_string(lengthLimitIn: Int = 0, simplifyIn: bool = false) -> String {
+    let numEntries = m_db.get_group_size(get_id, 1);
     let mut result: String =  "";
     result += {
       if simplifyIn) get_name
-      else "grp " + mId + " /" + numEntries + ": " + Color.blue(get_name)
+      else "grp " + m_id + " /" + numEntries + ": " + Color.blue(get_name)
     }
     if !simplifyIn) {
       result += ", class: "
-      let className =;
+      let class_name =;
         if getMixedClassesAllowed)
           "(mixed)"
         else {
-          let classNameOption = getClassName;
-          if classNameOption.isEmpty) "None"
-          else classNameOption.get
+          let class_nameOption = getClassName;
+          if class_nameOption.isEmpty) "None"
+          else class_nameOption.get
         }
-      result += className
+      result += class_name
     }
     if simplifyIn) result
     else Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
     fn getGroupEntries(startingIndexIn: i64, maxValsIn: Option<i64> = None) -> Vec<Entity> {
-    mDB.getGroupEntryObjects(mId, startingIndexIn, maxValsIn)
+    m_db.getGroupEntryObjects(m_id, startingIndexIn, maxValsIn)
   }
 
-    fn addEntity(inEntityId: i64, sortingIndexIn: Option<i64> = None, callerManagesTransactionsIn: Boolean = false) {
-    mDB.addEntityToGroup(get_id, inEntityId, sortingIndexIn, callerManagesTransactionsIn)
+    fn addEntity(inEntityId: i64, sorting_index_in: Option<i64> = None, caller_manages_transactions_in: bool = false) {
+    m_db.add_entity_to_group(get_id, inEntityId, sorting_index_in, caller_manages_transactions_in)
   }
 
     fn get_id() -> i64 {
-    mId
+    m_id
     }
 
     fn get_name -> String {
-    if !mAlreadyReadData) readDataFromDB()
-    mName
+    if !m_already_read_data) read_data_from_db()
+    m_name
   }
 
-    fn getMixedClassesAllowed -> Boolean {
-    if !mAlreadyReadData) readDataFromDB()
+    fn getMixedClassesAllowed -> bool {
+    if !m_already_read_data) read_data_from_db()
     mMixedClassesAllowed
   }
 
-    fn getNewEntriesStickToTop -> Boolean {
-    if !mAlreadyReadData) readDataFromDB()
-    mNewEntriesStickToTop
+    fn getNewEntriesStickToTop -> bool {
+    if !m_already_read_data) read_data_from_db()
+    m_new_entries_stick_to_top
   }
 
     fn getInsertionDate -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
-    mInsertionDate
+    if !m_already_read_data) read_data_from_db()
+    m_insertion_date
   }
 
     fn getClassName -> Option<String> {
     if getMixedClassesAllowed)
       None
     else {
-      let classId: Option<i64> = getClassId;
-      if classId.isEmpty && getSize() == 0) {
+      let class_id: Option<i64> = getClassId;
+      if class_id.isEmpty && getSize() == 0) {
         // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
         Some("(unspecified)")
-      } else if classId.isEmpty) {
+      } else if class_id.isEmpty) {
         // means the group requires uniform classes, but the enforced uniform class is None, i.e., to not have a class:
         Some("(specified as None)")
       } else {
-        let exampleEntitysClass = new EntityClass(mDB, classId.get);
+        let exampleEntitysClass = new EntityClass(m_db, class_id.get);
         Some(exampleEntitysClass.get_name)
       }
     }
@@ -176,7 +176,7 @@ class Group(val mDB: Database, mId: i64) {
     if getMixedClassesAllowed)
       None
     else {
-      let entries = mDB.getGroupEntryObjects(get_id, 0, Some(1));
+      let entries = m_db.getGroupEntryObjects(get_id, 0, Some(1));
       let specified: bool = entries.size() > 0;
       if !specified)
         None
@@ -191,13 +191,13 @@ class Group(val mDB: Database, mId: i64) {
             case entity: Entity =>
               Some(entity)
             case _ =>
-              let className = entries.get(nextIndex).getClass.get_name;
+              let class_name = entries.get(nextIndex).getClass.get_name;
               throw new OmException(s"a group contained an entry that's not an entity?  Thought had eliminated use of 'subgroups' except via entities. It's " +
-                                    s"of type: $className")
+                                    s"of type: $class_name")
           }
         }
         let entity: Option<Entity> = findAnEntity(0);
-        if entity.is_defined)
+        if entity.is_some())
           entity.get.getClassId
         else
           None
@@ -206,79 +206,79 @@ class Group(val mDB: Database, mId: i64) {
   }
 
     fn getClassTemplateEntity -> (Option<Entity>) {
-    let classId: Option<i64> = getClassId;
-    if getMixedClassesAllowed || classId.isEmpty)
+    let class_id: Option<i64> = getClassId;
+    if getMixedClassesAllowed || class_id.isEmpty)
       None
     else {
-      let templateEntityId = new EntityClass(mDB, classId.get).getTemplateEntityId;
-      Some(new Entity(mDB, templateEntityId))
+      let templateEntityId = new EntityClass(m_db, class_id.get).getTemplateEntityId;
+      Some(new Entity(m_db, templateEntityId))
     }
   }
 
     fn getHighestSortingIndex -> i64 {
-    mDB.getHighestSortingIndexForGroup(get_id)
+    m_db.getHighestSortingIndexForGroup(get_id)
   }
 
     fn getContainingRelationsToGroup(startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
-    mDB.getRelationsToGroupContainingThisGroup(get_id, startingIndexIn, maxValsIn)
+    m_db.getRelationsToGroupContainingThisGroup(get_id, startingIndexIn, maxValsIn)
   }
 
     fn getCountOfEntitiesContainingGroup -> (i64, i64) {
-    mDB.getCountOfEntitiesContainingGroup(get_id)
+    m_db.getCountOfEntitiesContainingGroup(get_id)
   }
 
     fn getEntitiesContainingGroup(startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)] {
-    mDB.getEntitiesContainingGroup(get_id, startingIndexIn, maxValsIn)
+    m_db.getEntitiesContainingGroup(get_id, startingIndexIn, maxValsIn)
   }
 
-    fn findUnusedSortingIndex(startingWithIn: Option<i64> = None) -> i64 {
-    mDB.findUnusedGroupSortingIndex(get_id, startingWithIn)
+    fn findUnusedSortingIndex(starting_with_in: Option<i64> = None) -> i64 {
+    m_db.find_unused_group_sorting_index(get_id, starting_with_in)
   }
 
     fn getGroupsContainingEntitysGroupsIds(limitIn: Option<i64> = Some(5)) -> List[Array[Option[Any]]] {
-    mDB.getGroupsContainingEntitysGroupsIds(get_id, limitIn)
+    m_db.getGroupsContainingEntitysGroupsIds(get_id, limitIn)
   }
 
-    fn isEntityInGroup(entityIdIn: i64) -> Boolean {
-    mDB.isEntityInGroup(get_id, entityIdIn)
+    fn isEntityInGroup(entity_id_in: i64) -> bool {
+    m_db.isEntityInGroup(get_id, entity_id_in)
   }
 
-    fn getAdjacentGroupEntriesSortingIndexes(sortingIndexIn: i64, limitIn: Option<i64> = None, forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
-    mDB.getAdjacentGroupEntriesSortingIndexes(get_id, sortingIndexIn, limitIn, forwardNotBackIn)
+    fn getAdjacentGroupEntriesSortingIndexes(sorting_index_in: i64, limitIn: Option<i64> = None, forwardNotBackIn: bool) -> List[Array[Option[Any]]] {
+    m_db.getAdjacentGroupEntriesSortingIndexes(get_id, sorting_index_in, limitIn, forwardNotBackIn)
   }
 
-    fn getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64> {
-    mDB.getNearestGroupEntrysSortingIndex(get_id, startingPointSortingIndexIn, forwardNotBackIn)
+    fn getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64> {
+    m_db.getNearestGroupEntrysSortingIndex(get_id, startingPointSortingIndexIn, forwardNotBackIn)
   }
 
-    fn getEntrySortingIndex(entityIdIn: i64) -> i64 {
-    mDB.getGroupEntrySortingIndex(get_id, entityIdIn)
+    fn getEntrySortingIndex(entity_id_in: i64) -> i64 {
+    m_db.getGroupEntrySortingIndex(get_id, entity_id_in)
   }
 
-    fn isGroupEntrySortingIndexInUse(sortingIndexIn: i64) -> Boolean {
-    mDB.isGroupEntrySortingIndexInUse(get_id, sortingIndexIn)
+    fn is_group_entry_sorting_index_in_use(sorting_index_in: i64) -> bool {
+    m_db.is_group_entry_sorting_index_in_use(get_id, sorting_index_in)
   }
 
-    fn updateSortingIndex(entityIdIn: i64, sortingIndexIn: i64) /*-> Unit%%*/ {
-    mDB.updateSortingIndexInAGroup(get_id, entityIdIn, sortingIndexIn)
+    fn updateSortingIndex(entity_id_in: i64, sorting_index_in: i64) /*-> Unit%%*/ {
+    m_db.updateSortingIndexInAGroup(get_id, entity_id_in, sorting_index_in)
   }
 
-    fn renumberSortingIndexes(callerManagesTransactionsIn: Boolean = false) /*%%-> Unit*/ {
-    mDB.renumberSortingIndexes(get_id, callerManagesTransactionsIn, isEntityAttrsNotGroupEntries = false)
+    fn renumberSortingIndexes(caller_manages_transactions_in: bool = false) /*%%-> Unit*/ {
+    m_db.renumberSortingIndexes(get_id, caller_manages_transactions_in, isEntityAttrsNotGroupEntries = false)
   }
 
-    fn moveEntityFromGroupToLocalEntity(toEntityIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64) /*%%-> Unit*/ {
-    mDB.moveEntityFromGroupToLocalEntity(get_id, toEntityIdIn, moveEntityIdIn, sortingIndexIn)
+    fn moveEntityFromGroupToLocalEntity(toEntityIdIn: i64, moveEntityIdIn: i64, sorting_index_in: i64) /*%%-> Unit*/ {
+    m_db.moveEntityFromGroupToLocalEntity(get_id, toEntityIdIn, moveEntityIdIn, sorting_index_in)
   }
 
-    fn moveEntityToDifferentGroup(toGroupIdIn: i64, moveEntityIdIn: i64, sortingIndexIn: i64) /*%%-> Unit*/ {
-    mDB.moveLocalEntityFromGroupToGroup(get_id, toGroupIdIn, moveEntityIdIn, sortingIndexIn)
+    fn moveEntityToDifferentGroup(toGroupIdIn: i64, moveEntityIdIn: i64, sorting_index_in: i64) /*%%-> Unit*/ {
+    m_db.moveLocalEntityFromGroupToGroup(get_id, toGroupIdIn, moveEntityIdIn, sorting_index_in)
   }
 
-  private let mut mAlreadyReadData: bool = false;
-  private let mut mName: String = null;
-  private let mut mInsertionDate: i64 = 0L;
+  private let mut m_already_read_data: bool = false;
+  private let mut m_name: String = null;
+  private let mut m_insertion_date: i64 = 0L;
   private let mut mMixedClassesAllowed: bool = false;
-  private let mut mNewEntriesStickToTop: bool = false;
+  private let mut m_new_entries_stick_to_top: bool = false;
 */
 }

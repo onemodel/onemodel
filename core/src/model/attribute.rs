@@ -30,7 +30,7 @@ object Attribute {
         //scala > let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz");
         //scala > DATEFORMAT_WITH_ERA.parse("ad 1-03-01 00:00:00:000 GMT").getTime //i.e., Jan 3, 1 AD.
         //res100: i64 = -62130672000000
-        // see Util.DATEFORMAT* for comment about ERA (BC/AD).
+        // see Util::DATEFORMAT* for comment about ERA (BC/AD).
         // if d > -62130672000000_i64 {
         //     DATEFORMAT.format(d)
         // %%need to test this date thing also to confirm works as expected/same as scala OM.
@@ -65,57 +65,57 @@ object Attribute {
  * Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
  * Originally created as a place to put common stuff between Relation/QuantityAttribute/TextAttribute.
  */
-abstract class Attribute(val mDB: Database, mId: i64) {
+abstract class Attribute(val m_db: Database, m_id: i64) {
   // idea: somehow use scala features better to make it cleaner, so we don't need these extra 2 vars, because they are
   // used in 1-2 instances, and ignored in the rest.  One thing is that RelationTo[Local|Remote]Entity and RelationToGroup are Attributes. Should they be?
-    fn get_display_string(inLengthLimit: Int, parentEntity: Option<Entity>, inRTId: Option[RelationType], simplify: Boolean = false) -> String;
+    fn get_display_string(inLengthLimit: Int, parentEntity: Option<Entity>, inRTId: Option[RelationType], simplify: bool = false) -> String;
 
-  protected fn readDataFromDB();
+  protected fn read_data_from_db();
 
     fn delete();
 
   private[onemodel] fn get_idWrapper -> IdWrapper {
-    new IdWrapper(mId)
+    new IdWrapper(m_id)
   }
 
     fn get_id -> i64 {
-    mId
+    m_id
   }
 
-    fn getFormId -> Int {
+    fn get_form_id -> Int {
     Database.get_attribute_form_id(this.getClass.getSimpleName)
   }
 
-  protected fn assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, sortingIndexIn: i64) {
-    mParentId = parentIdIn
-    mAttrTypeId = attrTypeIdIn
-    mSortingIndex = sortingIndexIn
-    mAlreadyReadData = true
+  protected fn assignCommonVars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64) {
+    m_parent_id = parent_id_in
+    m_attr_type_id = attr_type_id_in
+    m_sorting_index = sorting_index_in
+    m_already_read_data = true
   }
 
-    fn getAttrTypeId -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
-    mAttrTypeId
+    fn get_attr_type_id() -> i64 {
+    if !m_already_read_data) read_data_from_db()
+    m_attr_type_id
   }
 
     fn getSortingIndex -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
-    mSortingIndex
+    if !m_already_read_data) read_data_from_db()
+    m_sorting_index
   }
 
-  // idea: make the scope definitions (by whatever name: "private[onemodel] ") sensible and uniform
-  private[onemodel] fn getParentId -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
-    mParentId
+//(already implemented in boolean_attribute.  should move here?? Look how traits have traits!: "rust super trait"?)
+  fn get_parent_id() -> i64 {
+    if !m_already_read_data) read_data_from_db()
+    m_parent_id
   }
 
   /**
    * For descriptions of the meanings of these variables, see the comments
-   * on createTables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
+   * on create_tables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
    */
-  protected let mut mParentId: i64 = 0L;
-  protected let mut mAttrTypeId: i64 = 0L;
-  protected let mut mAlreadyReadData: bool = false;
-  protected let mut mSortingIndex: i64 = 0L;
+  protected let mut m_parent_id: i64 = 0L;
+  protected let mut m_attr_type_id: i64 = 0L;
+  protected let mut m_already_read_data: bool = false;
+  protected let mut m_sorting_index: i64 = 0L;
 */
 }

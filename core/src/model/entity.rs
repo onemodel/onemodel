@@ -7,20 +7,20 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use crate::model::database::Database;
+use crate::model::database::{Database, DataType};
 use crate::util::Util;
 
-#[derive(Clone, Copy)]
-pub struct Entity {
-    /*
-    mAlreadyReadData: bool = false;
-    mName: String = _;
-    mClassId: Option<i64> = None;
-    mInsertionDate: i64 = -1;
-    mPublic: Option<bool> = None;
-    mArchived: bool = false;
-    mNewEntriesStickToTop: bool = false;
-     */
+#[derive(Clone)]
+pub struct Entity<'a> {
+    m_id: i64,
+    m_db: Box<&'a dyn Database>,
+    m_already_read_data: bool /*%%= false*/,
+    m_name: String /*%%= _*/,
+    m_class_id: Option<i64> /*%%= None*/,
+    m_insertion_date: i64 /*%%= -1*/,
+    m_public: Option<bool> /*%%= None*/,
+    m_archived: bool /*%%= false*/,
+    m_new_entries_stick_to_top: bool /*%%= false*/,
 }
 /*%%
 package org.onemodel.core.model
@@ -30,27 +30,27 @@ import java.util.ArrayList
 import org.onemodel.core._
 import scala.collection.mutable
 */
-impl Entity {
+impl Entity<'_> {
   /*
-    fn createEntity(in_db: Database, inName: String, inClassId: Option<i64> = None, isPublicIn: Option<bool> = None) -> Entity {
-    let id: i64 = in_db.createEntity(inName, inClassId, isPublicIn);
-    new Entity(in_db, id)
+    fn create_entity(db_in: Database, inName: String, inClassId: Option<i64> = None, is_public_in: Option<bool> = None) -> Entity {
+    let id: i64 = db_in.create_entity(inName, inClassId, is_public_in);
+    new Entity(db_in, id)
   }
 
     fn name_length -> Int {
-    Database.entityNameLength
+    Util::entity_name_length()
     }
 
-    fn isDuplicate(in_db: Database, inName: String, inSelfIdToIgnore: Option<i64> = None) -> Boolean {
-    in_db.isDuplicateEntityName(inName, inSelfIdToIgnore)
+    fn isDuplicate(db_in: Database, inName: String, inSelfIdToIgnore: Option<i64> = None) -> bool {
+    db_in.isDuplicateEntityName(inName, inSelfIdToIgnore)
   }
 */
 
 /*
     /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
-    fn get_entity(in_db: Box<dyn Database>, id: i64) -> Result<Option<Entity>, String> {
+    fn get_entity(db_in: Box<dyn Database>, id: i64) -> Result<Option<Entity>, String> {
   //%%$%%
-      try Some(new Entity(in_db, id))
+      try Some(new Entity(db_in, id))
       catch {
           case e: java.lang.Exception =>
             //idea: change this to actually get an "OM_NonexistentEntityException" or such, not text, so it works
@@ -66,95 +66,108 @@ impl Entity {
     const PRIVACY_NON_PUBLIC: &'static str = "[NON-PUBLIC]";
     const PRIVACY_UNSET: &'static str = "[UNSET]";
 
+*/
     /// Represents one object in the system.
     /// This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
     /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
     /// (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
     /// set... method to fix it.)
-    pub fn new2(db: Box< dyn Database>, id: i64) -> Result<Entity, String> {
-      // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-      if ! db.is_remote() && ! db.entity_key_exists(id) {
-        // DON'T CHANGE this msg unless you also change the trap for it in TextUI.java.
-        throw new Exception("Key " + mId + Util::DOES_NOT_EXIST)
-      }
+    pub fn new2<'a>(db: Box<&'a dyn Database>, id: i64) -> Result<Entity<'a>, String> {
+      // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
+        if ! db.is_remote() && ! db.entity_key_exists(id, true)? {
+            // DON'T CHANGE this msg unless you also change the trap for it in TextUI.java.
+            return Err(format!("Key {}{}", id, Util::DOES_NOT_EXIST));
+        }
+        Ok(Entity {
+            m_id: id,
+            m_db: db,
+            m_already_read_data: false,
+            m_name: "".to_string(),
+            m_class_id: None,
+            m_insertion_date: -1,
+            m_public: None,
+            m_archived: false,
+            m_new_entries_stick_to_top: false,
+        })
     }
 
+    /*
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
-    pub fn new8(mDB: Database, mId: i64, name_in: String, classIdIn: Option<i64> = None, insertionDateIn: i64, publicIn: Option<bool>,
-           archivedIn: Boolean, newEntriesStickToTopIn: Boolean) {
-        this(mDB, mId)
-        mName = name_in
-        mClassId = classIdIn
-        mInsertionDate = insertionDateIn
-        mPublic = publicIn
-        mArchived = archivedIn
-        mNewEntriesStickToTop = newEntriesStickToTopIn
-        mAlreadyReadData = true
+    pub fn new8(m_db: Database, m_id: i64, name_in: String, class_id_in: Option<i64> = None, insertion_dateIn: i64, publicIn: Option<bool>,
+           archivedIn: bool, newEntriesStickToTopIn: bool) {
+        this(m_db, m_id)
+        m_name = name_in
+        m_class_id = class_id_in
+        m_insertion_date = insertion_dateIn
+        m_public = publicIn
+        m_archived = archivedIn
+        m_new_entries_stick_to_top = newEntriesStickToTopIn
+        m_already_read_data = true
       }
 
-      /// Allows createEntity to return an instance without duplicating the database check that it Entity(long, Database) does.
+      /// Allows create_entity to return an instance without duplicating the database check that it Entity(long, Database) does.
       /// (The 3rd parameter "ignoreMe" is so it will have a different signature and avoid compile errors.)
       // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and EntityTest etc could be with mocks
       // instead of real db use.)  Does this really skip that other check though?
       //%%was:  @SuppressWarnings(Array("unused"))
-    pub fn new3(in_db: Database, inID: i64, ignoreMe: Boolean) {
-        this(in_db, inID)
+    pub fn new3(db_in: Database, id_in: i64, ignoreMe: bool) {
+        this(db_in, id_in)
     }
 
+*/
     /// When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
-    fn get_name() -> String {
-        if !mAlreadyReadData {
-            readDataFromDB();
+    pub fn get_name(&mut self) -> Result<&String, String> {
+        if !self.m_already_read_data {
+            self.read_data_from_db()?;
         }
-        mName
+        Ok(&self.m_name)
     }
 
-    */
   /*
     fn getClassId -> Option<i64> {
-    if !mAlreadyReadData) readDataFromDB()
-    mClassId
+    if !m_already_read_data) read_data_from_db()
+    m_class_id
   }
 
     fn getClassTemplateEntityId -> Option<i64> {
-    let classId = getClassId;
-    if classId.isEmpty) None
+    let class_id = getClassId;
+    if class_id.isEmpty) None
     else {
-      let templateEntityId: Option<i64> = mDB.getClassData(mClassId.get)(1).asInstanceOf[Option<i64>];
+      let templateEntityId: Option<i64> = m_db.getClassData(m_class_id.get)(1).asInstanceOf[Option<i64>];
       templateEntityId
     }
   }
 
     fn getCreationDate -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
-    mInsertionDate
+    if !m_already_read_data) read_data_from_db()
+    m_insertion_date
   }
 
     fn getCreationDateFormatted -> String {
-    Util.DATEFORMAT.format(new java.util.Date(getCreationDate))
+    Util::DATEFORMAT.format(new java.util.Date(getCreationDate))
   }
 
     fn getPublic -> Option<bool> {
-    if !mAlreadyReadData) readDataFromDB()
-    mPublic
+    if !m_already_read_data) read_data_from_db()
+    m_public
   }
 
-    fn getPublicStatusDisplayString(blankIfUnset: Boolean = true) -> String {
-    if !mAlreadyReadData) readDataFromDB()
+    fn getPublicStatusDisplayString(blankIfUnset: bool = true) -> String {
+    if !m_already_read_data) read_data_from_db()
 
-    if mPublic.is_defined && mPublic.get) {
+    if m_public.is_some() && m_public.get) {
       Entity.PRIVACY_PUBLIC
-    } else if mPublic.is_defined && !mPublic.get) {
+    } else if m_public.is_some() && !m_public.get) {
       Entity.PRIVACY_NON_PUBLIC
-    } else if mPublic.isEmpty) {
+    } else if m_public.isEmpty) {
       if blankIfUnset) "" else Entity.PRIVACY_UNSET
     } else throw
       new OmException("how did we get here?")
   }
 
-    fn getPublicStatusDisplayStringWithColor(blankIfUnset: Boolean = true) -> String {
+    fn getPublicStatusDisplayStringWithColor(blankIfUnset: bool = true) -> String {
     //idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
     let s = this.getPublicStatusDisplayString(blankIfUnset);
     if s == Entity.PRIVACY_PUBLIC) {
@@ -166,31 +179,31 @@ impl Entity {
     }
   }
 
-    fn getArchivedStatus -> Boolean {
-    if !mAlreadyReadData) readDataFromDB()
-    mArchived
+    fn getArchivedStatus -> bool {
+    if !m_already_read_data) read_data_from_db()
+    m_archived
   }
 
-    fn is_archived -> Boolean {
-    if !mAlreadyReadData) readDataFromDB()
-    mArchived
+    fn is_archived -> bool {
+    if !m_already_read_data) read_data_from_db()
+    m_archived
   }
 
-    fn getNewEntriesStickToTop -> Boolean {
-    if !mAlreadyReadData) readDataFromDB()
-    mNewEntriesStickToTop
+    fn getNewEntriesStickToTop -> bool {
+    if !m_already_read_data) read_data_from_db()
+    m_new_entries_stick_to_top
   }
 
     fn getInsertionDate -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
-    mInsertionDate
+    if !m_already_read_data) read_data_from_db()
+    m_insertion_date
   }
 
     fn getArchivedStatusDisplayString -> String {
     if !is_archived) {
       ""
     } else {
-      if mDB.include_archived_entities) {
+      if m_db.include_archived_entities) {
         "[ARCHIVED]"
       } else {
         throw new OmException("FYI in case this can be better understood and fixed:  due to an error, the program " +
@@ -199,39 +212,72 @@ impl Entity {
       }
     }
   }
+*/
 
-  protected fn readDataFromDB() {
-    let entityData = mDB.get_entityData(mId);
-    if entityData.length == 0) {
-      throw new OmException("No results returned from data request for: " + mId)
+  fn read_data_from_db(&mut self) -> Result<(), String> {
+    let entity_data = self.m_db.get_entity_data(self.m_id)?;
+    if entity_data.len() == 0 {
+      return Err(format!("No results returned from data request for: {}", self.m_id));
     }
-    mName = entityData(0).get.asInstanceOf[String]
-    mClassId = entityData(1).asInstanceOf[Option<i64>]
-    mInsertionDate = entityData(2).get.asInstanceOf[i64]
-    mPublic = entityData(3).asInstanceOf[Option<bool>]
-    mArchived = entityData(4).get.asInstanceOf[Boolean]
-    mNewEntriesStickToTop = entityData(5).get.asInstanceOf[Boolean]
-    mAlreadyReadData = true
+      //idea: surely there is some better way than what I am doing here? See other places similarly.
+
+      // DataType::String(self.m_name) = entity_data[0];
+      self.m_name = match &entity_data[0] {
+          DataType::String(x) => x.clone(),
+          _ => return Err(format!("How did we get here for {:?}?", entity_data[0])),
+      };
+
+      // DataType::Bigint(self.m_class_id) = None; //%%$%%%%%%FIXME TO USE: entity_data[1];
+      self.m_class_id = None;
+      // self.m_class_id = match entity_data[1] {
+      //     DataType::Bigint(x) => x,
+      //     _ => return Err(format!("How did we get here for {:?}?", entity_data[1])),
+      // };
+
+      self.m_public = None;  //%%$%%%%%%FIXME TO USE:entity_data[3].asInstanceOf[Option<bool>]
+      // self.m_public = match entity_data[3] {
+      //     DataType::Boolean(x) => x,
+      //     _ => return Err(format!("How did we get here for {:?}?", entity_data[3])),
+      // };
+
+      // DataType::Bigint(self.m_insertion_date) = entity_data[2];
+      self.m_insertion_date = match entity_data[2] {
+          DataType::Bigint(x) => x,
+          _ => return Err(format!("How did we get here for {:?}?", entity_data[2])),
+      };
+      // DataType::Boolean(self.m_archived) = entity_data[4];
+      self.m_archived = match entity_data[4] {
+          DataType::Boolean(x) => x,
+          _ => return Err(format!("How did we get here for {:?}?", entity_data[4])),
+      };
+      // DataType::Boolean(self.m_new_entries_stick_to_top) = entity_data[5];
+      self.m_new_entries_stick_to_top = match entity_data[5] {
+          DataType::Boolean(x) => x,
+          _ => return Err(format!("How did we get here for {:?}?", entity_data[5])),
+      };
+      self.m_already_read_data = true;
+      Ok(())
   }
 
+    /*
     fn get_idWrapper -> IdWrapper() {
-    new IdWrapper(mId)
+    new IdWrapper(m_id)
     }
 
-    fn get_id -> i64 {
-    mId
+   */
+    pub fn get_id(&self) -> i64 {
+        self.m_id
     }
-
-  /** Intended as a temporarily unique string to distinguish an entity, across OM Instances.  NOT intended as a permanent unique ID (since
-    * the remote address for a given OM instance can change! and the local address is displayed as blank!), see uniqueIdentifier
-    * for that.  This one is like that other in a way, but more for human consumption (eg data export for human reading, not for re-import -- ?).
-    */
+/*
+  /// Intended as a temporarily unique string to distinguish an entity, across OM Instances.  NOT intended as a permanent unique ID (since
+  /// the remote address for a given OM instance can change! and the local address is displayed as blank!), see uniqueIdentifier
+  /// for that.  This one is like that other in a way, but more for human consumption (eg data export for human reading, not for re-import -- ?).
   lazy let readableIdentifier: String = {;
     let remotePrefix =;
-      if mDB.get_remote_address.isEmpty) {
+      if m_db.get_remote_address.isEmpty) {
         ""
       } else {
-        mDB.get_remote_address.get + "_"
+        m_db.get_remote_address.get + "_"
       }
     remotePrefix + get_id.toString
   }
@@ -241,18 +287,18 @@ impl Entity {
     * getHumanIdentifier) and the instance id? Or, just combine the methods into one?
     */
   let uniqueIdentifier: String = {;
-    mDB.id + "_" + get_id
+    m_db.id + "_" + get_id
   }
 
-    fn getAttributeCount(include_archived_entitiesIn: Boolean = mDB.include_archived_entities) -> i64 {
-    mDB.getAttributeCount(mId, include_archived_entitiesIn)
+    fn get_attribute_count(include_archived_entitiesIn: bool = m_db.include_archived_entities) -> i64 {
+    m_db.get_attribute_count(m_id, include_archived_entitiesIn)
   }
 
-    fn getRelationToGroupCount -> i64 {
-        mDB.getRelationToGroupCount(mId)
+    fn get_relation_to_group_count -> i64 {
+        m_db.get_relation_to_group_count(m_id)
     }
 
-    fn get_display_string_helper(withColor: Boolean) -> String {
+    fn get_display_string_helper(withColor: bool) -> String {
     let mut displayString: String = {;
       if withColor) {
         getPublicStatusDisplayStringWithColor() + getArchivedStatusDisplayString + Color.blue(get_name)
@@ -260,13 +306,13 @@ impl Entity {
         getPublicStatusDisplayString() + getArchivedStatusDisplayString + get_name
       }
     }
-    let definerInfo = if mDB.getClassCount(Some(mId)) > 0) "template (defining entity) for " else "";
-    let className: Option<String> = if getClassId.is_defined) mDB.getClassName(getClassId.get) else None;
-    displayString += (if className.is_defined) " (" + definerInfo + "class: " + className.get + ")" else "")
+    let definerInfo = if m_db.getClassCount(Some(m_id)) > 0) "template (defining entity) for " else "";
+    let class_name: Option<String> = if getClassId.is_some()) m_db.getClassName(getClassId.get) else None;
+    displayString += (if class_name.is_some()) " (" + definerInfo + "class: " + class_name.get + ")" else "")
     displayString
   }
 
-    fn get_display_string(withColor: Boolean = false) -> String {
+    fn get_display_string(withColor: bool = false) -> String {
     let mut result = "";
     try {
       result = get_display_string_helper(withColor)
@@ -283,8 +329,8 @@ impl Entity {
   }
 
   /** Also for convenience */
-    fn addQuantityAttribute(inAttrTypeId: i64, inUnitId: i64, inNumber: Float, sortingIndexIn: Option<i64>) -> QuantityAttribute {
-    addQuantityAttribute(inAttrTypeId, inUnitId, inNumber, sortingIndexIn, None, System.currentTimeMillis())
+    fn addQuantityAttribute(inAttrTypeId: i64, inUnitId: i64, inNumber: Float, sorting_index_in: Option<i64>) -> QuantityAttribute {
+    addQuantityAttribute(inAttrTypeId, inUnitId, inNumber, sorting_index_in, None, System.currentTimeMillis())
   }
 
   /** Creates a quantity attribute on this Entity (i.e., "6 inches length"), with default values of "now" for the dates. See "addQuantityAttribute" comment
@@ -293,117 +339,117 @@ impl Entity {
    of authentication/login 1st? And a GUID for users (as Entities?)?
    See PostgreSQLDatabase.createQuantityAttribute(...) for details.
     */
-    fn addQuantityAttribute(inAttrTypeId: i64, inUnitId: i64, inNumber: Float, sortingIndexIn: Option<i64> = None,
+    fn addQuantityAttribute(inAttrTypeId: i64, inUnitId: i64, inNumber: Float, sorting_index_in: Option<i64> = None,
                            inValidOnDate: Option<i64>, inObservationDate: i64) -> QuantityAttribute {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    let id = mDB.createQuantityAttribute(mId, inAttrTypeId, inUnitId, inNumber, inValidOnDate, inObservationDate, sortingIndexIn = sortingIndexIn);
-    new QuantityAttribute(mDB, id)
+    let id = m_db.createQuantityAttribute(m_id, inAttrTypeId, inUnitId, inNumber, inValidOnDate, inObservationDate, sorting_index_in = sorting_index_in);
+    new QuantityAttribute(m_db, id)
   }
 
     fn getQuantityAttribute(inKey: i64) -> QuantityAttribute {
         new
-        QuantityAttribute(mDB, inKey)
+        QuantityAttribute(m_db, inKey)
     }
 
     fn getTextAttribute(inKey: i64) -> TextAttribute {
-        new TextAttribute(mDB, inKey)
+        new TextAttribute(m_db, inKey)
     }
 
     fn getDateAttribute(inKey: i64) -> DateAttribute {
-        new_dateAttribute(mDB, inKey)
+        new_dateAttribute(m_db, inKey)
     }
 
-    fn getBooleanAttribute(inKey: i64) -> BooleanAttribute {
-        new BooleanAttribute(mDB, inKey)
+    fn get_booleanAttribute(inKey: i64) -> BooleanAttribute {
+        new BooleanAttribute(m_db, inKey)
     }
 
     fn getFileAttribute(inKey: i64) -> FileAttribute {
-        new FileAttribute(mDB, inKey)
+        new FileAttribute(m_db, inKey)
     }
 
     fn getCountOfContainingGroups -> i64 {
-    mDB.getCountOfGroupsContainingEntity(get_id)
+    m_db.getCountOfGroupsContainingEntity(get_id)
   }
 
     fn getContainingGroupsIds -> ArrayList[i64] {
-    mDB.getContainingGroupsIds(get_id)
+    m_db.getContainingGroupsIds(get_id)
   }
 
     fn getContainingRelationsToGroup(startingIndexIn: i64 = 0, maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
-    mDB.getContainingRelationsToGroup(get_id, startingIndexIn, maxValsIn)
+    m_db.getContainingRelationsToGroup(get_id, startingIndexIn, maxValsIn)
   }
 
     fn getContainingRelationToGroupDescriptions(limitIn: Option<i64> = None) -> util.ArrayList[String] {
-    mDB.getContainingRelationToGroupDescriptions(get_id, limitIn)
+    m_db.getContainingRelationToGroupDescriptions(get_id, limitIn)
   }
 
-    fn findRelationToAndGroup: (Option<i64>, Option<i64>, Option<i64>, Option<String>, Boolean) {
-    mDB.findRelationToAndGroup_OnEntity(get_id)
+    fn findRelationToAndGroup: (Option<i64>, Option<i64>, Option<i64>, Option<String>, bool) {
+    m_db.find_relation_to_and_group_on_entity(get_id)
   }
 
-    fn findContainedLocalEntityIds(resultsInOut: mutable.TreeSet[i64], searchStringIn: String, levelsRemainingIn: Int = 20,
-                             stopAfterAnyFoundIn: Boolean = true) -> mutable.TreeSet[i64] {
-    mDB.findContainedLocalEntityIds(resultsInOut, get_id, searchStringIn, levelsRemainingIn, stopAfterAnyFoundIn)
+    fn find_contained_local_entity_ids(results_in_out: mutable.TreeSet[i64], search_string_in: String, levels_remainingIn: Int = 20,
+                             stop_after_any_foundIn: bool = true) -> mutable.TreeSet[i64] {
+    m_db.find_contained_local_entity_ids(results_in_out, get_id, search_string_in, levels_remainingIn, stop_after_any_foundIn)
   }
 
     fn getCountOfContainingLocalEntities -> (i64, i64) {
-    mDB.getCountOfLocalEntitiesContainingLocalEntity(get_id)
+    m_db.getCountOfLocalEntitiesContainingLocalEntity(get_id)
   }
 
     fn getLocalEntitiesContainingEntity(startingIndexIn: i64 = 0, maxValsIn: Option<i64> = None): java.util.ArrayList[(i64, Entity)] {
-    mDB.getLocalEntitiesContainingLocalEntity(get_id, startingIndexIn, maxValsIn)
+    m_db.getLocalEntitiesContainingLocalEntity(get_id, startingIndexIn, maxValsIn)
   }
 
-    fn getAdjacentAttributesSortingIndexes(sortingIndexIn: i64, limitIn: Option<i64> = None, forwardNotBackIn: Boolean = true) -> List[Array[Option[Any]]] {
-    mDB.getAdjacentAttributesSortingIndexes(get_id, sortingIndexIn, limitIn, forwardNotBackIn = forwardNotBackIn)
+    fn getAdjacentAttributesSortingIndexes(sorting_index_in: i64, limitIn: Option<i64> = None, forwardNotBackIn: bool = true) -> List[Array[Option[Any]]] {
+    m_db.getAdjacentAttributesSortingIndexes(get_id, sorting_index_in, limitIn, forwardNotBackIn = forwardNotBackIn)
   }
 
-    fn getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean = true) -> Option<i64> {
-    mDB.getNearestAttributeEntrysSortingIndex(get_id, startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
+    fn getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: bool = true) -> Option<i64> {
+    m_db.getNearestAttributeEntrysSortingIndex(get_id, startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }
 
-    fn renumberSortingIndexes(callerManagesTransactionsIn: Boolean = false) /* -> Unit%%*/ {
-    mDB.renumberSortingIndexes(get_id, callerManagesTransactionsIn, isEntityAttrsNotGroupEntries = true)
+    fn renumberSortingIndexes(caller_manages_transactions_in: bool = false) /* -> Unit%%*/ {
+    m_db.renumberSortingIndexes(get_id, caller_manages_transactions_in, isEntityAttrsNotGroupEntries = true)
   }
 
-    fn updateAttributeSortingIndex(attributeFormIdIn: i64, attributeIdIn: i64, sortingIndexIn: i64) /* -> Unit%%*/ {
-    mDB.updateAttributeSortingIndex(get_id, attributeFormIdIn, attributeIdIn, sortingIndexIn)
+    fn updateAttributeSortingIndex(attribute_form_id_in: i64, attribute_id_in: i64, sorting_index_in: i64) /* -> Unit%%*/ {
+    m_db.updateAttributeSortingIndex(get_id, attribute_form_id_in, attribute_id_in, sorting_index_in)
   }
 
-    fn getAttributeSortingIndex(attributeFormIdIn: i64, attributeIdIn: i64) -> i64 {
-    mDB.get_entityAttributeSortingIndex(get_id, attributeFormIdIn, attributeIdIn)
+    fn getAttributeSortingIndex(attribute_form_id_in: i64, attribute_id_in: i64) -> i64 {
+    m_db.get_entityAttributeSortingIndex(get_id, attribute_form_id_in, attribute_id_in)
   }
 
-    fn isAttributeSortingIndexInUse(sortingIndexIn: i64) -> Boolean {
-    mDB.isAttributeSortingIndexInUse(get_id, sortingIndexIn)
+    fn is_attribute_sorting_index_in_use(sorting_index_in: i64) -> bool {
+    m_db.is_attribute_sorting_index_in_use(get_id, sorting_index_in)
   }
 
-    fn findUnusedAttributeSortingIndex(startingWithIn: Option<i64> = None) -> i64 {
-    mDB.findUnusedAttributeSortingIndex(get_id, startingWithIn)
+    fn find_unused_attribute_sorting_index(starting_with_in: Option<i64> = None) -> i64 {
+    m_db.find_unused_attribute_sorting_index(get_id, starting_with_in)
   }
 
-    fn getRelationToLocalEntityCount(include_archived_entitiesIn: Boolean = true) -> i64 {
-    mDB.getRelationToLocalEntityCount(get_id, include_archived_entities = include_archived_entitiesIn)
+    fn get_relation_to_local_entity_count(include_archived_entitiesIn: bool = true) -> i64 {
+    m_db.get_relation_to_local_entity_count(get_id, include_archived_entities = include_archived_entitiesIn)
   }
 
-    fn getRelationToRemoteEntityCount -> i64 {
-    mDB.getRelationToRemoteEntityCount(get_id)
+    fn get_relation_to_remote_entity_count -> i64 {
+    m_db.get_relation_to_remote_entity_count(get_id)
   }
 
-    fn getTextAttributeByTypeId(typeIdIn: i64, expectedRowsIn: Option[Int] = None) -> ArrayList[TextAttribute] {
-    mDB.getTextAttributeByTypeId(get_id, typeIdIn, expectedRowsIn)
+    fn getTextAttributeByTypeId(typeIdIn: i64, expected_rowsIn: Option[Int] = None) -> ArrayList[TextAttribute] {
+    m_db.getTextAttributeByTypeId(get_id, typeIdIn, expected_rowsIn)
   }
 
-    fn addUriEntityWithUriAttribute(newEntityNameIn: String, uriIn: String, observationDateIn: i64, makeThemPublicIn: Option<bool>,
-                                   callerManagesTransactionsIn: Boolean, quoteIn: Option<String> = None) -> (Entity, RelationToLocalEntity) {
-    mDB.addUriEntityWithUriAttribute(this, newEntityNameIn, uriIn, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn, quoteIn)
+    fn addUriEntityWithUriAttribute(new_entity_name_in: String, uriIn: String, observation_date_in: i64, makeThem_publicIn: Option<bool>,
+                                   caller_manages_transactions_in: bool, quoteIn: Option<String> = None) -> (Entity, RelationToLocalEntity) {
+    m_db.addUriEntityWithUriAttribute(this, new_entity_name_in, uriIn, observation_date_in, makeThem_publicIn, caller_manages_transactions_in, quoteIn)
   }
 
-    fn createTextAttribute(attrTypeIdIn: i64, textIn: String, valid_on_date_in: Option<i64> = None,
-                          observationDateIn: i64 = System.currentTimeMillis(), callerManagesTransactionsIn: Boolean = false,
-                          sortingIndexIn: Option<i64> = None) -> /*id*/ i64 {
-    mDB.createTextAttribute(get_id, attrTypeIdIn, textIn, valid_on_date_in, observationDateIn, callerManagesTransactionsIn, sortingIndexIn)
+    fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> = None,
+                          observation_date_in: i64 = System.currentTimeMillis(), caller_manages_transactions_in: bool = false,
+                          sorting_index_in: Option<i64> = None) -> /*id*/ i64 {
+    m_db.create_text_attribute(get_id, attr_type_id_in, text_in, valid_on_date_in, observation_date_in, caller_manages_transactions_in, sorting_index_in)
   }
 
     fn updateContainedEntitiesPublicStatus(newValueIn: Option<bool>) -> Int {
@@ -415,15 +461,15 @@ impl Entity {
           // Using RelationToEntity here because it actually makes sense. But usually it is best to make sure to use either RelationToLocalEntity
           // or RelationToRemoteEntity, to be clearer about the logic.
           require(attribute.getRelatedId1 == get_id, "Unexpected value: " + attribute.getRelatedId1)
-          let e: Entity = new Entity(Database.currentOrRemoteDb(attribute, mDB), attribute.getRelatedId2);
+          let e: Entity = new Entity(Database.currentOrRemoteDb(attribute, m_db), attribute.getRelatedId2);
           e.updatePublicStatus(newValueIn)
           count += 1
         case attribute: RelationToGroup =>
-          let groupId: i64 = attribute.getGroupId;
-          let entries: List[Array[Option[Any]]] = mDB.getGroupEntriesData(groupId, None, include_archived_entitiesIn = false);
+          let group_id: i64 = attribute.getGroupId;
+          let entries: List[Array[Option[Any]]] = m_db.getGroupEntriesData(group_id, None, include_archived_entitiesIn = false);
           for (entry <- entries) {
-            let entityId = entry(0).get.asInstanceOf[i64];
-            mDB.updateEntityOnlyPublicStatus(entityId, newValueIn)
+            let entity_id = entry(0).get.asInstanceOf[i64];
+            m_db.updateEntityOnlyPublicStatus(entity_id, newValueIn)
             count += 1
           }
         case _ =>
@@ -434,36 +480,36 @@ impl Entity {
   }
 
   /** See addQuantityAttribute(...) methods for comments. */
-    fn addTextAttribute(inAttrTypeId: i64, inText: String, sortingIndexIn: Option<i64>) -> TextAttribute {
-    addTextAttribute(inAttrTypeId, inText, sortingIndexIn, None, System.currentTimeMillis)
+    fn addTextAttribute(inAttrTypeId: i64, inText: String, sorting_index_in: Option<i64>) -> TextAttribute {
+    addTextAttribute(inAttrTypeId, inText, sorting_index_in, None, System.currentTimeMillis)
   }
 
-    fn addTextAttribute(inAttrTypeId: i64, inText: String, sortingIndexIn: Option<i64>, inValidOnDate: Option<i64>, inObservationDate: i64,
-                       callerManagesTransactionsIn: Boolean = false) -> TextAttribute {
-    let id = mDB.createTextAttribute(mId, inAttrTypeId, inText, inValidOnDate, inObservationDate, callerManagesTransactionsIn, sortingIndexIn);
-    new TextAttribute(mDB, id)
+    fn addTextAttribute(inAttrTypeId: i64, inText: String, sorting_index_in: Option<i64>, inValidOnDate: Option<i64>, inObservationDate: i64,
+                       caller_manages_transactions_in: bool = false) -> TextAttribute {
+    let id = m_db.create_text_attribute(m_id, inAttrTypeId, inText, inValidOnDate, inObservationDate, caller_manages_transactions_in, sorting_index_in);
+    new TextAttribute(m_db, id)
   }
 
-    fn addDateAttribute(inAttrTypeId: i64, inDate: i64, sortingIndexIn: Option<i64> = None) -> DateAttribute {
-    let id = mDB.createDateAttribute(mId, inAttrTypeId, inDate, sortingIndexIn);
-    new DateAttribute(mDB, id)
+    fn addDateAttribute(inAttrTypeId: i64, inDate: i64, sorting_index_in: Option<i64> = None) -> DateAttribute {
+    let id = m_db.createDateAttribute(m_id, inAttrTypeId, inDate, sorting_index_in);
+    new DateAttribute(m_db, id)
   }
 
-    fn addBooleanAttribute(inAttrTypeId: i64, inBoolean: Boolean, sortingIndexIn: Option<i64>) -> BooleanAttribute {
-    addBooleanAttribute(inAttrTypeId, inBoolean, sortingIndexIn, None, System.currentTimeMillis)
+    fn addBooleanAttribute(inAttrTypeId: i64, inBoolean: bool, sorting_index_in: Option<i64>) -> BooleanAttribute {
+    addBooleanAttribute(inAttrTypeId, inBoolean, sorting_index_in, None, System.currentTimeMillis)
   }
 
-    fn addBooleanAttribute(inAttrTypeId: i64, inBoolean: Boolean, sortingIndexIn: Option<i64> = None,
+    fn addBooleanAttribute(inAttrTypeId: i64, inBoolean: bool, sorting_index_in: Option<i64> = None,
                           inValidOnDate: Option<i64>, inObservationDate: i64) -> BooleanAttribute {
-    let id = mDB.createBooleanAttribute(mId, inAttrTypeId, inBoolean, inValidOnDate, inObservationDate, sortingIndexIn);
-    new BooleanAttribute(mDB, id)
+    let id = m_db.create_boolean_attribute(m_id, inAttrTypeId, inBoolean, inValidOnDate, inObservationDate, sorting_index_in);
+    new BooleanAttribute(m_db, id)
   }
 
     fn addFileAttribute(inAttrTypeId: i64, inFile: java.io.File) -> FileAttribute {
     addFileAttribute(inAttrTypeId, inFile.get_name, inFile)
   }
 
-    fn addFileAttribute(inAttrTypeId: i64, descriptionIn: String, inFile: java.io.File, sortingIndexIn: Option<i64> = None) -> FileAttribute {
+    fn addFileAttribute(inAttrTypeId: i64, descriptionIn: String, inFile: java.io.File, sorting_index_in: Option<i64> = None) -> FileAttribute {
     if !inFile.exists()) {
       throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
     }
@@ -472,10 +518,10 @@ impl Entity {
     let mut inputStream: java.io.FileInputStream = null;
     try {
       inputStream = new FileInputStream(inFile)
-      let id = mDB.createFileAttribute(mId, inAttrTypeId, descriptionIn, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,;
+      let id = m_db.createFileAttribute(m_id, inAttrTypeId, descriptionIn, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,;
                                        inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute.md5Hash(inFile), inputStream,
-                                       sortingIndexIn)
-      new FileAttribute(mDB, id)
+                                       sorting_index_in)
+      new FileAttribute(m_db, id)
     }
     finally {
       if inputStream != null) {
@@ -484,134 +530,134 @@ impl Entity {
     }
   }
 
-    fn addRelationToLocalEntity(inAttrTypeId: i64, inEntityId2: i64, sortingIndexIn: Option<i64>,
+    fn addRelationToLocalEntity(inAttrTypeId: i64, inEntityId2: i64, sorting_index_in: Option<i64>,
                           inValidOnDate: Option<i64> = None, inObservationDate: i64 = System.currentTimeMillis) -> RelationToLocalEntity {
-    let rteId = mDB.createRelationToLocalEntity(inAttrTypeId, get_id, inEntityId2, inValidOnDate, inObservationDate, sortingIndexIn).get_id;
-    new RelationToLocalEntity(mDB, rteId, inAttrTypeId, get_id, inEntityId2)
+    let rte_id = m_db.create_relation_to_local_entity(inAttrTypeId, get_id, inEntityId2, inValidOnDate, inObservationDate, sorting_index_in).get_id;
+    new RelationToLocalEntity(m_db, rte_id, inAttrTypeId, get_id, inEntityId2)
   }
 
-    fn addRelationToRemoteEntity(inAttrTypeId: i64, inEntityId2: i64, sortingIndexIn: Option<i64>,
+    fn addRelationToRemoteEntity(inAttrTypeId: i64, inEntityId2: i64, sorting_index_in: Option<i64>,
                           inValidOnDate: Option<i64> = None, inObservationDate: i64 = System.currentTimeMillis,
-                          remoteInstanceIdIn: String) -> RelationToRemoteEntity {
-    let rteId = mDB.createRelationToRemoteEntity(inAttrTypeId, get_id, inEntityId2, inValidOnDate, inObservationDate,;
-                                                 remoteInstanceIdIn, sortingIndexIn).get_id
-    new RelationToRemoteEntity(mDB, rteId, inAttrTypeId, get_id, remoteInstanceIdIn, inEntityId2)
+                          remote_instance_id_in: String) -> RelationToRemoteEntity {
+    let rte_id = m_db.create_relation_to_remote_entity(inAttrTypeId, get_id, inEntityId2, inValidOnDate, inObservationDate,;
+                                                 remote_instance_id_in, sorting_index_in).get_id
+    new RelationToRemoteEntity(m_db, rte_id, inAttrTypeId, get_id, remote_instance_id_in, inEntityId2)
   }
 
   /** Creates then adds a particular kind of rtg to this entity.
     * Returns new group's id, and the new RelationToGroup object
     * */
-    fn createGroupAndAddHASRelationToIt(newGroupNameIn: String, mixedClassesAllowedIn: Boolean, observationDateIn: i64,
-                                       callerManagesTransactionsIn: Boolean = false) -> (Group, RelationToGroup) {
+    fn create_groupAndAddHASRelationToIt(new_group_name_in: String, mixed_classes_allowedIn: bool, observation_date_in: i64,
+                                       caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    let relationTypeId = mDB.findRelationType(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-    let (group, rtg) = addGroupAndRelationToGroup(relationTypeId, newGroupNameIn, mixedClassesAllowedIn, None, observationDateIn,;
-                                                  None, callerManagesTransactionsIn)
+    let relationTypeId = m_db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
+    let (group, rtg) = addGroupAndRelationToGroup(relationTypeId, new_group_name_in, mixed_classes_allowedIn, None, observation_date_in,;
+                                                  None, caller_manages_transactions_in)
     (group, rtg)
   }
 
   /** Like others, returns the new things' IDs. */
-    fn addGroupAndRelationToGroup(relTypeIdIn: i64, newGroupNameIn: String, allowMixedClassesInGroupIn: Boolean = false, valid_on_date_in: Option<i64>,
-                                 inObservationDate: i64, sortingIndexIn: Option<i64>, callerManagesTransactionsIn: Boolean = false) -> (Group, RelationToGroup) {
-    let (groupId: i64, rtgId: i64) = mDB.createGroupAndRelationToGroup(get_id, relTypeIdIn, newGroupNameIn, allowMixedClassesInGroupIn, valid_on_date_in,;
-                                                                         inObservationDate, sortingIndexIn, callerManagesTransactionsIn)
-    let group = new Group(mDB, groupId);
-    let rtg = new RelationToGroup(mDB, rtgId, get_id, relTypeIdIn, groupId);
+    fn addGroupAndRelationToGroup(relTypeIdIn: i64, new_group_name_in: String, allow_mixed_classes_in_group_in: bool = false, valid_on_date_in: Option<i64>,
+                                 inObservationDate: i64, sorting_index_in: Option<i64>, caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
+    let (group_id: i64, rtg_id: i64) = m_db.create_group_and_relation_to_group(get_id, relTypeIdIn, new_group_name_in, allow_mixed_classes_in_group_in, valid_on_date_in,;
+                                                                         inObservationDate, sorting_index_in, caller_manages_transactions_in)
+    let group = new Group(m_db, group_id);
+    let rtg = new RelationToGroup(m_db, rtg_id, get_id, relTypeIdIn, group_id);
     (group, rtg)
   }
 
   /**
    * @return the id of the new RTE
    */
-    fn addHASRelationToLocalEntity(entityIdIn: i64, valid_on_date_in: Option<i64>, observationDateIn: i64) -> RelationToLocalEntity {
-    mDB.addHASRelationToLocalEntity(get_id, entityIdIn, valid_on_date_in, observationDateIn)
+    fn addHASRelationToLocalEntity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
+    m_db.addHASRelationToLocalEntity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
   }
 
   /** Creates new entity then adds it a particular kind of rte to this entity.
     * */
-    fn createEntityAndAddHASLocalRelationToIt(newEntityNameIn: String, observationDateIn: i64, isPublicIn: Option<bool>,
-                                        callerManagesTransactionsIn: Boolean = false) -> (Entity, RelationToLocalEntity) {
+    fn create_entityAndAddHASLocalRelationToIt(new_entity_name_in: String, observation_date_in: i64, is_public_in: Option<bool>,
+                                        caller_manages_transactions_in: bool = false) -> (Entity, RelationToLocalEntity) {
     // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
     // anyway:
-    let relationTypeId = mDB.findRelationType(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-    let (entity: Entity, rte: RelationToLocalEntity) = addEntityAndRelationToLocalEntity(relationTypeId, newEntityNameIn, None, observationDateIn,;
-                                                                                         isPublicIn, callerManagesTransactionsIn)
+    let relationTypeId = m_db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
+    let (entity: Entity, rte: RelationToLocalEntity) = addEntityAndRelationToLocalEntity(relationTypeId, new_entity_name_in, None, observation_date_in,;
+                                                                                         is_public_in, caller_manages_transactions_in)
     (entity, rte)
   }
 
-    fn addEntityAndRelationToLocalEntity(relTypeIdIn: i64, newEntityNameIn: String, valid_on_date_in: Option<i64>, inObservationDate: i64,
-                                   isPublicIn: Option<bool>, callerManagesTransactionsIn: Boolean = false) -> (Entity, RelationToLocalEntity) {
-    let (entityId, rteId) = mDB.createEntityAndRelationToLocalEntity(get_id, relTypeIdIn, newEntityNameIn, isPublicIn, valid_on_date_in, inObservationDate,;
-                                                                callerManagesTransactionsIn)
-    let entity = new Entity(mDB, entityId);
-    let rte = new RelationToLocalEntity(mDB, rteId, relTypeIdIn, mId, entityId);
+    fn addEntityAndRelationToLocalEntity(relTypeIdIn: i64, new_entity_name_in: String, valid_on_date_in: Option<i64>, inObservationDate: i64,
+                                   is_public_in: Option<bool>, caller_manages_transactions_in: bool = false) -> (Entity, RelationToLocalEntity) {
+    let (entity_id, rte_id) = m_db.create_entity_and_relation_to_local_entity(get_id, relTypeIdIn, new_entity_name_in, is_public_in, valid_on_date_in, inObservationDate,;
+                                                                caller_manages_transactions_in)
+    let entity = new Entity(m_db, entity_id);
+    let rte = new RelationToLocalEntity(m_db, rte_id, relTypeIdIn, m_id, entity_id);
     (entity, rte)
   }
 
   /**
     * @return the new group's id.
     */
-    fn addRelationToGroup(relTypeIdIn: i64, groupIdIn: i64, sortingIndexIn: Option<i64>) -> RelationToGroup {
-    addRelationToGroup(relTypeIdIn, groupIdIn, sortingIndexIn, None, System.currentTimeMillis)
+    fn addRelationToGroup(relTypeIdIn: i64, group_id_in: i64, sorting_index_in: Option<i64>) -> RelationToGroup {
+    addRelationToGroup(relTypeIdIn, group_id_in, sorting_index_in, None, System.currentTimeMillis)
   }
 
-    fn addRelationToGroup(relTypeIdIn: i64, groupIdIn: i64, sortingIndexIn: Option<i64>,
-                         valid_on_date_in: Option<i64>, observationDateIn: i64) -> RelationToGroup {
-    let (newRtgId, sortingIndex) = mDB.createRelationToGroup(get_id, relTypeIdIn, groupIdIn, valid_on_date_in, observationDateIn, sortingIndexIn);
-    new RelationToGroup(mDB, newRtgId, get_id, relTypeIdIn, groupIdIn, valid_on_date_in, observationDateIn, sortingIndex)
+    fn addRelationToGroup(relTypeIdIn: i64, group_id_in: i64, sorting_index_in: Option<i64>,
+                         valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToGroup {
+    let (newRtg_id, sorting_index) = m_db.create_relation_to_group(get_id, relTypeIdIn, group_id_in, valid_on_date_in, observation_date_in, sorting_index_in);
+    new RelationToGroup(m_db, newRtg_id, get_id, relTypeIdIn, group_id_in, valid_on_date_in, observation_date_in, sorting_index)
   }
 
-    fn getSortedAttributes(startingObjectIndexIn: Int = 0, maxValsIn: Int = 0, onlyPublicEntitiesIn: Boolean = true) -> (Array[(i64, Attribute)], Int) {
-    mDB.getSortedAttributes(get_id, startingObjectIndexIn, maxValsIn, onlyPublicEntitiesIn = onlyPublicEntitiesIn)
+    fn getSortedAttributes(startingObjectIndexIn: Int = 0, maxValsIn: Int = 0, onlyPublicEntitiesIn: bool = true) -> (Array[(i64, Attribute)], Int) {
+    m_db.getSortedAttributes(get_id, startingObjectIndexIn, maxValsIn, onlyPublicEntitiesIn = onlyPublicEntitiesIn)
   }
 
-    fn updateClass(classIdIn: Option<i64>) /*%% -> Unit*/ {
-    if !mAlreadyReadData) readDataFromDB()
-    if classIdIn != mClassId) {
-      mDB.updateEntitysClass(this.get_id, classIdIn)
-      mClassId = classIdIn
+    fn updateClass(class_id_in: Option<i64>) /*%% -> Unit*/ {
+    if !m_already_read_data) read_data_from_db()
+    if class_id_in != m_class_id) {
+      m_db.updateEntitysClass(this.get_id, class_id_in)
+      m_class_id = class_id_in
     }
   }
 
-    fn updateNewEntriesStickToTop(b: Boolean) {
-    if !mAlreadyReadData) readDataFromDB()
-    if b != mNewEntriesStickToTop) {
-      mDB.updateEntityOnlyNewEntriesStickToTop(get_id, b)
-      mNewEntriesStickToTop = b
+    fn updateNewEntriesStickToTop(b: bool) {
+    if !m_already_read_data) read_data_from_db()
+    if b != m_new_entries_stick_to_top) {
+      m_db.updateEntityOnlyNewEntriesStickToTop(get_id, b)
+      m_new_entries_stick_to_top = b
     }
   }
 
     fn updatePublicStatus(newValueIn: Option<bool>) {
-    if !mAlreadyReadData) readDataFromDB()
-    if newValueIn != mPublic) {
+    if !m_already_read_data) read_data_from_db()
+    if newValueIn != m_public) {
       // The condition for this (when it was part of EntityMenu) used to include " && !entity_in.isInstanceOf[RelationType]", but maybe it's better w/o that.
-      mDB.updateEntityOnlyPublicStatus(get_id, newValueIn)
-      mPublic = newValueIn
+      m_db.updateEntityOnlyPublicStatus(get_id, newValueIn)
+      m_public = newValueIn
     }
   }
 
     fn updateName(name_in: String) /*%% -> Unit*/ {
-    if !mAlreadyReadData) readDataFromDB()
-    if name_in != mName) {
-      mDB.updateEntityOnlyName(get_id, name_in);
-      mName = name_in
+    if !m_already_read_data) read_data_from_db()
+    if name_in != m_name) {
+      m_db.updateEntityOnlyName(get_id, name_in);
+      m_name = name_in
     }
   }
 
     fn archive() {
-    mDB.archiveEntity(mId);
-    mArchived = true
+    m_db.archiveEntity(m_id);
+    m_archived = true
   }
 
     fn unarchive() {
-    mDB.unarchiveEntity(mId);
-    mArchived = false
+    m_db.unarchiveEntity(m_id);
+    m_archived = false
   }
 
   /** Removes this object from the system. */
     fn delete() {
-      mDB.deleteEntity(mId)
+      m_db.delete_entity(m_id)
   }
 
 */

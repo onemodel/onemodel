@@ -18,10 +18,10 @@ import org.onemodel.core.{OmException, Util}
   * This constructor instantiates an existing object from the DB. You can use Entity.addQuantityAttribute() to
   * create a new object.
   *
-class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if !mDB.is_remote && !mDB.quantityAttributeKeyExists(mId)) {
-    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
+class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObservedDates(m_db, m_id) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
+  if !m_db.is_remote && !m_db.quantityAttributeKeyExists(m_id)) {
+    throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
   /**
@@ -29,12 +29,12 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(db: Database, id: i64, parentIdIn: i64, attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, valid_on_date: Option<i64>,
-           observationDate: i64, sortingIndex: i64) {
+    fn this(db: Database, id: i64, parent_id_in: i64, attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date: Option<i64>,
+           observationDate: i64, sorting_index: i64) {
     this(db, id)
     mUnitId = unitIdIn
     mNumber = numberIn
-    assignCommonVars(parentIdIn, attrTypeIdIn, valid_on_date, observationDate, sortingIndex)
+    assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observationDate, sorting_index)
   }
 
   /**
@@ -44,28 +44,28 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
    * otherwise can be None.
    */
     fn get_display_string(lengthLimitIn: Int, unused: Option<Entity>=None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
-    let typeName: String = mDB.getEntityName(getAttrTypeId).get;
+    let typeName: String = m_db.get_entity_name(get_attr_type_id()).get;
     let number: Float = getNumber;
     let unitId: i64 = getUnitId;
-    let mut result: String = typeName + ": " + number + " " + mDB.getEntityName(unitId).get;
+    let mut result: String = typeName + ": " + number + " " + m_db.get_entity_name(unitId).get;
     if ! simplify) result += "; " + get_dates_description
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
   private[onemodel] fn getNumber -> Float {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mNumber
   }
 
   private[onemodel] fn getUnitId -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mUnitId
   }
 
-  protected fn readDataFromDB() {
-    let quantityData = mDB.getQuantityAttributeData(mId);
+  protected fn read_data_from_db() {
+    let quantityData = m_db.getQuantityAttributeData(m_id);
     if quantityData.length == 0) {
-      throw new OmException("No results returned from data request for: " + mId)
+      throw new OmException("No results returned from data request for: " + m_id)
     }
     mUnitId = quantityData(1).get.asInstanceOf[i64]
     mNumber = quantityData(2).get.asInstanceOf[Float]
@@ -73,30 +73,30 @@ class QuantityAttribute(mDB: Database, mId: i64) extends AttributeWithValidAndOb
                            quantityData(5).get.asInstanceOf[i64], quantityData(6).get.asInstanceOf[i64])
   }
 
-    fn update(attrTypeIdIn: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>, observationDateIn: i64) {
+    fn update(attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>, observation_date_in: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    mDB.updateQuantityAttribute(mId, getParentId, attrTypeIdIn, unitIdIn, numberIn, valid_on_date_in, observationDateIn)
-    mAttrTypeId = attrTypeIdIn
+    m_db.updateQuantityAttribute(m_id, get_parent_id(), attr_type_id_in, unitIdIn, numberIn, valid_on_date_in, observation_date_in)
+    m_attr_type_id = attr_type_id_in
     mUnitId = unitIdIn
     mNumber = numberIn
     valid_on_date = valid_on_date_in
-    observation_date = observationDateIn
+    observation_date = observation_date_in
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    mDB.deleteQuantityAttribute(mId)
+    m_db.deleteQuantityAttribute(m_id)
     }
 
   // **idea: make these members into vals not vars, by replacing them with the next line.
-  //           private let (unitId: i64, number: Float) = readDataFromDB();
+  //           private let (unitId: i64, number: Float) = read_data_from_db();
   // BUT: have to figure out how to work with the
   // assignment from the other constructor, and passing vals to the superclass to be...vals.  Need to know scala better,
   // like how additional class vals are set when the other constructor (what's the term again?), is called. How to do the other constructor w/o a db hit.
   /**
    * For descriptions of the meanings of these variables, see the comments
-   * on createQuantityAttribute(...) or createTables() in PostgreSQLDatabase or Database classes
+   * on createQuantityAttribute(...) or create_tables() in PostgreSQLDatabase or Database classes
    */
   private let mut mUnitId: i64 = 0L;
   private let mut mNumber: Float = .0F;

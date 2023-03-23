@@ -79,10 +79,10 @@ object FileAttribute {
   * not shared (idea: model that better, and in DateAttribute). (idea: IN FACT, ALL THE CODE RELATED TO THESE CLASSES COULD PROBABLY HAVE A LOT OF REDUNDANCY
   * REMOVED.)
   */
-class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if !mDB.is_remote && !mDB.fileAttributeKeyExists(mId)) {
-    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
+class FileAttribute(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
+  if !m_db.is_remote && !m_db.fileAttributeKeyExists(m_id)) {
+    throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
 
@@ -90,9 +90,9 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
   one that already exists.
     */
-    fn this(mDB: Database, mId: i64, parentIdIn: i64, attrTypeIdIn: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
-           inOriginalFilePath: String, readableIn: bool, writableIn: bool, executableIn: bool, sizeIn: i64, md5hashIn: String, sortingIndexIn: i64) {
-    this(mDB, mId)
+    fn this(m_db: Database, m_id: i64, parent_id_in: i64, attr_type_id_in: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
+           inOriginalFilePath: String, readableIn: bool, writableIn: bool, executableIn: bool, sizeIn: i64, md5hashIn: String, sorting_index_in: i64) {
+    this(m_db, m_id)
     mDescription = descriptionIn
     mOriginalFileDate = originalFileDateIn
     mStoredDate = storedDateIn
@@ -102,11 +102,11 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     mExecutable = executableIn
     mSize = sizeIn
     mMd5hash = md5hashIn
-    assignCommonVars(parentIdIn, attrTypeIdIn, sortingIndexIn)
+    assignCommonVars(parent_id_in, attr_type_id_in, sorting_index_in)
   }
 
     fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType] = None, simplify: bool = false) -> String {
-    let typeName: String = mDB.getEntityName(getAttrTypeId).get;
+    let typeName: String = m_db.get_entity_name(get_attr_type_id()).get;
     let mut result: String = getDescription + " (" + typeName + "); " + getFileSizeDescription;
     if ! simplify) result = result + " " + getPermissionsDescription + " from " +
                              getOriginalFilePath + ", " + get_dates_description + "; md5 " + getMd5Hash + "."
@@ -129,10 +129,10 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     else "" + decimalFormat.format(getSize / math.pow(10, 9)) + "GB (" + getSize + ")"
   }
 
-  protected fn readDataFromDB() {
-    let faTypeData = mDB.getFileAttributeData(mId);
+  protected fn read_data_from_db() {
+    let faTypeData = m_db.getFileAttributeData(m_id);
     if faTypeData.length == 0) {
-      throw new OmException("No results returned from data request for: " + mId)
+      throw new OmException("No results returned from data request for: " + m_id)
     }
     mDescription = faTypeData(1).get.asInstanceOf[String]
     mOriginalFileDate = faTypeData(3).get.asInstanceOf[i64]
@@ -152,27 +152,27 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
   // AND note that: The dates for a fileAttribute shouldn't ever be None/NULL like with other Attributes, because it is the file date in the filesystem
   // before it was
   // read into OM, and the current date; so they should be known whenever adding a document.
-    fn update(attrTypeIdIn: Option<i64> = None, descriptionIn: Option<String> = None) {
+    fn update(attr_type_id_in: Option<i64> = None, descriptionIn: Option<String> = None) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    let descr = if descriptionIn.is_defined) descriptionIn.get else getDescription;
-    let attrTypeId = if attrTypeIdIn.is_defined) attrTypeIdIn.get else getAttrTypeId;
-    mDB.updateFileAttribute(get_id, getParentId, attrTypeId, descr)
+    let descr = if descriptionIn.is_some()) descriptionIn.get else getDescription;
+    let attrTypeId = if attr_type_id_in.is_some()) attr_type_id_in.get else get_attr_type_id();
+    m_db.updateFileAttribute(get_id, get_parent_id(), attrTypeId, descr)
     mDescription = descr
-    mAttrTypeId = attrTypeId
+    m_attr_type_id = attrTypeId
   }
 
   ///** Using Options for the parameters so caller can pass in only those desired (named), and other members will stay the same.
   //  */
-  //fn update(attrTypeIdIn: Option<i64> = None, descriptionIn: Option<String> = None, originalFileDateIn: Option<i64> = None,
+  //fn update(attr_type_id_in: Option<i64> = None, descriptionIn: Option<String> = None, originalFileDateIn: Option<i64> = None,
   //           storedDateIn: Option<i64> = None, original_file_path_in: Option<String> = None, sizeIn: Option<i64> = None, md5hashIn: Option<String> = None) {
   //  // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
   //  // it all goes with
   //  //********IF THIS METHOD IS EVER UNCOMMENTED: BE SURE TO TEST THAT the values (like size, hash, original date,
   // stored date!) are untouched if unchanged if
   //  // not passed in!! And probably need to add the 3 boolean fields to it & test.
-  //  mDB.updateFileAttribute(mId, mParentId,
-  //                          if attrTypeIdIn == None) getAttrTypeId else inAttrTypeId.get,
+  //  m_db.updateFileAttribute(m_id, m_parent_id,
+  //                          if attr_type_id_in == None) get_attr_type_id() else inAttrTypeId.get,
   //                          if descriptionIn == None) getDescription else inDescription.get,
   //                          if originalFileDateIn == None) getOriginalFileDate else originalFileDateIn.get,
   //                          if storedDateIn == None) getStoredDate else storedDateIn.get,
@@ -183,7 +183,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
 
   /** Removes this object from the system. */
     fn delete() {
-    mDB.deleteFileAttribute(mId)
+    m_db.deleteFileAttribute(m_id)
     }
 
     fn get_dates_description -> String {
@@ -191,47 +191,47 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
     }
 
   private[onemodel] fn getOriginalFileDate -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mOriginalFileDate
   }
 
   private[onemodel] fn getStoredDate -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mStoredDate
   }
 
   private[onemodel] fn getDescription -> String {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mDescription
   }
 
   private[onemodel] fn getOriginalFilePath -> String {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mOriginalFilePath
   }
 
   private[onemodel] fn getSize -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mSize
   }
 
   private[onemodel] fn getMd5Hash -> String {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mMd5hash
   }
 
     fn getReadable -> bool {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mReadable
   }
 
     fn getWritable -> bool {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mWritable
   }
 
     fn getExecutable -> bool {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mExecutable
   }
 
@@ -258,9 +258,9 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
       }
       outputStream = new FileOutputStream(fileIn)
       //idea: if the file exists, copy out to a temp name, then after retrieval delete it & rename the new one to it? (uses more space)
-      let (sizeStoredInDb, hashStoredInDb) = mDB.getFileAttributeContent(get_id, outputStream);
-      // idea: this could be made more efficient if we checked the hash during streaming it to the local disk (in mDB.getFileAttributeContent)
-      // (as does mDB.verifyFileAttributeContent).
+      let (sizeStoredInDb, hashStoredInDb) = m_db.getFileAttributeContent(get_id, outputStream);
+      // idea: this could be made more efficient if we checked the hash during streaming it to the local disk (in m_db.getFileAttributeContent)
+      // (as does m_db.verifyFileAttributeContent).
 
       // this is a hook so tests can verify that we do fail if the file isn't intact
       // (Idea:  huh?? This next line does nothing. Noted in tasks to see what is meant & make it do that. or at least more clear.)
@@ -282,7 +282,7 @@ class FileAttribute(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
 
   /**
    * For descriptions of the meanings of these variables, see the comments
-   * on createTables(...), and examples in the database testing code, for & in PostgreSQLDatabase or Database classes.
+   * on create_tables(...), and examples in the database testing code, for & in PostgreSQLDatabase or Database classes.
    */
   private let mut mDescription: String = null;
   private let mut mOriginalFileDate: i64 = 0;

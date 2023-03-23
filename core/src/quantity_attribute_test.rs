@@ -26,8 +26,8 @@ class QuantityAttributeTest extends FlatSpec with MockitoSugar {
     let date = 304;
     when(mockDB.quantityAttributeKeyExists(quantityAttributeId)).thenReturn(true)
     when(mockDB.entity_key_exists(entityId)).thenReturn(true)
-    when(mockDB.getEntityName(attrTypeId)).thenReturn(Some("length"))
-    when(mockDB.getEntityName(unitId)).thenReturn(Some("meters"))
+    when(mockDB.get_entity_name(attrTypeId)).thenReturn(Some("length"))
+    when(mockDB.get_entity_name(unitId)).thenReturn(Some("meters"))
 
     let quantityAttribute = new QuantityAttribute(mockDB, quantityAttributeId, entityId, attrTypeId, unitId, number, None, date, 0);
     let smallLimit = 8;

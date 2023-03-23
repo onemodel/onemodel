@@ -9,7 +9,7 @@
 
     (This was originally cloned from RelationToEntity which has the above copyright years for its contents.)
 */
-struct RelationToRemoteEntity {
+pub struct RelationToRemoteEntity {
 /*%%
 package org.onemodel.core.model
 
@@ -30,16 +30,16 @@ import org.onemodel.core.{OmException, Util}
 
    *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:
  *
-class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1: i64, mRemoteInstanceId: String,
-                       mEntityId2: i64) extends RelationToEntity(mDB, mId, mRelTypeId, mEntityId1, mEntityId2) {
+class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntityId1: i64, mRemoteInstanceId: String,
+                       mEntityId2: i64) extends RelationToEntity(m_db, m_id, mRelTypeId, mEntityId1, mEntityId2) {
   // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if mDB.is_remote || mDB.relationToRemoteEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mRemoteInstanceId, mEntityId2)) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
+  if m_db.is_remote || m_db.relationToRemoteEntityKeysExistAndMatch(m_id, mRelTypeId, mEntityId1, mRemoteInstanceId, mEntityId2)) {
     // something else might be cleaner, but these are the same thing and we need to make sure an eventual superclass' var doesn't overwrite this w/ 0:;
-    mAttrTypeId = mRelTypeId
+    m_attr_type_id = mRelTypeId
   } else {
-    throw new scala.Exception("Key id=" + mId + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
-                              " and entity_id_2=" + mEntityId2 + " and remote_instance_id='" + mRemoteInstanceId + Util.DOES_NOT_EXIST)
+    throw new scala.Exception("Key id=" + m_id + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
+                              " and entity_id_2=" + mEntityId2 + " and remote_instance_id='" + mRemoteInstanceId + Util::DOES_NOT_EXIST)
   }
 
 
@@ -48,36 +48,36 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(mDB: Database, id_in: i64, relTypeIdIn: i64, entityId1In: i64, remoteInstanceIdIn: String, entityId2In: i64,
-           valid_on_date_in: Option<i64>, observationDateIn: i64, sortingIndexIn: i64) {
-    this(mDB, id_in, relTypeIdIn, entityId1In, remoteInstanceIdIn, entityId2In)
+    fn this(m_db: Database, id_in: i64, relTypeIdIn: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
+           valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: i64) {
+    this(m_db, id_in, relTypeIdIn, entity_id1_in, remote_instance_id_in, entity_id2_in)
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
-    assignCommonVars(entityId1In, relTypeIdIn, valid_on_date_in, observationDateIn, sortingIndexIn)
+    assignCommonVars(entity_id1_in, relTypeIdIn, valid_on_date_in, observation_date_in, sorting_index_in)
   }
 
     fn getRemoteInstanceId -> String {
     mRemoteInstanceId
     }
 
-  protected override fn readDataFromDB() {
-    let relationData: Array[Option[Any]] = mDB.getRelationToRemoteEntityData(mAttrTypeId, mEntityId1, mRemoteInstanceId, mEntityId2);
+  protected override fn read_data_from_db() {
+    let relationData: Array[Option[Any]] = m_db.getRelationToRemoteEntityData(m_attr_type_id, mEntityId1, mRemoteInstanceId, mEntityId2);
     // No other local variables to assign.  All are either in the superclass or the primary key.
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
     if relationData.length == 0) {
-      throw new OmException("No results returned from data request for: " + mAttrTypeId + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)
+      throw new OmException("No results returned from data request for: " + m_attr_type_id + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)
     }
-    assignCommonVars(mEntityId1, mAttrTypeId, relationData(1).asInstanceOf[Option<i64>],
+    assignCommonVars(mEntityId1, m_attr_type_id, relationData(1).asInstanceOf[Option<i64>],
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
-    fn move(toContainingEntityIdIn: i64, sortingIndexIn: i64) -> RelationToRemoteEntity {
-    mDB.moveRelationToRemoteEntityToLocalEntity(getRemoteInstanceId, get_id, toContainingEntityIdIn, sortingIndexIn)
+    fn move(toContainingEntityIdIn: i64, sorting_index_in: i64) -> RelationToRemoteEntity {
+    m_db.moveRelationToRemoteEntityToLocalEntity(getRemoteInstanceId, get_id, toContainingEntityIdIn, sorting_index_in)
   }
 
   override fn getRemoteDescription() {
-    let remoteOmInstance = new OmInstance(mDB, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId);
+    let remoteOmInstance = new OmInstance(m_db, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId);
     " (at " + remoteOmInstance.getAddress + ")"
   }
 
@@ -89,25 +89,25 @@ class RelationToRemoteEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId
     Database.getRestDatabase(mRemoteAddress)
   }
 
-    fn update(valid_on_date_in:Option<i64>, observationDateIn:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
-    let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
+    fn update(valid_on_date_in:Option<i64>, observation_date_in:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
+    let newAttrTypeId = newAttrTypeIdIn.getOrElse(get_attr_type_id());
     //Using valid_on_date_in rather than valid_on_date_in.get because valid_on_date allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations
     // & how to be most clear (could be the same in RelationToGroup & other Attribute subclasses).)
-    let vod = if valid_on_date_in.is_defined) valid_on_date_in else getValidOnDate;
-    let od = if observationDateIn.is_defined) observationDateIn.get else getObservationDate;
-    mDB.updateRelationToRemoteEntity(mAttrTypeId, mEntityId1, getRemoteInstanceId, mEntityId2, newAttrTypeId, vod, od)
+    let vod = if valid_on_date_in.is_some()) valid_on_date_in else get_valid_on_date();
+    let od = if observation_date_in.is_some()) observation_date_in.get else get_observation_date();
+    m_db.updateRelationToRemoteEntity(m_attr_type_id, mEntityId1, getRemoteInstanceId, mEntityId2, newAttrTypeId, vod, od)
     valid_on_date = vod
     observation_date = od
-    mAttrTypeId = newAttrTypeId
+    m_attr_type_id = newAttrTypeId
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    mDB.deleteRelationToRemoteEntity(getAttrTypeId, getRelatedId1, mRemoteInstanceId, getRelatedId2)
+    m_db.deleteRelationToRemoteEntity(get_attr_type_id(), getRelatedId1, mRemoteInstanceId, getRelatedId2)
     }
 
-  lazy private let mRemoteAddress = new OmInstance(mDB, getRemoteInstanceId).getAddress;
+  lazy private let mRemoteAddress = new OmInstance(m_db, getRemoteInstanceId).getAddress;
 
 */
 }

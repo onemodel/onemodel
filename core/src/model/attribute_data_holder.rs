@@ -19,48 +19,48 @@ class AttributeDataHolderWithVODates(attrTypeId: i64,
                           let mut observationDate: i64);
   extends AttributeDataHolder(attrTypeId)
 
-class QuantityAttributeDataHolder(attrTypeIdIn: i64,
+class QuantityAttributeDataHolder(attr_type_id_in: i64,
                                   valid_on_date_in: Option<i64>,
-                                  observationDateIn: i64,
+                                  observation_date_in: i64,
                                   let mut number: Float,;
                                   let mut unitId: i64);
-    extends AttributeDataHolderWithVODates(attrTypeIdIn, valid_on_date_in, observationDateIn)
+    extends AttributeDataHolderWithVODates(attr_type_id_in, valid_on_date_in, observation_date_in)
 
-class TextAttributeDataHolder(attrTypeIdIn: i64,
+class TextAttributeDataHolder(attr_type_id_in: i64,
                                 valid_on_date_in: Option<i64>,
-                                observationDateIn: i64,
+                                observation_date_in: i64,
                                 let mut text: String);
-    extends AttributeDataHolderWithVODates(attrTypeIdIn, valid_on_date_in, observationDateIn)
+    extends AttributeDataHolderWithVODates(attr_type_id_in, valid_on_date_in, observation_date_in)
 
 class RelationToEntityDataHolder(relTypeIdIn: i64,
                                  valid_on_date_in: Option<i64>,
-                                 observationDateIn: i64,
-                                 let mut entityId2: i64,;
-                                 let mut is_remote: Boolean,;
+                                 observation_date_in: i64,
+                                 let mut entity_id2: i64,;
+                                 let mut is_remote: bool,;
                                  let mut remoteInstanceId: String);
-  extends AttributeDataHolderWithVODates(relTypeIdIn, valid_on_date_in, observationDateIn)
+  extends AttributeDataHolderWithVODates(relTypeIdIn, valid_on_date_in, observation_date_in)
 
 class GroupDataHolder(var id:i64,
                       let mut name: String,;
-                      let mut insertionDateIn: Option<i64>,;
-                      let mut mixedClassesAllowed: Boolean);
+                      let mut insertion_dateIn: Option<i64>,;
+                      let mut mixed_classes_allowed: bool);
 
-class RelationToGroupDataHolder(var entityId:i64,
+class RelationToGroupDataHolder(var entity_id:i64,
                          relTypeIdIn: i64,
-                         let mut groupId: i64,;
+                         let mut group_id: i64,;
                          valid_on_date_in: Option<i64>,
-                         observationDateIn: i64)
-  extends AttributeDataHolderWithVODates(relTypeIdIn, valid_on_date_in, observationDateIn)
+                         observation_date_in: i64)
+  extends AttributeDataHolderWithVODates(relTypeIdIn, valid_on_date_in, observation_date_in)
 
 class DateAttributeDataHolder(attrTypeId: i64,
                               let mut date: i64);
   extends AttributeDataHolder(attrTypeId)
 
-class BooleanAttributeDataHolder(attrTypeIdIn: i64,
+class BooleanAttributeDataHolder(attr_type_id_in: i64,
                                  valid_on_date_in: Option<i64>,
-                                 observationDateIn: i64,
-                              let mut boolean: Boolean);
-  extends AttributeDataHolderWithVODates(attrTypeIdIn, valid_on_date_in, observationDateIn)
+                                 observation_date_in: i64,
+                              let mut boolean: bool);
+  extends AttributeDataHolderWithVODates(attr_type_id_in, valid_on_date_in, observation_date_in)
 
 class FileAttributeDataHolder(attrTypeId: i64,
                               let mut description: String,;

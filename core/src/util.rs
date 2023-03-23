@@ -12,6 +12,7 @@
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
+use crate::model::postgresql_database::PostgreSQLDatabase;
 use std::error::Error;
 use std::str::FromStr;
 // use crate::controllers::controller::Controller;
@@ -22,6 +23,7 @@ use chrono::offset::LocalResult;
 use chrono::prelude::*;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use futures::stream_select;
+use sqlx::PgPool;
 use std::string::ToString;
 
 /// This is just a place to put shared code ("Utility") until a grouping for some, or a better idea emerges.  Using it also
@@ -33,6 +35,10 @@ enum DateType {
     VALID,
     OBSERVED,
 }
+
+// for explanation, see fn initialize_test_db() below
+static TEST_DB_INIT: std::sync::Once = std::sync::Once::new();
+// static mut TEST_DB: Option<PostgreSQLDatabase> = None;
 
 impl Util {
     /// These constants are%%/were here because their presence in database.rs prevents Database from being used
@@ -87,7 +93,7 @@ impl Util {
         160
     }
 
-    // in postgres, one table "extends" the other (see comments in createTables)
+    // in postgres, one table "extends" the other (see comments in create_tables)
     pub fn relation_type_name_length() -> u32 {
         Self::entity_name_length()
     }
@@ -178,8 +184,8 @@ impl Util {
     const DEFAULT_PREFERENCES_DEPTH: i32 = 10;
     // Don't change these: they get set and looked up in the data for preferences. Changing it would just require users to reset it though, and would
     // leave the old as clutter in the data.
-    const USER_PREFERENCES: &'static str = "User preferences";
-    const SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE: &'static str =
+    pub const USER_PREFERENCES: &'static str = "User preferences";
+    pub const SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE: &'static str =
         "Should entity lists show public/private status for each?";
     const DEFAULT_ENTITY_PREFERENCE: &'static str =
         "Which entity should be displayed as default, when starting the program?";
@@ -187,7 +193,7 @@ impl Util {
     const HEADER_CONTENT_TAG: &'static str = "htmlHeaderContent";
     const BODY_CONTENT_TAG: &'static str = "htmlInitialBodyContent";
     const FOOTER_CONTENT_TAG: &'static str = "htmlFooterContent";
-    const LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION: &'static str =
+    pub const LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION: &'static str =
         "(local: not for self-connection but to serve id to remotes)";
 
     fn get_clipboard_content() -> String {
@@ -205,67 +211,6 @@ impl Util {
     pub fn is_windows() -> bool {
         let os = std::env::consts::OS;
         os.to_lowercase().eq("windows")
-    }
-
-    /// Used for example after one has been deleted, to put the highlight on right next one:
-    /// idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
-    /**%%fix doc formatting:
-     * @param object_set_size  # of all the possible entries, not reduced by what fits in the available display space (I think).
-     * @param objects_to_display_in  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
-     * @return
-     */
-    fn find_entity_to_highlight_next(
-        object_set_size: usize,
-        objects_to_display_in: Vec<Entity>,
-        removed_one_in: bool,
-        previously_highlighted_index_in_obj_list_in: usize,
-        previously_highlighted_entry_in: Entity,
-    ) -> Option<Entity> {
-        //NOTE: SIMILAR TO find_attribute_to_highlight_next: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the type
-        //system better.
-
-        // Here of course, previously_highlighted_index_in_obj_list_in and obj_ids.size were calculated prior to the deletion.
-
-        if removed_one_in {
-            if object_set_size <= 1 {
-                return None;
-            }
-            let new_obj_list_size: usize = object_set_size - 1;
-            if new_obj_list_size == 0 {
-                //(redundant with above test/None, but for clarity in reading)
-                None
-            } else {
-                let new_index_to_highlight = std::cmp::min(
-                    new_obj_list_size - 1,
-                    previously_highlighted_index_in_obj_list_in,
-                );
-                if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
-                    // %%why doesn't Rust know the element is an Entity, vs. <Unknown>? why can't just return
-                    // objects_to_display_in.get(new_index_to_highlight)? Maybe rustc would do OK but the IDE doesn't? try changing at first 1 of the
-                    // 3 below places back, and see if rustc gets it right? or am I mistaken?
-                    match objects_to_display_in.get(new_index_to_highlight) {
-                        None => None,
-                        Some(&e) => Some(e),
-                    }
-                } else {
-                    if new_index_to_highlight + 1 < new_obj_list_size - 1 {
-                        match objects_to_display_in.get(new_index_to_highlight + 1) {
-                            None => None,
-                            Some(&e) => Some(e),
-                        }
-                    } else if new_index_to_highlight >= 1 {
-                        match objects_to_display_in.get(new_index_to_highlight - 1) {
-                            None => None,
-                            Some(&e) => Some(e),
-                        }
-                    } else {
-                        None
-                    }
-                }
-            }
-        } else {
-            Some(previously_highlighted_entry_in)
-        }
     }
 
     //%%
@@ -539,17 +484,17 @@ impl Util {
     //     try {
     //       let d: java.util.Date =;
     //         try {
-    //           if era.isEmpty { Util.DATEFORMAT.parse(dateWithZeros) }
-    //           else  { Util.DATEFORMAT_WITH_ERA.parse(era + dateWithZeros) }
+    //           if era.isEmpty { Util::DATEFORMAT.parse(dateWithZeros) }
+    //           else  { Util::DATEFORMAT_WITH_ERA.parse(era + dateWithZeros) }
     //         } catch {
     //           case e: java.text.ParseException =>
     //             try {
-    //               if era.isEmpty { Util.DATEFORMAT2.parse(dateWithZeros) }
-    //               else { Util.DATEFORMAT2_WITH_ERA.parse(era + dateWithZeros) }
+    //               if era.isEmpty { Util::DATEFORMAT2.parse(dateWithZeros) }
+    //               else { Util::DATEFORMAT2_WITH_ERA.parse(era + dateWithZeros) }
     //             } catch {
     //               case e: java.text.ParseException =>
-    //                 if era.isEmpty { Util.DATEFORMAT3.parse(dateWithZeros) }
-    //                 else { Util.DATEFORMAT3_WITH_ERA.parse(era + dateWithZeros) }
+    //                 if era.isEmpty { Util::DATEFORMAT3.parse(dateWithZeros) }
+    //                 else { Util::DATEFORMAT3_WITH_ERA.parse(era + dateWithZeros) }
     //             }
     //         }
     //       (Some(d.getTime), false)
@@ -598,13 +543,10 @@ impl Util {
                             assert!(observed_date.is_some());
                         }
                         Some(od) => {
-                            let prompt = format!(
-                                "Dates are: {}: right?",
-                                AttributeWithValidAndObservedDates::get_dates_description(
-                                    valid_on_date,
-                                    od
-                                )
+                            let dates_descr: String = AttributeWithValidAndObservedDates::get_dates_description(
+                                valid_on_date, od
                             );
+                            let prompt = format!("Dates are: {}: right?", dates_descr);
                             let answer = ui.ask_yes_no_question(prompt, "y", false);
                             match answer {
                                 Some(ans) if ans => {
@@ -624,7 +566,7 @@ impl Util {
     //idea: separate these into 2 methods, 1 for each time (not much common material of significance).
     // BETTER IDEA: fix the date stuff in the DB first as noted in tasks (and comments below?), so that this part makes more sense (the 0 for all time, etc), and then
     // when at it, recombine the ask_for_date_generic method w/ these or so it's all cleaned up.
-    /// Returns the date (w/ meanings as with display_text below, and as in PostgreSQLDatabase.createTables),
+    /// Returns the date (w/ meanings as with display_text below, and as in PostgreSQLDatabase.create_tables),
     /// and true if the user wants to cancel/get out).
     /// The editing_in parameter (I think) being true means we are editing data, not adding new data.
     fn ask_for_date(
@@ -704,7 +646,7 @@ impl Util {
             DateType::OBSERVED => {
                 match old_date_in {
                     Some(old_date) if editing_in => {
-                        // was: Some(Util.DATEFORMAT_WITH_ERA.format(new Date(old_observed_date_in)))
+                        // was: Some(Util::DATEFORMAT_WITH_ERA.format(new Date(old_observed_date_in)))
                         //%%NEED TO TEST all THIS DATE STUFF EXPLICITLY, and the file _?_ and attribute.rs .
                         //See also similar/dift use, in case need to borrow one or update both, above & in attribute.rs .
                         let ndt_option = NaiveDateTime::from_timestamp_opt(old_date, 0);
@@ -717,7 +659,7 @@ impl Util {
                         }
                     }
                     _ => {
-                        // was: Some(Util.DATEFORMAT_WITH_ERA.format(new Date(System.currentTimeMillis())))
+                        // was: Some(Util::DATEFORMAT_WITH_ERA.format(new Date(System.currentTimeMillis())))
                         let default = Utc::now().to_string();
                         default
                     }
@@ -867,7 +809,7 @@ impl Util {
     }
 
     fn string_too_long_error_message(name_length: i32) -> String {
-        // for details, see method PostgreSQLDatabase.escapeQuotesEtc.
+        // for details, see method PostgreSQLDatabase.escape_quotes_etc.
         format!(
             "Got an error.  Please try a shorter ({}) chars) entry.  \
           (Could be due to escaped, i.e. expanded, characters like ' or \";\".  Details: %s",
@@ -910,13 +852,13 @@ impl Util {
         previous_name_in_reverse_in: Option<&str>, /*%%= None*/
         ui: &TextUI,
     ) -> String {
-        // see createTables (or UI prompts) for meanings of bi/uni/non...
+        // see create_tables (or UI prompts) for meanings of bi/uni/non...
         //   match directionality_in {
         //       RelationType::RelationDirectionality::UNI => "".to_string(),
         //       RelationType::RelationDirectionality::NON => name_in,
         //       RelationType::RelationDirectionality::BI => {
         //           loop {
-        //               // see createTables (or UI prompts) for meanings...
+        //               // see create_tables (or UI prompts) for meanings...
         //               let msg = vec![format!("Enter relation name when direction is reversed (i.e., 'is husband to' becomes 'is wife to', 'employs' becomes 'is employed by' by; up to {name_length_in} characters (ESC to cancel): ").as_str()];
         //               let name_in_reverse: String = {
         //                   let answer: Option<String> = ui.ask_for_string3(msg, None, previous_name_in_reverse_in);
@@ -1107,6 +1049,37 @@ impl Util {
         }
     }
 
+    pub fn initialize_test_db() ->  Result<PostgreSQLDatabase, &'static str> {
+        let db: PostgreSQLDatabase;
+        // It seems like it would be faster to put the next two statements inside the ".call_once()"
+        // below, but then returning the db or assigning it to a static mut TEST_DB for others to
+        // access was initially problematic and I didn't see an obvious solution.
+        let pool =
+            PostgreSQLDatabase::connect(Util::TEST_USER, Util::TEST_USER, Util::TEST_PASS)
+                .unwrap();
+        db = PostgreSQLDatabase {
+            pool,
+            include_archived_entities: false,
+        };
+        TEST_DB_INIT.call_once(|| {
+            // for some explanation, see:
+            //   https://doc.rust-lang.org/std/sync/struct.Once.html
+            //   https://stackoverflow.com/questions/58006033/how-to-run-setup-code-before-any-tests-run-in-rust/58006287#58006287
+
+            println!("starting call_once");
+            //mbe not needed?: just return the db?
+            // for why this is safe, see explanation & examples in above link to doc.rust-lang.org .
+            // unsafe {
+            //     TEST_DB = Some(db);
+            // }
+
+            db.destroy_tables().unwrap();
+            db.create_tables().unwrap();
+
+            println!("finishing call_once");
+        });
+        Ok(db)
+    }
     /*
         /// Returns None if user wants to cancel.
         fn ask_for_text_attribute_text(_: Box<dyn Database>, dh: &TextAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<TextAttributeDataHolder> {
@@ -1154,7 +1127,7 @@ impl Util {
           // let dateFormat = new java.text.SimpleDateFormat(dateFormatString);
           // let default_value: String = {
           //   if editing_in dateFormat.format(new Date(dh_in.date))
-          //   else Util.DATEFORMAT.format(System.currentTimeMillis())
+          //   else Util::DATEFORMAT.format(System.currentTimeMillis())
           // }
 
             let date_criteria = |date: &str, ui: &TextUI| -> bool {
@@ -1173,7 +1146,7 @@ impl Util {
             match answer {
                 None => Ok(None),
                 Some(s) => {
-                    // let (new_date: Option<i64>, retry: bool) = Util.finish_and_parse_the_date(ans.get, true, ui);
+                    // let (new_date: Option<i64>, retry: bool) = Util::finish_and_parse_the_date(ans.get, true, ui);
                     let new_date: ParseResult<DateTime<FixedOffset>> = DateTime::parse_from_str(s.as_str(), Util::DATEFORMAT4);
                     match new_date {
                         Err(e) => {
@@ -1227,7 +1200,7 @@ impl Util {
               if !editing_in {
                   // I.e., not editing an existing fileAttribute, but adding a new fileAttribute (%%right??).
                   // we don't want the original path to be editable after the fact, because that's a historical observation and there is no sense in changing it.
-                  path = ui.ask_for_string3(vec!["Enter file path (must exist and be readable), then press Enter; ESC to cancel"], Some(Util.input_file_valid), None);
+                  path = ui.ask_for_string3(vec!["Enter file path (must exist and be readable), then press Enter; ESC to cancel"], Some(Util::input_file_valid), None);
               }
                 //%%deletable attempt at new logic w/ match, but too confusing to maintain old ideas
                 // match path {

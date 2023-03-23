@@ -23,13 +23,13 @@ import org.onemodel.core.{OmException, Color}
  * You can use Entity.addRelationTo[Local|Remote]Entity() to create a new object.
  *
  *
-abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1: i64,
-                                                            mEntityId2: i64) extends AttributeWithValidAndObservedDates(mDB, mId) {
+abstract protected[this] class RelationToEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntityId1: i64,
+                                                            mEntityId2: i64) extends AttributeWithValidAndObservedDates(m_db, m_id) {
   // (the next line used to be coded so instead of working it would return an exception, like this:
   //     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
   // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
   // to have it be like this instead, for convenience:
-  override fn getParentId -> i64 {
+  override fn get_parent_id() -> i64 {
   getRelatedId1
   }
     fn getRelatedId1 -> i64 {
@@ -50,15 +50,15 @@ abstract protected[this] class RelationToEntity(mDB: Database, mId: i64, mRelTyp
    */
     fn get_display_string(lengthLimitIn: Int, relatedEntityIn: Option<Entity>, relationTypeIn: Option[RelationType], simplify: bool = false) -> String {
     let relType: RelationType = {;
-      if relationTypeIn.is_defined) {
-        if relationTypeIn.get.get_id != getAttrTypeId) {
+      if relationTypeIn.is_some()) {
+        if relationTypeIn.get.get_id != get_attr_type_id()) {
           // It can be ignored, but in cases called generically (the same as other Attribute types) it should have the right value or that indicates a
           // misunderstanding in the caller's code. Also, if passed in and this were changed to use it again, it can save processing time re-instantiating one.
           throw new OmException("inRT parameter should be the same as the relationType on this relation.")
         }
         relationTypeIn.get
       } else {
-        new RelationType(mDB, getAttrTypeId)
+        new RelationType(m_db, get_attr_type_id())
       }
     }
     //   *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:

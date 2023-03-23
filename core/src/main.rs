@@ -27,7 +27,8 @@ async fn main() {
     //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
     /*%%$%%next tasks?:
         do all util, db, pg, & their tests at once: style and compile and test.
-        MAKE TESTS for code be4 ckin! see them each fail then pass.  Debug/breakpoints...?
+        MAKE TESTS for code be4 ckin! see them each fail then pass.
+        Debug/breakpoints...? ??? (esp in pg and util?)
         make code compile that i have now?
         AND rustfmt  (separate commit tho?)
         In OM,  using #[derive(Debug)] on a all? And fmt::Display (vs fmt::Debug) on all public types.

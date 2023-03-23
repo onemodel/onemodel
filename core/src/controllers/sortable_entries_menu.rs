@@ -32,7 +32,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     * therefore the attribute already in that position, and the  one added at that position are different.
     *
   protected fn placeEntryInPosition(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64,
-                                     numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: Boolean,
+                                     numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: bool,
                                      starting_display_row_index_in: Int, movingObjIdIn: i64, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option<i64>,
                                      numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]) -> Int {
 
@@ -58,8 +58,8 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     if nearNewNeighborSortingIndex.isEmpty) {
       ui.display_text("Nowhere to move it to, so doing nothing.")
     } else {
-      let (newSortingIndex: i64, trouble: Boolean) = {;
-        let mut (newSortingIndex: i64, trouble: Boolean, newStartingRowNum: Int) = {;
+      let (newSortingIndex: i64, trouble: bool) = {;
+        let mut (newSortingIndex: i64, trouble: bool, newStartingRowNum: Int) = {;
           getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In, starting_display_row_index_in,
                              nearNewNeighborSortingIndex, farNewNeighborSortingIndex, forwardNotBackIn,
                              byHowManyEntriesActuallyMoving, movingFromPosition_sortingIndex, moveFromIndexInObjListIn, numDisplayLinesIn)
@@ -81,7 +81,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
           let (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option<i64>, farNewNeighborSortingIndex2: Option<i64>) =;
             findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex2)
           // (for some reason, can't reassign the results directly to the vars like this "(newSortingIndex, trouble, newStartingRowNum) = ..."?
-          let (a: i64, b: Boolean, c: Int) = getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,;
+          let (a: i64, b: bool, c: Int) = getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,;
                                                                  starting_display_row_index_in, nearNewNeighborSortingIndex2,
                                                                  farNewNeighborSortingIndex2, forwardNotBackIn,
                                                                  byHowManyEntriesMoving2, movingFromPosition_sortingIndex2, moveFromIndexInObjListIn,
@@ -112,7 +112,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     * passing it as a parm?  Same in location(s) w/ similar comment about containingObjectIdIn.)
     */
   protected fn getNewSortingIndex(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64, starting_display_row_index_in: Int,
-                                   nearNewNeighborSortingIndex: Option<i64>, farNewNeighborSortingIndex: Option<i64>, forwardNotBack: Boolean,
+                                   nearNewNeighborSortingIndex: Option<i64>, farNewNeighborSortingIndex: Option<i64>, forwardNotBack: bool,
                                    byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: i64, moveFromRelativeIndexInObjListIn: Int,
                                    numDisplayLines: Int) -> (i64, Boolean, Int) {
     if nearNewNeighborSortingIndex.isEmpty) {
@@ -136,7 +136,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     }
 
 
-    let (newIndex: i64, trouble: Boolean) = {;
+    let (newIndex: i64, trouble: bool) = {;
       if farNewNeighborSortingIndex.isEmpty) {
         //halfway between min value of a long (or max, depending on direction of the move), and whatever highlightIndexIn's long (sorting_index) is now
         if forwardNotBack) {
@@ -167,7 +167,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
                              }.asInstanceOf[i64]
         let nonDuplicatedNewIndex = ensureNonDuplicate(containingObjectIdIn, newIndex);
         // leaving this comment to communicate intent, but won't be '<' or '>' because a i64 would just wrap, so...
-        let trouble: Boolean =;
+        let trouble: bool =;
           if forwardNotBack) {
             nonDuplicatedNewIndex.isEmpty || nonDuplicatedNewIndex.get <= movingFromPosition_sortingIndex ||
             nonDuplicatedNewIndex.get >= farNewNeighborSortingIndex.get || nonDuplicatedNewIndex.get <= nearNewNeighborSortingIndex.get
@@ -208,10 +208,10 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
   /** The dbIn should represent the *same* database as where groupOrEntityIdIn is stored!  (See details in comments at similar location
     * about containingObjectIdIn.)
     */
-  protected fn findNewNeighbors(dbIn: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forwardNotBackIn: Boolean,
+  protected fn findNewNeighbors(dbIn: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forwardNotBackIn: bool,
                                  movingFromPosition_sortingIndex: i64) -> (Int, Option<i64>, Option<i64>) {
 
-    // (idea: this could probably be made more efficient by combining the 2nd part of the (fixed) algorithm (the call to mDB.getNearestEntry)
+    // (idea: this could probably be made more efficient by combining the 2nd part of the (fixed) algorithm (the call to m_db.getNearestEntry)
     // with the first part.  I.e., maybe we don't need to calculate the farNewNeighborSortingIndex at first, since we're just going to soon replace
     // it with the "next one after the nearNewNeighbor" anyway.  But first it should have some good tests around it: coverage.)
 
@@ -266,15 +266,15 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
   }
 
   protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
-                                                 forwardNotBackIn: Boolean) -> List[Array[Option[Any]]]
+                                                 forwardNotBackIn: bool) -> List[Array[Option[Any]]]
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64>
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64>
 
   protected fn renumberSortingIndexes(dbIn: Database, containingObjectIdIn: i64)
 
   protected fn updateSortedEntry(dbIn: Database, containingObjectIdIn: i64, movingObjsAttributeFormIdIn: Int, movingObjIdIn: i64, sortingIndexIn: i64)
 
-  protected fn indexIsInUse(dbIn: Database, groupOrEntityIdIn: i64, sortingIndexIn: i64) -> Boolean
+  protected fn indexIsInUse(dbIn: Database, groupOrEntityIdIn: i64, sortingIndexIn: i64) -> bool
 
   protected fn findUnusedSortingIndex(dbIn: Database, groupOrEntityIdIn: i64, startingWithIn: i64) -> i64
 

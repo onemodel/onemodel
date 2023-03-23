@@ -15,66 +15,66 @@ import java.io.{PrintWriter, StringWriter}
 import org.onemodel.core.{OmException, Util}
 
 object EntityClass {
-    fn name_length(in_db: Database) -> Int {
-     Database.classNameLength
+    fn name_length(db_in: Database) -> Int {
+     Database.class_name_length
      }
 
-    fn isDuplicate(in_db: Database, inName: String, inSelfIdToIgnore: Option<i64> = None) -> bool {
-    in_db.isDuplicateClassName(inName, inSelfIdToIgnore)
+    fn isDuplicate(db_in: Database, inName: String, inSelfIdToIgnore: Option<i64> = None) -> bool {
+    db_in.isDuplicateClassName(inName, inSelfIdToIgnore)
     }
 }
 
-class EntityClass(val mDB: Database, mId: i64) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if !mDB.is_remote && !mDB.classKeyExists(mId)) {
-    throw new Exception("Key " + mId + Util.DOES_NOT_EXIST)
+class EntityClass(val m_db: Database, m_id: i64) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
+  if !m_db.is_remote && !m_db.classKeyExists(m_id)) {
+    throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
   /** This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(mDB: Database, mId: i64, inName: String, inTemplateEntityId: i64, createDefaultAttributesIn: Option<bool> = None) {
-    this(mDB, mId)
-    mName = inName
+    fn this(m_db: Database, m_id: i64, inName: String, inTemplateEntityId: i64, createDefaultAttributesIn: Option<bool> = None) {
+    this(m_db, m_id)
+    m_name = inName
     mTemplateEntityId = inTemplateEntityId
     mCreateDefaultAttributes = createDefaultAttributesIn
-    mAlreadyReadData = true
+    m_already_read_data = true
   }
 
     fn get_name -> String {
-    if !mAlreadyReadData) readDataFromDB()
-    mName
+    if !m_already_read_data) read_data_from_db()
+    m_name
   }
 
     fn getTemplateEntityId -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mTemplateEntityId
   }
 
 
     fn getCreateDefaultAttributes -> Option<bool> {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mCreateDefaultAttributes
   }
 
-  protected fn readDataFromDB() {
-    let classData: Array[Option[Any]] = mDB.getClassData(mId);
+  protected fn read_data_from_db() {
+    let classData: Array[Option[Any]] = m_db.getClassData(m_id);
     if classData.length == 0) {
-      throw new OmException("No results returned from data request for: " + mId)
+      throw new OmException("No results returned from data request for: " + m_id)
     }
-    mName = classData(0).get.asInstanceOf[String]
+    m_name = classData(0).get.asInstanceOf[String]
     mTemplateEntityId = classData(1).get.asInstanceOf[i64]
     mCreateDefaultAttributes = classData(2).asInstanceOf[Option<bool>]
-    mAlreadyReadData = true
+    m_already_read_data = true
   }
 
     fn get_idWrapper -> IdWrapper {
-     new IdWrapper(mId)
+     new IdWrapper(m_id)
      }
 
     fn get_id -> i64 {
-    mId
+    m_id
     }
 
     fn get_display_string_helper -> String {
@@ -98,24 +98,24 @@ class EntityClass(val mDB: Database, mId: i64) {
   }
 
     fn updateClassAndTemplateEntityName(name_in: String) -> i64 {
-    let templateEntityId = mDB.updateClassAndTemplateEntityName(this.get_id, name_in);
-    mName = name_in
+    let templateEntityId = m_db.updateClassAndTemplateEntityName(this.get_id, name_in);
+    m_name = name_in
     require(templateEntityId == getTemplateEntityId)
     templateEntityId
   }
 
-    fn updateCreateDefaultAttributes(valueIn: Option<bool>) /*%%-> Unit*/ {
-    mDB.updateClassCreateDefaultAttributes(get_id, valueIn)
-    mCreateDefaultAttributes = valueIn
+    fn updateCreateDefaultAttributes(value_in: Option<bool>) /*%%-> Unit*/ {
+    m_db.updateClassCreateDefaultAttributes(get_id, value_in)
+    mCreateDefaultAttributes = value_in
   }
 
   /** Removes this object etc from the system. */
     fn delete() {
-    mDB.deleteClassAndItsTemplateEntity(mId)
+    m_db.deleteClassAndItsTemplateEntity(m_id)
     }
 
-  let mut mAlreadyReadData: bool = false;
-  let mut mName: String = null;
+  let mut m_already_read_data: bool = false;
+  let mut m_name: String = null;
   let mut mTemplateEntityId: i64 = 0;
   let mut mCreateDefaultAttributes: Option<bool> = None;
 */

@@ -9,25 +9,22 @@
 
     (This was originally cloned from RelationToEntity which has the above copyright years for its contents.)
 */
-struct RelationToLocalEntity {
+pub struct RelationToLocalEntity {
 /*%%
-package org.onemodel.core.model
-
-import org.onemodel.core.{Util, OmException}
 
 object RelationToLocalEntity {
   /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     */
-    fn getRelationToLocalEntity(in_db: Database, id: i64) -> Option[RelationToLocalEntity] {
-    let result: Array[Option[Any]] = in_db.getRelationToLocalEntityDataById(id);
+    fn getRelationToLocalEntity(db_in: Database, id: i64) -> Option[RelationToLocalEntity] {
+    let result: Array[Option[Any]] = db_in.getRelationToLocalEntityDataById(id);
     let relTypeId = result(0).get.asInstanceOf[i64];
     let eid1 = result(1).get.asInstanceOf[i64];
     let eid2 = result(2).get.asInstanceOf[i64];
-    try Some(new RelationToLocalEntity(in_db, id, relTypeId, eid1, eid2))
+    try Some(new RelationToLocalEntity(db_in, id, relTypeId, eid1, eid2))
     catch {
       case e: java.lang.Exception =>
         //idea: see comment here in Entity.scala.
-        if e.toString.indexOf(Util.DOES_NOT_EXIST) >= 0) {
+        if e.toString.indexOf(Util::DOES_NOT_EXIST) >= 0) {
           None
         }
         else throw e
@@ -41,18 +38,18 @@ object RelationToLocalEntity {
   * This 1st constructor instantiates an existing object from the DB and is rarely needed. You can use Entity.addRelationTo[Local|Remote]Entity() to
   * create a new persistent record.
   */
-class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1: i64,
-                             mEntityId2: i64) extends RelationToEntity(mDB, mId, mRelTypeId, mEntityId1, mEntityId2) {
+class RelationToLocalEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntityId1: i64,
+                             mEntityId2: i64) extends RelationToEntity(m_db, m_id, mRelTypeId, mEntityId1, mEntityId2) {
   // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
-  // Even a RelationToRemoteEntity can have mDB.is_remote == true, if it is viewing data *in* a remote OM instance
+  // Even a RelationToRemoteEntity can have m_db.is_remote == true, if it is viewing data *in* a remote OM instance
   // looking at RTLEs that are remote to that remote instance.
-  // See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.
-  if mDB.is_remote || mDB.relationToLocalEntityKeysExistAndMatch(mId, mRelTypeId, mEntityId1, mEntityId2)) {
+  // See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.
+  if m_db.is_remote || m_db.relationToLocalEntityKeysExistAndMatch(m_id, mRelTypeId, mEntityId1, mEntityId2)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:;
-    mAttrTypeId = mRelTypeId
+    m_attr_type_id = mRelTypeId
   } else {
-    throw new OmException("Key id=" + mId + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
-                          " and entity_id_2=" + mEntityId2 + Util.DOES_NOT_EXIST)
+    throw new OmException("Key id=" + m_id + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
+                          " and entity_id_2=" + mEntityId2 + Util::DOES_NOT_EXIST)
   }
 
   /**
@@ -60,9 +57,9 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(mDB: Database, id_in: i64, relTypeIdIn: i64, entityId1In: i64, entityId2In: i64, valid_on_date_in: Option<i64>, observationDateIn: i64,
-           sortingIndexIn: i64) {
-    this(mDB, id_in, relTypeIdIn, entityId1In, entityId2In)
+    fn this(m_db: Database, id_in: i64, relTypeIdIn: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+           sorting_index_in: i64) {
+    this(m_db, id_in, relTypeIdIn, entity_id1_in, entity_id2_in)
     //    if this.isInstanceOf[RelationToRemoteEntity]) {
     //      //idea: this test & exception feel awkward. What is the better approach?  Maybe using scala's type features?
     //      throw new OmException("This constructor should not be called by the subclass.")
@@ -70,7 +67,7 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
 
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
-    assignCommonVars(entityId1In, relTypeIdIn, valid_on_date_in, observationDateIn, sortingIndexIn)
+    assignCommonVars(entity_id1_in, relTypeIdIn, valid_on_date_in, observation_date_in, sorting_index_in)
   }
 
     fn getRemoteDescription() -> String {
@@ -79,46 +76,46 @@ class RelationToLocalEntity(mDB: Database, mId: i64, mRelTypeId: i64, mEntityId1
     }
 
     fn getEntityForEntityId2 -> Entity {
-    new Entity(mDB, mEntityId2)
+    new Entity(m_db, mEntityId2)
   }
 
-  protected fn readDataFromDB() {
-    let relationData: Array[Option[Any]] = mDB.getRelationToLocalEntityData(mAttrTypeId, mEntityId1, mEntityId2);
+  protected fn read_data_from_db() {
+    let relationData: Array[Option[Any]] = m_db.getRelationToLocalEntityData(m_attr_type_id, mEntityId1, mEntityId2);
     if relationData.length == 0) {
-      throw new OmException("No results returned from data request for: " + mAttrTypeId + ", " + mEntityId1 + ", " + mEntityId2)
+      throw new OmException("No results returned from data request for: " + m_attr_type_id + ", " + mEntityId1 + ", " + mEntityId2)
     }
     // No other local variables to assign.  All are either in the superclass or the primary key.
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
-    assignCommonVars(mEntityId1, mAttrTypeId,
+    assignCommonVars(mEntityId1, m_attr_type_id,
                      relationData(1).asInstanceOf[Option<i64>],
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
-    fn move(toLocalContainingEntityIdIn: i64, sortingIndexIn: i64) -> RelationToLocalEntity {
-    mDB.moveRelationToLocalEntityToLocalEntity(get_id, toLocalContainingEntityIdIn, sortingIndexIn)
+    fn move(toLocalContainingEntityIdIn: i64, sorting_index_in: i64) -> RelationToLocalEntity {
+    m_db.moveRelationToLocalEntityToLocalEntity(get_id, toLocalContainingEntityIdIn, sorting_index_in)
   }
 
-    fn moveEntityFromEntityToGroup(targetGroupIdIn: i64, sortingIndexIn: i64) {
-    mDB.moveLocalEntityFromLocalEntityToGroup(this, targetGroupIdIn, sortingIndexIn)
+    fn moveEntityFromEntityToGroup(targetGroupIdIn: i64, sorting_index_in: i64) {
+    m_db.moveLocalEntityFromLocalEntityToGroup(this, targetGroupIdIn, sorting_index_in)
   }
 
-    fn update(valid_on_date_in:Option<i64>, observationDateIn:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
-    let newAttrTypeId = newAttrTypeIdIn.getOrElse(getAttrTypeId);
+    fn update(valid_on_date_in:Option<i64>, observation_date_in:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
+    let newAttrTypeId = newAttrTypeIdIn.getOrElse(get_attr_type_id());
     //Using valid_on_date_in rather than valid_on_date_in.get because valid_on_date allows None, unlike others.
     //(Idea/possible bug: the way this is written might mean one can never change vod to None from something else: could ck callers & expectations
     // & how to be most clear (could be the same in RelationToGroup & other Attribute subclasses).)
-    let vod = if valid_on_date_in.is_defined) valid_on_date_in else getValidOnDate;
-    let od = if observationDateIn.is_defined) observationDateIn.get else getObservationDate;
-    mDB.updateRelationToLocalEntity(mAttrTypeId, mEntityId1, mEntityId2, newAttrTypeId, vod, od)
+    let vod = if valid_on_date_in.is_some()) valid_on_date_in else get_valid_on_date();
+    let od = if observation_date_in.is_some()) observation_date_in.get else get_observation_date();
+    m_db.updateRelationToLocalEntity(m_attr_type_id, mEntityId1, mEntityId2, newAttrTypeId, vod, od)
     valid_on_date = vod
     observation_date = od
-    mAttrTypeId = newAttrTypeId
+    m_attr_type_id = newAttrTypeId
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    mDB.deleteRelationToLocalEntity(getAttrTypeId, mEntityId1, mEntityId2)
+    m_db.deleteRelationToLocalEntity(get_attr_type_id(), mEntityId1, mEntityId2)
     }
 
 */

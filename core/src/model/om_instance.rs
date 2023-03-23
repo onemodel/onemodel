@@ -18,15 +18,15 @@ object OmInstance {
     Database.om_instance_address_length
     }
 
-    fn isDuplicate(dbIn: Database, addressIn: String, selfIdToIgnoreIn: Option<String> = None) -> bool {
-    dbIn.isDuplicateOmInstanceAddress(addressIn, selfIdToIgnoreIn)
+    fn isDuplicate(dbIn: Database, address_in: String, selfIdToIgnoreIn: Option<String> = None) -> bool {
+    dbIn.isDuplicateOmInstanceAddress(address_in, selfIdToIgnoreIn)
   }
 
-    fn create(dbIn: Database, id_in: String, addressIn: String, entityIdIn: Option<i64> = None) -> OmInstance {
-    // Passing false for isLocalIn because the only time that should be true is when it is created at db creation, for this site, and that is done
+    fn create(dbIn: Database, id_in: String, address_in: String, entity_id_in: Option<i64> = None) -> OmInstance {
+    // Passing false for is_local_in because the only time that should be true is when it is created at db creation, for this site, and that is done
     // in the db class more directly.
-    let insertionDate: i64 = dbIn.createOmInstance(id_in, isLocalIn = false, addressIn, entityIdIn);
-    new OmInstance(dbIn, id_in, isLocalIn = false, addressIn = addressIn, insertionDateIn = insertionDate, entityIdIn = entityIdIn)
+    let insertion_date: i64 = dbIn.create_om_instance(id_in, is_local_in = false, address_in, entity_id_in);
+    new OmInstance(dbIn, id_in, is_local_in = false, address_in = address_in, insertion_dateIn = insertion_date, entity_id_in = entity_id_in)
   }
 }
 
@@ -35,11 +35,11 @@ object OmInstance {
   * This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
   * Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
   */
-class OmInstance(val mDB: Database, mId: String) {
-  //Idea: make mId *etc* private in all model classes? and rename mDB to just db ("uniform access principle")?
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if mDB.is_remote.)
-  if !mDB.is_remote && !mDB.omInstanceKeyExists(mId)) {
-    throw new OmException("Key " + mId + Util.DOES_NOT_EXIST)
+class OmInstance(val m_db: Database, m_id: String) {
+  //Idea: make m_id *etc* private in all model classes? and rename m_db to just db ("uniform access principle")?
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
+  if !m_db.is_remote && !m_db.omInstanceKeyExists(m_id)) {
+    throw new OmException("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
 
@@ -47,75 +47,75 @@ class OmInstance(val mDB: Database, mId: String) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(mDB: Database, mId: String, isLocalIn: bool, addressIn: String, insertionDateIn: i64, entityIdIn: Option<i64> = None) {
-    this(mDB, mId)
-    mLocal = isLocalIn
-    mAddress = addressIn
-    mInsertionDate = insertionDateIn
-    mEntityId = entityIdIn
-    mAlreadyReadData = true
+    fn this(m_db: Database, m_id: String, is_local_in: bool, address_in: String, insertion_dateIn: i64, entity_id_in: Option<i64> = None) {
+    this(m_db, m_id)
+    mLocal = is_local_in
+    mAddress = address_in
+    m_insertion_date = insertion_dateIn
+    mEntityId = entity_id_in
+    m_already_read_data = true
   }
 
   /** When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
     * */
     fn get_id() -> String {
-    if !mAlreadyReadData) readDataFromDB()
-    mId
+    if !m_already_read_data) read_data_from_db()
+    m_id
   }
 
     fn getLocal() -> bool {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mLocal
   }
 
     fn getCreationDate() -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
-    mInsertionDate
+    if !m_already_read_data) read_data_from_db()
+    m_insertion_date
   }
 
     fn getCreationDateFormatted() -> String {
-    Util.DATEFORMAT.format(new java.util.Date(getCreationDate))
+    Util::DATEFORMAT.format(new java.util.Date(getCreationDate))
   }
 
     fn getAddress() -> String {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mAddress
   }
 
     fn getEntityId() -> Option<i64> {
-    if !mAlreadyReadData) readDataFromDB()
+    if !m_already_read_data) read_data_from_db()
     mEntityId
   }
 
-  protected fn readDataFromDB() {
-    let omInstanceData: Array[Option[Any]] = mDB.getOmInstanceData(mId);
+  protected fn read_data_from_db() {
+    let omInstanceData: Array[Option[Any]] = m_db.getOmInstanceData(m_id);
     if omInstanceData.length == 0) {
-      throw new OmException("No results returned from data request for: " + mId)
+      throw new OmException("No results returned from data request for: " + m_id)
     }
     mLocal = omInstanceData(0).get.asInstanceOf[bool]
     mAddress = omInstanceData(1).get.asInstanceOf[String]
-    mInsertionDate = omInstanceData(2).get.asInstanceOf[i64]
+    m_insertion_date = omInstanceData(2).get.asInstanceOf[i64]
     mEntityId = omInstanceData(3).asInstanceOf[Option<i64>]
-    mAlreadyReadData = true
+    m_already_read_data = true
   }
 
     fn get_display_string() -> String {
-    let result: String = mId + ":" + (if mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted;
+    let result: String = m_id + ":" + (if mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted;
     result
   }
 
     fn update(newAddress: String) /*%%-> Unit*/ {
-    mDB.updateOmInstance(get_id, newAddress, getEntityId)
+    m_db.updateOmInstance(get_id, newAddress, getEntityId)
   }
 
     fn delete() {
-    mDB.deleteOmInstance(mId)
+    m_db.deleteOmInstance(m_id)
     }
 
-  let mut mAlreadyReadData: bool = false;
+  let mut m_already_read_data: bool = false;
   let mut mLocal: bool = false;
   let mut mAddress: String = "";
-  let mut mInsertionDate: i64 = 0;
+  let mut m_insertion_date: i64 = 0;
     let mut mEntityId: Option<i64> = None;
  */
 }

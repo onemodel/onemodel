@@ -30,7 +30,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
       groupMenu_helper(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     } catch {
       case e: Exception =>
-        Util.handleException(e, ui, group_in.mDB)
+        Util::handleException(e, ui, group_in.m_db)
         let ans = ui.ask_yes_no_question("Go back to what you were doing (vs. going out)?",Some("y"));
         if ans.is_defined && ans.get) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         else None
@@ -56,7 +56,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
                                 "Edit ...",
                                 "Delete...",
                                 "Go to...",
-                                Util.LIST_NEXT_ITEMS_PROMPT,
+                                Util::LIST_NEXT_ITEMS_PROMPT,
                                 "Filter (limit which are shown; unimplemented)",
                                 "(stub)" /*sort?*/ ,
                                 "Quick group menu")
@@ -64,9 +64,9 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
     // (idea: maybe this use of color on next line could be removed, if people don't rely on the color change.  I originally added it as a visual
     // cue to aid my transition to using entities more & groups less. Same thing is done in QuickGroupMenu.)
     let leading_text: Vec<String> = Array(Color.yellow("ENTITY GROUP ") + "(regular menu: more complete, so slower for some things): " + displayDescription);
-    let numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leading_text.length, choices.length, Util.maxNameLength);
+    let numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leading_text.length, choices.length, Util::maxNameLength);
     let objectsToDisplay: Vec<Entity> = group_in.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems));
-    Util.add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.getSize(4), displayStartingRowNumberIn)
+    Util::add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.getSize(4), displayStartingRowNumberIn)
     let statusesAndNames: Vec<String> = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {;
       let numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity);
       let archivedStatus = entity.getArchivedStatusDisplayString;
@@ -92,7 +92,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
         }
         groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if answer == 3) {
-        let editAnswer = ui.ask_which(Some(Vec<String>{Util.group_menu_leading_text(group_in)}),;
+        let editAnswer = ui.ask_which(Some(Vec<String>{Util::group_menu_leading_text(group_in)}),;
                                      Array("Edit group name",
 
                                            if group_in.getNewEntriesStickToTop) {
@@ -107,8 +107,8 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
               // reread the RTG to get the updated info:
               groupMenu(group_in, displayStartingRowNumberIn,
                         if relationToGroupIn.is_defined) {
-                          Some(new RelationToGroup(relationToGroupIn.get.mDB, relationToGroupIn.get.get_id, relationToGroupIn.get.getParentId,
-                                                   relationToGroupIn.get.getAttrTypeId, relationToGroupIn.get.getGroupId))
+                          Some(new RelationToGroup(relationToGroupIn.get.m_db, relationToGroupIn.get.get_id, relationToGroupIn.get.get_parent_id(),
+                                                   relationToGroupIn.get.get_attr_type_id(), relationToGroupIn.get.getGroupId))
                         } else None,
                         callingMenusRtgIn,
                         containingEntityIn)
@@ -138,7 +138,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
         //idea: consider: do we want this?:
         //(see similar comment in postgresqldatabase)
         //"See groups containing this group (" + numContainingGroups + ")")
-        //val numContainingGroups = mDB.getContainingRelationToGroups(relationToGroupIn, 0).size
+        //val numContainingGroups = m_db.getContainingRelationToGroups(relationToGroupIn, 0).size
 
         let response = ui.ask_which(None, choices, Vec<String>());
         if response.isEmpty) None
@@ -149,20 +149,20 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
               //idea: does this make sense, to only update the dates when we prompt for everything on initial add? change(or note2later) update everything?
               relationToGroupIn.get.update(Some(dhInOut.attrTypeId), Some(dhInOut.groupId), dhInOut.valid_on_date, Some(dhInOut.observationDate))
             }
-            let relationToGroupDH: RelationToGroupDataHolder = new RelationToGroupDataHolder(relationToGroupIn.get.getParentId,;
-                                                                                             relationToGroupIn.get.getAttrTypeId,
+            let relationToGroupDH: RelationToGroupDataHolder = new RelationToGroupDataHolder(relationToGroupIn.get.get_parent_id(),;
+                                                                                             relationToGroupIn.get.get_attr_type_id(),
                                                                                              relationToGroupIn.get.getGroupId,
-                                                                                             relationToGroupIn.get.getValidOnDate,
-                                                                                             relationToGroupIn.get.getObservationDate)
+                                                                                             relationToGroupIn.get.get_valid_on_date(),
+                                                                                             relationToGroupIn.get.get_observation_date())
             let (newRelationToGroup: Option[RelationToGroup], newGroup: Group) = {;
-              if controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupIn.get.mDB, relationToGroupDH, askForAttrTypeId = true,
-                                                                                     Util.RELATION_TO_GROUP_TYPE,
+              if controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupIn.get.m_db, relationToGroupDH, askForAttrTypeId = true,
+                                                                                     Util::RELATION_TO_GROUP_TYPE,
                                                                                      "CHOOSE TYPE OF Relation to Entity:",
                                                                                      controller.askForRelToGroupInfo, updateRelationToGroup)) {
                 //force a reread from the DB so it shows the right info on the repeated menu, for these things which could have been changed:
-                (Some(new RelationToGroup(relationToGroupIn.get.mDB, relationToGroupIn.get.get_id, relationToGroupDH.entityId,
+                (Some(new RelationToGroup(relationToGroupIn.get.m_db, relationToGroupIn.get.get_id, relationToGroupDH.entityId,
                                          relationToGroupDH.attrTypeId, relationToGroupDH.groupId)),
-                  new Group(group_in.mDB, relationToGroupDH.groupId))
+                  new Group(group_in.m_db, relationToGroupDH.groupId))
               } else {
                 (relationToGroupIn, group_in)
               }
@@ -180,12 +180,12 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
               new EntityMenu(ui, controller).entityMenu(entity.get)
             }
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
-            if group_in.mDB.groupKeyExists(group_in.get_id)) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+            if group_in.m_db.groupKeyExists(group_in.get_id)) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             else None
           } else if ans == 3 && templateEntity.is_defined && ans <= choices.length) {
             new EntityMenu(ui, controller).entityMenu(templateEntity.get)
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
-            if group_in.mDB.groupKeyExists(group_in.get_id)) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+            if group_in.m_db.groupKeyExists(group_in.get_id)) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             else None
           } else {
             ui.display_text("invalid response")
@@ -237,19 +237,19 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
     require(group_in.get_id == relationToGroupIn.get.getGroupId)
     let totalInGroup = group_in.getSize(3);
     let numNonArchivedEntitiesInGroup: i64 = group_in.getSize(1);
-    let numArchivedInGroup = totalInGroup - numNonArchivedEntitiesInGroup;
-    require(numArchivedInGroup == group_in.getSize(2))
+    let num_archivedInGroup = totalInGroup - numNonArchivedEntitiesInGroup;
+    require(num_archivedInGroup == group_in.getSize(2))
     let (nonArchivedContainingCount, archivedContainingCount) = group_in.getCountOfEntitiesContainingGroup;
     let mut choices: Vec<String> = Array("Delete group definition & remove from all relationships where it is found?",;
                                        "Delete group definition & remove from all relationships where it is found, AND delete all entities in it?")
     if containingEntityIn.is_defined && relationToGroupIn.is_defined) {
-      choices = choices :+ "Delete the link from the containing entity:" + Util.NEWLN +
-                           "    \"" + containingEntityIn.get.get_name + "\"," + Util.NEWLN +
-                           "  ...to this Group?:" + Util.NEWLN +
+      choices = choices :+ "Delete the link from the containing entity:" + Util::NEWLN +
+                           "    \"" + containingEntityIn.get.get_name + "\"," + Util::NEWLN +
+                           "  ...to this Group?:" + Util::NEWLN +
                            "    \"" + groupDescrIn + "\""
     }
-    let response = ui.ask_which(Some(Array("DELETION:  (This group contains " + totalInGroup + " entities, including " + numArchivedInGroup + " archived, and is " +;
-                                          Util.get_containing_entities_description(nonArchivedContainingCount, archivedContainingCount) + ")")),
+    let response = ui.ask_which(Some(Array("DELETION:  (This group contains " + totalInGroup + " entities, including " + num_archivedInGroup + " archived, and is " +;
+                                          Util::get_containing_entities_description(nonArchivedContainingCount, archivedContainingCount) + ")")),
                                choices, Vec<String>())
     if response.isEmpty) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     else {
@@ -309,11 +309,11 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
   /**
    * @return If it was deleted.
    */
-    fn removingGroupReferenceFromEntity_Menu(relationToGroupIn: RelationToGroup, group_in: Group, containingEntityIn: Entity) -> Boolean {
+    fn removingGroupReferenceFromEntity_Menu(relationToGroupIn: RelationToGroup, group_in: Group, containingEntityIn: Entity) -> bool {
     let (nonArchivedCount, archivedCount) = group_in.getCountOfEntitiesContainingGroup;
     let ans = ui.ask_yes_no_question("REMOVE this group from being an attribute of the entity \'" + containingEntityIn.get_name + "\": ARE YOU SURE? (This isn't " +;
                                   "a deletion. It can still be found by searching, and is " +
-                                  Util.get_containing_entities_description(nonArchivedCount, archivedCount) + ").", Some(""))
+                                  Util::get_containing_entities_description(nonArchivedCount, archivedCount) + ").", Some(""))
     if ans.is_defined && ans.get) {
       relationToGroupIn.delete()
       true

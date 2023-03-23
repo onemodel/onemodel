@@ -9,9 +9,10 @@
 */
 use crate::model::attribute::Attribute;
 
-pub struct AttributeWithValidAndObservedDates {
+// pub trait AttributeWithValidAndObservedDates {
+pub struct AttributeWithValidAndObservedDates {}
 
-}
+// }
 
 impl AttributeWithValidAndObservedDates {
   pub fn get_dates_description(valid_on_date:Option<i64>, observation_date:i64) -> String {
@@ -27,31 +28,31 @@ impl AttributeWithValidAndObservedDates {
   }
 
 /*%%
-abstract class AttributeWithValidAndObservedDates(mDB: Database, mId: i64) extends Attribute(mDB, mId) {
-  protected fn assignCommonVars(parentIdIn: i64, attrTypeIdIn: i64, valid_on_date_in: Option<i64>, observationDateIn: i64, sortingIndexIn: i64) {
+abstract class AttributeWithValidAndObservedDates(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
+  protected fn assignCommonVars(parent_id_in: i64, attr_type_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: i64) {
     valid_on_date = valid_on_date_in
     // observationDate is not expected to be None, like valid_on_date can be. See let mut def for more info.;
-    observation_date = observationDateIn
-    super.assignCommonVars(parentIdIn, attrTypeIdIn, sortingIndexIn)
+    observation_date = observation_date_in
+    super.assignCommonVars(parent_id_in, attr_type_id_in, sorting_index_in)
   }
 
     fn get_dates_description -> String {
-    AttributeWithValidAndObservedDates.get_dates_description(getValidOnDate, getObservationDate)
+    AttributeWithValidAndObservedDates.get_dates_description(get_valid_on_date(), get_observation_date())
   }
 
-  private[onemodel] fn getValidOnDate -> Option<i64> {
-    if !mAlreadyReadData) readDataFromDB()
+  private[onemodel] fn get_valid_on_date() -> Option<i64> {
+    if !m_already_read_data) read_data_from_db()
     valid_on_date
   }
 
-  private[onemodel] fn getObservationDate -> i64 {
-    if !mAlreadyReadData) readDataFromDB()
+  private[onemodel] fn get_observation_date() -> i64 {
+    if !m_already_read_data) read_data_from_db()
     observation_date
   }
 
   /**
    * For descriptions of the meanings of these variables, see the comments
-   * on createTables(...), and examples in the database testing code in PostgreSQLDatabase or Database classes.
+   * on create_tables(...), and examples in the database testing code in PostgreSQLDatabase or Database classes.
    */
   protected let mut valid_on_date: Option<i64> = None;
   protected let mut observation_date: i64 = 0L;

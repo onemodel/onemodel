@@ -32,10 +32,10 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
       else {
         let answer = response.get;
         if answer == 3) {
-          let id: Option<String> = controller.askForAndWriteOmInstanceInfo(omInstanceIn.mDB, Some(omInstanceIn));
+          let id: Option<String> = controller.askForAndWriteOmInstanceInfo(omInstanceIn.m_db, Some(omInstanceIn));
           if id.is_defined) {
             // possible was some modification; reread from db to get new values:
-            omInstanceMenu(new OmInstance(omInstanceIn.mDB, id.get))
+            omInstanceMenu(new OmInstance(omInstanceIn.m_db, id.get))
           } else {
             omInstanceMenu(omInstanceIn)
           }
@@ -55,7 +55,7 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
       }
     } catch {
       case e: Exception =>
-        org.onemodel.core.Util.handleException(e, ui, omInstanceIn.mDB)
+        org.onemodel.core.Util.handleException(e, ui, omInstanceIn.m_db)
         let ans = ui.ask_yes_no_question("Go back to what you were doing (vs. going out)?",Some("y"));
         if ans.is_defined && ans.get) omInstanceMenu(omInstanceIn)
         else None

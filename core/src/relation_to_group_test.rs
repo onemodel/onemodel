@@ -15,7 +15,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Status, Args, FlatSpec}
 
 class RelationToGroupTest extends FlatSpec with MockitoSugar {
-  let mut mDB: PostgreSQLDatabase = null;
+  let mut m_db: PostgreSQLDatabase = null;
 
   // Starting to use the real db because the time savings don't seem enough to justify the work with the mocks. (?)
   override fn runTests(testName: Option<String>, args: Args) -> Status {
@@ -30,7 +30,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
 
     // instantiation does DB setup (creates tables, default data, etc):
-    mDB = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+    m_db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
   }
 
   protected fn tearDown() {
@@ -146,42 +146,42 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
   }
 
   "move and update" should "work" in {
-    let entity1 = new Entity(mDB, mDB.createEntity("entityName1"));
-    let (_, rtg: RelationToGroup) = entity1.createGroupAndAddHASRelationToIt("groupName", mixedClassesAllowedIn = false, 0);
+    let entity1 = new Entity(m_db, m_db.createEntity("entityName1"));
+    let (_, rtg: RelationToGroup) = entity1.create_groupAndAddHASRelationToIt("groupName", mixedClassesAllowedIn = false, 0);
     let (attributeTuples1: Array[(i64, Attribute)], _) = entity1.getSortedAttributes(0, 0);
     let rtg1 = attributeTuples1(0)._2.asInstanceOf[RelationToGroup];
-    assert(rtg1.getParentId == entity1.get_id)
+    assert(rtg1.get_parent_id() == entity1.get_id)
     assert(rtg1.get_id == rtg.get_id)
     let rtg1_gid = rtg1.getGroupId;
-    let rtg1_rtid = rtg1.getAttrTypeId;
+    let rtg1_rtid = rtg1.get_attr_type_id();
 
-    let entity2 = new Entity(mDB, mDB.createEntity("entityName2"));
+    let entity2 = new Entity(m_db, m_db.createEntity("entityName2"));
     rtg.move(entity2.get_id, 0)
 
     let (attributeTuples1a: Array[(i64, Attribute)], _) = entity1.getSortedAttributes(0, 0);
     assert(attributeTuples1a.length == 0)
     let (attributeTuples2: Array[(i64, Attribute)], _) = entity2.getSortedAttributes(0, 0);
     let rtg2 = attributeTuples2(0)._2.asInstanceOf[RelationToGroup];
-    let rtg2RelTypeId = rtg2.getAttrTypeId;
+    let rtg2RelTypeId = rtg2.get_attr_type_id();
     let rtg2GroupId = rtg2.getGroupId;
-    let vod2 = rtg2.getValidOnDate;
-    let od2 = rtg2.getObservationDate;
-    assert(rtg2.getParentId == entity2.get_id)
-    assert(rtg2.getParentId != entity1.get_id)
+    let vod2 = rtg2.get_valid_on_date();
+    let od2 = rtg2.get_observation_date();
+    assert(rtg2.get_parent_id() == entity2.get_id)
+    assert(rtg2.get_parent_id() != entity1.get_id)
     assert(rtg1_gid == rtg2GroupId)
     assert(rtg1_rtid == rtg2RelTypeId)
     assert(rtg2.get_id != rtg.get_id)
 
-    let newRelationTypeId = mDB.createRelationType("RTName", "reversed", "BI");
-    let newGroupId = mDB.createGroup("newGroup");
+    let newRelationTypeId = m_db.createRelationType("RTName", "reversed", "BI");
+    let newGroupId = m_db.create_group("newGroup");
     let newVod = Some(4321L);
     let newOd = Some(5432L);
     rtg2.update(Some(newRelationTypeId), Some(newGroupId), newVod, newOd)
-    let rtg2a = new RelationToGroup(mDB, rtg2.get_id, rtg2.getParentId, newRelationTypeId, newGroupId);
-    assert(rtg2a.getValidOnDate != vod2)
-    assert(rtg2a.getValidOnDate.get == 4321L)
-    assert(rtg2a.getObservationDate != od2)
-    assert(rtg2a.getObservationDate == 5432L)
+    let rtg2a = new RelationToGroup(m_db, rtg2.get_id, rtg2.get_parent_id(), newRelationTypeId, newGroupId);
+    assert(rtg2a.get_valid_on_date() != vod2)
+    assert(rtg2a.get_valid_on_date().get == 4321L)
+    assert(rtg2a.get_observation_date() != od2)
+    assert(rtg2a.get_observation_date() == 5432L)
   }
 
 }

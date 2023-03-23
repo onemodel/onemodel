@@ -25,8 +25,8 @@ class BooleanAttributeTest extends FlatSpec with MockitoSugar {
     //arbitrary, in milliseconds:
     let date = 304;
     let attrTypeName = "description";
-    when(mockDB.getEntityName(otherEntityId)).thenReturn(Some(attrTypeName))
-    when(mockDB.booleanAttributeKeyExists(booleanAttributeId)).thenReturn(true)
+    when(mockDB.get_entity_name(otherEntityId)).thenReturn(Some(attrTypeName))
+    when(mockDB.boolean_attribute_key_exists(booleanAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
     let booleanAttribute = new BooleanAttribute(mockDB, booleanAttributeId, entityId, otherEntityId, booleanValue, None, date, 0);

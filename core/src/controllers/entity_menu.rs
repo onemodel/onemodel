@@ -35,7 +35,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     require(containingRelationToEntityIn.isEmpty ||
             containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity] || containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity])
     require(entity_in != null)
-    if !entity_in.mDB.entity_key_exists(entity_in.get_id, include_archived = entity_in.mDB.include_archived_entities)) {
+    if !entity_in.m_db.entity_key_exists(entity_in.get_id, include_archived = entity_in.m_db.include_archived_entities)) {
       ui.display_text("The desired entity, " + entity_in.get_id + ", has been deleted or archived, probably while browsing other entities via menu options," +
                      "and so cannot be displayed here.  Exiting to the next menu.")
       return None
@@ -60,14 +60,14 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       require(containingRelationToEntityIn_relatedId2.get == entity_in.get_id)
     }
     if containingGroupIn.is_defined) require(containingRelationToEntityIn.isEmpty)
-    let numAttrsInEntity: i64 = entity_in.getAttributeCount();
+    let numAttrsInEntity: i64 = entity_in.get_attribute_count();
     let leading_text: Vec<String> = new Vec<String>(2);
     let relationSourceEntity: Option<Entity> = {;
       // (checking if exists also, because it could have been removed in another menu option)
-      if containingRelationToEntityIn.isEmpty || !containingRelationToEntityIn.get.mDB.entity_key_exists(containingRelationToEntityIn_relatedId1.get)) {
+      if containingRelationToEntityIn.isEmpty || !containingRelationToEntityIn.get.m_db.entity_key_exists(containingRelationToEntityIn_relatedId1.get)) {
         None
       } else {
-        Some(new Entity(containingRelationToEntityIn.get.mDB, containingRelationToEntityIn.get.getParentId))
+        Some(new Entity(containingRelationToEntityIn.get.m_db, containingRelationToEntityIn.get.get_parent_id()))
       }
     }
     let choices: Vec<String> = getChoices(entity_in, numAttrsInEntity);
@@ -90,7 +90,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         (None, None, None, None)
       } else {
         let mut highlightedEntry: Option[Attribute] = Some(highlightedAttributeIn.getOrElse(attributeTuples(0)._2));
-        let highlightedObjFormId: i32 = highlightedEntry.get.getFormId;
+        let highlightedObjFormId: i32 = highlightedEntry.get.get_form_id;
         let highlightedObjId: i64 = highlightedEntry.get.get_id;
         let mut highlightedIndexInObjList: Option[Int] = None;
         let mut moveTargetIndexInObjList: Option[Int] = None;
@@ -99,10 +99,10 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         for (attributeTuple <- attributeTuples) {
           index += 1
           let attribute = attributeTuple._2;
-          if attribute.getFormId == highlightedObjFormId && attribute.get_id == highlightedObjId) {
+          if attribute.get_form_id == highlightedObjFormId && attribute.get_id == highlightedObjId) {
             highlightedIndexInObjList = Some(index)
           }
-          if targetForMovesIn.is_defined && attribute.getFormId == targetForMovesIn.get.getFormId && attribute.get_id == targetForMovesIn.get.get_id) {
+          if targetForMovesIn.is_defined && attribute.get_form_id == targetForMovesIn.get.get_form_id && attribute.get_id == targetForMovesIn.get.get_id) {
             moveTargetIndexInObjList = Some(index)
             targetForMoves = targetForMovesIn
           }
@@ -150,19 +150,19 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       if answer == 1) {
         let (newAttributeToHighlight: Option[Attribute], displayStartingRowNumber: Int) = {;
           // ask for less info when here, to add entity quickly w/ no fuss, like brainstorming. Like in QuickGroupMenu.  User can always use option 2.
-          let newEntity: Option<Entity> = controller.askForNameAndWriteEntity(entity_in.mDB, Util.ENTITY_TYPE, leading_textIn = Some("NAME THE ENTITY:"));
+          let newEntity: Option<Entity> = controller.askForNameAndWriteEntity(entity_in.m_db, Util.ENTITY_TYPE, leading_text_in = Some("NAME THE ENTITY:"));
           if newEntity.is_defined) {
             let newAttribute: Attribute = entity_in.addHASRelationToLocalEntity(newEntity.get.get_id, None, System.currentTimeMillis());
             // The next 2 lines are so if adding a new entry on the 1st entry, and if the user so prefers, the new one becomes the
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
             let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.getNewEntriesStickToTop;
             let forward = !goingBackward;
-            let displayStartingRowNumber: i32 = placeEntryInPosition(entity_in.mDB, entity_in.get_id, entity_in.getAttributeCount(), 0, forwardNotBackIn = forward,;
+            let displayStartingRowNumber: i32 = placeEntryInPosition(entity_in.m_db, entity_in.get_id, entity_in.get_attribute_count(), 0, forwardNotBackIn = forward,;
                                                                      attributeRowsStartingIndexIn, newAttribute.get_id,
                                                                      highlightedIndexInObjList.getOrElse(0),
                                                                      if highlightedEntry.is_defined) Some(highlightedEntry.get.get_id) else None,
-                                                                     numDisplayableAttributes, newAttribute.getFormId,
-                                                                     if highlightedEntry.is_defined) Some(highlightedEntry.get.getFormId) else None)
+                                                                     numDisplayableAttributes, newAttribute.get_form_id,
+                                                                     if highlightedEntry.is_defined) Some(highlightedEntry.get.get_form_id) else None)
             controller.defaultAttributeCopying(newEntity.get, Some(attributeTuples))
             (Some(newAttribute), displayStartingRowNumber)
           }
@@ -170,7 +170,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         }
         entityMenu(entity_in, displayStartingRowNumber, newAttributeToHighlight, targetForMoves, containingRelationToEntityIn, containingGroupIn)
       } else if answer == 2 && highlightedEntry.is_defined && highlightedIndexInObjList.is_defined && numAttrsInEntity > 0) {
-        let (newStartingDisplayIndex: Int, movedOneOut: Boolean) = moveSelectedEntry(entity_in, attributeRowsStartingIndexIn, totalAttrsAvailable,;
+        let (newStartingDisplayIndex: Int, movedOneOut: bool) = moveSelectedEntry(entity_in, attributeRowsStartingIndexIn, totalAttrsAvailable,;
                                                                                      targetForMoves,
                                                                                      highlightedIndexInObjList.get, highlightedEntry.get,
                                                                                      numDisplayableAttributes,
@@ -195,11 +195,11 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
           let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.getNewEntriesStickToTop;
           let forward = !goingBackward;
-          placeEntryInPosition(entity_in.mDB, entity_in.get_id, entity_in.getAttributeCount(), 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
+          placeEntryInPosition(entity_in.m_db, entity_in.get_id, entity_in.get_attribute_count(), 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
                                newAttribute.get.get_id, highlightedIndexInObjList.getOrElse(0),
                                if highlightedEntry.is_defined) Some(highlightedEntry.get.get_id) else None,
-                               numDisplayableAttributes, newAttribute.get.getFormId,
-                               if highlightedEntry.is_defined) Some(highlightedEntry.get.getFormId) else None)
+                               numDisplayableAttributes, newAttribute.get.get_form_id,
+                               if highlightedEntry.is_defined) Some(highlightedEntry.get.get_form_id) else None)
           entityMenu(entity_in, attributeRowsStartingIndexIn, newAttribute, targetForMoves, containingRelationToEntityIn, containingGroupIn)
         } else {
           entityMenu(entity_in, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingRelationToEntityIn, containingGroupIn)
@@ -222,7 +222,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         // THE OTHER MIGHT ALSO NEED MAINTENANCE!
         let choices = Vec<String>(Util.UNSELECT_MOVE_TARGET_PROMPT_TEXT);
         let leading_text: Vec<String> = Array(Util.UNSELECT_MOVE_TARGET_LEADING_TEXT);
-        Util.add_remaining_count_to_prompt(choices, attributeTuples.length, entity_in.getAttributeCount(), attributeRowsStartingIndexIn)
+        Util.add_remaining_count_to_prompt(choices, attributeTuples.length, entity_in.get_attribute_count(), attributeRowsStartingIndexIn)
 
         let response = ui.ask_which(Some(leading_text), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,;
                                    secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -255,7 +255,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         let choices = Vec<String>("keep existing (same as ESC)");
         // says 'same screenful' because (see similar cmt elsewhere).
         let leading_text: Vec<String> = Array("CHOOSE an attribute to highlight (*)");
-        Util.add_remaining_count_to_prompt(choices, attributeTuples.length, entity_in.getAttributeCount(), attributeRowsStartingIndexIn)
+        Util.add_remaining_count_to_prompt(choices, attributeTuples.length, entity_in.get_attribute_count(), attributeRowsStartingIndexIn)
         let response = ui.ask_which(Some(leading_text), choices, attributeDisplayStrings, highlightIndexIn = highlightedIndexInObjList,;
                                    secondaryHighlightIndexIn = moveTargetIndexInObjList)
         let entryToHighlight: Option[Attribute] = {;
@@ -271,16 +271,16 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       } else if answer == 9 && answer <= choices.length) {
         new OtherEntityMenu(ui, controller).otherEntityMenu(entity_in, attributeRowsStartingIndexIn, relationSourceEntity, containingRelationToEntityIn,
                                                             containingGroupIn, attributeTuples)
-        if !entity_in.mDB.entity_key_exists(entity_in.get_id, include_archived = false)) {
+        if !entity_in.m_db.entity_key_exists(entity_in.get_id, include_archived = false)) {
           // entity could have been deleted by some operation in OtherEntityMenu
           None
         } else {
           let listEntryIsGoneNow: bool = highlightedEntry.is_defined &&;
-                                            !highlightedEntry.get.mDB.attribute_key_exists(highlightedEntry.get.getFormId, highlightedEntry.get.get_id)
+                                            !highlightedEntry.get.m_db.attribute_key_exists(highlightedEntry.get.get_form_id, highlightedEntry.get.get_id)
           let defaultEntryToHighlight: Option[Attribute] = highlightedEntry;
           let nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entity_in, attributesToDisplay,;
                                                                                  listEntryIsGoneNow, defaultEntryToHighlight, highlightedIndexInObjList)
-          entityMenu(new Entity(entity_in.mDB, entity_in.get_id), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
+          entityMenu(new Entity(entity_in.m_db, entity_in.get_id), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
                      containingRelationToEntityIn, containingGroupIn)
         }
       } else if answer > choices.length && answer <= (choices.length + attributeTuples.length)) {
@@ -304,7 +304,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       // "Can't connect to X11 window server ...", and it's better to recover from that than to abort the app (ie, when eventually calling
       // Controller.get_clipboard_content)..
       // Idea: somehow make this handle it right, even if the exception came from a remote db (rest)?
-      Util.handleException(e, ui, entity_in.mDB)
+      Util.handleException(e, ui, entity_in.m_db)
       let ans = ui.ask_yes_no_question("Go back to what you were doing (vs. going out)?", Some("y"));
       if ans.is_defined && ans.get) entityMenu(entity_in, attributeRowsStartingIndexIn, highlightedAttributeIn, targetForMovesIn,
                                                containingRelationToEntityIn, containingGroupIn)
@@ -327,7 +327,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     choices = choices :+ "Select target (entry move destination: gets a '+' marker)"
     // (the next line's display text is abbreviated to fit in an 80-column terminal window:)
     choices = choices :+ (if numAttrsIn > 0) "Select attribute to highlight (with '*'; type a letter to go to its attr menu)" else "(stub)")
-    choices = choices :+ (if controller.get_default_entity.isEmpty && !entity_in.mDB.is_remote) "****TRY ME---> " else "") + "Other entity operations..."
+    choices = choices :+ (if controller.get_default_entity.isEmpty && !entity_in.m_db.is_remote) "****TRY ME---> " else "") + "Other entity operations..."
     choices
   }
 
@@ -352,29 +352,29 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           case fa: FileAttribute => controller.attributeEditMenu(fa)
           case ta: TextAttribute => controller.attributeEditMenu(ta)
           case relToEntity: RelationToLocalEntity =>
-            let db = relToEntity.mDB;
+            let db = relToEntity.m_db;
             entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
             let stillThere: bool = db.entity_key_exists(relToEntity.getRelatedId2, include_archived = false) &&;
-                                      db.attribute_key_exists(relToEntity.getFormId, relToEntity.get_id)
+                                      db.attribute_key_exists(relToEntity.get_form_id, relToEntity.get_id)
             !stillThere
           case relToRemoteEntity: RelationToRemoteEntity =>
             // (An entity can be remote, but referred to by a local RelationToLocalEntity:)
             let remoteDb: Database = relToRemoteEntity.getRemoteDatabase;
             entityMenu(new Entity(remoteDb, relToRemoteEntity.getRelatedId2), 0, None, None, Some(relToRemoteEntity))
             let stillThere: bool = remoteDb.entity_key_exists(relToRemoteEntity.getRelatedId2, include_archived = false) &&;
-                                      remoteDb.attribute_key_exists(relToRemoteEntity.getFormId, relToRemoteEntity.get_id)
+                                      remoteDb.attribute_key_exists(relToRemoteEntity.get_form_id, relToRemoteEntity.get_id)
             !stillThere
           case relToGroup: RelationToGroup =>
-            new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(relToGroup.mDB, relToGroup.getGroupId),
+            new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(relToGroup.m_db, relToGroup.getGroupId),
                                                               0, Some(relToGroup), containingEntityIn = Some(entity_in))
-            if !relToGroup.mDB.groupKeyExists(relToGroup.getGroupId)) true
+            if !relToGroup.m_db.groupKeyExists(relToGroup.getGroupId)) true
             else false
           case _ => throw new Exception("Unexpected choice has class " + o.getClass.get_name + "--what should we do here?")
         }
       }
     }
 
-    if !entity_in.mDB.entity_key_exists(entity_in.get_id, include_archived = false)) {
+    if !entity_in.m_db.entity_key_exists(entity_in.get_id, include_archived = false)) {
       // (entity could have been deleted or archived while browsing among containers via submenus)
       None
     } else {
@@ -382,7 +382,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       let defaultEntryToHighlight: Option[Attribute] = Some(attributeTuples(choices_index)._2);
       let nextToHighlight: Option[Attribute] = determineNextEntryToHighlight(entity_in, attributesToDisplay,;
                                                                              entryIsGoneNow, defaultEntryToHighlight, Some(choices_index))
-      entityMenu(new Entity(entity_in.mDB, entity_in.get_id), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
+      entityMenu(new Entity(entity_in.m_db, entity_in.get_id), attributeRowsStartingIndexIn, nextToHighlight, targetForMovesIn,
                  containingRelationToEntityIn, containingGroupIn)
     }
   }
@@ -409,7 +409,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         // Idea: maybe we could use an abstraction to make this kind of UI work even simpler, since we do it often.
         // Idea: make the following prompt and its code not be messy, in writing or in where it gets part of the text?
 
-        // NOTE: this prompt should match the logic inside PostgreSQLDatabase.findContainedLocalEntityIds:
+        // NOTE: this prompt should match the logic inside PostgreSQLDatabase.find_contained_local_entity_ids:
         let ans = ui.ask_for_string(Some(Array(Util.entity_or_group_name_sql_search_prompt("Entity name or text attribute content") +;
                                              ", (that is for the textAttribute content, but for the entity names it will do a Matcher.find, " +
                                              "after lowercasing both strings -- regex details at " +
@@ -420,8 +420,8 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                                                         " searching from main/top menu is often faster)")),
                                              Some(Util.is_numeric), Some("5"))
           let levels: i32 = levelsAnswer.getOrElse("4").toInt;
-          let entityIdsTreeSet: mutable.TreeSet[i64] = entity_in.findContainedLocalEntityIds(new mutable.TreeSet[i64], searchString, levels,;
-                                                                                             stopAfterAnyFoundIn = false)
+          let entityIdsTreeSet: mutable.TreeSet[i64] = entity_in.find_contained_local_entity_ids(new mutable.TreeSet[i64], searchString, levels,;
+                                                                                             stop_after_any_foundIn = false)
           let entityIds = entityIdsTreeSet.toArray;
           let leading_text2 = Vec<String>(Util.PICK_FROM_LIST_PROMPT);
           // could be like if numAttrsInEntity > 0) Controller.LIST_NEXT_ITEMS_PROMPT else "(stub)" above, if we made the method more sophisticated to do that.
@@ -447,7 +447,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           }
           let entityStatusesAndNames: Vec<String> = entityIdsTruncated.map {;
                                                                                id: i64 =>
-                                                                                 let entity = new Entity(entity_in.mDB, id);
+                                                                                 let entity = new Entity(entity_in.m_db, id);
                                                                                  entity.getArchivedStatusDisplayString + entity.get_name
                                                                              }
           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
@@ -463,7 +463,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                 // those in the condition on the previous line are 1-based, not 0-based.
                 let index = relatedEntitiesAnswer - choices.length - 1;
                 let id: i64 = entityIds(index);
-                entityMenu(new Entity(entity_in.mDB, id))
+                entityMenu(new Entity(entity_in.m_db, id))
               }
               showSearchResults()
             }
@@ -471,19 +471,19 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           showSearchResults()
         }
       } else if searchAnswer == 4) {
-        let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(entity_in.mDB, None, None, None, Util.ENTITY_TYPE);
+        let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(entity_in.m_db, None, None, None, Util.ENTITY_TYPE);
         if selection.is_defined) {
-          entityMenu(new Entity(entity_in.mDB, selection.get._1.get_id))
+          entityMenu(new Entity(entity_in.m_db, selection.get._1.get_id))
         }
       }
     }
   }
 
-    fn determineNextEntryToHighlight(entity_in: Entity, attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: Boolean,
+    fn determineNextEntryToHighlight(entity_in: Entity, attributesToDisplay: util.ArrayList[Attribute], entryIsGoneNow: bool,
                                     defaultEntryToHighlight: Option[Attribute], highlightingIndex: Option[Int]) -> Option[Attribute] {
     // The entity or an attribute could have been removed or changed by navigating around various menus, so before trying to view it again,
     // confirm it exists, & (at the call to entityMenu) reread from db to refresh data for display, like public/non-public status:
-    if entity_in.mDB.entity_key_exists(entity_in.get_id, include_archived = false)) {
+    if entity_in.m_db.entity_key_exists(entity_in.get_id, include_archived = false)) {
       if highlightingIndex.is_defined && entryIsGoneNow) {
         Util.find_attribute_to_highlight_next(attributesToDisplay.size, attributesToDisplay, entryIsGoneNow, highlightingIndex.get, defaultEntryToHighlight.get)
       } else {
@@ -510,9 +510,9 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
               (if relationSourceEntityIn.isEmpty) "relationSourceEntityIn is empty; " else "") +
               (if containingRelationToEntityIn.isEmpty) "containingRelationToEntityIn is empty." else ""))
 
-      require(relationSourceEntityIn.get.get_id == containingRelationToEntityIn.get.getParentId, "relationSourceEntityIn: " + relationSourceEntityIn.get.get_id +
-                                                                                                " doesn't match containingRelationToEntityIn.get.getParentId:" +
-                                                                                                " " + containingRelationToEntityIn.get.getParentId + ".")
+      require(relationSourceEntityIn.get.get_id == containingRelationToEntityIn.get.get_parent_id(), "relationSourceEntityIn: " + relationSourceEntityIn.get.get_id +
+                                                                                                " doesn't match containingRelationToEntityIn.get.get_parent_id():" +
+                                                                                                " " + containingRelationToEntityIn.get.get_parent_id() + ".")
     }
     let choices = Vec<String>(// (see comments at similar location in same-named method of QuickGroupMenu.);
                                 "Move up " + controller.moveFartherCount,
@@ -551,11 +551,11 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           forwardNotBack = true
         }
         let displayStartingRowNumber: i32 = {;
-          let possibleDisplayStartingRowNumber = placeEntryInPosition(entity_in.mDB, entity_in.get_id, totalAttrsAvailable, numRowsToMove,;
+          let possibleDisplayStartingRowNumber = placeEntryInPosition(entity_in.m_db, entity_in.get_id, totalAttrsAvailable, numRowsToMove,;
                                forwardNotBackIn = forwardNotBack, starting_display_row_index_in, highlightedAttributeIn.get_id,
                                highlightedIndexInObjListIn, Some(highlightedAttributeIn.get_id),
-                               numObjectsToDisplayIn, highlightedAttributeIn.getFormId,
-                               Some(highlightedAttributeIn.getFormId))
+                               numObjectsToDisplayIn, highlightedAttributeIn.get_form_id,
+                               Some(highlightedAttributeIn.get_form_id))
           if answer != 9) {
             possibleDisplayStartingRowNumber
           } else {
@@ -584,27 +584,27 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             let movingRtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
             let targetEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2;
-            require(movingRtle.getParentId == entity_in.get_id)
-            movingRtle.move(targetEntityId, getSortingIndex(entity_in.mDB, entity_in.get_id, movingRtle.getFormId, movingRtle.get_id))
+            require(movingRtle.get_parent_id() == entity_in.get_id)
+            movingRtle.move(targetEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             let movingRtre: RelationToRemoteEntity = highlightedAttributeIn.asInstanceOf[RelationToRemoteEntity];
             let targetEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2;
-            require(movingRtre.getParentId == entity_in.get_id)
-            movingRtre.move(targetEntityId, getSortingIndex(entity_in.mDB, entity_in.get_id, movingRtre.getFormId, movingRtre.get_id))
+            require(movingRtre.get_parent_id() == entity_in.get_id)
+            movingRtre.move(targetEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
-            require(targetForMovesIn.get.getFormId == Database.get_attribute_form_id(Util.RELATION_TO_GROUP_TYPE))
-            let targetGroupId = RelationToGroup.createRelationToGroup(targetForMovesIn.get.mDB, targetForMovesIn.get.get_id).getGroupId;
+            require(targetForMovesIn.get.get_form_id == Database.get_attribute_form_id(Util.RELATION_TO_GROUP_TYPE))
+            let targetGroupId = RelationToGroup.create_relation_to_group(targetForMovesIn.get.m_db, targetForMovesIn.get.get_id).getGroupId;
             let rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
             // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-            rtle.moveEntityFromEntityToGroup(targetGroupId, getSortingIndex(entity_in.mDB, entity_in.get_id, rtle.getFormId, rtle.get_id))
+            rtle.moveEntityFromEntityToGroup(targetGroupId, getSortingIndex(entity_in.m_db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             let movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup];
             let newContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2;
-            require(movingRtg.getParentId == entity_in.get_id)
-            movingRtg.move(newContainingEntityId, getSortingIndex(entity_in.mDB, entity_in.get_id, movingRtg.getFormId, movingRtg.get_id))
+            require(movingRtg.get_parent_id() == entity_in.get_id)
+            movingRtg.move(newContainingEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             ui.display_text("Unsupported: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
@@ -636,15 +636,15 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             //noinspection TypeCheckCanBeMatch
             if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity]) {
               let movingRtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
-              movingRtle.move(newContainingEntityId, getSortingIndex(entity_in.mDB, entity_in.get_id, movingRtle.getFormId, movingRtle.get_id))
+              movingRtle.move(newContainingEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
               let movingRtre = highlightedAttributeIn.asInstanceOf[RelationToRemoteEntity];
-              movingRtre.move(newContainingEntityId, getSortingIndex(entity_in.mDB, entity_in.get_id, movingRtre.getFormId, movingRtre.get_id))
+              movingRtre.move(newContainingEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToGroup]) {
               let movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup];
-              movingRtg.move(newContainingEntityId, getSortingIndex(entity_in.mDB, entity_in.get_id, movingRtg.getFormId, movingRtg.get_id))
+              movingRtg.move(newContainingEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
               (starting_display_row_index_in, true)
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [1]")
           } else if containingGroupIn.is_defined) {
@@ -654,7 +654,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
               let targetGroupId = containingGroupIn.get.get_id;
               let rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
               // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-              rtle.moveEntityFromEntityToGroup(targetGroupId, getSortingIndex(entity_in.mDB, entity_in.get_id, rtle.getFormId, rtle.get_id))
+              rtle.moveEntityFromEntityToGroup(targetGroupId, getSortingIndex(entity_in.m_db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
               ui.display_text("Unsupported: groups cannot directly contain remote entities.  Only local entities can contain relations" +
@@ -677,16 +677,16 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     }
   }
 
-    fn getLeadingText(leading_textIn: Vec<String>, numAttributes: Int, entity_in: Entity, containingGroupIn: Option[Group] = None) -> Vec<String> {
-    leading_textIn(0) = Util.entity_menu_leading_text(entity_in)
+    fn getLeadingText(leading_text_in: Vec<String>, numAttributes: Int, entity_in: Entity, containingGroupIn: Option[Group] = None) -> Vec<String> {
+    leading_text_in(0) = Util.entity_menu_leading_text(entity_in)
     if containingGroupIn.is_defined) {
-      leading_textIn(0) += ": found via group: " + containingGroupIn.get.get_name
+      leading_text_in(0) += ": found via group: " + containingGroupIn.get.get_name
     }
     //%%$%%%
-    leading_textIn(0) += ": created " + entity_in.getCreationDateFormatted
-    leading_textIn(1) = if numAttributes == 0) "No attributes have been assigned to this object, yet."
+    leading_text_in(0) += ": created " + entity_in.getCreationDateFormatted
+    leading_text_in(1) = if numAttributes == 0) "No attributes have been assigned to this object, yet."
     else "Attribute list menu: (or choose attribute by letter)"
-    leading_textIn
+    leading_text_in
   }
 
     fn getItemDisplayStringsAndAttrs(attributeTuples: Array[(i64, Attribute)]) -> (Vec<String>, util.ArrayList[Attribute]) {
@@ -697,9 +697,9 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         attributes.add(attribute)
         attribute match {
           case relation: RelationToLocalEntity =>
-            let toEntity: Entity = new Entity(relation.mDB, relation.getRelatedId2);
+            let toEntity: Entity = new Entity(relation.m_db, relation.getRelatedId2);
 
-            let relationType = new RelationType(relation.mDB, relation.getAttrTypeId);
+            let relationType = new RelationType(relation.m_db, relation.get_attr_type_id());
             let desc = attribute.get_display_string(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true);
             let prefix = controller.getEntityContentSizePrefix(toEntity);
             let archivedStatus: String = toEntity.getArchivedStatusDisplayString;
@@ -708,15 +708,15 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             let remoteDb = relation.getRemoteDatabase;
             let toEntity: Entity = new Entity(remoteDb, relation.getRelatedId2);
 
-            let relationType = new RelationType(relation.mDB, relation.getAttrTypeId);
+            let relationType = new RelationType(relation.m_db, relation.get_attr_type_id());
             let desc = attribute.get_display_string(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true);
             let prefix = controller.getEntityContentSizePrefix(toEntity);
             let archivedStatus: String = toEntity.getArchivedStatusDisplayString;
             prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
           case relation: RelationToGroup =>
-            let relationType = new RelationType(relation.mDB, relation.getAttrTypeId);
+            let relationType = new RelationType(relation.m_db, relation.get_attr_type_id());
             let desc = attribute.get_display_string(Util.maxNameLength, None, Some(relationType), simplify = true);
-            let prefix = controller.getGroupContentSizePrefix(relation.mDB, relation.getGroupId);
+            let prefix = controller.getGroupContentSizePrefix(relation.m_db, relation.getGroupId);
             prefix + "group: " + desc
           case _ =>
             attribute.get_display_string(Util.maxNameLength, None, None)
@@ -784,12 +784,12 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   }
 
   protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
-                                                 forwardNotBackIn: Boolean) -> List[Array[Option[Any]]] {
+                                                 forwardNotBackIn: bool) -> List[Array[Option[Any]]] {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getAdjacentAttributesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
   }
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: Boolean) -> Option<i64> {
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64> {
     let entity = new Entity(dbIn, entityIdIn);
     entity.getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
   }
@@ -804,19 +804,19 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     entity.updateAttributeSortingIndex(movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
   }
 
-  protected fn getSortingIndex(dbIn: Database, entityIdIn: i64, attributeFormIdIn: Int, attributeIdIn: i64) -> i64 {
+  protected fn getSortingIndex(dbIn: Database, entityIdIn: i64, attribute_form_id_in: Int, attribute_id_in: i64) -> i64 {
     let entity = new Entity(dbIn, entityIdIn);
-    entity.getAttributeSortingIndex(attributeFormIdIn, attributeIdIn)
+    entity.getAttributeSortingIndex(attribute_form_id_in, attribute_id_in)
   }
 
-  protected fn indexIsInUse(dbIn: Database, entityIdIn: i64, sortingIndexIn: i64) -> Boolean {
+  protected fn indexIsInUse(dbIn: Database, entityIdIn: i64, sortingIndexIn: i64) -> bool {
     let entity = new Entity(dbIn, entityIdIn);
-    entity.isAttributeSortingIndexInUse(sortingIndexIn)
+    entity.is_attribute_sorting_index_in_use(sortingIndexIn)
   }
 
   protected fn findUnusedSortingIndex(dbIn: Database, entityIdIn: i64, startingWithIn: i64) -> i64 {
     let entity = new Entity(dbIn, entityIdIn);
-    entity.findUnusedAttributeSortingIndex(Some(startingWithIn))
+    entity.find_unused_attribute_sorting_index(Some(startingWithIn))
   }
 
 */

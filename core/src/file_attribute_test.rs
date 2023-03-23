@@ -29,7 +29,7 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     let size = 12345678;
     //noinspection SpellCheckingInspection
     let hash = "e156b9a37060ccbcbffe5ec0fc967016";
-    when(mockDB.getEntityName(otherEntityId)).thenReturn(Some(attrTypeName))
+    when(mockDB.get_entity_name(otherEntityId)).thenReturn(Some(attrTypeName))
     when(mockDB.fileAttributeKeyExists(fileAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):

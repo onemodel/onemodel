@@ -29,7 +29,7 @@ import scala.collection.mutable
 object ImportExport {
 }
 //%%
- * When adding features to this class, any eventual db call that creates a transaction needs to have the info 'callerManagesTransactionsIn = true' eventually
+ * When adding features to this class, any eventual db call that creates a transaction needs to have the info 'caller_manages_transactions_in = true' eventually
  * passed into it, from here, otherwise the rollback feature will fail.
  * /
 class ImportExport(val ui: TextUI, controller: Controller) {
@@ -42,9 +42,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     let db: Database = {;
       //noinspection ComparingUnrelatedTypes,TypeCheckCanBeMatch
       if firstContainingEntryIn.isInstanceOf[Entity]) {
-        firstContainingEntryIn.asInstanceOf[Entity].mDB
+        firstContainingEntryIn.asInstanceOf[Entity].m_db
       } else {
-        firstContainingEntryIn.asInstanceOf[Group].mDB
+        firstContainingEntryIn.asInstanceOf[Group].m_db
       }
     }
     let ans1: Option<String> = ui.ask_for_string(Some(Array("Enter file path (must exist, be readable, AND a text file with lines spaced in the form of a" +;
@@ -52,10 +52,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                                                           " can be indicated by surrounding a body of text thus, without quotes: '<ta>text</ta>';" +
                                                           " a URI similarly with a line " + uriLineExample + ")," +
                                                           " then press Enter; ESC to cancel")),
-                                               Some(Util.input_file_valid))
+                                               Some(Util::input_file_valid))
     if ans1.is_defined) {
       let path = ans1.get;
-      let makeThemPublic: Option<bool> = ui.ask_yes_no_question("Do you want the entities imported to be marked as public?  Set it to the value the " +;
+      let makeThem_public: Option<bool> = ui.ask_yes_no_question("Do you want the entities imported to be marked as public?  Set it to the value the " +;
                                                       "majority of imported data should have; you can then edit the individual settings afterward as " +
                                                       "needed.  Enter y for public, n for nonpublic, or a space for 'unknown/unspecified', aka decide later.",
                                                       Some(""), allow_blank_answer = true)
@@ -86,7 +86,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               db.begin_trans()
 
               doTheImport(reader, fileToImport.getCanonicalPath, fileToImport.lastModified(), firstContainingEntryIn, creatingNewStartingGroupFromTheFilename,
-                          addingToExistingGroup, putEntriesAtEnd, makeThemPublic)
+                          addingToExistingGroup, putEntriesAtEnd, makeThem_public)
 
               let keepAnswer: Option<bool> = {;
                 //idea: look into how long that time is (see below same cmt):
@@ -164,9 +164,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
     fn createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: i64, isPublicIn: Option<bool>) -> Entity {
-    let entityId: i64 = group.mDB.createEntity(line.trim, group.getClassId, isPublicIn);
-    group.addEntity(entityId, Some(newSortingIndex), callerManagesTransactionsIn = true)
-    new Entity(group.mDB, entityId)
+    let entityId: i64 = group.m_db.createEntity(line.trim, group.getClassId, isPublicIn);
+    group.addEntity(entityId, Some(newSortingIndex), caller_manages_transactions_in = true)
+    new Entity(group.m_db, entityId)
   }
 
   * The parameter lastEntityIdAdded means the one to which a new subgroup will be added, such as in a series of entities
@@ -180,8 +180,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   @tailrec
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
     fn importRestOfLines(r: LineNumberReader, lastEntityAdded: Option<Entity>, lastIndentationLevel: Int, containerList: List[AnyRef],
-                                lastSortingIndexes: List[i64], observationDateIn: i64, mixedClassesAllowedDefaultIn: Boolean,
-                                makeThemPublicIn: Option<bool>) {
+                                lastSortingIndexes: List[i64], observationDateIn: i64, mixedClassesAllowedDefaultIn: bool,
+                                makeThem_publicIn: Option<bool>) {
     // (see cmts just above about where we start)
     require(containerList.size == lastIndentationLevel + 1)
     // always should at least have an entry for the entity or group from where the user initiated this import, the base of all the adding.
@@ -204,22 +204,22 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         // we have a section of text marked for importing into a single TextAttribute:
         importTextAttributeContent(lineUntrimmed, r, lastEntityAdded.get, beginTaMarker, endTaMarker)
         importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
-                          makeThemPublicIn)
+                          makeThem_publicIn)
       } else if lineUntrimmed.toLowerCase.contains(beginUriMarker)) {
         // we have a section of text marked for importing into a web link:
         importUriContent(lineUntrimmed, beginUriMarker, endUriMarker, lineNumber, lastEntityAdded.get, observationDateIn,
-                          makeThemPublicIn, callerManagesTransactionsIn = true)
+                          makeThem_publicIn, caller_manages_transactions_in = true)
         importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
-                          makeThemPublicIn)
+                          makeThem_publicIn)
       } else {
         let line: String = lineUntrimmed.trim;
 
         if line == "." || line.isEmpty) {
           // nothing to do: that kind of line was just to create whitespace in my outline. So simply go to the next line:
           importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
-                            makeThemPublicIn)
+                            makeThem_publicIn)
         } else {
-          if line.length > Util.maxNameLength) throw new OmException("Line " + lineNumber + " is over " + Util.maxNameLength + " characters " +
+          if line.length > Util::maxNameLength) throw new OmException("Line " + lineNumber + " is over " + Util::maxNameLength + " characters " +
                                                                " (has " + line.length + "): " + line)
           let indentationSpaceCount: i32 = getFirstNonSpaceIndex(lineUntrimmed.getBytes, 0);
           if indentationSpaceCount % spacesPerIndentLevel != 0) throw new OmException("# of spaces is off, on line " + lineNumber + ": '" + line + "'")
@@ -231,15 +231,15 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             let newEntity: Entity = {;
               containerList.head match {
                 case entity: Entity =>
-                  entity.createEntityAndAddHASLocalRelationToIt(line, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)._1
+                  entity.createEntityAndAddHASLocalRelationToIt(line, observationDateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
                 case group: Group =>
-                  createAndAddEntityToGroup(line, containerList.head.asInstanceOf[Group], newSortingIndex, makeThemPublicIn)
+                  createAndAddEntityToGroup(line, containerList.head.asInstanceOf[Group], newSortingIndex, makeThem_publicIn)
                 case _ => throw new OmException("??")
               }
             }
 
             importRestOfLines(r, Some(newEntity), lastIndentationLevel, containerList, newSortingIndex :: lastSortingIndexes.tail, observationDateIn,
-                              mixedClassesAllowedDefaultIn, makeThemPublicIn)
+                              mixedClassesAllowedDefaultIn, makeThem_publicIn)
           } else if newIndentationLevel < lastIndentationLevel) {
             require(lastIndentationLevel >= 0)
             // outdented, so need to go back up to a containing group (list), to add line
@@ -251,14 +251,14 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             let newEntity: Entity = {;
               newContainerList.head match {
                 case entity: Entity =>
-                  entity.createEntityAndAddHASLocalRelationToIt(line, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)._1
+                  entity.createEntityAndAddHASLocalRelationToIt(line, observationDateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
                 case group: Group =>
-                  createAndAddEntityToGroup(line, group, newSortingIndex, makeThemPublicIn)
+                  createAndAddEntityToGroup(line, group, newSortingIndex, makeThem_publicIn)
                 case _ => throw new OmException("??")
               }
             }
             importRestOfLines(r, Some(newEntity), newIndentationLevel, newContainerList, newSortingIndex :: newSortingIndexList.tail, observationDateIn,
-                              mixedClassesAllowedDefaultIn, makeThemPublicIn)
+                              mixedClassesAllowedDefaultIn, makeThem_publicIn)
           } else if newIndentationLevel > lastIndentationLevel) {
             // indented, so create a subgroup & add line there:
             require(newIndentationLevel >= 0)
@@ -286,13 +286,13 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             // user preferred this to be a relation to entity instead of to group to contain the sub-things,
             // oh well they can add it to the entity as such,
             // for now at least.
-            let newGroup: Group = lastEntityAdded.get.createGroupAndAddHASRelationToIt(lastEntityAdded.get.get_name, mixedClassesAllowed,;
-                                                                                       observationDateIn, callerManagesTransactionsIn = true)._1
+            let newGroup: Group = lastEntityAdded.get.create_groupAndAddHASRelationToIt(lastEntityAdded.get.get_name, mixedClassesAllowed,;
+                                                                                       observationDateIn, caller_manages_transactions_in = true)._1
             // since a new grp, start at beginning of sorting indexes
             let newSortingIndex = Database.min_id_value;
-            let newSubEntity: Entity = createAndAddEntityToGroup(line, newGroup, newSortingIndex, makeThemPublicIn);
+            let newSubEntity: Entity = createAndAddEntityToGroup(line, newGroup, newSortingIndex, makeThem_publicIn);
             importRestOfLines(r, Some(newSubEntity), newIndentationLevel, newGroup :: containerList, newSortingIndex :: lastSortingIndexes,
-                              observationDateIn, mixedClassesAllowedDefaultIn, makeThemPublicIn)
+                              observationDateIn, mixedClassesAllowedDefaultIn, makeThem_publicIn)
           } else throw new OmException("Shouldn't get here!?: " + lastIndentationLevel + ", " + newIndentationLevel)
         }
       }
@@ -305,7 +305,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     if restOfLine.toLowerCase.contains(endTaMarker)) throw new OmException("\"Unsupported format at line " + r.getLineNumber + ": beginning and ending " +
                                                                             "markers must NOT be on the same line.")
     let attrTypeId: i64 = {;
-      let idsByName: java.util.ArrayList[i64] = entity_in.mDB.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true);
+      let idsByName: java.util.ArrayList[i64] = entity_in.m_db.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true);
       if idsByName.size == 1)
         idsByName.get(0)
       else {
@@ -315,10 +315,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                      "(it has to match an existing entity, case-sensitively)"
         //IDEA: this used to call Controller.chooseOrCreateObject_OrSaysCancelled instead. Removing it removes a prompt if the user pressed ESC during it,
         //and this lacks a convenient way to test it, and I don't know that anyone uses it right now. So maybe add a test sometime:
-        let selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(entity_in.mDB,;
+        let selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(entity_in.m_db,;
                                                                                               Some(List(prompt + ", so please choose one or ESC to abort" +
                                                                                                         " this import operation:")),
-                                                                                              None, None, Util.TEXT_TYPE)
+                                                                                              None, None, Util::TEXT_TYPE)
         if selection.isEmpty) {
           throw new OmException(prompt + " or selected.")
         } else {
@@ -354,11 +354,11 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       let builder = getRestOfLines(r, new mutable.StringBuilder);
       builder.toString()
     }
-    entity_in.createTextAttribute(attrTypeId, text, callerManagesTransactionsIn = true)
+    entity_in.create_text_attribute(attrTypeId, text, caller_manages_transactions_in = true)
   }
 
     fn importUriContent(lineUntrimmedIn: String, beginningTagMarkerIn: String, endMarkerIn: String, lineNumberIn: Int,
-                        lastEntityAddedIn: Entity, observationDateIn: i64, makeThemPublicIn: Option<bool>, callerManagesTransactionsIn: Boolean) {
+                        lastEntityAddedIn: Entity, observationDateIn: i64, makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool) {
     //NOTE/idea also in tasks: this all fits better in the class and action *tables*, with this code being stored there
     // also, which implies that the class doesn't need to be created because...it's already there.
 
@@ -377,37 +377,37 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     if name.isEmpty || uri.isEmpty) throw new OmException("\"Unsupported format at line " + lineNumberIn +
                                                            ": A URI line must be in the format (without quotes): " + uriLineExample)
     // (see note above on this being better in the class and action *tables*, but here for now until those features are ready)
-    lastEntityAddedIn.addUriEntityWithUriAttribute(name, uri, observationDateIn, makeThemPublicIn, callerManagesTransactionsIn = true)
+    lastEntityAddedIn.addUriEntityWithUriAttribute(name, uri, observationDateIn, makeThem_publicIn, caller_manages_transactions_in = true)
   }
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
   // wait for next debian stable version--jessie?--be4 it's probably worth finding out)
     fn doTheImport(dataSourceIn: Reader, dataSourceFullPath: String, dataSourceLastModifiedDate: i64, firstContainingEntryIn: AnyRef,
-                  creatingNewStartingGroupFromTheFilename_in: Boolean, addingToExistingGroup: Boolean,
+                  creatingNewStartingGroupFromTheFilename_in: bool, addingToExistingGroup: bool,
                   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                  putEntriesAtEnd: Boolean, makeThemPublicIn: Option<bool>, mixedClassesAllowedDefaultIn: Boolean = false, testing: Boolean = false) {
+                  putEntriesAtEnd: bool, makeThem_publicIn: Option<bool>, mixedClassesAllowedDefaultIn: bool = false, testing: bool = false) {
     let mut r: LineNumberReader = null;
     r = new LineNumberReader(dataSourceIn)
     let containingEntry: AnyRef = {;
       firstContainingEntryIn match {
         case containingEntity: Entity =>
           if creatingNewStartingGroupFromTheFilename_in) {
-            let group: Group = containingEntity.createGroupAndAddHASRelationToIt(dataSourceFullPath,;
+            let group: Group = containingEntity.create_groupAndAddHASRelationToIt(dataSourceFullPath,;
                                                                                  mixedClassesAllowedIn = mixedClassesAllowedDefaultIn,
-                                                                                 System.currentTimeMillis, callerManagesTransactionsIn = true)._1
+                                                                                 System.currentTimeMillis, caller_manages_transactions_in = true)._1
             group
           } else containingEntity
         case containingGroup: Group =>
           if creatingNewStartingGroupFromTheFilename_in) {
             let name = dataSourceFullPath;
-            let newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, containingGroup.findUnusedSortingIndex(), makeThemPublicIn);
-            let newGroup: Group = newEntity.createGroupAndAddHASRelationToIt(name, containingGroup.getMixedClassesAllowed, System.currentTimeMillis,;
-                                                                             callerManagesTransactionsIn = true)._1
+            let newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, containingGroup.findUnusedSortingIndex(), makeThem_publicIn);
+            let newGroup: Group = newEntity.create_groupAndAddHASRelationToIt(name, containingGroup.getMixedClassesAllowed, System.currentTimeMillis,;
+                                                                             caller_manages_transactions_in = true)._1
             newGroup
           } else {
             assert(addingToExistingGroup)
             // importing the new entries to an existing group
-            new Group(containingGroup.mDB, containingGroup.get_id)
+            new Group(containingGroup.m_db, containingGroup.get_id)
           }
         case _ => throw new OmException("??")
       }
@@ -416,14 +416,14 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     //noinspection ComparingUnrelatedTypes
     require(containingEntry.isInstanceOf[Entity] || containingEntry.isInstanceOf[Group])
     // in order to put the new entries at the end of those already there, find the last used sortingIndex, and use the next one (renumbering
-    // if necessary (idea: make this optional: putting them at beginning (w/ mDB.min_id_value) or end (w/ highestCurrentSortingIndex)).
+    // if necessary (idea: make this optional: putting them at beginning (w/ m_db.min_id_value) or end (w/ highestCurrentSortingIndex)).
     let startingSortingIndex: i64 = {;
       if addingToExistingGroup && putEntriesAtEnd) {
         let containingGrp = containingEntry.asInstanceOf[Group];
         let nextSortingIndex: i64 = containingGrp.getHighestSortingIndex + 1;
         if nextSortingIndex == Database.min_id_value) {
           // we wrapped from the biggest to lowest i64 value
-          containingGrp.renumberSortingIndexes(callerManagesTransactionsIn = true)
+          containingGrp.renumberSortingIndexes(caller_manages_transactions_in = true)
           let nextTriedNewSortingIndex: i64 = containingGrp.getHighestSortingIndex + 1;
           if nextSortingIndex == Database.min_id_value) {
             throw new OmException("Huh? How did we get two wraparounds in a row?")
@@ -434,7 +434,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
 
     importRestOfLines(r, None, 0, containingEntry :: Nil, startingSortingIndex :: Nil, dataSourceLastModifiedDate, mixedClassesAllowedDefaultIn,
-                      makeThemPublicIn)
+                      makeThem_publicIn)
   }
 
   // idea: see comment in EntityMenu about scoping.
@@ -443,7 +443,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       let levelsText = "number of levels to export";
 
       let ans: Option<String> = ui.ask_for_string(Some(Array("Enter " + levelsText + " (including this one; 0 = 'all'); ESC to cancel")),;
-                                                Some(Util.is_numeric), Some("0"))
+                                                Some(Util::is_numeric), Some("0"))
       if ans.isEmpty) return (true, "", 0, false, false, false, false, false, false, 1)
       let levelsToExport: i32 = ans.get.toInt;
 
@@ -483,8 +483,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         wrapTheLines = ans7.get
 
         wrapAtColumn = {
-          fn checkColumn(s: String) -> Boolean {
-            Util.is_numeric(s) && s.toFloat > 0
+          fn checkColumn(s: String) -> bool {
+            Util::is_numeric(s) && s.toFloat > 0
           }
           let ans8: Option<String> = ui.ask_for_string(Some(Array("Wrap at what column (greater than 0)?")), Some(checkColumn), Some("80"),;
                                                        escKeySkipsCriteriaCheck = true)
@@ -497,8 +497,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
 
 
-    let (userWantsOut: Boolean, levelsText: String, levelsToExport: Int, includeMetadata: Boolean, includePublicData: Boolean, includeNonPublicData: Boolean,;
-         includeUnspecifiedData: Boolean, numberTheLines: Boolean, wrapTheLines: Boolean, wrapAtColumn: Int) = askForExportChoices
+    let (userWantsOut: bool, levelsText: String, levelsToExport: Int, includeMetadata: bool, includePublicData: bool, includeNonPublicData: bool,;
+         includeUnspecifiedData: bool, numberTheLines: bool, wrapTheLines: bool, wrapAtColumn: Int) = askForExportChoices
 
     fn getNumExportableEntries(cachedEntities: mutable.HashMap[String, Entity], cachedAttrs: mutable.HashMap[i64, Array[(i64, Attribute)]]) -> Integer {
       let mut count: Integer = 0;
@@ -507,7 +507,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         let attribute: Attribute = attributeTuple._2;
         attribute match {
           case relation: RelationToLocalEntity =>
-            let e: Entity = getCachedEntity(relation.getRelatedId2, cachedEntities, relation.mDB);
+            let e: Entity = getCachedEntity(relation.getRelatedId2, cachedEntities, relation.m_db);
             if levelsRemainAndPublicEnough(e, includePublicData, includeNonPublicData, includeUnspecifiedData,
                                             levelsToExportIsInfiniteIn = false, 1)) {
               count = count + 1
@@ -527,7 +527,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             // probably not so don't increment at all in that case?:
             //                    let entityIds: Array[i64] = getCachedGroupData(relation, cachedGroupInfo);
             //                    for (entityIdInGrp <- entityIds) {
-            //                      let entity_in_group: Entity = getCachedEntity(entityIdInGrp, cachedEntities, relation.mDB);
+            //                      let entity_in_group: Entity = getCachedEntity(entityIdInGrp, cachedEntities, relation.m_db);
             //                    if levelsRemainAndPublicEnough(e, includePublicData, includeNonPublicData, includeUnspecifiedData,
             //                                                    levelsToExportIsInfiniteIn = false, 1)) {
             count = count + 1
@@ -596,21 +596,21 @@ class ImportExport(val ui: TextUI, controller: Controller) {
  THEN consider each kind of person (age, either some academic or tech bent, experiences, how it is best for each one.
 *
             outputWriter.println("(This is an outline, generated from OM data (details at http://onemodel.org), with " + numEntries + " top-level items.  It is meant to be skimmable." +
-                                 Util.NEWLN + "Here are some hints for skimming or reading outlines (and other things) efficiently:" +
+                                 Util::NEWLN + "Here are some hints for skimming or reading outlines (and other things) efficiently:" +
                                  // WHEN PERSONAL WEB SITE UPDATED W/ THE CONTENTS (already in its todos), simply link here and delete the rest of the output?,
                                  // or keep the tip about just reading the outline, & link to the rest with this & make the overall text work:
-                                 //Util.NEWLN + "  <a href=\"http://lukecall.net/e-9223372036854624718.html\">About reading outlines efficiently</a>"
-                                 Util.NEWLN + "1) for an outline like this, read only the most out-dented parts," +
+                                 //Util::NEWLN + "  <a href=\"http://lukecall.net/e-9223372036854624718.html\">About reading outlines efficiently</a>"
+                                 Util::NEWLN + "1) for an outline like this, read only the most out-dented parts," +
                                  " and then the indented parts only if interest in the parent entry justifies it." +
-                                 Util.NEWLN + "The rest of this top section is not" +
+                                 Util::NEWLN + "The rest of this top section is not" +
                                  " for *this* outline, but has general tips on structured skimming that have helped me get more out of reading, in less" +
                                  " time. " +
-                                 Util.NEWLN + "2) For essays or academic papers, read the first and" +
+                                 Util::NEWLN + "2) For essays or academic papers, read the first and" +
                                  " last paragraphs, then if interest remains, just the first sentences of paragraphs, and more only based on the value of" +
                                  " what was read already." +
-                                 Util.NEWLN + "3) For news, one  can read just the beginning to get the most important info, and read more only if" +
+                                 Util::NEWLN + "3) For news, one  can read just the beginning to get the most important info, and read more only if" +
                                  " you really want the increasing level of detail that comes in later parts of news articles. " +
-                                 Util.NEWLN + "For more, see:  https://en.wikipedia.org/wiki/Skimming_(reading)#Skimming_and_scanning  .)" + Util.NEWLN)
+                                 Util::NEWLN + "For more, see:  https://en.wikipedia.org/wiki/Skimming_(reading)#Skimming_and_scanning  .)" + Util::NEWLN)
           }
 
           exportToSingleTextFile(entity_in, levelsToExport == 0, levelsToExport, 0, outputWriter, includeMetadata,
@@ -632,14 +632,14 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       } else if exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
         let outputDirectory:Path = createOutputDir(prefix);
         // see note about this usage, in method importUriContent:
-        let uriClassId: i64 = entity_in.mDB.getOrCreateClassAndTemplateEntity("URI", callerManagesTransactionsIn = true)._1;
-        let quoteClassId = entity_in.mDB.getOrCreateClassAndTemplateEntity("quote", callerManagesTransactionsIn = true)._1;
+        let uriClassId: i64 = entity_in.m_db.getOrCreateClassAndTemplateEntity("URI", caller_manages_transactions_in = true)._1;
+        let quoteClassId = entity_in.m_db.getOrCreateClassAndTemplateEntity("quote", caller_manages_transactions_in = true)._1;
 
         exportHtml(entity_in, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                    cachedGroupInfo, mutable.TreeSet[i64](), uriClassId, quoteClassId,
                    includePublicData, includeNonPublicData, includeUnspecifiedData, headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
         ui.display_text("Finished export to directory: " + outputDirectory.toFile.getCanonicalPath +
-                       " at " + Util.DATEFORMAT2.format(System.currentTimeMillis()))
+                       " at " + Util::DATEFORMAT2.format(System.currentTimeMillis()))
       } else {
         throw new OmException("unexpected value for exportTypeIn: " + exportTypeIn)
       }
@@ -647,12 +647,12 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
   // This exists for the reasons commented in exportItsChildrenToHtmlFiles, and so that not all callers have to explicitly call both (ie, duplication of code).
-    fn exportHtml(entity: Entity, levelsToExportIsInfinite: Boolean, levelsToExport: Int,
+    fn exportHtml(entity: Entity, levelsToExportIsInfinite: bool, levelsToExport: Int,
                  outputDirectory: Path, exportedEntityIdsIn: mutable.HashMap[String, Integer], cachedEntitiesIn: mutable.HashMap[String, Entity],
                  cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]], cachedGroupInfoIn: mutable.HashMap[i64, Array[i64]],
                  entitiesAlreadyProcessedInThisRefChain: mutable.TreeSet[i64],
                  uriClassId: i64, quoteClassId: i64,
-                 includePublicData: Boolean, includeNonPublicData: Boolean, includeUnspecifiedData: Boolean,
+                 includePublicData: bool, includeNonPublicData: bool, includeUnspecifiedData: bool,
                  headerContentIn: Option<String>, beginBodyContentIn: Option<String>, copyrightYearAndNameIn: Option<String>) {
     * The fix [FOR WHAT, AGAIN? See my OM noted todo "make count more accurate at top/header of expo", and other cmts made at same time w/ this commit?]:
         xwhenever adding an entry to that expanded data stru, add an integer saying how many levels are *going* to be done, 0 if all
@@ -669,10 +669,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           just note somewhere?
           same issue with anything that traverses trees?  probably found in some coding algorithms discussions...
           Don't do that for now:
-            See/integrate updates w/ existing comments near to of PostgreSQLDatabase.findContainedLocalEntityIds .
+            See/integrate updates w/ existing comments near to of PostgreSQLDatabase.find_contained_local_entity_ids .
         THEN REPEAT THIS FOR TXT EXPORT right?
      *
-//    if !shouldExport(entity_in, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
+//    if !shouldExport(entity_in, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn, levelsToExportIsInfiniteIn, levels_remainingToExportIn)) {
 //      return
 //    }
     if !levelsRemainAndPublicEnough(entity, includePublicData, includeNonPublicData, includeUnspecifiedData, levelsToExportIsInfinite, levelsToExport)) {
@@ -712,13 +712,13 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
   * This creates a new file for each entity.
     *
-    * If levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
+    * If levelsToProcessIsInfiniteIn is true, then levels_remainingToProcessIn is irrelevant.
     *
-    fn exportEntityToHtmlFile(entity_in: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
+    fn exportEntityToHtmlFile(entity_in: Entity, levelsToExportIsInfiniteIn: bool, levels_remainingToExportIn: Int,
                              outputDirectoryIn: Path, exportedEntityIdsIn: mutable.HashMap[String, Integer], cachedEntitiesIn: mutable.HashMap[String, Entity],
                              cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]],
                              uriClassIdIn: i64, quoteClassIdIn: i64,
-                             includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
+                             includePublicDataIn: bool, includeNonPublicDataIn: bool, includeUnspecifiedDataIn: bool,
                              headerContentIn: Option<String>, beginBodyContentIn: Option<String>, copyrightYearAndNameIn: Option<String>) {
     // useful while debugging:
     //out.flush()
@@ -743,10 +743,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         let attribute:Attribute = attrTuple._2;
         attribute match {
           case relation: RelationToLocalEntity =>
-            let relationType = new RelationType(relation.mDB, relation.getAttrTypeId);
-            let entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, relation.mDB);
+            let relationType = new RelationType(relation.m_db, relation.get_attr_type_id());
+            let entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, relation.m_db);
             if levelsRemainAndPublicEnough(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                            levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+                                            levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1)) {
               if entity2.getClassId.is_defined && entity2.getClassId.get == uriClassIdIn) {
                 printListItemForUriEntity(uriClassIdIn, quoteClassIdIn, printWriter, entity2, cachedAttrsIn)
               } else {
@@ -756,14 +756,14 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               }
             }
           case relation: RelationToRemoteEntity =>
-            let relationType = new RelationType(relation.mDB, relation.getAttrTypeId);
+            let relationType = new RelationType(relation.m_db, relation.get_attr_type_id());
             // Idea: The next line doesn't currently internally do caching for DBs like we do for entities in getCachedEntity, but that could be added if it is
             // used often enough to be a performance problem (and at similar comment elsewhere in this file)
             // (AND THE SAME AT THE OTHER PLACES W/ SAME COMMENT.)
             let remoteDb: Database = relation.getRemoteDatabase;
             let entity2 = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, remoteDb);
             if levelsRemainAndPublicEnough(entity2, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                            levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+                                            levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1)) {
               // The classId and uriClassIdIn probably won't match because entity2 n all its data comes from a different (remote) db, so not checking that, at
               // least until that sort of cross-db check is supported, so skipping this condition for now (as elsewhere):
 //              if entity2.getClassId.is_defined && entity2.getClassId.get == uriClassIdIn) {
@@ -775,20 +775,20 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 //              }
             }
           case relation: RelationToGroup =>
-            let relationType = new RelationType(relation.mDB, relation.getAttrTypeId);
-            let group = new Group(relation.mDB, relation.getGroupId);
+            let relationType = new RelationType(relation.m_db, relation.get_attr_type_id());
+            let group = new Group(relation.m_db, relation.getGroupId);
             // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
             printWriter.println("    <li>" + htmlEncode(relation.get_display_string(0, None, Some(relationType), simplify = true)) + "</li>")
             printWriter.println("    <ul>")
 
             // this 'if' check is duplicate with the call just below to isAllowedToExport, but can quickly save the time looping through them all,
             // checking entities, if there's no need:
-            if levelsToExportIsInfiniteIn || levelsRemainingToExportIn - 1 > 0) {
+            if levelsToExportIsInfiniteIn || levels_remainingToExportIn - 1 > 0) {
               for (entity_in_group: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
                 // i.e., don't create this link if it will be a broken link due to not creating the page later; also creating the link could disclose
                 // info in the link itself (the entity name) that has been restricted (ex., made nonpublic).
                 if levelsRemainAndPublicEnough(entity_in_group, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                                levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1)) {
+                                                levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1)) {
                   if entity_in_group.getClassId.is_defined && entity_in_group.getClassId.get == uriClassIdIn) {
                     printListItemForUriEntity(uriClassIdIn, quoteClassIdIn, printWriter, entity_in_group, cachedAttrsIn)
                   } else{
@@ -799,8 +799,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             }
             printWriter.println("    </ul>")
           case textAttr: TextAttribute =>
-            let typeName: String = getCachedEntity(textAttr.getAttrTypeId, cachedEntitiesIn, textAttr.mDB).get_name;
-            if typeName==Util.HEADER_CONTENT_TAG || typeName == Util.BODY_CONTENT_TAG || typeName==Util.FOOTER_CONTENT_TAG) {
+            let typeName: String = getCachedEntity(textAttr.get_attr_type_id(), cachedEntitiesIn, textAttr.m_db).get_name;
+            if typeName==Util::HEADER_CONTENT_TAG || typeName == Util::BODY_CONTENT_TAG || typeName==Util::FOOTER_CONTENT_TAG) {
               //skip it: this is used to create the pages and should not be considered a normal kind of displayable content in them:
             } else {
               printWriter.println("    <li><pre>" + htmlEncode(textAttr.get_display_string(0, None, None, simplify = true)) + "</pre></li>")
@@ -855,10 +855,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
     fn findUriAttribute() -> Option[TextAttribute] {
       let attributesOnEntity2: Array[(i64, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn);
-      let uriTemplateId: i64 = new EntityClass(uriEntity.mDB, uriClassIdIn).getTemplateEntityId;
+      let uriTemplateId: i64 = new EntityClass(uriEntity.m_db, uriClassIdIn).getTemplateEntityId;
       for (attrTuple <- attributesOnEntity2) {
         let attr2: Attribute = attrTuple._2;
-        if attr2.getAttrTypeId == uriTemplateId && attr2.isInstanceOf[TextAttribute]) {
+        if attr2.get_attr_type_id() == uriTemplateId && attr2.isInstanceOf[TextAttribute]) {
           return Some(attr2.asInstanceOf[TextAttribute])
         }
       }
@@ -866,10 +866,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
     fn findQuoteText() -> Option<String> {
       let attributesOnEntity2: Array[(i64, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn);
-      let quoteClassTemplateId: i64 = new EntityClass(uriEntity.mDB, quoteClassIdIn).getTemplateEntityId;
+      let quoteClassTemplateId: i64 = new EntityClass(uriEntity.m_db, quoteClassIdIn).getTemplateEntityId;
       for (attrTuple <- attributesOnEntity2) {
         let attr2: Attribute = attrTuple._2;
-        if attr2.getAttrTypeId == quoteClassTemplateId && attr2.isInstanceOf[TextAttribute]) {
+        if attr2.get_attr_type_id() == quoteClassTemplateId && attr2.isInstanceOf[TextAttribute]) {
           return Some(attr2.asInstanceOf[TextAttribute].getText)
         }
       }
@@ -903,10 +903,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
   * This method exists (as opposed to including the logic inside exportToHtmlFile) because there was a bug.  Here I try explaining:
-    *   - the parm levelsRemainingToExportIn limits how far in the hierarchy (distance from the root entity of the export) the export will include (or descend).
+    *   - the parm levels_remainingToExportIn limits how far in the hierarchy (distance from the root entity of the export) the export will include (or descend).
     *   - at some "deep" point in the hierarchy, an entity X might be exported, but not its children, because X was at the depth limit.
     *   - X might also be found elsewhere, "shallower" in the hierarchy, but having been exported before (at the deep point), it is not now exported again.
-    *   - Therefore X's children should have been exported from the "shallow" point, because they are now less than levelsRemainingToExportIn levels deep, but
+    *   - Therefore X's children should have been exported from the "shallow" point, because they are now less than levels_remainingToExportIn levels deep, but
     *     were not exported because X was skipped (having been already been done).
     *   - Therefore separating the logic for the children allows them to be exported anyway, which fixes the bug.
     *   - Idea: does this same issue happen with exporting as text?  Does it need to be fixed there too?  See other cmts made in same commit..?
@@ -914,9 +914,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     * Still, within this method it is also necessary to avoid infinitely looping around entities who contain references to (eventually) themselves, which
     * is the purpose of the variable "entitiesAlreadyProcessedInThisRefChain".
     *
-    * If parameter levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
+    * If parameter levelsToProcessIsInfiniteIn is true, then levels_remainingToProcessIn is irrelevant.
     *
-    fn exportItsChildrenToHtmlFiles(entity_in: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int,
+    fn exportItsChildrenToHtmlFiles(entity_in: Entity, levelsToExportIsInfiniteIn: bool, levels_remainingToExportIn: Int,
                                    outputDirectoryIn: Path,
                                    //in this method, next parm is only used to pass along in calls to exportHtml
                                    //(idea: check: true? See also usage of entitiesAlreadyProcessedInThisRefChainIn just below, as part of ck?)
@@ -924,10 +924,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                                    cachedEntitiesIn: mutable.HashMap[String, Entity],
                                    cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]], cachedGroupInfoIn: mutable.HashMap[i64, Array[i64]],
                                    entitiesAlreadyProcessedInThisRefChainIn: mutable.TreeSet[i64], uriClassIdIn: i64, quoteClassId: i64,
-                                   includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
+                                   includePublicDataIn: bool, includeNonPublicDataIn: bool, includeUnspecifiedDataIn: bool,
                                    headerContentIn: Option<String>, beginBodyContentIn: Option<String>, copyrightYearAndNameIn: Option<String>) {
     if !levelsRemainAndPublicEnough(entity_in, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                     levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
+                                     levelsToExportIsInfiniteIn, levels_remainingToExportIn)) {
       return
     }
     // (See comment at similar location in exportEntityToHtmlFile about the use of the next line, compared to the check a couple of lines above.)
@@ -942,10 +942,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       let attribute: Attribute = attributeTuple._2;
       attribute match {
         case relation: RelationToLocalEntity =>
-          let entity2: Entity = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, relation.mDB);
+          let entity2: Entity = getCachedEntity(relation.getRelatedId2, cachedEntitiesIn, relation.m_db);
           if entity2.getClassId.isEmpty || entity2.getClassId.get != uriClassIdIn) {
             // that means it's not a URI but an actual traversable thing to follow when exporting children:
-            exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+            exportHtml(entity2, levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1,
                        outputDirectoryIn, exportedEntityIdsIn, cachedEntitiesIn,
                        cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
                        includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
@@ -961,7 +961,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           // least until that sort of cross-db check is supported, so skipping this condition for now (as elsewhere):
 //          if entity2.getClassId.isEmpty || entity2.getClassId.get != uriClassIdIn) {
 //            // that means it's not a URI but an actual traversable thing to follow when exporting children:
-            exportHtml(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+            exportHtml(entity2, levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1,
                        outputDirectoryIn, exportedEntityIdsIn, cachedEntitiesIn,
                        cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
                        includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
@@ -970,8 +970,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         case relation: RelationToGroup =>
           let entityIds: Array[i64] = getCachedGroupData(relation, cachedGroupInfoIn);
           for (entityIdInGrp <- entityIds) {
-            let entity_in_group: Entity = getCachedEntity(entityIdInGrp, cachedEntitiesIn, relation.mDB);
-            exportHtml(entity_in_group, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+            let entity_in_group: Entity = getCachedEntity(entityIdInGrp, cachedEntitiesIn, relation.m_db);
+            exportHtml(entity_in_group, levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1,
                        outputDirectoryIn, exportedEntityIdsIn, cachedEntitiesIn,
                        cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
                        includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
@@ -991,7 +991,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     if cachedIds.is_defined) {
       cachedIds.get
     } else {
-      let data: List[Array[Option[Any]]] = rtg.mDB.getGroupEntriesData(rtg.getGroupId, None, include_archived_entitiesIn = false);
+      let data: List[Array[Option[Any]]] = rtg.m_db.getGroupEntriesData(rtg.getGroupId, None, include_archived_entitiesIn = false);
       let entityIds = new Array[i64](data.size);
       let mut count = 0;
       for (entry <- data) {
@@ -1038,7 +1038,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     out
   }
 
-    fn getLineNumbers(includeOutlineNumbering: Boolean = true, currentIndentationLevels: Int, nextKnownOutlineNumbers: java.util.ArrayList[Int]) -> String {
+    fn getLineNumbers(includeOutlineNumbering: bool = true, currentIndentationLevels: Int, nextKnownOutlineNumbers: java.util.ArrayList[Int]) -> String {
     // (just a check, to learn. Maybe there is a better spot for it)
     //test fails with it, as does item noted in my om todos??:
     // require(currentIndentationLevels == nextKnownOutlineNumbers.size)
@@ -1059,20 +1059,20 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   // *do* need to return & finish their work, such as when iterating through the entities & subgroups)! (but test it: is it really a problem?)
   // (Idea: See note at the top of Controller.chooseOrCreateObject re inAttrType about similarly making exportTypeIn an enum.)
   *
-    * If levelsToProcessIsInfiniteIn is true, then levelsRemainingToProcessIn is irrelevant.
+    * If levelsToProcessIsInfiniteIn is true, then levels_remainingToProcessIn is irrelevant.
     *
     * @return  Whether lines were wrapped--so a later call to it can decide whether to print a leading blank line.
     *
-    fn exportToSingleTextFile(entity_in: Entity, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int, currentIndentationLevelsIn: Int,
+    fn exportToSingleTextFile(entity_in: Entity, levelsToExportIsInfiniteIn: bool, levels_remainingToExportIn: Int, currentIndentationLevelsIn: Int,
                              printWriterIn: PrintWriter,
-                             includeMetadataIn: Boolean, exportedEntityIdsIn: mutable.HashMap[String, Integer],
+                             includeMetadataIn: bool, exportedEntityIdsIn: mutable.HashMap[String, Integer],
                              cachedEntitiesIn: mutable.HashMap[String, Entity],
                              cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]], spacesPerIndentLevelIn: Int,
                              //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                             includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean, includeUnspecifiedDataIn: Boolean,
-                             wrapLongLinesIn: Boolean = false, wrapColumnIn: Int = 80, includeOutlineNumberingIn: Boolean = true,
+                             includePublicDataIn: bool, includeNonPublicDataIn: bool, includeUnspecifiedDataIn: bool,
+                             wrapLongLinesIn: bool = false, wrapColumnIn: Int = 80, includeOutlineNumberingIn: bool = true,
                              outlineNumbersTrackingInOut: java.util.ArrayList[Int] = new java.util.ArrayList[Int],
-                             previousEntityWasWrappedIn: Boolean = false) -> Boolean {
+                             previousEntityWasWrappedIn: bool = false) -> bool {
     // useful while debugging, but maybe can also put that in the expression evaluator (^U)
     //printWriterIn.flush()
 
@@ -1095,7 +1095,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       * @param entryText  The text to print, like an entity name.
       * @return  Whether lines were wrapped--so a later call to it can decide whether to print a leading blank line.
       *
-    fn printEntry(printWriterIn: PrintWriter, entryText: String) -> Boolean {
+    fn printEntry(printWriterIn: PrintWriter, entryText: String) -> bool {
       // (Idea:  this method feels overcomplicated.  Maybe some sub-methods could be broken out or the logic made
       // consistent but simpler.  I do use the features though, for how outlines are spaced etc., and it has been well-tested.)
       let indentingSpaces: String = {;
@@ -1131,7 +1131,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           // In this case we just had a single-line entry (which don't always have a blank line after),
           // now being followed by a wrapped (multi-line) one,
           // and it makes it easier to read if there is also a preceding blank line *before* a wrapped block.
-          stillToPrint = Util.NEWLN + stillToPrint + entryText
+          stillToPrint = Util::NEWLN + stillToPrint + entryText
         } else {
           stillToPrint = stillToPrint + entryText
         }
@@ -1208,7 +1208,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       previousEntityWasWrapped = printEntry(printWriterIn, infoToPrint)
     } else {
       if levelsRemainAndPublicEnough(entity_in, includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
-                                      levelsToExportIsInfiniteIn, levelsRemainingToExportIn)) {
+                                      levelsToExportIsInfiniteIn, levels_remainingToExportIn)) {
         //add it, so we don't create duplicate entries:
         // (NOTE: the -1 is not being used for now, in text file exports)
         exportedEntityIdsIn.update(entity_in.uniqueIdentifier, -1)
@@ -1228,8 +1228,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           let attribute:Attribute = attributeTuple._2;
           attribute match {
             case relation: RelationToLocalEntity =>
-              let relationType = new RelationType(relation.mDB, relation.getAttrTypeId);
-              let entity2 = new Entity(relation.mDB, relation.getRelatedId2);
+              let relationType = new RelationType(relation.m_db, relation.get_attr_type_id());
+              let entity2 = new Entity(relation.m_db, relation.getRelatedId2);
               if includeMetadataIn) {
                 printWriterIn.print(getSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn))
                 printWriterIn.println(attribute.get_display_string(0, Some(entity2), Some(relationType)))
@@ -1238,29 +1238,29 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               // work together with features such as wrapping, entities containing entities directly rather than via groups,
               // duplicate entities tracked via exportedEntityIdsIn, and all other attr types & variations on the parameters
               // to exportToSingleTxtFile.  Or wait for a need.
-              previousEntityWasWrapped = exportToSingleTextFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+              previousEntityWasWrapped = exportToSingleTextFile(entity2, levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1,
                                                                 currentIndentationLevelsIn + 1, printWriterIn,
                                                                 includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
                                                                 includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                                                                 wrapLongLinesIn, wrapColumnIn, includeOutlineNumberingIn, outlineNumbersTrackingInOut,
                                                                 previousEntityWasWrapped)
             case relation: RelationToRemoteEntity =>
-              let relationType = new RelationType(relation.mDB, relation.getAttrTypeId);
+              let relationType = new RelationType(relation.m_db, relation.get_attr_type_id());
               let remoteDb: Database = relation.getRemoteDatabase;
               let entity2 = new Entity(remoteDb, relation.getRelatedId2);
               if includeMetadataIn) {
                 printWriterIn.print(getSpaces((currentIndentationLevelsIn + 1) * spacesPerIndentLevelIn))
                 printWriterIn.println(attribute.get_display_string(0, Some(entity2), Some(relationType)))
               }
-              previousEntityWasWrapped = exportToSingleTextFile(entity2, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+              previousEntityWasWrapped = exportToSingleTextFile(entity2, levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1,
                                                                 currentIndentationLevelsIn + 1, printWriterIn,
                                                                 includeMetadataIn, exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
                                                                 includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
                                                                 wrapLongLinesIn, wrapColumnIn, includeOutlineNumberingIn, outlineNumbersTrackingInOut,
                                                                 previousEntityWasWrapped)
             case relation: RelationToGroup =>
-              let relationType = new RelationType(relation.mDB, relation.getAttrTypeId);
-              let group = new Group(relation.mDB, relation.getGroupId);
+              let relationType = new RelationType(relation.m_db, relation.get_attr_type_id());
+              let group = new Group(relation.m_db, relation.getGroupId);
               let grpName = group.get_name;
               // if a group name is different from its entity name, indicate the differing group name also, otherwise complete the line just above w/ NL
               if entityName != grpName) {
@@ -1274,7 +1274,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                 printWriterIn.println("(group details: " + attribute.get_display_string(0, None, Some(relationType)) + ")")
               }
               for (entity_in_group: Entity <- group.getGroupEntries(0).toArray(Array[Entity]())) {
-                previousEntityWasWrapped = exportToSingleTextFile(entity_in_group, levelsToExportIsInfiniteIn, levelsRemainingToExportIn - 1,
+                previousEntityWasWrapped = exportToSingleTextFile(entity_in_group, levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1,
                                                                   currentIndentationLevelsIn + 1, printWriterIn, includeMetadataIn,
                                                                   exportedEntityIdsIn, cachedEntitiesIn, cachedAttrsIn, spacesPerIndentLevelIn,
                                                                   includePublicDataIn, includeNonPublicDataIn, includeUnspecifiedDataIn,
@@ -1310,9 +1310,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     return previousEntityWasWrapped
   }
 
-    fn levelsRemainAndPublicEnough(entity_in: Entity, includePublicDataIn: Boolean, includeNonPublicDataIn: Boolean,
-                                  includeUnspecifiedDataIn: Boolean, levelsToExportIsInfiniteIn: Boolean, levelsRemainingToExportIn: Int) -> Boolean {
-    if !levelsToExportIsInfiniteIn && levelsRemainingToExportIn == 0) {
+    fn levelsRemainAndPublicEnough(entity_in: Entity, includePublicDataIn: bool, includeNonPublicDataIn: bool,
+                                  includeUnspecifiedDataIn: bool, levelsToExportIsInfiniteIn: bool, levels_remainingToExportIn: Int) -> bool {
+    if !levelsToExportIsInfiniteIn && levels_remainingToExportIn == 0) {
       return false
     }
     let entityPublicStatus: Option<bool> = entity_in.getPublic;
@@ -1332,11 +1332,11 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
     fn getNumSubEntries(entity_in: Entity) -> i64 {
     let numSubEntries = {;
-      let numAttrs = entity_in.getAttributeCount();
+      let numAttrs = entity_in.get_attribute_count();
       if numAttrs == 1) {
         let (_, _, groupId, _, moreThanOneAvailable) = entity_in.findRelationToAndGroup;
         if groupId.is_defined && !moreThanOneAvailable) {
-          entity_in.mDB.getGroupSize(groupId.get, 4)
+          entity_in.m_db.getGroupSize(groupId.get, 4)
         } else numAttrs
       } else numAttrs
     }
@@ -1353,8 +1353,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
 
     fn getExportFileNamePrefix(entity: Entity, exportTypeIn: String) -> String {
     let entityIdentifier: String = {;
-      if entity.mDB.is_remote) {
-        require(entity.mDB.get_remote_address.is_defined)
+      if entity.m_db.is_remote) {
+        require(entity.m_db.get_remote_address.is_defined)
         "remote-" + entity.readableIdentifier
       } else {
         entity.get_id.toString
@@ -1419,7 +1419,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     //val reader = new FileReader(fileToImport)
 
     doTheImport(reader, "name", 0L, entity_in, creatingNewStartingGroupFromTheFilename_in = false, addingToExistingGroup = false,
-                putEntriesAtEnd = true, mixedClassesAllowedDefaultIn = true, testing = true, makeThemPublicIn = Some(false))
+                putEntriesAtEnd = true, mixedClassesAllowedDefaultIn = true, testing = true, makeThem_publicIn = Some(false))
 
     // write it out for later comparison:
     let stream2 = this.getClass.getClassLoader.getResourceAsStream(filename_in);
@@ -1428,8 +1428,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     tmpCopy.toFile
   }
   // (see cmt on tryImporting method)
-    fn tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[i64], dbIn: Database, wrapLongLinesIn: Boolean = false,
-                                wrapColumnIn: Int = 80, includeOutlineNumberingIn: Boolean = false) -> (String, File) {
+    fn tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[i64], dbIn: Database, wrapLongLinesIn: bool = false,
+                                wrapColumnIn: Int = 80, includeOutlineNumberingIn: bool = false) -> (String, File) {
     assert(ids.size > 0)
     let entityId: i64 = ids.get(0);
     let startingEntity: Entity = new Entity(dbIn, entityId);

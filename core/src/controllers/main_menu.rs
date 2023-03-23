@@ -29,7 +29,7 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
       let numEntities = db.getEntitiesOnlyCount();
       if numEntities == 0 || entity_in.isEmpty) {
         let choices: List[String] = List[String]("Add new entity (such as yourself using your name, to start)",;
-                                                 Util.MAIN_SEARCH_PROMPT)
+                                                 Util::MAIN_SEARCH_PROMPT)
         let response: Option[Int] = ui.ask_which(None, choices.toArray, Vec<String>(), includeEscChoiceIn = false,;
                                                 trailingTextIn = Some(ui.howQuit + " to quit"))
         if response.is_defined && response.get != 0) {
@@ -39,7 +39,7 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
             case 1 =>
               showInEntityMenuThenMainMenu(controller.askForClassInfoAndNameAndCreateEntity(db))
             case 2 =>
-              let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util.ENTITY_TYPE);
+              let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util::ENTITY_TYPE);
               if selection.is_defined) {
                 showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.get_id)))
               }
@@ -59,12 +59,12 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
         let entity: Entity = new Entity(db, entity_in.get.get_id);
 
         let leading_text: String = "Main OM menu:";
-        let choices: List[String] = List[String](Util.MENUTEXT_CREATE_ENTITY_OR_ATTR_TYPE,;
+        let choices: List[String] = List[String](Util::MENUTEXT_CREATE_ENTITY_OR_ATTR_TYPE,;
                                                  Util::menutext_create_relation_type(),
-                                                 Util.MENUTEXT_VIEW_PREFERENCES,
+                                                 Util::MENUTEXT_VIEW_PREFERENCES,
                                                  "List existing relation types",
                                                  "Go to current entity (" + entity.get_display_string() + "; or its sole subgroup, if present)",
-                                                 Util.MAIN_SEARCH_PROMPT,
+                                                 Util::MAIN_SEARCH_PROMPT,
                                                  "List existing classes",
                                                  "List OneModel (OM) instances (local & remote)")
         let response =;
@@ -78,13 +78,13 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
             case 1 =>
               showInEntityMenuThenMainMenu(controller.askForClassInfoAndNameAndCreateEntity(db))
             case 2 =>
-              showInEntityMenuThenMainMenu(controller.askForNameAndWriteEntity(db, Util.RELATION_TYPE_TYPE))
+              showInEntityMenuThenMainMenu(controller.askForNameAndWriteEntity(db, Util::RELATION_TYPE_TYPE))
             case 3 =>
-              new EntityMenu(ui, controller).entityMenu(new Entity(db, db.getPreferencesContainerId))
+              new EntityMenu(ui, controller).entityMenu(new Entity(db, db.get_preferences_container_id))
               controller.refresh_public_private_status_preference()
               controller.refreshDefaultDisplayEntityId()
             case 4 =>
-              let rtId: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util.RELATION_TYPE_TYPE);
+              let rtId: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util::RELATION_TYPE_TYPE);
               if rtId.is_defined) {
                 showInEntityMenuThenMainMenu(Some(new RelationType(db, rtId.get._1.get_id)))
               }
@@ -92,12 +92,12 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
               let subEntitySelected: Option<Entity> = controller.goToEntityOrItsSoleGroupsMenu(entity)._1;
               if subEntitySelected.is_defined) mainMenu(subEntitySelected)
             case 6 =>
-              let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util.ENTITY_TYPE);
+              let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util::ENTITY_TYPE);
               if selection.is_defined) {
                 showInEntityMenuThenMainMenu(Some(new Entity(db, selection.get._1.get_id)))
               }
             case 7 =>
-              let classId: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util.ENTITY_CLASS_TYPE);
+              let classId: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(db, None, None, None, Util::ENTITY_CLASS_TYPE);
               // (compare this to showInEntityMenuThenMainMenu)
               if classId.is_defined) {
                 new ClassMenu(ui, controller).classMenu(new EntityClass(db, classId.get._1.get_id))

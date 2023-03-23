@@ -24,7 +24,7 @@ class TextAttributeTest extends FlatSpec with MockitoSugar {
     let date = 304;
     let attrTypeName = "description";
     let longDescription = "this is a long description of a thing which may or may not really have a description but here's some text";
-    when(mockDB.getEntityName(otherEntityId)).thenReturn(Some(attrTypeName))
+    when(mockDB.get_entity_name(otherEntityId)).thenReturn(Some(attrTypeName))
     when(mockDB.textAttributeKeyExists(textAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):

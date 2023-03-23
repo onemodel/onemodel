@@ -95,7 +95,7 @@ impl TextUI {
       }
 
         fn terminalWidth -> Int {
-        if !Util.isWindows {
+        if !Util::isWindows {
           mTerminal.getWidth
         } else {
           // This is a not-ideal workaround to a bug when running on Windows, where OM thinks it has more terminal width than it does: in a 95-character-wide
@@ -433,7 +433,7 @@ impl TextUI {
             * @return 1-based (see description).
             *
             */
-          final fn ask_which(leading_textIn: Option[Vec<String>],
+          final fn ask_which(leading_text_in: Option[Vec<String>],
                              choices_in: Vec<String>,
                              moreChoicesIn: Vec<String> = Array(),
                              includeEscChoiceIn: bool = true,
@@ -441,7 +441,7 @@ impl TextUI {
                              highlightIndexIn: Option[Int] = None,
                              secondaryHighlightIndexIn: Option[Int] = None,
                              defaultChoiceIn: Option[Int] = None) -> Option[Int] {
-            let result = ask_whichChoiceOrItsAlternate(leading_textIn, choices_in, moreChoicesIn, includeEscChoiceIn, trailingTextIn,;
+            let result = ask_whichChoiceOrItsAlternate(leading_text_in, choices_in, moreChoicesIn, includeEscChoiceIn, trailingTextIn,;
                                                       highlightIndexIn, secondaryHighlightIndexIn, defaultChoiceIn)
             if result.isEmpty None
             else Some(result.get._1)
@@ -451,7 +451,7 @@ impl TextUI {
             * then it tells you so in the 2nd (boolean) part of the return value.
             * */
           @tailrec
-          final fn ask_whichChoiceOrItsAlternate(leading_textIn: Option[Vec<String>],
+          final fn ask_whichChoiceOrItsAlternate(leading_text_in: Option[Vec<String>],
                              choices_in: Vec<String>,
                              moreChoicesIn: Vec<String> = Array(),
                              includeEscChoiceIn: bool = true,
@@ -468,7 +468,7 @@ impl TextUI {
             // 'a' and go from there.
             require(choices_in.length > 0)
 
-            let maxChoiceLength = Util.maxNameLength;
+            let maxChoiceLength = Util::maxNameLength;
 
             let firstMenuChars: StringBuffer = {;
               //up to: "123456789"
@@ -544,7 +544,7 @@ impl TextUI {
                 for (i <- moreLines.indices) {
                   moreLines(i) = new StringBuffer()
                 }
-                let linesLeftHere = linesLeft(leading_textIn.size, choices_in.length);
+                let linesLeftHere = linesLeft(leading_text_in.size, choices_in.length);
                 let mut lineCounter = -1;
                 // now build the lines out of columns be4 displaying them.
                 let mut index = -1;
@@ -589,8 +589,8 @@ impl TextUI {
 
 
             display_visual_separator()
-            if leading_textIn.is_defined && leading_textIn.get.length > 0 {
-              for (prompt <- leading_textIn.get) {
+            if leading_text_in.is_defined && leading_text_in.get.length > 0 {
+              for (prompt <- leading_text_in.get) {
                 lineCounter = lineCounter + 1
                 println(prompt)
               }
@@ -602,7 +602,7 @@ impl TextUI {
             let (answer: Char, userChoseAlternate: bool) = get_user_input_char;
             if answer != 27 && answer != '0' && answer != 13 && (!allAllowedAnswers.toString.contains(answer.toChar)) {
               println("unknown choice: " + answer)
-              ask_whichChoiceOrItsAlternate(leading_textIn, choices_in, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn,
+              ask_whichChoiceOrItsAlternate(leading_text_in, choices_in, moreChoicesIn, includeEscChoiceIn, trailingTextIn, highlightIndexIn, secondaryHighlightIndexIn,
                                            defaultChoiceIn)
             } else if answer == 13 && (defaultChoiceIn.is_defined() || highlightIndexIn.is_defined()) {
               // user hit Enter ie '\r', so take the one that was passed in as default, or highlighted
@@ -677,7 +677,7 @@ impl TextUI {
           let oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn);
           if oldNameInTmpDir.getParentFile.canWrite && !oldNameInTmpDir.exists()) Some(oldNameInTmpDir)
           else {
-            let (baseName, extension) = Util.get_usable_filename(originalPathIn);
+            let (baseName, extension) = Util::get_usable_filename(originalPathIn);
             Some(File.createTempFile(baseName + "-", extension))
           }
         }

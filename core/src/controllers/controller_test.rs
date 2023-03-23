@@ -19,7 +19,7 @@ import org.scalatest.mockito.MockitoSugar
 class ControllerTest extends FlatSpec with MockitoSugar {
   //val mockUI = mock[TextUI] {
   let ui = new TextUI() {;
-    override fn display_text(text: String, wait_for_keystroke: Boolean = true, None: Option<String>) {
+    override fn display_text(text: String, wait_for_keystroke: bool = true, None: Option<String>) {
       println!(text)
     }
     // next 2 overrides are so we don't get terminal contention: this and TextUITest both init and shut down but are not coordinated to *really*
@@ -46,7 +46,7 @@ class ControllerTest extends FlatSpec with MockitoSugar {
 
     // (2nd parameter doesn't matter for this really)
     fn check(s: String, d: i64) {
-      let (date: Option<i64>, problem: Boolean) = Util.finish_and_parse_the_date(s, ui = ui);
+      let (date: Option<i64>, problem: bool) = Util.finish_and_parse_the_date(s, ui = ui);
       assert(!problem)
       assert(date.get == d)
     }
