@@ -21,11 +21,9 @@ use crate::text_ui::TextUI;
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.
-// Next line and "async" needed due to use of sqlx crate, per its example.
-#[tokio::main]
-async fn main() {
-    //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
+fn main() {
     /*%%$%%next tasks?:
+        fix more/warnings? formatting? (sep't ckin)
         do all util, db, pg, & their tests at once: style and compile and test.
         MAKE TESTS for code be4 ckin! see them each fail then pass.
         Debug/breakpoints...? ??? (esp in pg and util?)
@@ -34,6 +32,7 @@ async fn main() {
         In OM,  using #[derive(Debug)] on a all? And fmt::Display (vs fmt::Debug) on all public types.
         other %%$%s, %%s &c
      */
+    //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
 
     let args: Vec<String> = env::args().collect();
     // dbg!(args.as_slice());
@@ -64,4 +63,5 @@ async fn main() {
         default_password,
     );
     controller.start();
+
 }

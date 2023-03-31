@@ -67,16 +67,16 @@ impl Util {
     pub const UNUSED_GROUP_ERR1: &'static str =
         "No available index found which is not already used. How would so many be used?";
     pub const UNUSED_GROUP_ERR2: &'static str = "Very unexpected, but could it be that you are running out of available sorting indexes!?  Have someone check, before you need to create, for example, a thousand more entities.";
-    pub const GET_CLASS_DATA__RESULT_TYPES: &'static str = "String,i64,Boolean";
+    pub const GET_CLASS_DATA__RESULT_TYPES: &'static str = "String,i64,Bool";
     pub const GET_RELATION_TYPE_DATA__RESULT_TYPES: &'static str = "String,String,String";
-    pub const GET_OM_INSTANCE_DATA__RESULT_TYPES: &'static str = "Boolean,String,i64,i64";
+    pub const GET_OM_INSTANCE_DATA__RESULT_TYPES: &'static str = "Bool,String,i64,i64";
     pub const GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
         "i64,i64,Float,i64,i64,i64,i64";
     pub const GET_DATE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
     pub const GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
-        "i64,Boolean,i64,i64,i64,i64";
+        "i64,Bool,i64,i64,i64,i64";
     pub const GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
-        "i64,String,i64,i64,i64,String,Boolean,Boolean,Boolean,i64,String,i64";
+        "i64,String,i64,i64,i64,String,Bool,Bool,Bool,i64,String,i64";
     pub const GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,String,i64,i64,i64,i64";
     pub const GET_RELATION_TO_GROUP_DATA_BY_ID__RESULT_TYPES: &'static str =
         "i64,i64,i64,i64,i64,i64,i64";
@@ -84,9 +84,9 @@ impl Util {
         "i64,i64,i64,i64,i64,i64,i64";
     pub const GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
     pub const GET_RELATION_TO_REMOTE_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
-    pub const GET_GROUP_DATA__RESULT_TYPES: &'static str = "String,i64,Boolean,Boolean";
+    pub const GET_GROUP_DATA__RESULT_TYPES: &'static str = "String,i64,Bool,Bool";
     pub const GET_ENTITY_DATA__RESULT_TYPES: &'static str =
-        "String,i64,i64,Boolean,Boolean,Boolean";
+        "String,i64,i64,Bool,Bool,Bool";
     pub const GET_GROUP_ENTRIES_DATA__RESULT_TYPES: &'static str = "i64,i64";
 
     pub fn entity_name_length() -> u32 {
@@ -143,7 +143,7 @@ impl Util {
     pub const QUANTITY_TYPE: &'static str = "QuantityAttribute";
     pub const TEXT_TYPE: &'static str = "TextAttribute";
     pub const DATE_TYPE: &'static str = "DateAttribute";
-    pub const BOOLEAN_TYPE: &'static str = "boolAttribute";
+    pub const BOOLEAN_TYPE: &'static str = "BooleanAttribute";
     pub const FILE_TYPE: &'static str = "FileAttribute";
     pub const NON_RELATION_ATTR_TYPE_NAMES: [&'static str; 5] = [
         Util::QUANTITY_TYPE,
@@ -1049,15 +1049,17 @@ impl Util {
         }
     }
 
+    //%%shouldn't this be in the pg.rs file, and make its struct fields not pub? or cmt why isn't?
     pub fn initialize_test_db() ->  Result<PostgreSQLDatabase, &'static str> {
-        let db: PostgreSQLDatabase;
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         // It seems like it would be faster to put the next two statements inside the ".call_once()"
         // below, but then returning the db or assigning it to a static mut TEST_DB for others to
         // access was initially problematic and I didn't see an obvious solution.
         let pool =
-            PostgreSQLDatabase::connect(Util::TEST_USER, Util::TEST_USER, Util::TEST_PASS)
+            PostgreSQLDatabase::connect(&rt, Util::TEST_USER, Util::TEST_USER, Util::TEST_PASS)
                 .unwrap();
-        db = PostgreSQLDatabase {
+        let db: PostgreSQLDatabase = PostgreSQLDatabase {
+            rt,
             pool,
             include_archived_entities: false,
         };
@@ -1066,7 +1068,7 @@ impl Util {
             //   https://doc.rust-lang.org/std/sync/struct.Once.html
             //   https://stackoverflow.com/questions/58006033/how-to-run-setup-code-before-any-tests-run-in-rust/58006287#58006287
 
-            println!("starting call_once");
+            println!("starting call_once");//%%log instead?
             //mbe not needed?: just return the db?
             // for why this is safe, see explanation & examples in above link to doc.rust-lang.org .
             // unsafe {

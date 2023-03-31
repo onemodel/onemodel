@@ -21,6 +21,7 @@ use sqlx::postgres::*;
 use sqlx::{Error, PgPool, Postgres, Row, Transaction};
 
 pub struct PostgreSQLDatabase {
+    pub rt: tokio::runtime::Runtime,
     //%% connection: Connection,
     pub pool: PgPool,
     // When true, this means to override the usual settings and show the archived entities too (like a global temporary "un-archive"):
@@ -30,27 +31,6 @@ pub struct PostgreSQLDatabase {
 impl PostgreSQLDatabase {
     const SCHEMA_VERSION: i32 = 7;
     const ENTITY_ONLY_SELECT_PART: &'static str = "SELECT e.id";
-
-    /*%%
-        package org.onemodel.core.model
-
-        import java.io.{PrintWriter, StringWriter}
-        import java.sql.{Connection, DriverManager, ResultSet, Statement}
-        import java.util.ArrayList
-        import java.util.regex.Pattern
-
-        import org.onemodel.core._
-        import org.onemodel.core.model.Database._
-        import org.postgresql.largeobject.{LargeObject, LargeObjectManager}
-
-        import scala.annotation.tailrec
-        import scala.collection.mutable
-        import scala.util.Sorting
-
-        ** Some methods are here on the object, so that PostgreSQLDatabaseTest can call destroy_tables on test data.
-          *
-        object PostgreSQLDatabase {
-    */
 
     fn db_name(db_name_without_prefix: &str) -> String {
         format!("{}{}", Util::DB_NAME_PREFIX, db_name_without_prefix)
@@ -157,7 +137,7 @@ impl PostgreSQLDatabase {
                 // }
                 results.push(row);
             }).fetch_all(&self.pool);
-            /*let rows =*/ block_on(future).unwrap();
+            /*let rows =*/ self.rt.block_on(future).unwrap();
 
                 // idea: (see comment at other use in this class, of getWarnings)
                 // idea: maybe both uses of getWarnings should be combined into a method.
@@ -255,7 +235,7 @@ impl PostgreSQLDatabase {
               let sql: String = format!("DROP {} IF EXISTS {} CASCADE",
                                         Self::escape_quotes_etc(sql_type.to_string()),
                                         Self::escape_quotes_etc(name.to_string()));
-              let result: Result<i64, String> = self.db_action(sql.as_str(), false, false);
+              let result: Result<u64, String> = self.db_action(sql.as_str(), false, false);
               match result {
                   Err(msg) => {
                       // (Now that "IF EXISTS" is added in the above DROP statement, this check might
@@ -308,8 +288,8 @@ impl PostgreSQLDatabase {
           /// @param skip_check_for_bad_sql_in  SET TO false EXCEPT *RARELY*, WITH CAUTION AND ONLY WHEN THE SQL HAS NO USER-PROVIDED STRING IN IT!!  SEE THE (hopefully
           ///                              still just one) PLACE USING IT NOW (in method create_attribute_sorting_deletion_trigger) AND PROBABLY LIMIT USE TO THAT!
         fn db_action(&self, sql_in: &str, caller_checks_row_count_etc: bool/*%% = false*/,
-                       skip_check_for_bad_sql_in: bool/*%% = false*/) -> Result<i64, String> {
-            let mut rows_affected = -1;
+                       skip_check_for_bad_sql_in: bool/*%% = false*/) -> Result<u64, String> {
+            let mut rows_affected: u64 = 0;
             //%%let mut st: Statement = null;
             let is_create_drop_or_alter = sql_in.to_lowercase().starts_with("create ") || sql_in.to_lowercase().starts_with("drop ") ||
                                                sql_in.to_lowercase().starts_with("alter ");
@@ -318,22 +298,18 @@ impl PostgreSQLDatabase {
                 Self::check_for_bad_sql(sql_in)?;
               }
               let future = sqlx::query(sql_in).execute(&self.pool);
-
-              let x: Result<PgQueryResult, sqlx::Error> = /*%%: i32 asking compiler or println below*/ block_on(future);
+              let x: Result<PgQueryResult, sqlx::Error> = /*%%: i32 asking compiler or println below*/ self.rt.block_on(future);
               // /*let y: PgQueryResult = */match x {
               //     Err(e) => return Err(e.to_string()),
               //     Ok(r) => r,
               // };
-              if let Err(e) = x {
-                  return Err(e.to_string());
-              }
-                //%%$%%% case e: Exception =>
-                //   let msg = "Exception while processing sql: ";
-                //   throw new OmDatabaseException(msg + sql_in, e)
-
-                //%%$%%%how get rows_affected, per above??:
-              //let rows_affected = st.executeUpdate(sql_in);
-                println!("Query result?:  {:?}", &x);
+              println!("Query result?, w/ {:?} rows affected:  {:?}", rows_affected, &x);
+              match x {
+                  Err(e) => return Err(e.to_string()),
+                  Ok(res) => {
+                      rows_affected = res.rows_affected();
+                  }
+              };
 
                 //%%HOW DO THIS or whatever needed, w/ sqlx??:
               // idea: not sure whether these checks belong here really.  Might be worth research
@@ -390,9 +366,10 @@ impl PostgreSQLDatabase {
     /// In the scala code this was called login().
     pub fn new(/*%%hopefully del this cmt, was: &self, */username: &str, password: &str) -> Result<Box<dyn Database>, String> {
         let include_archived_entities = false;
-        let r = Self::connect(username, username, password);
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let res = Self::connect(&rt, username, username, password);
         let pool: PgPool;
-        match r {
+        match res {
             Ok(x) => pool = x,
             Err(e) => return Err(e.to_string()),
         }
@@ -409,8 +386,9 @@ impl PostgreSQLDatabase {
         //     pool,
         // }))
         let this = PostgreSQLDatabase {
-            include_archived_entities,
+            rt,
             pool,
+            include_archived_entities,
         };
         if !this.model_tables_exist()? {
             this.create_tables()?;
@@ -454,6 +432,7 @@ impl PostgreSQLDatabase {
           }
 
     pub fn connect(
+        rt: &tokio::runtime::Runtime,
         db_name_without_prefix: &str,
         username: &str,
         password: &str,
@@ -468,8 +447,11 @@ impl PostgreSQLDatabase {
         );
         let future = PgPoolOptions::new()
             // idea: the example had 5, could switch to not using pools, or use pools again now/later if it matters?
-            .max_connections(1)
-            // .connect(connect_str.as_str()).await?;
+            // I had max_connections(10), but then a test fails with "pool timed out while waiting for an open connection",
+            // even if it is the only test running (test_set_user_preference_and_get_user_preference).
+            // Maybe change it to 10 just kicks the problem down the road; will see.
+            .max_connections(10)
+            // .connect(connect_str.as_str())?;
             //%%$%%% be sure to test this by querying it, ad-hoc for now, later in a test, maybe something like:
             //     om_t1=> show transaction isolation level;
             //     transaction_isolation
@@ -481,14 +463,15 @@ impl PostgreSQLDatabase {
             //%%do this by sending a query like below per examples, and retrieve info: would work? Or, need to use PgConnectOptions instead of pool?
             //.options([("default_transaction_isolation","serializable")])
             .connect(connect_str.as_str());
-        let pool = block_on(future)?;
+        let pool = rt.block_on(future)?;
+        // let pool = future;
         //%%$%just some testing, can delete after next commit, or use for a while for reference.
         // // let future = sqlx::query_as("SELECT $1")
         // let future = sqlx::query_as("SELECT count(1) from entity")
         //     .bind(150_i64)
             // OR: .bind("a new ticket (if the sql was insert...)?")
         //     .fetch_one(&pool);
-        // let row: (i64, ) = block_on(future).unwrap();
+        // let row: (i64, ) = rt.block_on(future).unwrap();
         // // assert_eq!(row.0, 150);
         // println!("Result returned from sql!: {}  ******************************", row.0);
 
@@ -502,7 +485,7 @@ impl PostgreSQLDatabase {
         // options method when getting a single connection (but it seems not to be there for getting
         // a pool).
         let future = sqlx::query("show transaction isolation level").execute(&pool);
-        let x = block_on(future)?;
+        let x = rt.block_on(future)?;
         println!("Query result re transaction isolation lvl?:  {:?}", x);
 
         Ok(pool)
@@ -513,7 +496,7 @@ impl PostgreSQLDatabase {
         self.does_this_exist("select count(1) from pg_class where relname='entity'", true)
     }
 
-    fn create_version_table(&self) -> Result<i64, String> {
+    fn create_version_table(&self) -> Result<u64, String> {
         // table has 1 row and 1 column, to say what db version we are on.
         self.db_action("create table om_db_version (version integer DEFAULT 1) ", false, false)?;
         self.db_action("INSERT INTO om_db_version (version) values (0)", false, false)
@@ -521,13 +504,13 @@ impl PostgreSQLDatabase {
 
     /// Does standard setup for a "OneModel" database, such as when starting up for the first time, or when creating a test system.
     /// Currently returns the # of rows affected by the last sql command (not interesting).
-    pub fn create_tables(&self) -> Result<i64, String> {
+    pub fn create_tables(&self) -> Result<u64, String> {
         let tx: Transaction<Postgres> = match self.begin_trans() {
             Err(e) => return Err(e.to_string()),
             Ok(t) => t,
         };
 
-        let mut result: Result<i64, String>;
+        let mut result: Result<u64, String>;
         // This loop is just to execute once, but allows dropping down to the rollback immediately
         // if necessary.  Maybe there is a cleaner way to do the error handling besides all these
         // breaks!?
@@ -574,15 +557,17 @@ impl PostgreSQLDatabase {
             // The name here doesn't have to be the same name as in the related Entity record, (since it's not a key, and it might not make sense to match).
             // For additional comments on usage, see the Controller.askForInfoAndcreate_entity method.
             // Since in the code we can't call it class, the class that represents this in the model is called EntityClass.
-            result = self.db_action(format!("create table Class (\
+            // The defining_entity_id is, in other words, template, aka class-defining entity.
+            // The create_default_attributes means whether the user wants the program to create all
+            // the attributes by default, using the defining_entity's attrs as a template.
+            let sql = format!("create table Class (\
                 id bigint DEFAULT nextval('ClassKeySequence') PRIMARY KEY, \
                 name varchar({}) NOT NULL, \
-                // In other words, template, aka class-defining entity:
                 defining_entity_id bigint UNIQUE NOT NULL, \
-                // this means whether the user wants the program to create all the attributes by default, using the defining_entity's attrs as a template:
                 create_default_attributes boolean, \
                 CONSTRAINT valid_related_to_entity_id FOREIGN KEY (defining_entity_id) REFERENCES entity (id) \
-                ", Util::class_name_length()).as_str(), false, false);
+                )", Util::class_name_length());
+            result = self.db_action(sql.as_str(), false, false);
             if result.is_err() {break;}
 
             result = self.db_action("alter table entity add CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES class (id)", false, false);
@@ -617,26 +602,25 @@ impl PostgreSQLDatabase {
 
 
             /* This table maintains the users' preferred display sorting information for entities' attributes (including relations to groups/entities).
-
-               It might instead have been implemented by putting the sorting_index column on each attribute table, which would simplify some things, but that
-               would have required writing a new way for placing & sorting the attributes and finding adjacent ones etc., and the first way was already
-               mostly debugged, with much effort (for EntitiesInAGroup, and the hope is to reuse that way for interacting with this table).  But maybe that
-               same effect could have been created by sorting the attributes in memory instead, adhoc when needed: not sure if that would be simpler
-            */
+             It might instead have been implemented by putting the sorting_index column on each attribute table, which would simplify some things, but that
+             would have required writing a new way for placing & sorting the attributes and finding adjacent ones etc., and the first way was already
+             mostly debugged, with much effort (for EntitiesInAGroup, and the hope is to reuse that way for interacting with this table).  But maybe that
+             same effect could have been created by sorting the attributes in memory instead, adhoc when needed: not sure if that would be simpler
+             */
+            // The entity_id is the entity whose attribute this is.
+            // The sorting_index is the reason for this table.
+            // The attribute_form_id  is for which table the attribute is in.  Method getAttributeForm has details.
+            // The constraint noDupSortingIndexes2 is to make it so the sorting_index must also be unique for each entity (otherwise we have sorting problems).
+            // The constraint noDupSortingIndexes3 was required by the constraint valid_*_sorting on the tables that have a form_id column.
             result = self.db_action("create table AttributeSorting (\
-                // the entity whose attribute this is:
                 entity_id bigint NOT NULL\
-                // next field is for which table the attribute is in.  Method getAttributeForm has details.
                 , attribute_form_id smallint NOT NULL\
                 , attribute_id bigint NOT NULL\
-                // the reason for this table:
                 , sorting_index bigint not null\
                 , PRIMARY KEY (entity_id, attribute_form_id, attribute_id)\
                 , CONSTRAINT valid_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE\
                 , CONSTRAINT valid_attribute_form_id CHECK (attribute_form_id >= 1 AND attribute_form_id <= 8)\
-                // make it so the sorting_index must also be unique for each entity (otherwise we have sorting problems):
                 , constraint noDupSortingIndexes2 unique (entity_id, sorting_index)\
-                // this one was required by the constraint valid_*_sorting on the tables that have a form_id column:
                 , constraint noDupSortingIndexes3 unique (attribute_form_id, attribute_id)\
                 ) ", false, false);
             if result.is_err() {break;}
@@ -699,12 +683,12 @@ impl PostgreSQLDatabase {
             if result.is_err() {break;}
             // see comment for the form_id column under "create table RelationToGroup", below:
             let date_form_id = self.get_attribute_form_id(Util::DATE_TYPE).unwrap();
+            // About the attr_type_id: e.g., due on, done on, should start on, started on on... (which would be an entity).
             result = self.db_action(format!("create table DateAttribute (\
                 form_id smallint DEFAULT {} \
                     NOT NULL CHECK (form_id={}), \
                 id bigint DEFAULT nextval('DateAttributeKeySequence') PRIMARY KEY, \
                 entity_id bigint NOT NULL, \
-                //eg, due on, done on, should start on, started on on... (which would be an entity)
                 attr_type_id bigint not null, \
                 date bigint not null, \
                 CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
@@ -752,25 +736,25 @@ impl PostgreSQLDatabase {
             result = self.db_action(format!("create sequence FileAttributeKeySequence minvalue {}", self.min_id_value()).as_str(), false, false);
             if result.is_err() {break;}
             let file_form_id = self.get_attribute_form_id(Util::FILE_TYPE).unwrap();
-            // see comment for form_id under "create table RelationToGroup", below:
+            // See comment for form_id under "create table RelationToGroup", below.
+            // About the attr_type_id: e.g., refers to a type like txt: i.e., could be like mime types, extensions, or mac fork info, etc (which would be an entity in any case).
+            // Now that i already wrote this, maybe storing 'readable' is overkill since the system has to read it to store its content. Maybe there's a use.
+            // Moved to other table:   contents bit varying NOT NULL,
+            // The md5hash is the md5 hash in hex (just to see if doc has become corrupted; not intended for security/encryption)
             result = self.db_action(format!("create table FileAttribute (\
                 form_id smallint DEFAULT {} \
                     NOT NULL CHECK (form_id={}), \
                 id bigint DEFAULT nextval('FileAttributeKeySequence') PRIMARY KEY, \
                 entity_id bigint NOT NULL, \
-                //eg, refers to a type like txt: i.e., could be like mime types, extensions, or mac fork info, etc (which would be an entity in any case).
                 attr_type_id bigint NOT NULL, \
                 description text NOT NULL, \
                 original_file_date bigint NOT NULL, \
                 stored_date bigint NOT NULL, \
                 original_file_path text NOT NULL, \
-                // now that i already wrote this, maybe storing 'readable' is overkill since the system has to read it to store its content. Maybe there's a use.
                 readable boolean not null, \
                 writable boolean not null, \
                 executable boolean not null, \
-                //moved to other table:   contents bit varying NOT NULL,
                 size bigint NOT NULL, \
-                // this is the md5 hash in hex (just to see if doc has become corrupted; not intended for security/encryption)
                 md5hash char(32) NOT NULL, \
                 CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
                 CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
@@ -955,17 +939,17 @@ impl PostgreSQLDatabase {
             (Good, then let's not confuse things by mentioning that postgresql refers to *every* table (and more?) as a "relation" because that's another
             context altogether, another use of the word.)
             */
+            // The primary key is really the group_id + entity_id, and the sorting_index is just in an index so we can cheaply order query results.
+            // When sorting_index was part of the key there were ongoing various problems because the rest of the system (like reordering results, but
+            // probably also other issues) wasn't ready to handle two of the same entity in a group.
+            // The onstraint noDupSortingIndexes is to make it so the sorting_index must also be unique for each group (otherwise we have sorting problems).
             result = self.db_action("create table EntitiesInAGroup (\
                 group_id bigint NOT NULL\
                 , entity_id bigint NOT NULL\
                 , sorting_index bigint not null\
-                // the key is really the group_id + entity_id, and the sorting_index is just in an index so we can cheaply order query results
-                // When sorting_index was part of the key there were ongoing various problems because the rest of the system (like reordering results, but
-                // probably also other issues) wasn't ready to handle two of the same entity in a group.
                 , PRIMARY KEY (group_id, entity_id)\
                 , CONSTRAINT valid_group_id FOREIGN KEY (group_id) REFERENCES grupo (id) ON DELETE CASCADE\
                 , CONSTRAINT valid_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id)\
-                // make it so the sorting_index must also be unique for each group (otherwise we have sorting problems):
                 , constraint noDupSortingIndexes unique (group_id, sorting_index)\
                 ) ", false, false);
             if result.is_err() {break;}
@@ -1077,13 +1061,13 @@ impl PostgreSQLDatabase {
         result
     }
 
-    fn create_attribute_sorting_deletion_trigger(&self) -> Result<i64, String> {
+    fn create_attribute_sorting_deletion_trigger(&self) -> Result<u64, String> {
         // Each time an attribute (or rte/rtg) is deleted, the AttributeSorting row should be deleted too, in an enforced way (or it had sorting problems, for one).
         // I.e., an attempt to enforce (with triggers that call this procedure) that the AttributeSorting table's attribute_id value is found
         // in *one of the* 7 attribute tables' id column,  Doing it in application code is not as simple or as reliable as doing it at the DDL level.
+        // (OLD is a special PL/pgsql variable of type RECORD, which contains the attribute row before the deletion.)
         let sql = "CREATE OR REPLACE FUNCTION attribute_sorting_cleanup() RETURNS trigger AS $attribute_sorting_cleanup$ \
-          BEGIN\
-            // (OLD is a special PL/pgsql variable of type RECORD, which contains the attribute row before the deletion.)
+          BEGIN \
                 DELETE FROM AttributeSorting WHERE entity_id=OLD.entity_id and attribute_form_id=OLD.form_id and attribute_id=OLD.id; \
                 RETURN OLD; \
               END;\
@@ -1377,8 +1361,8 @@ impl PostgreSQLDatabase {
 
     // Cloned to archiveObjects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
     /// Unless the parameter rows_expected==-1, it will allow any # of rows to be deleted; otherwise if the # of rows is wrong it will abort tran & fail.
-    fn delete_objects(&self, table_name_in: &str, where_clause_in: &str, rows_expected: i64 /*%%= 1*/, caller_manages_transactions_in: bool /*%%= false*/)
-        -> Result<i64, String> {
+    fn delete_objects(&self, table_name_in: &str, where_clause_in: &str, rows_expected: u64 /*%%= 1*/, caller_manages_transactions_in: bool /*%%= false*/)
+        -> Result<u64, String> {
         //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
         let sql = format!("DELETE FROM {} {}", table_name_in, where_clause_in);
 
@@ -1390,7 +1374,7 @@ impl PostgreSQLDatabase {
         } else { None };
 
         let rows_deleted = self.db_action(sql.as_str(), /*%%caller_checks_row_count_etc =*/ true, false)?;
-        if rows_expected >= 0 && rows_deleted != rows_expected {
+        if rows_expected > 0 && rows_deleted != rows_expected {
             // Roll back, as we definitely don't want to delete an unexpected # of rows.
             // Do it ***EVEN THOUGH callerManagesTransaction IS true***: seems cleaner/safer this way.
             //%%see cmts at "rollback problem" for ideas on this?
@@ -1687,7 +1671,7 @@ impl Database for PostgreSQLDatabase {
     /// using the default behavior of jdbc; but if you call begin/rollback/commit, it will let you manage
     /// explicitly and will automatically turn autocommit on/off as needed to allow that.
     fn begin_trans(&self) -> Result<Transaction<Postgres>, sqlx::Error> {
-        let tx = block_on(self.pool.begin())?;
+        let tx = self.rt.block_on(self.pool.begin())?;
         //%% see comments in fn connect() re this
         // connection.setAutoCommit(false);
         Ok(tx)
@@ -1695,14 +1679,14 @@ impl Database for PostgreSQLDatabase {
 
     /// might not be needed when the transaction simply goes out of scope! ?
     fn rollback_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error> {
-        block_on(tx.rollback())
+        self.rt.block_on(tx.rollback())
         // so future work is auto- committed unless programmer explicitly opens another transaction
         //%% see comments in fn connect() re this
         // connection.setAutoCommit(true);
     }
 
     fn commit_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error> {
-        block_on(tx.commit())
+        self.rt.block_on(tx.commit())
         // so future work is auto- committed unless programmer explicitly opens another transaction
         //%% see comments in fn connect() re this
         // connection.setAutoCommit(true);
@@ -2817,7 +2801,7 @@ impl Database for PostgreSQLDatabase {
                       Ok(t) => t,
                   };
 
-                  let mut result: Result<i64, String>;
+                  let mut result: Result<u64, String>;
                   let mut id: i64 = 0;
                 //see comment at loop in create_tables()
                 loop {
@@ -2843,34 +2827,38 @@ impl Database for PostgreSQLDatabase {
                     break;
                   }
                   //%%$%%%%%debug/verify all parts of this?:
-                  if result.is_err() {
-                      //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                      // let _rollback_result = self.rollback_trans();
-                  // if let Err(e1) = result {
-                      //%%rollback problem:  see if i can figure out a way to get rollback to work like the old def rollbackWithCatch
-                      // in ~/proj/om/core-scala/src/main/scala/org/onemodel/core/model/PostgreSQLDatabase.scala .
-                      // maybe see:  https://docs.rs/sqlx/latest/sqlx/enum.Error.html to see if IJ can work now w/ its to_string() or fmt/Display that
-                      // it says are there but IJ says as of 2023-03-08 is not there? Or something?
-                      // Does a newer IJ or sqlx help at all?
-
-                      // let rollback_result: Result<(), sqlx::Error> = self.rollback_trans();
-                      // if rollback_result.is_err() {
-                      //     let rollback_err: sqlx::Error = rollback_result.expect_err("Failure can never happen.");
-                      //     let combined_error = format!("Error '{}' occurred while rolling back transaction due to original error '{}'.",
-                      //                                  rollback_err, e1);
-                      // }
-                      // if let Err(e2) = rollback_result {
-                      //     Err(e2) => {
-                      //         let combined_error = format!("Error '{}' occurred while rolling back transaction due to original error '{}'.",
-                      //                                      e2, e1);
-                      //         result = Err(combined_error);
-                      //     },
-                      //     _ => {},
-                      // }
-                      result
-                  } else {
-                      Ok(id)
+                  match result {
+                      Err(e) => Err(e),
+                      _ => Ok(id),
                   }
+                  // if result.is_err() {
+                  //     //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO! INTEGRATE W RETURN VALUES JUST ABOVE!
+                  //     // let _rollback_result = self.rollback_trans();
+                  // // if let Err(e1) = result {
+                  //     //%%rollback problem:  see if i can figure out a way to get rollback to work like the old def rollbackWithCatch
+                  //     // in ~/proj/om/core-scala/src/main/scala/org/onemodel/core/model/PostgreSQLDatabase.scala .
+                  //     // maybe see:  https://docs.rs/sqlx/latest/sqlx/enum.Error.html to see if IJ can work now w/ its to_string() or fmt/Display that
+                  //     // it says are there but IJ says as of 2023-03-08 is not there? Or something?
+                  //     // Does a newer IJ or sqlx help at all?
+                  //
+                  //     // let rollback_result: Result<(), sqlx::Error> = self.rollback_trans();
+                  //     // if rollback_result.is_err() {
+                  //     //     let rollback_err: sqlx::Error = rollback_result.expect_err("Failure can never happen.");
+                  //     //     let combined_error = format!("Error '{}' occurred while rolling back transaction due to original error '{}'.",
+                  //     //                                  rollback_err, e1);
+                  //     // }
+                  //     // if let Err(e2) = rollback_result {
+                  //     //     Err(e2) => {
+                  //     //         let combined_error = format!("Error '{}' occurred while rolling back transaction due to original error '{}'.",
+                  //     //                                      e2, e1);
+                  //     //         result = Err(combined_error);
+                  //     //     },
+                  //     //     _ => {},
+                  //     // }
+                  //     result
+                  // } else {
+                  //     Ok(id)
+                  // }
               }
     /*
 
@@ -2897,9 +2885,9 @@ impl Database for PostgreSQLDatabase {
                     // (or does the DB's integrity constraints do that for us?)
                       //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                     // if !caller_manages_transactions_in { self.begin_trans()?; }
-                    self.delete_objects("EntitiesInAGroup", format!("where entity_id={}", id_in).as_str(), -1, true)?;
+                    self.delete_objects("EntitiesInAGroup", format!("where entity_id={}", id_in).as_str(), 0, true)?;
                       self.delete_objects(Util::ENTITY_TYPE, format!("where id={}", id_in).as_str(), 1, true)?;
-                      self.delete_objects("AttributeSorting", format!("where entity_id={}", id_in).as_str(), -1, true)?;
+                      self.delete_objects("AttributeSorting", format!("where entity_id={}", id_in).as_str(), 0, true)?;
                       //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                     // if !caller_manages_transactions_in {self.commit_trans()?; }
                     Ok(())
@@ -2987,8 +2975,8 @@ impl Database for PostgreSQLDatabase {
 
                         let deletions2 = 0;
                         //and finally:
-                        // (passing -1 for rows expected, because there either could be some, or none if the group is not contained in any entity.)
-                        delete_objects(Util::RELATION_TO_GROUP_TYPE, "where group_id=" + group_id_in, -1, caller_manages_transactions_in = true)
+                        // (passing 0 for rows expected, because there either could be some, or none if the group is not contained in any entity.)
+                        delete_objects(Util::RELATION_TO_GROUP_TYPE, "where group_id=" + group_id_in, 0, caller_manages_transactions_in = true)
                         delete_objects("grupo", "where id=" + group_id_in, 1, caller_manages_transactions_in = true)
                         (deletions1, deletions2)
                       }
@@ -4919,10 +4907,72 @@ impl Database for PostgreSQLDatabase {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
+    fn test_basic_sql_connectivity_with_async_and_tokio() {
+        // To reproduce/fix hangs, by using either rt.block_on(), or instead #[tokio::main] or
+        // #[tokio::test], async, and future.await, but not mixing them!
+
+        let mut rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let connect_str = format!("postgres://{}:{}@localhost/{}", "t1", "x", "om_t1");
+        let future = PgPoolOptions::new()
+            .max_connections(1)
+            // .connect(connect_str.as_str()).await?;
+            .connect(connect_str.as_str());
+        let pool = rt.block_on(future).unwrap();
+
+        // could I get next lines to work also and show something useful re the current setting??:
+        // let future = sqlx::query("show transaction isolation level").execute(&pool);
+        // let x = rt.block_on(future).unwrap();
+        // println!("Query result re transaction isolation lvl?:  {:?}", x);
+
+        for c in 1..=150 {
+            println!("before, {}", c);
+
+            // hung after 1-4 iterations, when block_on didn't have "rt.":
+            let sql: String = "DROP table IF EXISTS test_doesnt_exist CASCADE".to_string();
+            let future = sqlx::query(sql.as_str()).execute(&pool);
+            let x: Result<PgQueryResult, sqlx::Error> = /*%%: i32 asking compiler or println below*/ rt.block_on(future);
+            //using next line instead avoided the problem!
+            // let x: Result<PgQueryResult, sqlx::Error> = /*%%: i32 asking compiler or println below*/ future.await;
+            if let Err(e) = x {
+                panic!("FAILURE 1: {}", e.to_string());
+            } else {
+                println!("ok {}: {}, {:?}", c, &sql, x.unwrap());
+            }
+
+            // Hung similarly to above section, after ~ 6 iterations.  Has valid output.
+            // let sql: String = "select count(*) from entity".to_string();
+            let sql: String = "select count(1) from pg_catalog.pg_user;".to_string();
+            let query = sqlx::query(sql.as_str());
+            let future = query.map(|sqlx_row: PgRow| {
+                let decode_mbe = sqlx_row.try_get(0);
+                let val: i64 = decode_mbe.unwrap();
+                println!("in db_query {}: val is {} .", c, val);
+            }).fetch_all(&pool);
+            let res = rt.block_on(future).unwrap();
+            println!("result vec (length {}): {:?}", res.len(),  res);
+            for (c, e) in res.iter().enumerate() {
+                println!("  vec element {}: {:?}", c, e);
+            }
+
+            // hung at 8-9 iterations, similarly:
+            let future = sqlx::query_as("select count(*) from pg_catalog.pg_user;").bind(150_i64).fetch_one(&pool);
+            let row: (i64, ) = rt.block_on(future).unwrap();
+            //using next line instead avoids the problem, before I used rt! (see more detailed comment above.)
+            // let row: (i64, ) = future.await.unwrap();
+            println!("in query {}: {:?} and {}", c, row, row.0);
+        }
+    }
+
+    #[test]
+    //next line defaults the # of threads to the # of cpus on the system.
+    // #[tokio::test]
+    // #[tokio::test(flavor = "multi_thread"/*, worker_threads = 1*/)]
+    // #[tokio::main]: with this, compiler says to use async, then compiler says cant use async w tests.
     fn test_set_user_preference_and_get_user_preference() {
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
-        assert!(false);
+
         //%%$%%%%
         //fix red things, see other markers, can make it compile then (ckin and?) reformat?
         //then step thru w/ a debugger?
