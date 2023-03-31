@@ -319,8 +319,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCallWithOptionalErrorHandling[String, Any](url, getEntity_processed, None, Array(), uiIn)
   }
 
-  override fn get_group_size(group_id_in: i64, includeWhichEntitiesIn: Int = 3) -> i64 {
-    getLong("/groups/" + group_id_in + "/size/" + includeWhichEntitiesIn)
+  override fn get_group_size(group_id_in: i64, include_which_entities_in: Int = 3) -> i64 {
+    getLong("/groups/" + group_id_in + "/size/" + include_which_entities_in)
   }
 
   override fn find_unused_group_sorting_index(group_id_in: i64, starting_with_in: Option<i64>) -> i64 {
@@ -352,16 +352,16 @@ class RestDatabase(mRemoteAddress: String) extends Database {
             }))
   }
 
-  override fn get_attribute_count(entity_id_in: i64, include_archived_entitiesIn: bool = false) -> i64 {
-    getLong("/entities/" + entity_id_in + "/attributeCount/" + include_archived_entitiesIn)
+  override fn get_attribute_count(entity_id_in: i64, include_archived_entities_in: bool = false) -> i64 {
+    getLong("/entities/" + entity_id_in + "/attributeCount/" + include_archived_entities_in)
   }
 
   override fn getCountOfGroupsContainingEntity(entity_id_in: i64) -> i64 {
     getLong("/entities/" + entity_id_in + "/countOfGroupsContaining")
   }
 
-  override fn get_relation_to_local_entity_count(entity_id_in: i64, include_archived_entitiesIn: bool) -> i64 {
-    getLong("/entities/" + entity_id_in + "/countOfRelationsToEntity/" + include_archived_entitiesIn)
+  override fn get_relation_to_local_entity_count(entity_id_in: i64, include_archived_entities_in: bool) -> i64 {
+    getLong("/entities/" + entity_id_in + "/countOfRelationsToEntity/" + include_archived_entities_in)
   }
 
   override fn get_relation_to_remote_entity_count(entity_id_in: i64) -> i64 {
@@ -450,7 +450,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   override fn textAttributeKeyExists(id_in: i64) -> bool {
-    get_boolean("/textAttributes/" + id_in + "/exists")
+    get_boolean("/text_attributes/" + id_in + "/exists")
   }
 
   override fn relationToLocalEntityKeysExistAndMatch(id_in: i64, relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64) -> bool {
@@ -531,7 +531,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   override fn  getTextAttributeData(id_in: i64) -> Array[Option[Any]] {
-    getArrayOptionAny("/textAttributes/" + id_in, Array(Database.GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES))
+    getArrayOptionAny("/text_attributes/" + id_in, Array(Database.GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES))
   }
 
   override fn  getQuantityAttributeData(id_in: i64) -> Array[Option[Any]] {
@@ -587,8 +587,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getListArrayOptionAny("/groups/" + group_id_in + "/containingEntitysGroupsIds" + (if limitIn.isEmpty) "" else "?limit=" + limitIn.get), Array("i64"))
   }
 
-  override fn getGroupEntriesData(group_id_in: i64, limitIn: Option<i64>, include_archived_entitiesIn: bool) -> List[Array[Option[Any]]] {
-    getListArrayOptionAny("/groups/" + group_id_in + "/entriesData/" + include_archived_entitiesIn + (if limitIn.isEmpty) "" else "?limit=" + limitIn.get),
+  override fn getGroupEntriesData(group_id_in: i64, limitIn: Option<i64>, include_archived_entities_in: bool) -> List[Array[Option[Any]]] {
+    getListArrayOptionAny("/groups/" + group_id_in + "/entriesData/" + include_archived_entities_in + (if limitIn.isEmpty) "" else "?limit=" + limitIn.get),
                           Array(Database.GET_GROUP_ENTRIES_DATA__RESULT_TYPES))
   }
 
@@ -1062,7 +1062,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                    md5hashIn: String): Unit = ???
 
   override fn  updateQuantityAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>,
-                                       inObservationDate: i64): Unit = ???
+                                       observation_date_in: i64): Unit = ???
 
   override fn  deleteGroupRelationsToItAndItsEntries(groupid_in: i64): Unit = ???
 
@@ -1150,18 +1150,18 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   override  fn  updateClassCreateDefaultAttributes(class_id_in: i64, value: Option<bool>) = ???
 
   override fn update_boolean_attribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, boolean_in: bool,
-                                      valid_on_date_in: Option<i64>, inObservationDate: i64): Unit = ???
+                                      valid_on_date_in: Option<i64>, observation_date_in: i64): Unit = ???
 
   override fn createQuantityAttribute(parent_id_in: i64, attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>,
-                                       inObservationDate: i64, caller_manages_transactions_in: bool = false, sorting_index_in: Option<i64> = None): /*id*/
+                                       observation_date_in: i64, caller_manages_transactions_in: bool = false, sorting_index_in: Option<i64> = None): /*id*/
   i64 = ???
 
   override  fn  create_text_attribute(parent_id_in: i64, attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64>,
                                    observation_date_in: i64, caller_manages_transactions_in: bool, sorting_index_in: Option<i64>): i64 = ???
 
-  override fn  create_relation_type(name_in: String, name_in_reverseDirectionIn: String, directionalityIn: String): i64 = ???
+  override fn  create_relation_type(name_in: String, name_in_reverse_direction_in: String, directionality_in: String): i64 = ???
 
-  override fn  updateRelationType(id_in: i64, name_in: String, name_in_reverseDirectionIn: String, directionalityIn: String): Unit = ???
+  override fn  updateRelationType(id_in: i64, name_in: String, name_in_reverse_direction_in: String, directionality_in: String): Unit = ???
 
   override  fn create_class_and_its_template_entity(class_name_in: String): (i64, i64) = ???
 

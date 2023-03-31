@@ -1068,7 +1068,8 @@ impl Util {
             //   https://doc.rust-lang.org/std/sync/struct.Once.html
             //   https://stackoverflow.com/questions/58006033/how-to-run-setup-code-before-any-tests-run-in-rust/58006287#58006287
 
-            println!("starting call_once");//%%log instead?
+            //%%log instead?
+            println!("starting call_once");
             //mbe not needed?: just return the db?
             // for why this is safe, see explanation & examples in above link to doc.rust-lang.org .
             // unsafe {

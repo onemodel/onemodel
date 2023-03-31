@@ -394,12 +394,12 @@ impl Controller {
                     if ans.isEmpty) None
                     else {
                       let directionalityStr: String = ans.get.trim().toUpperCase;
-                      let name_in_reverseDirectionStr = Util.ask_for_name_in_reverse_direction(directionalityStr, maxNameLength, name, previous_name_in_reverse_in, ui);
+                      let name_in_reverse_directionStr = Util.ask_for_name_in_reverse_direction(directionalityStr, maxNameLength, name, previous_name_in_reverse_in, ui);
                       if createNotUpdate) {
-                        let newId = new RelationType(dbIn, dbIn.createRelationType(name, name_in_reverseDirectionStr, directionalityStr)).get_id;
+                        let newId = new RelationType(dbIn, dbIn.createRelationType(name, name_in_reverse_directionStr, directionalityStr)).get_id;
                         Some(newId, 0L)
                       } else {
-                        existingEntityIn.get.asInstanceOf[RelationType].update(name, name_in_reverseDirectionStr, directionalityStr)
+                        existingEntityIn.get.asInstanceOf[RelationType].update(name, name_in_reverse_directionStr, directionalityStr)
                         Some(existingEntityIn.get.get_id, 0L)
                       }
                     }
@@ -791,7 +791,7 @@ impl Controller {
         fn editEntityName(entity_in: Entity) -> Option<Entity> {
         let editedEntity: Option<Entity> = entity_in match {;
           case relTypeIn: RelationType =>
-            let previousNameInReverse: String = relTypeIn.get_name_in_reverseDirection //idea: check: this edits name w/ prefill also?:;
+            let previousNameInReverse: String = relTypeIn.get_name_in_reverse_direction //idea: check: this edits name w/ prefill also?:;
             askForNameAndWriteEntity(entity_in.m_db, Util.RELATION_TYPE_TYPE, Some(relTypeIn), Some(relTypeIn.get_name), Some(relTypeIn.getDirectionality),
                                      if previousNameInReverse == null || previousNameInReverse.trim().isEmpty) None else Some(previousNameInReverse),
                                      None)
@@ -1666,11 +1666,11 @@ impl Controller {
         let choices: Vec<String> = Array(Util.LIST_NEXT_ITEMS_PROMPT);
         //(see comments at similar location in EntityMenu, as of this writing on line 288)
         let containingEntitiesNamesWithRelTypes: Vec<String> = containingEntities.toArray.map {;
-                                                                                                  case relTypeIdAndEntity: (i64, Entity) =>
-                                                                                                    let relTypeId: i64 = relTypeIdAndEntity._1;
-                                                                                                    let entity: Entity = relTypeIdAndEntity._2;
+                                                                                                  case rel_type_idAndEntity: (i64, Entity) =>
+                                                                                                    let rel_type_id: i64 = rel_type_idAndEntity._1;
+                                                                                                    let entity: Entity = rel_type_idAndEntity._2;
                                                                                                     let relTypeName: String = {;
-                                                                                                      let relType = new RelationType(entity.m_db, relTypeId);
+                                                                                                      let relType = new RelationType(entity.m_db, rel_type_id);
                                                                                                       relType.getArchivedStatusDisplayString + relType.get_name
                                                                                                     }
                                                                                                     "the entity \"" + entity.getArchivedStatusDisplayString +

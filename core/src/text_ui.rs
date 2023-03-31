@@ -132,8 +132,7 @@ impl TextUI {
 
     /** Returns the key pressed and whether it was an alt key combo (ESC key combination).
      */
-    pub fn get_user_input_char(
-    ) -> Result<(char, bool), std::io::Error> {
+    pub fn get_user_input_char() -> Result<(char, bool), std::io::Error> {
         //%% allowed_cars_in_CURRENTLY_IGNORED: Option<Vec<char>>,
         //%%fix this to use the ignored parm just above, or eliminate it or the method?
         let term = Term::stdout();

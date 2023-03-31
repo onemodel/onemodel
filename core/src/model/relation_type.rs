@@ -56,16 +56,16 @@ class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  private[onemodel] fn this(dbIn: Database, entity_id_in: i64, name_in: String, name_in_reverseDirectionIn: String,
+  private[onemodel] fn this(dbIn: Database, entity_id_in: i64, name_in: String, name_in_reverse_direction_in: String,
                              inDirectionality: String) {
     this(dbIn, entity_id_in)
     m_name = name_in
-    m_nameInReverseDirection = name_in_reverseDirectionIn
+    m_nameInReverseDirection = name_in_reverse_direction_in
     mDirectionality = inDirectionality
     m_already_read_data = true
   }
 
-  private[onemodel] fn get_name_in_reverseDirection() -> String {
+  private[onemodel] fn get_name_in_reverse_direction() -> String {
     if !m_already_read_data) {
       read_data_from_db()
     }
@@ -87,7 +87,7 @@ class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
   }
 
   override fn get_display_string_helper(withColorIGNOREDFORNOW: bool)() -> String {
-    getArchivedStatusDisplayString + get_name + " (a relation type with: " + getDirectionality + "/'" + get_name_in_reverseDirection + "')"
+    getArchivedStatusDisplayString + get_name + " (a relation type with: " + getDirectionality + "/'" + get_name_in_reverse_direction + "')"
   }
 
   protected override fn read_data_from_db() {
@@ -101,13 +101,13 @@ class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
     m_already_read_data = true
   }
 
-    fn update(name_in: String, name_in_reverseDirectionIn: String, directionalityIn: String) -> /*%% -> Unit*/ {
+    fn update(name_in: String, name_in_reverse_direction_in: String, directionality_in: String) -> /*%% -> Unit*/ {
     if !m_already_read_data) read_data_from_db()
-    if name_in != m_name || name_in_reverseDirectionIn != m_nameInReverseDirection || directionalityIn != mDirectionality) {
-      m_db.updateRelationType(get_id, name_in, name_in_reverseDirectionIn, directionalityIn)
+    if name_in != m_name || name_in_reverse_direction_in != m_nameInReverseDirection || directionality_in != mDirectionality) {
+      m_db.updateRelationType(get_id, name_in, name_in_reverse_direction_in, directionality_in)
       m_name = name_in
-      m_nameInReverseDirection = name_in_reverseDirectionIn
-      mDirectionality = directionalityIn
+      m_nameInReverseDirection = name_in_reverse_direction_in
+      mDirectionality = directionality_in
     }
   }
 

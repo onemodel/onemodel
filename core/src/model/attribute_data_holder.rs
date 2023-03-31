@@ -32,13 +32,13 @@ class TextAttributeDataHolder(attr_type_id_in: i64,
                                 let mut text: String);
     extends AttributeDataHolderWithVODates(attr_type_id_in, valid_on_date_in, observation_date_in)
 
-class RelationToEntityDataHolder(relTypeIdIn: i64,
+class RelationToEntityDataHolder(rel_type_idIn: i64,
                                  valid_on_date_in: Option<i64>,
                                  observation_date_in: i64,
                                  let mut entity_id2: i64,;
                                  let mut is_remote: bool,;
                                  let mut remoteInstanceId: String);
-  extends AttributeDataHolderWithVODates(relTypeIdIn, valid_on_date_in, observation_date_in)
+  extends AttributeDataHolderWithVODates(rel_type_idIn, valid_on_date_in, observation_date_in)
 
 class GroupDataHolder(var id:i64,
                       let mut name: String,;
@@ -46,11 +46,11 @@ class GroupDataHolder(var id:i64,
                       let mut mixed_classes_allowed: bool);
 
 class RelationToGroupDataHolder(var entity_id:i64,
-                         relTypeIdIn: i64,
+                         rel_type_idIn: i64,
                          let mut group_id: i64,;
                          valid_on_date_in: Option<i64>,
                          observation_date_in: i64)
-  extends AttributeDataHolderWithVODates(relTypeIdIn, valid_on_date_in, observation_date_in)
+  extends AttributeDataHolderWithVODates(rel_type_idIn, valid_on_date_in, observation_date_in)
 
 class DateAttributeDataHolder(attrTypeId: i64,
                               let mut date: i64);

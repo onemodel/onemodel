@@ -69,7 +69,7 @@ abstract protected[this] class RelationToEntity(m_db: Database, m_id: i64, mRelT
       if relatedEntity.get_id == mEntityId2) {
         relType.get_name
       } else if relatedEntity.get_id == mEntityId1) {
-        relType.get_name_in_reverseDirection
+        relType.get_name_in_reverse_direction
       } else {
         throw new OmException("Unrelated parent entity parameter?: '" + relatedEntity.get_id + "', '" + relatedEntity.get_name + "'")
       }

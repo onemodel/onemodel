@@ -70,15 +70,15 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
         (newRTG.get_id, newRTG.get_attr_type_id(), newGroup.get_id)
       } else {
         // given above conditions (w/ moveTargetIndexInObjList, and rtgCount twice), there must be exactly one, or there's a bug:
-        let (rtgId, relTypeId, gid, _, moreAvailable): (Option<i64>, Option<i64>,;
+        let (rtgId, rel_type_id, gid, _, moreAvailable): (Option<i64>, Option<i64>,;
           Option<i64>, Option<String>, Boolean) = targetEntityIn.findRelationToAndGroup
 
-        if gid.isEmpty || relTypeId.isEmpty || moreAvailable) throw new OmException("Found " + (if gid.isEmpty) 0 else ">1") + " but by the earlier " +
+        if gid.isEmpty || rel_type_id.isEmpty || moreAvailable) throw new OmException("Found " + (if gid.isEmpty) 0 else ">1") + " but by the earlier " +
                                                                                      "checks, " +
                                                                                      "there should be exactly one group in entity " + targetEntityIn.get_id
                                                                                      + ": " +
                                                                                      targetEntityIn.get_name)
-        (rtgId.get, relTypeId.get, gid.get)
+        (rtgId.get, rel_type_id.get, gid.get)
       }
     }
     (targetRelationToGroupId, targetRelationTypeId, targetGroupId)
@@ -389,7 +389,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
                     quickGroupMenu(group_in, starting_display_row_index_in, relationToGroupIn, Some(highlightedEntry), targetForMovesIn, callingMenusRtgIn,
                                    containingEntityIn)
                   } else {
-                    let (rtgId: i64, relTypeId: i64, targetGroupId: i64) = createNewOrFindOneGroupOnEntity(group_in, targetRtgCount, highlightedEntry);
+                    let (rtgId: i64, rel_type_id: i64, targetGroupId: i64) = createNewOrFindOneGroupOnEntity(group_in, targetRtgCount, highlightedEntry);
                     // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
                     let ans: Option<Entity> = controller.askForNameAndWriteEntity(group_in.m_db, Util.ENTITY_TYPE, leading_text_in = Some("NAME THE ENTITY:"),;
                                                                                   classIdIn = group_in.getClassId)
@@ -401,7 +401,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
 
                       controller.defaultAttributeCopying(newEntity)
 
-                      let newRtg: RelationToGroup = new RelationToGroup(group_in.m_db, rtgId, highlightedEntry.get_id, relTypeId, targetGroup.get_id);
+                      let newRtg: RelationToGroup = new RelationToGroup(group_in.m_db, rtgId, highlightedEntry.get_id, rel_type_id, targetGroup.get_id);
                       quickGroupMenu(new Group(targetGroup.m_db, targetGroup.get_id), 0, Some(newRtg), None, None, containingEntityIn = Some(highlightedEntry))
                     }
                     quickGroupMenu(group_in, starting_display_row_index_in, relationToGroupIn, Some(highlightedEntry), targetForMoves, callingMenusRtgIn, containingEntityIn)
@@ -411,9 +411,9 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
                                                                                       classIdIn = group_in.getClassId)
                   if newEntity.is_defined) {
                     let new_entity_id: i64 = newEntity.get.get_id;
-                    let newRte: RelationToLocalEntity = highlightedEntry.addHASRelationToLocalEntity(new_entity_id, None, System.currentTimeMillis());
-                    require(newRte.get_parent_id() == highlightedEntry.get_id)
-                    new EntityMenu(ui, controller).entityMenu(newEntity.get, containingRelationToEntityIn = Some(newRte))
+                    let new_rte: RelationToLocalEntity = highlightedEntry.addHASRelationToLocalEntity(new_entity_id, None, System.currentTimeMillis());
+                    require(new_rte.get_parent_id() == highlightedEntry.get_id)
+                    new EntityMenu(ui, controller).entityMenu(newEntity.get, containingRelationToEntityIn = Some(new_rte))
                   }
                   quickGroupMenu(group_in, starting_display_row_index_in, relationToGroupIn, newEntity, targetForMoves, callingMenusRtgIn, containingEntityIn)
                 }

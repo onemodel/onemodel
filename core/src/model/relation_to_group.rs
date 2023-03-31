@@ -45,10 +45,10 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
   }
 
   /** See comment about these 2 dates in PostgreSQLDatabase.create_tables() */
-    fn this(m_db: Database, id_in: i64, entity_id_in: i64, relTypeIdIn: i64, group_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+    fn this(m_db: Database, id_in: i64, entity_id_in: i64, rel_type_idIn: i64, group_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
            sorting_index_in: i64) {
-    this(m_db, id_in, entity_id_in, relTypeIdIn, group_id_in)
-    assignCommonVars(entity_id_in, relTypeIdIn, valid_on_date_in, observation_date_in, sorting_index_in)
+    this(m_db, id_in, entity_id_in, rel_type_idIn, group_id_in)
+    assignCommonVars(entity_id_in, rel_type_idIn, valid_on_date_in, observation_date_in, sorting_index_in)
   }
 
     fn getGroupId -> i64 {

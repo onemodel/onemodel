@@ -112,7 +112,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     relType.update(newName, newInReverseName, "NON")
     let updatedRelationType = new RelationType(m_db, relType.get_id);
     assert(updatedRelationType.get_name == newName)
-    assert(updatedRelationType.get_name_in_reverseDirection == newInReverseName)
+    assert(updatedRelationType.get_name_in_reverse_direction == newInReverseName)
     assert(updatedRelationType.getDirectionality == "NON")
   }
 }

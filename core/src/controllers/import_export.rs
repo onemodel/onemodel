@@ -991,7 +991,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     if cachedIds.is_defined) {
       cachedIds.get
     } else {
-      let data: List[Array[Option[Any]]] = rtg.m_db.getGroupEntriesData(rtg.getGroupId, None, include_archived_entitiesIn = false);
+      let data: List[Array[Option[Any]]] = rtg.m_db.getGroupEntriesData(rtg.getGroupId, None, include_archived_entities_in = false);
       let entityIds = new Array[i64](data.size);
       let mut count = 0;
       for (entry <- data) {

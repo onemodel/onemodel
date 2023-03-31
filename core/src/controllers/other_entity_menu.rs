@@ -53,7 +53,7 @@ struct OtherEntityMenu {
             if answer == 1) {
               let valueBeforeEntry: Option<bool> = entity_in.getPublic;
               let valueAfterEntry: Option<bool> = controller.askForPublicNonpublicStatus(valueBeforeEntry);
-              let rteCount: i64 = entity_in.get_relation_to_local_entity_count(include_archived_entitiesIn = false);
+              let rteCount: i64 = entity_in.get_relation_to_local_entity_count(include_archived_entities_in = false);
               let rtgCount: i64 = entity_in.get_relation_to_group_count;
               let whichToUpdateChoices = {;
                 if rteCount > 0) {
@@ -333,7 +333,7 @@ struct OtherEntityMenu {
         fn getAttrText(entity_in: Entity, typeIdIn: i64) -> Option<String> {
           let attrs: java.util.ArrayList[TextAttribute] = entity_in.getTextAttributeByTypeId(typeIdIn);
           if attrs.size == 0) None
-          else if attrs.size > 1) throw new OmException("The program doesn't know what to do with > 1 textAttributes with this type on the same " +
+          else if attrs.size > 1) throw new OmException("The program doesn't know what to do with > 1 text_attributes with this type on the same " +
                                                            "entity, for entity " + entity_in.get_id + ", and typeId " + typeIdIn)
           else Some(attrs.get(0).getText)
         }
@@ -467,8 +467,8 @@ struct OtherEntityMenu {
             // entities: enough to fill > 1 screen when listed.
             let containingEntities: util.ArrayList[(i64, Entity)] = entity_in.getLocalEntitiesContainingEntity(0, Some(numDisplayableItems));
             let containingEntitiesStatusAndNames: Vec<String> = containingEntities.toArray.map {;
-                                                                                          case relTypeIdAndEntity: (i64, Entity) =>
-                                                                                            let entity: Entity = relTypeIdAndEntity._2;
+                                                                                          case rel_type_idAndEntity: (i64, Entity) =>
+                                                                                            let entity: Entity = rel_type_idAndEntity._2;
                                                                                             entity.getArchivedStatusDisplayString + entity.get_name
                                                                                           case _ => throw new OmException("??")
                                                                                         }
@@ -593,9 +593,9 @@ struct OtherEntityMenu {
             let id: i64 = containingRelationToGroups.get(index).get_id;
             let entityId: i64 = containingRelationToGroups.get(index).get_parent_id();
             let groupId: i64 = containingRelationToGroups.get(index).getGroupId;
-            let relTypeId: i64 = containingRelationToGroups.get(index).get_attr_type_id();
+            let rel_type_id: i64 = containingRelationToGroups.get(index).get_attr_type_id();
             new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(entity_in.m_db, groupId), 0,
-                                                              Some(new RelationToGroup(entity_in.m_db, id, entityId, relTypeId, groupId)),
+                                                              Some(new RelationToGroup(entity_in.m_db, id, entityId, rel_type_id, groupId)),
                                                               Some(entity_in), containingEntityIn = None)
           } else {
             ui.display_text("unknown response")

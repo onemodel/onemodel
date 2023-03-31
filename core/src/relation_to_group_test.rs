@@ -45,7 +45,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let groupId: i64 = 301;
     let entityId: i64 = 302;
     let classTemplateEntityId: i64 = 303;
-    let relTypeId: i64 = 401;
+    let rel_type_id: i64 = 401;
     let classId: i64 = 501;
     let grpName: String = "somename";
     let grpEntryCount = 9;
@@ -53,16 +53,16 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let date = 304;
     let relationTypeName: String = Database.THE_HAS_RELATION_TYPE_NAME;
     when(mockDB.groupKeyExists(groupId)).thenReturn(true)
-    when(mockDB.relationTypeKeyExists(relTypeId)).thenReturn(true)
-    when(mockDB.entity_key_exists(relTypeId)).thenReturn(true)
-    when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, relTypeId, groupId)).thenReturn(true)
+    when(mockDB.relationTypeKeyExists(rel_type_id)).thenReturn(true)
+    when(mockDB.entity_key_exists(rel_type_id)).thenReturn(true)
+    when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, rel_type_id, groupId)).thenReturn(true)
     when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true), Some(false)))
     when(mockDB.getGroupSize(groupId, 1)).thenReturn(grpEntryCount)
-    when(mockDB.getRelationTypeData(relTypeId)).thenReturn(Array[Option[Any]](Some(relationTypeName), Some(Database.THE_IS_HAD_BY_REVERSE_NAME), Some("xyz..")))
+    when(mockDB.getRelationTypeData(rel_type_id)).thenReturn(Array[Option[Any]](Some(relationTypeName), Some(Database.THE_IS_HAD_BY_REVERSE_NAME), Some("xyz..")))
     when(mockDB.get_remote_address).thenReturn(None)
 
     // (using arbitrary numbers for the unnamed parameters):
-    let relationToGroup = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0);
+    let relationToGroup = new RelationToGroup(mockDB, rtgId, entityId, rel_type_id, groupId, None, date, 0);
     let smallLimit = 15;
     let observed_dateOutput = "Wed 1969-12-31 17:00:00:" + date + " MST";
     let wholeThing: String = relationTypeName + " grp " + groupId + " /" + grpEntryCount + ": " + grpName + ", class: (mixed); valid unsp'd, obsv'd " + observed_dateOutput;
@@ -74,13 +74,13 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     //  let all: String = relationToGroup.get_display_string(0, None);
     //  assert(all == wholeThing)
 
-    let relationToGroup2 = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0);
+    let relationToGroup2 = new RelationToGroup(mockDB, rtgId, entityId, rel_type_id, groupId, None, date, 0);
     when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(false), Some(false)))
     let all2: String = relationToGroup2.get_display_string(0, None);
     assert(!all2.contains("(mixed)"))
     assert(all2.contains(", class: (unspecified)"))
 
-    let relationToGroup3 = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0);
+    let relationToGroup3 = new RelationToGroup(mockDB, rtgId, entityId, rel_type_id, groupId, None, date, 0);
     when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
     let list = new Vec<Entity>(1);
     list.add(new Entity(mockDB, classTemplateEntityId, "asdf", None, 0L, None, false, false))
@@ -90,7 +90,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     assert(!all3.contains("(mixed)"))
     assert(all3.contains(", class: (specified as None)"))
 
-    let relationToGroup4 = new RelationToGroup(mockDB, rtgId, entityId, relTypeId, groupId, None, date, 0);
+    let relationToGroup4 = new RelationToGroup(mockDB, rtgId, entityId, rel_type_id, groupId, None, date, 0);
     let list4 = new Vec<Entity>(1);
     list4.add(new Entity(mockDB, classTemplateEntityId, "asdf", Some(classId), 0L, Some(true), false, false))
     when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
@@ -109,14 +109,14 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let groupId: i64 = 301;
     //val parentId: i64 = 302
     let classTemplateEntityId: i64 = 303;
-    let relTypeId: i64 = 401;
+    let rel_type_id: i64 = 401;
     let entityId: i64 = 402;
     let classId: i64 = 501;
     let className = "someclassname";
     let grpName: String = "somename";
-    when(mockDB.relationTypeKeyExists(relTypeId)).thenReturn(true)
-    when(mockDB.entity_key_exists(relTypeId)).thenReturn(true)
-    when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, relTypeId, groupId)).thenReturn(true)
+    when(mockDB.relationTypeKeyExists(rel_type_id)).thenReturn(true)
+    when(mockDB.entity_key_exists(rel_type_id)).thenReturn(true)
+    when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, rel_type_id, groupId)).thenReturn(true)
     when(mockDB.groupKeyExists(groupId)).thenReturn(true)
 
     let group = new Group(mockDB, groupId);
@@ -138,7 +138,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     // should be != None because mixed classes are NOT allowed in the group and an entity was added:
     assert(group.getClassTemplateEntity.get.get_id == classTemplateEntityId)
 
-    //relationToGroup = new RelationToGroup(mockDB, entityId, relTypeId, groupId, None, date)
+    //relationToGroup = new RelationToGroup(mockDB, entityId, rel_type_id, groupId, None, date)
     // should be None when mixed classes are allowed in the group:
     when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true), Some(false)))
     let group2 = new Group(mockDB, groupId);

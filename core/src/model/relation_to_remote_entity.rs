@@ -48,12 +48,12 @@ class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntity
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(m_db: Database, id_in: i64, relTypeIdIn: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
+    fn this(m_db: Database, id_in: i64, rel_type_idIn: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
            valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: i64) {
-    this(m_db, id_in, relTypeIdIn, entity_id1_in, remote_instance_id_in, entity_id2_in)
+    this(m_db, id_in, rel_type_idIn, entity_id1_in, remote_instance_id_in, entity_id2_in)
     // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
-    assignCommonVars(entity_id1_in, relTypeIdIn, valid_on_date_in, observation_date_in, sorting_index_in)
+    assignCommonVars(entity_id1_in, rel_type_idIn, valid_on_date_in, observation_date_in, sorting_index_in)
   }
 
     fn getRemoteInstanceId -> String {

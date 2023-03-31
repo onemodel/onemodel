@@ -218,12 +218,12 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(m_db.getAttributeSortingRowsCount(Some(id)) == 3)
 
     //whatever, just need some relation type to go with:
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    createTestRelationToLocalEntity_WithOneEntity(id, relTypeId)
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    createTestRelationToLocalEntity_WithOneEntity(id, rel_type_id)
     assert(m_db.get_attribute_count(id) == 4)
     assert(m_db.getAttributeSortingRowsCount(Some(id)) == 4)
 
-    DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, id, relTypeId, "somename", Some(12345L))
+    DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, id, rel_type_id, "somename", Some(12345L))
     assert(m_db.get_attribute_count(id) == 5)
     assert(m_db.getAttributeSortingRowsCount(Some(id)) == 5)
 
@@ -589,36 +589,36 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let startingRelationTypeCount = m_db.getRelationTypeCount;
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
     let startingRelCount = m_db.getRelationTypes(0, Some(25)).size;
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
 
     //verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
     assert(m_db.getRelationTypes(0, Some(25)).size == startingRelCount + 1)
     assert(m_db.getEntitiesOnlyCount() == startingEntityOnlyCount + 1)
 
     assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
-    let related_entity_id: i64 = createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId);
+    let related_entity_id: i64 = createTestRelationToLocalEntity_WithOneEntity(entityId, rel_type_id);
     assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
-    let checkRelation = m_db.getRelationToLocalEntityData(relTypeId, entityId, related_entity_id);
+    let checkRelation = m_db.getRelationToLocalEntityData(rel_type_id, entityId, related_entity_id);
     let checkValidOnDate = checkRelation(1);
     assert(checkValidOnDate.isEmpty) // should get back None when created with None: see description for table's field in create_tables method.
     assert(m_db.get_relation_to_local_entity_count(entityId) == 1)
 
     let newName = "test: org.onemodel.PSQLDbTest.relationupdate...";
     let name_in_reverse = "nameinreverse;!@#$%^&*()-_=+{}[]:\"'<>?,./`~" //and verify can handle some variety of chars;
-    m_db.updateRelationType(relTypeId, newName, name_in_reverse, RelationType.BIDIRECTIONAL)
+    m_db.updateRelationType(rel_type_id, newName, name_in_reverse, RelationType.BIDIRECTIONAL)
     // have to create new instance to re-read the data:
-    let updatedRelationType = new RelationType(m_db, relTypeId);
+    let updatedRelationType = new RelationType(m_db, rel_type_id);
     assert(updatedRelationType.get_name == newName)
-    assert(updatedRelationType.get_name_in_reverseDirection == name_in_reverse)
+    assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
     assert(updatedRelationType.getDirectionality == RelationType.BIDIRECTIONAL)
 
-    m_db.deleteRelationToLocalEntity(relTypeId, entityId, related_entity_id)
+    m_db.deleteRelationToLocalEntity(rel_type_id, entityId, related_entity_id)
     assert(m_db.get_relation_to_local_entity_count(entityId) == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
     assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
 
     let entityOnlyCountBeforeRelationTypeDeletion: i64 = m_db.getEntitiesOnlyCount();
-    m_db.deleteRelationType(relTypeId)
+    m_db.deleteRelationType(rel_type_id)
     assert(m_db.getRelationTypeCount == startingRelationTypeCount)
     // ensure that removing rel type doesn't remove more entities than it should, and that the 'onlyCount' works right.
     //i.e. as above, verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
@@ -641,12 +641,12 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
      ...and then checks that entity2 has 2 containing groups.
      */
     let entityId1 = m_db.createEntity("test-getContainingGroupsIds-entity1");
-    let relTypeId: i64 = m_db.createRelationType("test-getContainingGroupsIds-reltype1", "", RelationType.UNIDIRECTIONAL);
-    let (groupId1, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId1, relTypeId, "test-getContainingGroupsIds-group1");
+    let rel_type_id: i64 = m_db.createRelationType("test-getContainingGroupsIds-reltype1", "", RelationType.UNIDIRECTIONAL);
+    let (groupId1, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId1, rel_type_id, "test-getContainingGroupsIds-group1");
     let group1 = new Group(m_db,groupId1);
     let entityId2 = m_db.createEntity("test-getContainingGroupsIds-entity2");
     group1.addEntity(entityId2)
-    let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId2, relTypeId, "test-getContainingGroupsIds-group1");
+    let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId2, rel_type_id, "test-getContainingGroupsIds-group1");
     let group2 = new Group(m_db, groupId2);
 
     let containingGroups:List[Array[Option[Any]]] = m_db.getGroupsContainingEntitysGroupsIds(group2.get_id);
@@ -654,7 +654,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(containingGroups.head(0).get.asInstanceOf[i64] == groupId1)
 
     let entityId3 = m_db.createEntity("test-getContainingGroupsIds-entity3");
-    let (groupId3, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId3, relTypeId, "test-getContainingGroupsIds-group1");
+    let (groupId3, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId3, rel_type_id, "test-getContainingGroupsIds-group1");
     let group3 = new Group(m_db, groupId3);
     group3.addEntity(entityId2)
 
@@ -668,10 +668,10 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let relToGroupName = "test: PSQLDbTest.testRelsNRelTypes()";
     let entityName = relToGroupName + "--theEntity";
     let entityId = m_db.createEntity(entityName);
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     let valid_on_date = 12345L;
     assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
-    let (groupId:i64, createdRtg:RelationToGroup) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, relTypeId, relToGroupName,;
+    let (groupId:i64, createdRtg:RelationToGroup) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id, relToGroupName,;
                                                                                                                 Some(valid_on_date), allowMixedClassesIn = true)
     assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
 
@@ -684,14 +684,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(checkRelation(0).get.asInstanceOf[i64] == rtg.get_id)
     assert(checkRelation(0).get.asInstanceOf[i64] == createdRtg.get_id)
     assert(checkRelation(1).get.asInstanceOf[i64] == entityId)
-    assert(checkRelation(2).get.asInstanceOf[i64] == relTypeId)
+    assert(checkRelation(2).get.asInstanceOf[i64] == rel_type_id)
     assert(checkRelation(3).get.asInstanceOf[i64] == groupId)
     assert(checkRelation(4).get.asInstanceOf[i64] == valid_on_date)
     let checkAgain = m_db.getRelationToGroupData(rtg.get_id);
     assert(checkAgain(0).get.asInstanceOf[i64] == rtg.get_id)
     assert(checkAgain(0).get.asInstanceOf[i64] == createdRtg.get_id)
     assert(checkAgain(1).get.asInstanceOf[i64] == entityId)
-    assert(checkAgain(2).get.asInstanceOf[i64] == relTypeId)
+    assert(checkAgain(2).get.asInstanceOf[i64] == rel_type_id)
     assert(checkAgain(3).get.asInstanceOf[i64] == groupId)
     assert(checkAgain(4).get.asInstanceOf[i64] == valid_on_date)
 
@@ -710,7 +710,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
     assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
 
-    let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, relTypeId, "somename", None);
+    let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id, "somename", None);
 
     let group2: Group = new Group(m_db, groupId2);
     assert(group2.getSize() == 0)
@@ -741,11 +741,11 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     // probably revise this later for use when adding that update method:
     //val newName = "test: org.onemodel.PSQLDbTest.relationupdate..."
-    //m_db.updateRelationType(relTypeId, newName, name_in_reverse, RelationType.BIDIRECTIONAL)
+    //m_db.updateRelationType(rel_type_id, newName, name_in_reverse, RelationType.BIDIRECTIONAL)
     //// have to create new instance to re-read the data:
-    //val updatedRelationType = new RelationType(m_db, relTypeId)
+    //val updatedRelationType = new RelationType(m_db, rel_type_id)
     //assert(updatedRelationType.get_name == newName)
-    //assert(updatedRelationType.get_name_in_reverseDirection == name_in_reverse)
+    //assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
     //assert(updatedRelationType.getDirectionality == RelationType.BIDIRECTIONAL)
 
     //m_db.deleteRelationToGroup(relToGroupId)
@@ -766,9 +766,9 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let relToGroupName = "test:PSQLDbTest.testDelEntity_InGroup";
     let entityName = relToGroupName + "--theEntity";
     let entityId = m_db.createEntity(entityName);
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     let valid_on_date = 12345L;
-    let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, relTypeId, relToGroupName, Some(valid_on_date))._1;
+    let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id, relToGroupName, Some(valid_on_date))._1;
     //val rtg: RelationToGroup = new RelationToGroup
     let group:Group = new Group(m_db, groupId);
     group.addEntity(m_db.createEntity(entityName + 1))
@@ -811,9 +811,9 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
     createTestTextAttributeWithOneEntity(entityId)
     createTestQuantityAttributeWithTwoEntities(entityId)
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let related_entity_id: i64 = createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId);
-    DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, relTypeId)
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let related_entity_id: i64 = createTestRelationToLocalEntity_WithOneEntity(entityId, rel_type_id);
+    DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id)
     createTestDateAttributeWithOneEntity(entityId)
     createTestBooleanAttributeWithOneEntity(entityId, valIn = false, None, 0)
     createTestFileAttributeAndOneEntity(new Entity(m_db, entityId), "desc", 2, verifyIn = false)
@@ -848,7 +848,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
           assert(attribute.getText == "some test text")
           foundTA = true
         case attribute: RelationToLocalEntity =>
-          assert(attribute.get_attr_type_id() == relTypeId)
+          assert(attribute.get_attr_type_id() == rel_type_id)
           foundRTE = true
         case attribute: RelationToGroup =>
           foundRTG = true
@@ -867,18 +867,18 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
   "entity deletion" should "also delete RelationToLocalEntity attributes (and get_relation_to_remote_entity_count should work)" in {
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
-    let relTypeId: i64 = m_db.createRelationType("is sitting next to", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = m_db.createRelationType("is sitting next to", "", RelationType.UNIDIRECTIONAL);
     let startingLocalCount = m_db.get_relation_to_local_entity_count(entityId);
     let startingRemoteCount = m_db.get_relation_to_remote_entity_count(entityId);
-    let related_entity_id: i64 = createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId);
+    let related_entity_id: i64 = createTestRelationToLocalEntity_WithOneEntity(entityId, rel_type_id);
     assert(m_db.get_relation_to_local_entity_count(entityId) == startingLocalCount + 1)
 
     let oi: OmInstance = m_db.getLocalOmInstanceData;
     let remoteEntityId = 1234;
-    m_db.createRelationToRemoteEntity(relTypeId, entityId, remoteEntityId, None, 0, oi.get_id)
+    m_db.createRelationToRemoteEntity(rel_type_id, entityId, remoteEntityId, None, 0, oi.get_id)
     assert(m_db.get_relation_to_local_entity_count(entityId) == startingLocalCount + 1)
     assert(m_db.get_relation_to_remote_entity_count(entityId) == startingRemoteCount + 1)
-    assert(m_db.getRelationToRemoteEntityData(relTypeId, entityId, oi.get_id, remoteEntityId).length > 0)
+    assert(m_db.getRelationToRemoteEntityData(rel_type_id, entityId, oi.get_id, remoteEntityId).length > 0)
 
     m_db.delete_entity(entityId)
     if m_db.get_relation_to_local_entity_count(entityId) != 0 {
@@ -886,22 +886,22 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
            "get_relation_to_local_entity_count(entityIdInNewTransaction) is " + m_db.get_relation_to_local_entity_count(entityId) + ".")
     }
     assert(intercept[Exception] {
-                                  m_db.getRelationToLocalEntityData(relTypeId, entityId, related_entity_id)
+                                  m_db.getRelationToLocalEntityData(rel_type_id, entityId, related_entity_id)
                                 }.getMessage.contains("Got 0 instead of 1 result"))
     assert(intercept[Exception] {
-                                  m_db.getRelationToRemoteEntityData(relTypeId, entityId, oi.get_id, related_entity_id)
+                                  m_db.getRelationToRemoteEntityData(rel_type_id, entityId, oi.get_id, related_entity_id)
                                 }.getMessage.contains("Got 0 instead of 1 result"))
 
-    m_db.deleteRelationType(relTypeId)
+    m_db.deleteRelationType(rel_type_id)
   }
 
   "attributes" should "handle valid_on_dates properly in & out of db" in {
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.attributes...");
-    let relTypeId = m_db.createRelationType(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id = m_db.createRelationType(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);
     // create attributes & read back / other values (None alr done above) as entered (confirms read back correctly)
     // (these methods do the checks, internally)
-    createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId, Some(0L))
-    createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId, Some(System.currentTimeMillis()))
+    createTestRelationToLocalEntity_WithOneEntity(entityId, rel_type_id, Some(0L))
+    createTestRelationToLocalEntity_WithOneEntity(entityId, rel_type_id, Some(System.currentTimeMillis()))
     createTestQuantityAttributeWithTwoEntities(entityId)
     createTestQuantityAttributeWithTwoEntities(entityId, Some(0))
     createTestTextAttributeWithOneEntity(entityId)
@@ -980,15 +980,15 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     dateAttributeId
   }
 
-    fn createTestBooleanAttributeWithOneEntity(inParentId: i64, valIn: bool, inValidOnDate: Option<i64> = None, inObservationDate: i64) -> i64 {
+    fn createTestBooleanAttributeWithOneEntity(inParentId: i64, valIn: bool, inValidOnDate: Option<i64> = None, observation_date_in: i64) -> i64 {
     let attrTypeId: i64 = m_db.createEntity("boolAttributeType-like-isDone");
-    let booleanAttributeId: i64 = m_db.create_boolean_attribute(inParentId, attrTypeId, valIn, inValidOnDate, inObservationDate);
+    let booleanAttributeId: i64 = m_db.create_boolean_attribute(inParentId, attrTypeId, valIn, inValidOnDate, observation_date_in);
     let ba = new BooleanAttribute(m_db, booleanAttributeId);
     assert(ba.get_attr_type_id() == attrTypeId)
     assert(ba.get_boolean == valIn)
     assert(ba.get_valid_on_date() == inValidOnDate)
     assert(ba.get_parent_id() == inParentId)
-    assert(ba.get_observation_date() == inObservationDate)
+    assert(ba.get_observation_date() == observation_date_in)
     booleanAttributeId
   }
 
@@ -1134,11 +1134,11 @@ Unit
     assert(found)
 
     // make sure the other approach also works, even with deeply nested data:
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let te1 = createTestRelationToLocalEntity_WithOneEntity(personTemplateEntityId, relTypeId);
-    let te2 = createTestRelationToLocalEntity_WithOneEntity(te1, relTypeId);
-    let te3 = createTestRelationToLocalEntity_WithOneEntity(te2, relTypeId);
-    let te4 = createTestRelationToLocalEntity_WithOneEntity(te3, relTypeId);
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let te1 = createTestRelationToLocalEntity_WithOneEntity(personTemplateEntityId, rel_type_id);
+    let te2 = createTestRelationToLocalEntity_WithOneEntity(te1, rel_type_id);
+    let te3 = createTestRelationToLocalEntity_WithOneEntity(te2, rel_type_id);
+    let te4 = createTestRelationToLocalEntity_WithOneEntity(te3, rel_type_id);
     let foundIds: mutable.TreeSet[i64] = m_db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), systemEntityId, PERSON_TEMPLATE, 4,;
                                                                      stop_after_any_found = false)
     assert(foundIds.contains(personTemplateEntityId), "Value not found in query: " + personTemplateEntityId)
@@ -1195,14 +1195,14 @@ Unit
 
     // intentionally put some uppercase letters for later comparison w/ lowercase.
     let relTypeName = name + "-RelationType";
-    let relTypeId: i64 = m_db.createRelationType("testingOnly", relTypeName, RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = m_db.createRelationType("testingOnly", relTypeName, RelationType.UNIDIRECTIONAL);
     assert(m_db.isDuplicateEntityName(relTypeName))
-    assert(!m_db.isDuplicateEntityName(relTypeName, Some(relTypeId)))
+    assert(!m_db.isDuplicateEntityName(relTypeName, Some(rel_type_id)))
 
     m_db.begin_trans()
     m_db.updateEntityOnlyName(entityId, relTypeName.toLowerCase)
     assert(m_db.isDuplicateEntityName(relTypeName, Some(entityId)))
-    assert(m_db.isDuplicateEntityName(relTypeName, Some(relTypeId)))
+    assert(m_db.isDuplicateEntityName(relTypeName, Some(rel_type_id)))
     // because setting an entity name to relTypeName doesn't really make sense, was just for that part of the test.
     m_db.rollback_trans()
   }
@@ -1251,8 +1251,8 @@ Unit
     assert(classCountLimited == 1)
 
     //whatever, just need some relation type to go with:
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, relTypeId, "test: PSQLDbTest.testgroup-class-uniqueness",;
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id, "test: PSQLDbTest.testgroup-class-uniqueness",;
                                                                              Some(12345L), allowMixedClassesIn = false)._1
     let group: Group = new Group(m_db, groupId);
     assert(! m_db.isEntityInGroup(groupId, entityId))
@@ -1331,9 +1331,9 @@ Unit
     // part 2:
     // some setup, confirm good
     let startingEntityCount2 = m_db.getEntitiesOnlyCount();
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     let id1: i64 = m_db.createEntity("name1");
-    let (group, rtg) = new Entity(m_db, id1).addGroupAndRelationToGroup(relTypeId, "someRelToGroupName", allowMixedClassesInGroupIn = false, None, 1234L,;
+    let (group, rtg) = new Entity(m_db, id1).addGroupAndRelationToGroup(rel_type_id, "someRelToGroupName", allowMixedClassesInGroupIn = false, None, 1234L,;
                                                                        None, caller_manages_transactions_in = false)
     assert(m_db.relationToGroupKeysExist(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.getGroupId))
     assert(m_db.attribute_key_exists(rtg.get_form_id, rtg.get_id))
@@ -1356,8 +1356,8 @@ Unit
 
     let entityName = "test: PSQLDbTest.testgroup-class-allowsAllNulls" + "--theEntity";
     let (classId, entityId) = m_db.createClassAndItsTemplateEntity(entityName, entityName);
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, relTypeId, "test: PSQLDbTest.testgroup-class-allowsAllNulls",;
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id, "test: PSQLDbTest.testgroup-class-allowsAllNulls",;
                                                                              Some(12345L), allowMixedClassesIn = false)._1
     let group: Group = new Group(m_db, groupId);
     // 1st one has a NULL class_id
@@ -1377,15 +1377,15 @@ Unit
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.getEntitiesOnlyCount");
     let c1 = m_db.getEntitiesOnlyCount();
     assert(m_db.getEntitiesOnlyCount() == c1)
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     assert(m_db.getEntitiesOnlyCount() == c1)
-    createTestRelationToLocalEntity_WithOneEntity(entityId, relTypeId)
+    createTestRelationToLocalEntity_WithOneEntity(entityId, rel_type_id)
     let c2 = c1 + 1;
     assert(m_db.getEntitiesOnlyCount() == c2)
 
     // this kind shouldn't matter--confirming:
-    let relTypeId2: i64 = m_db.createRelationType("contains2", "", RelationType.UNIDIRECTIONAL);
-    DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, relTypeId2)
+    let rel_type_id2: i64 = m_db.createRelationType("contains2", "", RelationType.UNIDIRECTIONAL);
+    DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id2)
     assert(m_db.getEntitiesOnlyCount() == c2)
 
     let prevEntitiesUsedAsAttributeTypes = m_db.getCountOfEntitiesUsedAsAttributeTypes(Util::DATE_TYPE, quantitySeeksUnitNotTypeIn = false);
@@ -1422,9 +1422,9 @@ Unit
     let entities2 = m_db.getMatchingEntities(0, None, None, "abc");
     assert(entities2.size == 2)
 
-    let relTypeId: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     let groupName = "someRelToGroupName";
-    entity1.addGroupAndRelationToGroup(relTypeId, groupName, allowMixedClassesInGroupIn = false, None, 1234L,
+    entity1.addGroupAndRelationToGroup(rel_type_id, groupName, allowMixedClassesInGroupIn = false, None, 1234L,
                                        None, caller_manages_transactions_in = false)
     assert(m_db.getMatchingGroups(0, None, None, "some-xyz-not a grp name").size == 0)
     assert(m_db.getMatchingGroups(0, None, None, groupName).size > 0)
@@ -1462,8 +1462,8 @@ Unit
   "getRelationsToGroupContainingThisGroup and getContainingRelationsToGroup" should "work" in {
     let entityId: i64 = m_db.createEntity("test: getRelationsToGroupContainingThisGroup...");
     let entityId2: i64 = m_db.createEntity("test: getRelationsToGroupContainingThisGroup2...");
-    let relTypeId: i64 = m_db.createRelationType("contains in getRelationsToGroupContainingThisGroup", "", RelationType.UNIDIRECTIONAL);
-    let (groupId, rtg) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, relTypeId,;
+    let rel_type_id: i64 = m_db.createRelationType("contains in getRelationsToGroupContainingThisGroup", "", RelationType.UNIDIRECTIONAL);
+    let (groupId, rtg) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id,;
                                                                                     "some group name in getRelationsToGroupContainingThisGroup")
     let group = new Group(m_db, groupId);
     group.addEntity(entityId2)
