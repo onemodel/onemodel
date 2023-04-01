@@ -23,12 +23,11 @@ use crate::text_ui::TextUI;
 /// or a library and/or good REST api for such.
 fn main() {
     /*%%$%%next tasks?:
-        fix more/warnings? formatting? (sep't ckin)
         do all util, db, pg, & their tests at once: style and compile and test.
         MAKE TESTS for code be4 ckin! see them each fail then pass.
         Debug/breakpoints...? ??? (esp in pg and util?)
         make code compile that i have now?
-        AND rustfmt  (separate commit tho?)
+        fix more/warnings? formatting? (sep't ckin)
         In OM,  using #[derive(Debug)] on a all? And fmt::Display (vs fmt::Debug) on all public types.
         other %%$%s, %%s &c
      */

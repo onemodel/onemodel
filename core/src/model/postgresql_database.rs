@@ -2172,117 +2172,6 @@ impl PostgreSQLDatabase {
         )
     }
 
-    /// Used for example after one has been deleted, to put the highlight on right next one:
-    /// idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
-    /**%%fix doc formatting:
-     * @param object_set_size  # of all the possible entries, not reduced by what fits in the available display space (I think).
-     * @param objects_to_display_in  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
-     * @return
-     */
-    fn find_entity_to_highlight_next<'a>(
-        &'a self,
-        object_set_size: usize,
-        objects_to_display_in: Vec<Entity>,
-        removed_one_in: bool,
-        previously_highlighted_index_in_obj_list_in: usize,
-        previously_highlighted_entry_in: Entity<'a>,
-    ) -> Result<Option<Entity<'a>>, String> {
-        //NOTE: SIMILAR TO find_attribute_to_highlight_next: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the type
-        //system better.
-
-        // Here of course, previously_highlighted_index_in_obj_list_in and obj_ids.size were calculated prior to the deletion.
-
-        if removed_one_in {
-            if object_set_size <= 1 {
-                return Ok(None);
-            }
-            let new_obj_list_size: usize = object_set_size - 1;
-            if new_obj_list_size == 0 {
-                //(redundant with above test/None, but for clarity in reading)
-                Ok(None)
-            } else {
-                let mut new_index_to_highlight = std::cmp::min(
-                    new_obj_list_size - 1,
-                    previously_highlighted_index_in_obj_list_in,
-                );
-                // if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
-                //     // %%why doesn't Rust know the element is an Entity, vs. <Unknown>? why can't just return
-                //     // objects_to_display_in.get(new_index_to_highlight)? Maybe rustc would do OK but the IDE doesn't? try changing at first 1 of the
-                //     // 3 below places back, and see if rustc gets it right? or am I mistaken?
-                //     match objects_to_display_in.get(new_index_to_highlight) {
-                //         None => Ok(None),
-                //         //%%$%%does the next line actually work?? ie, unknown how clone would work w/ its db. If not, remove derive clone fr entity?
-                //         //%%$%%might have to create a new instance of the entity, instead, with new2()?
-                //         // Some(&e) => Some(e.to_owned()),
-                //         Some(&e) => {
-                //             // create a new instance of this entity, to avoid compiler errors
-                //             let new_same_entity = match Entity::new2(Box::new(self), e.get_id()) {
-                //                 Err(e) => return Err(e.to_string()),
-                //                 Ok(entity) => entity,
-                //             };
-                //             Ok(Some(new_same_entity))
-                //         },
-                //     }
-                // } else {
-                //     if new_index_to_highlight + 1 < new_obj_list_size - 1 {
-                //         match objects_to_display_in.get(new_index_to_highlight + 1) {
-                //             //%%$%%%%%%%%%%should this containing method be moved back to util?--what db to use to create a new entity--get from the old db or??
-                //             //%%$%%%%%%%%%%then, refactor this to call the just-above once, w/ parm for which entity to highlight?
-                //             None => Ok(None),
-                //             Some(&e) => Some(e),
-                //         }
-                //     } else if new_index_to_highlight >= 1 {
-                //         match objects_to_display_in.get(new_index_to_highlight - 1) {
-                //             None => None,
-                //             Some(&e) => Some(e),
-                //         }
-                //     } else {
-                //         None
-                //     }
-                // }
-                //%%replace/del cmted part above w/ below?
-                new_index_to_highlight =
-                    if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
-                        new_index_to_highlight
-                    } else {
-                        if new_index_to_highlight + 1 < new_obj_list_size - 1 {
-                            new_index_to_highlight + 1
-                            //%%$%%%%%%%%%%should this containing method be moved back to util?--what db to use to create a new entity--get from the old db or??
-                            //%%$%%%%%%%%%%then, refactor this to call the just-above once, w/ parm for which entity to highlight?
-                            // None => Ok(None),
-                            // Some(&e) => Some(e),
-                        } else if new_index_to_highlight >= 1 {
-                            new_index_to_highlight - 1
-                        } else {
-                            return Ok(None);
-                        }
-                    };
-                // if new_index_to_highlight == -1 {
-                //     Ok(None)
-                // } else {
-                // %%why doesn't Rust know the element is an Entity, vs. <Unknown>? why can't just return
-                // objects_to_display_in.get(new_index_to_highlight)? Maybe rustc would do OK but the IDE doesn't? try changing at first 1 of the
-                // 3 below places back, and see if rustc gets it right? or am I mistaken?
-                match objects_to_display_in.get(new_index_to_highlight) {
-                    None => Ok(None),
-                    //%%$%%does the next line actually work?? ie, unknown how clone would work w/ its db. If not, remove derive clone fr entity?
-                    //%%$%%might have to create a new instance of the entity, instead, with new2()?
-                    // Some(&e) => Some(e.to_owned()),
-                    Some(e) => {
-                        // create a new instance of this entity, to avoid compiler errors
-                        let new_same_entity = match Entity::new2(Box::new(self), e.get_id()) {
-                            Err(e) => return Err(e.to_string()),
-                            Ok(entity) => entity,
-                        };
-                        Ok(Some(new_same_entity))
-                    }
-                }
-                // }
-            }
-        } else {
-            Ok(Some(previously_highlighted_entry_in))
-        }
-    }
 }
 
 impl Database for PostgreSQLDatabase {
@@ -5932,19 +5821,13 @@ mod tests {
     }
 
     #[test]
-    //next line defaults the # of threads to the # of cpus on the system.
-    // #[tokio::test]
-    // #[tokio::test(flavor = "multi_thread"/*, worker_threads = 1*/)]
-    // #[tokio::main]: with this, compiler says to use async, then compiler says cant use async w tests.
     fn test_set_user_preference_and_get_user_preference() {
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
 
-        //%%$%%%%
-        //fix red things, see other markers, can make it compile then (ckin and?) reformat?
-        //then step thru w/ a debugger?
-        //then cont here/below?
-        /*
-        assert(m_db.get_user_preference_boolean("xyznevercreatemeinreallife").isEmpty)
+        assert!(db.get_user_preference_boolean("xyznevercreatemeinreallife", None).is_none());
+        /* //%%$%%%%
+        //mbe next: get all big %%%s, uncmt all in Database and pgdb.rs, fix red/style/format, compile, make this test work incl above line.
+
         // (intentional style violation for readability - the ".contains" suggested by the IDE just caused another problem)
         //noinspection OptionEqualsSome
         assert(m_db.get_user_preference_boolean("xyznevercreatemeinreallife", Some(true)) == Some(true))

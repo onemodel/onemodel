@@ -10,7 +10,6 @@
 use crate::model::database::{DataType, Database};
 use crate::util::Util;
 
-#[derive(Clone)]
 pub struct Entity<'a> {
     m_id: i64,
     m_db: Box<&'a dyn Database>,
