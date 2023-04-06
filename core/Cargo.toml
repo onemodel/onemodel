@@ -11,7 +11,9 @@ console = "0.15.1"
 # next line added ~4.xMB to the debug binary
 rustyline = "10.1.1"    #alternative?:  reedline = "0.11.0"
 # next lines added 62MB to the binary (from 6.9MB to 69MB, debug version)
-sqlx = { version = "0.6.2", features = [ "runtime-tokio-rustls", "postgres" ] }
+sqlx = { version = "0.6.3", features = [ "runtime-tokio-rustls", "postgres" ] }
+#wont compile w/ next line: let...else statements are unstable or some such.
+#sqlx = { version = "0.7.0-alpha.2", features = [ "runtime-tokio-rustls", "postgres" ] }
 tokio = { version = "1", features = ["full"] }
 # next line added 9MB or 15MB to the debug binary (from 69MB to 78MB or 84MB; 4.1MB release, 2.7MB stripped!)
 futures = "0.3.25"

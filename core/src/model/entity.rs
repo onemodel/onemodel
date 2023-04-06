@@ -229,14 +229,18 @@ impl Entity<'_> {
             _ => return Err(format!("How did we get here for {:?}?", entity_data[0])),
         };
 
-        // DataType::Bigint(self.m_class_id) = None; //%%$%%%%%%FIXME TO USE: entity_data[1];
+        //%%$%FIXME TO USE: entity_data[1]; RELY ON TESTS that I find or uncomment in order, to
+        //see what will happen when a null is returned from get_entity_data above, and its dependencies
+        // that eventually call pgdb.db_query and see how they all handle a NULL coming back from pg, therefore
+        // how to handle that when it gets here.  AND SIMILARLY/SAME do for the fixme just below!
+        // DataType::Bigint(self.m_class_id) = None;
         self.m_class_id = None;
         // self.m_class_id = match entity_data[1] {
         //     DataType::Bigint(x) => x,
         //     _ => return Err(format!("How did we get here for {:?}?", entity_data[1])),
         // };
 
-        self.m_public = None; //%%$%%%%%%FIXME TO USE:entity_data[3].asInstanceOf[Option<bool>]
+        self.m_public = None; //%%$%FIXME TO USE:entity_data[3].asInstanceOf[Option<bool>]
                               // self.m_public = match entity_data[3] {
                               //     DataType::Boolean(x) => x,
                               //     _ => return Err(format!("How did we get here for {:?}?", entity_data[3])),

@@ -36,6 +36,8 @@ impl PostgreSQLDatabase {
         format!("{}{}", Util::DB_NAME_PREFIX, db_name_without_prefix)
     }
 
+    //%%$%%should this and other eventual callers of db_query take its advice and call the
+    //ck method?
     fn db_query_wrapper_for_one_row(
         &self,
         sql: String,
@@ -106,7 +108,7 @@ impl PostgreSQLDatabase {
                         let y = DataType::Float(x);
                         row.push(y);
                     } else if type_name == &"String" {
-                        //%%$%%%%%
+                        //%%$%
                         //     was: row(column_counter) = Some(PostgreSQLDatabase.unescape_quotes_etc(rs.getString(column_counter)))
                         let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
                         let x: String = decode_mbe.unwrap(); //%%???
@@ -163,6 +165,8 @@ impl PostgreSQLDatabase {
     }
 
     /// Convenience function. Error message it gives if > 1 found assumes that sql passed in will return only 1 row!
+    /// Expects sql to be "select count(1)" from..."!  IDEA: make this fn provide all up to "where",
+    /// to make it more ergonomic, and code less likely to be able to call it wrong?
     fn does_this_exist(
         &self,
         sql_in: &str,
@@ -409,38 +413,27 @@ impl PostgreSQLDatabase {
             .enable_all()
             .build()
             .unwrap();
-        let res = Self::connect(&rt, username, username, password);
+        let result = Self::connect(&rt, username, username, password);
         let pool: PgPool;
-        match res {
+        match result {
             Ok(x) => pool = x,
             Err(e) => return Err(e.to_string()),
         }
-        //%% del? works as 'this'?   if !self.model_tables_exist() {
-        //   self.create_tables()?;
-        // //%%$%%%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
-        //   self.create_base_data()?;
-        // }
-        // //%% doDatabaseUpgradesIfNeeded()
-        // self.create_and_check_expected_data()?;
-        //
-        // Ok(Box::new(PostgreSQLDatabase {
-        //     include_archived_entities,
-        //     pool,
-        // }))
-        let this = PostgreSQLDatabase {
+        let new_db = PostgreSQLDatabase {
             rt,
             pool,
             include_archived_entities,
         };
-        if !this.model_tables_exist()? {
-            this.create_tables()?;
+        if !new_db.model_tables_exist()? {
+            // //%%$%%%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
+            new_db.create_tables()?;
             //%%$%%%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
-            this.create_base_data()?;
+            new_db.create_base_data()?;
         }
         //%% doDatabaseUpgradesIfNeeded()
-        this.create_and_check_expected_data()?;
+        new_db.create_and_check_expected_data()?;
 
-        Ok(Box::new(this))
+        Ok(Box::new(new_db))
     }
 
     /// For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
@@ -524,8 +517,10 @@ impl PostgreSQLDatabase {
             // or more stuff:   show all;  ).
             //%%do this by sending a query like below per examples, and retrieve info: would work? Or, need to use PgConnectOptions instead of pool?
             //.options([("default_transaction_isolation","serializable")])
+            //%%%%%%%%use .connect_with and pass options?? for transaction isolation levell...?
             .connect(connect_str.as_str());
         let pool = rt.block_on(future)?;
+        // pool.options().
         // let pool = future;
         //%%$%just some testing, can delete after next commit, or use for a while for reference.
         // // let future = sqlx::query_as("SELECT $1")
@@ -1448,20 +1443,24 @@ impl PostgreSQLDatabase {
                 break;
             }
 
+            // see comment at top of loop
+            break;
+        }
+        //rollbacketc%%%%%%%%%
+        //%%$%why doesnt the rollback, implied OR explicit, do anything? due to xactn isolation or...??
+        //%%$%I created a test & an issue for it: test_rollback_and_commit_with_less_helper_code (and test_rollback_and_commit which
+        //uses pgdb.rs code).
+        if result.is_err() {
+            //%% see "rollback problem" prefixed with %%, for comments on this.
+            //rollbacketc%%%%%%%%% NOTE: IN ALL USES OF THIS, IS THERE ANY POINT, GIVEN THAT ROLLBACK HAPPENS WHEN xactn goes OUT OF SCOPE?
+            // CLEAN UP ALL OF THEM, carefully??
+            let _rollback_results = self.rollback_trans(tx);
+            println!("set brkpt here to see if it rolls back when going out of scope shortly?%%");
+        } else {
             match self.commit_trans(tx) {
                 Err(e) => return Err(e.to_string()),
                 _ => {}
             }
-
-            // see comment at top of loop
-            break;
-        }
-        if result.is_err() {
-            //%% see "rollback problem" prefixed with %%, for comments on this.
-            //%%$%%%%%%NOTE: IN ALL USES OF THIS, IS THERE ANY POINT, GIVEN THAT ROLLBACK HAPPENS WHEN xactn goes OUT OF SCOPE?
-            // CLEAN UP ALL OF THEM, carefully??
-            // let _rollback_results = self.rollback_trans(tx);
-            println!("set brkpt here to see if it rolls back when going out of scope shortly?%%");
         }
         result
     }
@@ -2171,7 +2170,6 @@ impl PostgreSQLDatabase {
             .as_str(),
         )
     }
-
 }
 
 impl Database for PostgreSQLDatabase {
@@ -2786,7 +2784,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<i64, String> {
         let text: String = Self::escape_quotes_etc(text_in.to_string());
         let id: i64 = self.get_new_key("TextAttributeKeySequence")?;
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.begin_trans()?; }
         let add_result = self.add_attribute_sorting_row(
             parent_id_in,
@@ -2796,7 +2794,7 @@ impl Database for PostgreSQLDatabase {
         );
         match add_result {
             Err(s) => {
-                //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                 // if !caller_manages_transactions_in { self.rollback_trans()?; }
                 return Err(s.to_string());
             }
@@ -2811,13 +2809,13 @@ impl Database for PostgreSQLDatabase {
                            observation_date_in).as_str(), false, false);
         match result {
             Err(s) => {
-                //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                 // if !caller_manages_transactions_in { self.rollback_trans()?; }
                 return Err(s);
             }
             _ => {}
         };
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.commit_trans()?; }
         Ok(id)
     }
@@ -2961,7 +2959,7 @@ impl Database for PostgreSQLDatabase {
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<RelationToLocalEntity, String> {
         let rte_id: i64 = self.get_new_key("RelationToEntityKeySequence")?;
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.begin_trans()?; }
         let result: Result<i64, String> = self.add_attribute_sorting_row(
             entity_id1_in,
@@ -2971,7 +2969,7 @@ impl Database for PostgreSQLDatabase {
             sorting_index_in,
         );
         if let Err(e) = result {
-            //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+            //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
             // if !caller_manages_transactions_in { self.rollback_trans()?; }
             return Err(e);
         }
@@ -2983,11 +2981,11 @@ impl Database for PostgreSQLDatabase {
                        VALUES ({},{},{},{}, {},{})", rte_id, relation_type_id_in, entity_id1_in, entity_id2_in,
                        valid_on_date_sql_str, observation_date_in).as_str(), false, false);
         if let Err(e) = result {
-            //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+            //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
             // if !caller_manages_transactions_in { self.rollback_trans()?; }
             return Err(e);
         }
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.commit_trans()?; }
 
         Ok(RelationToLocalEntity {}) //%%$%%really: self, rte_id, relation_type_id_in, entity_id1_in, entity_id2_in})
@@ -3005,7 +3003,7 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: Option<i64>,        /*%% = None*/
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<RelationToRemoteEntity, String> {
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.begin_trans()?; }
         let rte_id: i64 = self.get_new_key("RelationToRemoteEntityKeySequence")?;
         // not creating anything in a remote DB, but a local record of a local relation to a remote entity.
@@ -3017,7 +3015,7 @@ impl Database for PostgreSQLDatabase {
             sorting_index_in,
         );
         if let Err(e) = result {
-            //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+            //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
             // if !caller_manages_transactions_in { self.rollback_trans()?; }
             return Err(e);
         }
@@ -3031,11 +3029,11 @@ impl Database for PostgreSQLDatabase {
                       rte_id, relation_type_id_in, entity_id1_in, entity_id2_in,
                       valid_on_date_sql_str, observation_date_in, remote_instance_id_in).as_str(), false, false);
         if let Err(e) = result {
-            //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+            //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
             // if !caller_manages_transactions_in { self.rollback_trans()?; }
             return Err(e);
         }
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.commit_trans()?; }
         Ok(RelationToRemoteEntity {}) //%%$%%really: self, rte_id, relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in
     }
@@ -3157,7 +3155,7 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: Option<i64>,
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), String> {
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.begin_trans() }
         let group_id: i64 =
             self.create_group(new_group_name_in, allow_mixed_classes_in_group_in)?;
@@ -3170,7 +3168,7 @@ impl Database for PostgreSQLDatabase {
             sorting_index_in,
             caller_manages_transactions_in,
         )?;
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in {self.commit_trans() }
         Ok((group_id, rtg_id))
     }
@@ -3188,7 +3186,7 @@ impl Database for PostgreSQLDatabase {
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<(i64, i64), String> {
         let name: String = Self::escape_quotes_etc(new_entity_name_in.to_string());
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.begin_trans() }
         let new_entity_id: i64 = self.create_entity(name.as_str(), None, is_public_in)?;
         let new_rte: RelationToLocalEntity = self.create_relation_to_local_entity(
@@ -3200,9 +3198,9 @@ impl Database for PostgreSQLDatabase {
             None,
             caller_manages_transactions_in,
         )?;
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in {self.commit_trans() }
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         Ok((new_entity_id, 0)) //really: , new_rte.get_id()))
     }
 
@@ -3219,7 +3217,7 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: Option<i64>,        /*%%= None*/
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), String> {
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.begin_trans() }
         let id: i64 = self.get_new_key("RelationToGroupKeySequence2")?;
         let sorting_index = {
@@ -3239,7 +3237,7 @@ impl Database for PostgreSQLDatabase {
                                   false, false)?;
             sorting_index
         };
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in {self.commit_trans() }
         Ok((id, sorting_index))
     }
@@ -3397,7 +3395,7 @@ impl Database for PostgreSQLDatabase {
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(), String> {
         // IF THIS CHANGES ALSO DO MAINTENANCE IN SIMILAR METHOD add_attribute_sorting_row
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.begin_trans()?; }
 
         // start from the beginning index, if it's the 1st record (otherwise later sorting/renumbering gets messed up if we start w/ the last #):
@@ -3415,7 +3413,7 @@ impl Database for PostgreSQLDatabase {
                 // let unused_index: i64 = match find_unused_result {
                 //     Ok(i) => i,
                 //     Err(s) => {
-                //         %%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                //         rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                 //         if !caller_manages_transactions_in { self.rollback_trans()?; }
                 // return Err(s.to_string());
                 // },
@@ -3436,22 +3434,23 @@ impl Database for PostgreSQLDatabase {
         let result = self.db_action(format!("insert into EntitiesInAGroup (group_id, entity_id, sorting_index) values ({},{},{})",
                           group_id_in, contained_entity_id_in, sorting_index).as_str(), false, false);
         if let Err(s) = result {
-            //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+            //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
             // if !caller_manages_transactions_in { self.rollback_trans()?; }
             return Err(s);
         }
         // idea: do this check sooner in this method?:
         let mixed_classes_allowed: bool = self.are_mixed_classes_allowed(group_id_in)?;
         if !mixed_classes_allowed && self.has_mixed_classes(group_id_in)? {
-            //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+            //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
             // if !caller_manages_transactions_in { self.rollback_trans()?; }
             return Err(Util::MIXED_CLASSES_EXCEPTION.to_string());
         }
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.commit_trans()?; }
         Ok(())
     }
 
+    /// Returns the created row's id.
     fn create_entity(
         &self,
         name_in: &str,
@@ -3515,7 +3514,7 @@ impl Database for PostgreSQLDatabase {
 
         let mut result: Result<u64, String>;
         let mut id: i64 = 0;
-        //see comment at loop in create_tables()
+        //see comment at loop in fn create_tables
         loop {
             id = match self.get_new_key("EntityKeySequence") {
                 Err(s) => {
@@ -3557,7 +3556,7 @@ impl Database for PostgreSQLDatabase {
             _ => Ok(id),
         }
         // if result.is_err() {
-        //     //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO! INTEGRATE W RETURN VALUES JUST ABOVE!
+        //     //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO! INTEGRATE W RETURN VALUES JUST ABOVE!
         //     // let _rollback_result = self.rollback_trans();
         // // if let Err(e1) = result {
         //     //%%rollback problem:  see if i can figure out a way to get rollback to work like the old def rollbackWithCatch
@@ -3612,7 +3611,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<(), String> {
         // idea: (also on task list i think but) we should not delete entities until dealing with their use as attrtypeids etc!
         // (or does the DB's integrity constraints do that for us?)
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.begin_trans()?; }
         self.delete_objects(
             "EntitiesInAGroup",
@@ -3632,7 +3631,7 @@ impl Database for PostgreSQLDatabase {
             0,
             true,
         )?;
-        //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in {self.commit_trans()?; }
         Ok(())
     }
@@ -3914,7 +3913,7 @@ impl Database for PostgreSQLDatabase {
                   // (start with an increment so that later there is room to sort something prior to it, manually)
                   let mut next: i64 = self.min_id_value() + increment;
                   let mut previous: i64 = self.min_id_value();
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                   // if !caller_manages_transactions_in { self.begin_trans() }
                   try {
                     let data: List[Array[Option[Any]]] = {;
@@ -3969,7 +3968,7 @@ impl Database for PostgreSQLDatabase {
                   }
                   catch {
                     case e: Exception =>
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                       // if !caller_manages_transactions_in) rollback_trans()
                       throw e
                   }
@@ -3982,7 +3981,7 @@ impl Database for PostgreSQLDatabase {
                   // (See also a comment somewhere else 4 poss. issue that refers, related, to this method name.)
                   //require((maxIDValue - next) < (increment * 2))
 
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                   // if !caller_manages_transactions_in {self.commit_trans() }
                 }
               }
@@ -5445,7 +5444,7 @@ impl Database for PostgreSQLDatabase {
                     fn archiveObjects(table_name_in: String, where_clause_in: String, rows_expected: i64 = 1, caller_manages_transactions_in: bool = false,
                                              unarchive: bool = false) {
                     //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                     // if !caller_manages_transactions_in) self.begin_trans()
                     try {
                       let archive = if unarchive) "false" else "true";
@@ -5461,7 +5460,7 @@ impl Database for PostgreSQLDatabase {
                         throw rollbackWithCatch(new OmDatabaseException("Archive command would have updated " + rows_affected + "rows, but " +
                                                               rows_expected + " were expected! Did not perform archive."))
                       } else {
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                         // if !caller_manages_transactions_in) commit_trans()
                       }
                     } catch {
@@ -5507,7 +5506,7 @@ impl Database for PostgreSQLDatabase {
                                                    makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool,
                                                    quoteIn: Option<String> = None) -> (Entity, RelationToLocalEntity) {
                     if quoteIn.is_some()) require(!quoteIn.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                     // if !caller_manages_transactions_in { self.begin_trans() }
                     try {
                       // **idea: BAD SMELL: should this method be moved out of the db class, since it depends on higher-layer components, like EntityClass and
@@ -5523,12 +5522,12 @@ impl Database for PostgreSQLDatabase {
                       if quoteIn.is_some()) {
                         newEntity.addTextAttribute(quotationClassTemplateId, quoteIn.get, None, None, observation_date_in, caller_manages_transactions_in)
                       }
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                       // if !caller_manages_transactions_in {self.commit_trans() }
                       (newEntity, newRTLE)
                     } catch {
                       case e: Exception =>
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                         // if !caller_manages_transactions_in) rollback_trans()
                         throw e
                     }
@@ -5536,7 +5535,7 @@ impl Database for PostgreSQLDatabase {
 
                     fn getOrCreateClassAndTemplateEntity(class_name_in: String, caller_manages_transactions_in: bool) -> (i64, i64) {
                     //(see note above re 'bad smell' in method addUriEntityWithUriAttribute.)
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                     // if !caller_manages_transactions_in { self.begin_trans() }
                     try {
                       let (class_id, entity_id) = {;
@@ -5549,13 +5548,13 @@ impl Database for PostgreSQLDatabase {
                           (class_id, entity_id)
                         }
                       }
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                       // if !caller_manages_transactions_in {self.commit_trans() }
                       (class_id, entity_id)
                     }
                     catch {
                       case e: Exception =>
-                          //%%$%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                         // if !caller_manages_transactions_in) rollback_trans()
                         throw e
                     }
@@ -5758,14 +5757,19 @@ mod tests {
 
     #[test]
     fn test_basic_sql_connectivity_with_async_and_tokio() {
-        // To reproduce/fix hangs, by using either rt.block_on(), or instead #[tokio::main] or
-        // #[tokio::test], async, and future.await, but not mixing them!
+        // To reproduce and fix hangs, by using either 1) rt.block_on(); or 2) #[tokio::main] or
+        // #[tokio::test], with async fn and future.await, but not mixing the 2 approaches!
 
         let mut rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap();
-        let connect_str = format!("postgres://{}:{}@localhost/{}", "t1", "x", "om_t1");
+        let connect_str = format!(
+            "postgres://{}:{}@localhost/{}",
+            Util::TEST_USER,
+            Util::TEST_PASS,
+            "om_t1"
+        );
         let future = PgPoolOptions::new()
             .max_connections(1)
             // .connect(connect_str.as_str()).await?;
@@ -5824,8 +5828,8 @@ mod tests {
     fn test_set_user_preference_and_get_user_preference() {
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
 
-        assert!(db.get_user_preference_boolean("xyznevercreatemeinreallife", None).is_none());
         /* //%%$%%%%
+        assert!(db.get_user_preference_boolean("xyznevercreatemeinreallife", None).is_none());
         //mbe next: get all big %%%s, uncmt all in Database and pgdb.rs, fix red/style/format, compile, make this test work incl above line.
 
         // (intentional style violation for readability - the ".contains" suggested by the IDE just caused another problem)
@@ -5843,5 +5847,165 @@ mod tests {
         //noinspection OptionEqualsSome
         assert(m_db.getUserPreference_EntityId("xyz2", Some(0L)) == Some(m_db.get_system_entity_id))
                  */
+    }
+
+    //%%$%%put back after next one below is working, to confirm this works also?
+    #[test]
+    ///yes it actually was failing when written, in my use of Sqlx somehow.%%finish cmt--what fixed?
+    fn test_rollback_and_commit() {
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let rand_num = randlib::Rand::new().rand_i32();
+        let name: String =
+            format!("test_rollback_temporary_entity_{}", rand_num.to_string()).to_string();
+        let tx = db.begin_trans().unwrap();
+        let mut id = db
+            .create_entity(name.as_str(), None, None)
+            .expect(format!("Failed to create entity with name: {name}").as_str());
+        db.rollback_trans(tx).unwrap();
+        assert!(!db
+            .entity_key_exists(id, true)
+            .expect(format!("Found: {id}").as_str()));
+
+        // this time with an implied rollback, as sqlx docs say when a transaction goes out of scope
+        // without a commit, it is implicitly rolled back.
+        {
+            let tx = db.begin_trans().unwrap();
+            id = db
+                .create_entity(name.as_str(), None, None)
+                .expect(format!("Failed to create: {name}").as_str());
+        }
+        assert!(!db
+            .entity_key_exists(id, true)
+            .expect(format!("Found: {id}").as_str()));
+
+        // this time with a commit, not a rollback
+        let tx = db.begin_trans().unwrap();
+        id = db
+            .create_entity(name.as_str(), None, None)
+            .expect(format!("Failed to create entity w name: {name}").as_str());
+        assert!(db
+            .entity_key_exists(id, true)
+            .expect(format!("Failed to find: {id}").as_str()));
+        db.commit_trans(tx).unwrap();
+        assert!(db
+            .entity_key_exists(id, true)
+            .expect(format!("Failed to find: {id}").as_str()));
+    }
+
+    /// Intended for use in tests that I might want to send in to reproduce a bug.
+    /// Takes sql like "select count(1) from <table>".
+    fn sqlx_get_int(pool: &sqlx::Pool<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) -> i64 {
+        // let future = sqlx::query_as(sql.as_str()).bind(150_i64).fetch_one(&pool);
+        // let row: (i64,) = rt.block_on(future).expect(format!("Failed sql: {count_sql}").as_str());
+        // let count: i64 = row.0;
+        let mut count: i64 = -1;
+        let future = sqlx::query(sql)
+            .map(|sqlx_row: PgRow| {
+                count = sqlx_row
+                    .try_get(0)
+                    .expect(format!("Failed at: {sql} and getting val.").as_str());
+                println!("in db_query {sql}: val is {} .", count);
+            })
+            .fetch_all(pool);
+        rt.block_on(future)
+            .expect(format!("Failed sql: {sql}").as_str());
+        count
+    }
+    /// For a test that does an insert statement.
+    fn sqlx_do_query(pool: &sqlx::Pool<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) {
+        let mut x: PgQueryResult = rt
+            .block_on(sqlx::query(sql).execute(pool))
+            .expect(format!("Failed sql: {sql}").as_str());
+        println!("inserted: {}: {:?}", sql, x);
+    }
+    #[test]
+    ///yes it actually was failing when written, in my use of Sqlx somehow.%%finish cmt--what fixed?
+    fn test_rollback_and_commit_with_less_helper_code() {
+        let mut rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let connect_str = format!(
+            "postgres://{}:{}@localhost/{}",
+            Util::TEST_USER,
+            Util::TEST_PASS,
+            "om_t1"
+        );
+        //%%$% why does the insert sql get "PoolTimedOut" if .max_connections is 1 instead of 10??
+        //(Is similar to similar problem w/ .max_connections noted elsewhere?)
+        let future = PgPoolOptions::new()
+            .max_connections(10)
+            .connect(connect_str.as_str());
+        let pool = rt.block_on(future).unwrap();
+
+        // let rand_num = randlib::Rand::new().rand_u16();
+        // let table_name: String = format!("test_rollback_temp_{}", rand_num.to_string()).to_string();
+        let table_name: String = format!("test_rollback_temp").to_string();
+
+        let sql = format!("DROP table IF EXISTS {table_name}");
+        let mut x: PgQueryResult = rt
+            .block_on(sqlx::query(sql.as_str()).execute(&pool))
+            .expect(format!("Error from sql: {}", sql).as_str());
+        println!("dropped table if exists: {}: {:?}", &sql, x);
+
+        let sql = format!("create table {table_name} (datum varchar(99) NOT NULL) ");
+        x = rt
+            .block_on(sqlx::query(sql.as_str()).execute(&pool))
+            .expect(format!("Error from sql: {}", sql).as_str());
+        println!("created table: {}: {:?}", &sql, x);
+
+        let count_sql = format!("select count(*) from {table_name}");
+        let mut count: i64 = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        assert_eq!(count, 0);
+        println!("count before insertion: {}", count);
+
+        // now we have a table w/ no rows, so see about a transaction and its effects.
+        let tx = rt.block_on(pool.begin()).unwrap();
+
+        let insert_sql = format!("insert into {table_name} (datum) VALUES ('something')");
+        sqlx_do_query(&pool, &rt, insert_sql.as_str());
+        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        assert_eq!(count, 1);
+        println!("count after insertion: {}", count);
+
+        rt.block_on(tx.rollback()).unwrap();
+
+        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        println!("count after rollback should be 0: {}", count);
+
+        //%%$%this fails, so try?: xnew version of sqlx w what changes, xmore web searches, reddit?, file an issue (filed 20230406)?
+        //%%$%why doesnt the rollback, implied OR explicit, do anything? due to xactn isolation or...??
+        //AFTER FIXING, see all the places with "rollbacketc%%%%%%%%%" (9) and address them.
+        assert_eq!(count, 0);
+
+        // this time with an implied rollback, as sqlx docs say when a transaction goes out of scope
+        // without a commit, it is implicitly rolled back.
+        {
+            // now we have a table w/ no rows, so see about a transaction and its effects.
+            let tx = rt.block_on(pool.begin()).unwrap();
+            sqlx_do_query(&pool, &rt, insert_sql.as_str());
+            count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+            assert_eq!(count, 1);
+            println!("count after insert: {}", count);
+
+            rt.block_on(tx.rollback()).unwrap();
+        }
+        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        println!("count after implied rollback should be 0: {}", count);
+        assert_eq!(count, 0);
+
+        // this time with a commit, not a rollback
+        let tx = rt.block_on(pool.begin()).unwrap();
+
+        sqlx_do_query(&pool, &rt, insert_sql.as_str());
+        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        assert_eq!(count, 1);
+        println!("count after insert: {}", count);
+
+        rt.block_on(tx.commit()).unwrap();
+
+        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        println!("count after commit should still be 1: {}", count);
+        assert_eq!(count, 1);
     }
 }
