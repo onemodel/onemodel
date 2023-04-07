@@ -48,7 +48,7 @@ object PostgreSQLDatabaseTest {
 
               or something that integration tests can do, pre-run? re-ck docs 4 that!
 
-              %%$%%%%OR BETR:
+              %%OR BETR:
                 ??: create a like or use ct script, moved into OM dirs, to run db cleanup before tests
                   does a ck 1st to see if the place where it needs to run is a subdir of self/where
                 then runs cargo test like now
@@ -68,25 +68,6 @@ object PostgreSQLDatabaseTest {
               or just launch/close om! which does the db setup right?
                 is there a way to run it only after build, before test?
        */
-
-    // reconnect to the normal production database and tear down the temporary one we used for testing.
-    // This is part of the singleton object, in part so that it can be called even before we have a Database object: this is to avoid
-    // doing setup (at first db instantiation for a new system), then immediately another teardown/setup for the tests.
-    try {
-      //%%$%%%%
-      PostgreSQLDatabase.destroy_tables(Database.TEST_USER, Database.TEST_USER, Database.TEST_PASS)
-    }
-    catch {
-      case e: java.sql.SQLException =>
-        if e.toString.indexOf("is being accessed by other users") != -1 {
-          // why did this happen sometimes?
-          // but it can be ignored, as the next test run will also clean this out as it starts.
-        }
-        else {
-          throw e
-        }
-    }
-  }
 
 }
 

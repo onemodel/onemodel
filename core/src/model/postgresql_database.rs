@@ -425,9 +425,9 @@ impl PostgreSQLDatabase {
             include_archived_entities,
         };
         if !new_db.model_tables_exist()? {
-            // //%%$%%%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
+            // //%%$% try to see what happens if pg down be4 & during this--does the err propagate ok?
             new_db.create_tables()?;
-            //%%$%%%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
+            //%%$% try to see what happens if pg down be4 & during this--does the err propagate ok?
             new_db.create_base_data()?;
         }
         //%% doDatabaseUpgradesIfNeeded()
@@ -3550,13 +3550,13 @@ impl Database for PostgreSQLDatabase {
             // see comment at top of loop
             break;
         }
-        //%%$%%%%%debug/verify all parts of this?:
         match result {
             Err(e) => Err(e),
             _ => Ok(id),
         }
         // if result.is_err() {
         //     //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO! INTEGRATE W RETURN VALUES JUST ABOVE!
+        //%%$%debug/verify all parts of this rollback stuff, once in place?:
         //     // let _rollback_result = self.rollback_trans();
         // // if let Err(e1) = result {
         //     //%%rollback problem:  see if i can figure out a way to get rollback to work like the old def rollbackWithCatch
@@ -5828,7 +5828,7 @@ mod tests {
     fn test_set_user_preference_and_get_user_preference() {
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
 
-        /* //%%$%%%%
+        /* //%%$%%%% cont uncommenting tests & making them pass
         assert!(db.get_user_preference_boolean("xyznevercreatemeinreallife", None).is_none());
         //mbe next: get all big %%%s, uncmt all in Database and pgdb.rs, fix red/style/format, compile, make this test work incl above line.
 
@@ -5894,7 +5894,30 @@ mod tests {
 
     /// Intended for use in tests that I might want to send in to reproduce a bug.
     /// Takes sql like "select count(1) from <table>".
-    fn sqlx_get_int(pool: &sqlx::Pool<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) -> i64 {
+    // fn sqlx_get_int(pool: &sqlx::Pool<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) -> i64 {
+    fn sqlx_get_int(tx: &mut Transaction<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) -> i64 {
+    // fn sqlx_get_int(tx: &mut sqlx::Executor, rt: &tokio::runtime::Runtime, sql: &str) -> i64 {
+        // let future = sqlx::query_as(sql.as_str()).bind(150_i64).fetch_one(&pool);
+        // let row: (i64,) = rt.block_on(future).expect(format!("Failed sql: {count_sql}").as_str());
+        // let count: i64 = row.0;
+        let mut count: i64 = -1;
+        let future = sqlx::query(sql)
+            .map(|sqlx_row: PgRow| {
+                count = sqlx_row
+                    .try_get(0)
+                    .expect(format!("Failed at: {sql} and getting val.").as_str());
+                println!("in db_query {sql}: val is {} .", count);
+            })
+            // .fetch_all(pool);
+            .fetch_all(tx);
+        rt.block_on(future)
+            .expect(format!("Failed sql: {sql}").as_str());
+        count
+    }
+    /// Intended for use in tests that I might want to send in to reproduce a bug.
+    /// Takes sql like "select count(1) from <table>".
+    fn sqlx_get_int_no_tx(pool: &sqlx::Pool<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) -> i64 {
+    // fn sqlx_get_int_no_tx(tx: &mut sqlx::Executor, rt: &tokio::runtime::Runtime, sql: &str) -> i64 {
         // let future = sqlx::query_as(sql.as_str()).bind(150_i64).fetch_one(&pool);
         // let row: (i64,) = rt.block_on(future).expect(format!("Failed sql: {count_sql}").as_str());
         // let count: i64 = row.0;
@@ -5907,14 +5930,18 @@ mod tests {
                 println!("in db_query {sql}: val is {} .", count);
             })
             .fetch_all(pool);
+            // .fetch_all(tx);
         rt.block_on(future)
             .expect(format!("Failed sql: {sql}").as_str());
         count
     }
     /// For a test that does an insert statement.
-    fn sqlx_do_query(pool: &sqlx::Pool<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) {
+    // fn sqlx_do_query(pool: &sqlx::Pool<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) {
+    fn sqlx_do_query(executor: &mut Transaction<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) {
+    // fn sqlx_do_query(executor: &mut sqlx::Executor, rt: &tokio::runtime::Runtime, sql: &str) {
         let mut x: PgQueryResult = rt
-            .block_on(sqlx::query(sql).execute(pool))
+            // .block_on(sqlx::query(sql).execute(pool))
+            .block_on(sqlx::query(sql).execute(executor))
             .expect(format!("Failed sql: {sql}").as_str());
         println!("inserted: {}: {:?}", sql, x);
     }
@@ -5955,22 +5982,28 @@ mod tests {
         println!("created table: {}: {:?}", &sql, x);
 
         let count_sql = format!("select count(*) from {table_name}");
-        let mut count: i64 = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        // let mut tx/*%%FIXME/DELME*/: Transaction<Postgres> = rt.block_on(pool.begin()).unwrap();
+        let mut count: i64 = sqlx_get_int_no_tx (&pool, &rt, count_sql.as_str());
+        // let mut count = 0;
+        // let mut count: i64 = sqlx_get_int(&mut tx, &rt, count_sql.as_str());
         assert_eq!(count, 0);
         println!("count before insertion: {}", count);
 
         // now we have a table w/ no rows, so see about a transaction and its effects.
-        let tx = rt.block_on(pool.begin()).unwrap();
+        let mut tx: Transaction<Postgres> = rt.block_on(pool.begin()).unwrap();
 
         let insert_sql = format!("insert into {table_name} (datum) VALUES ('something')");
-        sqlx_do_query(&pool, &rt, insert_sql.as_str());
-        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        // sqlx_do_query(&pool, &rt, insert_sql.as_str());
+        sqlx_do_query(&mut tx, &rt, insert_sql.as_str());
+        // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        count = sqlx_get_int(&mut tx, &rt, count_sql.as_str());
         assert_eq!(count, 1);
         println!("count after insertion: {}", count);
 
         rt.block_on(tx.rollback()).unwrap();
 
-        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        count = sqlx_get_int_no_tx(&pool, &rt, count_sql.as_str());
         println!("count after rollback should be 0: {}", count);
 
         //%%$%this fails, so try?: xnew version of sqlx w what changes, xmore web searches, reddit?, file an issue (filed 20230406)?
@@ -5982,29 +6015,35 @@ mod tests {
         // without a commit, it is implicitly rolled back.
         {
             // now we have a table w/ no rows, so see about a transaction and its effects.
-            let tx = rt.block_on(pool.begin()).unwrap();
-            sqlx_do_query(&pool, &rt, insert_sql.as_str());
-            count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+            let mut tx = rt.block_on(pool.begin()).unwrap();
+            // sqlx_do_query(&pool, &rt, insert_sql.as_str());
+            sqlx_do_query(&mut tx, &rt, insert_sql.as_str());
+            // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+            count = sqlx_get_int(&mut tx, &rt, count_sql.as_str());
             assert_eq!(count, 1);
             println!("count after insert: {}", count);
 
             rt.block_on(tx.rollback()).unwrap();
         }
-        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        count = sqlx_get_int_no_tx(&pool, &rt, count_sql.as_str());
         println!("count after implied rollback should be 0: {}", count);
         assert_eq!(count, 0);
 
         // this time with a commit, not a rollback
-        let tx = rt.block_on(pool.begin()).unwrap();
+        let mut tx = rt.block_on(pool.begin()).unwrap();
 
-        sqlx_do_query(&pool, &rt, insert_sql.as_str());
-        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        // sqlx_do_query(&pool, &rt, insert_sql.as_str());
+        sqlx_do_query(&mut tx, &rt, insert_sql.as_str());
+        // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        count = sqlx_get_int(&mut tx, &rt, count_sql.as_str());
         assert_eq!(count, 1);
         println!("count after insert: {}", count);
 
         rt.block_on(tx.commit()).unwrap();
 
-        count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
+        count = sqlx_get_int_no_tx(&pool, &rt, count_sql.as_str());
         println!("count after commit should still be 1: {}", count);
         assert_eq!(count, 1);
     }
