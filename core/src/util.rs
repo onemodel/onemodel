@@ -73,8 +73,7 @@ impl Util {
     pub const GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
         "i64,i64,Float,i64,i64,i64,i64";
     pub const GET_DATE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
-    pub const GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
-        "i64,Bool,i64,i64,i64,i64";
+    pub const GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,Bool,i64,i64,i64,i64";
     pub const GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
         "i64,String,i64,i64,i64,String,Bool,Bool,Bool,i64,String,i64";
     pub const GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,String,i64,i64,i64,i64";
@@ -85,8 +84,7 @@ impl Util {
     pub const GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
     pub const GET_RELATION_TO_REMOTE_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
     pub const GET_GROUP_DATA__RESULT_TYPES: &'static str = "String,i64,Bool,Bool";
-    pub const GET_ENTITY_DATA__RESULT_TYPES: &'static str =
-        "String,i64,i64,Bool,Bool,Bool";
+    pub const GET_ENTITY_DATA__RESULT_TYPES: &'static str = "String,i64,i64,Bool,Bool,Bool";
     pub const GET_GROUP_ENTRIES_DATA__RESULT_TYPES: &'static str = "i64,i64";
 
     pub fn entity_name_length() -> u32 {
@@ -135,6 +133,7 @@ impl Util {
     // const DATEFORMAT2_WITH_ERA: &'static str = "%Y-%m-%d %H:%M:%S %Z";
     // const DATEFORMAT3_WITH_ERA: &'static str = "GGyyyy-MM-dd HH:mm zzz";
     // const DATEFORMAT3_WITH_ERA: &'static str = "%Y-%m-%d %H:%M %Z";
+    // DON'T CHANGE this msg unless you also change the trap for it in TextUI.java.
     pub const DOES_NOT_EXIST: &'static str = " does not exist in database.";
 
     //these are here to avoid colliding with use of the same names within other code inside the class.
@@ -543,9 +542,11 @@ impl Util {
                             assert!(observed_date.is_some());
                         }
                         Some(od) => {
-                            let dates_descr: String = AttributeWithValidAndObservedDates::get_dates_description(
-                                valid_on_date, od
-                            );
+                            let dates_descr: String =
+                                AttributeWithValidAndObservedDates::get_dates_description(
+                                    valid_on_date,
+                                    od,
+                                );
                             let prompt = format!("Dates are: {}: right?", dates_descr);
                             let answer = ui.ask_yes_no_question(prompt, "y", false);
                             match answer {
@@ -1050,8 +1051,11 @@ impl Util {
     }
 
     //%%shouldn't this be in the pg.rs file, and make its struct fields not pub? or cmt why isn't?
-    pub fn initialize_test_db() ->  Result<PostgreSQLDatabase, &'static str> {
-        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    pub fn initialize_test_db() -> Result<PostgreSQLDatabase, &'static str> {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
         // It seems like it would be faster to put the next two statements inside the ".call_once()"
         // below, but then returning the db or assigning it to a static mut TEST_DB for others to
         // access was initially problematic and I didn't see an obvious solution.
@@ -1076,8 +1080,16 @@ impl Util {
             //     TEST_DB = Some(db);
             // }
 
+            /* //%%$%%%%%%%%%%
+            // no point in a transaction to destroy tables, it seems.
             db.destroy_tables().unwrap();
-            db.create_tables().unwrap();
+            let tx = db
+                .begin_trans()
+                .expect("Failure to begin transaction before creating test data.");
+            db.create_tables(Some(&tx)).unwrap();
+            db.commit_trans(tx)
+                .expect("Failure to commit transaction after creating test data.");
+             */ //%%$%%%%%%%%%%
 
             println!("finishing call_once");
         });
@@ -1087,10 +1099,12 @@ impl Util {
     /// Used for example after one has been deleted, to put the highlight on right next one:
     /// idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
     /**%%fix doc formatting:
-         * @param object_set_size  # of all the possible entries, not reduced by what fits in the available display space (I think).
-         * @param objects_to_display_in  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
-         * @return
+     * @param object_set_size  # of all the possible entries, not reduced by what fits in the available display space (I think).
+     * @param objects_to_display_in  Only those that have been chosen to display (ie, smaller list to fit in display size size) (I think).
+     * @return
      */
+    //%%do any callers of this have a transaction? If so, does it make sense to pass that into here so
+    //it can pass it into the below call to "let new_same_entity = match Entity::new2(...)"?
     fn find_entity_to_highlight_next<'a>(
         db: Box<&'a dyn Database>,
         object_set_size: usize,
@@ -1171,11 +1185,14 @@ impl Util {
                     None => Ok(None),
                     Some(e) => {
                         // create a new instance of this entity, to avoid compiler errors
-                        let new_same_entity = match Entity::new2(db, e.get_id()) {
+                        /* //%%$%%%%%%%%%%
+                        let new_same_entity = match Entity::new2(db, None, e.get_id()) {
                             Err(e) => return Err(e.to_string()),
                             Ok(entity) => entity,
                         };
                         Ok(Some(new_same_entity))
+                         */ //%%$%%%%%%%%%%
+                        Ok(None) //DELME WHEN PUTTING BACK THE JUST-ABOVE!
                     }
                 }
                 // }
