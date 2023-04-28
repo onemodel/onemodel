@@ -249,13 +249,25 @@ command, substituting your username for the "<...>", removing the <>'s):
 
 Note about users and schemas, if you create more users in the same
 database:  This current use of postgres assumes that there is only 
-one user per database.  If multiple users are created for
+one user per database, and that user is trusted to update the public
+schema.  If multiple users are created for
 any reason inside a single database, and they are not equally 
 trusted, see the potential risk related to search_path documented at 
 https://www.postgresql.org/docs/current/static/release-10-3.html#id-1.11.6.6.5 
 where "any schemas writable by a hostile user enables that user to 
 capture control of queries and then run arbitrary SQL code with 
 the permissions of the attacked user."
+Further notes: this was fixed in postgres 15 and the default is now to disallow users from 
+updating the public schema, by default.  The below commands (grant create on schema public to <user>;)
+work around this, but if you do not fully trust this(ese) user(s) on the system, or want further
+details, see these pages and relevant info to which they link:
+  https://www.postgresql.org/docs/15/release-15.html
+  https://www.postgresql.org/docs/15/sql-grant.html
+  https://www.postgresql.org/support/security/CVE-2018-1058/
+  https://wiki.postgresql.org/wiki/A_Guide_to_CVE-2018-1058:_Protect_Your_Search_Path
+  https://www.postgresql.org/about/news/postgresql-103-968-9512-9417-and-9322-released-1834/
+  https://www.postgresql.org/docs/15/ddl-schemas.html#DDL-SCHEMAS-PATTERNS
+  https://www.postgresql.org/docs/10/release-10-3.html#id-1.11.6.6.5
 
 - Create the database with this command (substituting your username for
 the "<...>", removing the <>'s):
@@ -269,10 +281,11 @@ the "<...>", removing the <>'s):
     Type "help" for help.
     om_<yourusername>=#
 
-- At the prompt, run this command (substituting your username & password
+- At the prompt, run these commands (substituting your username & password
 for the "<...>"'s, removing the <>'s, but *do keep* the single-quotes
 (') and the semicolon ";"):
     create role <yourusername> with createdb login encrypted password '<putYourPasswordHere>';
+    grant create on schema public to <yourusername>;
   ... but don't use any apostrophes, aka single-ticks or single-quotes
   inside your provided password, because it should only be surrounded
   by them.   Note it is NOT "create role om_<yourusername>": having om_
@@ -288,7 +301,8 @@ for the "<...>"'s, removing the <>'s, but *do keep* the single-quotes
 
 - Developers: also run this command (with the semicolon):
     create role t1 with login encrypted password 'x';
-  ...which is to enable unit tests.
+    grant create on schema public to t1;
+  ...which is to enable unit and integration tests.
 
 - Run this command (with the semicolon):
     create extension lo;
