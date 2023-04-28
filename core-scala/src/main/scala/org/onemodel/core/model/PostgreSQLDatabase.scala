@@ -3310,17 +3310,17 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
                       }) +
                       " true " +
                       classLimit(limitByClass, classIdIn) +
-                      (if (limitByClass && templateEntity.isDefined) " and id != " + templateEntity.get else "") +
+                      (if (limitByClass && templateEntity.isDefined) " and id != " + templateEntity.get else " ") +
                       (if (tableNameIn.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) {
                         // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
                         // for which a RelationType row also exists.
                         " and e.id = r.entity_id "
-                      } else "") +
-                      (if (tableNameIn.compareToIgnoreCase("EntityOnly") == 0) limitToEntitiesOnly(selectEntityStart) else "") +
+                      } else " ") +
+                      (if (tableNameIn.compareToIgnoreCase("EntityOnly") == 0) limitToEntitiesOnly(selectEntityStart) else " ") +
                       (if (groupToOmitIdIn.isDefined) " except (" + selectEntityStart + " from entity e, " +
                                                     "EntitiesInAGroup eiag where e.id=eiag.entity_id and " +
                                                     "group_id=" + groupToOmitIdIn.get + ")"
-                      else "") +
+                      else " ") +
                       " order by id limit " + checkIfShouldBeAllResults(maxValsIn) + " offset " + startingObjectIndexIn
     val earlyResults = dbQuery(sql,
                                if (tableNameIn.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) {
