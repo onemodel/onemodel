@@ -1080,22 +1080,23 @@ impl Util {
             //     TEST_DB = Some(db);
             // }
 
-            /* //%%$%%%%%%%%%%
+            /*%%%%%%%%%%%
             // no point in a transaction to destroy tables, it seems.
             db.destroy_tables().unwrap();
-            let tx = db
+            let mut tx = db
                 .begin_trans()
                 .expect("Failure to begin transaction before creating test data.");
-            db.create_tables(Some(&tx)).unwrap();
-            db.commit_trans(tx)
+            db.create_tables(Some(&mut tx)).unwrap();
+            db.commit_trans(&mut tx)
                 .expect("Failure to commit transaction after creating test data.");
-             */ //%%$%%%%%%%%%%
+%%%%%%%%%%*/
 
             println!("finishing call_once");
         });
         Ok(db)
     }
 
+    /*%%%%%%%%%%%
     /// Used for example after one has been deleted, to put the highlight on right next one:
     /// idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
     /**%%fix doc formatting:
@@ -1185,14 +1186,11 @@ impl Util {
                     None => Ok(None),
                     Some(e) => {
                         // create a new instance of this entity, to avoid compiler errors
-                        /* //%%$%%%%%%%%%%
                         let new_same_entity = match Entity::new2(db, None, e.get_id()) {
                             Err(e) => return Err(e.to_string()),
                             Ok(entity) => entity,
                         };
                         Ok(Some(new_same_entity))
-                         */ //%%$%%%%%%%%%%
-                        Ok(None) //DELME WHEN PUTTING BACK THE JUST-ABOVE!
                     }
                 }
                 // }
@@ -1201,6 +1199,7 @@ impl Util {
             Ok(Some(previously_highlighted_entry_in))
         }
     }
+    %%%%%%%%%%%*/
     /*
         /// Returns None if user wants to cancel.
         fn ask_for_text_attribute_text(_: Box<dyn Database>, dh: &TextAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<TextAttributeDataHolder> {

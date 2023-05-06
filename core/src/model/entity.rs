@@ -67,13 +67,13 @@ impl Entity<'_> {
         const PRIVACY_UNSET: &'static str = "[UNSET]";
 
     */
-    /* //%%$%%%%%%%%%%
+    /*%%%%%%%%%%
     /// Represents one object in the system.
     /// This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
     /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
     /// (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
     /// set... method to fix it.)
-    pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: Option<&Transaction<Postgres>>, id: i64) -> Result<Entity<'a>, String> {
+    pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: Option<&mut Transaction<Postgres>>, id: i64) -> Result<Entity<'a>, String> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
         if !db.is_remote() && !db.entity_key_exists(transaction, id, true)? {
             return Err(format!("Key {}{}", id, Util::DOES_NOT_EXIST));
@@ -90,7 +90,7 @@ impl Entity<'_> {
             m_new_entries_stick_to_top: false,
         })
     }
-*/ //%%$%%%%%%%%%%
+    %%%%%%%%%%*/
     /*
         /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
         /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
@@ -117,15 +117,15 @@ impl Entity<'_> {
         }
 
     */
-    /* //%%$%%%%%%%%%%
+    /*%%%%%%%%%%
     /// When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
-    pub fn get_name(&mut self, transaction: Option<&Transaction<Postgres>>) -> Result<&String, String> {
+    pub fn get_name(&mut self, transaction: Option<&mut Transaction<Postgres>>) -> Result<&String, String> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
         Ok(&self.m_name)
     }
-*/ //%%$%%%%%%%%%%
+    %%%%%%%%%%*/
 
     /*
         fn getClassId -> Option<i64> {
@@ -215,9 +215,9 @@ impl Entity<'_> {
         }
       }
     */
+    /*%%%%%%%%%%
 
-/* //%%$%%%%%%%%%%
-    fn read_data_from_db(&mut self, transaction: Option<&Transaction<Postgres>>) -> Result<(), String> {
+    fn read_data_from_db(&mut self, transaction: Option<&mut Transaction<Postgres>>) -> Result<(), String> {
         let entity_data = self.m_db.get_entity_data(transaction, self.m_id)?;
         if entity_data.len() == 0 {
             return Err(format!(
@@ -268,18 +268,16 @@ impl Entity<'_> {
         self.m_already_read_data = true;
         Ok(())
     }
-*/ //%%$%%%%%%%%%%
+    %%%%%%%%%%*/
     /*
      fn get_idWrapper -> IdWrapper() {
      new IdWrapper(m_id)
      }
 
     */
-    /* //%%$%%%%%%%%%%
     pub fn get_id(&self) -> i64 {
         self.m_id
     }
-    */ //%%$%%%%%%%%%%
     /*
       /// Intended as a temporarily unique string to distinguish an entity, across OM Instances.  NOT intended as a permanent unique ID (since
       /// the remote address for a given OM instance can change! and the local address is displayed as blank!), see uniqueIdentifier
