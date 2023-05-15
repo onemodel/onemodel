@@ -347,13 +347,13 @@ impl Util {
         entity_count_non_archived_in: i64,
         entity_count_archived_in: i64,
     ) -> String {
-        format!("contained in {entity_count_non_archived_in} entities, and in {entity_count_archived_in} archived entities")
+        format!("contained in {} entities, and in {} archived entities", entity_count_non_archived_in, entity_count_archived_in)
     }
 
     const PICK_FROM_LIST_PROMPT: &'static str = "Pick from menu, or an item by letter to select; Alt+<letter> to go to the item then come back here";
 
     fn search_prompt_part(type_in: &str) -> String {
-        format!("Enter part of the {type_in} name to search for.")
+        format!("Enter part of the {} name to search for.", type_in)
     }
 
     fn entity_or_group_name_sql_search_prompt(type_name_in: &str) -> String {
@@ -1030,7 +1030,7 @@ impl Util {
             let answer = ui.ask_for_string3(
                 leading_text,
                 Some(Util::is_numeric),
-                format!("{previous_quantity}").as_str(),
+                format!("{}", previous_quantity).as_str(),
             );
             match answer {
                 None => return None,
@@ -1080,23 +1080,20 @@ impl Util {
             //     TEST_DB = Some(db);
             // }
 
-            /*%%%%%%%%%%%
             // no point in a transaction to destroy tables, it seems.
             db.destroy_tables().unwrap();
             let mut tx = db
                 .begin_trans()
                 .expect("Failure to begin transaction before creating test data.");
-            db.create_tables(Some(&mut tx)).unwrap();
+            db.create_tables(&Some(&mut tx)).unwrap();
             db.commit_trans(&mut tx)
                 .expect("Failure to commit transaction after creating test data.");
-%%%%%%%%%%*/
 
             println!("finishing call_once");
         });
         Ok(db)
     }
 
-    /*%%%%%%%%%%%
     /// Used for example after one has been deleted, to put the highlight on right next one:
     /// idea: This feels overcomplicated.  Make it better?  Fixing bad smells in general (large classes etc etc) is on the task list.
     /**%%fix doc formatting:
@@ -1186,7 +1183,7 @@ impl Util {
                     None => Ok(None),
                     Some(e) => {
                         // create a new instance of this entity, to avoid compiler errors
-                        let new_same_entity = match Entity::new2(db, None, e.get_id()) {
+                        let new_same_entity = match Entity::new2(db, &None, e.get_id()) {
                             Err(e) => return Err(e.to_string()),
                             Ok(entity) => entity,
                         };
@@ -1199,7 +1196,6 @@ impl Util {
             Ok(Some(previously_highlighted_entry_in))
         }
     }
-    %%%%%%%%%%%*/
     /*
         /// Returns None if user wants to cancel.
         fn ask_for_text_attribute_text(_: Box<dyn Database>, dh: &TextAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<TextAttributeDataHolder> {

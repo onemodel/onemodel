@@ -27,8 +27,7 @@ pub struct BooleanAttribute<'a> {
 }
 
 impl BooleanAttribute<'_> {
-    /*%%%%%%%%%%
-    pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: Option<&mut Transaction<Postgres>>, id: i64) -> Result<BooleanAttribute<'a>, String> {
+    pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<BooleanAttribute<'a>, String> {
         // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
         // wait for an error later to see if there is a problem (ie, assuming usually not).
         // idea: And today having doubts about that.
@@ -49,14 +48,14 @@ impl BooleanAttribute<'_> {
         }
     }
 
-    fn get_boolean(&mut self, transaction: Option<&mut Transaction<Postgres>>) -> Result<bool, String> {
+    fn get_boolean(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<bool, String> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
         Ok(self.m_boolean)
     }
 
-    fn read_data_from_db(&mut self, transaction: Option<&mut Transaction<Postgres>>) -> Result<(), String> {
+    fn read_data_from_db(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<(), String> {
         let ba_type_data: Vec<DataType> = self.m_db.get_boolean_attribute_data(transaction, self.m_id)?;
         if ba_type_data.len() == 0 {
             return Err(format!(
@@ -109,7 +108,7 @@ impl BooleanAttribute<'_> {
         Ok(())
     }
 
-    pub fn get_parent_id(&mut self, transaction: Option<&mut Transaction<Postgres>>) -> Result<i64, String> {
+    pub fn get_parent_id(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, String> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
@@ -120,19 +119,19 @@ impl BooleanAttribute<'_> {
         // regardless of m_already_read_data / read_data_from_db().
         self.m_id
     }
-    pub fn get_attr_type_id(&mut self, transaction: Option<&mut Transaction<Postgres>>) -> Result<i64, String> {
+    pub fn get_attr_type_id(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, String> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
         Ok(self.m_attr_type_id)
     }
-    pub fn get_valid_on_date(&mut self, transaction: Option<&mut Transaction<Postgres>>) -> Result<Option<i64>, String> {
+    pub fn get_valid_on_date(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Option<i64>, String> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
         Ok(self.m_valid_on_date)
     }
-    pub fn get_observation_date(&mut self, transaction: Option<&mut Transaction<Postgres>>) -> Result<i64, String> {
+    pub fn get_observation_date(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, String> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
@@ -142,7 +141,6 @@ impl BooleanAttribute<'_> {
 
     /// See TextAttribute etc for some comments.
     // impl AttributeWithValidAndObservedDates for BooleanAttribute {
-%%%%%%%%%%*/
 
     /*%%
 
@@ -167,10 +165,9 @@ impl BooleanAttribute<'_> {
         Attribute.limitDescriptionLength(result, lengthLimitIn)
       }
     */
-    /*%%%%%%%%%%
     fn update(
         &mut self,
-        transaction: Option<&mut Transaction<Postgres>>,
+        transaction: &Option<&mut Transaction<Postgres>>,
         attr_type_id_in: i64,
         boolean_in: bool,
         valid_on_date_in: Option<i64>,
@@ -179,9 +176,9 @@ impl BooleanAttribute<'_> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
         self.m_db.update_boolean_attribute(
-            if transaction.is_some() { Some(transaction.unwrap()) } else { None },
+            transaction,
             self.m_id,
-            self.get_parent_id(if transaction.is_some() { Some(transaction.unwrap()) } else { None })?,
+            self.get_parent_id(transaction)?,
             attr_type_id_in,
             boolean_in,
             valid_on_date_in,
@@ -195,7 +192,6 @@ impl BooleanAttribute<'_> {
         self.m_observation_date = observation_date_in;
         Ok(())
     }
-%%%%%%%%%%*/
     /*
      /** Removes this object from the system. */
        fn delete() {
