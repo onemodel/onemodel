@@ -30,71 +30,6 @@ pub struct PostgreSQLDatabase {
     pub include_archived_entities: bool,
 }
 
-/// This exists just to avoid pasting the code every time I need it.  It is not in a function
-/// because it seems that a function cannot create something then return it as a reference, and
-/// this needs to return a reference.
-macro_rules! get_transaction_forms {
-        ( $a:ident, $b:ident, $c:ident, $( $x:expr )* ) => {
-            {
-                //let mut local_tx: Option<Transaction<Postgres>> =
-                //    self.confirm_which_transaction(transaction_in, caller_manages_transactions_in)?;
-                //let mut local_tx: Option<Transaction<Postgres>> = {
-
-                // Try creating a local transaction whether we use it or not, to handle compiler errors
-                // about variable moves. I'm not seeing a better way to get around them by just using
-                // conditions and an Option (many errors):
-                let mut local_tx: Transaction<Postgres> = {
-                    if $a.is_none() {
-                        if $b {
-                            return Err("Inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                                .to_string());
-                        } else {
-                            let mut tx: Transaction<Postgres> = match $c.begin_trans() {
-                                Err(e) => return Err(e.to_string()),
-                                Ok(t) => t,
-                            };
-                            // Some(tx)
-                            tx
-                        }
-                    } else {
-                        if $b {
-                            // That means we have determined that the caller is to use the transaction_in .
-                            // was just:  None
-                            // But now instead, create it anyway, per comment above.
-                            let mut tx: Transaction<Postgres> = match $c.begin_trans() {
-                                Err(e) => return Err(e.to_string()),
-                                Ok(t) => t,
-                            };
-                            // Some(tx)
-                            tx
-                        } else {
-                            return Err(
-                                "Inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                                    .to_string(),
-                            )
-                        }
-                    }
-                };
-                // let mut transaction: Option<&mut Transaction<Postgres>> = match local_tx {
-                //   //  Some(tx) => &local_tx,
-                    // Some(tx) => Some(&mut tx),
-                    // None => transaction_in,
-                // };
-                let local_tx_option = &Some(&mut local_tx);
-                let mut transaction: &Option<&mut Transaction<Postgres>> = if $b {
-                    $a
-                } else {
-                    local_tx_option
-                };
-                (local_tx, transaction)
-                //%%$%%%%%%%%%%%%%
-            }
-        };
-    }
-
-
 impl PostgreSQLDatabase {
     const SCHEMA_VERSION: i32 = 7;
     const ENTITY_ONLY_SELECT_PART: &'static str = "SELECT e.id";
@@ -2308,8 +2243,56 @@ impl PostgreSQLDatabase {
         // the caller only to manage that.
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<u64, String> {
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                    .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                    Err(e) => return Err(e.to_string()),
+                    Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
         let sql = format!("DELETE FROM {} {}", table_name_in, where_clause_in);
@@ -3215,8 +3198,56 @@ impl Database for PostgreSQLDatabase {
         caller_manages_transactions_in: bool, /*%% = false*/
         sorting_index_in: Option<i64>,        /*%%= None*/
     ) -> Result<i64, String> {
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                        .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let text: String = Self::escape_quotes_etc(text_in.to_string());
         let id: i64 = self.get_new_key(&transaction, "TextAttributeKeySequence")?;
@@ -3404,8 +3435,56 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<RelationToLocalEntity, String> {
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                        .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let rte_id: i64 = self.get_new_key(&transaction, "RelationToEntityKeySequence")?;
         let result: Result<i64, String> = self.add_attribute_sorting_row(
@@ -3457,8 +3536,56 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<RelationToRemoteEntity, String> {
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                        .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let rte_id: i64 = self.get_new_key(&transaction, "RelationToRemoteEntityKeySequence")?;
         // not creating anything in a remote DB, but a local record of a local relation to a remote entity.
@@ -3618,8 +3745,56 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), String> {
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                        .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let group_id: i64 = self.create_group(
             transaction,
@@ -3662,8 +3837,57 @@ impl Database for PostgreSQLDatabase {
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<(i64, i64), String> {
         let name: String = Self::escape_quotes_etc(new_entity_name_in.to_string());
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                        .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let new_entity_id: i64 =
             self.create_entity(&transaction, name.as_str(), None, is_public_in)?;
@@ -3704,8 +3928,56 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), String> {
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                        .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let id: i64 = self.get_new_key(transaction, "RelationToGroupKeySequence2")?;
         let sorting_index = {
@@ -3893,8 +4165,56 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<(), String> {
         // IF THIS CHANGES ALSO DO MAINTENANCE IN SIMILAR METHOD add_attribute_sorting_row
 
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                        .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         // start from the beginning index, if it's the 1st record (otherwise later sorting/renumbering gets messed up if we start w/ the last #):
         let sorting_index: i64 = {
@@ -4003,8 +4323,57 @@ impl Database for PostgreSQLDatabase {
         if name.len() == 0 {
             return Err("Name must have a value.".to_string());
         }
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                        .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let mut result: Result<u64, String>;
         let mut id: i64 = 0;
@@ -4067,8 +4436,56 @@ impl Database for PostgreSQLDatabase {
         // idea: (also on task list i think but) we should not delete entities until dealing with their use as attrTypeIds etc!
         // (or does the DB's integrity constraints do that for us?)
 
-        let (local_tx, transaction) =
-            get_transaction_forms!(transaction_in, caller_manages_transactions_in, self, );
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err("Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                        .to_string());
+                } else {
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
+                        Err(e) => return Err(e.to_string()),
+                        Ok(t) => t,
+                    };
+                    // Some(tx)
+                    tx
+                } else {
+                    return Err(
+                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    )
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         self.delete_objects(
             transaction,
