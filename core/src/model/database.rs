@@ -26,12 +26,15 @@ pub enum DataType {
 
 pub trait Database {
     fn is_remote(&self) -> bool;
+    // fn setup_db(&self) -> Result<(), String>;
 
     fn get_remote_address(&self) -> Option<String> {
         None
     }
     fn include_archived_entities(&self) -> bool;
     fn begin_trans(&self) -> Result<Transaction<Postgres>, sqlx::Error>;
+    fn begin_trans_test(&self) -> Result<i32 /*Transaction<Postgres>*/, sqlx::Error>;
+    // fn begin_trans_test(&self) -> Result<Transaction<Postgres>, sqlx::Error>;
     fn rollback_trans(&self, tx: &mut Transaction<Postgres>) -> Result<(), sqlx::Error>;
     fn commit_trans(&self, tx: &mut Transaction<Postgres>) -> Result<(), sqlx::Error>;
 
