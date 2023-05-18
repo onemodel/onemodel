@@ -1086,7 +1086,7 @@ impl Util {
                 .begin_trans()
                 .expect("Failure to begin transaction before creating test data.");
             db.create_tables(&Some(&mut tx)).unwrap();
-            db.commit_trans(&mut tx)
+            db.commit_trans(tx)
                 .expect("Failure to commit transaction after creating test data.");
 
             println!("finishing call_once");

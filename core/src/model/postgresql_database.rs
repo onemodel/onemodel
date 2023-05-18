@@ -600,7 +600,7 @@ impl PostgreSQLDatabase {
         }
         //%% doDatabaseUpgradesIfNeeded()
         self.create_and_check_expected_data(&Some(&mut tx))?;
-        match self.commit_trans(&mut tx) {
+        match self.commit_trans(tx) {
             Err(e) => {
                 return Err(format!(
                     "Unable to commit database transaction for db setup: {}",
@@ -614,9 +614,9 @@ impl PostgreSQLDatabase {
 
     /// For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
     /// after an OM release was done.  This puts it into existing databases if needed.
-    fn create_and_check_expected_data(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_and_check_expected_data<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
     ) -> Result<(), String> {
         //Idea: should this really be in the Controller then?  It wouldn't differ by which database type we are using.  Hmm, no, if there were multiple
         // database types, there would probably a parent class over them (of some kind) to hold this.
@@ -1705,7 +1705,7 @@ impl PostgreSQLDatabase {
     }
 
     /// Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.
-    fn create_base_data(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<(), String> {
+    fn create_base_data<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>) -> Result<(), String> {
         // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?
         let ids: Vec<i64> =
             self.find_entity_only_ids_by_name(transaction, Util::SYSTEM_ENTITY_NAME.to_string())?;
@@ -1948,7 +1948,7 @@ impl PostgreSQLDatabase {
         if class_group_id.is_some() {
             self.add_entity_to_group(&Some(&mut tx), class_group_id.unwrap(), entity_id, None, false)?;
         }
-        if let Err(e) = self.commit_trans(&mut tx) {
+        if let Err(e) = self.commit_trans(tx) {
             return Err(e.to_string());
         }
         Ok((class_id, entity_id))
@@ -2323,7 +2323,7 @@ impl PostgreSQLDatabase {
                 // Using local_tx to make the compiler happy and because it is the one we need,
                 // if !caller_manages_transactions_in. Ie, there is no transaction provided by
                 // the caller.
-                if let Err(e) = self.commit_trans(&mut local_tx) {
+                if let Err(e) = self.commit_trans(local_tx) {
                     return Err(e.to_string());
                 }
             }
@@ -2331,9 +2331,9 @@ impl PostgreSQLDatabase {
         }
     }
 
-    fn get_user_preference2(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn get_user_preference2<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         preferences_container_id_in: i64,
         preference_name_in: &str,
         preference_type: &str,
@@ -2594,14 +2594,14 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Not needed when the transaction simply goes out of scope! Rollback is then automatic.
-    fn rollback_trans(&self, tx: &mut Transaction<Postgres>) -> Result<(), sqlx::Error> {
+    fn rollback_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error> {
         self.rt.block_on(tx.rollback())
         // so future work is auto- committed unless programmer explicitly opens another transaction
         //%% see comments in fn connect() re this
         // connection.setAutoCommit(true);
     }
 
-    fn commit_trans(&self, tx: &mut Transaction<Postgres>) -> Result<(), sqlx::Error> {
+    fn commit_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error> {
         self.rt.block_on(tx.commit())
         // so future work is auto- committed unless programmer explicitly opens another transaction
         //%% see comments in fn connect() re this
@@ -3185,10 +3185,10 @@ impl Database for PostgreSQLDatabase {
 
     */
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_text_attribute(
-        &self,
+    fn create_text_attribute<'a>(
+        &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: &Option<&mut Transaction<Postgres>>,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         text_in: &str,
@@ -3284,7 +3284,7 @@ impl Database for PostgreSQLDatabase {
         //%%%%%%%%confirm that this commits the transaction, unless db is down or errs above, then rolls back? should there be tests or is enuf alr, w cmts?
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-            if let Err(e) = self.commit_trans(&mut local_tx) {
+            if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(e.to_string());
             }
@@ -3346,7 +3346,7 @@ impl Database for PostgreSQLDatabase {
             false,
             false,
         )?;
-        if let Err(e) = self.commit_trans(&mut tx) {
+        if let Err(e) = self.commit_trans(tx) {
             return Err(e.to_string());
         }
         Ok(id)
@@ -3422,10 +3422,10 @@ impl Database for PostgreSQLDatabase {
       }
     }
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
-    fn create_relation_to_local_entity(
-        &self,
+    fn create_relation_to_local_entity<'a>(
+        &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: &Option<&mut Transaction<Postgres>>,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         relation_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
@@ -3512,7 +3512,7 @@ impl Database for PostgreSQLDatabase {
         }
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-            if let Err(e) = self.commit_trans(&mut local_tx) {
+            if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(e.to_string());
             }
@@ -3522,10 +3522,10 @@ impl Database for PostgreSQLDatabase {
     }
 
     /** Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
-    fn create_relation_to_remote_entity(
-        &self,
+    fn create_relation_to_remote_entity<'a>(
+        &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: &Option<&mut Transaction<Postgres>>,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         relation_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
@@ -3616,7 +3616,7 @@ impl Database for PostgreSQLDatabase {
         }
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-            if let Err(e) = self.commit_trans(&mut local_tx) {
+            if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(e.to_string());
             }
@@ -3731,10 +3731,10 @@ impl Database for PostgreSQLDatabase {
 
     /// I.e., make it so the entity has a group in it, which can contain entities.
     // Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_group_and_relation_to_group(
-        &self,
+    fn create_group_and_relation_to_group<'a>(
+        &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: &Option<&mut Transaction<Postgres>>,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         new_group_name_in: &str,
@@ -3813,7 +3813,7 @@ impl Database for PostgreSQLDatabase {
         )?;
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-            if let Err(e) = self.commit_trans(transaction.unwrap()) {
+            if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(e.to_string());
             }
@@ -3823,10 +3823,10 @@ impl Database for PostgreSQLDatabase {
 
     /// I.e., make it so the entity has a relation to a new entity in it.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_entity_and_relation_to_local_entity(
-        &self,
+    fn create_entity_and_relation_to_local_entity<'a>(
+        &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: &Option<&mut Transaction<Postgres>>,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         new_entity_name_in: &str,
@@ -3903,7 +3903,7 @@ impl Database for PostgreSQLDatabase {
         )?;
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-            if let Err(e) = self.commit_trans(&mut local_tx) {
+            if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(e.to_string());
             }
@@ -3915,10 +3915,10 @@ impl Database for PostgreSQLDatabase {
     /// I.e., make it so the entity has a group in it, which can contain entities.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
     /// @return a tuple containing the id and new sorting_index: (id, sorting_index)
-    fn create_relation_to_group(
-        &self,
+    fn create_relation_to_group<'a>(
+        &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: &Option<&mut Transaction<Postgres>>,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         group_id_in: i64,
@@ -4000,7 +4000,7 @@ impl Database for PostgreSQLDatabase {
         };
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-            if let Err(e) = self.commit_trans(&mut local_tx) {
+            if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(e.to_string());
             }
@@ -4153,10 +4153,10 @@ impl Database for PostgreSQLDatabase {
     /// I.e., insert an entity into a group of entities. Using a default value for the sorting_index because user can set it if/as desired;
     /// the max (ie putting it at the end) might be the least often surprising if the user wonders where one went....
     /// **ABOUT THE SORTINGINDEX*:  SEE the related comment on method add_attribute_sorting_row.
-    fn add_entity_to_group(
-        &self,
+    fn add_entity_to_group<'a>(
+        &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: &Option<&mut Transaction<Postgres>>,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         group_id_in: i64,
         contained_entity_id_in: i64,
         sorting_index_in: Option<i64>, /*%%= None*/
@@ -4252,7 +4252,7 @@ impl Database for PostgreSQLDatabase {
         }
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-            if let Err(e) = self.commit_trans(&mut local_tx) {
+            if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(e.to_string());
             }
@@ -4306,12 +4306,12 @@ impl Database for PostgreSQLDatabase {
         Ok(id)
     }
 
-    fn create_relation_type(
-        &self,
+    fn create_relation_type<'a>(
+        &'a self,
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool,
         // purpose: see comment in delete_objects
-        transaction_in: &Option<&mut Transaction<Postgres>>,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         name_in: &str,
         name_in_reverse_direction_in: &str,
         directionality_in: &str,
@@ -4409,7 +4409,7 @@ impl Database for PostgreSQLDatabase {
             }
             if !caller_manages_transactions_in {
                 // see comments at similar location in delete_objects about local_tx
-                if let Err(e) = self.commit_trans(&mut local_tx) {
+                if let Err(e) = self.commit_trans(local_tx) {
                     // see comments in delete_objects about rollback
                     return Err(e.to_string());
                 }
@@ -4425,10 +4425,10 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn delete_entity(
-        &self,
+    fn delete_entity<'a>(
+        &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: &Option<&mut Transaction<Postgres>>,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         id_in: i64,
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
@@ -4510,7 +4510,7 @@ impl Database for PostgreSQLDatabase {
         )?;
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-            if let Err(e) = self.commit_trans(&mut local_tx) {
+            if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(e.to_string());
             }
@@ -4627,9 +4627,9 @@ impl Database for PostgreSQLDatabase {
     */
     //%%$%%%
     /// Creates the preference if it doesn't already exist.
-    fn set_user_preference_boolean(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn set_user_preference_boolean<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         name_in: &str,
         value_in: bool,
     ) -> Result<(), String> {
@@ -6719,43 +6719,48 @@ mod tests {
         Ok(())
     }
 
-    fn db_query_for_test2<'a>(
-        // &'a self,
-        rt: &tokio::runtime::Runtime,
-        pool: &sqlx::Pool<Postgres>,
-        transaction: Option<&'a mut sqlx::Transaction<'a, sqlx::Postgres>>,
-        // transaction: &Option<&Transaction<Postgres>>,
-        sql: &str
-        // ) -> Result<(Vec<Vec<DataType>>, Option<&mut Transaction<Postgres>>), String> {
-    ) -> Result<Option<&'a mut sqlx::Transaction<'a, sqlx::Postgres>>, String> {
-        // let mut results: Vec<Vec<DataType>> = Vec::new();
-        // let types_vec: Vec<&str> = types.split_terminator(",").collect();
-        // let mut row_counter = 0;
-        // let future = sqlx::query(format!(sql).as_str()).execute(&pool);
-        // let future = sqlx::query(sql).execute(&pool);
-        // let result = rt.block_on(future)?;
-        // println!("Query result:  {:?}", result);
-        let query = sqlx::query(sql);
-
-        let map = query
-            .map(|sqlx_row: PgRow| {
-                //do stuff to capture results
-            });
-        if transaction.is_some() {
-            let mut tx = transaction.unwrap();
-            let future = map.fetch_all(tx);
-            /*self.*/rt.block_on(future).unwrap();
-        } else {
-            let future = map.fetch_all(/*&self.*/pool);
-            /*self.*/rt.block_on(future).unwrap();
-        }
-
-        // Ok((results, transaction))
-        // Ok(results)
-        Ok((transaction))
-    }
+    // THOUGH COMMENTED, THIS IS KEPT HERE because it would be used when uncommenting lines in
+    // the following method (test_compile_problem_with_non_reference_transaction_parameters)
+    // per its comments, to demonstrate some compilation errors.
+    // fn db_query_for_test2<'a>(
+    //     // &'a self,
+    //     rt: &tokio::runtime::Runtime,
+    //     pool: &sqlx::Pool<Postgres>,
+    //     transaction: Option<&'a mut sqlx::Transaction<'a, sqlx::Postgres>>,
+    //     // transaction: &Option<&Transaction<Postgres>>,
+    //     sql: &str
+    //     // ) -> Result<(Vec<Vec<DataType>>, Option<&mut Transaction<Postgres>>), String> {
+    // ) -> Result<Option<&'a mut sqlx::Transaction<'a, sqlx::Postgres>>, String> {
+    //     // let mut results: Vec<Vec<DataType>> = Vec::new();
+    //     // let types_vec: Vec<&str> = types.split_terminator(",").collect();
+    //     // let mut row_counter = 0;
+    //     // let future = sqlx::query(format!(sql).as_str()).execute(&pool);
+    //     // let future = sqlx::query(sql).execute(&pool);
+    //     // let result = rt.block_on(future)?;
+    //     // println!("Query result:  {:?}", result);
+    //     let query = sqlx::query(sql);
+    //
+    //     let map = query
+    //         .map(|sqlx_row: PgRow| {
+    //             //do stuff to capture results
+    //         });
+    //     if transaction.is_some() {
+    //         let mut tx = transaction.unwrap();
+    //         let future = map.fetch_all(tx);
+    //         /*self.*/rt.block_on(future).unwrap();
+    //     } else {
+    //         let future = map.fetch_all(/*&self.*/pool);
+    //         /*self.*/rt.block_on(future).unwrap();
+    //     }
+    //
+    //     // Ok((results, transaction))
+    //     // Ok(results)
+    //     Ok(transaction)
+    // }
 
     #[test]
+    /// Some lines have to be uncommented, to see the compile errors that this is meant to
+    /// demonstrate.  See comments below for details.
     //%%$%%%%%%%%%%%%
     fn test_compile_problem_with_non_reference_transaction_parameters() {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -6766,7 +6771,7 @@ mod tests {
             "postgres://{}:{}@localhost/{}",
             Util::TEST_USER,
             Util::TEST_PASS,
-            "t1"
+            "om_t1"
         );
         let future = PgPoolOptions::new()
             .max_connections(10)
@@ -6780,10 +6785,12 @@ mod tests {
         //     .create_entity(Some(&mut tx), name.as_str(), None, None)
         //     .expect(format!("Failed to create entity with name: {name}").as_str());
 
+
         // %%$%% Uncommenting these 2 lines gets one kind of transaction error (something about the
         // transaction being moved in the first line, and so not available to the second line).
-        db_query_for_test1(&rt, &pool, Some(&mut transaction), "select count(*) from pg_aggregate");
-        db_query_for_test1(&rt, &pool, None, "select count(*) from pg_views");
+        // db_query_for_test1(&rt, &pool, Some(&mut transaction), "select count(*) from pg_aggregate");
+        // db_query_for_test1(&rt, &pool, None, "select count(*) from pg_views");
+
 
         // %%$%%Commenting out the 2 lines just above, and un-commenting these, gets these errors. But I
         // can't use .as_ref() or .as_mut() because that violates trait constraints or something.
@@ -6818,9 +6825,9 @@ mod tests {
     |     `transaction` dropped here while still borrowed
     |     borrow might be used here, when `transaction` is dropped and runs the `Drop` code for type `sqlx::Transaction`
          */
-        let transaction: Option<&mut sqlx::Transaction<sqlx::Postgres>> =
-            db_query_for_test2(&rt, &pool, Some(&mut transaction), "select count(*) from pg_aggregate").unwrap();
-        db_query_for_test2(&rt, &pool, None, "select count(*) from pg_views");
+        // let transaction: Option<&mut sqlx::Transaction<sqlx::Postgres>> =
+        //     db_query_for_test2(&rt, &pool, Some(&mut transaction), "select count(*) from pg_aggregate").unwrap();
+        // db_query_for_test2(&rt, &pool, None, "select count(*) from pg_views");
     }
 
     #[test]
@@ -6935,7 +6942,7 @@ mod tests {
         assert!(db
             .entity_key_exists(&Some(&mut tx), id, true)
             .expect(format!("Found: {}", id).as_str()));
-        db.rollback_trans(&mut tx).unwrap();
+        db.rollback_trans(tx).unwrap();
         assert!(!db
             .entity_key_exists(&None, id, true)
             .expect(format!("Found: {}", id).as_str()));
@@ -6960,9 +6967,9 @@ mod tests {
         assert!(db
             .entity_key_exists(&Some(&mut tx), id, true)
             .expect(format!("Failed to find: {}", id).as_str()));
-        db.commit_trans(&mut tx).unwrap();
+        db.commit_trans(tx).unwrap();
         assert!(db
-            .entity_key_exists(&Some(&mut tx), id, true)
+            .entity_key_exists(&None, id, true)
             .expect(format!("Failed to find: {}", id).as_str()));
 
     }

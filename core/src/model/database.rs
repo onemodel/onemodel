@@ -35,8 +35,8 @@ pub trait Database {
     fn begin_trans(&self) -> Result<Transaction<Postgres>, sqlx::Error>;
     fn begin_trans_test(&self) -> Result<i32 /*Transaction<Postgres>*/, sqlx::Error>;
     // fn begin_trans_test(&self) -> Result<Transaction<Postgres>, sqlx::Error>;
-    fn rollback_trans(&self, tx: &mut Transaction<Postgres>) -> Result<(), sqlx::Error>;
-    fn commit_trans(&self, tx: &mut Transaction<Postgres>) -> Result<(), sqlx::Error>;
+    fn rollback_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error>;
+    fn commit_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error>;
 
     // where we create the table also calls this.
     // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
@@ -111,9 +111,9 @@ pub trait Database {
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*%%= None*/
     ) -> Result<i64, String>;
-    fn create_text_attribute(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_text_attribute<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         text_in: &str,
@@ -122,9 +122,9 @@ pub trait Database {
         caller_manages_transactions_in: bool, /*%%= false*/
         sorting_index_in: Option<i64>,        /*%%= None*/
     ) -> Result<i64, String>;
-    fn create_relation_to_local_entity(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_relation_to_local_entity<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         relation_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
@@ -133,9 +133,9 @@ pub trait Database {
         sorting_index_in: Option<i64>,        /*%% = None*/
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<RelationToLocalEntity, String>;
-    fn create_relation_to_remote_entity(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_relation_to_remote_entity<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         relation_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
@@ -145,9 +145,9 @@ pub trait Database {
         sorting_index_in: Option<i64>,        /*%% = None*/
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<RelationToRemoteEntity, String>;
-    fn create_group_and_relation_to_group(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_group_and_relation_to_group<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         new_group_name_in: &str,
@@ -158,16 +158,16 @@ pub trait Database {
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), String>;
 
-    fn create_entity(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_entity<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         name_in: &str,
         class_id_in: Option<i64>,   /*%%= None*/
         is_public_in: Option<bool>, /*%% = None*/
     ) -> Result<i64, String>;
-    fn create_entity_and_relation_to_local_entity(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_entity_and_relation_to_local_entity<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         new_entity_name_in: &str,
@@ -176,9 +176,9 @@ pub trait Database {
         observation_date_in: i64,
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), String>;
-    fn create_relation_to_group(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_relation_to_group<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         group_id_in: i64,
@@ -187,27 +187,27 @@ pub trait Database {
         sorting_index_in: Option<i64>,        /*%%= None*/
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), String>;
-    fn add_entity_to_group(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn add_entity_to_group<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         group_id_in: i64,
         contained_entity_id_in: i64,
         sorting_index_in: Option<i64>,        /*%%= None*/
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<(), String>;
-    fn create_om_instance(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_om_instance<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         id_in: String,
         is_local_in: bool,
         address_in: String,
         entity_id_in: Option<i64>, /*%%= None*/
         old_table_name: bool,      /*%% = false*/
     ) -> Result<i64, String>;
-    fn create_relation_type(
-        &self,
+    fn create_relation_type<'a>(
+        &'a self,
         caller_manages_transactions_in: bool,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         name_in: &str,
         name_in_reverse_direction_in: &str,
         directionality_in: &str,
@@ -482,9 +482,9 @@ pub trait Database {
            fn updateClassAndTemplateEntityName(class_id_in: i64, name: String) -> i64;
            fn updateOmInstance(id_in: String, address_in: String, entity_id_in: Option<i64>);
     */
-    fn delete_entity(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn delete_entity<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         id_in: i64,
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(), String>;
@@ -512,7 +512,7 @@ pub trait Database {
         preference_name_in: &str,
         default_value_in: Option<bool>, /*%% = None*/
     ) -> Option<bool>;
-    fn set_user_preference_boolean(&self, transaction: &Option<&mut Transaction<Postgres>>,
+    fn set_user_preference_boolean<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>,
                                    name_in: &str, value_in: bool) -> Result<(), String>;
     fn get_preferences_container_id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, String>;
     //%%$%%next:
