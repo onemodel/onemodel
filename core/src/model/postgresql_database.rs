@@ -22,6 +22,8 @@ use sqlx::postgres::*;
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use std::collections::HashSet;
 
+/// An important thing to know about this code is that sqlx transactions automatically roll back
+/// if they go out of scope before commit() is called.
 pub struct PostgreSQLDatabase {
     pub rt: tokio::runtime::Runtime,
     //%% connection: Connection,
@@ -776,915 +778,729 @@ impl PostgreSQLDatabase {
     pub fn create_tables(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<u64, String> {
-        let mut result: Result<u64, String>;
-        // This loop is just to execute once, but allows stopping immediately (early)
-        // if necessary.  Maybe there is a better way besides all these breaks.
-        loop {
-            result = self.create_version_table(transaction);
-            if result.is_err() {
-                break;
-            }
+    ) -> Result<(), String> {
+        self.create_version_table(transaction)?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence EntityKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence EntityKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
 
-            // The id must be "unique not null" in ANY database used, because it is a primary key. "PRIMARY KEY" is the same.
-            // 'archived' is only on Entity for now, to see if rows from related tables just don't show up because we
-            // never link to them (never seeing the linking Entity rows), so they're effectively hidden/archived too.
-            // At some point we could consider moving all those rows (entities & related...) to separate tables instead,
-            // for performance/space if needed (including 'public').
-            // The insertion_date is intended to be a readonly date: the (*java*-style numeric: milliseconds since 1970-1-1 or
-            // such) when this row was inserted (ie, when the entity object was created in the db):
-            // A null in the 'public' field means 'undecided' (effectively "false", but a different nuance,e.g. in case
-            // user wants to remember to decide later)
-            // The field new_entries_.... tells the UI that, with the highlight at the beginning of the list, attributes added
-            // to an entity should become the new 1st entry, not 2nd.
-            // (ie, grows from the top: convenient sometimes like for logs, but most of the time it is more convenient
-            // for creating the 2nd entry after
-            // the 1st one, such as when creating new lists).
-            result = self.db_action(transaction, format!("create table Entity (\
-                id bigint DEFAULT nextval('EntityKeySequence') PRIMARY KEY, \
-                name varchar({}) NOT NULL, \
-                class_id bigint, \
-                archived boolean NOT NULL default false, \
-                archived_date bigint check ((archived is false and archived_date is null) OR (archived and archived_date is not null)), \
-                insertion_date bigint not null, \
-                public boolean, \
-                new_entries_stick_to_top boolean NOT NULL default false\
-                ) ", Util::entity_name_length()).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
+        // The id must be "unique not null" in ANY database used, because it is a primary key. "PRIMARY KEY" is the same.
+        // 'archived' is only on Entity for now, to see if rows from related tables just don't show up because we
+        // never link to them (never seeing the linking Entity rows), so they're effectively hidden/archived too.
+        // At some point we could consider moving all those rows (entities & related...) to separate tables instead,
+        // for performance/space if needed (including 'public').
+        // The insertion_date is intended to be a readonly date: the (*java*-style numeric: milliseconds since 1970-1-1 or
+        // such) when this row was inserted (ie, when the entity object was created in the db):
+        // A null in the 'public' field means 'undecided' (effectively "false", but a different nuance,e.g. in case
+        // user wants to remember to decide later)
+        // The field new_entries_.... tells the UI that, with the highlight at the beginning of the list, attributes added
+        // to an entity should become the new 1st entry, not 2nd.
+        // (ie, grows from the top: convenient sometimes like for logs, but most of the time it is more convenient
+        // for creating the 2nd entry after
+        // the 1st one, such as when creating new lists).
+        self.db_action(transaction, format!("create table Entity (\
+            id bigint DEFAULT nextval('EntityKeySequence') PRIMARY KEY, \
+            name varchar({}) NOT NULL, \
+            class_id bigint, \
+            archived boolean NOT NULL default false, \
+            archived_date bigint check ((archived is false and archived_date is null) OR (archived and archived_date is not null)), \
+            insertion_date bigint not null, \
+            public boolean, \
+            new_entries_stick_to_top boolean NOT NULL default false\
+            ) ", Util::entity_name_length()).as_str(), false, false)?;
 
-            // not unique, but for convenience/speed:
-            result = self.db_action(
-                transaction,
-                "create index entity_lower_name on Entity (lower(NAME))",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        // not unique, but for convenience/speed:
+        self.db_action(
+            transaction,
+            "create index entity_lower_name on Entity (lower(NAME))",
+            false,
+            false,
+        )?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence ClassKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence ClassKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
 
-            // The name here doesn't have to be the same name as in the related Entity record, (since it's not a key, and it might not make sense to match).
-            // For additional comments on usage, see the Controller.askForInfoAndcreate_entity method.
-            // Since in the code we can't call it class, the class that represents this in the model is called EntityClass.
-            // The defining_entity_id is, in other words, template, aka class-defining entity.
-            // The create_default_attributes means whether the user wants the program to create all
-            // the attributes by default, using the defining_entity's attrs as a template.
-            let sql = format!("create table Class (\
-                id bigint DEFAULT nextval('ClassKeySequence') PRIMARY KEY, \
-                name varchar({}) NOT NULL, \
-                defining_entity_id bigint UNIQUE NOT NULL, \
-                create_default_attributes boolean, \
-                CONSTRAINT valid_related_to_entity_id FOREIGN KEY (defining_entity_id) REFERENCES entity (id) \
-                )", Util::class_name_length());
-            result = self.db_action(transaction, sql.as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
+        // The name here doesn't have to be the same name as in the related Entity record, (since it's not a key, and it might not make sense to match).
+        // For additional comments on usage, see the Controller.askForInfoAndcreate_entity method.
+        // Since in the code we can't call it class, the class that represents this in the model is called EntityClass.
+        // The defining_entity_id is, in other words, template, aka class-defining entity.
+        // The create_default_attributes means whether the user wants the program to create all
+        // the attributes by default, using the defining_entity's attrs as a template.
+        let sql = format!("create table Class (\
+            id bigint DEFAULT nextval('ClassKeySequence') PRIMARY KEY, \
+            name varchar({}) NOT NULL, \
+            defining_entity_id bigint UNIQUE NOT NULL, \
+            create_default_attributes boolean, \
+            CONSTRAINT valid_related_to_entity_id FOREIGN KEY (defining_entity_id) REFERENCES entity (id) \
+            )", Util::class_name_length());
+        self.db_action(transaction, sql.as_str(), false, false)?;
 
-            result = self.db_action(transaction, "alter table entity add CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES class (id)", false, false);
-            if result.is_err() {
-                break;
-            }
+        self.db_action(transaction, "alter table entity add CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES class (id)", false, false)?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence RelationTypeKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence RelationTypeKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
 
-            // this table "inherits" from Entity (each relation type is an Entity) but we use homegrown "inheritance" for that to make it
-            // easier to port to databases that don't have postgresql-like inheritance built in. It inherits from Entity so that as Entity
-            // expands (i.e., context-based naming or whatever), we'll automatically get the benefits, in objects based on this table (at least
-            // that's the idea at this moment...) --Luke Call 8/2003.  Update:  That may have been a mistake--more of a nuisance to coordinate
-            // them than having 2 tables (luke, 2013-11-1).
-            // inherits from Entity; see RelationConnection for more info.
-            // Note, 2014-07: At one point I considered whether this concept overlaps with that of class, but now I think they are quite separate.  This table
-            // could fill the concept of an entity that *is* a relationship, containing e.g. the date a relationship began, or any other attributes that are not about
-            // either participant, but about the relationship itself.  One such use could be: I "have" a physical object, I and the object being entities with
-            // classes, and the "have" is not a regular generic "have" type (as defined by the system at first startup), but a particular one (maybe RelationType
-            // should be renamed to "RelationEntity" or something: think about all this some more: more use cases etc).
+        // this table "inherits" from Entity (each relation type is an Entity) but we use homegrown "inheritance" for that to make it
+        // easier to port to databases that don't have postgresql-like inheritance built in. It inherits from Entity so that as Entity
+        // expands (i.e., context-based naming or whatever), we'll automatically get the benefits, in objects based on this table (at least
+        // that's the idea at this moment...) --Luke Call 8/2003.  Update:  That may have been a mistake--more of a nuisance to coordinate
+        // them than having 2 tables (luke, 2013-11-1).
+        // inherits from Entity; see RelationConnection for more info.
+        // Note, 2014-07: At one point I considered whether this concept overlaps with that of class, but now I think they are quite separate.  This table
+        // could fill the concept of an entity that *is* a relationship, containing e.g. the date a relationship began, or any other attributes that are not about
+        // either participant, but about the relationship itself.  One such use could be: I "have" a physical object, I and the object being entities with
+        // classes, and the "have" is not a regular generic "have" type (as defined by the system at first startup), but a particular one (maybe RelationType
+        // should be renamed to "RelationEntity" or something: think about all this some more: more use cases etc).
 
-            // Valid values for directionality are "BI ","UNI","NON"-directional for this relationship. example: parent/child is unidirectional. sibling is bidirectional,
-            // and for nondirectional
-            // see Controller's mention of "nondir" and/or elsewhere for comments
-            result = self.db_action(transaction, format!("create table RelationType (\
-                entity_id bigint PRIMARY KEY, \
-                name_in_reverse_direction varchar({}), \
-                directionality char(3) CHECK (directionality in ('BI','UNI','NON')), \
-                CONSTRAINT valid_rel_entity_id FOREIGN KEY (entity_id) REFERENCES Entity (id) ON DELETE CASCADE \
-                ) ", Util::relation_type_name_length()).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
+        // Valid values for directionality are "BI ","UNI","NON"-directional for this relationship. example: parent/child is unidirectional. sibling is bidirectional,
+        // and for nondirectional
+        // see Controller's mention of "nondir" and/or elsewhere for comments
+        self.db_action(transaction, format!("create table RelationType (\
+            entity_id bigint PRIMARY KEY, \
+            name_in_reverse_direction varchar({}), \
+            directionality char(3) CHECK (directionality in ('BI','UNI','NON')), \
+            CONSTRAINT valid_rel_entity_id FOREIGN KEY (entity_id) REFERENCES Entity (id) ON DELETE CASCADE \
+            ) ", Util::relation_type_name_length()).as_str(), false, false)?;
 
-            /* This table maintains the users' preferred display sorting information for entities' attributes (including relations to groups/entities).
-            It might instead have been implemented by putting the sorting_index column on each attribute table, which would simplify some things, but that
-            would have required writing a new way for placing & sorting the attributes and finding adjacent ones etc., and the first way was already
-            mostly debugged, with much effort (for EntitiesInAGroup, and the hope is to reuse that way for interacting with this table).  But maybe that
-            same effect could have been created by sorting the attributes in memory instead, adhoc when needed: not sure if that would be simpler
-            */
-            // The entity_id is the entity whose attribute this is.
-            // The sorting_index is the reason for this table.
-            // The attribute_form_id  is for which table the attribute is in.  Method getAttributeForm has details.
-            // The constraint noDupSortingIndexes2 is to make it so the sorting_index must also be unique for each entity (otherwise we have sorting problems).
-            // The constraint noDupSortingIndexes3 was required by the constraint valid_*_sorting on the tables that have a form_id column.
-            result = self.db_action(transaction, "create table AttributeSorting (\
-                entity_id bigint NOT NULL\
-                , attribute_form_id smallint NOT NULL\
-                , attribute_id bigint NOT NULL\
-                , sorting_index bigint not null\
-                , PRIMARY KEY (entity_id, attribute_form_id, attribute_id)\
-                , CONSTRAINT valid_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE\
-                , CONSTRAINT valid_attribute_form_id CHECK (attribute_form_id >= 1 AND attribute_form_id <= 8)\
-                , constraint noDupSortingIndexes2 unique (entity_id, sorting_index)\
-                , constraint noDupSortingIndexes3 unique (attribute_form_id, attribute_id)\
-                ) ", false, false);
-            if result.is_err() {
-                break;
-            }
+        /* This table maintains the users' preferred display sorting information for entities' attributes (including relations to groups/entities).
+        It might instead have been implemented by putting the sorting_index column on each attribute table, which would simplify some things, but that
+        would have required writing a new way for placing & sorting the attributes and finding adjacent ones etc., and the first way was already
+        mostly debugged, with much effort (for EntitiesInAGroup, and the hope is to reuse that way for interacting with this table).  But maybe that
+        same effect could have been created by sorting the attributes in memory instead, adhoc when needed: not sure if that would be simpler
+        */
+        // The entity_id is the entity whose attribute this is.
+        // The sorting_index is the reason for this table.
+        // The attribute_form_id  is for which table the attribute is in.  Method getAttributeForm has details.
+        // The constraint noDupSortingIndexes2 is to make it so the sorting_index must also be unique for each entity (otherwise we have sorting problems).
+        // The constraint noDupSortingIndexes3 was required by the constraint valid_*_sorting on the tables that have a form_id column.
+        self.db_action(transaction, "create table AttributeSorting (\
+            entity_id bigint NOT NULL\
+            , attribute_form_id smallint NOT NULL\
+            , attribute_id bigint NOT NULL\
+            , sorting_index bigint not null\
+            , PRIMARY KEY (entity_id, attribute_form_id, attribute_id)\
+            , CONSTRAINT valid_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE\
+            , CONSTRAINT valid_attribute_form_id CHECK (attribute_form_id >= 1 AND attribute_form_id <= 8)\
+            , constraint noDupSortingIndexes2 unique (entity_id, sorting_index)\
+            , constraint noDupSortingIndexes3 unique (attribute_form_id, attribute_id)\
+            ) ", false, false)?;
 
-            result = self.db_action(transaction, "create index AttributeSorting_sorted on AttributeSorting (entity_id, sorting_index)", false, false);
-            if result.is_err() {
-                break;
-            }
+        self.db_action(transaction, "create index AttributeSorting_sorted on AttributeSorting (entity_id, sorting_index)", false, false)?;
 
-            result = self.create_attribute_sorting_deletion_trigger(transaction);
-            if result.is_err() {
-                break;
-            }
+        self.create_attribute_sorting_deletion_trigger(transaction)?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence QuantityAttributeKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence QuantityAttributeKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
 
-            // The entity_id is the key for the entity on which this quantity info is recorded; for other meanings see comments on
-            // Entity.addQuantityAttribute(...).
-            // The id must be "unique not null" in ANY database used, because it is the primary key.
-            // FOR COLUMN MEANINGS, SEE ALSO THE COMMENTS IN CREATEQUANTITYATTRIBUTE.
-            // For form_id, see comment for this column under "create table RelationToGroup", below.
-            // The unit_id refers to a unit (an entity), like "meters".
-            // For quantity_number: eg, 50.0.
-            // For attr_type_id eg, length (an entity).
-            // For valid_on_date, see "create table RelationToEntity" for comments about dates' meanings.
+        // The entity_id is the key for the entity on which this quantity info is recorded; for other meanings see comments on
+        // Entity.addQuantityAttribute(...).
+        // The id must be "unique not null" in ANY database used, because it is the primary key.
+        // FOR COLUMN MEANINGS, SEE ALSO THE COMMENTS IN CREATEQUANTITYATTRIBUTE.
+        // For form_id, see comment for this column under "create table RelationToGroup", below.
+        // The unit_id refers to a unit (an entity), like "meters".
+        // For quantity_number: eg, 50.0.
+        // For attr_type_id eg, length (an entity).
+        // For valid_on_date, see "create table RelationToEntity" for comments about dates' meanings.
 
-            // For the constraint valid_qa_sorting: didn't use "on delete cascade",
-            // because it didn't originally occur to me that instead of deleting the
-            // sorting row (via triggers) when we delete the attribute, we could delete the attribute when deleting its sorting row, by instead
-            // putting "ON DELETE CASCADE" on the attribute tables' constraints that reference this table, and where we
-            // now delete attributes, instead deleting AttributeSorting rows, and so letting the attributes be deleted automatically.
-            // But for now, see the trigger below instead.
-            // (The same is true for all the attribute tables (including the 2 main RelationTo* tables).
+        // For the constraint valid_qa_sorting: didn't use "on delete cascade",
+        // because it didn't originally occur to me that instead of deleting the
+        // sorting row (via triggers) when we delete the attribute, we could delete the attribute when deleting its sorting row, by instead
+        // putting "ON DELETE CASCADE" on the attribute tables' constraints that reference this table, and where we
+        // now delete attributes, instead deleting AttributeSorting rows, and so letting the attributes be deleted automatically.
+        // But for now, see the trigger below instead.
+        // (The same is true for all the attribute tables (including the 2 main RelationTo* tables).
 
-            // (The "DEFERRABLE INITIALLY DEFERRED" is because otherwise when an attribute is deleted, it would
-            // fail on this constraint before the trigger files to delete the row from
-            // attributesorting.)
-            let quantity_form_id: i32 = self.get_attribute_form_id(Util::QUANTITY_TYPE).unwrap();
-            result = self.db_action(transaction, format!("create table QuantityAttribute (\
-                form_id smallint DEFAULT {} \
-                    NOT NULL CHECK (form_id={}), \
-                id bigint DEFAULT nextval('QuantityAttributeKeySequence') PRIMARY KEY, \
-                entity_id bigint NOT NULL, \
-                unit_id bigint NOT NULL, \
-                quantity_number double precision not null, \
-                attr_type_id bigint not null, \
-                valid_on_date bigint, \
-                observation_date bigint not null, \
-                CONSTRAINT valid_unit_id FOREIGN KEY (unit_id) REFERENCES entity (id), \
-                CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
-                CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_qa_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
-                  DEFERRABLE INITIALLY DEFERRED \
-                )", quantity_form_id, quantity_form_id).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index quantity_parent_id on QuantityAttribute (entity_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "CREATE TRIGGER qa_attribute_sorting_cleanup BEFORE DELETE ON QuantityAttribute \
-                FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        // (The "DEFERRABLE INITIALLY DEFERRED" is because otherwise when an attribute is deleted, it would
+        // fail on this constraint before the trigger files to delete the row from
+        // attributesorting.)
+        let quantity_form_id: i32 = self.get_attribute_form_id(Util::QUANTITY_TYPE).unwrap();
+        self.db_action(transaction, format!("create table QuantityAttribute (\
+            form_id smallint DEFAULT {} \
+                NOT NULL CHECK (form_id={}), \
+            id bigint DEFAULT nextval('QuantityAttributeKeySequence') PRIMARY KEY, \
+            entity_id bigint NOT NULL, \
+            unit_id bigint NOT NULL, \
+            quantity_number double precision not null, \
+            attr_type_id bigint not null, \
+            valid_on_date bigint, \
+            observation_date bigint not null, \
+            CONSTRAINT valid_unit_id FOREIGN KEY (unit_id) REFERENCES entity (id), \
+            CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
+            CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_qa_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
+              DEFERRABLE INITIALLY DEFERRED \
+            )", quantity_form_id, quantity_form_id).as_str(), false, false)?;
+        self.db_action(
+            transaction,
+            "create index quantity_parent_id on QuantityAttribute (entity_id)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "CREATE TRIGGER qa_attribute_sorting_cleanup BEFORE DELETE ON QuantityAttribute \
+            FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
+            false,
+            false,
+        )?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence DateAttributeKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            // see comment for the form_id column under "create table RelationToGroup", below:
-            let date_form_id = self.get_attribute_form_id(Util::DATE_TYPE).unwrap();
-            // About the attr_type_id: e.g., due on, done on, should start on, started on on... (which would be an entity).
-            result = self.db_action(transaction, format!("create table DateAttribute (\
-                form_id smallint DEFAULT {} \
-                    NOT NULL CHECK (form_id={}), \
-                id bigint DEFAULT nextval('DateAttributeKeySequence') PRIMARY KEY, \
-                entity_id bigint NOT NULL, \
-                attr_type_id bigint not null, \
-                date bigint not null, \
-                CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
-                CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_da_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
-                  DEFERRABLE INITIALLY DEFERRED \
-                ) ", date_form_id, date_form_id).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index date_parent_id on DateAttribute (entity_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "CREATE TRIGGER da_attribute_sorting_cleanup BEFORE DELETE ON DateAttribute \
-                FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence DateAttributeKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        // see comment for the form_id column under "create table RelationToGroup", below:
+        let date_form_id = self.get_attribute_form_id(Util::DATE_TYPE).unwrap();
+        // About the attr_type_id: e.g., due on, done on, should start on, started on on... (which would be an entity).
+        self.db_action(transaction, format!("create table DateAttribute (\
+            form_id smallint DEFAULT {} \
+                NOT NULL CHECK (form_id={}), \
+            id bigint DEFAULT nextval('DateAttributeKeySequence') PRIMARY KEY, \
+            entity_id bigint NOT NULL, \
+            attr_type_id bigint not null, \
+            date bigint not null, \
+            CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
+            CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_da_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
+              DEFERRABLE INITIALLY DEFERRED \
+            ) ", date_form_id, date_form_id).as_str(), false, false)?;
+        self.db_action(
+            transaction,
+            "create index date_parent_id on DateAttribute (entity_id)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "CREATE TRIGGER da_attribute_sorting_cleanup BEFORE DELETE ON DateAttribute \
+            FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
+            false,
+            false,
+        )?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence BooleanAttributeKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            let boolean_form_id = self.get_attribute_form_id(Util::BOOLEAN_TYPE).unwrap();
-            // See comment for the form_id column under "create table RelationToGroup", below.
-            // For the booleanValue column: allowing nulls because a template might not have \
-            // value, and a task might not have a "done/not" setting yet (if unknown)?
-            // Ex., isDone (where the task would be an entity).
-            // See "create table RelationToEntity" for comments about dates' meanings.
-            result = self.db_action(transaction, format!("create table BooleanAttribute (\
-                form_id smallint DEFAULT {} \
-                    NOT NULL CHECK (form_id={}), \
-                id bigint DEFAULT nextval('BooleanAttributeKeySequence') PRIMARY KEY, \
-                entity_id bigint NOT NULL, \
-                booleanValue boolean, \
-                attr_type_id bigint not null, \
-                valid_on_date bigint, \
-                observation_date bigint not null, \
-                CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
-                CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_ba_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
-                  DEFERRABLE INITIALLY DEFERRED \
-                ) ", boolean_form_id, boolean_form_id).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
-            //%%try not checking one to see if compiler catches it:
-            /*result =*/
-            self.db_action(
-                transaction,
-                "create index boolean_parent_id on BooleanAttribute (entity_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "CREATE TRIGGER ba_attribute_sorting_cleanup BEFORE DELETE ON BooleanAttribute \
-                FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence BooleanAttributeKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        let boolean_form_id = self.get_attribute_form_id(Util::BOOLEAN_TYPE).unwrap();
+        // See comment for the form_id column under "create table RelationToGroup", below.
+        // For the booleanValue column: allowing nulls because a template might not have \
+        // value, and a task might not have a "done/not" setting yet (if unknown)?
+        // Ex., isDone (where the task would be an entity).
+        // See "create table RelationToEntity" for comments about dates' meanings.
+        self.db_action(transaction, format!("create table BooleanAttribute (\
+            form_id smallint DEFAULT {} \
+                NOT NULL CHECK (form_id={}), \
+            id bigint DEFAULT nextval('BooleanAttributeKeySequence') PRIMARY KEY, \
+            entity_id bigint NOT NULL, \
+            booleanValue boolean, \
+            attr_type_id bigint not null, \
+            valid_on_date bigint, \
+            observation_date bigint not null, \
+            CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
+            CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_ba_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
+              DEFERRABLE INITIALLY DEFERRED \
+            ) ", boolean_form_id, boolean_form_id).as_str(), false, false)?;
+        self.db_action(
+            transaction,
+            "create index boolean_parent_id on BooleanAttribute (entity_id)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "CREATE TRIGGER ba_attribute_sorting_cleanup BEFORE DELETE ON BooleanAttribute \
+            FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
+            false,
+            false,
+        )?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence FileAttributeKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            let file_form_id = self.get_attribute_form_id(Util::FILE_TYPE).unwrap();
-            // See comment for form_id under "create table RelationToGroup", below.
-            // About the attr_type_id: e.g., refers to a type like txt: i.e., could be like mime types, extensions, or mac fork info, etc (which would be an entity in any case).
-            // Now that i already wrote this, maybe storing 'readable' is overkill since the system has to read it to store its content. Maybe there's a use.
-            // Moved to other table:   contents bit varying NOT NULL,
-            // The md5hash is the md5 hash in hex (just to see if doc has become corrupted; not intended for security/encryption)
-            result = self.db_action(transaction, format!("create table FileAttribute (\
-                form_id smallint DEFAULT {} \
-                    NOT NULL CHECK (form_id={}), \
-                id bigint DEFAULT nextval('FileAttributeKeySequence') PRIMARY KEY, \
-                entity_id bigint NOT NULL, \
-                attr_type_id bigint NOT NULL, \
-                description text NOT NULL, \
-                original_file_date bigint NOT NULL, \
-                stored_date bigint NOT NULL, \
-                original_file_path text NOT NULL, \
-                readable boolean not null, \
-                writable boolean not null, \
-                executable boolean not null, \
-                size bigint NOT NULL, \
-                md5hash char(32) NOT NULL, \
-                CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
-                CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_fa_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
-                  DEFERRABLE INITIALLY DEFERRED \
-                ) ", file_form_id, file_form_id).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index file_parent_id on FileAttribute (entity_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "CREATE TRIGGER fa_attribute_sorting_cleanup BEFORE DELETE ON FileAttribute \
-                FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            // about oids and large objects, blobs: here are some reference links (but consider also which version of postgresql is running):
-            //  https://duckduckgo.com/?q=postgresql+large+binary+streams
-            //  http://www.postgresql.org/docs/9.1/interactive/largeobjects.html
-            //  https://wiki.postgresql.org/wiki/BinaryFilesInDB
-            //  http://jdbc.postgresql.org/documentation/80/binary-data.html
-            //  http://artofsystems.blogspot.com/2008/07/mysql-postgresql-and-blob-streaming.html
-            //  http://stackoverflow.com/questions/2069541/postgresql-jdbc-and-streaming-blobs
-            //  http://giswiki.hsr.ch/PostgreSQL_-_Binary_Large_Objects
-            result = self.db_action(transaction, "CREATE TABLE FileAttributeContent (\
-                file_attribute_id bigint PRIMARY KEY, \
-                contents_oid lo NOT NULL, \
-                CONSTRAINT valid_fileattr_id FOREIGN KEY (file_attribute_id) REFERENCES fileattribute (id) ON DELETE CASCADE \
-                )", false, false);
-            if result.is_err() {
-                break;
-            }
-            // This trigger exists because otherwise the binary data from large objects doesn't get cleaned up when the related rows are deleted. For details
-            // see the links just above (especially the wiki one).
-            // (The reason I PUT THE "UPDATE OR" in the "BEFORE UPDATE OR DELETE" is simply: that is how this page's example (at least as of 2016-06-01:
-            //    http://www.postgresql.org/docs/current/static/lo.html
-            // ...said to do it.
-            //Idea: but we still might want more tests around it? and to use "vacuumlo" module, per that same url?
-            result = self.db_action(transaction, "CREATE TRIGGER om_contents_oid_cleanup BEFORE UPDATE OR DELETE ON fileattributecontent \
-                FOR EACH ROW EXECUTE PROCEDURE lo_manage(contents_oid)", false, false);
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence FileAttributeKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        let file_form_id = self.get_attribute_form_id(Util::FILE_TYPE).unwrap();
+        // See comment for form_id under "create table RelationToGroup", below.
+        // About the attr_type_id: e.g., refers to a type like txt: i.e., could be like mime types, extensions, or mac fork info, etc (which would be an entity in any case).
+        // Now that i already wrote this, maybe storing 'readable' is overkill since the system has to read it to store its content. Maybe there's a use.
+        // Moved to other table:   contents bit varying NOT NULL,
+        // The md5hash is the md5 hash in hex (just to see if doc has become corrupted; not intended for security/encryption)
+        self.db_action(transaction, format!("create table FileAttribute (\
+            form_id smallint DEFAULT {} \
+                NOT NULL CHECK (form_id={}), \
+            id bigint DEFAULT nextval('FileAttributeKeySequence') PRIMARY KEY, \
+            entity_id bigint NOT NULL, \
+            attr_type_id bigint NOT NULL, \
+            description text NOT NULL, \
+            original_file_date bigint NOT NULL, \
+            stored_date bigint NOT NULL, \
+            original_file_path text NOT NULL, \
+            readable boolean not null, \
+            writable boolean not null, \
+            executable boolean not null, \
+            size bigint NOT NULL, \
+            md5hash char(32) NOT NULL, \
+            CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
+            CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_fa_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
+              DEFERRABLE INITIALLY DEFERRED \
+            ) ", file_form_id, file_form_id).as_str(), false, false)?;
+        self.db_action(
+            transaction,
+            "create index file_parent_id on FileAttribute (entity_id)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "CREATE TRIGGER fa_attribute_sorting_cleanup BEFORE DELETE ON FileAttribute \
+            FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
+            false,
+            false,
+        )?;
+        // about oids and large objects, blobs: here are some reference links (but consider also which version of postgresql is running):
+        //  https://duckduckgo.com/?q=postgresql+large+binary+streams
+        //  http://www.postgresql.org/docs/9.1/interactive/largeobjects.html
+        //  https://wiki.postgresql.org/wiki/BinaryFilesInDB
+        //  http://jdbc.postgresql.org/documentation/80/binary-data.html
+        //  http://artofsystems.blogspot.com/2008/07/mysql-postgresql-and-blob-streaming.html
+        //  http://stackoverflow.com/questions/2069541/postgresql-jdbc-and-streaming-blobs
+        //  http://giswiki.hsr.ch/PostgreSQL_-_Binary_Large_Objects
+        self.db_action(transaction, "CREATE TABLE FileAttributeContent (\
+            file_attribute_id bigint PRIMARY KEY, \
+            contents_oid lo NOT NULL, \
+            CONSTRAINT valid_fileattr_id FOREIGN KEY (file_attribute_id) REFERENCES fileattribute (id) ON DELETE CASCADE \
+            )", false, false)?;
+        // This trigger exists because otherwise the binary data from large objects doesn't get cleaned up when the related rows are deleted. For details
+        // see the links just above (especially the wiki one).
+        // (The reason I PUT THE "UPDATE OR" in the "BEFORE UPDATE OR DELETE" is simply: that is how this page's example (at least as of 2016-06-01:
+        //    http://www.postgresql.org/docs/current/static/lo.html
+        // ...said to do it.
+        //Idea: but we still might want more tests around it? and to use "vacuumlo" module, per that same url?
+        self.db_action(transaction, "CREATE TRIGGER om_contents_oid_cleanup BEFORE UPDATE OR DELETE ON fileattributecontent \
+            FOR EACH ROW EXECUTE PROCEDURE lo_manage(contents_oid)", false, false)?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence TextAttributeKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            // the entity_id is the key for the entity on which this text info is recorded; for other meanings see comments on
-            // Entity.addQuantityAttribute(...).
-            // id must be "unique not null" in ANY database used, because it is the primary key.
-            let text_form_id = self.get_attribute_form_id(Util::TEXT_TYPE).unwrap();
-            // See comment for column "form_id" under "create table RelationToGroup", below.
-            // For attr_type_id:  eg, serial number (which would be an entity).
-            // For valid_on_date, see "create table RelationToEntity" for comments about dates' meanings.
-            result = self.db_action(transaction, format!("create table TextAttribute (\
-                form_id smallint DEFAULT {} \
-                    NOT NULL CHECK (form_id={}), \
-                id bigint DEFAULT nextval('TextAttributeKeySequence') PRIMARY KEY, \
-                entity_id bigint NOT NULL, \
-                textValue text NOT NULL, \
-                attr_type_id bigint not null, \
-                valid_on_date bigint, \
-                observation_date bigint not null, \
-                CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
-                CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_ta_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
-                  DEFERRABLE INITIALLY DEFERRED \
-                ) ", text_form_id, text_form_id).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index text_parent_id on TextAttribute (entity_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "CREATE TRIGGER ta_attribute_sorting_cleanup BEFORE DELETE ON TextAttribute \
-                FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence TextAttributeKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        // the entity_id is the key for the entity on which this text info is recorded; for other meanings see comments on
+        // Entity.addQuantityAttribute(...).
+        // id must be "unique not null" in ANY database used, because it is the primary key.
+        let text_form_id = self.get_attribute_form_id(Util::TEXT_TYPE).unwrap();
+        // See comment for column "form_id" under "create table RelationToGroup", below.
+        // For attr_type_id:  eg, serial number (which would be an entity).
+        // For valid_on_date, see "create table RelationToEntity" for comments about dates' meanings.
+        self.db_action(transaction, format!("create table TextAttribute (\
+            form_id smallint DEFAULT {} \
+                NOT NULL CHECK (form_id={}), \
+            id bigint DEFAULT nextval('TextAttributeKeySequence') PRIMARY KEY, \
+            entity_id bigint NOT NULL, \
+            textValue text NOT NULL, \
+            attr_type_id bigint not null, \
+            valid_on_date bigint, \
+            observation_date bigint not null, \
+            CONSTRAINT valid_attr_type_id FOREIGN KEY (attr_type_id) REFERENCES entity (id), \
+            CONSTRAINT valid_parent_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_ta_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
+              DEFERRABLE INITIALLY DEFERRED \
+            ) ", text_form_id, text_form_id).as_str(), false, false)?;
+        self.db_action(
+            transaction,
+            "create index text_parent_id on TextAttribute (entity_id)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "CREATE TRIGGER ta_attribute_sorting_cleanup BEFORE DELETE ON TextAttribute \
+            FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
+            false,
+            false,
+        )?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence RelationToEntityKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            //Example: a relationship between a state and various counties might be set up like this:
-            // The state and each county are Entities. A RelationType (which is an Entity with some
-            // additional columns) is bi- directional and indicates some kind of containment relationship, for example between
-            // state & counties. In the RelationToEntity table there would be a row whose rel_type_id points to the described RelationType,
-            // whose entity_id points to the state Entity, and whose entity_id_2 points to a given county Entity. There would be
-            // additional rows for each county, varying only in the value in entity_id_2.
-            // And example of something non(?)directional would be where the relationship is identical no matter which way you go, like
-            // two human acquaintances). The relationship between a state and county is not the same in reverse. Haven't got a good
-            // unidirectional example, so maybe it can be eliminated? (Or maybe it would be something where the "child" doesn't "know"
-            // the "parent"--like an electron in an atom? -- revu notes or see what Mark Butler thinks.
-            // --Luke Call 8/2003.
-            let rle_form_id = self
-                .get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)
-                .unwrap();
-            // See comment for form_id, under "create table RelationToGroup", below.
-            // The "id" column can be treated like a primary key (with the advantages of being artificial) but the real one is a bit farther down. This one has the
-            // slight or irrelevant disadvantage that it artificially limits the # of rows in this table, but it's still a big #.
-            // The rel_type_id column is for lookup in RelationType table, eg "has".
-            // About the entity_id column: what is related (see RelationConnection for "related to what" (related_to_entity_id).
-            // For entity_id_2: the entity_id in RelAttr table is related to what other entity(ies).
-            // The valid on date can be null (means no info), or 0 (means 'for all time', not 1970 or whatever that was. At least make it a 1 in that case),
-            // or the date it first became valid/true. (The java/scala version of it put in System.currentTimeMillis() for "now"%%--ck if it
-            // behaves correctly now when saving/reading/displaying, in milliseconds...? like the call in create_base_data()
-            // to create_relation_to_local_entity ?)
-            // The observation_date is: whenever first observed (in milliseconds?).
-            result = self.db_action(transaction, format!("create table RelationToEntity (\
-                form_id smallint DEFAULT {}\
-                    NOT NULL CHECK (form_id={}), \
-                id bigint DEFAULT nextval('RelationToEntityKeySequence') UNIQUE NOT NULL, \
-                rel_type_id bigint NOT NULL, \
-                entity_id bigint NOT NULL, \
-                entity_id_2 bigint NOT NULL, \
-                valid_on_date bigint, \
-                observation_date bigint not null, \
-                PRIMARY KEY (rel_type_id, entity_id, entity_id_2), \
-                CONSTRAINT valid_rel_type_id FOREIGN KEY (rel_type_id) REFERENCES RelationType (entity_id) ON DELETE CASCADE, \
-                CONSTRAINT valid_related_to_entity_id_1 FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_related_to_entity_id_2 FOREIGN KEY (entity_id_2) REFERENCES entity (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_reltoent_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
-                  DEFERRABLE INITIALLY DEFERRED \
-                ) ", rle_form_id, rle_form_id).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index entity_id_1 on RelationToEntity (entity_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index entity_id_2 on RelationToEntity (entity_id_2)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "CREATE TRIGGER rte_attribute_sorting_cleanup BEFORE DELETE ON RelationToEntity \
-                FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence RelationToEntityKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        //Example: a relationship between a state and various counties might be set up like this:
+        // The state and each county are Entities. A RelationType (which is an Entity with some
+        // additional columns) is bi- directional and indicates some kind of containment relationship, for example between
+        // state & counties. In the RelationToEntity table there would be a row whose rel_type_id points to the described RelationType,
+        // whose entity_id points to the state Entity, and whose entity_id_2 points to a given county Entity. There would be
+        // additional rows for each county, varying only in the value in entity_id_2.
+        // And example of something non(?)directional would be where the relationship is identical no matter which way you go, like
+        // two human acquaintances). The relationship between a state and county is not the same in reverse. Haven't got a good
+        // unidirectional example, so maybe it can be eliminated? (Or maybe it would be something where the "child" doesn't "know"
+        // the "parent"--like an electron in an atom? -- revu notes or see what Mark Butler thinks.
+        // --Luke Call 8/2003.
+        let rle_form_id = self
+            .get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)
+            .unwrap();
+        // See comment for form_id, under "create table RelationToGroup", below.
+        // The "id" column can be treated like a primary key (with the advantages of being artificial) but the real one is a bit farther down. This one has the
+        // slight or irrelevant disadvantage that it artificially limits the # of rows in this table, but it's still a big #.
+        // The rel_type_id column is for lookup in RelationType table, eg "has".
+        // About the entity_id column: what is related (see RelationConnection for "related to what" (related_to_entity_id).
+        // For entity_id_2: the entity_id in RelAttr table is related to what other entity(ies).
+        // The valid on date can be null (means no info), or 0 (means 'for all time', not 1970 or whatever that was. At least make it a 1 in that case),
+        // or the date it first became valid/true. (The java/scala version of it put in System.currentTimeMillis() for "now"%%--ck if it
+        // behaves correctly now when saving/reading/displaying, in milliseconds...? like the call in create_base_data()
+        // to create_relation_to_local_entity ?)
+        // The observation_date is: whenever first observed (in milliseconds?).
+        self.db_action(transaction, format!("create table RelationToEntity (\
+            form_id smallint DEFAULT {}\
+                NOT NULL CHECK (form_id={}), \
+            id bigint DEFAULT nextval('RelationToEntityKeySequence') UNIQUE NOT NULL, \
+            rel_type_id bigint NOT NULL, \
+            entity_id bigint NOT NULL, \
+            entity_id_2 bigint NOT NULL, \
+            valid_on_date bigint, \
+            observation_date bigint not null, \
+            PRIMARY KEY (rel_type_id, entity_id, entity_id_2), \
+            CONSTRAINT valid_rel_type_id FOREIGN KEY (rel_type_id) REFERENCES RelationType (entity_id) ON DELETE CASCADE, \
+            CONSTRAINT valid_related_to_entity_id_1 FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_related_to_entity_id_2 FOREIGN KEY (entity_id_2) REFERENCES entity (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_reltoent_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
+              DEFERRABLE INITIALLY DEFERRED \
+            ) ", rle_form_id, rle_form_id).as_str(), false, false)?;
+        self.db_action(
+            transaction,
+            "create index entity_id_1 on RelationToEntity (entity_id)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "create index entity_id_2 on RelationToEntity (entity_id_2)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "CREATE TRIGGER rte_attribute_sorting_cleanup BEFORE DELETE ON RelationToEntity \
+            FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
+            false,
+            false,
+        )?;
 
-            // Would rename this sequence to match the table it's used in now, but the cmd "alter sequence relationtogroupkeysequence rename to groupkeysequence;"
-            // doesn't rename the name inside the sequence, and keeping the old name is easier for now than deciding whether to do something about that (more info
-            // if you search the WWW for "postgresql bug 3619".
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence RelationToGroupKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            // This table is named "grupo" because otherwise some queries (like "drop table group") don't work unless "group" is quoted, which doesn't work
-            // with mixed case; but forcing the dropped names to lowercase and quoted also prevented dropping class and entity in the same command, it seemed.
-            // Avoiding the word "group" as a table in sql might prevent other errors too.
-            // Insertion_date is intended to be a readonly date: the (*java*-style numeric: milliseconds
-            // since 1970-1-1 or such) when this row was inserted (ie, when the object was created
-            // in the db).
-            // For new_entries... see comment at same field in Entity table.
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create table grupo (\
-                id bigint DEFAULT nextval('RelationToGroupKeySequence') PRIMARY KEY, \
-                name varchar({}) NOT NULL, \
-                insertion_date bigint not null, \
-                allow_mixed_classes boolean NOT NULL, \
-                new_entries_stick_to_top boolean NOT NULL  default false\
-                ) ",
-                    Util::entity_name_length()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        // Would rename this sequence to match the table it's used in now, but the cmd "alter sequence relationtogroupkeysequence rename to groupkeysequence;"
+        // doesn't rename the name inside the sequence, and keeping the old name is easier for now than deciding whether to do something about that (more info
+        // if you search the WWW for "postgresql bug 3619".
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence RelationToGroupKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        // This table is named "grupo" because otherwise some queries (like "drop table group") don't work unless "group" is quoted, which doesn't work
+        // with mixed case; but forcing the dropped names to lowercase and quoted also prevented dropping class and entity in the same command, it seemed.
+        // Avoiding the word "group" as a table in sql might prevent other errors too.
+        // Insertion_date is intended to be a readonly date: the (*java*-style numeric: milliseconds
+        // since 1970-1-1 or such) when this row was inserted (ie, when the object was created
+        // in the db).
+        // For new_entries... see comment at same field in Entity table.
+        self.db_action(
+            transaction,
+            format!(
+                "create table grupo (\
+            id bigint DEFAULT nextval('RelationToGroupKeySequence') PRIMARY KEY, \
+            name varchar({}) NOT NULL, \
+            insertion_date bigint not null, \
+            allow_mixed_classes boolean NOT NULL, \
+            new_entries_stick_to_top boolean NOT NULL  default false\
+            ) ",
+                Util::entity_name_length()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence RelationToGroupKeySequence2 minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            // The form_id is always the same, and exists to enable the integrity constraint which references it, just below.
-            // The id column can be treated like a primary key (with the advantages of being artificial)
-            // but the real one is a bit farther down. This one has the slight or irrelevant
-            // disadvantage that it artificially limits the # of rows in this table, but it's still a big #.
-            // The entity_id is of the containing entity whose attribute (subgroup, RTG) this is.
-            // Idea: Should the 2 dates be eliminated? The code is there, including in the parent class, and they might be useful,
-            // maybe no harm while we wait & see.
-            // See "create table RelationToEntity" for comments about dates' meanings.
-            let rtg_form_id = self
-                .get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)
-                .unwrap();
-            result = self.db_action(transaction, format!("create table RelationToGroup (\
-                form_id smallint DEFAULT {} \
-                    NOT NULL CHECK (form_id={}), \
-                id bigint DEFAULT nextval('RelationToGroupKeySequence2') UNIQUE NOT NULL, \
-                entity_id bigint NOT NULL, \
-                rel_type_id bigint NOT NULL, \
-                group_id bigint NOT NULL, \
-                valid_on_date bigint, \
-                observation_date bigint not null, \
-                PRIMARY KEY (entity_id, rel_type_id, group_id), \
-                CONSTRAINT valid_reltogrp_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_reltogrp_rel_type_id FOREIGN KEY (rel_type_id) REFERENCES relationType (entity_id), \
-                CONSTRAINT valid_reltogrp_group_id FOREIGN KEY (group_id) REFERENCES grupo (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_reltogrp_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
-                  DEFERRABLE INITIALLY DEFERRED \
-                ) ", rtg_form_id, rtg_form_id).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index RTG_entity_id on RelationToGroup (entity_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index RTG_group_id on RelationToGroup (group_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "CREATE TRIGGER rtg_attribute_sorting_cleanup BEFORE DELETE ON RelationToGroup \
-                FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence RelationToGroupKeySequence2 minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        // The form_id is always the same, and exists to enable the integrity constraint which references it, just below.
+        // The id column can be treated like a primary key (with the advantages of being artificial)
+        // but the real one is a bit farther down. This one has the slight or irrelevant
+        // disadvantage that it artificially limits the # of rows in this table, but it's still a big #.
+        // The entity_id is of the containing entity whose attribute (subgroup, RTG) this is.
+        // Idea: Should the 2 dates be eliminated? The code is there, including in the parent class, and they might be useful,
+        // maybe no harm while we wait & see.
+        // See "create table RelationToEntity" for comments about dates' meanings.
+        let rtg_form_id = self
+            .get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)
+            .unwrap();
+        self.db_action(transaction, format!("create table RelationToGroup (\
+            form_id smallint DEFAULT {} \
+                NOT NULL CHECK (form_id={}), \
+            id bigint DEFAULT nextval('RelationToGroupKeySequence2') UNIQUE NOT NULL, \
+            entity_id bigint NOT NULL, \
+            rel_type_id bigint NOT NULL, \
+            group_id bigint NOT NULL, \
+            valid_on_date bigint, \
+            observation_date bigint not null, \
+            PRIMARY KEY (entity_id, rel_type_id, group_id), \
+            CONSTRAINT valid_reltogrp_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_reltogrp_rel_type_id FOREIGN KEY (rel_type_id) REFERENCES relationType (entity_id), \
+            CONSTRAINT valid_reltogrp_group_id FOREIGN KEY (group_id) REFERENCES grupo (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_reltogrp_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
+              DEFERRABLE INITIALLY DEFERRED \
+            ) ", rtg_form_id, rtg_form_id).as_str(), false, false)?;
+        self.db_action(
+            transaction,
+            "create index RTG_entity_id on RelationToGroup (entity_id)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "create index RTG_group_id on RelationToGroup (group_id)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "CREATE TRIGGER rtg_attribute_sorting_cleanup BEFORE DELETE ON RelationToGroup \
+            FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
+            false,
+            false,
+        )?;
 
-            /* This table maintains a 1-to-many connection between one entity, and many others in a particular group that it contains.
-            Will this clarify terms?: the table below is a (1) "relationship table" (aka relationship entity--not an OM entity but at a lower layer) which tracks
-            those entities which are part of a particular group.  The nature of the (2) "relation"-ship between that group of entities and the entity that "has"
-            them (or other relationtype to them...) is described by the table RelationToGroup, which is instead of a regular old (3) "RelationToEntity" because #3
-            just
-            relates Entities to other Entities.  Or in other words, #2 (RelationToGroup) has notes about the tie from Entities to groups of Entities,
-            where the specific entities in that group are listed in #1 (this table below).  And the type of relation between them (has, contains,
-            is acquainted with...?) is in the 4) relationtogroup table's reference to the relationtype table (or its "rel_type_id"). Got it?
-            (Good, then let's not confuse things by mentioning that postgresql refers to *every* table (and more?) as a "relation" because that's another
-            context altogether, another use of the word.)
-            */
-            // The primary key is really the group_id + entity_id, and the sorting_index is just in an index so we can cheaply order query results.
-            // When sorting_index was part of the key there were ongoing various problems because the rest of the system (like reordering results, but
-            // probably also other issues) wasn't ready to handle two of the same entity in a group.
-            // The onstraint noDupSortingIndexes is to make it so the sorting_index must also be unique for each group (otherwise we have sorting problems).
-            result = self.db_action(transaction, "create table EntitiesInAGroup (\
-                group_id bigint NOT NULL\
-                , entity_id bigint NOT NULL\
-                , sorting_index bigint not null\
-                , PRIMARY KEY (group_id, entity_id)\
-                , CONSTRAINT valid_group_id FOREIGN KEY (group_id) REFERENCES grupo (id) ON DELETE CASCADE\
-                , CONSTRAINT valid_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id)\
-                , constraint noDupSortingIndexes unique (group_id, sorting_index)\
-                ) ", false, false);
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index EntitiesInAGroup_id on EntitiesInAGroup (entity_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(transaction, "create index EntitiesInAGroup_sorted on EntitiesInAGroup (group_id, entity_id, sorting_index)", false, false);
-            if result.is_err() {
-                break;
-            }
+        /* This table maintains a 1-to-many connection between one entity, and many others in a particular group that it contains.
+        Will this clarify terms?: the table below is a (1) "relationship table" (aka relationship entity--not an OM entity but at a lower layer) which tracks
+        those entities which are part of a particular group.  The nature of the (2) "relation"-ship between that group of entities and the entity that "has"
+        them (or other relationtype to them...) is described by the table RelationToGroup, which is instead of a regular old (3) "RelationToEntity" because #3
+        just
+        relates Entities to other Entities.  Or in other words, #2 (RelationToGroup) has notes about the tie from Entities to groups of Entities,
+        where the specific entities in that group are listed in #1 (this table below).  And the type of relation between them (has, contains,
+        is acquainted with...?) is in the 4) relationtogroup table's reference to the relationtype table (or its "rel_type_id"). Got it?
+        (Good, then let's not confuse things by mentioning that postgresql refers to *every* table (and more?) as a "relation" because that's another
+        context altogether, another use of the word.)
+        */
+        // The primary key is really the group_id + entity_id, and the sorting_index is just in an index so we can cheaply order query results.
+        // When sorting_index was part of the key there were ongoing various problems because the rest of the system (like reordering results, but
+        // probably also other issues) wasn't ready to handle two of the same entity in a group.
+        // The onstraint noDupSortingIndexes is to make it so the sorting_index must also be unique for each group (otherwise we have sorting problems).
+        self.db_action(transaction, "create table EntitiesInAGroup (\
+            group_id bigint NOT NULL\
+            , entity_id bigint NOT NULL\
+            , sorting_index bigint not null\
+            , PRIMARY KEY (group_id, entity_id)\
+            , CONSTRAINT valid_group_id FOREIGN KEY (group_id) REFERENCES grupo (id) ON DELETE CASCADE\
+            , CONSTRAINT valid_entity_id FOREIGN KEY (entity_id) REFERENCES entity (id)\
+            , constraint noDupSortingIndexes unique (group_id, sorting_index)\
+            ) ", false, false)?;
+        self.db_action(
+            transaction,
+            "create index EntitiesInAGroup_id on EntitiesInAGroup (entity_id)",
+            false,
+            false,
+        )?;
+        self.db_action(transaction, "create index EntitiesInAGroup_sorted on EntitiesInAGroup (group_id, entity_id, sorting_index)", false, false)?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence ActionKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(transaction, format!("create table Action (\
-                id bigint DEFAULT nextval('ActionKeySequence') PRIMARY KEY, \
-                class_id bigint NOT NULL, \
-                name varchar({}) NOT NULL, \
-                action varchar({}) NOT NULL, \
-                CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES Class (id) ON DELETE CASCADE \
-                ) ", Util::entity_name_length(), Util::entity_name_length()).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index action_class_id on Action (class_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence ActionKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        self.db_action(transaction, format!("create table Action (\
+            id bigint DEFAULT nextval('ActionKeySequence') PRIMARY KEY, \
+            class_id bigint NOT NULL, \
+            name varchar({}) NOT NULL, \
+            action varchar({}) NOT NULL, \
+            CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES Class (id) ON DELETE CASCADE \
+            ) ", Util::entity_name_length(), Util::entity_name_length()).as_str(), false, false)?;
+        self.db_action(
+            transaction,
+            "create index action_class_id on Action (class_id)",
+            false,
+            false,
+        )?;
 
-            /* This current database is one OM instance, and known (remote or local) databases to which this one might refer are other instances.
-              Design musings:
-            This is being implemented in an explicit table instead of just with the features around EntityClass objects & the "class" table, to
-            avoid a chicken/egg problem:
-            imagine a new OM instance, or one where the user deleted via the UI the relevant entity class(es) for handling remote OM instances: how would the user
-            retrieve those classes from others' shared OM data if the feature to connect to remote ones is broken?  Still, it is debatable whether it would have
-            worked just as well to put this info in an entity under the .system entity, like user preferences are, and try to prevent deleting it or something,
-            because other info might be needed on it in the future such as security settings, and using the entity_id field for links to that info could become
-            just as awkward as having an entity to begin with.  But doing it the way it is now might make db-level constraints on such things
-            more reliable, especially given that the OM-level constraints via classes/code on entities isn't developed yet.
+        /* This current database is one OM instance, and known (remote or local) databases to which this one might refer are other instances.
+          Design musings:
+        This is being implemented in an explicit table instead of just with the features around EntityClass objects & the "class" table, to
+        avoid a chicken/egg problem:
+        imagine a new OM instance, or one where the user deleted via the UI the relevant entity class(es) for handling remote OM instances: how would the user
+        retrieve those classes from others' shared OM data if the feature to connect to remote ones is broken?  Still, it is debatable whether it would have
+        worked just as well to put this info in an entity under the .system entity, like user preferences are, and try to prevent deleting it or something,
+        because other info might be needed on it in the future such as security settings, and using the entity_id field for links to that info could become
+        just as awkward as having an entity to begin with.  But doing it the way it is now might make db-level constraints on such things
+        more reliable, especially given that the OM-level constraints via classes/code on entities isn't developed yet.
 
-            This might have some design overlap with the ".system" entity; maybe that should have been put here?
-             */
-            // The "local" field doesn't mean whether the instance is found on localhost, but rather whether the row is for *this* instance: the OneModel
-            // instance whose database we are connected to right now.
-            // See Controller.askForAndWriteOmInstanceInfo.askAndSave for more description for the address column.
-            // Idea: Is it worth having to know future address formats, to enforce validity in a
-            // constraint?  Problems seem likely to be infrequent & easy to fix.
-            // See table "entity" for description of insertion_date.
-            // The entity_id is to link to an entity with whatever details, such as a human-given
-            // name for familiarity, security settings, other adhoc info, etc. NULL values are
-            // intentionally allowed, in case user doesn't need to specify any extra info about an omInstance.
-            // Idea: require a certain class for this entity, created at startup/db initialization? or a shared one? Waiting until use cases become clearer.
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create table OmInstance (\
-                id uuid PRIMARY KEY\
-                , local boolean NOT NULL\
-                , address varchar({}) NOT NULL\
-                , insertion_date bigint not null\
-                , entity_id bigint REFERENCES entity (id) ON DELETE RESTRICT\
-                ) ",
-                    self.om_instance_address_length()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        This might have some design overlap with the ".system" entity; maybe that should have been put here?
+         */
+        // The "local" field doesn't mean whether the instance is found on localhost, but rather whether the row is for *this* instance: the OneModel
+        // instance whose database we are connected to right now.
+        // See Controller.askForAndWriteOmInstanceInfo.askAndSave for more description for the address column.
+        // Idea: Is it worth having to know future address formats, to enforce validity in a
+        // constraint?  Problems seem likely to be infrequent & easy to fix.
+        // See table "entity" for description of insertion_date.
+        // The entity_id is to link to an entity with whatever details, such as a human-given
+        // name for familiarity, security settings, other adhoc info, etc. NULL values are
+        // intentionally allowed, in case user doesn't need to specify any extra info about an omInstance.
+        // Idea: require a certain class for this entity, created at startup/db initialization? or a shared one? Waiting until use cases become clearer.
+        self.db_action(
+            transaction,
+            format!(
+                "create table OmInstance (\
+            id uuid PRIMARY KEY\
+            , local boolean NOT NULL\
+            , address varchar({}) NOT NULL\
+            , insertion_date bigint not null\
+            , entity_id bigint REFERENCES entity (id) ON DELETE RESTRICT\
+            ) ",
+                self.om_instance_address_length()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "create sequence RelationToRemoteEntityKeySequence minvalue {}",
-                    self.min_id_value()
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            // See comments on "create table RelationToEntity" above for comparison & some info, as well as class comments on RelationToRemoteEntity.
-            // The difference here is (at least that) this has a field pointing
-            // to a remote OM instance.  The Entity with id entity_id_2 is contained in that remote OM instance, not in the current one.
-            // (About remote_instance_id: see comment just above.)
-            // (See comment above about entity_id_2.)
-            // About constraint valid_remote_instance_id below:
-            // deletions of the referenced rows should warn the user that these will be deleted also.  The same should also be true for all
-            // other uses of "ON DELETE CASCADE".
-            let rtre_form_id = self
-                .get_attribute_form_id(Util::RELATION_TO_REMOTE_ENTITY_TYPE)
-                .unwrap();
-            result = self.db_action(transaction, format! ("create table RelationToRemoteEntity (\
-                form_id smallint DEFAULT {}\
-                    NOT NULL CHECK (form_id={}), \
-                id bigint DEFAULT nextval('RelationToRemoteEntityKeySequence') UNIQUE NOT NULL, \
-                rel_type_id bigint NOT NULL, \
-                entity_id bigint NOT NULL, \
-                remote_instance_id uuid NOT NULL, \
-                entity_id_2 bigint NOT NULL, \
-                valid_on_date bigint, \
-                observation_date bigint not null, \
-                PRIMARY KEY (rel_type_id, entity_id, remote_instance_id, entity_id_2), \
-                CONSTRAINT valid_rel_to_local_type_id FOREIGN KEY (rel_type_id) REFERENCES RelationType (entity_id) ON DELETE CASCADE, \
-                CONSTRAINT valid_rel_to_local_entity_id_1 FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
-                CONSTRAINT valid_remote_instance_id FOREIGN KEY (remote_instance_id) REFERENCES OmInstance (id) ON DELETE CASCADE, \
-                CONSTRAINT remote_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
-                  DEFERRABLE INITIALLY DEFERRED \
-                ) ", rtre_form_id, rtre_form_id).as_str(), false, false);
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index rtre_entity_id_1 on RelationToRemoteEntity (entity_id)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(
-                transaction,
-                "create index rtre_entity_id_2 on RelationToRemoteEntity (entity_id_2)",
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
-            result = self.db_action(transaction, "CREATE TRIGGER rtre_attribute_sorting_cleanup BEFORE DELETE ON RelationToRemoteEntity \
-                FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()", false, false);
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "create sequence RelationToRemoteEntityKeySequence minvalue {}",
+                self.min_id_value()
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        // See comments on "create table RelationToEntity" above for comparison & some info, as well as class comments on RelationToRemoteEntity.
+        // The difference here is (at least that) this has a field pointing
+        // to a remote OM instance.  The Entity with id entity_id_2 is contained in that remote OM instance, not in the current one.
+        // (About remote_instance_id: see comment just above.)
+        // (See comment above about entity_id_2.)
+        // About constraint valid_remote_instance_id below:
+        // deletions of the referenced rows should warn the user that these will be deleted also.  The same should also be true for all
+        // other uses of "ON DELETE CASCADE".
+        let rtre_form_id = self
+            .get_attribute_form_id(Util::RELATION_TO_REMOTE_ENTITY_TYPE)
+            .unwrap();
+        self.db_action(transaction, format! ("create table RelationToRemoteEntity (\
+            form_id smallint DEFAULT {}\
+                NOT NULL CHECK (form_id={}), \
+            id bigint DEFAULT nextval('RelationToRemoteEntityKeySequence') UNIQUE NOT NULL, \
+            rel_type_id bigint NOT NULL, \
+            entity_id bigint NOT NULL, \
+            remote_instance_id uuid NOT NULL, \
+            entity_id_2 bigint NOT NULL, \
+            valid_on_date bigint, \
+            observation_date bigint not null, \
+            PRIMARY KEY (rel_type_id, entity_id, remote_instance_id, entity_id_2), \
+            CONSTRAINT valid_rel_to_local_type_id FOREIGN KEY (rel_type_id) REFERENCES RelationType (entity_id) ON DELETE CASCADE, \
+            CONSTRAINT valid_rel_to_local_entity_id_1 FOREIGN KEY (entity_id) REFERENCES entity (id) ON DELETE CASCADE, \
+            CONSTRAINT valid_remote_instance_id FOREIGN KEY (remote_instance_id) REFERENCES OmInstance (id) ON DELETE CASCADE, \
+            CONSTRAINT remote_sorting FOREIGN KEY (entity_id, form_id, id) REFERENCES attributesorting (entity_id, attribute_form_id, attribute_id) \
+              DEFERRABLE INITIALLY DEFERRED \
+            ) ", rtre_form_id, rtre_form_id).as_str(), false, false)?;
+        self.db_action(
+            transaction,
+            "create index rtre_entity_id_1 on RelationToRemoteEntity (entity_id)",
+            false,
+            false,
+        )?;
+        self.db_action(
+            transaction,
+            "create index rtre_entity_id_2 on RelationToRemoteEntity (entity_id_2)",
+            false,
+            false,
+        )?;
+        self.db_action(transaction, "CREATE TRIGGER rtre_attribute_sorting_cleanup BEFORE DELETE ON RelationToRemoteEntity \
+            FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()", false, false)?;
 
-            result = self.db_action(
-                transaction,
-                format!(
-                    "UPDATE om_db_version SET (version) = ROW({})",
-                    PostgreSQLDatabase::SCHEMA_VERSION
-                )
-                .as_str(),
-                false,
-                false,
-            );
-            if result.is_err() {
-                break;
-            }
+        self.db_action(
+            transaction,
+            format!(
+                "UPDATE om_db_version SET (version) = ROW({})",
+                PostgreSQLDatabase::SCHEMA_VERSION
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
 
-            // see comment at top of loop
-            break;
-        }
-        result
+        Ok(())
     }
 
     fn create_attribute_sorting_deletion_trigger(
