@@ -33,6 +33,13 @@ fn main() {
      */
     //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
 
+    // According to the docs for the crate anyhow, and stack overflow, this is to get backtraces
+    // to work by default.  Tests might still need it provided on the command-line.  And it said
+    // "this method needs to be inside main() method".
+    // env::set_var("RUST_BACKTRACE", "1");
+    // (more verbose:)
+    env::set_var("RUST_BACKTRACE", "full");
+
     let args: Vec<String> = env::args().collect();
     // dbg!(args.as_slice());
     //%%see std::env::args() docs: next 2 args dift on windows, might be 0 & 1 not 1 & 2? If a change,

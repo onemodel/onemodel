@@ -110,7 +110,7 @@ pub trait Database {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*%%= None*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     fn create_text_attribute<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
@@ -121,7 +121,7 @@ pub trait Database {
         observation_date_in: i64,             /*%%= System.currentTimeMillis()*/
         caller_manages_transactions_in: bool, /*%%= false*/
         sorting_index_in: Option<i64>,        /*%%= None*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     fn create_relation_to_local_entity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
@@ -132,7 +132,7 @@ pub trait Database {
         observation_date_in: i64,
         sorting_index_in: Option<i64>,        /*%% = None*/
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<RelationToLocalEntity, String>;
+    ) -> Result<RelationToLocalEntity, anyhow::Error>;
     fn create_relation_to_remote_entity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
@@ -144,7 +144,7 @@ pub trait Database {
         remote_instance_id_in: String,
         sorting_index_in: Option<i64>,        /*%% = None*/
         caller_manages_transactions_in: bool, /*%% = false*/
-    ) -> Result<RelationToRemoteEntity, String>;
+    ) -> Result<RelationToRemoteEntity, anyhow::Error>;
     fn create_group_and_relation_to_group<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
@@ -156,7 +156,7 @@ pub trait Database {
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<(i64, i64), String>;
+    ) -> Result<(i64, i64), anyhow::Error>;
 
     fn create_entity<'a>(
         &'a self,
@@ -164,7 +164,7 @@ pub trait Database {
         name_in: &str,
         class_id_in: Option<i64>,   /*%%= None*/
         is_public_in: Option<bool>, /*%% = None*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     fn create_entity_and_relation_to_local_entity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
@@ -175,7 +175,7 @@ pub trait Database {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<(i64, i64), String>;
+    ) -> Result<(i64, i64), anyhow::Error>;
     fn create_relation_to_group<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
@@ -186,7 +186,7 @@ pub trait Database {
         observation_date_in: i64,
         sorting_index_in: Option<i64>,        /*%%= None*/
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<(i64, i64), String>;
+    ) -> Result<(i64, i64), anyhow::Error>;
     fn add_entity_to_group<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
@@ -194,7 +194,7 @@ pub trait Database {
         contained_entity_id_in: i64,
         sorting_index_in: Option<i64>,        /*%%= None*/
         caller_manages_transactions_in: bool, /*%% = false*/
-    ) -> Result<(), String>;
+    ) -> Result<(), anyhow::Error>;
     fn create_om_instance<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
@@ -203,7 +203,7 @@ pub trait Database {
         address_in: String,
         entity_id_in: Option<i64>, /*%%= None*/
         old_table_name: bool,      /*%% = false*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     fn create_relation_type<'a>(
         &'a self,
         caller_manages_transactions_in: bool,
@@ -211,12 +211,12 @@ pub trait Database {
         name_in: &str,
         name_in_reverse_direction_in: &str,
         directionality_in: &str,
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     fn create_class_and_its_template_entity(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         class_name_in: String,
-    ) -> Result<(i64, i64), String>;
+    ) -> Result<(i64, i64), anyhow::Error>;
     fn find_contained_local_entity_ids<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -225,25 +225,25 @@ pub trait Database {
         search_string_in: &str,
         levels_remaining: i32,      /* = 20%%*/
         stop_after_any_found: bool, /*%% = true*/
-    ) -> Result<&mut HashSet<i64>, String>;
+    ) -> Result<&mut HashSet<i64>, anyhow::Error>;
 
     fn entity_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
         include_archived: bool, /*= true%%*/
-    ) -> Result<bool, String>;
-    fn boolean_attribute_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, String>;
-    fn get_entity_data(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, String>;
-    fn get_entity_name(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Option<String>, String>;
-    fn find_relation_type(&self, transaction: &Option<&mut Transaction<Postgres>>, type_name_in: String) -> Result<i64, String>;
-    fn get_boolean_attribute_data(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, String>;
+    ) -> Result<bool, anyhow::Error>;
+    fn boolean_attribute_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error>;
+    fn get_entity_data(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, anyhow::Error>;
+    fn get_entity_name(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Option<String>, anyhow::Error>;
+    fn find_relation_type(&self, transaction: &Option<&mut Transaction<Postgres>>, type_name_in: String) -> Result<i64, anyhow::Error>;
+    fn get_boolean_attribute_data(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, anyhow::Error>;
     fn get_group_size(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id_in: i64,
         include_which_entities_in: i32, /*%% = 3*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
 
     /*
       pub fn getRestDatabase(remoteAddressIn: String) -> RestDatabase {
@@ -324,7 +324,7 @@ pub trait Database {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         group_name_in: Option<String>, /*%% = None*/
-    ) -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<String>, bool), String>;
+    ) -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<String>, bool), anyhow::Error>;
     /*
     pub fn getEntitiesContainingGroup(group_id_in: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)];
     fn getCountOfEntitiesContainingGroup(group_id_in: i64) -> (i64, i64);
@@ -335,16 +335,16 @@ pub trait Database {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         include_archived_entities_in: bool, /*%%= false*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     fn get_relation_to_local_entity_count(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         include_archived_entities: bool, /*%%= false*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     fn get_relation_to_remote_entity_count(&self, transaction: &Option<&mut Transaction<Postgres>>,
-                                           entity_id_in: i64) -> Result<i64, String>;
-    fn get_relation_to_group_count(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64) -> Result<i64, String>;
+                                           entity_id_in: i64) -> Result<i64, anyhow::Error>;
+    fn get_relation_to_group_count(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64) -> Result<i64, anyhow::Error>;
     /*
     pub fn getClassCount(entity_id_in: Option<i64> = None) -> i64;
     fn getClassName(id_in: i64) -> Option<String>;
@@ -365,7 +365,7 @@ pub trait Database {
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id_in: i64,
         sorting_index_in: i64,
-    ) -> Result<bool, String>;
+    ) -> Result<bool, anyhow::Error>;
     /*
     fn is_attribute_sorting_index_in_use(entity_id_in: i64, sorting_index_in: i64) -> bool;
     */
@@ -374,7 +374,7 @@ pub trait Database {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         starting_with_in: Option<i64>, /*%%= None*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     /*
     pub fn findAllEntityIdsByName(name_in: String, caseSensitive: bool = false) -> java.util.ArrayList[i64];
     */
@@ -383,7 +383,7 @@ pub trait Database {
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id_in: i64,
         starting_with_in: Option<i64>, /*%% = None*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     /*
       fn getTextAttributeByTypeId(parentEntityIdIn: i64, typeIdIn: i64, expected_rows: Option[Int] = None) -> java.util.ArrayList[TextAttribute];
       fn getLocalEntitiesContainingLocalEntity(entity_id_in: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)];
@@ -425,7 +425,7 @@ pub trait Database {
         transaction: &Option<&mut Transaction<Postgres>>,
         name_in: &str,
         allow_mixed_classes_in_group_in: bool, /*%%= false*/
-    ) -> Result<i64, String>;
+    ) -> Result<i64, anyhow::Error>;
     /*
     pub fn relationToGroupKeyExists(id_in: i64) -> bool;
 
@@ -450,7 +450,7 @@ pub trait Database {
         boolean_in: bool,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-    ) -> Result<(), String>;
+    ) -> Result<(), anyhow::Error>;
     /*
            fn updateFileAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, descriptionIn -> String);
            fn updateFileAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, descriptionIn: String,
@@ -487,7 +487,7 @@ pub trait Database {
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         id_in: i64,
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<(), String>;
+    ) -> Result<(), anyhow::Error>;
     /*
        fn deleteQuantityAttribute(id_in: i64);
        fn deleteDateAttribute(id_in: i64);
@@ -513,8 +513,8 @@ pub trait Database {
         default_value_in: Option<bool>, /*%% = None*/
     ) -> Option<bool>;
     fn set_user_preference_boolean<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>,
-                                   name_in: &str, value_in: bool) -> Result<(), String>;
-    fn get_preferences_container_id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, String>;
+                                   name_in: &str, value_in: bool) -> Result<(), anyhow::Error>;
+    fn get_preferences_container_id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, anyhow::Error>;
     //%%$%%next:
     // fn getUserPreference_EntityId(&self, preference_name_in: String, default_value_in: Option<i64> = None) -> Option<i64>;
     // fn getOmInstances(&self, localIn: Option<bool> = None) -> java.util.ArrayList[OmInstance];

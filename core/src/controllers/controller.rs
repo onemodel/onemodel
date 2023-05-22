@@ -165,7 +165,7 @@ impl Controller {
         ui: &'a TextUI,
         default_username: Option<&String>,
         default_password: Option<&String>,
-    ) -> Result<Box<dyn Database>, String> {
+    ) -> Result<Box<dyn Database>, anyhow::Error> {
         if force_user_pass_prompt {
             //%%why had this assertion before?:  delete it now?  (it was a "require" in Controller.scala .)
             // assert!(default_username.is_none() && default_password.is_none());
@@ -190,7 +190,7 @@ impl Controller {
         }
     }
 
-    fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<Box<dyn Database>, String> {
+    fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<Box<dyn Database>, anyhow::Error> {
         loop {
             let usr = ui.ask_for_string1(vec!["Username"]);
             match usr {
@@ -221,7 +221,7 @@ impl Controller {
     }
 
     /// Tries the system username & default password, & if that doesn't work, prompts user.
-    fn try_other_logins_or_prompt(ui: &TextUI) -> Result<Box<dyn Database>, String> {
+    fn try_other_logins_or_prompt(ui: &TextUI) -> Result<Box<dyn Database>, anyhow::Error> {
         // (this loop is to simulate recursion, and let the user retry entering username/password)
         loop {
             // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank

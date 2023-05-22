@@ -7,6 +7,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+use anyhow::{anyhow, Result, Error};
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
@@ -47,14 +48,14 @@ impl PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         sql: String,
         types: &str,
-    ) -> Result<Vec<DataType>, String> {
+    ) -> Result<Vec<DataType>, anyhow::Error> {
         let results: Vec<Vec<DataType>> = self.db_query(transaction, sql.as_str(), types)?;
         if results.len() != 1 {
-            Err(format!(
+            Err(anyhow!(format!(
                 "Got {} instead of 1 result from sql \"{}\" ??",
                 results.len(),
                 sql
-            ))
+            )))
         } else {
             let oldrow = &results[0];
             let mut newrow = Vec::new();
@@ -66,7 +67,7 @@ impl PostgreSQLDatabase {
                     DataType::String(y) => DataType::String(y.clone()),
                     DataType::Float(y) => DataType::Float(y.clone()),
                     DataType::Smallint(y) => DataType::Smallint(y.clone()),
-                    // _ => return Err(format!("How did we get here for {:?}?", results[0])),
+                    // _ => return Err(anyhow!(format!("How did we get here for {:?}?", results[0]))),
                 };
                 newrow.push(z);
             }
@@ -83,7 +84,7 @@ impl PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         sql: &str,
         types: &str,
-    ) -> Result<Vec<Vec<DataType>>, String> {
+    ) -> Result<Vec<Vec<DataType>>, anyhow::Error> {
         // Note: pgsql docs say "Under the JDBC specification, you should access a field only
         // once" (under the JDBC interface part).  Not sure if that applies now to sqlx in rust.
 
@@ -221,16 +222,16 @@ impl PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         sql_in: &str,
         fail_if_more_than_one_found: bool, /*%% = true*/
-    ) -> Result<bool, String> {
+    ) -> Result<bool, anyhow::Error> {
         let row_count: i64 = self.extract_row_count_from_count_query(transaction, sql_in)?;
         if fail_if_more_than_one_found {
             if row_count == 1 {
                 Ok(true)
             } else if row_count > 1 {
-                Err(format!(
+                Err(anyhow!(format!(
                     "Should there be > 1 entries for sql: {}?? ({} were found.)",
                     sql_in, row_count
-                ))
+                )))
             } else {
                 assert!(row_count < 1);
                 Ok(false)
@@ -244,17 +245,17 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         sql_in: &str,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let results: Vec<DataType> =
             self.db_query_wrapper_for_one_row(transaction, sql_in.to_string(), "i64")?;
         let result: i64 = match results[0] {
             DataType::Bigint(x) => x,
-            _ => return Err("Should never happen".to_string()),
+            _ => return Err(anyhow!("Should never happen".to_string())),
         };
         Ok(result)
     }
 
-    pub fn destroy_tables(&self) -> Result<(), String> {
+    pub fn destroy_tables(&self) -> Result<(), anyhow::Error> {
         //%%see comments at similar places elsewhere, re:
         // conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
 
@@ -273,15 +274,15 @@ impl PostgreSQLDatabase {
         // The LO cleanup doesn't happen (trigger not invoked) w/ just a drop (or truncate),
         // but does on delete.  For more info see the wiki reference
         // link among those down in this file below "create table FileAttribute".
-        let result = self.db_action(
+        let result: Result<u64, anyhow::Error> = self.db_action(
             &None,
             "delete from FileAttributeContent",
             /*%%caller_checks_row_count_etc =*/ true,
             false,
         );
         if let Err(msg) = result {
-            if !msg.to_lowercase().contains("does not exist") {
-                return Err(msg.clone());
+            if !msg.to_string().to_lowercase().contains("does not exist") {
+                return Err(anyhow!(msg.to_string().clone()));
             }
         }
         self.drop(&None, "table", "FileAttributeContent")?;
@@ -320,21 +321,21 @@ impl PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         sql_type: &str,
         name: &str,
-    ) -> Result<(), String> {
+    ) -> Result<(), anyhow::Error> {
         let sql: String = format!(
             "DROP {} IF EXISTS {} CASCADE",
             Self::escape_quotes_etc(sql_type.to_string()),
             Self::escape_quotes_etc(name.to_string())
         );
-        let result: Result<u64, String> = self.db_action(transaction, sql.as_str(), false, false);
+        let result: Result<u64, anyhow::Error> = self.db_action(transaction, sql.as_str(), false, false);
         match result {
             Err(msg) => {
                 // (Now that "IF EXISTS" is added in the above DROP statement, this check might
                 // not be needed. No harm though?  If it does not exist pg replies with a
                 // notification, per the pg docs.  Not sure at this writing how that is
                 // reported by sqlx here though.)
-                if !msg.contains("does not exist") {
-                    Err(msg.clone())
+                if !msg.to_string().contains("does not exist") {
+                    Err(anyhow!(msg.to_string().clone()))
                 } else {
                     Ok(())
                 }
@@ -384,7 +385,7 @@ impl PostgreSQLDatabase {
         sql_in: &str,
         caller_checks_row_count_etc: bool, /*%% = false*/
         skip_check_for_bad_sql_in: bool,   /*%% = false*/
-    ) -> Result<u64, String> {
+    ) -> Result<u64, anyhow::Error> {
         let mut rows_affected: u64 = 0;
         //%%let mut st: Statement = null;
         let is_create_drop_or_alter = sql_in.to_lowercase().starts_with("create ")
@@ -395,7 +396,8 @@ impl PostgreSQLDatabase {
             Self::check_for_bad_sql(sql_in)?;
         }
         let x: Result<PgQueryResult, sqlx::Error> = if let Some(tx) = transaction {
-            //%%%%%%%%%%WHEN FIXING, PUT NEXT LINE BACK AND REMOVE THE ONE AFTER:
+            //%%%%%%%%%%WHEN FIXING, PUT NEXT LINE BACK AND REMOVE THE ONE AFTER and remove comment
+            //re this, in failing test, if also fixed in fn db_query.
             // let future = sqlx::query(sql_in).execute(tx);
             let future = sqlx::query(sql_in).execute(&self.pool);
             self.rt.block_on(future)
@@ -409,15 +411,17 @@ impl PostgreSQLDatabase {
         // };
         // let x: Result<PgQueryResult, sqlx::Error> = /*%%: i32 asking compiler or println below*/ self.rt.block_on(future);
         // /*let y: PgQueryResult = */match x {
-        //     Err(e) => return Err(e.to_string()),
+        //  //     Err(e) => return Err(anyhow!(e.to_string())),
+        //     Err(e) => return Err(anyhow!(e.to_string())),
         //     Ok(r) => r,
         // };
         println!(
-            "Query result?, w/ {:?} rows affected:  {:?}",
-            rows_affected, &x
+            "Query: \n    {}\n... result?, w/ {:?} rows affected:  {:?}",
+            sql_in, rows_affected, &x
         );
         match x {
-            Err(e) => return Err(e.to_string()),
+            // Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(anyhow!(e.to_string())),
             Ok(res) => {
                 rows_affected = res.rows_affected();
             }
@@ -436,21 +440,21 @@ impl PostgreSQLDatabase {
         //   throw new OmDatabaseException("Warnings from postgresql. Matters? Says: " + warnings)
         // }
         if !caller_checks_row_count_etc && !is_create_drop_or_alter && rows_affected != 1 {
-            return Err(format!(
+            return Err(anyhow!(format!(
                 "Affected {} rows instead of 1?? SQL was: {}",
                 rows_affected, sql_in
-            ));
+            )));
         }
         Ok(rows_affected)
     }
 
-    fn check_for_bad_sql(s: &str) -> Result<(), &'static str> {
+    fn check_for_bad_sql(s: &str) -> Result<(), anyhow::Error> {
         if s.contains(";") {
             // it seems that could mean somehow an embedded sql is in a normal command, as an attack vector. We don't usually need
             // to write like that, nor accept it from outside. This & any similar needed checks should happen reliably
             // at the lowest level before the database for security.  If text needs the problematic character(s), it should
             // be escaped prior (see escape_quotes_etc for writing data, and where we read data).
-            Err("Input can't contain ';'")
+            Err(anyhow!("Input can't contain ';'"))
         } else {
             Ok(())
         }
@@ -471,7 +475,8 @@ impl PostgreSQLDatabase {
         // let pool: PgPool;
         // match result {
         //     Ok(x) => pool = x,
-        //     Err(e) => return Err(e.to_string()),
+        // //     Err(e) => return Err(anyhow!(e.to_string())),
+        // Err(e) => return Err(anyhow!(e.to_string())),
         // }
         let pool =
             PostgreSQLDatabase::connect(&rt, Util::TEST_USER, Util::TEST_USER, Util::TEST_PASS)
@@ -522,7 +527,7 @@ impl PostgreSQLDatabase {
     pub fn new(
         /*%%hopefully del this cmt, was: &self, */ username: &str,
         password: &str,
-    ) -> Result<Box<dyn Database>, String> {
+    ) -> Result<Box<dyn Database>, anyhow::Error> {
         let include_archived_entities = false;
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -532,7 +537,8 @@ impl PostgreSQLDatabase {
         let pool: PgPool;
         match result {
             Ok(x) => pool = x,
-            Err(e) => return Err(e.to_string()),
+            // Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(anyhow!(e.to_string())),
         }
         let new_db = PostgreSQLDatabase {
             rt,
@@ -551,10 +557,10 @@ impl PostgreSQLDatabase {
         // let mut tx = match tx {
         // // let mut tx = match rt.block_on(pool.begin()) {
         //     Err(e) => {
-        //         return Err(format!(
+        //         return Err(anyhow!(format!(
         //             "Unable to start a database transaction to set up database?: {}",
         //             e.to_string()
-        //         ))
+        //         )))
         //     }
         //     Ok(t) => t,
         // };
@@ -568,10 +574,10 @@ impl PostgreSQLDatabase {
         // new_db.create_and_check_expected_data(&Some(&mut tx))?;
         // match new_db.commit_trans(&mut tx) {
         //     Err(e) => {
-        //         return Err(format!(
+        //         return Err(anyhow!(format!(
         //             "Unable to commit database transaction for db setup: {}",
         //             e.to_string()
-        //         ))
+        //         )))
         //     }
         //     Ok(t) => t,
         // }
@@ -581,16 +587,16 @@ impl PostgreSQLDatabase {
     }
     //%%$%%%%%%%%%%%
     //moved from fn new to see about addressing a compile error. See cmts there.
-    fn setup_db(&self) -> Result<(), String> {
+    fn setup_db(&self) -> Result<(), anyhow::Error> {
         // let x = new_db.begin_trans_test();
         let mut tx = self.begin_trans();
         let mut tx = match tx {
             // let mut tx = match rt.block_on(pool.begin()) {
             Err(e) => {
-                return Err(format!(
+                return Err(anyhow!(format!(
                     "Unable to start a database transaction to set up database?: {}",
                     e.to_string()
-                ))
+                )))
             }
             Ok(t) => t,
         };
@@ -604,10 +610,10 @@ impl PostgreSQLDatabase {
         self.create_and_check_expected_data(&Some(&mut tx))?;
         match self.commit_trans(tx) {
             Err(e) => {
-                return Err(format!(
+                return Err(anyhow!(format!(
                     "Unable to commit database transaction for db setup: {}",
                     e.to_string()
-                ))
+                )))
             }
             Ok(t) => t,
         }
@@ -619,7 +625,7 @@ impl PostgreSQLDatabase {
     fn create_and_check_expected_data<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-    ) -> Result<(), String> {
+    ) -> Result<(), anyhow::Error> {
         //Idea: should this really be in the Controller then?  It wouldn't differ by which database type we are using.  Hmm, no, if there were multiple
         // database types, there would probably a parent class over them (of some kind) to hold this.
         let system_entity_id: i64 = self.get_system_entity_id(transaction)?;
@@ -746,7 +752,7 @@ impl PostgreSQLDatabase {
     fn model_tables_exist(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, anyhow::Error> {
         self.does_this_exist(
             transaction,
             "select count(1) from pg_class where relname='entity'",
@@ -757,7 +763,7 @@ impl PostgreSQLDatabase {
     fn create_version_table(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<u64, String> {
+    ) -> Result<u64, anyhow::Error> {
         // table has 1 row and 1 column, to say what db version we are on.
         self.db_action(
             transaction,
@@ -778,7 +784,7 @@ impl PostgreSQLDatabase {
     pub fn create_tables(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<(), String> {
+    ) -> Result<(), anyhow::Error> {
         self.create_version_table(transaction)?;
 
         self.db_action(
@@ -1211,7 +1217,7 @@ impl PostgreSQLDatabase {
         // to create_relation_to_local_entity ?)
         // The observation_date is: whenever first observed (in milliseconds?).
         self.db_action(transaction, format!("create table RelationToEntity (\
-            form_id smallint DEFAULT {}\
+            form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('RelationToEntityKeySequence') UNIQUE NOT NULL, \
             rel_type_id bigint NOT NULL, \
@@ -1458,7 +1464,7 @@ impl PostgreSQLDatabase {
             .get_attribute_form_id(Util::RELATION_TO_REMOTE_ENTITY_TYPE)
             .unwrap();
         self.db_action(transaction, format! ("create table RelationToRemoteEntity (\
-            form_id smallint DEFAULT {}\
+            form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('RelationToRemoteEntityKeySequence') UNIQUE NOT NULL, \
             rel_type_id bigint NOT NULL, \
@@ -1506,7 +1512,7 @@ impl PostgreSQLDatabase {
     fn create_attribute_sorting_deletion_trigger(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<u64, String> {
+    ) -> Result<u64, anyhow::Error> {
         // Each time an attribute (or rte/rtg) is deleted, the AttributeSorting row should be deleted too, in an enforced way (or it had sorting problems, for one).
         // I.e., an attempt to enforce (with triggers that call this procedure) that the AttributeSorting table's attribute_id value is found
         // in *one of the* 7 attribute tables' id column,  Doing it in application code is not as simple or as reliable as doing it at the DDL level.
@@ -1521,7 +1527,7 @@ impl PostgreSQLDatabase {
     }
 
     /// Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.
-    fn create_base_data<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>) -> Result<(), String> {
+    fn create_base_data<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>) -> Result<(), anyhow::Error> {
         // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?
         let ids: Vec<i64> =
             self.find_entity_only_ids_by_name(transaction, Util::SYSTEM_ENTITY_NAME.to_string())?;
@@ -1665,7 +1671,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         name_in: String,
-    ) -> Result<Vec<i64>, String> {
+    ) -> Result<Vec<i64>, anyhow::Error> {
         // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
         // a performance issue then look at it?
         let include_archived: &str = if !self.include_archived_entities() {
@@ -1695,7 +1701,7 @@ impl PostgreSQLDatabase {
             let id = match row[0] {
                 DataType::Bigint(x) => x,
                 // next line is intended to be impossible, based on the query
-                _ => return Err("This should never happen.".to_string()),
+                _ => return Err(anyhow!("This should never happen.".to_string())),
             };
             results.push(id);
         }
@@ -1709,18 +1715,19 @@ impl PostgreSQLDatabase {
         &self,
         class_name_in: String,
         entity_name_in: String,
-    ) -> Result<(i64, i64), String> {
+    ) -> Result<(i64, i64), anyhow::Error> {
         // The name doesn't have to be the same on the entity and the template class, but why not for now.
         let class_name: String = Self::escape_quotes_etc(class_name_in);
         let entity_name: String = Self::escape_quotes_etc(entity_name_in);
         if class_name.len() == 0 {
-            return Err("Class name must have a value.".to_string());
+            return Err(anyhow!("Class name must have a value.".to_string()));
         }
         if entity_name.len() == 0 {
-            return Err("Entity name must have a value.".to_string());
+            return Err(anyhow!("Entity name must have a value.".to_string()));
         }
         let mut tx: Transaction<Postgres> = match self.begin_trans() {
-            Err(e) => return Err(e.to_string()),
+            // Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(anyhow!(e.to_string())),
             Ok(t) => t,
         };
         let class_id: i64 = self.get_new_key(&Some(&mut tx), "ClassKeySequence")?;
@@ -1765,7 +1772,7 @@ impl PostgreSQLDatabase {
             self.add_entity_to_group(&Some(&mut tx), class_group_id.unwrap(), entity_id, None, false)?;
         }
         if let Err(e) = self.commit_trans(tx) {
-            return Err(e.to_string());
+            return Err(anyhow!(e.to_string()));
         }
         Ok((class_id, entity_id))
     }
@@ -1774,7 +1781,7 @@ impl PostgreSQLDatabase {
     fn get_system_entitys_class_group_id(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<Option<i64>, String> {
+    ) -> Result<Option<i64>, anyhow::Error> {
         let system_entity_id: i64 = self.get_system_entity_id(transaction)?;
 
         // idea: maybe this stuff would be less breakable by the user if we put this kind of info in some system table
@@ -1810,20 +1817,20 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         sequence_name_in: &str,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let row: Vec<DataType> = self.db_query_wrapper_for_one_row(
             transaction,
             format!("SELECT nextval('{}')", sequence_name_in),
             "i64",
         )?;
         if row.is_empty() {
-            return Err("No elements found, in get_new_key().".to_string());
+            return Err(anyhow!("No elements found, in get_new_key().".to_string()));
         } else {
             match row[0] {
                 // None => return Err("None found, in get_new_key()."),
                 // Some(DataType::Bigint(new_id)) => Ok(new_id),
                 DataType::Bigint(new_id) => Ok(new_id),
-                _ => return Err("In get_new_key() this should never happen".to_string()),
+                _ => return Err(anyhow!("In get_new_key() this should never happen".to_string())),
             }
         }
     }
@@ -1832,7 +1839,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id: i64,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, anyhow::Error> {
         let rows: Vec<Vec<DataType>> = self.db_query(
             transaction,
             format!(
@@ -1844,7 +1851,7 @@ impl PostgreSQLDatabase {
         )?;
         let mixed_classes_allowed: bool = match rows[0][0] {
             DataType::Boolean(b) => b,
-            _ => return Err("This should never happen".to_string()),
+            _ => return Err(anyhow!("This should never happen".to_string())),
         };
         Ok(mixed_classes_allowed)
     }
@@ -1856,7 +1863,7 @@ impl PostgreSQLDatabase {
                let id = match row[0] {
                    DataType::Bigint(x) => x,
                    // next line is intended to be impossible, based on the query
-                   _ => return Err("This should never happen."),
+                   _ => return Err(anyhow!("This should never happen.")),
                };
                results.push(id);
            }
@@ -1866,7 +1873,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id_in: i64,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, anyhow::Error> {
         // Enforce that all entities in so-marked groups have the same class (or they all have no class; too bad).
         // (This could be removed or modified, but some user scripts attached to groups might (someday?) rely on their uniformity, so this
         // and the fact that you can have a group all of which don't have any class, is experimental.  This is optional, per
@@ -1948,7 +1955,7 @@ impl PostgreSQLDatabase {
         attribute_form_id_in: i32,
         attribute_id_in: i64,
         sorting_index_in: Option<i64>, /*%% = None*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         // SEE COMMENTS IN SIMILAR METHOD: add_entity_to_group.  **AND DO MAINTENANCE. IN BOTH PLACES.
         // Should probably be called from inside a transaction (which isn't managed in this method, since all its current callers do it.)
         let sorting_index: i64 = {
@@ -1979,7 +1986,7 @@ impl PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         sorting_index_in: i64,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, anyhow::Error> {
         self.does_this_exist(
             transaction,
             format!(
@@ -1994,16 +2001,16 @@ impl PostgreSQLDatabase {
     fn get_system_entity_id(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let ids: Vec<i64> =
             self.find_entity_only_ids_by_name(transaction, Util::SYSTEM_ENTITY_NAME.to_string())?;
         if ids.is_empty() {
-            return Err(format!(
+            return Err(anyhow!(format!(
                 "No system entity id (named \"{}\") was \
                  found in the entity table.  Did a new data import fail partway through or \
                  something?",
                 Util::SYSTEM_ENTITY_NAME
-            ));
+            )));
         }
         assert_eq!(ids.len(), 1);
         Ok(ids[0])
@@ -2014,7 +2021,7 @@ impl PostgreSQLDatabase {
     //     &self,
     //     transaction_in: &Option<&mut Transaction<Postgres>>,
     //     caller_manages_transactions_in: bool,
-    // ) -> Result<Option<Transaction<Postgres>>, String> {
+    // ) -> Result<Option<Transaction<Postgres>>, anyhow::Error> {
     //     // Make sure we either have a good local_tx or good transaction_in, to use one correctly
     //     // further down.
     //     if transaction_in.is_none() {
@@ -2024,7 +2031,8 @@ impl PostgreSQLDatabase {
     //                 .to_string())
     //         } else {
     //             let mut tx: Transaction<Postgres> = match self.begin_trans() {
-    //                 Err(e) => return Err(e.to_string()),
+    // //                 Err(e) => return Err(anyhow!e.to_string())),
+    //                 Err(e) => return Err(anyhow!(e.to_string())),
     //                 Ok(t) => t,
     //             };
     //             Ok(Some(tx))
@@ -2058,7 +2066,7 @@ impl PostgreSQLDatabase {
         // (automatically by creating a transaction and letting it go out of scope), or should allow
         // the caller only to manage that.
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<u64, String> {
+    ) -> Result<u64, anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -2071,12 +2079,13 @@ impl PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                    .to_string());
+                    .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -2088,17 +2097,18 @@ impl PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                    Err(e) => return Err(e.to_string()),
-                    Ok(t) => t,
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
+                        Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -2129,18 +2139,18 @@ impl PostgreSQLDatabase {
             // definitely don't want to delete an unexpected # of rows,
             // because rollback is implicit whenever the transaction goes out of scope without a commit.
             // Caller should roll back (or fail to commit, same thing) in case of error.
-            return Err(format!(
+            return Err(anyhow!(format!(
                 "Delete command would have removed {} rows, but {} were expected! \
                 Did not perform delete.  SQL is: \"{}\"",
                 rows_deleted, rows_expected, sql
-            ));
+            )));
         } else {
             if !caller_manages_transactions_in {
                 // Using local_tx to make the compiler happy and because it is the one we need,
                 // if !caller_manages_transactions_in. Ie, there is no transaction provided by
                 // the caller.
                 if let Err(e) = self.commit_trans(local_tx) {
-                    return Err(e.to_string());
+                    return Err(anyhow!(e.to_string()));
                 }
             }
             Ok(rows_deleted)
@@ -2153,7 +2163,7 @@ impl PostgreSQLDatabase {
         preferences_container_id_in: i64,
         preference_name_in: &str,
         preference_type: &str,
-    ) -> Result<Vec<DataType>, String> {
+    ) -> Result<Vec<DataType>, anyhow::Error> {
         // (Passing a smaller numeric parameter to find_contained_local_entity_ids for levels_remainingIn, so that in the (very rare) case where one does not
         // have a default entity set at the *top* level of the preferences under the system entity, and there are links there to entities with many links
         // to others, then it still won't take too long to traverse them all at startup when searching for the default entity.  But still allowing for
@@ -2178,9 +2188,9 @@ impl PostgreSQLDatabase {
                         None => "(None)".to_string(),
                         Some(x) => x,
                     };
-                return Err(format!("Under the entity \"{}\" ({}, possibly under {}), there \
+                return Err(anyhow!(format!("Under the entity \"{}\" ({}, possibly under {}), there \
                         are (eventually) more than one entity with the name \"{}\", so the program does not know which one to use for this.",
-                                   pref_container_entity_name, preferences_container_id_in, Util::SYSTEM_ENTITY_NAME, preference_name_in));
+                                   pref_container_entity_name, preferences_container_id_in, Util::SYSTEM_ENTITY_NAME, preference_name_in)));
             }
             let mut preference_entity_id: i64 = 0;
             for x in found_preferences.iter() {
@@ -2198,7 +2208,7 @@ impl PostgreSQLDatabase {
                     let sql2 = format!("select rel_type_id, entity_id, entity_id_2 from relationtoentity where entity_id={}", preference_entity_id);
                     self.db_query(transaction, sql2.as_str(), "i64,i64,i64")?
                 } else {
-                    return Err(format!("Unexpected preference_type: {}", preference_type));
+                    return Err(anyhow!(format!("Unexpected preference_type: {}", preference_type)));
                 }
             };
             if relevant_attribute_rows.len() == 0 {
@@ -2219,7 +2229,7 @@ impl PostgreSQLDatabase {
                 } else if preference_type == Util::PREF_TYPE_ENTITY_ID {
                     " RelationToEntity values ".to_string()
                 } else {
-                    return Err(format!("Unexpected preference_type: {}", preference_type));
+                    return Err(anyhow!(format!("Unexpected preference_type: {}", preference_type)));
                 };
 
                 if relevant_attribute_rows.len() != 1 {
@@ -2234,10 +2244,10 @@ impl PostgreSQLDatabase {
                     //     None => "(None)".to_string(),
                     //     Some(s) => s,
                     // };
-                    return Err(format!("Under the entity {} ({}), there are {}{}so the program does not know what to use for this.  There should be *one*.",
+                    return Err(anyhow!(format!("Under the entity {} ({}), there are {}{}so the program does not know what to use for this.  There should be *one*.",
                                        pref_entity_name,
                                         id,
-                                       relevant_attribute_rows.len(), attr_msg));
+                                       relevant_attribute_rows.len(), attr_msg)));
                 }
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
                     //PROVEN to have 1 row, just above!
@@ -2253,7 +2263,7 @@ impl PostgreSQLDatabase {
                     let entity_id2: DataType/*i64*/ = relevant_attribute_rows[0][2].clone();
                     Ok(vec![rel_type_id, entity_id1, entity_id2])
                 } else {
-                    return Err(format!("Unexpected preference_type: {}", preference_type));
+                    return Err(anyhow!(format!("Unexpected preference_type: {}", preference_type)));
                 }
             }
         }
@@ -2264,7 +2274,7 @@ impl PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         containing_entity_id_in: i64,
         name_in: &str,
-    ) -> Result<Option<i64>, String> {
+    ) -> Result<Option<i64>, anyhow::Error> {
         let if_not_archived = if !self.include_archived_entities {
             " and (not e.archived)"
         } else {
@@ -2285,9 +2295,9 @@ impl PostgreSQLDatabase {
                         None => "(None)".to_string(),
                         Some(s) => s,
                     };
-                return Err(format!("Under the entity {}({}), there is more one than entity with the name \"{}\", so the program does not know which one to use for this.",
+                return Err(anyhow!(format!("Under the entity {}({}), there is more one than entity with the name \"{}\", so the program does not know which one to use for this.",
                            containing_entity_name, containing_entity_id_in,
-                    Util::USER_PREFERENCES));
+                    Util::USER_PREFERENCES)));
             }
 
             //idea: surely there is some better way than what I am doing here? See other places similarly.
@@ -2295,10 +2305,10 @@ impl PostgreSQLDatabase {
             let id = match related_entity_id_rows[0][0] {
                 DataType::Bigint(x) => x,
                 _ => {
-                    return Err(format!(
+                    return Err(anyhow!(format!(
                         "How did we get here for {:?}?",
                         related_entity_id_rows[0][0]
-                    ))
+                    )))
                 }
             };
             Ok(Some(id))
@@ -2309,7 +2319,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2324,7 +2334,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2339,7 +2349,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2354,7 +2364,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2369,7 +2379,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2543,7 +2553,7 @@ impl Database for PostgreSQLDatabase {
         search_string_in: &str,
         levels_remaining: i32,      /*%% = 20*/
         stop_after_any_found: bool, /*%% = true*/
-    ) -> Result<&mut HashSet<i64>, String> {
+    ) -> Result<&mut HashSet<i64>, anyhow::Error> {
         // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two places).  But that has other complexities: see
         // comments on ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of levels total, it might not matter anyway
         // (ie, probably the current code is not optimized but is simpler and good enough for now).
@@ -2572,12 +2582,12 @@ impl Database for PostgreSQLDatabase {
                 // DataType::Bigint(id) = *row.get(0).unwrap();
                 id = match row.get(0).unwrap() {
                     DataType::Bigint(x) => *x,
-                    _ => return Err(format!("How did we get here for {:?}?", row.get(0))),
+                    _ => return Err(anyhow!(format!("How did we get here for {:?}?", row.get(0)))),
                 };
                 // DataType::String(name) = *row.get(1).unwrap();
                 name = match row.get(1).unwrap() {
                     DataType::String(x) => x.clone(),
-                    _ => return Err(format!("How did we get here for {:?}?", row.get(1))),
+                    _ => return Err(anyhow!(format!("How did we get here for {:?}?", row.get(1)))),
                 };
 
                 // NOTE: this line, similar lines just below, and the prompt inside EntityMenu.entitySearchSubmenu __should all match__.
@@ -2615,12 +2625,12 @@ impl Database for PostgreSQLDatabase {
                     //   DataType::String(name) = *row.get(1).unwrap();
                     id = match row.get(0).unwrap() {
                         DataType::Bigint(x) => *x,
-                        _ => return Err(format!("How did we get here for {:?}?", row.get(0))),
+                        _ => return Err(anyhow!(format!("How did we get here for {:?}?", row.get(0)))),
                     };
                     // DataType::String(name) = *row.get(1).unwrap();
                     name = match row.get(1).unwrap() {
                         DataType::String(x) => x.clone(),
-                        _ => return Err(format!("How did we get here for {:?}?", row.get(1))),
+                        _ => return Err(anyhow!(format!("How did we get here for {:?}?", row.get(1)))),
                     };
 
                     // NOTE: this line, similar or related lines just above & below, and the prompt inside EntityMenu.entitySearchSubmenu __should all match__.
@@ -2670,7 +2680,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         class_name_in: String,
-    ) -> Result<(i64, i64), String> {
+    ) -> Result<(i64, i64), anyhow::Error> {
         self.create_class_and_its_template_entity2(
             class_name_in.clone(),
             format!("{}{}", class_name_in.clone(), Util::TEMPLATE_NAME_SUFFIX),
@@ -2702,7 +2712,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         group_name_in: Option<String>, /*%% = None*/
-    ) -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<String>, bool), String> {
+    ) -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<String>, bool), anyhow::Error> {
         let name_condition = match group_name_in {
             Some(gni) => {
                 let name = Self::escape_quotes_etc(gni);
@@ -2723,25 +2733,25 @@ impl Database for PostgreSQLDatabase {
             let id: Option<i64> = {
                 match row[0] {
                     DataType::Bigint(x) => Some(x),
-                    _ => return Err("should never happen 2".to_string()),
+                    _ => return Err(anyhow!("should never happen 2".to_string())),
                 }
             };
             let rel_type_id: Option<i64> = {
                 match row[1] {
                     DataType::Bigint(x) => Some(x),
-                    _ => return Err("should never happen 3".to_string()),
+                    _ => return Err(anyhow!("should never happen 3".to_string())),
                 }
             };
             let group_id: Option<i64> = {
                 match row[2] {
                     DataType::Bigint(x) => Some(x),
-                    _ => return Err("should never happen 4".to_string()),
+                    _ => return Err(anyhow!("should never happen 4".to_string())),
                 }
             };
             let name: Option<String> = {
                 match row[3].clone() {
                     DataType::String(x) => Some(x),
-                    _ => return Err("should never happen 5".to_string()),
+                    _ => return Err(anyhow!("should never happen 5".to_string())),
                 }
             };
             return Ok((id, rel_type_id, group_id, name, rows.len() > 1));
@@ -2764,7 +2774,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         type_name_in: String,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let name = Self::escape_quotes_etc(type_name_in);
         let rows = self.db_query(
             transaction,
@@ -2778,7 +2788,7 @@ impl Database for PostgreSQLDatabase {
         )?;
         let count = rows.len();
         if count != 1 {
-            return Err(format!("Found {} rows instead of expected {}", count, 1));
+            return Err(anyhow!(format!("Found {} rows instead of expected {}", count, 1)));
             //?: expected_rows.unwrap()));
         }
         // there could be none found, or more than one, but not after above check.
@@ -2786,7 +2796,7 @@ impl Database for PostgreSQLDatabase {
         // for row in rows {
         let id: i64 = match rows[0].get(0) {
             Some(DataType::Bigint(i)) => *i,
-            _ => return Err(format!("Found not 1 row with i64 but {:?} .", rows)),
+            _ => return Err(anyhow!(format!("Found not 1 row with i64 but {:?} .", rows))),
         };
         // final_result.push(id);
         // }
@@ -2886,7 +2896,7 @@ impl Database for PostgreSQLDatabase {
         boolean_in: bool,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-    ) -> Result<(), String> {
+    ) -> Result<(), anyhow::Error> {
         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
         // in memory when the db updates, and the behavior gets weird.
         let if_valid_on_date = match valid_on_date_in {
@@ -3013,7 +3023,7 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
         sorting_index_in: Option<i64>,        /*%%= None*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -3026,12 +3036,13 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                        .to_string());
+                        .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -3043,17 +3054,18 @@ impl Database for PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -3077,7 +3089,7 @@ impl Database for PostgreSQLDatabase {
         match add_result {
             Err(s) => {
                 // see comments in delete_objects about rollback
-                return Err(s.to_string());
+                return Err(anyhow!(s.to_string()));
             }
             _ => {}
         }
@@ -3093,7 +3105,7 @@ impl Database for PostgreSQLDatabase {
         match result {
             Err(s) => {
                 // see comments in delete_objects about rollback
-                return Err(s);
+                return Err(anyhow!(s.to_string()));
             }
             _ => {}
         };
@@ -3102,7 +3114,7 @@ impl Database for PostgreSQLDatabase {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
-                return Err(e.to_string());
+                return Err(anyhow!(e.to_string()));
             }
         }
         Ok(id)
@@ -3132,9 +3144,10 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*%%= None*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let mut tx: Transaction<Postgres> = match self.begin_trans() {
-            Err(e) => return Err(e.to_string()),
+            // Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(anyhow!(e.to_string())),
             Ok(t) => t,
         };
         let id: i64 = self.get_new_key(&Some(&mut tx), "BooleanAttributeKeySequence")?;
@@ -3163,7 +3176,7 @@ impl Database for PostgreSQLDatabase {
             false,
         )?;
         if let Err(e) = self.commit_trans(tx) {
-            return Err(e.to_string());
+            return Err(anyhow!(e.to_string()));
         }
         Ok(id)
     }
@@ -3250,7 +3263,7 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: Option<i64>, /*%% = None*/
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
-    ) -> Result<RelationToLocalEntity, String> {
+    ) -> Result<RelationToLocalEntity, anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -3263,12 +3276,13 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                        .to_string());
+                        .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -3280,17 +3294,18 @@ impl Database for PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -3303,7 +3318,7 @@ impl Database for PostgreSQLDatabase {
         //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let rte_id: i64 = self.get_new_key(&transaction, "RelationToEntityKeySequence")?;
-        let result: Result<i64, String> = self.add_attribute_sorting_row(
+        let result: Result<i64, anyhow::Error> = self.add_attribute_sorting_row(
             &transaction,
             entity_id1_in,
             self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)
@@ -3313,7 +3328,7 @@ impl Database for PostgreSQLDatabase {
         );
         if let Err(e) = result {
             // see comments in delete_objects about rollback
-            return Err(e);
+            return Err(anyhow!(e));
         }
         let valid_on_date_sql_str = match valid_on_date_in {
             Some(date) => date.to_string(),
@@ -3324,13 +3339,13 @@ impl Database for PostgreSQLDatabase {
                        valid_on_date_sql_str, observation_date_in).as_str(), false, false);
         if let Err(e) = result {
             // see comments in delete_objects about rollback
-            return Err(e);
+            return Err(anyhow!(e));
         }
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
-                return Err(e.to_string());
+                return Err(anyhow!(e.to_string()));
             }
         }
 
@@ -3351,7 +3366,7 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: Option<i64>, /*%% = None*/
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
-    ) -> Result<RelationToRemoteEntity, String> {
+    ) -> Result<RelationToRemoteEntity, anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -3364,12 +3379,13 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                        .to_string());
+                        .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -3381,17 +3397,18 @@ impl Database for PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -3415,7 +3432,7 @@ impl Database for PostgreSQLDatabase {
         );
         if let Err(e) = result {
             // see comments in delete_objects about rollback
-            return Err(e);
+            return Err(anyhow!(e));
         }
 
         let valid_on_date_sql_str = match valid_on_date_in {
@@ -3428,13 +3445,13 @@ impl Database for PostgreSQLDatabase {
                       valid_on_date_sql_str, observation_date_in, remote_instance_id_in).as_str(), false, false);
         if let Err(e) = result {
             // see comments in delete_objects about rollback
-            return Err(e);
+            return Err(anyhow!(e));
         }
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
-                return Err(e.to_string());
+                return Err(anyhow!(e.to_string()));
             }
         }
         Ok(RelationToRemoteEntity {}) //%%$%%really: self, rte_id, relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in
@@ -3520,7 +3537,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         name_in: &str,
         allow_mixed_classes_in_group_in: bool, /*%%= false*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let name: String = Self::escape_quotes_etc(name_in.to_string());
         let group_id: i64 = self.get_new_key(transaction, "RelationToGroupKeySequence")?;
         let allow_mixed = if allow_mixed_classes_in_group_in {
@@ -3560,7 +3577,7 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: Option<i64>,
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<(i64, i64), String> {
+    ) -> Result<(i64, i64), anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -3573,12 +3590,13 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                        .to_string());
+                        .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -3590,17 +3608,18 @@ impl Database for PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -3631,7 +3650,7 @@ impl Database for PostgreSQLDatabase {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
-                return Err(e.to_string());
+                return Err(anyhow!(e.to_string()));
             }
         }
         Ok((group_id, rtg_id))
@@ -3651,7 +3670,7 @@ impl Database for PostgreSQLDatabase {
         observation_date_in: i64,
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
-    ) -> Result<(i64, i64), String> {
+    ) -> Result<(i64, i64), anyhow::Error> {
         let name: String = Self::escape_quotes_etc(new_entity_name_in.to_string());
 
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
@@ -3666,12 +3685,13 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                        .to_string());
+                        .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -3683,17 +3703,18 @@ impl Database for PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -3721,7 +3742,7 @@ impl Database for PostgreSQLDatabase {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
-                return Err(e.to_string());
+                return Err(anyhow!(e.to_string()));
             }
         }
         //%%%%%%%%%FIX NEXT LINE
@@ -3743,7 +3764,7 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: Option<i64>, /*%%= None*/
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<(i64, i64), String> {
+    ) -> Result<(i64, i64), anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -3756,12 +3777,13 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                        .to_string());
+                        .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -3773,17 +3795,18 @@ impl Database for PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -3818,7 +3841,7 @@ impl Database for PostgreSQLDatabase {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
-                return Err(e.to_string());
+                return Err(anyhow!(e.to_string()));
             }
         }
         Ok((id, sorting_index))
@@ -3911,7 +3934,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id_in: i64,
         starting_with_in: Option<i64>, /*%% = None*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
         //only one iteration, ever.  (See similar comments elsewhere.)
         // findUnusedSortingIndex_helper(group_id_in, starting_with_in.getOrElse(max_id_value - 1), 0)
@@ -3924,11 +3947,11 @@ impl Database for PostgreSQLDatabase {
             if self.is_group_entry_sorting_index_in_use(transaction, g_id, working_index)? {
                 if working_index == self.max_id_value() {
                     // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
-                    return Err(Util::UNUSED_GROUP_ERR1.to_string());
+                    return Err(anyhow!(Util::UNUSED_GROUP_ERR1.to_string()));
                 }
                 // idea: see comment at similar location in findIdWhichIsNotKeyOfAnyEntity
                 if counter > 10_000 {
-                    return Err(Util::UNUSED_GROUP_ERR2.to_string());
+                    return Err(anyhow!(Util::UNUSED_GROUP_ERR2.to_string()));
                 }
                 working_index = working_index - 1;
                 counter = counter + 1;
@@ -3946,16 +3969,16 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         starting_with_in: Option<i64>, /*%%= None*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let mut working_index = starting_with_in.unwrap_or(self.max_id_value() - 1);
         let mut counter = 0;
         loop {
             if self.is_attribute_sorting_index_in_use(transaction, entity_id_in, working_index)? {
                 if working_index == self.max_id_value() {
-                    return Err(Util::UNUSED_GROUP_ERR1.to_string());
+                    return Err(anyhow!(Util::UNUSED_GROUP_ERR1.to_string()));
                 }
                 if counter > 10_000 {
-                    return Err(Util::UNUSED_GROUP_ERR2.to_string());
+                    return Err(anyhow!(Util::UNUSED_GROUP_ERR2.to_string()));
                 }
                 working_index -= 1;
                 counter += 1;
@@ -3978,7 +4001,7 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: Option<i64>, /*%%= None*/
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<(), String> {
+    ) -> Result<(), anyhow::Error> {
         // IF THIS CHANGES ALSO DO MAINTENANCE IN SIMILAR METHOD add_attribute_sorting_row
 
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
@@ -3993,12 +4016,13 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                        .to_string());
+                        .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -4010,17 +4034,18 @@ impl Database for PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -4057,20 +4082,20 @@ impl Database for PostgreSQLDatabase {
                           group_id_in, contained_entity_id_in, sorting_index).as_str(), false, false);
         if let Err(s) = result {
             // see comments in delete_objects about rollback
-            return Err(s);
+            return Err(anyhow!(s));
         }
         // idea: do this check sooner in this method?:
         let mixed_classes_allowed: bool =
             self.are_mixed_classes_allowed(transaction, group_id_in)?;
         if !mixed_classes_allowed && self.has_mixed_classes(transaction, group_id_in)? {
             // see comments in delete_objects about rollback
-            return Err(Util::MIXED_CLASSES_EXCEPTION.to_string());
+            return Err(anyhow!(Util::MIXED_CLASSES_EXCEPTION.to_string()));
         }
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
-                return Err(e.to_string());
+                return Err(anyhow!(e.to_string()));
             }
         }
         Ok(())
@@ -4084,10 +4109,10 @@ impl Database for PostgreSQLDatabase {
         name_in: &str,
         class_id_in: Option<i64>,   /*%%= None*/
         is_public_in: Option<bool>, /*%%= None*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let name: String = Self::escape_quotes_etc(name_in.to_string());
         if name.is_empty() {
-            return Err("Name must have a value.".to_string());
+            return Err(anyhow!("Name must have a value.".to_string()));
         }
         let id: i64 = self.get_new_key(transaction, "EntityKeySequence")?;
         let maybe_class_id: &str = if class_id_in.is_some() {
@@ -4131,13 +4156,13 @@ impl Database for PostgreSQLDatabase {
         name_in: &str,
         name_in_reverse_direction_in: &str,
         directionality_in: &str,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let name_in_reverse_direction: String =
             Self::escape_quotes_etc(name_in_reverse_direction_in.to_string());
         let name: String = Self::escape_quotes_etc(name_in.to_string());
         let directionality: String = Self::escape_quotes_etc(directionality_in.to_string());
         if name.len() == 0 {
-            return Err("Name must have a value.".to_string());
+            return Err(anyhow!("Name must have a value.".to_string()));
         }
 
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
@@ -4152,12 +4177,13 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                        .to_string());
+                        .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -4169,17 +4195,18 @@ impl Database for PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -4191,13 +4218,13 @@ impl Database for PostgreSQLDatabase {
         };
         //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        let mut result: Result<u64, String>;
+        let mut result: Result<u64, anyhow::Error>;
         let mut id: i64 = 0;
         //see comment at loop in fn create_tables
         loop {
             id = match self.get_new_key(transaction, "EntityKeySequence") {
                 Err(s) => {
-                    result = Err(s.to_string());
+                    result = Err(anyhow!(s.to_string()));
                     break;
                 }
                 Ok(i) => i,
@@ -4227,7 +4254,7 @@ impl Database for PostgreSQLDatabase {
                 // see comments at similar location in delete_objects about local_tx
                 if let Err(e) = self.commit_trans(local_tx) {
                     // see comments in delete_objects about rollback
-                    return Err(e.to_string());
+                    return Err(anyhow!(e.to_string()));
                 }
             }
 
@@ -4236,7 +4263,7 @@ impl Database for PostgreSQLDatabase {
             break;
         }
         match result {
-            Err(e) => Err(e),
+            Err(e) => Err(anyhow!(e)),
             _ => Ok(id),
         }
     }
@@ -4248,7 +4275,7 @@ impl Database for PostgreSQLDatabase {
         id_in: i64,
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
-    ) -> Result<(), String> {
+    ) -> Result<(), anyhow::Error> {
         // idea: (also on task list i think but) we should not delete entities until dealing with their use as attrTypeIds etc!
         // (or does the DB's integrity constraints do that for us?)
 
@@ -4264,12 +4291,13 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
-                        .to_string());
+                        .to_string()));
                 } else {
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
@@ -4281,17 +4309,18 @@ impl Database for PostgreSQLDatabase {
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
                     let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        Err(e) => return Err(e.to_string()),
+                        // Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(anyhow!(e.to_string())),
                         Ok(t) => t,
                     };
                     // Some(tx)
                     tx
                 } else {
-                    return Err(
+                    return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
-                    )
+                    ))
                 }
             }
         };
@@ -4328,7 +4357,7 @@ impl Database for PostgreSQLDatabase {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
-                return Err(e.to_string());
+                return Err(anyhow!(e.to_string()));
             }
         }
         Ok(())
@@ -4448,7 +4477,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         name_in: &str,
         value_in: bool,
-    ) -> Result<(), String> {
+    ) -> Result<(), anyhow::Error> {
         let preferences_container_id: i64 = self.get_preferences_container_id(transaction)?;
         let result = self.get_user_preference2(
             transaction,
@@ -4462,7 +4491,7 @@ impl Database for PostgreSQLDatabase {
             // let DataType::Bigint(preference_attribute_id) = result[0];
             let preference_attribute_id = match result[0] {
                 DataType::Bigint(x) => x,
-                _ => return Err(format!("How did we get here for {:?}?", result[0])),
+                _ => return Err(anyhow!(format!("How did we get here for {:?}?", result[0]))),
             };
 
             let mut attribute =
@@ -4562,14 +4591,14 @@ impl Database for PostgreSQLDatabase {
 
     */
     /// This should never return None, except when method createExpectedData is called for the first time in a given database.
-    fn get_preferences_container_id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, String> {
+    fn get_preferences_container_id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, anyhow::Error> {
         let related_entity_id = self.get_relation_to_local_entity_by_name(
             transaction,
             self.get_system_entity_id(transaction)?,
             Util::USER_PREFERENCES,
         )?;
         match related_entity_id {
-                    None => return Err("This should never happen: method createExpectedData should be run at startup to create this part of the data.".to_string()),
+                    None => return Err(anyhow!("This should never happen: method createExpectedData should be run at startup to create this part of the data.".to_string())),
                     Some(id) => Ok(id),
                 }
     }
@@ -4738,7 +4767,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         include_archived_entities_in: bool, /*%%= false*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let total = self.get_quantity_attribute_count(transaction, entity_id_in)?
             + self.get_text_attribute_count(transaction, entity_id_in)?
             + self.get_date_attribute_count(transaction, entity_id_in)?
@@ -4759,7 +4788,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         include_archived_entities: bool, /*= true*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let appended = if !include_archived_entities && !include_archived_entities {
             " and (not eContained.archived)"
         } else {
@@ -4775,7 +4804,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         let sql = format!(
             "select count(1) from entity eContaining, RelationToRemoteEntity rtre \
             where eContaining.id=rtre.entity_id and rtre.entity_id={}",
@@ -4789,7 +4818,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -4849,10 +4878,10 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id_in: i64,
         include_which_entities_in: i32, /*%% = 3*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         //idea: convert this 1-4 to an enum?
         if include_which_entities_in <= 0 || include_which_entities_in >= 5 {
-            return Err(format!("Variable include_which_entities_in ({}) is out of the expected range of 1-4; there is a bug.", include_which_entities_in));
+            return Err(anyhow!(format!("Variable include_which_entities_in ({}) is out of the expected range of 1-4; there is a bug.", include_which_entities_in)));
         }
         let archived_sql_condition: &str = match include_which_entities_in {
             1 => "(not archived)",
@@ -4866,10 +4895,10 @@ impl Database for PostgreSQLDatabase {
                 }
             }
             _ => {
-                return Err(format!(
+                return Err(anyhow!(format!(
                     "How did we get here? includeWhichEntities={}",
                     include_which_entities_in
-                ))
+                )))
             }
         };
         let count = self.extract_row_count_from_count_query(
@@ -5085,9 +5114,9 @@ impl Database for PostgreSQLDatabase {
              }
 
     */
-    fn get_boolean_attribute_data(&self, transaction: &Option<&mut Transaction<Postgres>>, boolean_id_in: i64) -> Result<Vec<DataType>, String> {
+    fn get_boolean_attribute_data(&self, transaction: &Option<&mut Transaction<Postgres>>, boolean_id_in: i64) -> Result<Vec<DataType>, anyhow::Error> {
         let form_id = match self.get_attribute_form_id(Util::BOOLEAN_TYPE) {
-            None => return Err(format!("No form_id found for {}", Util::BOOLEAN_TYPE)),
+            None => return Err(anyhow!(format!("No form_id found for {}", Util::BOOLEAN_TYPE))),
             Some(id) => id,
         };
         self.db_query_wrapper_for_one_row(transaction, format!("select ba.entity_id, ba.booleanValue, ba.attr_type_id, ba.valid_on_date, ba.observation_date, asort.sorting_index \
@@ -5224,7 +5253,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, anyhow::Error> {
         self.does_this_exist(
             transaction,
             format!("SELECT count(1) from BooleanAttribute where id={}", id_in).as_str(),
@@ -5281,7 +5310,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
         include_archived: bool,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, anyhow::Error> {
         let condition = if !include_archived {
             " and not archived"
         } else {
@@ -5303,7 +5332,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id_in: i64,
         sorting_index_in: i64,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, anyhow::Error> {
         self.does_this_exist(
             transaction,
             format!(
@@ -5834,7 +5863,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, String> {
+    ) -> Result<Vec<DataType>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(transaction,
                                           format!("SELECT name, class_id, insertion_date, public, \
                                           archived, new_entries_stick_to_top from Entity where id={}",
@@ -5846,12 +5875,12 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Option<String>, String> {
+    ) -> Result<Option<String>, anyhow::Error> {
         let name: Vec<DataType> = self.get_entity_data(transaction, id_in)?;
         match name.get(0) {
             None => Ok(None),
             Some(DataType::String(x)) => Ok(Some(x.to_string())),
-            _ => Err(format!("Unexpected value: {:?}", name)),
+            _ => Err(anyhow!(format!("Unexpected value: {:?}", name))),
         }
     }
     /*
@@ -6319,26 +6348,26 @@ impl Database for PostgreSQLDatabase {
         address_in: String,
         entity_id_in: Option<i64>, /*%% = None*/
         old_table_name: bool,      /*%% = false*/
-    ) -> Result<i64, String> {
+    ) -> Result<i64, anyhow::Error> {
         if id_in.len() == 0 {
-            return Err("ID must have a value.".to_string());
+            return Err(anyhow!("ID must have a value.".to_string()));
         }
         if address_in.len() == 0 {
-            return Err("Address must have a value.".to_string());
+            return Err(anyhow!("Address must have a value.".to_string()));
         }
         let id: String = Self::escape_quotes_etc(id_in.clone());
         let address: String = Self::escape_quotes_etc(address_in.clone());
         if id != id_in {
-            return Err(format!(
+            return Err(anyhow!(format!(
                 "Didn't expect quotes etc in the UUID provided: {}",
                 id_in
-            ));
+            )));
         };
         if address != address_in {
-            return Err(format!(
+            return Err(anyhow!(format!(
                 "Didn't expect quotes etc in the address provided: {}",
                 address
-            ));
+            )));
         }
         let insertion_date: i64 = Utc::now().timestamp_millis();
         // next line is for the method upgradeDbFrom3to4 so it can work before upgrading 4to5:
@@ -6744,9 +6773,13 @@ mod tests {
     /// yes it actually was failing when written, in my use of Sqlx somehow, before I learned
     /// that you have to pass the transaction as the executor (ie, instead of the pool), for a sql
     /// operation to be included in a transaction. Not just start the transaction.
+    ///
+    /// As of 2023-05-22, it is still failing because transactions are not yet used correctly
+    /// inside fn db_action and fn db_query.  Need to uncomment a line and recomment another, but
+    /// that gets compiler errors. Hmm.
     fn test_rollback_and_commit() {
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
-        let rand_num = randlib::Rand::new().rand_i32();
+        let rand_num = randlib::Rand::new().rand_u32();
         let name: String =
             format!("test_rollback_temporary_entity_{}", rand_num.to_string()).to_string();
         // (make sure to avoid confusion with another test or earlier run somehow using the same table name?)
