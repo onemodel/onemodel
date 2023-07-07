@@ -43,7 +43,7 @@ impl Entity<'_> {
         }
 
         fn isDuplicate(db_in: Database, inName: String, inSelfIdToIgnore: Option<i64> = None) -> bool {
-        db_in.isDuplicateEntityName(inName, inSelfIdToIgnore)
+        db_in.is_duplicate_entity_name(inName, inSelfIdToIgnore)
       }
     */
 
@@ -95,14 +95,14 @@ impl Entity<'_> {
         /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
         /// one that already exists.
         pub fn new8(m_db: Database, m_id: i64, name_in: String, class_id_in: Option<i64> = None, insertion_dateIn: i64, publicIn: Option<bool>,
-               archivedIn: bool, newEntriesStickToTopIn: bool) {
+               archivedIn: bool, new_entries_stick_to_top_in: bool) {
             this(m_db, m_id)
             m_name = name_in
             m_class_id = class_id_in
             m_insertion_date = insertion_dateIn
             m_public = publicIn
             m_archived = archivedIn
-            m_new_entries_stick_to_top = newEntriesStickToTopIn
+            m_new_entries_stick_to_top = new_entries_stick_to_top_in
             m_already_read_data = true
           }
 
@@ -134,8 +134,8 @@ impl Entity<'_> {
         let class_id = getClassId;
         if class_id.isEmpty) None
         else {
-          let templateEntityId: Option<i64> = m_db.getClassData(m_class_id.get)(1).asInstanceOf[Option<i64>];
-          templateEntityId
+          let template_entity_id: Option<i64> = m_db.get_class_data(m_class_id.get)(1).asInstanceOf[Option<i64>];
+          template_entity_id
         }
       }
 
@@ -311,8 +311,8 @@ impl Entity<'_> {
             getPublicStatusDisplayString() + getArchivedStatusDisplayString + get_name
           }
         }
-        let definerInfo = if m_db.getClassCount(Some(m_id)) > 0) "template (defining entity) for " else "";
-        let class_name: Option<String> = if getClassId.is_some()) m_db.getClassName(getClassId.get) else None;
+        let definerInfo = if m_db.get_class_count(Some(m_id)) > 0) "template (defining entity) for " else "";
+        let class_name: Option<String> = if getClassId.is_some()) m_db.get_class_name(getClassId.get) else None;
         displayString += (if class_name.is_some()) " (" + definerInfo + "class: " + class_name.get + ")" else "")
         displayString
       }
@@ -342,13 +342,13 @@ impl Entity<'_> {
        in db implementation file,
        for explanation of the parameters. It might also be nice to add the recorder's ID (person or app), but we'd have to do some kind
        of authentication/login 1st? And a GUID for users (as Entities?)?
-       See PostgreSQLDatabase.createQuantityAttribute(...) for details.
+       See PostgreSQLDatabase.create_quantity_attribute(...) for details.
         */
         fn addQuantityAttribute(inAttrTypeId: i64, inUnitId: i64, inNumber: Float, sorting_index_in: Option<i64> = None,
                                inValidOnDate: Option<i64>, observation_date_in: i64) -> QuantityAttribute {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        let id = m_db.createQuantityAttribute(m_id, inAttrTypeId, inUnitId, inNumber, inValidOnDate, observation_date_in, sorting_index_in = sorting_index_in);
+        let id = m_db.create_quantity_attribute(m_id, inAttrTypeId, inUnitId, inNumber, inValidOnDate, observation_date_in, sorting_index_in = sorting_index_in);
         new QuantityAttribute(m_db, id)
       }
 
@@ -357,7 +357,7 @@ impl Entity<'_> {
             QuantityAttribute(m_db, inKey)
         }
 
-        fn getTextAttribute(inKey: i64) -> TextAttribute {
+        fn get_textAttribute(inKey: i64) -> TextAttribute {
             new TextAttribute(m_db, inKey)
         }
 
@@ -374,19 +374,19 @@ impl Entity<'_> {
         }
 
         fn getCountOfContainingGroups -> i64 {
-        m_db.getCountOfGroupsContainingEntity(get_id)
+        m_db.get_count_of_groups_containing_entity(get_id)
       }
 
-        fn getContainingGroupsIds -> ArrayList[i64] {
-        m_db.getContainingGroupsIds(get_id)
+        fn get_containing_groups_ids -> ArrayList[i64] {
+        m_db.get_containing_groups_ids(get_id)
       }
 
-        fn getContainingRelationsToGroup(startingIndexIn: i64 = 0, maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
-        m_db.getContainingRelationsToGroup(get_id, startingIndexIn, maxValsIn)
+        fn get_containing_relations_to_group(starting_index_in: i64 = 0, max_vals_in: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
+        m_db.get_containing_relations_to_group(get_id, starting_index_in, max_vals_in)
       }
 
-        fn getContainingRelationToGroupDescriptions(limitIn: Option<i64> = None) -> util.ArrayList[String] {
-        m_db.getContainingRelationToGroupDescriptions(get_id, limitIn)
+        fn get_containing_relation_to_group_descriptions(limit_in: Option<i64> = None) -> util.ArrayList[String] {
+        m_db.get_containing_relation_to_group_descriptions(get_id, limit_in)
       }
 
         fn findRelationToAndGroup: (Option<i64>, Option<i64>, Option<i64>, Option<String>, bool) {
@@ -399,27 +399,27 @@ impl Entity<'_> {
       }
 
         fn getCountOfContainingLocalEntities -> (i64, i64) {
-        m_db.getCountOfLocalEntitiesContainingLocalEntity(get_id)
+        m_db.get_count_of_local_entities_containing_local_entity(get_id)
       }
 
-        fn getLocalEntitiesContainingEntity(startingIndexIn: i64 = 0, maxValsIn: Option<i64> = None): java.util.ArrayList[(i64, Entity)] {
-        m_db.getLocalEntitiesContainingLocalEntity(get_id, startingIndexIn, maxValsIn)
+        fn getLocalEntitiesContainingEntity(starting_index_in: i64 = 0, max_vals_in: Option<i64> = None): java.util.ArrayList[(i64, Entity)] {
+        m_db.get_local_entities_containing_local_entity(get_id, starting_index_in, max_vals_in)
       }
 
-        fn getAdjacentAttributesSortingIndexes(sorting_index_in: i64, limitIn: Option<i64> = None, forwardNotBackIn: bool = true) -> List[Array[Option[Any]]] {
-        m_db.getAdjacentAttributesSortingIndexes(get_id, sorting_index_in, limitIn, forwardNotBackIn = forwardNotBackIn)
+        fn get_adjacent_attributes_sorting_indexes(sorting_index_in: i64, limit_in: Option<i64> = None, forward_not_back_in: bool = true) -> Vec<Vec<Option<DataType>>> {
+        m_db.get_adjacent_attributes_sorting_indexes(get_id, sorting_index_in, limit_in, forward_not_back_in = forward_not_back_in)
       }
 
-        fn getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: bool = true) -> Option<i64> {
-        m_db.getNearestAttributeEntrysSortingIndex(get_id, startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
+        fn get_nearest_attribute_entrys_sorting_index(starting_point_sorting_index_in: i64, forward_not_back_in: bool = true) -> Option<i64> {
+        m_db.get_nearest_attribute_entrys_sorting_index(get_id, starting_point_sorting_index_in, forward_not_back_in = forward_not_back_in)
       }
 
-        fn renumberSortingIndexes(caller_manages_transactions_in: bool = false) /* -> Unit%%*/ {
-        m_db.renumberSortingIndexes(get_id, caller_manages_transactions_in, isEntityAttrsNotGroupEntries = true)
+        fn renumber_sorting_indexes(caller_manages_transactions_in: bool = false) /* -> Unit%%*/ {
+        m_db.renumber_sorting_indexes(get_id, caller_manages_transactions_in, is_entity_attrs_not_group_entries = true)
       }
 
-        fn updateAttributeSortingIndex(attribute_form_id_in: i64, attribute_id_in: i64, sorting_index_in: i64) /* -> Unit%%*/ {
-        m_db.updateAttributeSortingIndex(get_id, attribute_form_id_in, attribute_id_in, sorting_index_in)
+        fn update_attribute_sorting_index(attribute_form_id_in: i64, attribute_id_in: i64, sorting_index_in: i64) /* -> Unit%%*/ {
+        m_db.update_attribute_sorting_index(get_id, attribute_form_id_in, attribute_id_in, sorting_index_in)
       }
 
         fn getAttributeSortingIndex(attribute_form_id_in: i64, attribute_id_in: i64) -> i64 {
@@ -442,8 +442,8 @@ impl Entity<'_> {
         m_db.get_relation_to_remote_entity_count(get_id)
       }
 
-        fn getTextAttributeByTypeId(typeIdIn: i64, expected_rowsIn: Option[Int] = None) -> ArrayList[TextAttribute] {
-        m_db.getTextAttributeByTypeId(get_id, typeIdIn, expected_rowsIn)
+        fn get_text_attribute_by_type_id(type_id_in: i64, expected_rowsIn: Option[Int] = None) -> ArrayList[TextAttribute] {
+        m_db.get_text_attribute_by_type_id(get_id, type_id_in, expected_rowsIn)
       }
 
         fn addUriEntityWithUriAttribute(new_entity_name_in: String, uriIn: String, observation_date_in: i64, makeThem_publicIn: Option<bool>,
@@ -458,7 +458,7 @@ impl Entity<'_> {
       }
 
         fn updateContainedEntitiesPublicStatus(newValueIn: Option<bool>) -> Int {
-        let (attrTuples: Array[(i64, Attribute)], _) = getSortedAttributes(0, 0, onlyPublicEntitiesIn = false);
+        let (attrTuples: Array[(i64, Attribute)], _) = get_sorted_attributes(0, 0, only_public_entities_in = false);
         let mut count = 0;
         for (attr <- attrTuples) {
           attr._2 match {
@@ -471,10 +471,10 @@ impl Entity<'_> {
               count += 1
             case attribute: RelationToGroup =>
               let group_id: i64 = attribute.getGroupId;
-              let entries: List[Array[Option[Any]]] = m_db.getGroupEntriesData(group_id, None, include_archived_entities_in = false);
+              let entries: Vec<Vec<Option<DataType>>> = m_db.get_group_entries_data(group_id, None, include_archived_entities_in = false);
               for (entry <- entries) {
                 let entity_id = entry(0).get.asInstanceOf[i64];
-                m_db.updateEntityOnlyPublicStatus(entity_id, newValueIn)
+                m_db.update_entity_only_public_status(entity_id, newValueIn)
                 count += 1
               }
             case _ =>
@@ -496,7 +496,7 @@ impl Entity<'_> {
       }
 
         fn addDateAttribute(inAttrTypeId: i64, inDate: i64, sorting_index_in: Option<i64> = None) -> DateAttribute {
-        let id = m_db.createDateAttribute(m_id, inAttrTypeId, inDate, sorting_index_in);
+        let id = m_db.create_date_attribute(m_id, inAttrTypeId, inDate, sorting_index_in);
         new DateAttribute(m_db, id)
       }
 
@@ -514,7 +514,7 @@ impl Entity<'_> {
         addFileAttribute(inAttrTypeId, inFile.get_name, inFile)
       }
 
-        fn addFileAttribute(inAttrTypeId: i64, descriptionIn: String, inFile: java.io.File, sorting_index_in: Option<i64> = None) -> FileAttribute {
+        fn addFileAttribute(inAttrTypeId: i64, description_in: String, inFile: java.io.File, sorting_index_in: Option<i64> = None) -> FileAttribute {
         if !inFile.exists()) {
           throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
         }
@@ -523,7 +523,7 @@ impl Entity<'_> {
         let mut inputStream: java.io.FileInputStream = null;
         try {
           inputStream = new FileInputStream(inFile)
-          let id = m_db.createFileAttribute(m_id, inAttrTypeId, descriptionIn, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,;
+          let id = m_db.create_file_attribute(m_id, inAttrTypeId, description_in, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,;
                                            inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute.md5Hash(inFile), inputStream,
                                            sorting_index_in)
           new FileAttribute(m_db, id)
@@ -556,27 +556,27 @@ impl Entity<'_> {
                                            caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
         // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
         // anyway:
-        let relationTypeId = m_db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-        let (group, rtg) = addGroupAndRelationToGroup(relationTypeId, new_group_name_in, mixed_classes_allowedIn, None, observation_date_in,;
+        let relation_type_id = m_db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
+        let (group, rtg) = addGroupAndRelationToGroup(relation_type_id, new_group_name_in, mixed_classes_allowedIn, None, observation_date_in,;
                                                       None, caller_manages_transactions_in)
         (group, rtg)
       }
 
       /** Like others, returns the new things' IDs. */
-        fn addGroupAndRelationToGroup(rel_type_idIn: i64, new_group_name_in: String, allow_mixed_classes_in_group_in: bool = false, valid_on_date_in: Option<i64>,
+        fn addGroupAndRelationToGroup(rel_type_id_in: i64, new_group_name_in: String, allow_mixed_classes_in_group_in: bool = false, valid_on_date_in: Option<i64>,
                                      observation_date_in: i64, sorting_index_in: Option<i64>, caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
-        let (group_id: i64, rtg_id: i64) = m_db.create_group_and_relation_to_group(get_id, rel_type_idIn, new_group_name_in, allow_mixed_classes_in_group_in, valid_on_date_in,;
+        let (group_id: i64, rtg_id: i64) = m_db.create_group_and_relation_to_group(get_id, rel_type_id_in, new_group_name_in, allow_mixed_classes_in_group_in, valid_on_date_in,;
                                                                              observation_date_in, sorting_index_in, caller_manages_transactions_in)
         let group = new Group(m_db, group_id);
-        let rtg = new RelationToGroup(m_db, rtg_id, get_id, rel_type_idIn, group_id);
+        let rtg = new RelationToGroup(m_db, rtg_id, get_id, rel_type_id_in, group_id);
         (group, rtg)
       }
 
       /**
        * @return the id of the new RTE
        */
-        fn addHASRelationToLocalEntity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
-        m_db.addHASRelationToLocalEntity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
+        fn add_HAS_relation_to_local_entity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
+        m_db.add_HAS_relation_to_local_entity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
       }
 
       /** Creates new entity then adds it a particular kind of rte to this entity.
@@ -585,42 +585,42 @@ impl Entity<'_> {
                                             caller_manages_transactions_in: bool = false) -> (Entity, RelationToLocalEntity) {
         // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
         // anyway:
-        let relationTypeId = m_db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-        let (entity: Entity, rte: RelationToLocalEntity) = addEntityAndRelationToLocalEntity(relationTypeId, new_entity_name_in, None, observation_date_in,;
+        let relation_type_id = m_db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
+        let (entity: Entity, rte: RelationToLocalEntity) = addEntityAndRelationToLocalEntity(relation_type_id, new_entity_name_in, None, observation_date_in,;
                                                                                              is_public_in, caller_manages_transactions_in)
         (entity, rte)
       }
 
-        fn addEntityAndRelationToLocalEntity(rel_type_idIn: i64, new_entity_name_in: String, valid_on_date_in: Option<i64>, observation_date_in: i64,
+        fn addEntityAndRelationToLocalEntity(rel_type_id_in: i64, new_entity_name_in: String, valid_on_date_in: Option<i64>, observation_date_in: i64,
                                        is_public_in: Option<bool>, caller_manages_transactions_in: bool = false) -> (Entity, RelationToLocalEntity) {
-        let (entity_id, rte_id) = m_db.create_entity_and_relation_to_local_entity(get_id, rel_type_idIn, new_entity_name_in, is_public_in, valid_on_date_in, observation_date_in,;
+        let (entity_id, rte_id) = m_db.create_entity_and_relation_to_local_entity(get_id, rel_type_id_in, new_entity_name_in, is_public_in, valid_on_date_in, observation_date_in,;
                                                                     caller_manages_transactions_in)
         let entity = new Entity(m_db, entity_id);
-        let rte = new RelationToLocalEntity(m_db, rte_id, rel_type_idIn, m_id, entity_id);
+        let rte = new RelationToLocalEntity(m_db, rte_id, rel_type_id_in, m_id, entity_id);
         (entity, rte)
       }
 
       /**
         * @return the new group's id.
         */
-        fn addRelationToGroup(rel_type_idIn: i64, group_id_in: i64, sorting_index_in: Option<i64>) -> RelationToGroup {
-        addRelationToGroup(rel_type_idIn, group_id_in, sorting_index_in, None, System.currentTimeMillis)
+        fn addRelationToGroup(rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>) -> RelationToGroup {
+        addRelationToGroup(rel_type_id_in, group_id_in, sorting_index_in, None, System.currentTimeMillis)
       }
 
-        fn addRelationToGroup(rel_type_idIn: i64, group_id_in: i64, sorting_index_in: Option<i64>,
+        fn addRelationToGroup(rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>,
                              valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToGroup {
-        let (newRtg_id, sorting_index) = m_db.create_relation_to_group(get_id, rel_type_idIn, group_id_in, valid_on_date_in, observation_date_in, sorting_index_in);
-        new RelationToGroup(m_db, newRtg_id, get_id, rel_type_idIn, group_id_in, valid_on_date_in, observation_date_in, sorting_index)
+        let (new_rtg_id, sorting_index) = m_db.create_relation_to_group(get_id, rel_type_id_in, group_id_in, valid_on_date_in, observation_date_in, sorting_index_in);
+        new RelationToGroup(m_db, new_rtg_id, get_id, rel_type_id_in, group_id_in, valid_on_date_in, observation_date_in, sorting_index)
       }
 
-        fn getSortedAttributes(startingObjectIndexIn: Int = 0, maxValsIn: Int = 0, onlyPublicEntitiesIn: bool = true) -> (Array[(i64, Attribute)], Int) {
-        m_db.getSortedAttributes(get_id, startingObjectIndexIn, maxValsIn, onlyPublicEntitiesIn = onlyPublicEntitiesIn)
+        fn get_sorted_attributes(starting_object_index_in: Int = 0, max_vals_in: Int = 0, only_public_entities_in: bool = true) -> (Array[(i64, Attribute)], Int) {
+        m_db.get_sorted_attributes(get_id, starting_object_index_in, max_vals_in, only_public_entities_in = only_public_entities_in)
       }
 
         fn updateClass(class_id_in: Option<i64>) /*%% -> Unit*/ {
         if !m_already_read_data) read_data_from_db()
         if class_id_in != m_class_id) {
-          m_db.updateEntitysClass(this.get_id, class_id_in)
+          m_db.update_entitys_class(this.get_id, class_id_in)
           m_class_id = class_id_in
         }
       }
@@ -628,7 +628,7 @@ impl Entity<'_> {
         fn updateNewEntriesStickToTop(b: bool) {
         if !m_already_read_data) read_data_from_db()
         if b != m_new_entries_stick_to_top) {
-          m_db.updateEntityOnlyNewEntriesStickToTop(get_id, b)
+          m_db.update_entity_only_new_entries_stick_to_top(get_id, b)
           m_new_entries_stick_to_top = b
         }
       }
@@ -637,7 +637,7 @@ impl Entity<'_> {
         if !m_already_read_data) read_data_from_db()
         if newValueIn != m_public) {
           // The condition for this (when it was part of EntityMenu) used to include " && !entity_in.isInstanceOf[RelationType]", but maybe it's better w/o that.
-          m_db.updateEntityOnlyPublicStatus(get_id, newValueIn)
+          m_db.update_entity_only_public_status(get_id, newValueIn)
           m_public = newValueIn
         }
       }
@@ -645,18 +645,18 @@ impl Entity<'_> {
         fn updateName(name_in: String) /*%% -> Unit*/ {
         if !m_already_read_data) read_data_from_db()
         if name_in != m_name) {
-          m_db.updateEntityOnlyName(get_id, name_in);
+          m_db.update_entity_only_name(get_id, name_in);
           m_name = name_in
         }
       }
 
         fn archive() {
-        m_db.archiveEntity(m_id);
+        m_db.archive_entity(m_id);
         m_archived = true
       }
 
         fn unarchive() {
-        m_db.unarchiveEntity(m_id);
+        m_db.unarchive_entity(m_id);
         m_archived = false
       }
 

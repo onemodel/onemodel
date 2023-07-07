@@ -180,7 +180,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   @tailrec
   //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
     fn importRestOfLines(r: LineNumberReader, lastEntityAdded: Option<Entity>, lastIndentationLevel: Int, containerList: List[AnyRef],
-                                lastSortingIndexes: List[i64], observationDateIn: i64, mixedClassesAllowedDefaultIn: bool,
+                                lastSortingIndexes: List[i64], observation_dateIn: i64, mixedClassesAllowedDefaultIn: bool,
                                 makeThem_publicIn: Option<bool>) {
     // (see cmts just above about where we start)
     require(containerList.size == lastIndentationLevel + 1)
@@ -203,20 +203,20 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       if lineUntrimmed.toLowerCase.contains(beginTaMarker)) {
         // we have a section of text marked for importing into a single TextAttribute:
         importTextAttributeContent(lineUntrimmed, r, lastEntityAdded.get, beginTaMarker, endTaMarker)
-        importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
+        importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observation_dateIn, mixedClassesAllowedDefaultIn,
                           makeThem_publicIn)
       } else if lineUntrimmed.toLowerCase.contains(beginUriMarker)) {
         // we have a section of text marked for importing into a web link:
-        importUriContent(lineUntrimmed, beginUriMarker, endUriMarker, lineNumber, lastEntityAdded.get, observationDateIn,
+        importUriContent(lineUntrimmed, beginUriMarker, endUriMarker, lineNumber, lastEntityAdded.get, observation_dateIn,
                           makeThem_publicIn, caller_manages_transactions_in = true)
-        importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
+        importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observation_dateIn, mixedClassesAllowedDefaultIn,
                           makeThem_publicIn)
       } else {
         let line: String = lineUntrimmed.trim;
 
         if line == "." || line.isEmpty) {
           // nothing to do: that kind of line was just to create whitespace in my outline. So simply go to the next line:
-          importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observationDateIn, mixedClassesAllowedDefaultIn,
+          importRestOfLines(r, lastEntityAdded, lastIndentationLevel, containerList, lastSortingIndexes, observation_dateIn, mixedClassesAllowedDefaultIn,
                             makeThem_publicIn)
         } else {
           if line.length > Util::maxNameLength) throw new OmException("Line " + lineNumber + " is over " + Util::maxNameLength + " characters " +
@@ -231,14 +231,14 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             let newEntity: Entity = {;
               containerList.head match {
                 case entity: Entity =>
-                  entity.createEntityAndAddHASLocalRelationToIt(line, observationDateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
+                  entity.createEntityAndAddHASLocalRelationToIt(line, observation_dateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
                 case group: Group =>
                   createAndAddEntityToGroup(line, containerList.head.asInstanceOf[Group], newSortingIndex, makeThem_publicIn)
                 case _ => throw new OmException("??")
               }
             }
 
-            importRestOfLines(r, Some(newEntity), lastIndentationLevel, containerList, newSortingIndex :: lastSortingIndexes.tail, observationDateIn,
+            importRestOfLines(r, Some(newEntity), lastIndentationLevel, containerList, newSortingIndex :: lastSortingIndexes.tail, observation_dateIn,
                               mixedClassesAllowedDefaultIn, makeThem_publicIn)
           } else if newIndentationLevel < lastIndentationLevel) {
             require(lastIndentationLevel >= 0)
@@ -251,13 +251,13 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             let newEntity: Entity = {;
               newContainerList.head match {
                 case entity: Entity =>
-                  entity.createEntityAndAddHASLocalRelationToIt(line, observationDateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
+                  entity.createEntityAndAddHASLocalRelationToIt(line, observation_dateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
                 case group: Group =>
                   createAndAddEntityToGroup(line, group, newSortingIndex, makeThem_publicIn)
                 case _ => throw new OmException("??")
               }
             }
-            importRestOfLines(r, Some(newEntity), newIndentationLevel, newContainerList, newSortingIndex :: newSortingIndexList.tail, observationDateIn,
+            importRestOfLines(r, Some(newEntity), newIndentationLevel, newContainerList, newSortingIndex :: newSortingIndexList.tail, observation_dateIn,
                               mixedClassesAllowedDefaultIn, makeThem_publicIn)
           } else if newIndentationLevel > lastIndentationLevel) {
             // indented, so create a subgroup & add line there:
@@ -287,12 +287,12 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             // oh well they can add it to the entity as such,
             // for now at least.
             let newGroup: Group = lastEntityAdded.get.create_groupAndAddHASRelationToIt(lastEntityAdded.get.get_name, mixedClassesAllowed,;
-                                                                                       observationDateIn, caller_manages_transactions_in = true)._1
+                                                                                       observation_dateIn, caller_manages_transactions_in = true)._1
             // since a new grp, start at beginning of sorting indexes
             let newSortingIndex = Database.min_id_value;
             let newSubEntity: Entity = createAndAddEntityToGroup(line, newGroup, newSortingIndex, makeThem_publicIn);
             importRestOfLines(r, Some(newSubEntity), newIndentationLevel, newGroup :: containerList, newSortingIndex :: lastSortingIndexes,
-                              observationDateIn, mixedClassesAllowedDefaultIn, makeThem_publicIn)
+                              observation_dateIn, mixedClassesAllowedDefaultIn, makeThem_publicIn)
           } else throw new OmException("Shouldn't get here!?: " + lastIndentationLevel + ", " + newIndentationLevel)
         }
       }
@@ -304,8 +304,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     let restOfLine = lineUntrimmedIn.substring(lineUntrimmedIn.toLowerCase.indexOf(beginningTagMarker) + beginningTagMarker.length).trim;
     if restOfLine.toLowerCase.contains(endTaMarker)) throw new OmException("\"Unsupported format at line " + r.getLineNumber + ": beginning and ending " +
                                                                             "markers must NOT be on the same line.")
-    let attrTypeId: i64 = {;
-      let idsByName: java.util.ArrayList[i64] = entity_in.m_db.findAllEntityIdsByName(lineContentBeforeMarker.trim, caseSensitive = true);
+    let attr_type_id: i64 = {;
+      let idsByName: java.util.ArrayList[i64] = entity_in.m_db.find_all_entity_ids_by_name(lineContentBeforeMarker.trim, case_sensitive = true);
       if idsByName.size == 1)
         idsByName.get(0)
       else {
@@ -354,11 +354,11 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       let builder = getRestOfLines(r, new mutable.StringBuilder);
       builder.toString()
     }
-    entity_in.create_text_attribute(attrTypeId, text, caller_manages_transactions_in = true)
+    entity_in.create_text_attribute(attr_type_id, text, caller_manages_transactions_in = true)
   }
 
     fn importUriContent(lineUntrimmedIn: String, beginningTagMarkerIn: String, endMarkerIn: String, lineNumberIn: Int,
-                        lastEntityAddedIn: Entity, observationDateIn: i64, makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool) {
+                        lastEntityAddedIn: Entity, observation_dateIn: i64, makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool) {
     //NOTE/idea also in tasks: this all fits better in the class and action *tables*, with this code being stored there
     // also, which implies that the class doesn't need to be created because...it's already there.
 
@@ -377,7 +377,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     if name.isEmpty || uri.isEmpty) throw new OmException("\"Unsupported format at line " + lineNumberIn +
                                                            ": A URI line must be in the format (without quotes): " + uriLineExample)
     // (see note above on this being better in the class and action *tables*, but here for now until those features are ready)
-    lastEntityAddedIn.addUriEntityWithUriAttribute(name, uri, observationDateIn, makeThem_publicIn, caller_manages_transactions_in = true)
+    lastEntityAddedIn.addUriEntityWithUriAttribute(name, uri, observation_dateIn, makeThem_publicIn, caller_manages_transactions_in = true)
   }
 
   //@tailrec why not? needs that jvm fix first to work for the scala compiler?  see similar comments elsewhere on that? (does java8 provide it now?
@@ -423,7 +423,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
         let nextSortingIndex: i64 = containingGrp.getHighestSortingIndex + 1;
         if nextSortingIndex == Database.min_id_value) {
           // we wrapped from the biggest to lowest i64 value
-          containingGrp.renumberSortingIndexes(caller_manages_transactions_in = true)
+          containingGrp.renumber_sorting_indexes(caller_manages_transactions_in = true)
           let nextTriedNewSortingIndex: i64 = containingGrp.getHighestSortingIndex + 1;
           if nextSortingIndex == Database.min_id_value) {
             throw new OmException("Huh? How did we get two wraparounds in a row?")
@@ -566,7 +566,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       // The caches are to reduce the expensive repeated queries of attribute lists & entity objects (not all of which are known at the time we write to
       // exportedEntityIds.  Html exports were getting very slow before this caching logic was added.)
       let cachedEntities = new mutable.HashMap[String, Entity];
-      // (The key is the entityId, and the value contains the attributes (w/ id & attr) as returned from db.getSortedAttributes.)
+      // (The key is the entityId, and the value contains the attributes (w/ id & attr) as returned from db.get_sorted_attributes.)
       let cachedAttrs = new mutable.HashMap[i64, Array[(i64, Attribute)]];
 
       let cachedGroupInfo = new mutable.HashMap[i64, Array[i64]];
@@ -632,8 +632,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       } else if exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
         let outputDirectory:Path = createOutputDir(prefix);
         // see note about this usage, in method importUriContent:
-        let uriClassId: i64 = entity_in.m_db.getOrCreateClassAndTemplateEntity("URI", caller_manages_transactions_in = true)._1;
-        let quoteClassId = entity_in.m_db.getOrCreateClassAndTemplateEntity("quote", caller_manages_transactions_in = true)._1;
+        let uriClassId: i64 = entity_in.m_db.get_or_create_class_and_template_entity("URI", caller_manages_transactions_in = true)._1;
+        let quoteClassId = entity_in.m_db.get_or_create_class_and_template_entity("quote", caller_manages_transactions_in = true)._1;
 
         exportHtml(entity_in, levelsToExport == 0, levelsToExport, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                    cachedGroupInfo, mutable.TreeSet[i64](), uriClassId, quoteClassId,
@@ -852,10 +852,10 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     fn printListItemForUriEntity(uriClassIdIn: i64, quoteClassIdIn: i64, printWriter: PrintWriter, uriEntity: Entity,
                                 cachedAttrsIn: mutable.HashMap[i64, Array[(i64, Attribute)]]) /*-> Unit%%*/ {
     // handle URIs differently than other entities: make it a link as indicated by the URI contents, not to a newly created entity page..
-    // (could use a more efficient call in cpu time than getSortedAttributes, but it's efficient in programmer time:)
+    // (could use a more efficient call in cpu time than get_sorted_attributes, but it's efficient in programmer time:)
     fn findUriAttribute() -> Option[TextAttribute] {
       let attributesOnEntity2: Array[(i64, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn);
-      let uriTemplateId: i64 = new EntityClass(uriEntity.m_db, uriClassIdIn).getTemplateEntityId;
+      let uriTemplateId: i64 = new EntityClass(uriEntity.m_db, uriClassIdIn).get_template_entity_id;
       for (attrTuple <- attributesOnEntity2) {
         let attr2: Attribute = attrTuple._2;
         if attr2.get_attr_type_id() == uriTemplateId && attr2.isInstanceOf[TextAttribute]) {
@@ -866,11 +866,11 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
     fn findQuoteText() -> Option<String> {
       let attributesOnEntity2: Array[(i64, Attribute)] = getCachedAttributes(uriEntity, cachedAttrsIn);
-      let quoteClassTemplateId: i64 = new EntityClass(uriEntity.m_db, quoteClassIdIn).getTemplateEntityId;
+      let quoteClassTemplateId: i64 = new EntityClass(uriEntity.m_db, quoteClassIdIn).get_template_entity_id;
       for (attrTuple <- attributesOnEntity2) {
         let attr2: Attribute = attrTuple._2;
         if attr2.get_attr_type_id() == quoteClassTemplateId && attr2.isInstanceOf[TextAttribute]) {
-          return Some(attr2.asInstanceOf[TextAttribute].getText)
+          return Some(attr2.asInstanceOf[TextAttribute].get_text)
         }
       }
       None
@@ -881,7 +881,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
     // this one can be None and it's no surprise:
     let quoteText: Option<String> = findQuoteText();
-    printHtmlListItemWithLink(printWriter, "", uriAttribute.get.getText, uriEntity.get_name, None, quoteText)
+    printHtmlListItemWithLink(printWriter, "", uriAttribute.get.get_text, uriEntity.get_name, None, quoteText)
   }
 
     fn printListItemForEntity(printWriterIn: PrintWriter, relationTypeIn: RelationType, entity_in: Entity) -> /*Unit%%*/ {
@@ -991,7 +991,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     if cachedIds.is_defined) {
       cachedIds.get
     } else {
-      let data: List[Array[Option[Any]]] = rtg.m_db.getGroupEntriesData(rtg.getGroupId, None, include_archived_entities_in = false);
+      let data: Vec<Vec<Option<DataType>>> = rtg.m_db.get_group_entries_data(rtg.getGroupId, None, include_archived_entities_in = false);
       let entityIds = new Array[i64](data.size);
       let mut count = 0;
       for (entry <- data) {
@@ -1009,7 +1009,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     if cachedInfo.is_defined) {
       cachedInfo.get
     } else {
-      let attrTuples = entity_in.getSortedAttributes(0, 0, onlyPublicEntitiesIn = false)._1;
+      let attrTuples = entity_in.get_sorted_attributes(0, 0, only_public_entities_in = false)._1;
       // record, so we don't create files more than once, calculate attributes more than once, etc.
       cachedAttrsIn.put(entity_in.get_id, attrTuples)
       attrTuples

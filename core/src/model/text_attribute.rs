@@ -20,7 +20,7 @@ import org.onemodel.core.{OmException, Util}
   *
 class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObservedDates(m_db, m_id) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.textAttributeKeyExists(m_id)) {
+  if !m_db.is_remote && !m_db.text_attribute_key_exists(m_id)) {
     throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
@@ -29,10 +29,10 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(m_db: Database, m_id: i64, parent_id_in: i64, attr_type_id_in: i64, text_in: String, valid_on_date: Option<i64>, observationDate: i64,
+    fn this(m_db: Database, m_id: i64, parent_id_in: i64, attr_type_id_in: i64, text_in: String, valid_on_date: Option<i64>, observation_date: i64,
            sorting_index_in: i64) {
     this(m_db, m_id)
-    assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observationDate, sorting_index_in)
+    assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
     mText = text_in
   }
 
@@ -41,20 +41,20 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
     fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
     let typeName: String = m_db.get_entity_name(get_attr_type_id()).get;
     let mut result: String = {;
-      if simplify && (typeName == "paragraph" || typeName == "quote")) getText
-      else typeName + ": \"" + getText + "\""
+      if simplify && (typeName == "paragraph" || typeName == "quote")) get_text
+      else typeName + ": \"" + get_text + "\""
     }
     if ! simplify) result += "; " + get_dates_description
     Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-    fn getText -> String {
+    fn get_text -> String {
     if !m_already_read_data) read_data_from_db()
     mText
   }
 
   protected fn read_data_from_db() {
-    let taTypeData = m_db.getTextAttributeData(m_id);
+    let taTypeData = m_db.get_text_attribute_data(m_id);
     if taTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + m_id)
     }
@@ -66,7 +66,7 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
     fn update(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64>, observation_date_in: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    m_db.updateTextAttribute(m_id, get_parent_id(), attr_type_id_in, text_in, valid_on_date_in, observation_date_in)
+    m_db.update_text_attribute(m_id, get_parent_id(), attr_type_id_in, text_in, valid_on_date_in, observation_date_in)
     mText = text_in
     m_attr_type_id = attr_type_id_in
     valid_on_date = valid_on_date_in
@@ -74,7 +74,7 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
   }
 
   /** Removes this object from the system. */
-    fn delete() = m_db.deleteTextAttribute(m_id)
+    fn delete() = m_db.delete_text_attribute(m_id)
 
   /** For descriptions of the meanings of these variables, see the comments
     on create_text_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes.

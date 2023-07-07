@@ -51,8 +51,8 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     // (But should this issue go away w/ better design involving more use of immutability or something?)
     let id = 0L;
     let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.classKeyExists(id)).thenReturn(true)
-    when(mockDB.getClassData(id)).thenThrow(new RuntimeException("some exception"))
+    when(mockDB.class_key_exists(id)).thenReturn(true)
+    when(mockDB.get_class_data(id)).thenThrow(new RuntimeException("some exception"))
 
     let entityClass = new EntityClass(mockDB, id);
     let ec = entityClass.get_display_string;
@@ -63,28 +63,28 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
 
   "get_display_string" should "return name" in {
     let id = 0L;
-    let templateEntityId = 1L;
+    let template_entity_id = 1L;
     let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.classKeyExists(id)).thenReturn(true)
-    when(mockDB.getClassName(id)).thenReturn(Some("class1Name"))
-    when(mockDB.getClassData(id)).thenReturn(Array[Option[Any]](Some("class1Name"), Some(templateEntityId), Some(true)))
+    when(mockDB.class_key_exists(id)).thenReturn(true)
+    when(mockDB.get_class_name(id)).thenReturn(Some("class1Name"))
+    when(mockDB.get_class_data(id)).thenReturn(Vec<Option<DataType>>(Some("class1Name"), Some(template_entity_id), Some(true)))
 
     let entityClass = new EntityClass(mockDB, id);
     let ds = entityClass.get_display_string;
     assert(ds == "class1Name")
   }
 
-  "updateClassAndTemplateEntityName" should "work" in {
+  "update_class_and_template_entity_name" should "work" in {
     //about begintrans: see comment farther below.
 //    m_db.begin_trans()
     let tmpName = "garbage-temp";
-    mEntityClass.updateClassAndTemplateEntityName(tmpName)
+    mEntityClass.update_class_and_template_entity_name(tmpName)
     assert(mEntityClass.m_name == tmpName)
     // have to reread to see the change:
     assert(new EntityClass(m_db, mEntityClass.get_id).get_name == tmpName)
     assert(new Entity(m_db, mTemplateEntity.get_id).get_name == tmpName + "-template")
     // See comment about next 3 lines, at the rollback_trans call at the end of the PostgreSQLDatabaseTest.scala test
-    // "getAttrCount, getAttributeSortingRowsCount".
+    // "getAttrCount, get_attribute_sorting_rows_count".
 //    m_db.rollback_trans()
 //    assert(new EntityClass(m_db, mEntityClass.get_id).get_name != tmpName)
 //    assert(new Entity(m_db, mTemplateEntity.get_id).get_name != tmpName + "-template")

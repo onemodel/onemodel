@@ -20,7 +20,7 @@ import org.onemodel.core.{OmException, Util}
   *
 class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObservedDates(m_db, m_id) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.quantityAttributeKeyExists(m_id)) {
+  if !m_db.is_remote && !m_db.relation_type_key_exists(m_id)) {
     throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
@@ -29,12 +29,12 @@ class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAnd
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(db: Database, id: i64, parent_id_in: i64, attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date: Option<i64>,
-           observationDate: i64, sorting_index: i64) {
+    fn this(db: Database, id: i64, parent_id_in: i64, attr_type_id_in: i64, unit_id_in: i64, number_in: Float, valid_on_date: Option<i64>,
+           observation_date: i64, sorting_index: i64) {
     this(db, id)
-    mUnitId = unitIdIn
-    mNumber = numberIn
-    assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observationDate, sorting_index)
+    mUnitId = unit_id_in
+    mNumber = number_in
+    assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index)
   }
 
   /**
@@ -63,7 +63,7 @@ class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAnd
   }
 
   protected fn read_data_from_db() {
-    let quantityData = m_db.getQuantityAttributeData(m_id);
+    let quantityData = m_db.get_quantity_attribute_data(m_id);
     if quantityData.length == 0) {
       throw new OmException("No results returned from data request for: " + m_id)
     }
@@ -73,20 +73,20 @@ class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAnd
                            quantityData(5).get.asInstanceOf[i64], quantityData(6).get.asInstanceOf[i64])
   }
 
-    fn update(attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>, observation_date_in: i64) {
+    fn update(attr_type_id_in: i64, unit_id_in: i64, number_in: Float, valid_on_date_in: Option<i64>, observation_date_in: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    m_db.updateQuantityAttribute(m_id, get_parent_id(), attr_type_id_in, unitIdIn, numberIn, valid_on_date_in, observation_date_in)
+    m_db.update_quantity_attribute(m_id, get_parent_id(), attr_type_id_in, unit_id_in, number_in, valid_on_date_in, observation_date_in)
     m_attr_type_id = attr_type_id_in
-    mUnitId = unitIdIn
-    mNumber = numberIn
+    mUnitId = unit_id_in
+    mNumber = number_in
     valid_on_date = valid_on_date_in
     observation_date = observation_date_in
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    m_db.deleteQuantityAttribute(m_id)
+    m_db.delete_quantity_attribute(m_id)
     }
 
   // **idea: make these members into vals not vars, by replacing them with the next line.
@@ -96,7 +96,7 @@ class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAnd
   // like how additional class vals are set when the other constructor (what's the term again?), is called. How to do the other constructor w/o a db hit.
   /**
    * For descriptions of the meanings of these variables, see the comments
-   * on createQuantityAttribute(...) or create_tables() in PostgreSQLDatabase or Database classes
+   * on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes
    */
   private let mut mUnitId: i64 = 0L;
   private let mut mNumber: Float = .0F;

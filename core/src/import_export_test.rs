@@ -79,8 +79,8 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
     let prefix: String = mImportExport.getExportFileNamePrefix(startingEntity, ImportExport.HTML_EXPORT_TYPE);
     let outputDirectory: Path = mImportExport.createOutputDir("omtest-" + prefix);
-    let uriClassId: i64 = startingEntity.m_db.getOrCreateClassAndTemplateEntity("URI", caller_manages_transactions_in = true)._1;
-    let quoteClassId = startingEntity.m_db.getOrCreateClassAndTemplateEntity("quote", caller_manages_transactions_in = true)._1;
+    let uriClassId: i64 = startingEntity.m_db.get_or_create_class_and_template_entity("URI", caller_manages_transactions_in = true)._1;
+    let quoteClassId = startingEntity.m_db.get_or_create_class_and_template_entity("quote", caller_manages_transactions_in = true)._1;
     mImportExport.exportHtml(startingEntity, levelsToExportIsInfinite = true, 0, outputDirectory, exportedEntityIds, cachedEntities, cachedAttrs,
                              cachedGroupInfo, mutable.TreeSet[i64](), uriClassId, quoteClassId, includePublicData = true, includeNonPublicData = true,
                              includeUnspecifiedData = true, None, None, Some("2015 thisisatestpersonname"))
@@ -104,18 +104,18 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     m_db.begin_trans()
     mImportExport.tryImporting_FOR_TESTS("testImportFile0.txt", mEntity)
     m_db.rollback_trans()
-    assert(m_db.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db").isEmpty)
+    assert(m_db.find_all_entity_ids_by_name("vsgeer-testing-getJournal-in-db").isEmpty)
 
     //check it again with data that has a text attribute, since it adds an operation to the import, and any such could have a transaction issue
     m_db.begin_trans()
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
     m_db.rollback_trans()
-    assert(m_db.findAllEntityIdsByName("vsgeer4").isEmpty)
+    assert(m_db.find_all_entity_ids_by_name("vsgeer4").isEmpty)
   }
 
   "testImportAndExportOfSimpleTxt" should "work" in {
     let importFile: File = mImportExport.tryImporting_FOR_TESTS("testImportFile0.txt", mEntity);
-    let ids: java.util.ArrayList[i64] = m_db.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db");
+    let ids: java.util.ArrayList[i64] = m_db.find_all_entity_ids_by_name("vsgeer-testing-getJournal-in-db");
 
     let (fileContents: String, outputFile: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, m_db);
 
@@ -148,13 +148,13 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
 
     // make sure it actually imported something expected:
-    let ids: java.util.ArrayList[i64] = m_db.findAllEntityIdsByName("lastTopLevelLineIn-testImportFile4.txt");
+    let ids: java.util.ArrayList[i64] = m_db.find_all_entity_ids_by_name("lastTopLevelLineIn-testImportFile4.txt");
     assert(ids.size > 0)
     let mut foundIt = false;
-    let relationTypeId = m_db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
+    let relation_type_id = m_db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
     for (entityId: i64 <- ids) {
       // (could have used m_db.getContainingEntities1 here perhaps)
-      if m_db.relationToLocalEntityExists(relationTypeId, mEntity.get_id, entityId) {
+      if m_db.relation_to_local_entity_exists(relation_type_id, mEntity.get_id, entityId) {
         foundIt = true
       }
     }
@@ -163,7 +163,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testExportHtml" should "work" in {
     mImportExport.tryImporting_FOR_TESTS("testImportFile4.txt", mEntity)
-    let ids: java.util.ArrayList[i64] = m_db.findAllEntityIdsByName("vsgeer4");
+    let ids: java.util.ArrayList[i64] = m_db.find_all_entity_ids_by_name("vsgeer4");
     let (firstNewFileContents: String, newFiles: Vec<String>) = tryExportingHtml(ids);
 
     assert(firstNewFileContents.contains("<a href=\"e-"), "unexpected file contents: no href?:  " + firstNewFileContents)
@@ -176,14 +176,14 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
   "testImportAndExportOfUri" should "work" in {
     mImportExport.tryImporting_FOR_TESTS("testImportFile5.txt", mEntity)
-    let ids: java.util.ArrayList[i64] = m_db.findAllEntityIdsByName("import-file-5");
+    let ids: java.util.ArrayList[i64] = m_db.find_all_entity_ids_by_name("import-file-5");
     let firstNewFileContents: String = tryExportingHtml(ids)._1;
     assert(firstNewFileContents.contains("<a href=\"http://www.onemodel.org/downloads/testfile.txt\">test file download</a>"), "unexpected file contents:  " + firstNewFileContents)
   }
 
   "testExportTxtFileWithLongLines" should "wrap & space lines in useful ways so less manual fixing of exported content for printing/viewing" in {
     let importFile: File = mImportExport.tryImporting_FOR_TESTS("testImportFile6.txt", mEntity);
-    let ids: java.util.ArrayList[i64] = m_db.findAllEntityIdsByName("importexporttest-testExportTxtFileWithLongLines-testExportFile6");
+    let ids: java.util.ArrayList[i64] = m_db.find_all_entity_ids_by_name("importexporttest-testExportTxtFileWithLongLines-testExportFile6");
 
     let (fileContents: String, outputFile: File) = mImportExport.tryExportingTxt_FOR_TESTS(ids, m_db, wrapLongLinesIn = true,;
                                                                                            80, includeOutlineNumberingIn = true)

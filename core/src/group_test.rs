@@ -39,21 +39,21 @@ class GroupTest extends FlatSpec with MockitoSugar {
   }
 
   "moveEntityToDifferentGroup etc" should "work" in {
-    let group1 = new Group(m_db, m_db.create_group("groupName1"));
-    let group2 = new Group(m_db, m_db.create_group("groupName2"));
+    let group1 = new Group(m_db, m_db.create_group("group_name1"));
+    let group2 = new Group(m_db, m_db.create_group("group_name2"));
     let e1 = new Entity(m_db, m_db.createEntity("e1"));
     group1.addEntity(e1.get_id)
-    assert(group1.isEntityInGroup(e1.get_id))
-    assert(! group2.isEntityInGroup(e1.get_id))
+    assert(group1.is_entity_in_group(e1.get_id))
+    assert(! group2.is_entity_in_group(e1.get_id))
     group1.moveEntityToDifferentGroup(group2.get_id, e1.get_id, -1)
-    assert(! group1.isEntityInGroup(e1.get_id))
-    assert(group2.isEntityInGroup(e1.get_id))
+    assert(! group1.is_entity_in_group(e1.get_id))
+    assert(group2.is_entity_in_group(e1.get_id))
 
     let index1 = group2.getEntrySortingIndex(e1.get_id);
     assert(index1 == -1)
     group2.updateSortingIndex(e1.get_id, -2)
     assert(group2.getEntrySortingIndex(e1.get_id) == -2)
-    group2.renumberSortingIndexes()
+    group2.renumber_sorting_indexes()
     assert(group2.getEntrySortingIndex(e1.get_id) != -1)
     assert(group2.getEntrySortingIndex(e1.get_id) != -2)
     assert(! group2.isGroupEntrySortingIndexInUse(-1))
@@ -65,23 +65,23 @@ class GroupTest extends FlatSpec with MockitoSugar {
     group2.addEntity(e3.get_id)
     group2.updateSortingIndex(e3.get_id, Database.min_id_value)
     // next lines not much of a test but is something:
-    let index3: Option<i64> = group2.getNearestGroupEntrysSortingIndex(Database.min_id_value, forwardNotBackIn = true);
+    let index3: Option<i64> = group2.get_nearest_group_entrys_sorting_index(Database.min_id_value, forward_not_back_in = true);
     assert(index3.get > Database.min_id_value)
     /*val index4: i64 = */group2.getEntrySortingIndex(e1.get_id)
-    let indexes = group2.getAdjacentGroupEntriesSortingIndexes(Database.min_id_value, Some(0), forwardNotBackIn = true);
+    let indexes = group2.get_adjacent_group_entries_sorting_indexes(Database.min_id_value, Some(0), forward_not_back_in = true);
     assert(indexes.nonEmpty)
 
     let e2 = new Entity(m_db, m_db.createEntity("e2"));
     let results_in_out1: mutable.TreeSet[i64] = e2.find_contained_local_entity_ids(new mutable.TreeSet[i64], "e2");
     assert(results_in_out1.isEmpty)
-    group2.moveEntityFromGroupToLocalEntity(e2.get_id, e1.get_id, 0)
-    assert(! group2.isEntityInGroup(e1.get_id))
+    group2.move_entity_from_group_to_local_entity(e2.get_id, e1.get_id, 0)
+    assert(! group2.is_entity_in_group(e1.get_id))
     let results_in_out2: mutable.TreeSet[i64] = e2.find_contained_local_entity_ids(new mutable.TreeSet[i64], "e1");
     assert(results_in_out2.size == 1)
     assert(results_in_out2.contains(e1.get_id))
   }
 
-  "getGroupsContainingEntitysGroupsIds etc" should "work" in {
+  "get_groups_containing_entitys_groups_ids etc" should "work" in {
     let group1 = new Group(m_db, m_db.create_group("g1"));
     let group2 = new Group(m_db, m_db.create_group("g2"));
     let group3 = new Group(m_db, m_db.create_group("g3"));
@@ -92,13 +92,13 @@ class GroupTest extends FlatSpec with MockitoSugar {
     let rt = new RelationType(m_db, m_db.createRelationType("rt", "rtReversed", "BI"));
     entity1.addRelationToGroup(rt.get_id, group3.get_id, None)
     entity2.addRelationToGroup(rt.get_id, group3.get_id, None)
-    let results = group3.getGroupsContainingEntitysGroupsIds();
+    let results = group3.get_groups_containing_entitys_groups_ids();
     assert(results.size == 2)
 
-    let entities = group3.getEntitiesContainingGroup(0);
+    let entities = group3.get_entities_containing_group(0);
     assert(entities.size == 2)
-    assert(group3.getCountOfEntitiesContainingGroup._1 == 2)
-    assert(group3.getContainingRelationsToGroup(0).size == 2)
+    assert(group3.get_count_of_entities_containing_group._1 == 2)
+    assert(group3.get_containing_relations_to_group(0).size == 2)
 
     assert(Group.getGroup(m_db, group3.get_id).is_defined)
   }

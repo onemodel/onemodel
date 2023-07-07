@@ -47,7 +47,7 @@ object RelationType {
   */
 class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.relationTypeKeyExists(m_id)) {
+  if !m_db.is_remote && !m_db.relation_type_key_exists(m_id)) {
     throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
@@ -91,7 +91,7 @@ class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
   }
 
   protected override fn read_data_from_db() {
-    let relationTypeData: Array[Option[Any]] = m_db.getRelationTypeData(m_id);
+    let relationTypeData: Vec<Option<DataType>> = m_db.get_relation_type_data(m_id);
     if relationTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + m_id)
     }
@@ -104,7 +104,7 @@ class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
     fn update(name_in: String, name_in_reverse_direction_in: String, directionality_in: String) -> /*%% -> Unit*/ {
     if !m_already_read_data) read_data_from_db()
     if name_in != m_name || name_in_reverse_direction_in != m_nameInReverseDirection || directionality_in != mDirectionality) {
-      m_db.updateRelationType(get_id, name_in, name_in_reverse_direction_in, directionality_in)
+      m_db.update_relation_type(get_id, name_in, name_in_reverse_direction_in, directionality_in)
       m_name = name_in
       m_nameInReverseDirection = name_in_reverse_direction_in
       mDirectionality = directionality_in
@@ -114,7 +114,7 @@ class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
   /** Removes this object from the system.
     */
   override fn delete() {
-    m_db.deleteRelationType(m_id)
+    m_db.delete_relation_type(m_id)
   }
 
   /** For descriptions of the meanings of these variables, see the comments

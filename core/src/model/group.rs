@@ -40,22 +40,22 @@ object Group {
   * */
 class Group(val m_db: Database, m_id: i64) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.groupKeyExists(m_id: i64)) {
+  if !m_db.is_remote && !m_db.group_key_exists(m_id: i64)) {
     throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
   /** See comment about these 2 dates in Database.create_tables() */
-    fn this(m_db: Database, id_in: i64, name_in: String, insertion_dateIn: i64, mixed_classes_allowedIn: bool, newEntriesStickToTopIn: bool) {
+    fn this(m_db: Database, id_in: i64, name_in: String, insertion_dateIn: i64, mixed_classes_allowedIn: bool, new_entries_stick_to_top_in: bool) {
     this(m_db, id_in)
     m_name = name_in
     m_insertion_date = insertion_dateIn
     mMixedClassesAllowed = mixed_classes_allowedIn
-    m_new_entries_stick_to_top = newEntriesStickToTopIn
+    m_new_entries_stick_to_top = new_entries_stick_to_top_in
     m_already_read_data = true
   }
 
     fn read_data_from_db() {
-    let relationData: Array[Option[Any]] = m_db.getGroupData(m_id);
+    let relationData: Vec<Option<DataType>> = m_db.get_group_data(m_id);
     if relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + m_id)
     }
@@ -67,31 +67,31 @@ class Group(val m_db: Database, m_id: i64) {
   }
 
     fn update(attr_type_id_inIGNOREDFORSOMEREASON: Option<i64> = None, name_in: Option<String> = None, allow_mixed_classes_in_group_in: Option<bool> = None,
-             newEntriesStickToTopIn: Option<bool> = None,
+             new_entries_stick_to_top_in: Option<bool> = None,
              valid_on_date_inIGNORED4NOW: Option<i64>, observation_date_inIGNORED4NOW: Option<i64>) {
 
-    m_db.updateGroup(m_id,
+    m_db.update_group(m_id,
                     if name_in.isEmpty) get_name else name_in.get,
                     if allow_mixed_classes_in_group_in.isEmpty) getMixedClassesAllowed else allow_mixed_classes_in_group_in.get,
-                    if newEntriesStickToTopIn.isEmpty) getNewEntriesStickToTop else newEntriesStickToTopIn.get)
+                    if new_entries_stick_to_top_in.isEmpty) getNewEntriesStickToTop else new_entries_stick_to_top_in.get)
 
     if name_in.is_some()) m_name = name_in.get
     if allow_mixed_classes_in_group_in.is_some()) mMixedClassesAllowed = allow_mixed_classes_in_group_in.get
-    if newEntriesStickToTopIn.is_some()) m_new_entries_stick_to_top = newEntriesStickToTopIn.get
+    if new_entries_stick_to_top_in.is_some()) m_new_entries_stick_to_top = new_entries_stick_to_top_in.get
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    m_db.deleteGroupAndRelationsToIt(m_id)
+    m_db.delete_group_and_relations_to_it(m_id)
     }
 
   /** Removes an entity from this group. */
     fn removeEntity(entity_id: i64) {
-    m_db.removeEntityFromGroup(m_id, entity_id)
+    m_db.remove_entity_from_group(m_id, entity_id)
     }
 
     fn deleteWithEntities() {
-    m_db.deleteGroupRelationsToItAndItsEntries(m_id)
+    m_db.delete_group_relations_to_it_and_its_entries(m_id)
     }
 
   // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability, or vals not vars)?
@@ -112,7 +112,7 @@ class Group(val m_db: Database, m_id: i64) {
         if getMixedClassesAllowed)
           "(mixed)"
         else {
-          let class_nameOption = getClassName;
+          let class_nameOption = get_class_name;
           if class_nameOption.isEmpty) "None"
           else class_nameOption.get
         }
@@ -122,8 +122,8 @@ class Group(val m_db: Database, m_id: i64) {
     else Attribute.limitDescriptionLength(result, lengthLimitIn)
   }
 
-    fn getGroupEntries(startingIndexIn: i64, maxValsIn: Option<i64> = None) -> Vec<Entity> {
-    m_db.getGroupEntryObjects(m_id, startingIndexIn, maxValsIn)
+    fn getGroupEntries(starting_index_in: i64, max_vals_in: Option<i64> = None) -> Vec<Entity> {
+    m_db.get_group_entry_objects(m_id, starting_index_in, max_vals_in)
   }
 
     fn addEntity(inEntityId: i64, sorting_index_in: Option<i64> = None, caller_manages_transactions_in: bool = false) {
@@ -154,7 +154,7 @@ class Group(val m_db: Database, m_id: i64) {
     m_insertion_date
   }
 
-    fn getClassName -> Option<String> {
+    fn get_class_name -> Option<String> {
     if getMixedClassesAllowed)
       None
     else {
@@ -176,7 +176,7 @@ class Group(val m_db: Database, m_id: i64) {
     if getMixedClassesAllowed)
       None
     else {
-      let entries = m_db.getGroupEntryObjects(get_id, 0, Some(1));
+      let entries = m_db.get_group_entry_objects(get_id, 0, Some(1));
       let specified: bool = entries.size() > 0;
       if !specified)
         None
@@ -210,49 +210,49 @@ class Group(val m_db: Database, m_id: i64) {
     if getMixedClassesAllowed || class_id.isEmpty)
       None
     else {
-      let templateEntityId = new EntityClass(m_db, class_id.get).getTemplateEntityId;
-      Some(new Entity(m_db, templateEntityId))
+      let template_entity_id = new EntityClass(m_db, class_id.get).get_template_entity_id;
+      Some(new Entity(m_db, template_entity_id))
     }
   }
 
     fn getHighestSortingIndex -> i64 {
-    m_db.getHighestSortingIndexForGroup(get_id)
+    m_db.get_highest_sorting_index_for_group(get_id)
   }
 
-    fn getContainingRelationsToGroup(startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
-    m_db.getRelationsToGroupContainingThisGroup(get_id, startingIndexIn, maxValsIn)
+    fn get_containing_relations_to_group(starting_index_in: i64, max_vals_in: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
+    m_db.get_relations_to_group_containing_this_group(get_id, starting_index_in, max_vals_in)
   }
 
-    fn getCountOfEntitiesContainingGroup -> (i64, i64) {
-    m_db.getCountOfEntitiesContainingGroup(get_id)
+    fn get_count_of_entities_containing_group -> (i64, i64) {
+    m_db.get_count_of_entities_containing_group(get_id)
   }
 
-    fn getEntitiesContainingGroup(startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)] {
-    m_db.getEntitiesContainingGroup(get_id, startingIndexIn, maxValsIn)
+    fn get_entities_containing_group(starting_index_in: i64, max_vals_in: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)] {
+    m_db.get_entities_containing_group(get_id, starting_index_in, max_vals_in)
   }
 
     fn findUnusedSortingIndex(starting_with_in: Option<i64> = None) -> i64 {
     m_db.find_unused_group_sorting_index(get_id, starting_with_in)
   }
 
-    fn getGroupsContainingEntitysGroupsIds(limitIn: Option<i64> = Some(5)) -> List[Array[Option[Any]]] {
-    m_db.getGroupsContainingEntitysGroupsIds(get_id, limitIn)
+    fn get_groups_containing_entitys_groups_ids(limit_in: Option<i64> = Some(5)) -> Vec<Vec<Option<DataType>>> {
+    m_db.get_groups_containing_entitys_groups_ids(get_id, limit_in)
   }
 
-    fn isEntityInGroup(entity_id_in: i64) -> bool {
-    m_db.isEntityInGroup(get_id, entity_id_in)
+    fn is_entity_in_group(entity_id_in: i64) -> bool {
+    m_db.is_entity_in_group(get_id, entity_id_in)
   }
 
-    fn getAdjacentGroupEntriesSortingIndexes(sorting_index_in: i64, limitIn: Option<i64> = None, forwardNotBackIn: bool) -> List[Array[Option[Any]]] {
-    m_db.getAdjacentGroupEntriesSortingIndexes(get_id, sorting_index_in, limitIn, forwardNotBackIn)
+    fn get_adjacent_group_entries_sorting_indexes(sorting_index_in: i64, limit_in: Option<i64> = None, forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>> {
+    m_db.get_adjacent_group_entries_sorting_indexes(get_id, sorting_index_in, limit_in, forward_not_back_in)
   }
 
-    fn getNearestGroupEntrysSortingIndex(startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64> {
-    m_db.getNearestGroupEntrysSortingIndex(get_id, startingPointSortingIndexIn, forwardNotBackIn)
+    fn get_nearest_group_entrys_sorting_index(starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
+    m_db.get_nearest_group_entrys_sorting_index(get_id, starting_point_sorting_index_in, forward_not_back_in)
   }
 
     fn getEntrySortingIndex(entity_id_in: i64) -> i64 {
-    m_db.getGroupEntrySortingIndex(get_id, entity_id_in)
+    m_db.get_group_entry_sorting_index(get_id, entity_id_in)
   }
 
     fn is_group_entry_sorting_index_in_use(sorting_index_in: i64) -> bool {
@@ -260,19 +260,19 @@ class Group(val m_db: Database, m_id: i64) {
   }
 
     fn updateSortingIndex(entity_id_in: i64, sorting_index_in: i64) /*-> Unit%%*/ {
-    m_db.updateSortingIndexInAGroup(get_id, entity_id_in, sorting_index_in)
+    m_db.update_sorting_index_in_a_group(get_id, entity_id_in, sorting_index_in)
   }
 
-    fn renumberSortingIndexes(caller_manages_transactions_in: bool = false) /*%%-> Unit*/ {
-    m_db.renumberSortingIndexes(get_id, caller_manages_transactions_in, isEntityAttrsNotGroupEntries = false)
+    fn renumber_sorting_indexes(caller_manages_transactions_in: bool = false) /*%%-> Unit*/ {
+    m_db.renumber_sorting_indexes(get_id, caller_manages_transactions_in, is_entity_attrs_not_group_entries = false)
   }
 
-    fn moveEntityFromGroupToLocalEntity(toEntityIdIn: i64, moveEntityIdIn: i64, sorting_index_in: i64) /*%%-> Unit*/ {
-    m_db.moveEntityFromGroupToLocalEntity(get_id, toEntityIdIn, moveEntityIdIn, sorting_index_in)
+    fn move_entity_from_group_to_local_entity(to_entity_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64) /*%%-> Unit*/ {
+    m_db.move_entity_from_group_to_local_entity(get_id, to_entity_id_in, move_entity_id_in, sorting_index_in)
   }
 
-    fn moveEntityToDifferentGroup(toGroupIdIn: i64, moveEntityIdIn: i64, sorting_index_in: i64) /*%%-> Unit*/ {
-    m_db.moveLocalEntityFromGroupToGroup(get_id, toGroupIdIn, moveEntityIdIn, sorting_index_in)
+    fn moveEntityToDifferentGroup(to_group_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64) /*%%-> Unit*/ {
+    m_db.move_local_entity_from_group_to_group(get_id, to_group_id_in, move_entity_id_in, sorting_index_in)
   }
 
   private let mut m_already_read_data: bool = false;

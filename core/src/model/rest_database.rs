@@ -175,23 +175,23 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   /** (See comment on processArrayOptionAny.
     * Idea: consolidate this method and its caller with getCollection and processCollection? */
-    fn processListArrayOptionAny(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], whateverUsefulInfoIn: Array[Any]) -> List[Array[Option[Any]]] {
+    fn processListArrayOptionAny(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], whateverUsefulInfoIn: Array[Any]) -> Vec<Vec<Option<DataType>>> {
     // (Idea: see comment at "functional-" in PostgreSQLDatabase.db_query.)
-    let mut results: List[Array[Option[Any]]] = Nil;
+    let mut results: Vec<Vec<Option<DataType>>> = Nil;
     if response.json == JsNull) {
       // Nothing came back.  Preferring that a 404 (exception) only be when something broke. Idea: could return None instead maybe?
     } else {
       for (element <- response.json.asInstanceOf[JsArray].value) {
         let values: IndexedSeq[JsValue] = element.asInstanceOf[JsObject].values.toIndexedSeq;
-        let row: Array[Option[Any]] = getRow(whateverUsefulInfoIn, values);
+        let row: Vec<Option<DataType>> = getRow(whateverUsefulInfoIn, values);
         results = row :: results
       }
     }
     results.reverse
   }
 
-    fn getRow(whateverUsefulInfoIn: Array[Any], values: IndexedSeq[JsValue]) -> Array[Option[Any]] {
-    let result: Array[Option[Any]] = new Array[Option[Any]](values.size);
+    fn getRow(whateverUsefulInfoIn: Array[Any], values: IndexedSeq[JsValue]) -> Vec<Option<DataType>> {
+    let result: Vec<Option<DataType>> = new Vec<Option<DataType>>(values.size);
     let resultTypes: String = whateverUsefulInfoIn(0).asInstanceOf[String];
     let mut index = 0;
     for (resultType: String <- resultTypes.split(",")) {
@@ -222,17 +222,17 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     * clients need the keys, to go by those instead of the defined ordering the callers of this expect them to be in (which as of 2016-11 matches the
     * eventual SQL select statement).
     * */
-    fn processArrayOptionAny(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], whateverUsefulInfoIn: Array[Any]) -> Array[Option[Any]] {
+    fn processArrayOptionAny(response: WSResponse, ignore: Option[(Seq[JsValue]) => Any], whateverUsefulInfoIn: Array[Any]) -> Vec<Option<DataType>> {
     if response.json == JsNull) {
       // Nothing came back.  Preferring that a 404 (exception) only be when something broke. Idea: could return None instead maybe?
-      new Array[Option[Any]](0)
+      new Vec<Option<DataType>>(0)
     } else {
       let values: IndexedSeq[JsValue] = response.json.asInstanceOf[JsObject].values.toIndexedSeq;
       if values.isEmpty) {
         throw new OmException("No results returned from data request.")
       }
 
-      let row: Array[Option[Any]] = getRow(whateverUsefulInfoIn, values);
+      let row: Vec<Option<DataType>> = getRow(whateverUsefulInfoIn, values);
       row
     }
   }
@@ -257,12 +257,12 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-    fn getArrayOptionAny(pathIn: String, inputs: Array[Any]) -> Array[Option[Any]] {
-    RestDatabase.restCall[Array[Option[Any]], Any]("http://" + mRemoteAddress + pathIn, processArrayOptionAny, None, inputs)
+    fn getArrayOptionAny(pathIn: String, inputs: Array[Any]) -> Vec<Option<DataType>> {
+    RestDatabase.restCall[Vec<Option<DataType>>, Any]("http://" + mRemoteAddress + pathIn, processArrayOptionAny, None, inputs)
   }
 
-    fn getListArrayOptionAny(pathIn: String, inputs: Array[Any]) -> List[Array[Option[Any]]] {
-    RestDatabase.restCall[List[Array[Option[Any]]], Any]("http://" + mRemoteAddress + pathIn, processListArrayOptionAny, None, inputs)
+    fn getListArrayOptionAny(pathIn: String, inputs: Array[Any]) -> Vec<Vec<Option<DataType>>> {
+    RestDatabase.restCall[Vec<Vec<Option<DataType>>>, Any]("http://" + mRemoteAddress + pathIn, processListArrayOptionAny, None, inputs)
   }
 
     fn is_remote() -> bool {
@@ -327,26 +327,26 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getLong("/groups/" + group_id_in + "/unusedSortingIndex/" + starting_with_in.getOrElse(""))
   }
 
-  override fn getHighestSortingIndexForGroup(group_id_in: i64) -> i64 {
+  override fn get_highest_sorting_index_for_group(group_id_in: i64) -> i64 {
     getLong("/groups/" + group_id_in + "/highestSortingIndex")
   }
 
-  override fn getGroupEntrySortingIndex(group_id_in: i64, entity_id_in: i64) -> i64 {
+  override fn get_group_entry_sorting_index(group_id_in: i64, entity_id_in: i64) -> i64 {
     getLong("/groups/" + group_id_in + "/sorting_index/" + entity_id_in)
   }
 
-  override fn getEntityAttributeSortingIndex(entity_id_in: i64, attribute_form_id_in: i64, attribute_id_in: i64) -> i64 {
+  override fn get_entity_attribute_sorting_index(entity_id_in: i64, attribute_form_id_in: i64, attribute_id_in: i64) -> i64 {
     getLong("/entities/" + entity_id_in + "/sorting_index/" + attribute_form_id_in + "/" + attribute_id_in)
   }
 
-  override fn getEntitiesOnlyCount(limitByClass: bool, class_id_in: Option<i64>, templateEntity: Option<i64>) -> i64 {
-    getLong("/entities/entitiesOnlyCount/" + limitByClass +
+  override fn get_entities_only_count(limit_by_class: bool, class_id_in: Option<i64>, template_entity: Option<i64>) -> i64 {
+    getLong("/entities/entitiesOnlyCount/" + limit_by_class +
             (if class_id_in.isEmpty) ""
             else {
               "/" + class_id_in.get + {
-                if templateEntity.isEmpty) ""
+                if template_entity.isEmpty) ""
                 else {
-                  "/" + templateEntity.get
+                  "/" + template_entity.get
                 }
               }
             }))
@@ -356,7 +356,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getLong("/entities/" + entity_id_in + "/attributeCount/" + include_archived_entities_in)
   }
 
-  override fn getCountOfGroupsContainingEntity(entity_id_in: i64) -> i64 {
+  override fn get_count_of_groups_containing_entity(entity_id_in: i64) -> i64 {
     getLong("/entities/" + entity_id_in + "/countOfGroupsContaining")
   }
 
@@ -372,36 +372,36 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getLong("/entities/" + entity_id_in + "/countOfRelationsToGroup")
   }
 
-  override fn getClassCount(templateEntityIdIn: Option<i64>) -> i64 {
-    getLong("/classes/count/" + templateEntityIdIn.getOrElse(""))
+  override fn get_class_count(template_entity_id_in: Option<i64>) -> i64 {
+    getLong("/classes/count/" + template_entity_id_in.getOrElse(""))
   }
 
   override fn find_unused_attribute_sorting_index(entity_id_in: i64, starting_with_in: Option<i64>) -> i64 {
     getLong("/entities/" + entity_id_in + "/unusedAttributeSortingIndex/" + starting_with_in.getOrElse(""))
   }
 
-  override fn getGroupCount -> i64 {
+  override fn get_group_count() -> i64 {
     getLong("/groups/count")
   }
 
-  override fn getOmInstanceCount -> i64 {
+  override fn get_om_instance_count() -> i64 {
     getLong("/omInstances/count")
   }
 
-  override fn getRelationTypeCount -> i64 {
+  override fn get_relation_type_count() -> i64 {
     getLong("/relationTypes/count")
   }
 
-  override fn getEntityCount -> i64 {
+  override fn get_entity_count() -> i64 {
     getLong("/entities/count")
   }
 
-  override fn isDuplicateClassName(name_in: String, selfIdToIgnoreIn: Option<i64>) -> bool {
+  override fn is_duplicate_class_name(name_in: String, self_id_to_ignore_in: Option<i64>) -> bool {
     let name = UriEncoding.encodePathSegment(name_in, "UTF-8");
-    get_boolean("/classes/isDuplicate/" + name + "/" + selfIdToIgnoreIn.getOrElse(""))
+    get_boolean("/classes/isDuplicate/" + name + "/" + self_id_to_ignore_in.getOrElse(""))
   }
 
-  override fn relationToGroupKeyExists(id_in: i64) -> bool {
+  override fn relation_to_group_key_exists(id_in: i64) -> bool {
     get_boolean("/relationsToGroup/" + id_in + "/exists")
   }
 
@@ -417,15 +417,15 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     get_boolean("/entities/" + id_in + "/exists/" + include_archived)
   }
 
-  override fn  relationTypeKeyExists(id_in: i64) -> bool {
+  override fn  relation_type_key_exists(id_in: i64) -> bool {
     get_boolean("/relationTypes/" + id_in + "/exists")
   }
 
-  override fn omInstanceKeyExists(id_in: String) -> bool {
+  override fn om_instance_key_exists(id_in: String) -> bool {
     get_boolean("/omInstances/" + UriEncoding.encodePathSegment(id_in, "UTF-8") + "/exists")
   }
 
-  override fn classKeyExists(id_in: i64) -> bool {
+  override fn class_key_exists(id_in: i64) -> bool {
     get_boolean("/classes/" + id_in + "/exists")
   }
 
@@ -433,11 +433,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     get_boolean("/attributes/" + form_idIn + "/" + id_in + "/exists")
   }
 
-  override fn quantityAttributeKeyExists(id_in: i64) -> bool {
+  override fn relation_type_key_exists(id_in: i64) -> bool {
     get_boolean("/quantityAttributes/" + id_in + "/exists")
   }
 
-  override fn dateAttributeKeyExists(id_in: i64) -> bool {
+  override fn date_attribute_key_exists(id_in: i64) -> bool {
     get_boolean("/dateAttributes/" + id_in + "/exists")
   }
 
@@ -445,15 +445,15 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     get_boolean("/booleanAttributes/" + id_in + "/exists")
   }
 
-  override fn fileAttributeKeyExists(id_in: i64) -> bool {
+  override fn file_attribute_key_exists(id_in: i64) -> bool {
     get_boolean("/fileAttributes/" + id_in + "/exists")
   }
 
-  override fn textAttributeKeyExists(id_in: i64) -> bool {
+  override fn text_attribute_key_exists(id_in: i64) -> bool {
     get_boolean("/text_attributes/" + id_in + "/exists")
   }
 
-  override fn relationToLocalEntityKeysExistAndMatch(id_in: i64, relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64) -> bool {
+  override fn relation_to_local_entity_keys_exist_and_match(id_in: i64, relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64) -> bool {
     get_boolean("/relationsToEntity/" + id_in + "/existsWith/" + relation_type_id_in + "/" + entity_id1_in + "/" + entity_id2_in)
   }
 
@@ -465,31 +465,31 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     get_boolean("/relationsToRemoteEntity/" + id_in + "/exists")
   }
 
-  override fn  relationToRemoteEntityKeysExistAndMatch(id_in: i64, relation_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) -> bool {
+  override fn  relation_to_remote_entity_keys_exist_and_match(id_in: i64, relation_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) -> bool {
     get_boolean("/relationsToRemoteEntity/" + id_in + "/existsWith/" + relation_type_id_in + "/" + entity_id1_in + "/" +
                UriEncoding.encodePathSegment(remote_instance_id_in, "UTF-8") + "/" + entity_id2_in)
   }
 
-  override fn relationToGroupKeysExistAndMatch(id: i64, entity_id: i64, relationTypeId: i64, group_id: i64) -> bool {
-    get_boolean("/relationsToGroup/" + id + "/existsWith/" + entity_id + "/" + relationTypeId + "/" + group_id)
+  override fn relation_to_group_keys_exist_and_match(id: i64, entity_id: i64, relation_type_id: i64, group_id: i64) -> bool {
+    get_boolean("/relationsToGroup/" + id + "/existsWith/" + entity_id + "/" + relation_type_id + "/" + group_id)
   }
 
-  override  fn groupKeyExists(id_in: i64) -> bool {
+  override  fn group_key_exists(id_in: i64) -> bool {
     get_boolean("/groups/" + id_in + "/exists")
   }
 
-  override fn isDuplicateEntityName(name_in: String, selfIdToIgnoreIn: Option<i64>) -> bool {
+  override fn is_duplicate_entity_name(name_in: String, self_id_to_ignore_in: Option<i64>) -> bool {
     //If we need to change the 2nd parameter from UTF-8 to something else below, see javadocs for a class about encode/encoding, IIRC.
     let name = UriEncoding.encodePathSegment(name_in, "UTF-8");
-    get_boolean("/entities/isDuplicate/" + name + "/" + selfIdToIgnoreIn.getOrElse(""))
+    get_boolean("/entities/isDuplicate/" + name + "/" + self_id_to_ignore_in.getOrElse(""))
   }
 
-  override fn isDuplicateOmInstanceAddress(address_in: String, selfIdToIgnoreIn: Option<String>) -> bool {
+  override fn is_duplicate_om_instance_address(address_in: String, self_id_to_ignore_in: Option<String>) -> bool {
     get_boolean("/omInstances/isDuplicate/" + UriEncoding.encodePathSegment(address_in, "UTF-8") + "/" +
-               UriEncoding.encodePathSegment(selfIdToIgnoreIn.getOrElse(""), "UTF-8"))
+               UriEncoding.encodePathSegment(self_id_to_ignore_in.getOrElse(""), "UTF-8"))
   }
 
-  override fn isEntityInGroup(group_id_in: i64, entity_id_in: i64) -> bool {
+  override fn is_entity_in_group(group_id_in: i64, entity_id_in: i64) -> bool {
     get_boolean("/groups/" + group_id_in + "/containsEntity/" + entity_id_in)
   }
 
@@ -497,7 +497,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     get_boolean("/entities/include_archived")
   }
 
-  override fn getClassName(id_in: i64) -> Option<String> {
+  override fn get_class_name(id_in: i64) -> Option<String> {
     getOptionString("/classes/" + id_in + "/name")
   }
 
@@ -505,77 +505,77 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     getOptionString("/entities/" + id_in + "/name")
   }
 
-  override fn getNearestGroupEntrysSortingIndex(group_id_in: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64> {
-    getOptionLongFromRest("/groups/" + group_id_in + "/nearestEntrysSortingIndex/" + startingPointSortingIndexIn + "/" + forwardNotBackIn)
+  override fn get_nearest_group_entrys_sorting_index(group_id_in: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
+    getOptionLongFromRest("/groups/" + group_id_in + "/nearestEntrysSortingIndex/" + starting_point_sorting_index_in + "/" + forward_not_back_in)
   }
 
-  override fn getNearestAttributeEntrysSortingIndex(entity_id_in: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64> {
-    getOptionLongFromRest("/entities/" + entity_id_in + "/nearestAttributeSortingIndex/" + startingPointSortingIndexIn + "/" + forwardNotBackIn)
+  override fn get_nearest_attribute_entrys_sorting_index(entity_id_in: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
+    getOptionLongFromRest("/entities/" + entity_id_in + "/nearestAttributeSortingIndex/" + starting_point_sorting_index_in + "/" + forward_not_back_in)
   }
 
-  override fn getClassData(id_in: i64) -> Array[Option[Any]] {
+  override fn get_class_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/classes/" + id_in, Array(Database.GET_CLASS_DATA__RESULT_TYPES))
   }
 
-  override fn  getRelationTypeData(id_in: i64) -> Array[Option[Any]] {
+  override fn  get_relation_type_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/relationTypes/" + id_in, Array(Database.GET_RELATION_TYPE_DATA__RESULT_TYPES))
   }
 
-  override fn getOmInstanceData(id_in: String) -> Array[Option[Any]] {
+  override fn get_om_instance_data(id_in: String) -> Vec<Option<DataType>> {
     let id = UriEncoding.encodePathSegment(id_in, "UTF-8");
     getArrayOptionAny("/omInstances/" + id, Array(Database.GET_OM_INSTANCE_DATA__RESULT_TYPES))
   }
 
-  override fn  getFileAttributeData(id_in: i64) -> Array[Option[Any]] {
+  override fn  get_file_attribute_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/fileAttributes/" + id_in, Array(Database.GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES))
   }
 
-  override fn  getTextAttributeData(id_in: i64) -> Array[Option[Any]] {
+  override fn  get_text_attribute_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/text_attributes/" + id_in, Array(Database.GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES))
   }
 
-  override fn  getQuantityAttributeData(id_in: i64) -> Array[Option[Any]] {
+  override fn  get_quantity_attribute_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/quantityAttributes/" + id_in, Array(Database.GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES))
   }
 
-  override fn  getRelationToGroupData(id_in: i64) -> Array[Option[Any]] {
+  override fn  get_relation_to_group_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/relationsToGroup/" + id_in, Array(Database.GET_RELATION_TO_GROUP_DATA_BY_ID__RESULT_TYPES))
   }
 
-  override fn getRelationToGroupDataByKeys(entity_id: i64, relationTypeId: i64, group_id: i64) -> Array[Option[Any]] {
-    getArrayOptionAny("/relationsToGroup/byKeys/" + entity_id + "/" + relationTypeId + "/" + group_id, Array(Database.GET_RELATION_TO_GROUP_DATA_BY_KEYS__RESULT_TYPES))
+  override fn get_relation_to_group_data_by_keys(entity_id: i64, relation_type_id: i64, group_id: i64) -> Vec<Option<DataType>> {
+    getArrayOptionAny("/relationsToGroup/byKeys/" + entity_id + "/" + relation_type_id + "/" + group_id, Array(Database.GET_RELATION_TO_GROUP_DATA_BY_KEYS__RESULT_TYPES))
   }
 
-  override fn  getGroupData(id_in: i64) -> Array[Option[Any]] {
+  override fn  get_group_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/groups/" + id_in, Array(Database.GET_GROUP_DATA__RESULT_TYPES))
   }
 
-  override fn getDateAttributeData(id_in: i64) -> Array[Option[Any]] {
+  override fn get_date_attribute_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/dateAttributes/" + id_in, Array(Database.GET_DATE_ATTRIBUTE_DATA__RESULT_TYPES))
   }
 
-  override  fn get_boolean_attribute_data(id_in: i64) -> Array[Option[Any]] {
+  override  fn get_boolean_attribute_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/booleanAttributes/" + id_in, Array(Database.GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES))
   }
 
-  override fn  getRelationToLocalEntityData(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64) -> Array[Option[Any]] {
+  override fn  get_relation_to_local_entity_data(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/relationsToEntity/" + relation_type_id_in + "/" + entity_id1_in + "/" + entity_id2_in, Array(Database.GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES))
   }
 
-  override fn  getRelationToRemoteEntityData(relation_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) -> Array[Option[Any]] {
+  override fn  get_relation_to_remote_entity_data(relation_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/relationsToRemoteEntity/" + relation_type_id_in + "/" + entity_id1_in + "/" +
                       UriEncoding.encodePathSegment(remote_instance_id_in, "UTF-8") + "/" + entity_id2_in,
                       Array(Database.GET_RELATION_TO_REMOTE_ENTITY__RESULT_TYPES))
   }
 
-  override fn  get_entity_data(id_in: i64) -> Array[Option[Any]] {
+  override fn  get_entity_data(id_in: i64) -> Vec<Option<DataType>> {
     getArrayOptionAny("/entities/" + id_in, Array(Database.GET_ENTITY_DATA__RESULT_TYPES))
   }
 
-  override fn  getAdjacentGroupEntriesSortingIndexes(group_id_in: i64, adjacentToEntrySortingIndexIn: i64, limitIn: Option<i64>,
-                                                     forwardNotBackIn: bool) -> List[Array[Option[Any]]] {
-    getListArrayOptionAny("/groups/" + group_id_in + "/adjacentEntriesSortingIndexes/" + adjacentToEntrySortingIndexIn + "/" + forwardNotBackIn +
-                          (if limitIn.isEmpty) "" else "?limit=" + limitIn.get),
+  override fn  get_adjacent_group_entries_sorting_indexes(group_id_in: i64, adjacentToEntrySortingIndexIn: i64, limit_in: Option<i64>,
+                                                     forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>> {
+    getListArrayOptionAny("/groups/" + group_id_in + "/adjacentEntriesSortingIndexes/" + adjacentToEntrySortingIndexIn + "/" + forward_not_back_in +
+                          (if limit_in.isEmpty) "" else "?limit=" + limit_in.get),
                           Array("i64"))
   }
 
@@ -583,19 +583,19 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   // like now). Some
   //of the other methods return less generic structures and they are more work to consume in this class because they are different/nonstandard so more
   //methods needed to handle each kind.
-  override fn getGroupsContainingEntitysGroupsIds(group_id_in: i64, limitIn: Option<i64>) -> List[Array[Option[Any]]] {
-    getListArrayOptionAny("/groups/" + group_id_in + "/containingEntitysGroupsIds" + (if limitIn.isEmpty) "" else "?limit=" + limitIn.get), Array("i64"))
+  override fn get_groups_containing_entitys_groups_ids(group_id_in: i64, limit_in: Option<i64>) -> Vec<Vec<Option<DataType>>> {
+    getListArrayOptionAny("/groups/" + group_id_in + "/containingEntitysGroupsIds" + (if limit_in.isEmpty) "" else "?limit=" + limit_in.get), Array("i64"))
   }
 
-  override fn getGroupEntriesData(group_id_in: i64, limitIn: Option<i64>, include_archived_entities_in: bool) -> List[Array[Option[Any]]] {
-    getListArrayOptionAny("/groups/" + group_id_in + "/entriesData/" + include_archived_entities_in + (if limitIn.isEmpty) "" else "?limit=" + limitIn.get),
-                          Array(Database.GET_GROUP_ENTRIES_DATA__RESULT_TYPES))
+  override fn get_group_entries_data(group_id_in: i64, limit_in: Option<i64>, include_archived_entities_in: bool) -> Vec<Vec<Option<DataType>>> {
+    getListArrayOptionAny("/groups/" + group_id_in + "/entriesData/" + include_archived_entities_in + (if limit_in.isEmpty) "" else "?limit=" + limit_in.get),
+                          Array(Util::GET_GROUP_ENTRIES_DATA__RESULT_TYPES))
   }
 
-  override fn getAdjacentAttributesSortingIndexes(entity_id_in: i64, sorting_index_in: i64, limitIn: Option<i64>,
-                                                   forwardNotBackIn: bool) -> List[Array[Option[Any]]] {
-    getListArrayOptionAny("/entities/" + entity_id_in + "/adjacentAttributesSortingIndexes/" + sorting_index_in + "/" + forwardNotBackIn +
-                          (if limitIn.isEmpty) "" else "?limit=" + limitIn.get),
+  override fn get_adjacent_attributes_sorting_indexes(entity_id_in: i64, sorting_index_in: i64, limit_in: Option<i64>,
+                                                   forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>> {
+    getListArrayOptionAny("/entities/" + entity_id_in + "/adjacentAttributesSortingIndexes/" + sorting_index_in + "/" + forward_not_back_in +
+                          (if limit_in.isEmpty) "" else "?limit=" + limit_in.get),
                           Array("i64"))
   }
 
@@ -608,8 +608,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                       values(6).asInstanceOf[JsNumber].as[i64])
   }
 
-  override fn getTextAttributeByTypeId(parentEntityIdIn: i64, typeIdIn: i64, expected_rows: Option[Int]) -> java.util.ArrayList[TextAttribute] {
-    getCollection[TextAttribute]("/entities/" + parentEntityIdIn + "/textAttributeByTypeId/" + typeIdIn +
+  override fn get_text_attribute_by_type_id(parent_entity_id_in: i64, type_id_in: i64, expected_rows: Option[Int]) -> java.util.ArrayList[TextAttribute] {
+    getCollection[TextAttribute]("/entities/" + parent_entity_id_in + "/textAttributeByTypeId/" + type_id_in +
                                  (if expected_rows.isEmpty) "" else "?expected_rows=" + expected_rows.get),
                                  Array(), Some(create_text_attributeRow))
   }
@@ -639,18 +639,18 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     treeSetResults
   }
 
-  override fn findAllEntityIdsByName(name_in: String, caseSensitive: bool) -> java.util.ArrayList[i64] {
+  override fn find_all_entity_ids_by_name(name_in: String, case_sensitive: bool) -> java.util.ArrayList[i64] {
     let name = UriEncoding.encodePathSegment(name_in, "UTF-8");
-    getCollection[i64]("/entities/findAllByName/" + name + "/" + caseSensitive, Array(), Some(createLongValueRow))
+    getCollection[i64]("/entities/findAllByName/" + name + "/" + case_sensitive, Array(), Some(createLongValueRow))
   }
 
-  override fn getContainingGroupsIds(entity_id_in: i64) -> java.util.ArrayList[i64] {
+  override fn get_containing_groups_ids(entity_id_in: i64) -> java.util.ArrayList[i64] {
     getCollection[i64]("/entities/" + entity_id_in + "/containingGroupsIds", Array(), Some(createLongValueRow))
   }
 
-  override fn getContainingRelationToGroupDescriptions(entity_id_in: i64, limitIn: Option<i64>) -> ArrayList[String] {
-    getCollection[String]("/entities/" + entity_id_in + "/containingRelationsToGroupDescriptions" +
-                          (if limitIn.isEmpty) "" else "?limit=" + limitIn.get),
+  override fn get_containing_relation_to_group_descriptions(entity_id_in: i64, limit_in: Option<i64>) -> ArrayList[String] {
+    getCollection[String]("/entities/" + entity_id_in + "/containing_relations_to_groupDescriptions" +
+                          (if limit_in.isEmpty) "" else "?limit=" + limit_in.get),
                           Array(), Some(createStringValueRow))
   }
 
@@ -663,25 +663,25 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                         values(6).asInstanceOf[JsNumber].as[i64])
   }
 
-  override fn getContainingRelationsToGroup(entity_id_in: i64, startingIndexIn: i64, limitIn: Option<i64>) -> ArrayList[RelationToGroup] {
+  override fn get_containing_relations_to_group(entity_id_in: i64, starting_index_in: i64, limit_in: Option<i64>) -> ArrayList[RelationToGroup] {
     // (The 2nd parameter has to match the types in the 2nd (1st alternate) constructor for RelationToGroup.  Consider putting it in a constant like
     // Database.GET_CLASS_DATA__RESULT_TYPES etc.)
-    getCollection[RelationToGroup]("/entities/" + entity_id_in + "/containingRelationsToGroup/" + startingIndexIn +
-                                   (if limitIn.isEmpty) "" else "?limit=" + limitIn.get),
+    getCollection[RelationToGroup]("/entities/" + entity_id_in + "/containing_relations_to_group/" + starting_index_in +
+                                   (if limit_in.isEmpty) "" else "?limit=" + limit_in.get),
                                    Array(),
                                    Some(create_relation_to_groupRow))
   }
 
-  override fn getRelationsToGroupContainingThisGroup(group_id_in: i64, startingIndexIn: i64, maxValsIn: Option<i64>) -> ArrayList[RelationToGroup] {
-    getCollection[RelationToGroup]("/groups/" + group_id_in + "/relationsToGroupContainingThisGroup/" + startingIndexIn +
-                                   (if maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
+  override fn get_relations_to_group_containing_this_group(group_id_in: i64, starting_index_in: i64, max_vals_in: Option<i64>) -> ArrayList[RelationToGroup] {
+    getCollection[RelationToGroup]("/groups/" + group_id_in + "/relationsToGroupContainingThisGroup/" + starting_index_in +
+                                   (if max_vals_in.isEmpty) "" else "?maxVals=" + max_vals_in.get),
                                    Array(),
                                    Some(create_relation_to_groupRow))
   }
 
-  override fn findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option<i64>) -> ArrayList[(i64, String, i64)] {
-    getCollection[(i64, String, i64)]("/entities/addedAndArchivedByDate/" + startTimeIn + "/" + endTimeIn +
-                                        (if limitIn.isEmpty) "" else "?limit=" + limitIn.get),
+  override fn find_journal_entries(start_time_in: i64, end_time_in: i64, limit_in: Option<i64>) -> ArrayList[(i64, String, i64)] {
+    getCollection[(i64, String, i64)]("/entities/addedAndArchivedByDate/" + start_time_in + "/" + end_time_in +
+                                        (if limit_in.isEmpty) "" else "?limit=" + limit_in.get),
                                         Array(),
                                         Some(createLongStringLongRow))
   }
@@ -718,72 +718,72 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                     if values(3) == JsNull) None else Some(values(3).asInstanceOf[JsBoolean].as[Boolean]))
   }
 
-  override fn getGroupEntryObjects(group_id_in: i64, startingObjectIndexIn: i64, maxValsIn: Option<i64>) -> ArrayList[Entity] {
-    getCollection[Entity]("/groups/" + group_id_in + "/entries/" + startingObjectIndexIn +
-                          (if maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
+  override fn get_group_entry_objects(group_id_in: i64, starting_object_index_in: i64, max_vals_in: Option<i64>) -> ArrayList[Entity] {
+    getCollection[Entity]("/groups/" + group_id_in + "/entries/" + starting_object_index_in +
+                          (if max_vals_in.isEmpty) "" else "?maxVals=" + max_vals_in.get),
                           Array(), Some(create_entityRow))
   }
 
-  override fn getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option<i64>, class_id_in: Option<i64>,
-                               limitByClass: bool, templateEntityIn: Option<i64>, groupToOmitIdIn: Option<i64>) -> util.ArrayList[Entity] {
-    let url = "/entities/" + startingObjectIndexIn + "/" + limitByClass +;
-              (if maxValsIn.is_some() || class_id_in.is_some() || templateEntityIn.is_some() || groupToOmitIdIn.is_some()) "?" else "") +
-              (if maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
+  override fn get_entities_only(starting_object_index_in: i64, max_vals_in: Option<i64>, class_id_in: Option<i64>,
+                               limit_by_class: bool, template_entityIn: Option<i64>, group_to_omit_id_in: Option<i64>) -> util.ArrayList[Entity] {
+    let url = "/entities/" + starting_object_index_in + "/" + limit_by_class +;
+              (if max_vals_in.is_some() || class_id_in.is_some() || template_entityIn.is_some() || group_to_omit_id_in.is_some()) "?" else "") +
+              (if max_vals_in.isEmpty) "" else "maxVals=" + max_vals_in.get + "&") +
               (if class_id_in.isEmpty) "" else "class_id=" + class_id_in.get + "&") +
-              (if templateEntityIn.isEmpty) "" else "templateEntity=" + templateEntityIn.get + "&") +
-              (if groupToOmitIdIn.isEmpty) "" else "groupToOmitId=" + groupToOmitIdIn.get + "&")
+              (if template_entityIn.isEmpty) "" else "template_entity=" + template_entityIn.get + "&") +
+              (if group_to_omit_id_in.isEmpty) "" else "groupToOmitId=" + group_to_omit_id_in.get + "&")
     getCollection[Entity](url, Array(), Some(create_entityRow))
   }
 
-  override fn getEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64>) -> util.ArrayList[Entity] {
-    let url: String = "/entities/all/" + startingObjectIndexIn +;
-                      (if maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
+  override fn get_entities(starting_object_index_in: i64, max_vals_in: Option<i64>) -> util.ArrayList[Entity] {
+    let url: String = "/entities/all/" + starting_object_index_in +;
+                      (if max_vals_in.isEmpty) "" else "?maxVals=" + max_vals_in.get)
     getCollection[Entity](url, Array(), Some(create_entityRow))
   }
 
-  override fn getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64>, omitEntityIdIn: Option<i64>,
-                                   nameRegexIn: String) -> util.ArrayList[Entity] {
-    let nameRegex = UriEncoding.encodePathSegment(nameRegexIn, "UTF-8");
-    let url: String = "/entities/search/" + nameRegex + "/" + startingObjectIndexIn +;
-                      (if maxValsIn.is_some() || omitEntityIdIn.is_some()) "?" else "") +
-                      (if maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
-                      (if omitEntityIdIn.isEmpty) "" else "omitEntityId=" + omitEntityIdIn.get + "&")
+  override fn get_matching_entities(starting_object_index_in: i64, max_vals_in: Option<i64>, omit_entity_id_in: Option<i64>,
+                                   name_regex_in: String) -> util.ArrayList[Entity] {
+    let name_regex = UriEncoding.encodePathSegment(name_regex_in, "UTF-8");
+    let url: String = "/entities/search/" + name_regex + "/" + starting_object_index_in +;
+                      (if max_vals_in.is_some() || omit_entity_id_in.is_some()) "?" else "") +
+                      (if max_vals_in.isEmpty) "" else "maxVals=" + max_vals_in.get + "&") +
+                      (if omit_entity_id_in.isEmpty) "" else "omitEntityId=" + omit_entity_id_in.get + "&")
     getCollection[Entity](url, Array(), Some(create_entityRow))
   }
 
-  override fn getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64>, omitGroupIdIn: Option<i64>,
-                                 nameRegexIn: String) -> util.ArrayList[Group] {
-    getCollection[Group]("/groups/search/" + UriEncoding.encodePathSegment(nameRegexIn, "UTF-8") + "/" + startingObjectIndexIn +
-                         (if maxValsIn.is_some() || omitGroupIdIn.is_some()) "?" else "") +
-                         (if maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
-                         (if omitGroupIdIn.isEmpty) "" else "omitGroupId=" + omitGroupIdIn.get + "&"),
+  override fn get_matching_groups(starting_object_index_in: i64, max_vals_in: Option<i64>, omit_group_id_in: Option<i64>,
+                                 name_regex_in: String) -> util.ArrayList[Group] {
+    getCollection[Group]("/groups/search/" + UriEncoding.encodePathSegment(name_regex_in, "UTF-8") + "/" + starting_object_index_in +
+                         (if max_vals_in.is_some() || omit_group_id_in.is_some()) "?" else "") +
+                         (if max_vals_in.isEmpty) "" else "maxVals=" + max_vals_in.get + "&") +
+                         (if omit_group_id_in.isEmpty) "" else "omitGroupId=" + omit_group_id_in.get + "&"),
                          Array(), Some(create_groupRow))
   }
 
-  override fn getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option<i64>) -> util.ArrayList[Entity] {
-    let url = "/relationTypes/all/" + startingObjectIndexIn +;
-              (if maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
+  override fn get_relation_types(starting_object_index_in: i64, max_vals_in: Option<i64>) -> util.ArrayList[Entity] {
+    let url = "/relationTypes/all/" + starting_object_index_in +;
+              (if max_vals_in.isEmpty) "" else "?maxVals=" + max_vals_in.get)
     getCollection[RelationType](url, Array(), Some(create_relation_typeRow)).asInstanceOf[util.ArrayList[Entity]]
   }
 
-  override fn getClasses(startingObjectIndexIn: i64, maxValsIn: Option<i64>) -> util.ArrayList[EntityClass] {
-    let url = "/classes/all/" + startingObjectIndexIn +;
-              (if maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get)
+  override fn get_classes(starting_object_index_in: i64, max_vals_in: Option<i64>) -> util.ArrayList[EntityClass] {
+    let url = "/classes/all/" + starting_object_index_in +;
+              (if max_vals_in.isEmpty) "" else "?maxVals=" + max_vals_in.get)
     getCollection[EntityClass](url, Array(), Some(create_entityClassRow))
   }
 
-  override fn getGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64>, groupToOmitIdIn: Option<i64>) -> util.ArrayList[Group] {
-    getCollection[Group]("/groups/all/" + startingObjectIndexIn +
-                         (if maxValsIn.is_some() || groupToOmitIdIn.is_some()) "?" else "") +
-                         (if maxValsIn.isEmpty) "" else "maxVals=" + maxValsIn.get + "&") +
-                         (if groupToOmitIdIn.isEmpty) "" else "groupToOmitId=" + groupToOmitIdIn.get + "&"),
+  override fn get_groups(starting_object_index_in: i64, max_vals_in: Option<i64>, group_to_omit_id_in: Option<i64>) -> util.ArrayList[Group] {
+    getCollection[Group]("/groups/all/" + starting_object_index_in +
+                         (if max_vals_in.is_some() || group_to_omit_id_in.is_some()) "?" else "") +
+                         (if max_vals_in.isEmpty) "" else "maxVals=" + max_vals_in.get + "&") +
+                         (if group_to_omit_id_in.isEmpty) "" else "groupToOmitId=" + group_to_omit_id_in.get + "&"),
                          Array(), Some(create_groupRow))
   }
 
     fn create_relation_typeIdAndEntityRow(values: Seq[JsValue]) -> (i64, Entity) {
     let entity: Entity = create_entityRow(values);
-    let relationTypeId: i64 = values(7).asInstanceOf[JsNumber].as[i64];
-    (relationTypeId, entity)
+    let relation_type_id: i64 = values(7).asInstanceOf[JsNumber].as[i64];
+    (relation_type_id, entity)
   }
 
     fn create_relation_typeRow(values: Seq[JsValue]) -> RelationType {
@@ -793,15 +793,15 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                      values(8).asInstanceOf[JsString].as[String])
   }
 
-  override fn getEntitiesContainingGroup(group_id_in: i64, startingIndexIn: i64, maxValsIn: Option<i64>) -> ArrayList[(i64, Entity)] {
-    getCollection[(i64, Entity)]("/groups/" + group_id_in + "/containingEntities/" + startingIndexIn +
-                                  (if maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
+  override fn get_entities_containing_group(group_id_in: i64, starting_index_in: i64, max_vals_in: Option<i64>) -> ArrayList[(i64, Entity)] {
+    getCollection[(i64, Entity)]("/groups/" + group_id_in + "/containingEntities/" + starting_index_in +
+                                  (if max_vals_in.isEmpty) "" else "?maxVals=" + max_vals_in.get),
                                   Array(), Some(create_relation_typeIdAndEntityRow))
   }
 
-  override fn getLocalEntitiesContainingLocalEntity(entity_id_in: i64, startingIndexIn: i64, maxValsIn: Option<i64>) -> ArrayList[(i64, Entity)] {
-    getCollection[(i64, Entity)]("/entities/" + entity_id_in + "/containingEntities/" + startingIndexIn +
-                                  (if maxValsIn.isEmpty) "" else "?maxVals=" + maxValsIn.get),
+  override fn get_local_entities_containing_local_entity(entity_id_in: i64, starting_index_in: i64, max_vals_in: Option<i64>) -> ArrayList[(i64, Entity)] {
+    getCollection[(i64, Entity)]("/entities/" + entity_id_in + "/containingEntities/" + starting_index_in +
+                                  (if max_vals_in.isEmpty) "" else "?maxVals=" + max_vals_in.get),
                                   Array(), Some(create_relation_typeIdAndEntityRow))
   }
 
@@ -820,18 +820,18 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     RestDatabase.restCall[(i64, i64), Any]("http://" + mRemoteAddress + pathIn, process2Longs, None, Array())
   }
 
-  override fn getCountOfEntitiesContainingGroup(group_id_in: i64) -> (i64, i64) {
+  override fn get_count_of_entities_containing_group(group_id_in: i64) -> (i64, i64) {
     get2Longs("/groups/" + group_id_in + "/countOfContainingEntities")
   }
 
-  override fn getCountOfLocalEntitiesContainingLocalEntity(entity_id_in: i64) -> (i64, i64) {
+  override fn get_count_of_local_entities_containing_local_entity(entity_id_in: i64) -> (i64, i64) {
     get2Longs("/entities/" + entity_id_in + "/countOfContainingEntities")
   }
 
-  override fn getFileAttributeContent(fileAttributeIdIn: i64, outputStreamIn: OutputStream) -> (i64, String) {
+  override fn get_file_attribute_content(fileAttributeIdIn: i64, outputStreamIn: OutputStream) -> (i64, String) {
     // (Idea: should this (and others) instead just call something that returns a complete FileAttribute, so that multiple places in the code do
     // not all have to know the indexes for each datum?:)
-    let faData = getFileAttributeData(fileAttributeIdIn);
+    let faData = get_file_attribute_data(fileAttributeIdIn);
     let fileSize = faData(9).get.asInstanceOf[i64];
     let md5hash = faData(10).get.asInstanceOf[String];
     let url = new URL("http://" + mRemoteAddress + "/fileAttributes/" + fileAttributeIdIn + "/content");
@@ -878,7 +878,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   override fn find_relation_to_and_group_on_entity(entity_id_in: i64,
                                                group_name_in: Option<String>): (Option<i64>, Option<i64>, Option<i64>, Option<String>, Boolean) {
     getOptionLongsStringBoolean("/entities/" + entity_id_in + "/findRelationToAndGroup" +
-                                (if group_name_in.isEmpty) "" else "?groupName=" + java.net.URLEncoder.encode(group_name_in.get, "UTF-8")))
+                                (if group_name_in.isEmpty) "" else "?group_name=" + java.net.URLEncoder.encode(group_name_in.get, "UTF-8")))
     // Note: using a different kind of encoder/encoding for a query part of a URI (vs. the path, as elsewhere), per info at:
     //   https://www.playframework.com/documentation/2.5.x/api/scala/index.html#play.utils.UriEncoding$
     // ...which says:
@@ -931,18 +931,18 @@ class RestDatabase(mRemoteAddress: String) extends Database {
         let attribute: Attribute = form_id match {;
           case 1 =>
             let valid_on_date = getOptionLongFromJson(values, 5);
-            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let observation_date: i64 = values(6).asInstanceOf[JsNumber].as[i64];
             let unitId: i64 = values(7).asInstanceOf[JsNumber].as[i64];
             let number: Float = values(8).asInstanceOf[JsNumber].as[Float];
-            new QuantityAttribute(this, id, parentId, attributeTypeId, unitId, number, valid_on_date, observationDate, sorting_index)
+            new QuantityAttribute(this, id, parentId, attributeTypeId, unitId, number, valid_on_date, observation_date, sorting_index)
           case 2 =>
             let date: i64 = values(5).asInstanceOf[JsNumber].as[i64];
             new DateAttribute(this, id, parentId, attributeTypeId, date, sorting_index)
           case 3 =>
             let valid_on_date = getOptionLongFromJson(values, 5);
-            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let observation_date: i64 = values(6).asInstanceOf[JsNumber].as[i64];
             let bool: bool = values(7).asInstanceOf[JsBoolean].as[Boolean];
-            new BooleanAttribute(this, id, parentId, attributeTypeId, bool, valid_on_date, observationDate, sorting_index)
+            new BooleanAttribute(this, id, parentId, attributeTypeId, bool, valid_on_date, observation_date, sorting_index)
           case 4 =>
             let description = values(5).asInstanceOf[JsString].as[String];
             let originalFileDate = values(6).asInstanceOf[JsNumber].as[i64];
@@ -957,29 +957,29 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                               executable, size, md5hash, sorting_index)
           case 5 =>
             let valid_on_date = getOptionLongFromJson(values, 5);
-            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let observation_date: i64 = values(6).asInstanceOf[JsNumber].as[i64];
             let textEscaped = values(7).asInstanceOf[JsString].as[String];
             let text = org.apache.commons.lang3.StringEscapeUtils.unescapeJson(textEscaped);
-            new TextAttribute(this, id, parentId, attributeTypeId, text, valid_on_date, observationDate, sorting_index)
+            new TextAttribute(this, id, parentId, attributeTypeId, text, valid_on_date, observation_date, sorting_index)
           case 6 =>
             let valid_on_date = getOptionLongFromJson(values, 5);
-            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let observation_date: i64 = values(6).asInstanceOf[JsNumber].as[i64];
             let entity_id1: i64 = values(7).asInstanceOf[JsNumber].as[i64];
             let entity_id2: i64 = values(8).asInstanceOf[JsNumber].as[i64];
-            new RelationToLocalEntity(this, id, attributeTypeId, entity_id1, entity_id2, valid_on_date, observationDate, sorting_index)
+            new RelationToLocalEntity(this, id, attributeTypeId, entity_id1, entity_id2, valid_on_date, observation_date, sorting_index)
           case 7 =>
             let valid_on_date = getOptionLongFromJson(values, 5);
-            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let observation_date: i64 = values(6).asInstanceOf[JsNumber].as[i64];
             let entity_id: i64 = values(7).asInstanceOf[JsNumber].as[i64];
             let group_id: i64 = values(8).asInstanceOf[JsNumber].as[i64];
-            new RelationToGroup(this, id, entity_id, attributeTypeId, group_id, valid_on_date, observationDate, sorting_index)
+            new RelationToGroup(this, id, entity_id, attributeTypeId, group_id, valid_on_date, observation_date, sorting_index)
           case 8 =>
             let valid_on_date = getOptionLongFromJson(values, 5);
-            let observationDate: i64 = values(6).asInstanceOf[JsNumber].as[i64];
+            let observation_date: i64 = values(6).asInstanceOf[JsNumber].as[i64];
             let entity_id1: i64 = values(7).asInstanceOf[JsNumber].as[i64];
             let remoteInstanceId = values(8).asInstanceOf[JsString].as[String];
             let entity_id2: i64 = values(9).asInstanceOf[JsNumber].as[i64];
-            new RelationToRemoteEntity(this, id, attributeTypeId, entity_id1, remoteInstanceId, entity_id2, valid_on_date, observationDate, sorting_index)
+            new RelationToRemoteEntity(this, id, attributeTypeId, entity_id1, remoteInstanceId, entity_id2, valid_on_date, observation_date, sorting_index)
           case _ => throw new OmDatabaseException("unexpected form_id: " + form_id)
         }
         resultsAccumulator.add((sorting_index, attribute))
@@ -988,16 +988,16 @@ class RestDatabase(mRemoteAddress: String) extends Database {
     }
   }
 
-  override fn getSortedAttributes(entity_id_in: i64, startingObjectIndexIn: Int, maxValsIn: Int,
-                                   onlyPublicEntitiesIn: bool) -> (Array[(i64, Attribute)], Int) {
-    let path: String = "/entities/" + entity_id_in + "/sortedAttributes/" + startingObjectIndexIn + "/" + maxValsIn + "/" + onlyPublicEntitiesIn;
+  override fn get_sorted_attributes(entity_id_in: i64, starting_object_index_in: Int, max_vals_in: Int,
+                                   only_public_entities_in: bool) -> (Array[(i64, Attribute)], Int) {
+    let path: String = "/entities/" + entity_id_in + "/sortedAttributes/" + starting_object_index_in + "/" + max_vals_in + "/" + only_public_entities_in;
     RestDatabase.restCall[(Array[(i64, Attribute)], Int), Any]("http://" + mRemoteAddress + path, processSortedAttributes, None, Array())
   }
 
     //%%???:
-    fn getCountOfEntitiesUsedAsAttributeTypes(objectTypeIn: String, quantitySeeksUnitNotTypeIn: bool): i64 = ???
-    fn getEntitiesUsedAsAttributeTypes(objectTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option<i64> = None,
-                                      quantitySeeksUnitNotTypeIn: bool): Vec<Entity> = ???
+    fn get_count_of_entities_used_as_attribute_types(object_type_in: String, quantity_seeks_unit_not_type_in: bool): i64 = ???
+    fn get_entities_used_as_attribute_types(object_type_in: String, starting_object_index_in: i64, max_vals_in: Option<i64> = None,
+                                      quantity_seeks_unit_not_type_in: bool): Vec<Entity> = ???
 
 
   // Below are methods that WRITE to the DATABASE.
@@ -1014,124 +1014,124 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn commit_trans(): Unit = ???
 
-  override fn moveRelationToGroup(relationToGroupIdIn: i64, newContainingEntityIdIn: i64, sorting_index_in: i64): i64 = ???
+  override fn move_relation_to_group(relation_to_group_id_in: i64, new_containing_entity_id_in: i64, sorting_index_in: i64): i64 = ???
 
-  override fn updateRelationToRemoteEntity(oldRelationTypeIdIn: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
-                                            newRelationTypeIdIn: i64, valid_on_date_in: Option<i64>, observation_date_in: i64): Unit = ???
+  override fn update_relation_to_remote_entity(old_relation_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
+                                            new_relation_type_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64): Unit = ???
 
-  override fn unarchiveEntity(id_in: i64, caller_manages_transactions_in: bool): Unit = ???
+  override fn unarchive_entity(id_in: i64, caller_manages_transactions_in: bool): Unit = ???
 
   override fn  set_include_archived_entities(in: bool): Unit = ???
 
   override fn  create_om_instance(id_in: String, is_local_in: bool, address_in: String, entity_id_in: Option<i64>, old_table_name: bool): i64 = ???
 
-  override fn  deleteOmInstance(id_in: String): Unit = ???
+  override fn  delete_om_instance(id_in: String): Unit = ???
 
-  override fn  deleteDateAttribute(id_in: i64): Unit = ???
+  override fn  delete_date_attribute(id_in: i64): Unit = ???
 
-  override fn  updateDateAttribute(id_in: i64, parent_id_in: i64, date_in: i64, attr_type_id_in: i64): Unit = ???
+  override fn  update_date_attribute(id_in: i64, parent_id_in: i64, date_in: i64, attr_type_id_in: i64): Unit = ???
 
-  override fn updateRelationToGroup(entity_id_in: i64, oldRelationTypeIdIn: i64, newRelationTypeIdIn: i64, oldGroupIdIn: i64, newGroupIdIn: i64,
+  override fn update_relation_to_group(entity_id_in: i64, old_relation_type_id_in: i64, new_relation_type_id_in: i64, old_group_id_in: i64, new_group_id_in: i64,
                                      valid_on_date_in: Option<i64>, observation_date_in: i64): Unit = ???
 
-  override  fn archiveEntity(id_in: i64, caller_manages_transactions_in: bool): Unit = ???
+  override  fn archive_entity(id_in: i64, caller_manages_transactions_in: bool): Unit = ???
 
-  override fn  moveLocalEntityFromGroupToGroup(fromGroupIdIn: i64, toGroupIdIn: i64, moveEntityIdIn: i64, sorting_index_in: i64): Unit = ???
+  override fn  move_local_entity_from_group_to_group(from_group_id_in: i64, to_group_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64): Unit = ???
 
-  override fn  deleteClassAndItsTemplateEntity(class_id_in: i64): Unit = ???
+  override fn  delete_class_and_its_template_entity(class_id_in: i64): Unit = ???
 
   override fn  create_relation_to_local_entity(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
                                            sorting_index_in: Option<i64>, caller_manages_transactions_in: bool): RelationToLocalEntity = ???
 
-  override fn deleteRelationToGroup(entity_id_in: i64, relation_type_id_in: i64, group_id_in: i64): Unit = ???
+  override fn delete_relation_to_group(entity_id_in: i64, relation_type_id_in: i64, group_id_in: i64): Unit = ???
 
-  override fn deleteQuantityAttribute(id_in: i64): Unit = ???
+  override fn delete_quantity_attribute(id_in: i64): Unit = ???
 
-  override fn removeEntityFromGroup(group_id_in: i64, contained_entity_id_in: i64, caller_manages_transactions_in: bool): Unit = ???
+  override fn remove_entity_from_group(group_id_in: i64, contained_entity_id_in: i64, caller_manages_transactions_in: bool): Unit = ???
 
   override fn add_entity_to_group(group_id_in: i64, contained_entity_id_in: i64, sorting_index_in: Option<i64>, caller_manages_transactions_in: bool): Unit = ???
 
-  override fn deleteRelationToRemoteEntity(relation_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64): Unit = ???
+  override fn delete_relation_to_remote_entity(relation_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64): Unit = ???
 
-  override fn deleteFileAttribute(id_in: i64): Unit = ???
+  override fn delete_file_attribute(id_in: i64): Unit = ???
 
-  override fn  updateFileAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, descriptionIn: String): Unit = ???
+  override fn  update_file_attribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, description_in: String): Unit = ???
 
-  override fn  updateFileAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
-                                   original_file_path_in: String, readableIn: bool, writableIn: bool, executableIn: bool, sizeIn: i64,
-                                   md5hashIn: String): Unit = ???
+  override fn  update_file_attribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, description_in: String, original_file_date_in: i64, stored_date_in: i64,
+                                   original_file_path_in: String, readable_in: bool, writable_in: bool, executable_in: bool, size_in: i64,
+                                   md5_hash_in: String): Unit = ???
 
-  override fn  updateQuantityAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>,
+  override fn  update_quantity_attribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, unit_id_in: i64, number_in: Float, valid_on_date_in: Option<i64>,
                                        observation_date_in: i64): Unit = ???
 
-  override fn  deleteGroupRelationsToItAndItsEntries(groupid_in: i64): Unit = ???
+  override fn  delete_group_relations_to_it_and_its_entries(groupid_in: i64): Unit = ???
 
-  override fn  updateEntitysClass(entity_id: i64, class_id: Option<i64>, caller_manages_transactions_in: bool): Unit = ???
+  override fn  update_entitys_class(entity_id: i64, class_id: Option<i64>, caller_manages_transactions_in: bool): Unit = ???
 
-  override fn  deleteBooleanAttribute(id_in: i64): Unit = ???
+  override fn  delete_boolean_attribute(id_in: i64): Unit = ???
 
-  override fn  moveLocalEntityFromLocalEntityToGroup(removingRtleIn: RelationToLocalEntity, targetGroupIdIn: i64, sorting_index_in: i64): Unit = ???
+  override fn  move_local_entity_from_local_entity_to_group(removing_rtle_in: RelationToLocalEntity, target_group_id_in: i64, sorting_index_in: i64): Unit = ???
 
-  override fn  renumberSortingIndexes(entity_idOrGroupIdIn: i64, caller_manages_transactions_in: bool, isEntityAttrsNotGroupEntries: bool): Unit = ???
+  override fn  renumber_sorting_indexes(entity_id_or_group_id_in: i64, caller_manages_transactions_in: bool, is_entity_attrs_not_group_entries: bool): Unit = ???
 
-  override fn  updateEntityOnlyNewEntriesStickToTop(id_in: i64, newEntriesStickToTop: bool): Unit = ???
+  override fn  update_entity_only_new_entries_stick_to_top(id_in: i64, new_entries_stick_to_top: bool): Unit = ???
 
-  override fn  createDateAttribute(parent_id_in: i64, attr_type_id_in: i64, date_in: i64, sorting_index_in: Option<i64>): i64 = ???
+  override fn  create_date_attribute(parent_id_in: i64, attr_type_id_in: i64, date_in: i64, sorting_index_in: Option<i64>): i64 = ???
 
   override fn  create_group_and_relation_to_group(entity_id_in: i64, relation_type_id_in: i64, new_group_name_in: String, allow_mixed_classes_in_group_in: bool,
                                              valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: Option<i64>,
                                              caller_manages_transactions_in: bool): (i64, i64) = ???
 
-  override fn  addHASRelationToLocalEntity(from_entity_id_in: i64, toEntityIdIn: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+  override fn  add_HAS_relation_to_local_entity(from_entity_id_in: i64, to_entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
                                            sorting_index_in: Option<i64>): RelationToLocalEntity = ???
 
-  override fn  updateRelationToLocalEntity(oldRelationTypeIdIn: i64, entity_id1_in: i64, entity_id2_in: i64, newRelationTypeIdIn: i64,
+  override fn  update_relation_to_local_entity(old_relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, new_relation_type_id_in: i64,
                                            valid_on_date_in: Option<i64>, observation_date_in: i64): Unit = ???
 
-  override fn  updateSortingIndexInAGroup(group_id_in: i64, entity_id_in: i64, sorting_index_in: i64): Unit = ???
+  override fn  update_sorting_index_in_a_group(group_id_in: i64, entity_id_in: i64, sorting_index_in: i64): Unit = ???
 
-  override fn  updateAttributeSortingIndex(entity_id_in: i64, attribute_form_id_in: i64, attribute_id_in: i64, sorting_index_in: i64): Unit = ???
+  override fn  update_attribute_sorting_index(entity_id_in: i64, attribute_form_id_in: i64, attribute_id_in: i64, sorting_index_in: i64): Unit = ???
 
-  override fn  updateGroup(group_id_in: i64, name_in: String, allow_mixed_classes_in_group_in: bool, newEntriesStickToTopIn: bool): Unit = ???
+  override fn  update_group(group_id_in: i64, name_in: String, allow_mixed_classes_in_group_in: bool, new_entries_stick_to_top_in: bool): Unit = ???
 
-  override fn setUserPreference_EntityId(name_in: String, entity_id_in: i64): Unit = ???
+  override fn set_user_preference_entity_id(name_in: String, entity_id_in: i64): Unit = ???
 
-  override fn deleteRelationType(id_in: i64): Unit = ???
+  override fn delete_relation_type(id_in: i64): Unit = ???
 
-  override fn  deleteGroupAndRelationsToIt(id_in: i64): Unit = ???
+  override fn  delete_group_and_relations_to_it(id_in: i64): Unit = ???
 
   override fn  delete_entity(id_in: i64, caller_manages_transactions_in: bool): Unit = ???
 
-  override fn  moveRelationToLocalEntityToLocalEntity(rtleIdIn: i64, newContainingEntityIdIn: i64,
+  override fn  move_relation_to_local_entity_to_local_entity(rtle_id_in: i64, new_containing_entity_id_in: i64,
                                                       sorting_index_in: i64): RelationToLocalEntity = ???
 
   //NOTE: when implementing the below method (ie, so there is more supporting code then), also create a test (locally though...?) for RTRE.move.
   // (And while at it, also for RTRE.getEntityForEntityId2 and RTLE.getEntityForEntityId2 ?  Do they get called?)
-  override fn  moveRelationToRemoteEntityToLocalEntity(remote_instance_id_in: String, relationToRemoteEntityIdIn: i64, toContainingEntityIdIn: i64,
+  override fn  move_relation_to_remote_entity_to_local_entity(remote_instance_id_in: String, relation_to_remote_entity_id_in: i64, to_containing_entity_id_in: i64,
                                                        sorting_index_in: i64): RelationToRemoteEntity = ???
 
-  override  fn createFileAttribute(parent_id_in: i64, attr_type_id_in: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
-                                   original_file_path_in: String, readableIn: bool, writableIn: bool, executableIn: bool, sizeIn: i64,
-                                   md5hashIn: String, inputStreamIn: FileInputStream, sorting_index_in: Option<i64>): i64 = ???
+  override  fn create_file_attribute(parent_id_in: i64, attr_type_id_in: i64, description_in: String, original_file_date_in: i64, stored_date_in: i64,
+                                   original_file_path_in: String, readable_in: bool, writable_in: bool, executable_in: bool, size_in: i64,
+                                   md5_hash_in: String, inputStreamIn: FileInputStream, sorting_index_in: Option<i64>): i64 = ???
 
-  override fn deleteTextAttribute(id_in: i64): Unit = ???
+  override fn delete_text_attribute(id_in: i64): Unit = ???
 
   override fn create_entity_and_relation_to_local_entity(entity_id_in: i64, relation_type_id_in: i64, new_entity_name_in: String, is_public_in: Option<bool>,
                                                     valid_on_date_in: Option<i64>, observation_date_in: i64,
                                                     caller_manages_transactions_in: bool): (i64, i64) = ???
 
-  override fn moveEntityFromGroupToLocalEntity(fromGroupIdIn: i64, toEntityIdIn: i64, moveEntityIdIn: i64, sorting_index_in: i64): Unit = ???
+  override fn move_entity_from_group_to_local_entity(from_group_id_in: i64, to_entity_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64): Unit = ???
 
-  override fn  updateTextAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64>,
+  override fn  update_text_attribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64>,
                                    observation_date_in: i64): Unit = ???
 
-  override fn  getOrCreateClassAndTemplateEntity(class_name_in: String, caller_manages_transactions_in: bool): (i64, i64) = ???
+  override fn  get_or_create_class_and_template_entity(class_name_in: String, caller_manages_transactions_in: bool): (i64, i64) = ???
 
   override fn  addUriEntityWithUriAttribute(containingEntityIn: Entity, new_entity_name_in: String, uriIn: String, observation_date_in: i64,
                                             makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool,
                                             quoteIn: Option<String> = None): (Entity, RelationToLocalEntity) = ???
 
-  override fn  updateEntityOnlyPublicStatus(id_in: i64, value: Option<bool>): Unit = ???
+  override fn  update_entity_only_public_status(id_in: i64, value: Option<bool>): Unit = ???
 
   override fn create_relation_to_remote_entity(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>,
                                             observation_date_in: i64, remote_instance_id_in: String, sorting_index_in: Option<i64>,
@@ -1145,14 +1145,14 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn create_entity(name_in: String, class_id_in: Option<i64>, is_public_in: Option<bool>): i64 = ???
 
-  override  fn deleteRelationToLocalEntity(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64): Unit = ???
+  override  fn delete_relation_to_local_entity(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64): Unit = ???
 
-  override  fn  updateClassCreateDefaultAttributes(class_id_in: i64, value: Option<bool>) = ???
+  override  fn  update_class_create_default_attributes(class_id_in: i64, value: Option<bool>) = ???
 
   override fn update_boolean_attribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, boolean_in: bool,
                                       valid_on_date_in: Option<i64>, observation_date_in: i64): Unit = ???
 
-  override fn createQuantityAttribute(parent_id_in: i64, attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>,
+  override fn create_quantity_attribute(parent_id_in: i64, attr_type_id_in: i64, unit_id_in: i64, number_in: Float, valid_on_date_in: Option<i64>,
                                        observation_date_in: i64, caller_manages_transactions_in: bool = false, sorting_index_in: Option<i64> = None): /*id*/
   i64 = ???
 
@@ -1161,17 +1161,17 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn  create_relation_type(name_in: String, name_in_reverse_direction_in: String, directionality_in: String): i64 = ???
 
-  override fn  updateRelationType(id_in: i64, name_in: String, name_in_reverse_direction_in: String, directionality_in: String): Unit = ???
+  override fn  update_relation_type(id_in: i64, name_in: String, name_in_reverse_direction_in: String, directionality_in: String): Unit = ???
 
   override  fn create_class_and_its_template_entity(class_name_in: String): (i64, i64) = ???
 
   override  fn create_group(name_in: String, allow_mixed_classes_in_group_in: bool): i64 = ???
 
-  override fn updateEntityOnlyName(id_in: i64, name_in: String): Unit = ???
+  override fn update_entity_only_name(id_in: i64, name_in: String): Unit = ???
 
-  override fn updateClassAndTemplateEntityName(class_id_in: i64, name: String): i64 = ???
+  override fn update_class_and_template_entity_name(class_id_in: i64, name: String): i64 = ???
 
-  override fn updateOmInstance(id_in: String, address_in: String, entity_id_in: Option<i64>): Unit = ???
+  override fn update_om_instance(id_in: String, address_in: String, entity_id_in: Option<i64>): Unit = ???
 
 
   // NOTE: those below, like get_user_preference_boolean or get_preferences_container_id, are intentionally unimplemented, not
@@ -1191,10 +1191,10 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn get_preferences_container_id: i64 = ???
 
-  override fn getUserPreference_EntityId(preference_name_in: String, default_value_in: Option<i64>): Option<i64> = ???
+  override fn get_user_preference_entity_id(preference_name_in: String, default_value_in: Option<i64>): Option<i64> = ???
 
-  override fn getOmInstances(localIn: Option<bool>): util.ArrayList[OmInstance] = ???
+  override fn get_om_instances(localIn: Option<bool>): util.ArrayList[OmInstance] = ???
 
-    fn getRelationToLocalEntityDataById(id_in: i64): Array[Option[Any]] = ???
+    fn get_relation_to_local_entity_data_by_id(id_in: i64): Vec<Option<DataType>> = ???
 */
 }

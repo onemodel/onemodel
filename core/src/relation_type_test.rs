@@ -23,7 +23,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     let testRelTypeName = Database.THE_HAS_RELATION_TYPE_NAME;
     let testNameReversed = "is had";
     let testDir = "BI";
-    when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
+    when(mockDB.relation_type_key_exists(id)).thenReturn(true)
     when(mockDB.get_remote_address).thenReturn(None)
     /*val reltype: RelationType = */new RelationType(mockDB, id, testRelTypeName, testNameReversed, testDir)
     // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
@@ -40,7 +40,7 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     let id = 0L;
     let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.entity_key_exists(id)).thenReturn(true)
-    when(mockDB.relationTypeKeyExists(id)).thenReturn(true)
+    when(mockDB.relation_type_key_exists(id)).thenReturn(true)
     when(mockDB.get_remote_address).thenReturn(None)
     let relationType = new RelationType(mockDB, id);
     let sr = relationType.get_display_string();

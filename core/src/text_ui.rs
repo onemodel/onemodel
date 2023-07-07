@@ -306,7 +306,8 @@ impl TextUI {
         }
 
         use rustyline::error::ReadlineError;
-        use rustyline::{Editor, Result};
+        // use rustyline::{Editor, Result};
+        use rustyline::{Editor};
         // `()` can be used when no completer is required
         // let initial_text = match default_value_in {
         //     None => "",

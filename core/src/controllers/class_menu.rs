@@ -69,18 +69,18 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
           }
         }
         else if answer == 4) {
-          let entitiesCount: i64 = classIn.m_db.getEntitiesOnlyCount(limitByClass = true, Some(classIn.get_id), Some(classIn.getTemplateEntityId));
+          let entitiesCount: i64 = classIn.m_db.get_entities_only_count(limit_by_class = true, Some(classIn.get_id), Some(classIn.get_template_entity_id));
           if entitiesCount > 0) {
             ui.display_text("Can not delete class, because it is the class of " + entitiesCount + " entities.")
           } else {
             let name = classIn.get_name;
-            let templateEntity = new Entity(classIn.m_db, classIn.getTemplateEntityId);
-            let templateEntityName: String = templateEntity.get_name;
-            let groupCount: i64 = templateEntity.getCountOfContainingGroups;
-            let (entityCountNonArchived, entityCountArchived) = templateEntity.getCountOfContainingLocalEntities;
-            let ans = ui.ask_yes_no_question("DELETE CLASS \"" + name + "\" AND its template ENTITY \"" + templateEntityName + "\" with " +;
+            let template_entity = new Entity(classIn.m_db, classIn.get_template_entity_id);
+            let template_entityName: String = template_entity.get_name;
+            let groupCount: i64 = template_entity.getCountOfContainingGroups;
+            let (entity_countNonArchived, entity_countArchived) = template_entity.getCountOfContainingLocalEntities;
+            let ans = ui.ask_yes_no_question("DELETE CLASS \"" + name + "\" AND its template ENTITY \"" + template_entityName + "\" with " +;
                                           Util.ENTITY_PARTS_THAT_CAN_BE_AFFECTED + ".  \n**ARE YOU REALLY SURE?**  (The template entity is " +
-                                          Util.get_containing_entities_description(entityCountNonArchived, entityCountArchived) + ", and " +
+                                          Util.get_containing_entities_description(entity_countNonArchived, entity_countArchived) + ", and " +
                                           groupCount + " groups.)")
             if ans.is_defined && ans.get) {
               classIn.delete()
@@ -93,12 +93,12 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
           }
           classMenu(classIn)
         } else if answer == 5) {
-          new EntityMenu(ui, controller).entityMenu(new Entity(classIn.m_db, classIn.getTemplateEntityId))
+          new EntityMenu(ui, controller).entityMenu(new Entity(classIn.m_db, classIn.get_template_entity_id))
           classMenu(new EntityClass(classIn.m_db, classIn.get_id))
         } else if answer == 6) {
-          let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(classIn.m_db, None, None, Some(classIn.getTemplateEntityId), Util.ENTITY_TYPE, 0,;
+          let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(classIn.m_db, None, None, Some(classIn.get_template_entity_id), Util.ENTITY_TYPE, 0,;
                                                                                Some(classIn.get_id),
-                                                                               limitByClassIn = true)
+                                                                               limit_by_classIn = true)
           if selection.is_defined) new EntityMenu(ui, controller).entityMenu(new Entity(classIn.m_db, selection.get._1.get_id))
           classMenu(new EntityClass(classIn.m_db, classIn.get_id))
         } else {

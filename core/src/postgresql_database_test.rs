@@ -72,13 +72,12 @@ object PostgreSQLDatabaseTest {
 }
 
 class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
-  PostgreSQLDatabaseTest.tearDownTestDB()
-
   // for a test
+%%MAYBE CAN make this a parameter instead, wherever used? see fn just below, add as parm there.
   private let mut mDoDamageBuffer = false;
 
   // instantiation does DB setup (creates tables, default data, etc):
-  private let m_db: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS) {;
+  private let m_db: PostgreSQLDatabase = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS) {
     override fn damageBuffer(buffer: Array[Byte]) /*%%-> Unit*/ {
       if mDoDamageBuffer {
         if buffer.length < 1 || buffer(0) == '0' { throw new OmException("Nothing to damage here") }
@@ -106,8 +105,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   }
 
   "database version table" should "have been created with right data" in {
-    let versionTableExists: bool = m_db.does_this_exist("select count(1) from pg_class where relname='om_db_version'");
-    assert(versionTableExists)
+    let version_table_exists: bool = m_db.does_this_exist("select count(1) from pg_class where relname='om_db_version'");
+    assert(version_table_exists)
     let results = m_db.db_query_wrapper_for_one_row("select version from om_db_version", "Int");
     assert(results.length == 1)
     let dbVer: i32 = results(0).get.asInstanceOf[Int];
@@ -124,14 +123,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(name == m_db.get_entity_name(entityId).get)
 
     //and on an update:
-    let textAttributeId: i64 = createTestTextAttributeWithOneEntity(entityId);
+    let text_attribute_id: i64 = createTestTextAttributeWithOneEntity(entityId);
     let aTextValue = "as'dfjkl";
-    let ta = new TextAttribute(m_db, textAttributeId);
+    let ta = new TextAttribute(m_db, text_attribute_id);
     let (pid1, atid1) = (ta.get_parent_id(), ta.get_attr_type_id());
-    m_db.updateTextAttribute(textAttributeId, pid1, atid1, aTextValue, Some(123), 456)
+    m_db.update_text_attribute(text_attribute_id, pid1, atid1, aTextValue, Some(123), 456)
     // have to create new instance to re-read the data:
-    let ta2 = new TextAttribute(m_db, textAttributeId);
-    let txt2 = ta2.getText;
+    let ta2 = new TextAttribute(m_db, text_attribute_id);
+    let txt2 = ta2.get_text;
 
     assert(txt2 == aTextValue)
     m_db.rollback_trans()
@@ -141,31 +140,31 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let name: String = "test: org.onemodel.PSQLDbTest.entitycreation...";
     m_db.begin_trans()
 
-    let entityCountBeforeCreating: i64 = m_db.getEntityCount;
-    let entitiesOnlyFirstCount: i64 = m_db.getEntitiesOnlyCount();
+    let entity_countBeforeCreating: i64 = m_db.get_entity_count();
+    let entitiesOnlyFirstCount: i64 = m_db.get_entities_only_count();
 
     let id: i64 = m_db.createEntity(name);
     assert(name == m_db.get_entity_name(id).get)
-    let entityCountAfter1stCreate: i64 = m_db.getEntityCount;
-    let entitiesOnlyNewCount: i64 = m_db.getEntitiesOnlyCount();
-    if entityCountBeforeCreating + 1 != entityCountAfter1stCreate || entitiesOnlyFirstCount + 1 != entitiesOnlyNewCount {
-      fail("getEntityCount after adding doesn't match prior count+1! Before: " + entityCountBeforeCreating + " and " + entitiesOnlyNewCount + ", " +
-           "after: " + entityCountAfter1stCreate + " and " + entitiesOnlyNewCount + ".")
+    let entity_countAfter1stCreate: i64 = m_db.get_entity_count();
+    let entitiesOnlyNewCount: i64 = m_db.get_entities_only_count();
+    if entity_countBeforeCreating + 1 != entity_countAfter1stCreate || entitiesOnlyFirstCount + 1 != entitiesOnlyNewCount {
+      fail("get_entity_count() after adding doesn't match prior count+1! Before: " + entity_countBeforeCreating + " and " + entitiesOnlyNewCount + ", " +
+           "after: " + entity_countAfter1stCreate + " and " + entitiesOnlyNewCount + ".")
     }
     assert(m_db.entity_key_exists(id))
 
     let newName = "test: ' org.onemodel.PSQLDbTest.entityupdate...";
-    m_db.updateEntityOnlyName(id, newName)
+    m_db.update_entity_only_name(id, newName)
     // have to create new instance to re-read the data:
     let updatedEntity = new Entity(m_db, id);
     assert(updatedEntity.get_name == newName)
 
-    assert(m_db.entityOnlyKeyExists(id))
+    assert(m_db.entity_only_key_exists(id))
     m_db.rollback_trans()
 
     // now should not exist
-    let entityCountAfterRollback = m_db.getEntityCount;
-    assert(entityCountAfterRollback == entityCountBeforeCreating)
+    let entity_countAfterRollback = m_db.get_entity_count();
+    assert(entity_countAfterRollback == entity_countBeforeCreating)
     assert(!m_db.entity_key_exists(id))
   }
 
@@ -173,63 +172,63 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(!m_db.entity_key_exists(m_db.findIdWhichIsNotKeyOfAnyEntity))
   }
 
-  "entityOnlyKeyExists" should "not find RelationToLocalEntity record" in {
+  "entity_only_key_exists" should "not find RelationToLocalEntity record" in {
     m_db.begin_trans()
     let tempRelTypeId: i64 = m_db.createRelationType(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);
-    assert(!m_db.entityOnlyKeyExists(tempRelTypeId))
-    m_db.deleteRelationType(tempRelTypeId)
+    assert(!m_db.entity_only_key_exists(tempRelTypeId))
+    m_db.delete_relation_type(tempRelTypeId)
     m_db.rollback_trans()
   }
 
-  "getAttrCount, getAttributeSortingRowsCount" should "work in all circumstances" in {
+  "getAttrCount, get_attribute_sorting_rows_count" should "work in all circumstances" in {
     m_db.begin_trans()
 
     let id: i64 = m_db.createEntity("test: org.onemodel.PSQLDbTest.getAttrCount...");
-    let initialNumSortingRows = m_db.getAttributeSortingRowsCount(Some(id));
+    let initialNumSortingRows = m_db.get_attribute_sorting_rows_count(Some(id));
     assert(m_db.get_attribute_count(id) == 0)
     assert(initialNumSortingRows == 0)
 
     createTestQuantityAttributeWithTwoEntities(id)
     createTestQuantityAttributeWithTwoEntities(id)
     assert(m_db.get_attribute_count(id) == 2)
-    assert(m_db.getAttributeSortingRowsCount(Some(id)) == 2)
+    assert(m_db.get_attribute_sorting_rows_count(Some(id)) == 2)
 
     createTestTextAttributeWithOneEntity(id)
     assert(m_db.get_attribute_count(id) == 3)
-    assert(m_db.getAttributeSortingRowsCount(Some(id)) == 3)
+    assert(m_db.get_attribute_sorting_rows_count(Some(id)) == 3)
 
     //whatever, just need some relation type to go with:
     let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     createTestRelationToLocalEntity_WithOneEntity(id, rel_type_id)
     assert(m_db.get_attribute_count(id) == 4)
-    assert(m_db.getAttributeSortingRowsCount(Some(id)) == 4)
+    assert(m_db.get_attribute_sorting_rows_count(Some(id)) == 4)
 
     DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, id, rel_type_id, "somename", Some(12345L))
     assert(m_db.get_attribute_count(id) == 5)
-    assert(m_db.getAttributeSortingRowsCount(Some(id)) == 5)
+    assert(m_db.get_attribute_sorting_rows_count(Some(id)) == 5)
 
     m_db.rollback_trans()
     //idea: (tracked in tasks): find out: WHY do the next lines fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
     // Do I not understand rollback?  But it does seem to work as expected in "entity creation/update and transaction rollback" test above.  See also
-    // in EntityTest's "updateClassAndTemplateEntityName", at the last 2 commented lines which fail for unknown reason.  Maybe something obvious i'm just
+    // in EntityTest's "update_class_and_template_entity_name", at the last 2 commented lines which fail for unknown reason.  Maybe something obvious i'm just
     // missing, or maybe it's in the postgresql or jdbc transaction docs.  Could also ck in other places calling db.rollback_trans to see what's to learn from
     // current use (risk) & behaviors to compare.
 //    assert(m_db.getAttrCount(id) == 0)
-//    assert(m_db.getAttributeSortingRowsCount(Some(id)) == 0)
+//    assert(m_db.get_attribute_sorting_rows_count(Some(id)) == 0)
   }
 
   "QuantityAttribute creation/update/deletion methods" should "work" in {
     m_db.begin_trans()
-    let startingEntityCount = m_db.getEntityCount;
+    let startingEntityCount = m_db.get_entity_count();
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.quantityAttrs()");
-    let initialTotalSortingRowsCount = m_db.getAttributeSortingRowsCount();
+    let initialTotalSortingRowsCount = m_db.get_attribute_sorting_rows_count();
     let quantityAttributeId: i64 = createTestQuantityAttributeWithTwoEntities(entityId);
-    assert(m_db.getAttributeSortingRowsCount() > initialTotalSortingRowsCount)
+    assert(m_db.get_attribute_sorting_rows_count() > initialTotalSortingRowsCount)
 
     let qa = new QuantityAttribute(m_db, quantityAttributeId);
     let (pid1, atid1, uid1) = (qa.get_parent_id(), qa.get_attr_type_id(), qa.getUnitId);
     assert(entityId == pid1)
-    m_db.updateQuantityAttribute(quantityAttributeId, pid1, atid1, uid1, 4, Some(5), 6)
+    m_db.update_quantity_attribute(quantityAttributeId, pid1, atid1, uid1, 4, Some(5), 6)
     // have to create new instance to re-read the data:
     let qa2 = new QuantityAttribute(m_db, quantityAttributeId);
     let (pid2, atid2, uid2, num2, vod2, od2) = (qa2.get_parent_id(), qa2.get_attr_type_id(), qa2.getUnitId, qa2.getNumber, qa2.get_valid_on_date(), qa2.get_observation_date());
@@ -244,24 +243,24 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     let qAttrCount = m_db.get_quantity_attribute_count(entityId);
     assert(qAttrCount == 1)
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 1)
 
     //delete the quantity attribute: #'s still right?
-    let entityCountBeforeQuantityDeletion: i64 = m_db.getEntityCount;
-    m_db.deleteQuantityAttribute(quantityAttributeId)
+    let entity_countBeforeQuantityDeletion: i64 = m_db.get_entity_count();
+    m_db.delete_quantity_attribute(quantityAttributeId)
     // next 2 lines should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-    assert(m_db.getAttributeSortingRowsCount() == initialTotalSortingRowsCount)
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    assert(m_db.get_attribute_sorting_rows_count() == initialTotalSortingRowsCount)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
 
-    let entityCountAfterQuantityDeletion: i64 = m_db.getEntityCount;
+    let entity_countAfterQuantityDeletion: i64 = m_db.get_entity_count();
     assert(m_db.get_quantity_attribute_count(entityId) == 0)
-    if entityCountAfterQuantityDeletion != entityCountBeforeQuantityDeletion {
-      fail("Got constraint backwards? Deleting quantity attribute changed Entity count from " + entityCountBeforeQuantityDeletion + " to " +
-           entityCountAfterQuantityDeletion)
+    if entity_countAfterQuantityDeletion != entity_countBeforeQuantityDeletion {
+      fail("Got constraint backwards? Deleting quantity attribute changed Entity count from " + entity_countBeforeQuantityDeletion + " to " +
+           entity_countAfterQuantityDeletion)
     }
 
     m_db.delete_entity(entityId)
-    let endingEntityCount = m_db.getEntityCount;
+    let endingEntityCount = m_db.get_entity_count();
     // 2 more entities came during quantity creation (units & quantity type, is OK to leave in this kind of situation)
     assert(endingEntityCount == startingEntityCount + 2)
     assert(m_db.get_quantity_attribute_count(entityId) == 0)
@@ -271,28 +270,28 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   "Attribute and AttributeSorting row deletion" should "both happen automatically upon entity deletion" in {
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest sorting rows stuff");
     createTestQuantityAttributeWithTwoEntities(entityId)
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 1)
     assert(m_db.get_quantity_attribute_count(entityId) == 1)
     m_db.delete_entity(entityId)
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
     assert(m_db.get_quantity_attribute_count(entityId) == 0)
   }
 
   "TextAttribute create/delete/update methods" should "work" in {
-    let startingEntityCount = m_db.getEntityCount;
+    let startingEntityCount = m_db.get_entity_count();
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.testTextAttrs");
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
-    let textAttributeId: i64 = createTestTextAttributeWithOneEntity(entityId);
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
+    let text_attribute_id: i64 = createTestTextAttributeWithOneEntity(entityId);
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 1)
     let aTextValue = "asdfjkl";
 
-    let ta = new TextAttribute(m_db, textAttributeId);
+    let ta = new TextAttribute(m_db, text_attribute_id);
     let (pid1, atid1) = (ta.get_parent_id(), ta.get_attr_type_id());
     assert(entityId == pid1)
-    m_db.updateTextAttribute(textAttributeId, pid1, atid1, aTextValue, Some(123), 456)
+    m_db.update_text_attribute(text_attribute_id, pid1, atid1, aTextValue, Some(123), 456)
     // have to create new instance to re-read the data: immutability makes programs easier to work with
-    let ta2 = new TextAttribute(m_db, textAttributeId);
-    let (pid2, atid2, txt2, vod2, od2) = (ta2.get_parent_id(), ta2.get_attr_type_id(), ta2.getText, ta2.get_valid_on_date(), ta2.get_observation_date());
+    let ta2 = new TextAttribute(m_db, text_attribute_id);
+    let (pid2, atid2, txt2, vod2, od2) = (ta2.get_parent_id(), ta2.get_attr_type_id(), ta2.get_text, ta2.get_valid_on_date(), ta2.get_observation_date());
     assert(pid2 == pid1)
     assert(atid2 == atid1)
     assert(txt2 == aTextValue)
@@ -303,15 +302,15 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     assert(m_db.get_text_attribute_count(entityId) == 1)
 
-    let entityCountBeforeTextDeletion: i64 = m_db.getEntityCount;
-    m_db.deleteTextAttribute(textAttributeId)
+    let entity_countBeforeTextDeletion: i64 = m_db.get_entity_count();
+    m_db.delete_text_attribute(text_attribute_id)
     assert(m_db.get_text_attribute_count(entityId) == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
-    let entityCountAfterTextDeletion: i64 = m_db.getEntityCount;
-    if entityCountAfterTextDeletion != entityCountBeforeTextDeletion {
-      fail("Got constraint backwards? Deleting text attribute changed Entity count from " + entityCountBeforeTextDeletion + " to " +
-           entityCountAfterTextDeletion)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
+    let entity_countAfterTextDeletion: i64 = m_db.get_entity_count();
+    if entity_countAfterTextDeletion != entity_countBeforeTextDeletion {
+      fail("Got constraint backwards? Deleting text attribute changed Entity count from " + entity_countBeforeTextDeletion + " to " +
+           entity_countAfterTextDeletion)
     }
     // then recreate the text attribute (to verify its auto-deletion when Entity is deleted, below)
     createTestTextAttributeWithOneEntity(entityId)
@@ -321,22 +320,22 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
            m_db.get_text_attribute_count(entityId) + ".")
     }
 
-    let endingEntityCount = m_db.getEntityCount;
+    let endingEntityCount = m_db.get_entity_count();
     // 2 more entities came during text attribute creation, which we don't care about either way, for this test
     assert(endingEntityCount == startingEntityCount + 2)
   }
 
   "DateAttribute create/delete/update methods" should "work" in {
-    let startingEntityCount = m_db.getEntityCount;
+    let startingEntityCount = m_db.get_entity_count();
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.testDateAttrs");
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
     let dateAttributeId: i64 = createTestDateAttributeWithOneEntity(entityId);
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 1)
     let da = new DateAttribute(m_db, dateAttributeId);
     let (pid1, atid1) = (da.get_parent_id(), da.get_attr_type_id());
     assert(entityId == pid1)
     let date = System.currentTimeMillis;
-    m_db.updateDateAttribute(dateAttributeId, pid1, date, atid1)
+    m_db.update_date_attribute(dateAttributeId, pid1, date, atid1)
     // Have to create new instance to re-read the data: immutability makes the program easier to debug/reason about.
     let da2 = new DateAttribute(m_db, dateAttributeId);
     let (pid2, atid2, date2) = (da2.get_parent_id(), da2.get_attr_type_id(), da2.getDate);
@@ -351,12 +350,12 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(date3 == date)
     assert(m_db.get_date_attribute_count(entityId) == 1)
 
-    let entityCountBeforeDateDeletion: i64 = m_db.getEntityCount;
-    m_db.deleteDateAttribute(dateAttributeId)
+    let entity_countBeforeDateDeletion: i64 = m_db.get_entity_count();
+    m_db.delete_date_attribute(dateAttributeId)
     assert(m_db.get_date_attribute_count(entityId) == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
-    assert(m_db.getEntityCount == entityCountBeforeDateDeletion)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
+    assert(m_db.get_entity_count() == entity_countBeforeDateDeletion)
 
     // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below)
     createTestDateAttributeWithOneEntity(entityId)
@@ -364,18 +363,18 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(m_db.get_date_attribute_count(entityId) == 0)
 
     // 2 more entities came during attribute creation, which we don't care about either way, for this test
-    assert(m_db.getEntityCount == startingEntityCount + 2)
+    assert(m_db.get_entity_count() == startingEntityCount + 2)
   }
 
   "BooleanAttribute create/delete/update methods" should "work" in {
-    let startingEntityCount = m_db.getEntityCount;
+    let startingEntityCount = m_db.get_entity_count();
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.testBooleanAttrs");
     let val1 = true;
-    let observationDate: i64 = System.currentTimeMillis;
+    let observation_date: i64 = System.currentTimeMillis;
     let valid_on_date: Option<i64> = Some(1234L);
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
-    let booleanAttributeId: i64 = createTestBooleanAttributeWithOneEntity(entityId, val1, valid_on_date, observationDate);
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
+    let booleanAttributeId: i64 = createTestBooleanAttributeWithOneEntity(entityId, val1, valid_on_date, observation_date);
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 1)
 
     let ba = new BooleanAttribute(m_db, booleanAttributeId);
     let (pid1, atid1) = (ba.get_parent_id(), ba.get_attr_type_id());
@@ -396,39 +395,39 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     assert(m_db.get_boolean_attribute_count(entityId) == 1)
 
-    let entityCountBeforeAttrDeletion: i64 = m_db.getEntityCount;
-    m_db.deleteBooleanAttribute(booleanAttributeId)
+    let entity_countBeforeAttrDeletion: i64 = m_db.get_entity_count();
+    m_db.delete_boolean_attribute(booleanAttributeId)
     assert(m_db.get_boolean_attribute_count(entityId) == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
-    let entityCountAfterAttrDeletion: i64 = m_db.getEntityCount;
-    if entityCountAfterAttrDeletion != entityCountBeforeAttrDeletion {
-      fail("Got constraint backwards? Deleting boolean attribute changed Entity count from " + entityCountBeforeAttrDeletion + " to " +
-           entityCountAfterAttrDeletion)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
+    let entity_countAfterAttrDeletion: i64 = m_db.get_entity_count();
+    if entity_countAfterAttrDeletion != entity_countBeforeAttrDeletion {
+      fail("Got constraint backwards? Deleting boolean attribute changed Entity count from " + entity_countBeforeAttrDeletion + " to " +
+           entity_countAfterAttrDeletion)
     }
 
     // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below; and to verify behavior with other values)
     let testval2: bool = true;
     let valid_on_date2: Option<i64> = None;
-    let boolAttributeId2: i64 = m_db.create_boolean_attribute(pid1, atid1, testval2, valid_on_date2, observationDate);
+    let boolAttributeId2: i64 = m_db.create_boolean_attribute(pid1, atid1, testval2, valid_on_date2, observation_date);
     let ba3: BooleanAttribute = new BooleanAttribute(m_db, boolAttributeId2);
     assert(ba3.get_boolean == testval2)
     assert(ba3.get_valid_on_date().isEmpty)
     m_db.delete_entity(entityId)
     assert(m_db.get_boolean_attribute_count(entityId) == 0)
 
-    let endingEntityCount = m_db.getEntityCount;
+    let endingEntityCount = m_db.get_entity_count();
     // 2 more entities came during attribute creation, but we deleted one and (unlike similar tests) didn't recreate it.
     assert(endingEntityCount == startingEntityCount + 1)
   }
 
   "FileAttribute create/delete/update methods" should "work" in {
-    let startingEntityCount = m_db.getEntityCount;
+    let startingEntityCount = m_db.get_entity_count();
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.testFileAttrs");
     let descr = "somedescr";
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
     let fa: FileAttribute = createTestFileAttributeAndOneEntity(new Entity(m_db, entityId), descr, 1);
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 1)
     let fileAttributeId = fa.get_id;
     let (pid1, atid1, desc1) = (fa.get_parent_id(), fa.get_attr_type_id(), fa.getDescription);
     assert(desc1 == descr)
@@ -441,7 +440,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let b11 = false;
     let b12 = true;
     let b13 = false;
-    m_db.updateFileAttribute(fa.get_id, pid1, atid1, descNew, originalFileDateNew, storedDateNew, pathNew, b11, b12, b13, sizeNew, hashNew)
+    m_db.update_file_attribute(fa.get_id, pid1, atid1, descNew, originalFileDateNew, storedDateNew, pathNew, b11, b12, b13, sizeNew, hashNew)
     // have to create new instance to re-read the data:
     let fa2 = new FileAttribute(m_db, fa.get_id);
     let (pid2, atid2, desc2, ofd2, sd2, ofp2, b21, b22, b23, size2, hash2) = (fa2.get_parent_id(), fa2.get_attr_type_id(), fa2.getDescription, fa2.getOriginalFileDate,;
@@ -493,15 +492,15 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     assert(ofp4 == pathNew)
     assert(b41 == b11)
 
-    let entityCountBeforeFileAttrDeletion: i64 = m_db.getEntityCount;
-    m_db.deleteFileAttribute(fileAttributeId)
+    let entity_countBeforeFileAttrDeletion: i64 = m_db.get_entity_count();
+    m_db.delete_file_attribute(fileAttributeId)
     assert(m_db.get_file_attribute_count(entityId) == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
-    let entityCountAfterFileAttrDeletion: i64 = m_db.getEntityCount;
-    if entityCountAfterFileAttrDeletion != entityCountBeforeFileAttrDeletion {
-      fail("Got constraint backwards? Deleting FileAttribute changed Entity count from " + entityCountBeforeFileAttrDeletion + " to " +
-           entityCountAfterFileAttrDeletion)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
+    let entity_countAfterFileAttrDeletion: i64 = m_db.get_entity_count();
+    if entity_countAfterFileAttrDeletion != entity_countBeforeFileAttrDeletion {
+      fail("Got constraint backwards? Deleting FileAttribute changed Entity count from " + entity_countBeforeFileAttrDeletion + " to " +
+           entity_countAfterFileAttrDeletion)
     }
 
 
@@ -516,14 +515,14 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
 
     // more entities came during attribute creation, which we don't care about either way, for this test
-    assert(m_db.getEntityCount == startingEntityCount + 4)
+    assert(m_db.get_entity_count() == startingEntityCount + 4)
   }
 
   //idea: recall why mocks would be better here than testing the real system and if needed switch, to speed up tests.
   // (Because we're not testing the filesystem or postgresql, and test speed matters. What is the role of integration tests for this system?)
   "FileAttribute file import/export" should "fail if file changed" in {
     let entityId: i64 = m_db.createEntity("someent");
-    let attrTypeId: i64 = m_db.createEntity("fileAttributeType");
+    let attr_type_id: i64 = m_db.createEntity("fileAttributeType");
     let uploadSourceFile: java.io.File = java.io.File.createTempFile("om-test-iofailures-", null);
     let mut writer: java.io.FileWriter = null;
     let mut inputStream: java.io.FileInputStream = null;
@@ -536,15 +535,15 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       inputStream = new java.io.FileInputStream(uploadSourceFile)
       mDoDamageBuffer=true
       intercept[OmFileTransferException] {
-                                            m_db.createFileAttribute(entityId, attrTypeId, "xyz", 0, 0, "/doesntmatter", readableIn = true,
-                                                                    writableIn = true, executableIn = false, uploadSourceFile.length(),
+                                            m_db.create_file_attribute(entityId, attr_type_id, "xyz", 0, 0, "/doesntmatter", readable_in = true,
+                                                                    writable_in = true, executable_in = false, uploadSourceFile.length(),
                                                                     FileAttribute.md5Hash(uploadSourceFile), inputStream, Some(0))
                                           }
       mDoDamageBuffer = false
       //so it should work now:
       inputStream = new java.io.FileInputStream(uploadSourceFile)
-      let faId: i64 = m_db.createFileAttribute(entityId, attrTypeId, "xyz", 0, 0,;
-                                               "/doesntmatter", readableIn = true, writableIn = true, executableIn = false,
+      let faId: i64 = m_db.create_file_attribute(entityId, attr_type_id, "xyz", 0, 0,;
+                                               "/doesntmatter", readable_in = true, writable_in = true, executable_in = false,
                                                uploadSourceFile.length(), FileAttribute.md5Hash(uploadSourceFile), inputStream, None)
 
       let fa: FileAttribute = new FileAttribute(m_db, faId);
@@ -566,49 +565,49 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   }
 
   "relation to entity methods and relation type methods" should "work" in {
-    let startingEntityOnlyCount = m_db.getEntitiesOnlyCount();
-    let startingRelationTypeCount = m_db.getRelationTypeCount;
+    let startingEntityOnlyCount = m_db.get_entities_only_count();
+    let startingRelationTypeCount = m_db.get_relation_type_count();
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
-    let startingRelCount = m_db.getRelationTypes(0, Some(25)).size;
+    let startingRelCount = m_db.get_relation_types(0, Some(25)).size;
     let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
 
     //verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
-    assert(m_db.getRelationTypes(0, Some(25)).size == startingRelCount + 1)
-    assert(m_db.getEntitiesOnlyCount() == startingEntityOnlyCount + 1)
+    assert(m_db.get_relation_types(0, Some(25)).size == startingRelCount + 1)
+    assert(m_db.get_entities_only_count() == startingEntityOnlyCount + 1)
 
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
     let related_entity_id: i64 = createTestRelationToLocalEntity_WithOneEntity(entityId, rel_type_id);
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
-    let checkRelation = m_db.getRelationToLocalEntityData(rel_type_id, entityId, related_entity_id);
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 1)
+    let checkRelation = m_db.get_relation_to_local_entity_data(rel_type_id, entityId, related_entity_id);
     let checkValidOnDate = checkRelation(1);
     assert(checkValidOnDate.isEmpty) // should get back None when created with None: see description for table's field in create_tables method.
     assert(m_db.get_relation_to_local_entity_count(entityId) == 1)
 
     let newName = "test: org.onemodel.PSQLDbTest.relationupdate...";
     let name_in_reverse = "nameinreverse;!@#$%^&*()-_=+{}[]:\"'<>?,./`~" //and verify can handle some variety of chars;
-    m_db.updateRelationType(rel_type_id, newName, name_in_reverse, RelationType.BIDIRECTIONAL)
+    m_db.update_relation_type(rel_type_id, newName, name_in_reverse, RelationType.BIDIRECTIONAL)
     // have to create new instance to re-read the data:
     let updatedRelationType = new RelationType(m_db, rel_type_id);
     assert(updatedRelationType.get_name == newName)
     assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
     assert(updatedRelationType.getDirectionality == RelationType.BIDIRECTIONAL)
 
-    m_db.deleteRelationToLocalEntity(rel_type_id, entityId, related_entity_id)
+    m_db.delete_relation_to_local_entity(rel_type_id, entityId, related_entity_id)
     assert(m_db.get_relation_to_local_entity_count(entityId) == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
 
-    let entityOnlyCountBeforeRelationTypeDeletion: i64 = m_db.getEntitiesOnlyCount();
-    m_db.deleteRelationType(rel_type_id)
-    assert(m_db.getRelationTypeCount == startingRelationTypeCount)
+    let entityOnlyCountBeforeRelationTypeDeletion: i64 = m_db.get_entities_only_count();
+    m_db.delete_relation_type(rel_type_id)
+    assert(m_db.get_relation_type_count() == startingRelationTypeCount)
     // ensure that removing rel type doesn't remove more entities than it should, and that the 'onlyCount' works right.
     //i.e. as above, verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
-    assert(entityOnlyCountBeforeRelationTypeDeletion == m_db.getEntitiesOnlyCount())
+    assert(entityOnlyCountBeforeRelationTypeDeletion == m_db.get_entities_only_count())
 
     m_db.delete_entity(entityId)
   }
 
-  "getContainingGroupsIds" should "find groups containing the test group" in {
+  "get_containing_groups_ids" should "find groups containing the test group" in {
     /*
     Makes a thing like this:        entity1    entity3
                                        |         |
@@ -621,25 +620,25 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
      ...(and then checks in the middle that entity2 has 1 containing group, before adding entity3/group3)
      ...and then checks that entity2 has 2 containing groups.
      */
-    let entityId1 = m_db.createEntity("test-getContainingGroupsIds-entity1");
-    let rel_type_id: i64 = m_db.createRelationType("test-getContainingGroupsIds-reltype1", "", RelationType.UNIDIRECTIONAL);
-    let (groupId1, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId1, rel_type_id, "test-getContainingGroupsIds-group1");
+    let entityId1 = m_db.createEntity("test-get_containing_groups_ids-entity1");
+    let rel_type_id: i64 = m_db.createRelationType("test-get_containing_groups_ids-reltype1", "", RelationType.UNIDIRECTIONAL);
+    let (groupId1, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId1, rel_type_id, "test-get_containing_groups_ids-group1");
     let group1 = new Group(m_db,groupId1);
-    let entityId2 = m_db.createEntity("test-getContainingGroupsIds-entity2");
+    let entityId2 = m_db.createEntity("test-get_containing_groups_ids-entity2");
     group1.addEntity(entityId2)
-    let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId2, rel_type_id, "test-getContainingGroupsIds-group1");
+    let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId2, rel_type_id, "test-get_containing_groups_ids-group1");
     let group2 = new Group(m_db, groupId2);
 
-    let containingGroups:List[Array[Option[Any]]] = m_db.getGroupsContainingEntitysGroupsIds(group2.get_id);
+    let containingGroups:Vec<Option<DataType>>] = m_db.get_groups_containing_entitys_groups_ids(group2.get_id);
     assert(containingGroups.size == 1)
     assert(containingGroups.head(0).get.asInstanceOf[i64] == groupId1)
 
-    let entityId3 = m_db.createEntity("test-getContainingGroupsIds-entity3");
-    let (groupId3, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId3, rel_type_id, "test-getContainingGroupsIds-group1");
+    let entityId3 = m_db.createEntity("test-get_containing_groups_ids-entity3");
+    let (groupId3, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId3, rel_type_id, "test-get_containing_groups_ids-group1");
     let group3 = new Group(m_db, groupId3);
     group3.addEntity(entityId2)
 
-    let containingGroups2:List[Array[Option[Any]]] = m_db.getGroupsContainingEntitysGroupsIds(group2.get_id);
+    let containingGroups2:Vec<Vec<Option<DataType>>> = m_db.get_groups_containing_entitys_groups_ids(group2.get_id);
     assert(containingGroups2.size == 2)
     assert(containingGroups2.head(0).get.asInstanceOf[i64] == groupId1)
     assert(containingGroups2.tail.head(0).get.asInstanceOf[i64] == groupId3)
@@ -651,24 +650,24 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let entityId = m_db.createEntity(entityName);
     let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     let valid_on_date = 12345L;
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
     let (groupId:i64, createdRtg:RelationToGroup) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id, relToGroupName,;
                                                                                                                 Some(valid_on_date), allowMixedClassesIn = true)
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 1)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 1)
 
     let rtg: RelationToGroup = new RelationToGroup(m_db, createdRtg.get_id, createdRtg.get_parent_id(), createdRtg.get_attr_type_id(), createdRtg.getGroupId);
     let group: Group = new Group(m_db, groupId);
     assert(group.getMixedClassesAllowed)
     assert(group.get_name == relToGroupName)
 
-    let checkRelation = m_db.getRelationToGroupDataByKeys(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.getGroupId);
+    let checkRelation = m_db.get_relation_to_group_data_by_keys(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.getGroupId);
     assert(checkRelation(0).get.asInstanceOf[i64] == rtg.get_id)
     assert(checkRelation(0).get.asInstanceOf[i64] == createdRtg.get_id)
     assert(checkRelation(1).get.asInstanceOf[i64] == entityId)
     assert(checkRelation(2).get.asInstanceOf[i64] == rel_type_id)
     assert(checkRelation(3).get.asInstanceOf[i64] == groupId)
     assert(checkRelation(4).get.asInstanceOf[i64] == valid_on_date)
-    let checkAgain = m_db.getRelationToGroupData(rtg.get_id);
+    let checkAgain = m_db.get_relation_to_group_data(rtg.get_id);
     assert(checkAgain(0).get.asInstanceOf[i64] == rtg.get_id)
     assert(checkAgain(0).get.asInstanceOf[i64] == createdRtg.get_id)
     assert(checkAgain(1).get.asInstanceOf[i64] == entityId)
@@ -689,7 +688,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
                                 }.getMessage.contains("does not exist"))
     assert(group.getSize() == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-    assert(m_db.getAttributeSortingRowsCount(Some(entityId)) == 0)
+    assert(m_db.get_attribute_sorting_rows_count(Some(entityId)) == 0)
 
     let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id, "somename", None);
 
@@ -705,12 +704,12 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let entityId5 = m_db.createEntity(entityName + 5);
     group2.addEntity(entityId5)
     // (at least make sure next method runs:)
-    m_db.getGroupEntrySortingIndex(groupId2, entityId5)
+    m_db.get_group_entry_sorting_index(groupId2, entityId5)
     assert(group2.getSize() == 3)
-    assert(m_db.getGroupEntryObjects(group2.get_id, 0).size() == 3)
+    assert(m_db.get_group_entry_objects(group2.get_id, 0).size() == 3)
 
     group2.removeEntity(entityId5)
-    assert(m_db.getGroupEntryObjects(group2.get_id, 0).size() == 2)
+    assert(m_db.get_group_entry_objects(group2.get_id, 0).size() == 2)
 
     group2.delete()
     assert(intercept[Exception] {
@@ -722,28 +721,28 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     // probably revise this later for use when adding that update method:
     //val newName = "test: org.onemodel.PSQLDbTest.relationupdate..."
-    //m_db.updateRelationType(rel_type_id, newName, name_in_reverse, RelationType.BIDIRECTIONAL)
+    //m_db.update_relation_type(rel_type_id, newName, name_in_reverse, RelationType.BIDIRECTIONAL)
     //// have to create new instance to re-read the data:
     //val updatedRelationType = new RelationType(m_db, rel_type_id)
     //assert(updatedRelationType.get_name == newName)
     //assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
     //assert(updatedRelationType.getDirectionality == RelationType.BIDIRECTIONAL)
 
-    //m_db.deleteRelationToGroup(relToGroupId)
+    //m_db.delete_relation_to_group(relToGroupId)
     //assert(m_db.get_relation_to_group_count(entityId) == 0)
   }
 
-  "getGroups" should "work" in {
+  "get_groups" should "work" in {
     let group3id = m_db.create_group("g3");
-    let number = m_db.getGroups(0).size;
-    let number2 = m_db.getGroups(0, None, Some(group3id)).size;
+    let number = m_db.get_groups(0).size;
+    let number2 = m_db.get_groups(0, None, Some(group3id)).size;
     assert(number == number2 + 1)
-    let number3 = m_db.getGroups(1).size;
+    let number3 = m_db.get_groups(1).size;
     assert(number == number3 + 1)
   }
 
   "deleting entity" should "work even if entity is in a relationtogroup" in {
-    let startingEntityCount = m_db.getEntitiesOnlyCount();
+    let startingEntityCount = m_db.get_entities_only_count();
     let relToGroupName = "test:PSQLDbTest.testDelEntity_InGroup";
     let entityName = relToGroupName + "--theEntity";
     let entityId = m_db.createEntity(entityName);
@@ -753,33 +752,33 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     //val rtg: RelationToGroup = new RelationToGroup
     let group:Group = new Group(m_db, groupId);
     group.addEntity(m_db.createEntity(entityName + 1))
-    assert(m_db.getEntitiesOnlyCount() == startingEntityCount + 2)
+    assert(m_db.get_entities_only_count() == startingEntityCount + 2)
     assert(m_db.getGroupSize(groupId) == 1)
 
     let entityId2 = m_db.createEntity(entityName + 2);
-    assert(m_db.getEntitiesOnlyCount() == startingEntityCount + 3)
-    assert(m_db.getCountOfGroupsContainingEntity(entityId2) == 0)
+    assert(m_db.get_entities_only_count() == startingEntityCount + 3)
+    assert(m_db.get_count_of_groups_containing_entity(entityId2) == 0)
     group.addEntity(entityId2)
     assert(m_db.getGroupSize(groupId) == 2)
-    assert(m_db.getCountOfGroupsContainingEntity(entityId2) == 1)
-    let descriptions = m_db.getContainingRelationToGroupDescriptions(entityId2, Some(9999));
+    assert(m_db.get_count_of_groups_containing_entity(entityId2) == 1)
+    let descriptions = m_db.get_containing_relation_to_group_descriptions(entityId2, Some(9999));
     assert(descriptions.size == 1)
     assert(descriptions.get(0) == entityName + "->" + relToGroupName)
 
     //doesn't get an error:
     m_db.delete_entity(entityId2)
 
-    let descriptions2 = m_db.getContainingRelationToGroupDescriptions(entityId2, Some(9999));
+    let descriptions2 = m_db.get_containing_relation_to_group_descriptions(entityId2, Some(9999));
     assert(descriptions2.size == 0)
-    assert(m_db.getCountOfGroupsContainingEntity(entityId2) == 0)
-    assert(m_db.getEntitiesOnlyCount() == startingEntityCount + 2)
+    assert(m_db.get_count_of_groups_containing_entity(entityId2) == 0)
+    assert(m_db.get_entities_only_count() == startingEntityCount + 2)
     assert(intercept[Exception] {
                                   new Entity(m_db, entityId2)
                                 }.getMessage.contains("does not exist"))
 
     assert(m_db.getGroupSize(groupId) == 1)
 
-    let list = m_db.getGroupEntryObjects(groupId, 0);
+    let list = m_db.get_group_entry_objects(groupId, 0);
     assert(list.size == 1)
     let remainingContainedEntityId = list.get(0).get_id;
 
@@ -788,7 +787,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     new Entity(m_db, remainingContainedEntityId)
   }
 
-  "getSortedAttributes" should "return them all and correctly" in {
+  "get_sorted_attributes" should "return them all and correctly" in {
     let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
     createTestTextAttributeWithOneEntity(entityId)
     createTestQuantityAttributeWithTwoEntities(entityId)
@@ -799,16 +798,16 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     createTestBooleanAttributeWithOneEntity(entityId, valIn = false, None, 0)
     createTestFileAttributeAndOneEntity(new Entity(m_db, entityId), "desc", 2, verifyIn = false)
 
-    m_db.updateEntityOnlyPublicStatus(related_entity_id, None)
-    let onlyPublicTotalAttrsAvailable1 = m_db.getSortedAttributes(entityId, 0, 999, onlyPublicEntitiesIn = true)._2;
-    m_db.updateEntityOnlyPublicStatus(related_entity_id, Some(false))
-    let onlyPublicTotalAttrsAvailable2 = m_db.getSortedAttributes(entityId, 0, 999, onlyPublicEntitiesIn = true)._2;
-    m_db.updateEntityOnlyPublicStatus(related_entity_id, Some(true))
-    let onlyPublicTotalAttrsAvailable3 = m_db.getSortedAttributes(entityId, 0, 999, onlyPublicEntitiesIn = true)._2;
+    m_db.update_entity_only_public_status(related_entity_id, None)
+    let onlyPublicTotalAttrsAvailable1 = m_db.get_sorted_attributes(entityId, 0, 999, only_public_entities_in = true)._2;
+    m_db.update_entity_only_public_status(related_entity_id, Some(false))
+    let onlyPublicTotalAttrsAvailable2 = m_db.get_sorted_attributes(entityId, 0, 999, only_public_entities_in = true)._2;
+    m_db.update_entity_only_public_status(related_entity_id, Some(true))
+    let onlyPublicTotalAttrsAvailable3 = m_db.get_sorted_attributes(entityId, 0, 999, only_public_entities_in = true)._2;
     assert(onlyPublicTotalAttrsAvailable1 == onlyPublicTotalAttrsAvailable2)
     assert((onlyPublicTotalAttrsAvailable3 - 1) == onlyPublicTotalAttrsAvailable2)
 
-    let (attrTuples: Array[(i64, Attribute)], totalAttrsAvailable) = m_db.getSortedAttributes(entityId, 0, 999, onlyPublicEntitiesIn = false);
+    let (attrTuples: Array[(i64, Attribute)], totalAttrsAvailable) = m_db.get_sorted_attributes(entityId, 0, 999, only_public_entities_in = false);
     assert(totalAttrsAvailable > onlyPublicTotalAttrsAvailable1)
     let counter: i64 = attrTuples.length;
     // should be the same since we didn't create enough to span screens (requested them all):
@@ -826,7 +825,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
         case attribute: TextAttribute =>
           //strangely, running in the intellij 12 IDE wouldn't report this line as a failure when necessary, but
           // the cli does.
-          assert(attribute.getText == "some test text")
+          assert(attribute.get_text == "some test text")
           foundTA = true
         case attribute: RelationToLocalEntity =>
           assert(attribute.get_attr_type_id() == rel_type_id)
@@ -854,12 +853,12 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     let related_entity_id: i64 = createTestRelationToLocalEntity_WithOneEntity(entityId, rel_type_id);
     assert(m_db.get_relation_to_local_entity_count(entityId) == startingLocalCount + 1)
 
-    let oi: OmInstance = m_db.getLocalOmInstanceData;
+    let oi: OmInstance = m_db.get_local_om_instance_data;
     let remoteEntityId = 1234;
     m_db.createRelationToRemoteEntity(rel_type_id, entityId, remoteEntityId, None, 0, oi.get_id)
     assert(m_db.get_relation_to_local_entity_count(entityId) == startingLocalCount + 1)
     assert(m_db.get_relation_to_remote_entity_count(entityId) == startingRemoteCount + 1)
-    assert(m_db.getRelationToRemoteEntityData(rel_type_id, entityId, oi.get_id, remoteEntityId).length > 0)
+    assert(m_db.get_relation_to_remote_entity_data(rel_type_id, entityId, oi.get_id, remoteEntityId).length > 0)
 
     m_db.delete_entity(entityId)
     if m_db.get_relation_to_local_entity_count(entityId) != 0 {
@@ -867,13 +866,13 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
            "get_relation_to_local_entity_count(entityIdInNewTransaction) is " + m_db.get_relation_to_local_entity_count(entityId) + ".")
     }
     assert(intercept[Exception] {
-                                  m_db.getRelationToLocalEntityData(rel_type_id, entityId, related_entity_id)
+                                  m_db.get_relation_to_local_entity_data(rel_type_id, entityId, related_entity_id)
                                 }.getMessage.contains("Got 0 instead of 1 result"))
     assert(intercept[Exception] {
-                                  m_db.getRelationToRemoteEntityData(rel_type_id, entityId, oi.get_id, related_entity_id)
+                                  m_db.get_relation_to_remote_entity_data(rel_type_id, entityId, oi.get_id, related_entity_id)
                                 }.getMessage.contains("Got 0 instead of 1 result"))
 
-    m_db.deleteRelationType(rel_type_id)
+    m_db.delete_relation_type(rel_type_id)
   }
 
   "attributes" should "handle valid_on_dates properly in & out of db" in {
@@ -903,19 +902,19 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 
     fn createTestQuantityAttributeWithTwoEntities(inParentId: i64, inValidOnDate: Option<i64> = None) -> i64 {
     let unitId: i64 = m_db.createEntity("centimeters");
-    let attrTypeId: i64 = m_db.createEntity(QUANTITY_TYPE_NAME);
+    let attr_type_id: i64 = m_db.createEntity(QUANTITY_TYPE_NAME);
     let defaultDate: i64 = System.currentTimeMillis;
     let valid_on_date: Option<i64> = inValidOnDate;
-    let observationDate: i64 = defaultDate;
+    let observation_date: i64 = defaultDate;
     let number: Float = 50;
-    let quantityId: i64 = m_db.createQuantityAttribute(inParentId, attrTypeId, unitId, number, valid_on_date, observationDate);
+    let quantityId: i64 = m_db.create_quantity_attribute(inParentId, attr_type_id, unitId, number, valid_on_date, observation_date);
 
     // and verify it:
     let qa: QuantityAttribute = new QuantityAttribute(m_db, quantityId);
     assert(qa.get_parent_id() == inParentId)
     assert(qa.getUnitId == unitId)
     assert(qa.getNumber == number)
-    assert(qa.get_attr_type_id() == attrTypeId)
+    assert(qa.get_attr_type_id() == attr_type_id)
     if inValidOnDate.isEmpty {
       assert(qa.get_valid_on_date().isEmpty)
     } else {
@@ -923,49 +922,49 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       let gotDate: i64 = qa.get_valid_on_date().get;
       assert(inDate == gotDate)
     }
-    assert(qa.get_observation_date() == observationDate)
+    assert(qa.get_observation_date() == observation_date)
     quantityId
   }
 
     fn createTestTextAttributeWithOneEntity(inParentId: i64, inValidOnDate: Option<i64> = None) -> i64 {
-    let attrTypeId: i64 = m_db.createEntity("textAttributeTypeLikeSsn");
+    let attr_type_id: i64 = m_db.createEntity("textAttributeTypeLikeSsn");
     let defaultDate: i64 = System.currentTimeMillis;
     let valid_on_date: Option<i64> = inValidOnDate;
-    let observationDate: i64 = defaultDate;
+    let observation_date: i64 = defaultDate;
     let text: String = "some test text";
-    let textAttributeId: i64 = m_db.create_text_attribute(inParentId, attrTypeId, text, valid_on_date, observationDate);
+    let text_attribute_id: i64 = m_db.create_text_attribute(inParentId, attr_type_id, text, valid_on_date, observation_date);
 
     // and verify it:
-    let ta: TextAttribute = new TextAttribute(m_db, textAttributeId);
+    let ta: TextAttribute = new TextAttribute(m_db, text_attribute_id);
     assert(ta.get_parent_id() == inParentId)
-    assert(ta.getText == text)
-    assert(ta.get_attr_type_id() == attrTypeId)
+    assert(ta.get_text == text)
+    assert(ta.get_attr_type_id() == attr_type_id)
     if inValidOnDate.isEmpty {
       assert(ta.get_valid_on_date().isEmpty)
     } else {
       assert(ta.get_valid_on_date().get == inValidOnDate.get)
     }
-    assert(ta.get_observation_date() == observationDate)
+    assert(ta.get_observation_date() == observation_date)
 
-    textAttributeId
+    text_attribute_id
   }
 
     fn createTestDateAttributeWithOneEntity(inParentId: i64) -> i64 {
-    let attrTypeId: i64 = m_db.createEntity("dateAttributeType--likeDueOn");
+    let attr_type_id: i64 = m_db.createEntity("dateAttributeType--likeDueOn");
     let date: i64 = System.currentTimeMillis;
-    let dateAttributeId: i64 = m_db.createDateAttribute(inParentId, attrTypeId, date);
+    let dateAttributeId: i64 = m_db.create_date_attribute(inParentId, attr_type_id, date);
     let ba: DateAttribute = new DateAttribute(m_db, dateAttributeId);
     assert(ba.get_parent_id() == inParentId)
     assert(ba.getDate == date)
-    assert(ba.get_attr_type_id() == attrTypeId)
+    assert(ba.get_attr_type_id() == attr_type_id)
     dateAttributeId
   }
 
     fn createTestBooleanAttributeWithOneEntity(inParentId: i64, valIn: bool, inValidOnDate: Option<i64> = None, observation_date_in: i64) -> i64 {
-    let attrTypeId: i64 = m_db.createEntity("boolAttributeType-like-isDone");
-    let booleanAttributeId: i64 = m_db.create_boolean_attribute(inParentId, attrTypeId, valIn, inValidOnDate, observation_date_in);
+    let attr_type_id: i64 = m_db.createEntity("boolAttributeType-like-isDone");
+    let booleanAttributeId: i64 = m_db.create_boolean_attribute(inParentId, attr_type_id, valIn, inValidOnDate, observation_date_in);
     let ba = new BooleanAttribute(m_db, booleanAttributeId);
-    assert(ba.get_attr_type_id() == attrTypeId)
+    assert(ba.get_attr_type_id() == attr_type_id)
     assert(ba.get_boolean == valIn)
     assert(ba.get_valid_on_date() == inValidOnDate)
     assert(ba.get_parent_id() == inParentId)
@@ -974,7 +973,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
   }
 
     fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: bool = true) -> FileAttribute {
-    let attrTypeId: i64 = m_db.createEntity("fileAttributeType");
+    let attr_type_id: i64 = m_db.createEntity("fileAttributeType");
     let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
     let mut writer: java.io.FileWriter = null;
     let mut verificationFile: java.io.File = null;
@@ -997,7 +996,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       let mut fa: FileAttribute = null;
       try {
         inputStream = new java.io.FileInputStream(file)
-        fa = inParentEntity.addFileAttribute(attrTypeId, inDescr, file)
+        fa = inParentEntity.addFileAttribute(attr_type_id, inDescr, file)
       } finally {
         if inputStream != null { inputStream.close() }
       }
@@ -1005,7 +1004,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       if verifyIn {
         // this first part is just testing DB consistency from add to retrieval, not the actual file:
         assert(fa.get_parent_id() == inParentEntity.get_id)
-        assert(fa.get_attr_type_id() == attrTypeId)
+        assert(fa.get_attr_type_id() == attr_type_id)
         assert((fa.getStoredDate - (sleepPeriod - 1)) > fa.getOriginalFileDate)
         // (easily fails if the program pauses when debugging):
         assert((fa.getStoredDate - 10000) < fa.getOriginalFileDate)
@@ -1036,8 +1035,8 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     // idea: could use here instead: db.createEntityAndRelationToLocalEntity
     let related_entity_id: i64 = m_db.createEntity(RELATED_ENTITY_NAME);
     let valid_on_date: Option<i64> = if inValidOnDate.isEmpty { None } else { inValidOnDate };
-    let observationDate: i64 = System.currentTimeMillis;
-    let id = m_db.createRelationToLocalEntity(inRelTypeId, inEntityId, related_entity_id, valid_on_date, observationDate).get_id;
+    let observation_date: i64 = System.currentTimeMillis;
+    let id = m_db.createRelationToLocalEntity(inRelTypeId, inEntityId, related_entity_id, valid_on_date, observation_date).get_id;
 
     // and verify it:
     let rtle: RelationToLocalEntity = new RelationToLocalEntity(m_db, id, inRelTypeId, inEntityId, related_entity_id);
@@ -1048,7 +1047,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
       let gotDt: i64 = rtle.get_valid_on_date().get;
       assert(inDt == gotDt)
     }
-    assert(rtle.get_observation_date() == observationDate)
+    assert(rtle.get_observation_date() == observation_date)
     related_entity_id
   }
 
@@ -1068,7 +1067,7 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
 true
 }
 //noinspection ScalaUselessExpression  (intentional style violation, for readability)
-override fn doDatabaseUpgradesIfNeeded() {
+override fn do_database_upgrades_if_needed() {
 Unit
 }
     }
@@ -1106,7 +1105,7 @@ Unit
     let personTemplateEntityId: i64 = m_db.findEntityOnlyIdsByName(PERSON_TEMPLATE).get.head;
     // idea: make this next part more scala-like (but only if still very simple to read for programmers who are used to other languages):
     let mut found = false;
-    let entitiesInGroup: Vec<Entity> = m_db.getGroupEntryObjects(groupIdOfClassTemplates.get, 0);
+    let entitiesInGroup: Vec<Entity> = m_db.get_group_entry_objects(groupIdOfClassTemplates.get, 0);
     for (entity <- entitiesInGroup.toArray) {
       if entity.asInstanceOf[Entity].get_id == personTemplateEntityId {
         found = true
@@ -1149,7 +1148,7 @@ Unit
     // now there should be a change:
     assert(allContainedWithName4.size == 1, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
 
-    let editorCmd = m_db.getTextEditorCommand;
+    let editorCmd = m_db.get_text_editor_command;
     if Util::isWindows { assert(editorCmd.contains("notepad")) }
     else {
     assert(editorCmd == "vi") }
@@ -1158,32 +1157,32 @@ Unit
   "isDuplicateEntity" should "work" in {
     let name: String = "testing isDuplicateEntity";
     let entityId: i64 = m_db.createEntity(name);
-    assert(m_db.isDuplicateEntityName(name))
-    assert(!m_db.isDuplicateEntityName(name, Some(entityId)))
+    assert(m_db.is_duplicate_entity_name(name))
+    assert(!m_db.is_duplicate_entity_name(name, Some(entityId)))
 
     let entityWithSpaceInNameId: i64 = m_db.createEntity(name + " ");
-    assert(!m_db.isDuplicateEntityName(name + " ", Some(entityWithSpaceInNameId)))
+    assert(!m_db.is_duplicate_entity_name(name + " ", Some(entityWithSpaceInNameId)))
 
     let entityIdWithLowercaseName: i64 = m_db.createEntity(name.toLowerCase);
-    assert(m_db.isDuplicateEntityName(name, Some(entityIdWithLowercaseName)))
+    assert(m_db.is_duplicate_entity_name(name, Some(entityIdWithLowercaseName)))
 
-    m_db.updateEntityOnlyName(entityId, name.toLowerCase)
-    assert(m_db.isDuplicateEntityName(name, Some(entityIdWithLowercaseName)))
-    assert(m_db.isDuplicateEntityName(name, Some(entityId)))
+    m_db.update_entity_only_name(entityId, name.toLowerCase)
+    assert(m_db.is_duplicate_entity_name(name, Some(entityIdWithLowercaseName)))
+    assert(m_db.is_duplicate_entity_name(name, Some(entityId)))
 
     m_db.delete_entity(entityIdWithLowercaseName)
-    assert(!m_db.isDuplicateEntityName(name, Some(entityId)))
+    assert(!m_db.is_duplicate_entity_name(name, Some(entityId)))
 
     // intentionally put some uppercase letters for later comparison w/ lowercase.
     let relTypeName = name + "-RelationType";
     let rel_type_id: i64 = m_db.createRelationType("testingOnly", relTypeName, RelationType.UNIDIRECTIONAL);
-    assert(m_db.isDuplicateEntityName(relTypeName))
-    assert(!m_db.isDuplicateEntityName(relTypeName, Some(rel_type_id)))
+    assert(m_db.is_duplicate_entity_name(relTypeName))
+    assert(!m_db.is_duplicate_entity_name(relTypeName, Some(rel_type_id)))
 
     m_db.begin_trans()
-    m_db.updateEntityOnlyName(entityId, relTypeName.toLowerCase)
-    assert(m_db.isDuplicateEntityName(relTypeName, Some(entityId)))
-    assert(m_db.isDuplicateEntityName(relTypeName, Some(rel_type_id)))
+    m_db.update_entity_only_name(entityId, relTypeName.toLowerCase)
+    assert(m_db.is_duplicate_entity_name(relTypeName, Some(entityId)))
+    assert(m_db.is_duplicate_entity_name(relTypeName, Some(rel_type_id)))
     // because setting an entity name to relTypeName doesn't really make sense, was just for that part of the test.
     m_db.rollback_trans()
   }
@@ -1194,24 +1193,24 @@ Unit
     assert(EntityClass.isDuplicate(m_db, name))
     assert(!EntityClass.isDuplicate(m_db, name, Some(classId)))
 
-    m_db.updateClassName(classId, name.toLowerCase)
+    m_db.update_class_name(classId, name.toLowerCase)
     assert(!EntityClass.isDuplicate(m_db, name, Some(classId)))
     assert(EntityClass.isDuplicate(m_db, name.toLowerCase))
     assert(!EntityClass.isDuplicate(m_db, name.toLowerCase, Some(classId)))
-    m_db.updateClassName(classId, name)
+    m_db.update_class_name(classId, name)
 
-    m_db.updateClassCreateDefaultAttributes(classId, Some(false))
+    m_db.update_class_create_default_attributes(classId, Some(false))
     let should1: Option<bool> = new EntityClass(m_db, classId).getCreateDefaultAttributes;
     assert(!should1.get)
-    m_db.updateClassCreateDefaultAttributes(classId, None)
+    m_db.update_class_create_default_attributes(classId, None)
     let should2: Option<bool> = new EntityClass(m_db, classId).getCreateDefaultAttributes;
     assert(should2.isEmpty)
-    m_db.updateClassCreateDefaultAttributes(classId, Some(true))
+    m_db.update_class_create_default_attributes(classId, Some(true))
     let should3: Option<bool> = new EntityClass(m_db, classId).getCreateDefaultAttributes;
     assert(should3.get)
 
-    m_db.updateEntitysClass(entityId, None)
-    m_db.deleteClassAndItsTemplateEntity(classId)
+    m_db.update_entitys_class(entityId, None)
+    m_db.delete_class_and_its_template_entity(classId)
     assert(!EntityClass.isDuplicate(m_db, name, Some(classId)))
     assert(!EntityClass.isDuplicate(m_db, name))
 
@@ -1225,10 +1224,10 @@ Unit
     let entityName = "test: PSQLDbTest.testgroup-class-uniqueness" + "--theEntity";
     let (classId, entityId) = m_db.createClassAndItsTemplateEntity(entityName, entityName);
     let (classId2, entityId2) = m_db.createClassAndItsTemplateEntity(entityName + 2, entityName + 2);
-    let classCount = m_db.getClassCount();
-    let classes = m_db.getClasses(0);
+    let classCount = m_db.get_class_count();
+    let classes = m_db.get_classes(0);
     assert(classCount == classes.size)
-    let classCountLimited = m_db.getClassCount(Some(entityId2));
+    let classCountLimited = m_db.get_class_count(Some(entityId2));
     assert(classCountLimited == 1)
 
     //whatever, just need some relation type to go with:
@@ -1236,25 +1235,25 @@ Unit
     let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id, "test: PSQLDbTest.testgroup-class-uniqueness",;
                                                                              Some(12345L), allowMixedClassesIn = false)._1
     let group: Group = new Group(m_db, groupId);
-    assert(! m_db.isEntityInGroup(groupId, entityId))
-    assert(! m_db.isEntityInGroup(groupId, entityId))
+    assert(! m_db.is_entity_in_group(groupId, entityId))
+    assert(! m_db.is_entity_in_group(groupId, entityId))
     group.addEntity(entityId)
-    assert(m_db.isEntityInGroup(groupId, entityId))
-    assert(! m_db.isEntityInGroup(groupId, entityId2))
+    assert(m_db.is_entity_in_group(groupId, entityId))
+    assert(! m_db.is_entity_in_group(groupId, entityId2))
 
     //should fail due to mismatched classId (a long):
     assert(intercept[Exception] {
                                   group.addEntity(entityId2)
                                 }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
     // should succeed (same class now):
-    m_db.updateEntitysClass(entityId2, Some(classId))
+    m_db.update_entitys_class(entityId2, Some(classId))
     group.addEntity(entityId2)
     // ...and for convenience while here, make sure we can't make mixed classes with changing the *entity* either:
     assert(intercept[Exception] {
-                                  m_db.updateEntitysClass(entityId2, Some(classId2))
+                                  m_db.update_entitys_class(entityId2, Some(classId2))
                                 }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
     assert(intercept[Exception] {
-                                  m_db.updateEntitysClass(entityId2, None)
+                                  m_db.update_entitys_class(entityId2, None)
                                 }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
 
     //should fail due to mismatched classId (NULL):
@@ -1276,12 +1275,12 @@ Unit
     assert(m_db.getGroupSize(groupId, 2) == 0)
     assert(m_db.getGroupSize(groupId, 1) == groupSizeBeforeRemoval)
     assert(m_db.getGroupSize(groupId) == groupSizeBeforeRemoval)
-    m_db.archiveEntity(entityId2)
+    m_db.archive_entity(entityId2)
     assert(m_db.getGroupSize(groupId, 2) == 1)
     assert(m_db.getGroupSize(groupId, 1) == groupSizeBeforeRemoval - 1)
     assert(m_db.getGroupSize(groupId) == groupSizeBeforeRemoval)
 
-    m_db.removeEntityFromGroup(groupId, entityId2)
+    m_db.remove_entity_from_group(groupId, entityId2)
     let groupSizeAfterRemoval = m_db.getGroupSize(groupId);
     assert(groupSizeAfterRemoval < groupSizeBeforeRemoval)
 
@@ -1290,46 +1289,46 @@ Unit
     assert(m_db.getGroupSize(groupId) == groupSizeBeforeRemoval - 1)
   }
 
-  "getEntitiesOnly and ...Count" should "allow limiting results by classId and/or group containment" in {
+  "get_entities_only and ...Count" should "allow limiting results by classId and/or group containment" in {
     // idea: this could be rewritten to not depend on pre-existing data to fail when it's supposed to fail.
-    let startingEntityCount = m_db.getEntitiesOnlyCount();
+    let startingEntityCount = m_db.get_entities_only_count();
     let someClassId: i64 = m_db.db_query_wrapper_for_one_row("select id from class limit 1", "i64")(0).get.asInstanceOf[i64];
     let numEntitiesInClass = m_db.extract_row_count_from_count_query("select count(1) from entity where class_id=" + someClassId);
     assert(startingEntityCount > numEntitiesInClass)
-    let allEntitiesInClass = m_db.getEntitiesOnly(0, None, Some(someClassId), limitByClass = true);
-    let allEntitiesInClassCount1 = m_db.getEntitiesOnlyCount(limitByClass = true, Some(someClassId));
-    let allEntitiesInClassCount2 = m_db.getEntitiesOnlyCount(limitByClass = true, Some(someClassId), None);
+    let allEntitiesInClass = m_db.get_entities_only(0, None, Some(someClassId), limit_by_class = true);
+    let allEntitiesInClassCount1 = m_db.get_entities_only_count(limit_by_class = true, Some(someClassId));
+    let allEntitiesInClassCount2 = m_db.get_entities_only_count(limit_by_class = true, Some(someClassId), None);
     assert(allEntitiesInClassCount1 == allEntitiesInClassCount2)
-    let templateClassId: i64 = new EntityClass(m_db, someClassId).getTemplateEntityId;
-    let allEntitiesInClassCountWoClass = m_db.getEntitiesOnlyCount(limitByClass = true, Some(someClassId), Some(templateClassId));
+    let templateClassId: i64 = new EntityClass(m_db, someClassId).get_template_entity_id;
+    let allEntitiesInClassCountWoClass = m_db.get_entities_only_count(limit_by_class = true, Some(someClassId), Some(templateClassId));
     assert(allEntitiesInClassCountWoClass == allEntitiesInClassCount1 - 1)
     assert(allEntitiesInClass.size == allEntitiesInClassCount1)
-    assert(allEntitiesInClass.size < m_db.getEntitiesOnly(0, None, Some(someClassId), limitByClass = false).size)
+    assert(allEntitiesInClass.size < m_db.get_entities_only(0, None, Some(someClassId), limit_by_class = false).size)
     assert(allEntitiesInClass.size == numEntitiesInClass)
     let e: Entity = allEntitiesInClass.get(0);
     assert(e.getClassId.get == someClassId)
 
     // part 2:
     // some setup, confirm good
-    let startingEntityCount2 = m_db.getEntitiesOnlyCount();
+    let startingEntityCount2 = m_db.get_entities_only_count();
     let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     let id1: i64 = m_db.createEntity("name1");
     let (group, rtg) = new Entity(m_db, id1).addGroupAndRelationToGroup(rel_type_id, "someRelToGroupName", allowMixedClassesInGroupIn = false, None, 1234L,;
                                                                        None, caller_manages_transactions_in = false)
-    assert(m_db.relationToGroupKeysExist(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.getGroupId))
+    assert(m_db.relation_to_group_keys_exist(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.getGroupId))
     assert(m_db.attribute_key_exists(rtg.get_form_id, rtg.get_id))
     let id2: i64 = m_db.createEntity("name2");
     group.addEntity(id2)
-    let entityCountAfterCreating = m_db.getEntitiesOnlyCount();
-    assert(entityCountAfterCreating == startingEntityCount2 + 2)
-    let resultSize = m_db.getEntitiesOnly(0).size();
-    assert(entityCountAfterCreating == resultSize)
-    let resultSizeWithNoneParameter = m_db.getEntitiesOnly(0, None, groupToOmitIdIn = None).size();
-    assert(entityCountAfterCreating == resultSizeWithNoneParameter)
+    let entity_countAfterCreating = m_db.get_entities_only_count();
+    assert(entity_countAfterCreating == startingEntityCount2 + 2)
+    let resultSize = m_db.get_entities_only(0).size();
+    assert(entity_countAfterCreating == resultSize)
+    let resultSizeWithNoneParameter = m_db.get_entities_only(0, None, group_to_omit_id_in = None).size();
+    assert(entity_countAfterCreating == resultSizeWithNoneParameter)
 
     // the real part 2 test
-    let resultSizeWithGroupOmission = m_db.getEntitiesOnly(0, None, groupToOmitIdIn = Some(group.get_id)).size();
-    assert(entityCountAfterCreating - 1 == resultSizeWithGroupOmission)
+    let resultSizeWithGroupOmission = m_db.get_entities_only(0, None, group_to_omit_id_in = Some(group.get_id)).size();
+    assert(entity_countAfterCreating - 1 == resultSizeWithGroupOmission)
   }
 
   "EntitiesInAGroup table (or methods? ick)" should "allow all a group's entities to have no class" in {
@@ -1354,27 +1353,27 @@ Unit
                                 }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
   }
 
-  "getEntitiesOnlyCount" should "not count entities used as relation types or attribute types" in {
-    let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.getEntitiesOnlyCount");
-    let c1 = m_db.getEntitiesOnlyCount();
-    assert(m_db.getEntitiesOnlyCount() == c1)
+  "get_entities_only_count" should "not count entities used as relation types or attribute types" in {
+    let entityId = m_db.createEntity("test: org.onemodel.PSQLDbTest.get_entities_only_count");
+    let c1 = m_db.get_entities_only_count();
+    assert(m_db.get_entities_only_count() == c1)
     let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    assert(m_db.getEntitiesOnlyCount() == c1)
+    assert(m_db.get_entities_only_count() == c1)
     createTestRelationToLocalEntity_WithOneEntity(entityId, rel_type_id)
     let c2 = c1 + 1;
-    assert(m_db.getEntitiesOnlyCount() == c2)
+    assert(m_db.get_entities_only_count() == c2)
 
     // this kind shouldn't matter--confirming:
     let rel_type_id2: i64 = m_db.createRelationType("contains2", "", RelationType.UNIDIRECTIONAL);
     DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id2)
-    assert(m_db.getEntitiesOnlyCount() == c2)
+    assert(m_db.get_entities_only_count() == c2)
 
-    let prevEntitiesUsedAsAttributeTypes = m_db.getCountOfEntitiesUsedAsAttributeTypes(Util::DATE_TYPE, quantitySeeksUnitNotTypeIn = false);
+    let prevEntitiesUsedAsAttributeTypes = m_db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false);
     let dateAttributeId = createTestDateAttributeWithOneEntity(entityId);
     let dateAttribute = new DateAttribute(m_db, dateAttributeId);
-    assert(m_db.getCountOfEntitiesUsedAsAttributeTypes(Util::DATE_TYPE, quantitySeeksUnitNotTypeIn = false) == prevEntitiesUsedAsAttributeTypes + 1)
-    assert(m_db.getEntitiesOnlyCount() == c2)
-    let dateAttributeTypeEntities: Array[Entity] = m_db.getEntitiesUsedAsAttributeTypes(Util::DATE_TYPE, 0, quantitySeeksUnitNotTypeIn = false);
+    assert(m_db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false) == prevEntitiesUsedAsAttributeTypes + 1)
+    assert(m_db.get_entities_only_count() == c2)
+    let dateAttributeTypeEntities: Array[Entity] = m_db.get_entities_used_as_attribute_types(Util::DATE_TYPE, 0, quantity_seeks_unit_not_type_in = false);
                                                    .toArray(new Array[Entity](0 ))
     let mut found = false;
     for (dateAttributeType: Entity <- dateAttributeTypeEntities.toArray) {
@@ -1385,30 +1384,30 @@ Unit
     assert(found)
 
     createTestBooleanAttributeWithOneEntity(entityId, valIn = false, None, 0)
-    assert(m_db.getEntitiesOnlyCount() == c2)
+    assert(m_db.get_entities_only_count() == c2)
 
     createTestFileAttributeAndOneEntity(new Entity(m_db, entityId), "desc", 2, verifyIn = false)
-    assert(m_db.getEntitiesOnlyCount() == c2)
+    assert(m_db.get_entities_only_count() == c2)
 
   }
 
-  "getMatchingEntities & Groups" should "work" in {
-    let entityId1 = m_db.createEntity("test: org.onemodel.PSQLDbTest.getMatchingEntities1--abc");
+  "get_matching_entities & Groups" should "work" in {
+    let entityId1 = m_db.createEntity("test: org.onemodel.PSQLDbTest.get_matching_entities1--abc");
     let entity1 = new Entity(m_db, entityId1);
-    let entityId2 = m_db.createEntity("test: org.onemodel.PSQLDbTest.getMatchingEntities2");
+    let entityId2 = m_db.createEntity("test: org.onemodel.PSQLDbTest.get_matching_entities2");
     m_db.create_text_attribute(entityId1, entityId2, "defg", None, 0)
-    let entities1 = m_db.getMatchingEntities(0, None, None, "abc");
+    let entities1 = m_db.get_matching_entities(0, None, None, "abc");
     assert(entities1.size == 1)
     m_db.create_text_attribute(entityId2, entityId1, "abc", None, 0)
-    let entities2 = m_db.getMatchingEntities(0, None, None, "abc");
+    let entities2 = m_db.get_matching_entities(0, None, None, "abc");
     assert(entities2.size == 2)
 
     let rel_type_id: i64 = m_db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let groupName = "someRelToGroupName";
-    entity1.addGroupAndRelationToGroup(rel_type_id, groupName, allowMixedClassesInGroupIn = false, None, 1234L,
+    let group_name = "someRelToGroupName";
+    entity1.addGroupAndRelationToGroup(rel_type_id, group_name, allowMixedClassesInGroupIn = false, None, 1234L,
                                        None, caller_manages_transactions_in = false)
-    assert(m_db.getMatchingGroups(0, None, None, "some-xyz-not a grp name").size == 0)
-    assert(m_db.getMatchingGroups(0, None, None, groupName).size > 0)
+    assert(m_db.get_matching_groups(0, None, None, "some-xyz-not a grp name").size == 0)
+    assert(m_db.get_matching_groups(0, None, None, group_name).size > 0)
   }
 
   //idea: should this be moved to ImportExportTest? why did i put it here originally?
@@ -1418,7 +1417,7 @@ Unit
     let entity: Entity = new Entity(m_db, entityId);
     let importExport = new ImportExport(null, new Controller(null, false, Some(Database.TEST_USER), Some(Database.TEST_PASS)));
     let importFile: File = importExport.tryImporting_FOR_TESTS("testImportFile0.txt", entity);
-    let ids: java.util.ArrayList[i64] = m_db.findAllEntityIdsByName("vsgeer-testing-getJournal-in-db");
+    let ids: java.util.ArrayList[i64] = m_db.find_all_entity_ids_by_name("vsgeer-testing-getJournal-in-db");
     let (fileContents: String, outputFile: File) = importExport.tryExportingTxt_FOR_TESTS(ids, m_db);
     // (next 3 lines are redundant w/ a similar test in ImportExportTest, but are here to make sure the data
     // is as expected before proceeding with the actual purpose of this test:)
@@ -1426,33 +1425,33 @@ Unit
     assert(fileContents.contains("record/report/review"), "unexpected file contents:  " + fileContents)
     assert(outputFile.length == importFile.length)
 
-    m_db.archiveEntity(entityId)
+    m_db.archive_entity(entityId)
     let endDataSetupTime = System.currentTimeMillis();
 
-    let results: util.ArrayList[(i64, String, i64)] = m_db.findJournalEntries(startDataSetupTime, endDataSetupTime);
+    let results: util.ArrayList[(i64, String, i64)] = m_db.find_journal_entries(startDataSetupTime, endDataSetupTime);
     assert(results.size > 0)
   }
 
-  "getTextAttributeByNameForEntity" should "fail when no rows found" in {
+  "get_textAttributeByNameForEntity" should "fail when no rows found" in {
     intercept[org.onemodel.core.OmDatabaseException] {
                                      let systemEntityId = m_db.getSystemEntityId;
-                                     m_db.getTextAttributeByTypeId(systemEntityId, 1L, Some(1))
+                                     m_db.get_text_attribute_by_type_id(systemEntityId, 1L, Some(1))
                                    }
   }
 
-  "getRelationsToGroupContainingThisGroup and getContainingRelationsToGroup" should "work" in {
-    let entityId: i64 = m_db.createEntity("test: getRelationsToGroupContainingThisGroup...");
-    let entityId2: i64 = m_db.createEntity("test: getRelationsToGroupContainingThisGroup2...");
-    let rel_type_id: i64 = m_db.createRelationType("contains in getRelationsToGroupContainingThisGroup", "", RelationType.UNIDIRECTIONAL);
+  "get_relations_to_group_containing_this_group and get_containing_relations_to_group" should "work" in {
+    let entityId: i64 = m_db.createEntity("test: get_relations_to_group_containing_this_group...");
+    let entityId2: i64 = m_db.createEntity("test: get_relations_to_group_containing_this_group2...");
+    let rel_type_id: i64 = m_db.createRelationType("contains in get_relations_to_group_containing_this_group", "", RelationType.UNIDIRECTIONAL);
     let (groupId, rtg) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(m_db, entityId, rel_type_id,;
-                                                                                    "some group name in getRelationsToGroupContainingThisGroup")
+                                                                                    "some group name in get_relations_to_group_containing_this_group")
     let group = new Group(m_db, groupId);
     group.addEntity(entityId2)
-    let rtgs = m_db.getRelationsToGroupContainingThisGroup(groupId, 0);
+    let rtgs = m_db.get_relations_to_group_containing_this_group(groupId, 0);
     assert(rtgs.size == 1)
     assert(rtgs.get(0).get_id == rtg.get_id)
 
-    let sameRtgs = m_db.getContainingRelationsToGroup(entityId2, 0);
+    let sameRtgs = m_db.get_containing_relations_to_group(entityId2, 0);
     assert(sameRtgs.size == 1)
     assert(sameRtgs.get(0).get_id == rtg.get_id)
   }

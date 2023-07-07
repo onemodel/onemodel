@@ -73,7 +73,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     let choices: Vec<String> = getChoices(entity_in, numAttrsInEntity);
     let numDisplayableAttributes: i32 = ui.maxColumnarChoicesToDisplayAfter(leading_text.length, choices.length, Util.maxNameLength);
     let (attributeTuples: Array[(i64, Attribute)], totalAttrsAvailable: Int) =;
-      entity_in.getSortedAttributes(attributeRowsStartingIndexIn, numDisplayableAttributes, onlyPublicEntitiesIn = false)
+      entity_in.get_sorted_attributes(attributeRowsStartingIndexIn, numDisplayableAttributes, only_public_entities_in = false)
     if (numAttrsInEntity > 0 && attributeRowsStartingIndexIn == 0) || attributeTuples.length > 0) {
       require(numAttrsInEntity > 0 && attributeTuples.length > 0)
     }
@@ -152,12 +152,12 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           // ask for less info when here, to add entity quickly w/ no fuss, like brainstorming. Like in QuickGroupMenu.  User can always use option 2.
           let newEntity: Option<Entity> = controller.askForNameAndWriteEntity(entity_in.m_db, Util.ENTITY_TYPE, leading_text_in = Some("NAME THE ENTITY:"));
           if newEntity.is_defined) {
-            let newAttribute: Attribute = entity_in.addHASRelationToLocalEntity(newEntity.get.get_id, None, System.currentTimeMillis());
+            let newAttribute: Attribute = entity_in.add_HAS_relation_to_local_entity(newEntity.get.get_id, None, System.currentTimeMillis());
             // The next 2 lines are so if adding a new entry on the 1st entry, and if the user so prefers, the new one becomes the
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
             let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.getNewEntriesStickToTop;
             let forward = !goingBackward;
-            let displayStartingRowNumber: i32 = placeEntryInPosition(entity_in.m_db, entity_in.get_id, entity_in.get_attribute_count(), 0, forwardNotBackIn = forward,;
+            let displayStartingRowNumber: i32 = placeEntryInPosition(entity_in.m_db, entity_in.get_id, entity_in.get_attribute_count(), 0, forward_not_back_in = forward,;
                                                                      attributeRowsStartingIndexIn, newAttribute.get_id,
                                                                      highlightedIndexInObjList.getOrElse(0),
                                                                      if highlightedEntry.is_defined) Some(highlightedEntry.get.get_id) else None,
@@ -195,7 +195,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
           let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.getNewEntriesStickToTop;
           let forward = !goingBackward;
-          placeEntryInPosition(entity_in.m_db, entity_in.get_id, entity_in.get_attribute_count(), 0, forwardNotBackIn = forward, attributeRowsStartingIndexIn,
+          placeEntryInPosition(entity_in.m_db, entity_in.get_id, entity_in.get_attribute_count(), 0, forward_not_back_in = forward, attributeRowsStartingIndexIn,
                                newAttribute.get.get_id, highlightedIndexInObjList.getOrElse(0),
                                if highlightedEntry.is_defined) Some(highlightedEntry.get.get_id) else None,
                                numDisplayableAttributes, newAttribute.get.get_form_id,
@@ -367,7 +367,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           case relToGroup: RelationToGroup =>
             new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(relToGroup.m_db, relToGroup.getGroupId),
                                                               0, Some(relToGroup), containingEntityIn = Some(entity_in))
-            if !relToGroup.m_db.groupKeyExists(relToGroup.getGroupId)) true
+            if !relToGroup.m_db.group_key_exists(relToGroup.getGroupId)) true
             else false
           case _ => throw new Exception("Unexpected choice has class " + o.getClass.get_name + "--what should we do here?")
         }
@@ -552,7 +552,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         }
         let displayStartingRowNumber: i32 = {;
           let possibleDisplayStartingRowNumber = placeEntryInPosition(entity_in.m_db, entity_in.get_id, totalAttrsAvailable, numRowsToMove,;
-                               forwardNotBackIn = forwardNotBack, starting_display_row_index_in, highlightedAttributeIn.get_id,
+                               forward_not_back_in = forwardNotBack, starting_display_row_index_in, highlightedAttributeIn.get_id,
                                highlightedIndexInObjListIn, Some(highlightedAttributeIn.get_id),
                                numObjectsToDisplayIn, highlightedAttributeIn.get_form_id,
                                Some(highlightedAttributeIn.get_form_id))
@@ -784,24 +784,24 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
   }
 
   protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
-                                                 forwardNotBackIn: bool) -> List[Array[Option[Any]]] {
+                                                 forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>> {
     let entity = new Entity(dbIn, entityIdIn);
-    entity.getAdjacentAttributesSortingIndexes(movingFromPosition_sortingIndexIn, queryLimitIn, forwardNotBackIn)
+    entity.get_adjacent_attributes_sorting_indexes(movingFromPosition_sortingIndexIn, queryLimitIn, forward_not_back_in)
   }
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64> {
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
     let entity = new Entity(dbIn, entityIdIn);
-    entity.getNearestAttributeEntrysSortingIndex(startingPointSortingIndexIn, forwardNotBackIn = forwardNotBackIn)
+    entity.get_nearest_attribute_entrys_sorting_index(starting_point_sorting_index_in, forward_not_back_in = forward_not_back_in)
   }
 
-  protected fn renumberSortingIndexes(dbIn: Database, entityIdIn: i64) -> /*Unit%%*/ {
+  protected fn renumber_sorting_indexes(dbIn: Database, entityIdIn: i64) -> /*Unit%%*/ {
     let entity = new Entity(dbIn, entityIdIn);
-    entity.renumberSortingIndexes()
+    entity.renumber_sorting_indexes()
   }
 
   protected fn updateSortedEntry(dbIn: Database, entityIdIn: i64, movingAttributeFormIdIn: Int, movingAttributeIdIn: i64, sortingIndexIn: i64) /*-> Unit%%*/ {
     let entity = new Entity(dbIn, entityIdIn);
-    entity.updateAttributeSortingIndex(movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
+    entity.update_attribute_sorting_index(movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
   }
 
   protected fn getSortingIndex(dbIn: Database, entityIdIn: i64, attribute_form_id_in: Int, attribute_id_in: i64) -> i64 {

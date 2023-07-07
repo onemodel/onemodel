@@ -25,7 +25,7 @@ object RelationToGroup {
   // new constructors just wasn't working out.
   // Idea: rename this to instantiateRelationToGroup, since create sounds like inserting a new row in the db. Not sure if there's a convention for that case.
     fn create_relation_to_group(m_db: Database, id_in: i64) -> RelationToGroup {
-    let relationData: Array[Option[Any]] = m_db.getRelationToGroupData(id_in);
+    let relationData: Vec<Option<DataType>> = m_db.get_relation_to_group_data(id_in);
     if relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + id_in)
     }
@@ -37,7 +37,7 @@ object RelationToGroup {
 /** See comments on similar methods in RelationToEntity (or maybe its subclasses). */
 class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64, mGroupId: i64) extends AttributeWithValidAndObservedDates(m_db, m_id) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if m_db.is_remote || m_db.relationToGroupKeysExistAndMatch(m_id, mEntityId, mRelTypeId, mGroupId)) {
+  if m_db.is_remote || m_db.relation_to_group_keys_exist_and_match(m_id, mEntityId, mRelTypeId, mGroupId)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' let mut doesn't overwrite this w/ 0:;
     m_attr_type_id = mRelTypeId
   } else {
@@ -45,10 +45,10 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
   }
 
   /** See comment about these 2 dates in PostgreSQLDatabase.create_tables() */
-    fn this(m_db: Database, id_in: i64, entity_id_in: i64, rel_type_idIn: i64, group_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+    fn this(m_db: Database, id_in: i64, entity_id_in: i64, rel_type_id_in: i64, group_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
            sorting_index_in: i64) {
-    this(m_db, id_in, entity_id_in, rel_type_idIn, group_id_in)
-    assignCommonVars(entity_id_in, rel_type_idIn, valid_on_date_in, observation_date_in, sorting_index_in)
+    this(m_db, id_in, entity_id_in, rel_type_id_in, group_id_in)
+    assignCommonVars(entity_id_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
   }
 
     fn getGroupId -> i64 {
@@ -69,7 +69,7 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
   }
 
   protected fn read_data_from_db() {
-    let relationData: Array[Option[Any]] = m_db.getRelationToGroupDataByKeys(mEntityId, mRelTypeId, mGroupId);
+    let relationData: Vec<Option<DataType>> = m_db.get_relation_to_group_data_by_keys(mEntityId, mRelTypeId, mGroupId);
     if relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mEntityId + ", " + mRelTypeId + ", " + mGroupId)
     }
@@ -78,30 +78,30 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
                            relationData(5).get.asInstanceOf[i64], relationData(6).get.asInstanceOf[i64])
   }
 
-    fn move(newContainingEntityIdIn: i64, sorting_index_in: i64) -> i64 {
-    m_db.moveRelationToGroup(get_id, newContainingEntityIdIn, sorting_index_in)
+    fn move(new_containing_entity_id_in: i64, sorting_index_in: i64) -> i64 {
+    m_db.move_relation_to_group(get_id, new_containing_entity_id_in, sorting_index_in)
   }
 
-    fn update(newRelationTypeIdIn: Option<i64>, newGroupIdIn: Option<i64>, valid_on_date_in:Option<i64>, observation_date_in:Option<i64>) {
+    fn update(new_relation_type_id_in: Option<i64>, new_group_id_in: Option<i64>, valid_on_date_in:Option<i64>, observation_date_in:Option<i64>) {
     //use valid_on_date_in rather than valid_on_date_in.get because valid_on_date allows None, unlike others
     //Idea/possible bug: see comment on similar method in RelationToEntity (or maybe in its subclasses).
-    let newRelationTypeId: i64 = if newRelationTypeIdIn.is_some()) newRelationTypeIdIn.get else get_attr_type_id();
-    let newGroupId: i64 = if newGroupIdIn.is_some()) newGroupIdIn.get else getGroupId;
+    let newRelationTypeId: i64 = if new_relation_type_id_in.is_some()) new_relation_type_id_in.get else get_attr_type_id();
+    let newGroupId: i64 = if new_group_id_in.is_some()) new_group_id_in.get else getGroupId;
     let vod = if valid_on_date_in.is_some()) valid_on_date_in else get_valid_on_date();
     let od = if observation_date_in.is_some()) observation_date_in.get else get_observation_date();
-    m_db.updateRelationToGroup(mEntityId, mRelTypeId, newRelationTypeId, mGroupId, newGroupId, vod, od)
+    m_db.update_relation_to_group(mEntityId, mRelTypeId, newRelationTypeId, mGroupId, newGroupId, vod, od)
     valid_on_date = vod
     observation_date = od
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    m_db.deleteRelationToGroup(mEntityId, mRelTypeId, mGroupId)
+    m_db.delete_relation_to_group(mEntityId, mRelTypeId, mGroupId)
     }
 
   /** Removes this object from the system. */
-    fn deleteGroupAndRelationsToIt() {
-    m_db.deleteGroupAndRelationsToIt(mGroupId)
+    fn delete_group_and_relations_to_it() {
+    m_db.delete_group_and_relations_to_it(mGroupId)
     }
 */
 }

@@ -19,16 +19,16 @@ class TextAttributeTest extends FlatSpec with MockitoSugar {
     let mockDB = mock[PostgreSQLDatabase];
     let entityId = 0;
     let otherEntityId = 1;
-    let textAttributeId = 0;
+    let text_attribute_id = 0;
     //arbitrary, in milliseconds:
     let date = 304;
     let attrTypeName = "description";
     let longDescription = "this is a long description of a thing which may or may not really have a description but here's some text";
     when(mockDB.get_entity_name(otherEntityId)).thenReturn(Some(attrTypeName))
-    when(mockDB.textAttributeKeyExists(textAttributeId)).thenReturn(true)
+    when(mockDB.text_attribute_key_exists(text_attribute_id)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    let textAttribute = new TextAttribute(mockDB, textAttributeId, entityId, otherEntityId, longDescription, None, date, 0);
+    let textAttribute = new TextAttribute(mockDB, text_attribute_id, entityId, otherEntityId, longDescription, None, date, 0);
     let smallLimit = 35;
     let display1: String = textAttribute.get_display_string(smallLimit, None, None);
     let wholeThing: String = attrTypeName + ": \"" + longDescription + "\"; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:"+date+" MST";

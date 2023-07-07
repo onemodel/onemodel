@@ -13,17 +13,17 @@ use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAnd
 use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgresql_database::PostgreSQLDatabase;
-use std::error::Error;
+// use std::error::Error;
 use std::str::FromStr;
 // use crate::controllers::controller::Controller;
-use crate::model::relation_type::*;
+// use crate::model::relation_type::*;
 use crate::text_ui::TextUI;
 use chrono::format::ParseResult;
-use chrono::offset::LocalResult;
+// use chrono::offset::LocalResult;
 use chrono::prelude::*;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use futures::stream_select;
-use sqlx::PgPool;
+// use futures::stream_select;
+// use sqlx::PgPool;
 use std::string::ToString;
 
 /// This is just a place to put shared code ("Utility") until a grouping for some, or a better idea emerges.  Using it also
@@ -194,6 +194,8 @@ impl Util {
     const FOOTER_CONTENT_TAG: &'static str = "htmlFooterContent";
     pub const LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION: &'static str =
         "(local: not for self-connection but to serve id to remotes)";
+    pub const SELECT_ENTITY_START: &'static str =
+        "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public, e.archived, e.new_entries_stick_to_top ";
 
     fn get_clipboard_content() -> String {
         // let clipboard: java.awt.datatransfer.Clipboard = java.awt.Toolkit.getDefaultToolkit.getSystemClipboard;
@@ -505,7 +507,7 @@ impl Util {
     //     }
     //   }
 
-    /// Returns (valid_on_date, observationDate, userWantsToCancel)
+    /// Returns (valid_on_date, observation_date, userWantsToCancel)
     /// The editing_in parameter (I think) being true means we are editing data, not adding new data.
     fn ask_for_attribute_valid_and_observed_dates(
         old_valid_on_date_in: Option<i64>,
@@ -910,7 +912,7 @@ impl Util {
         // 'y' as default, and storing the answer in the db.SYSTEM_ENTITY_NAME somewhere perhaps.
         //PUT THIS BACK (& review/test it) after taking the time to read the (Rust equivalent of the) Process package's classes or something like
         // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
-        //        let command: String = db.getTextEditorCommand;
+        //        let command: String = db.get_text_editor_command;
         //        ui.display_text("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for
         // existing " +
         //                       "entities, choose the first one (called " + PostgreSQLDatabase.SYSTEM_ENTITY_NAME + "), choose " +

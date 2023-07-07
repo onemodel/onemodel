@@ -39,14 +39,14 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct strings and length" in {
     let relationTypeName: String = "is husband to";
     let relationTypeNameInReverseDirection: String = "is wife to";
-    let relationTypeId: i64 = m_db.createRelationType(relationTypeName, relationTypeNameInReverseDirection, "BI");
-    let relationType = new RelationType(m_db, relationTypeId);
+    let relation_type_id: i64 = m_db.createRelationType(relationTypeName, relationTypeNameInReverseDirection, "BI");
+    let relationType = new RelationType(m_db, relation_type_id);
     let entity1Name = "husbandName";
     let entity2Name = "wifeName";
     let entity1 = new Entity(m_db, m_db.createEntity(entity1Name));
     let entity2 = new Entity(m_db, m_db.createEntity(entity2Name));
     let date = 304;
-    let rtle: RelationToLocalEntity = m_db.createRelationToLocalEntity(relationTypeId, entity1.get_id, entity2.get_id, None, date, Some(0));
+    let rtle: RelationToLocalEntity = m_db.createRelationToLocalEntity(relation_type_id, entity1.get_id, entity2.get_id, None, date, Some(0));
 
     let smallLimit = 15;
     let displayed1: String = rtle.get_display_string(smallLimit, Some(entity2), Some(relationType));
@@ -91,10 +91,10 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
 
     let groupId = m_db.create_group("group");
     let group = new Group(m_db, groupId);
-    assert(! group.isEntityInGroup(entity2.get_id))
+    assert(! group.is_entity_in_group(entity2.get_id))
     newRtle.moveEntityFromEntityToGroup(groupId, 0)
     assert(! m_db.relationToLocalentity_key_exists(newRtle.get_id))
-    assert(group.isEntityInGroup(entity2.get_id))
+    assert(group.is_entity_in_group(entity2.get_id))
   }
 
   "delete etc" should "work" in {
@@ -102,9 +102,9 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let entity2 = new Entity(m_db, m_db.createEntity("entity2"));
     let relType = new RelationType(m_db, m_db.createRelationType("reltype1", "", "UNI"));
     let rtle: RelationToLocalEntity = m_db.createRelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
-    assert(m_db.relationToLocalEntityExists(relType.get_id, entity1.get_id, entity2.get_id))
+    assert(m_db.relation_to_local_entity_exists(relType.get_id, entity1.get_id, entity2.get_id))
     rtle.delete()
-    assert(!m_db.relationToLocalEntityExists(relType.get_id, entity1.get_id, entity2.get_id))
+    assert(!m_db.relation_to_local_entity_exists(relType.get_id, entity1.get_id, entity2.get_id))
 
     // throwing in this test for ease & faster running: otherwise should be in RelationTypeTest:
     let newName = "new-reltype-name";

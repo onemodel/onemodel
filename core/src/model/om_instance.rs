@@ -18,8 +18,8 @@ object OmInstance {
     Database.om_instance_address_length
     }
 
-    fn isDuplicate(dbIn: Database, address_in: String, selfIdToIgnoreIn: Option<String> = None) -> bool {
-    dbIn.isDuplicateOmInstanceAddress(address_in, selfIdToIgnoreIn)
+    fn isDuplicate(dbIn: Database, address_in: String, self_id_to_ignore_in: Option<String> = None) -> bool {
+    dbIn.is_duplicate_om_instance_address(address_in, self_id_to_ignore_in)
   }
 
     fn create(dbIn: Database, id_in: String, address_in: String, entity_id_in: Option<i64> = None) -> OmInstance {
@@ -38,7 +38,7 @@ object OmInstance {
 class OmInstance(val m_db: Database, m_id: String) {
   //Idea: make m_id *etc* private in all model classes? and rename m_db to just db ("uniform access principle")?
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.omInstanceKeyExists(m_id)) {
+  if !m_db.is_remote && !m_db.om_instance_key_exists(m_id)) {
     throw new OmException("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
@@ -88,7 +88,7 @@ class OmInstance(val m_db: Database, m_id: String) {
   }
 
   protected fn read_data_from_db() {
-    let omInstanceData: Array[Option[Any]] = m_db.getOmInstanceData(m_id);
+    let omInstanceData: Vec<Option<DataType>> = m_db.get_om_instance_data(m_id);
     if omInstanceData.length == 0) {
       throw new OmException("No results returned from data request for: " + m_id)
     }
@@ -105,11 +105,11 @@ class OmInstance(val m_db: Database, m_id: String) {
   }
 
     fn update(newAddress: String) /*%%-> Unit*/ {
-    m_db.updateOmInstance(get_id, newAddress, getEntityId)
+    m_db.update_om_instance(get_id, newAddress, getEntityId)
   }
 
     fn delete() {
-    m_db.deleteOmInstance(m_id)
+    m_db.delete_om_instance(m_id)
     }
 
   let mut m_already_read_data: bool = false;

@@ -31,7 +31,7 @@ impl AttributeWithValidAndObservedDates {
     abstract class AttributeWithValidAndObservedDates(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
       protected fn assignCommonVars(parent_id_in: i64, attr_type_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: i64) {
         valid_on_date = valid_on_date_in
-        // observationDate is not expected to be None, like valid_on_date can be. See let mut def for more info.;
+        // observation_date is not expected to be None, like valid_on_date can be. See let mut def for more info.;
         observation_date = observation_date_in
         super.assignCommonVars(parent_id_in, attr_type_id_in, sorting_index_in)
       }

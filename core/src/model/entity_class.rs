@@ -20,13 +20,13 @@ object EntityClass {
      }
 
     fn isDuplicate(db_in: Database, inName: String, inSelfIdToIgnore: Option<i64> = None) -> bool {
-    db_in.isDuplicateClassName(inName, inSelfIdToIgnore)
+    db_in.is_duplicate_class_name(inName, inSelfIdToIgnore)
     }
 }
 
 class EntityClass(val m_db: Database, m_id: i64) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.classKeyExists(m_id)) {
+  if !m_db.is_remote && !m_db.class_key_exists(m_id)) {
     throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
@@ -47,7 +47,7 @@ class EntityClass(val m_db: Database, m_id: i64) {
     m_name
   }
 
-    fn getTemplateEntityId -> i64 {
+    fn get_template_entity_id -> i64 {
     if !m_already_read_data) read_data_from_db()
     mTemplateEntityId
   }
@@ -59,7 +59,7 @@ class EntityClass(val m_db: Database, m_id: i64) {
   }
 
   protected fn read_data_from_db() {
-    let classData: Array[Option[Any]] = m_db.getClassData(m_id);
+    let classData: Vec<Option<DataType>> = m_db.get_class_data(m_id);
     if classData.length == 0) {
       throw new OmException("No results returned from data request for: " + m_id)
     }
@@ -97,21 +97,21 @@ class EntityClass(val m_db: Database, m_id: i64) {
     result
   }
 
-    fn updateClassAndTemplateEntityName(name_in: String) -> i64 {
-    let templateEntityId = m_db.updateClassAndTemplateEntityName(this.get_id, name_in);
+    fn update_class_and_template_entity_name(name_in: String) -> i64 {
+    let template_entity_id = m_db.update_class_and_template_entity_name(this.get_id, name_in);
     m_name = name_in
-    require(templateEntityId == getTemplateEntityId)
-    templateEntityId
+    require(template_entity_id == get_template_entity_id)
+    template_entity_id
   }
 
     fn updateCreateDefaultAttributes(value_in: Option<bool>) /*%%-> Unit*/ {
-    m_db.updateClassCreateDefaultAttributes(get_id, value_in)
+    m_db.update_class_create_default_attributes(get_id, value_in)
     mCreateDefaultAttributes = value_in
   }
 
   /** Removes this object etc from the system. */
     fn delete() {
-    m_db.deleteClassAndItsTemplateEntity(m_id)
+    m_db.delete_class_and_its_template_entity(m_id)
     }
 
   let mut m_already_read_data: bool = false;

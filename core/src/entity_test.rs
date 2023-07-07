@@ -72,9 +72,9 @@ class EntityTest extends FlatSpec with MockitoSugar {
     m_db.begin_trans()
     println!("starting testAddTextAttribute")
     let id: i64 = mEntity.addTextAttribute(mTextAttrTypeId, "This is someName given to an object", None).get_id;
-    let t: TextAttribute = mEntity.getTextAttribute(id);
+    let t: TextAttribute = mEntity.get_textAttribute(id);
     if t == null {
-      fail("addTextAttribute then getTextAttribute returned null")
+      fail("addTextAttribute then get_textAttribute returned null")
     }
     assert(t.get_id == id)
     m_db.rollback_trans()
@@ -167,8 +167,8 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let classId = 1L;
     let mockDB = mock[PostgreSQLDatabase];
     when(mockDB.entity_key_exists(id)).thenReturn(true)
-    when(mockDB.getClassName(classId)).thenReturn(Some("class1Name"))
-    when(mockDB.get_entity_data(id)).thenReturn(Array[Option[Any]](Some("entity1Name"), Some(classId)))
+    when(mockDB.get_class_name(classId)).thenReturn(Some("class1Name"))
+    when(mockDB.get_entity_data(id)).thenReturn(Vec<Option<DataType>>(Some("entity1Name"), Some(classId)))
     // idea (is in tracked tasks): put next 3 lines back after color refactoring is done (& places w/ similar comment elsewhere)
     //val entity = new Entity(mockDB, id)
     //val ds = entity.get_display_string
@@ -179,16 +179,16 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let name2 = "entity2Name";
     let mockDB2 = mock[PostgreSQLDatabase];
     when(mockDB2.entity_key_exists(id2)).thenReturn(true)
-    when(mockDB2.get_entity_data(id2)).thenReturn(Array[Option[Any]](Some(name2), None))
-    when(mockDB2.getClassName(classId2)).thenReturn(None)
+    when(mockDB2.get_entity_data(id2)).thenReturn(Vec<Option<DataType>>(Some(name2), None))
+    when(mockDB2.get_class_name(classId2)).thenReturn(None)
     // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
     //val entity2 = new Entity(mockDB2, id2, name2, Some(false), Some(classId2))
     //val ds2 = entity2.get_display_string
     //assert(ds2 == name2)
 
-    when(mockDB2.getClassName(classId2)).thenReturn(Some("class2Name"))
-    when(mockDB2.getClassCount(Some(id2))).thenReturn(1)
-    when(mockDB2.get_entity_data(id2)).thenReturn(Array[Option[Any]](Some(name2), Some(classId2)))
+    when(mockDB2.get_class_name(classId2)).thenReturn(Some("class2Name"))
+    when(mockDB2.get_class_count(Some(id2))).thenReturn(1)
+    when(mockDB2.get_entity_data(id2)).thenReturn(Vec<Option<DataType>>(Some(name2), Some(classId2)))
     // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
     //assert(entity2.get_display_string == name2 + " (template entity (template) for class: " + "class2Name)")
   }
@@ -198,21 +198,21 @@ class EntityTest extends FlatSpec with MockitoSugar {
     let id = 1L;
     let classId = 2L;
     let className = "classname";
-    let templateEntityId = 3L;
+    let template_entity_id = 3L;
     when(mockDB.entity_key_exists(id)).thenReturn(true)
     let e = new Entity(mockDB, id, "entityname", None, 0L, Some(true), false, false);
     assert(e.getClassTemplateEntityId.isEmpty)
 
     let e2 = new Entity(mockDB, id, "entityname", Option(classId), 0L, Some(false), false, false);
-    when(mockDB.classKeyExists(classId)).thenReturn(true)
-    when(mockDB.getClassData(classId)).thenReturn(Array[Option[Any]](Some(className), Some(templateEntityId)))
-    assert(e2.getClassTemplateEntityId.get == templateEntityId)
+    when(mockDB.class_key_exists(classId)).thenReturn(true)
+    when(mockDB.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(template_entity_id)))
+    assert(e2.getClassTemplateEntityId.get == template_entity_id)
   }
 
   "updateContainedEntitiesPublicStatus" should "work" in {
     let e1Id: i64 = m_db.createEntity("test object1");
     let e1 = new Entity(m_db, e1Id);
-    mEntity.addHASRelationToLocalEntity(e1.get_id, Some(0), 0)
+    mEntity.add_HAS_relation_to_local_entity(e1.get_id, Some(0), 0)
     let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.addGroupAndRelationToGroup(mRelationTypeId, "grpName",;
                                                                                     allowMixedClassesInGroupIn = true, Some(0), 0, None)
     let e2Id: i64 = m_db.createEntity("test object2");
@@ -235,16 +235,16 @@ class EntityTest extends FlatSpec with MockitoSugar {
     assert(e2.get.getCountOfContainingLocalEntities._1 == 1)
     assert(e2.get.getLocalEntitiesContainingEntity().size == 1)
     /*val (e3id: i64, rte2id: i64) = */m_db.createEntityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e3", None, None, 0L)
-    assert(e1.getAdjacentAttributesSortingIndexes(Database.min_id_value).nonEmpty)
-    let nearestSortingIndex = e1.getNearestAttributeEntrysSortingIndex(Database.min_id_value).get;
+    assert(e1.get_adjacent_attributes_sorting_indexes(Database.min_id_value).nonEmpty)
+    let nearestSortingIndex = e1.get_nearest_attribute_entrys_sorting_index(Database.min_id_value).get;
     assert(nearestSortingIndex > Database.min_id_value)
-    e1.renumberSortingIndexes()
-    let nearestSortingIndex2 = e1.getNearestAttributeEntrysSortingIndex(Database.min_id_value).get;
+    e1.renumber_sorting_indexes()
+    let nearestSortingIndex2 = e1.get_nearest_attribute_entrys_sorting_index(Database.min_id_value).get;
     assert(nearestSortingIndex2 > nearestSortingIndex)
 
     let rte = RelationToLocalEntity.getRelationToLocalEntity(m_db, rteId).get;
     assert(! e1.is_attribute_sorting_index_in_use(Database.max_id_value))
-    e1.updateAttributeSortingIndex(rte.get_form_id, rte.get_id, Database.max_id_value)
+    e1.update_attribute_sorting_index(rte.get_form_id, rte.get_id, Database.max_id_value)
     assert(e1.getAttributeSortingIndex(rte.get_form_id, rte.get_id) == Database.max_id_value)
     assert(e1.is_attribute_sorting_index_in_use(Database.max_id_value))
     assert(e1.find_unused_attribute_sorting_index() != Database.max_id_value)
@@ -252,9 +252,9 @@ class EntityTest extends FlatSpec with MockitoSugar {
     e2.get.archive()
     assert(e1.get_relation_to_local_entity_count(include_archived_entities_in = false) == 1)
     assert(e1.get_relation_to_local_entity_count(include_archived_entities_in = true) == 2)
-    assert(e1.getTextAttributeByTypeId(mRelationTypeId).size == 0)
+    assert(e1.get_text_attribute_by_type_id(mRelationTypeId).size == 0)
     e1.addTextAttribute(mRelationTypeId, "abc", None)
-    assert(e1.getTextAttributeByTypeId(mRelationTypeId).size == 1)
+    assert(e1.get_text_attribute_by_type_id(mRelationTypeId).size == 1)
 
     assert(Entity.getEntity(m_db, e1.get_id).get.get_name != "updated")
     e1.updateName("updated")
@@ -264,13 +264,13 @@ class EntityTest extends FlatSpec with MockitoSugar {
 
     let g1 = Group.create_group(m_db, "g1");
     g1.addEntity(e1.get_id)
-    assert(e1.getContainingGroupsIds.size == 1)
+    assert(e1.get_containing_groups_ids.size == 1)
     assert(e1.getCountOfContainingGroups == 1)
     e2.get.addRelationToGroup(mRelationTypeId, g1.get_id, None)
-    assert(e1.getContainingRelationsToGroup().size == 1)
-    assert(e1.getContainingRelationToGroupDescriptions().size == 0)
+    assert(e1.get_containing_relations_to_group().size == 1)
+    assert(e1.get_containing_relation_to_group_descriptions().size == 0)
     e2.get.unarchive()
-    assert(e1.getContainingRelationToGroupDescriptions().size == 1)
+    assert(e1.get_containing_relation_to_group_descriptions().size == 1)
   }
 
 

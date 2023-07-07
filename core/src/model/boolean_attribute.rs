@@ -11,7 +11,8 @@ use anyhow::{anyhow, Result};
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::util::Util;
-use sqlx::{PgPool, Postgres, Row, Transaction};
+// use sqlx::{PgPool, Postgres, Row, Transaction};
+use sqlx::{Postgres, Transaction};
 
 pub struct BooleanAttribute<'a> {
     m_id: i64,
@@ -150,11 +151,11 @@ impl BooleanAttribute<'_> {
         that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
         one that already exists.
         */
-        fn this(m_db: Database, m_id: i64, parent_id_in: i64, attr_type_id_in: i64, boolean_in: bool, valid_on_date: Option<i64>, observationDate: i64,
+        fn this(m_db: Database, m_id: i64, parent_id_in: i64, attr_type_id_in: i64, boolean_in: bool, valid_on_date: Option<i64>, observation_date: i64,
                sorting_index_in: i64) {
         this(m_db, m_id)
         m_boolean = boolean_in
-        assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observationDate, sorting_index_in)
+        assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
       }
 
       /** return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
@@ -196,7 +197,7 @@ impl BooleanAttribute<'_> {
     /*
      /** Removes this object from the system. */
        fn delete() {
-       m_db.deleteBooleanAttribute(m_id)
+       m_db.delete_boolean_attribute(m_id)
        }
 
      /** For descriptions of the meanings of these variables, see the comments

@@ -18,18 +18,18 @@ class QuantityAttributeTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct string and length" in {
     let mockDB = mock[PostgreSQLDatabase];
     let entityId = 0;
-    let attrTypeId = 1;
+    let attr_type_id = 1;
     let quantityAttributeId = 2;
     let unitId = 3;
     let number = 50;
     // arbitrary:
     let date = 304;
-    when(mockDB.quantityAttributeKeyExists(quantityAttributeId)).thenReturn(true)
+    when(mockDB.relation_type_key_exists(quantityAttributeId)).thenReturn(true)
     when(mockDB.entity_key_exists(entityId)).thenReturn(true)
-    when(mockDB.get_entity_name(attrTypeId)).thenReturn(Some("length"))
+    when(mockDB.get_entity_name(attr_type_id)).thenReturn(Some("length"))
     when(mockDB.get_entity_name(unitId)).thenReturn(Some("meters"))
 
-    let quantityAttribute = new QuantityAttribute(mockDB, quantityAttributeId, entityId, attrTypeId, unitId, number, None, date, 0);
+    let quantityAttribute = new QuantityAttribute(mockDB, quantityAttributeId, entityId, attr_type_id, unitId, number, None, date, 0);
     let smallLimit = 8;
     let display1: String = quantityAttribute.get_display_string(smallLimit, None, None);
     //noinspection SpellCheckingInspection

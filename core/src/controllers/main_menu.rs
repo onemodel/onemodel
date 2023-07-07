@@ -26,7 +26,7 @@ class MainMenu(val ui: TextUI, let db: Database, val controller: Controller)  {;
     fn mainMenu(entity_in: Option<Entity> = None, goDirectlyToChoice: Option[Int] = None) {
     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method! (if it fits the situation)
     try {
-      let numEntities = db.getEntitiesOnlyCount();
+      let numEntities = db.get_entities_only_count();
       if numEntities == 0 || entity_in.isEmpty) {
         let choices: List[String] = List[String]("Add new entity (such as yourself using your name, to start)",;
                                                  Util::MAIN_SEARCH_PROMPT)

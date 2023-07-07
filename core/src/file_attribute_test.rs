@@ -30,7 +30,7 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     //noinspection SpellCheckingInspection
     let hash = "e156b9a37060ccbcbffe5ec0fc967016";
     when(mockDB.get_entity_name(otherEntityId)).thenReturn(Some(attrTypeName))
-    when(mockDB.fileAttributeKeyExists(fileAttributeId)).thenReturn(true)
+    when(mockDB.file_attribute_key_exists(fileAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
     let fileAttribute = new FileAttribute(mockDB, fileAttributeId, entityId, otherEntityId, longDescription, modifiedDate, storedDate, filePath, true, true,;
@@ -54,7 +54,7 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     // is used.
     let fileAttributeId = 0L;
     let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.fileAttributeKeyExists(fileAttributeId)).thenReturn(true)
+    when(mockDB.file_attribute_key_exists(fileAttributeId)).thenReturn(true)
 
     let mut originalName = "";
     let fa: FileAttribute = new FileAttribute(mockDB, fileAttributeId) {override fn getOriginalFilePath -> String { originalName}};

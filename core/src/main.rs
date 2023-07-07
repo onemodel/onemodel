@@ -7,6 +7,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+// use anyhow::{anyhow};
 pub mod controllers;
 pub mod model;
 pub mod color;
@@ -21,7 +22,7 @@ use crate::text_ui::TextUI;
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.
-fn main() {
+fn main() -> Result<(), anyhow::Error> {
     /*%%$%%next tasks?:
         do all util, db, pg, & their tests at once: style and compile and test.
         MAKE TESTS for code be4 ckin! see them each fail then pass.
@@ -67,7 +68,8 @@ fn main() {
         force_user_pass_prompt,
         default_username,
         default_password,
-    );
+    )?;
     controller.start();
 
+    Ok(())
 }

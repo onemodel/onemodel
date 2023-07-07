@@ -7,7 +7,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use anyhow::{anyhow, Result, Error};
+use anyhow::{anyhow};
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
@@ -16,18 +16,18 @@ use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::util::Util;
 use chrono::Utc;
-use futures::executor::block_on;
+// use futures::executor::block_on;
 use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
 // in use, in the code.
-use sqlx::{PgPool, Postgres, Row, Transaction};
+use sqlx::{Column, PgPool, Postgres, Row, Transaction, TypeInfo};
 use std::collections::HashSet;
+// use std::fmt::format;
 
 /// An important thing to know about this code is that sqlx transactions automatically roll back
 /// if they go out of scope before commit() is called.
 pub struct PostgreSQLDatabase {
     pub rt: tokio::runtime::Runtime,
-    //%% connection: Connection,
     pub pool: PgPool,
     // When true, this means to override the usual settings and show the archived entities too (like a global temporary "un-archive"):
     pub include_archived_entities: bool,
@@ -41,15 +41,16 @@ impl PostgreSQLDatabase {
         format!("{}{}", Util::DB_NAME_PREFIX, db_name_without_prefix)
     }
 
-    //%%$%%should this and other eventual callers of db_query take its advice and call the
+    //%%should this and other eventual callers of db_query take its advice and call the
     //ck method?
+    //%%$%%I think this will have to return something with an option to deal with valid_on_date or observed_date things....  See callers..?
     fn db_query_wrapper_for_one_row(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-        sql: String,
+        sql: &str,
         types: &str,
     ) -> Result<Vec<DataType>, anyhow::Error> {
-        let results: Vec<Vec<DataType>> = self.db_query(transaction, sql.as_str(), types)?;
+        let results: Vec<Vec<Option<DataType>>> = self.db_query(transaction, sql, types)?;
         if results.len() != 1 {
             Err(anyhow!(format!(
                 "Got {} instead of 1 result from sql \"{}\" ??",
@@ -60,14 +61,15 @@ impl PostgreSQLDatabase {
             let oldrow = &results[0];
             let mut newrow = Vec::new();
             for x in oldrow {
-                let z = match &x {
+                let z = match x {
                     //idea: surely there is some better way than what I am doing here? See other places similarly.  Maybe implement DataType.clone() ?
-                    DataType::Bigint(y) => DataType::Bigint(y.clone()),
-                    DataType::Boolean(y) => DataType::Boolean(y.clone()),
-                    DataType::String(y) => DataType::String(y.clone()),
-                    DataType::Float(y) => DataType::Float(y.clone()),
-                    DataType::Smallint(y) => DataType::Smallint(y.clone()),
-                    // _ => return Err(anyhow!(format!("How did we get here for {:?}?", results[0]))),
+                    Some(DataType::Bigint(y)) => DataType::Bigint(y.clone()),
+                    // Some(DataType::UnsignedInt(y)) => DataType::UnsignedInt(y.clone()),
+                    Some(DataType::Boolean(y)) => DataType::Boolean(y.clone()),
+                    Some(DataType::String(y)) => DataType::String(y.clone()),
+                    Some(DataType::Float(y)) => DataType::Float(y.clone()),
+                    Some(DataType::Smallint(y)) => DataType::Smallint(y.clone()),
+                    _ => return Err(anyhow!(format!("How did we get here for x of {:?} in {:?}?", x, results[0]))),
                 };
                 newrow.push(z);
             }
@@ -79,97 +81,108 @@ impl PostgreSQLDatabase {
     /// Strings should have been passed through escape_quotes_etc FIRST, and ONLY THE RESULT SENT HERE.
     /// Returns the results (a collection of rows, each row being its own collection).
     //%%should do that escape_quotes_etc here instead, so guaranteed? or comment why not?
+    //%%$%%should the things in "types" parm be an enum or something like that? Or doc it here?
     fn db_query(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         sql: &str,
         types: &str,
-    ) -> Result<Vec<Vec<DataType>>, anyhow::Error> {
+    ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
         // Note: pgsql docs say "Under the JDBC specification, you should access a field only
         // once" (under the JDBC interface part).  Not sure if that applies now to sqlx in rust.
 
         Self::check_for_bad_sql(sql)?;
-        let mut results: Vec<Vec<DataType>> = Vec::new();
+        let mut results: Vec<Vec<Option<DataType>>> = Vec::new();
         let types_vec: Vec<&str> = types.split_terminator(",").collect();
         let mut row_counter = 0;
         let query = sqlx::query(sql);
-        // let executor: dyn sqlx::Executor<Database = Postgres> = match transaction {
-        //     Some(tx) => tx as sqlx::Executor<Postgres>,
-        //     None => &(&self.pool),
-        // };
-        /*
-        where
-        E: sqlx::Executor<'a, Database = Postgres>,
-         */
-        // let map: sqlx::query::Map<DB, F, A> = query
-        // let future = query
         let map = query
             .map(|sqlx_row: PgRow| {
-                //%%$%%% add back this but how return the err? see exs more or figure it out?
-                //     if row.len() != types_vec.len() {
-                //         Err(format!("Row length {} does not equal expected types list length {}.", row.len(), types_vec.len()))
-                //     } else {
                 // (next line is 1-based -- intended to compare to the size of results, later)
                 row_counter += 1;
-                //was: let row: Array[Option[Any]] = new Array[Option[Any]](types_vec.length);
-                let mut row: Vec<DataType> = Vec::new();
+                //was: let row: Vec<Option<DataType>> = new Vec<Option<DataType>>(types_vec.length);
+                let mut row: Vec<Option<DataType>> = Vec::with_capacity(types_vec.len());
                 let mut column_counter: usize = 0;
                 for type_name in &types_vec {
-                    // the for loop is to take is through all the columns in this row, as specified by the caller in the "types" parm.
+                    // the for loop is to take us through all the columns in this row, as specified by the caller in the "types" parm.
                     //was: if rs.getObject(column_counter) == null) row(column_counter - 1) = None
                     //%%name?:
-                    // else {
-                    //%%$%%%%how will these handle nulls? (like validOnDate or Entity.m_class_id??) how can they?
-                    // When modifying: COMPARE TO AND SYNCHRONIZE WITH THE TYPES IN the for loop in RestDatabase.processArrayOptionAny .
-                    if type_name == &"Float" {
-                        //was: row(column_counter) = Some(rs.getFloat(column_counter))
-                        let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
-                        let x: f64 = decode_mbe.unwrap(); //%%???
-                        println!("in db_query1: x is {} .", x);
-                        let y = DataType::Float(x);
-                        row.push(y);
-                    } else if type_name == &"String" {
-                        //%%$%
-                        //     was: row(column_counter) = Some(PostgreSQLDatabase.unescape_quotes_etc(rs.getString(column_counter)))
-                        let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
-                        let x: String = decode_mbe.unwrap(); //%%???
-                        println!("in db_query3: x is {} .", x);
-                        let y = DataType::String(Self::unescape_quotes_etc(x));
-                        println!("in db_query3: y is {:?} .", y);
-                        row.push(y);
-                    } else if type_name == &"i64" {
-                        //was: row(column_counter) = Some(rs.getLong(column_counter))
-                        let decode_mbe = sqlx_row.try_get(column_counter);
-                        let x: i64 = decode_mbe.unwrap(); //%%???
-                        println!("in db_query4: x is {} .", x);
-                        row.push(DataType::Bigint(x));
-                    } else if type_name == &"Boolean" {
-                        //was: row(column_counter) = Some(rs.get_boolean(column_counter))
-                        let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
-                        let x: bool = decode_mbe.unwrap(); //%%???
-                        println!("in db_query5: x is {} .", x);
-                        let y = DataType::Boolean(x);
-                        row.push(y);
-                    } else if type_name == &"Int" {
-                        //     row(column_counter) = Some(rs.getInt(column_counter))
-                        let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
-                        let x: i16 = decode_mbe.unwrap(); //%%???
-                        println!("in db_query6: x is {} .", x);
-                        let y = DataType::Smallint(x);
-                        row.push(y);
+                    //%%how will these handle nulls? (like validOnDate or Entity.m_class_id??) how can they? See idea below under i64 & test, use that
+                    //  elsewhere?
+                    //%%what should error handling in this context be like? how should it work? see the open tabs re errs in closures,
+                    // AND/OR the sqlx doc for this closure for what err it returns, or what caller expects...???
+                    let col: &PgColumn = sqlx_row.try_column(column_counter).unwrap();
+                    let ti: &PgTypeInfo = col.type_info();
+                    let is_null: bool = ti.is_null();
+                    //%%next 2 lines just for development:
+                    let db_type_info = ti.to_string();
+                    println!("In fn db_query, is_null: {}, type_name={}, and db_type_info: {}", is_null, type_name, db_type_info);
+                    if is_null {
+                        row.push(None);
                     } else {
-                        // how to make this just return an error from the fn that calls this
-                        // closure, instead?  Should never happen though.
-                        // was: throw new OmDatabaseException("unexpected value: '" + type_name + "'")
-                        panic!("Unexpected DataType value: '{}'.", type_name);
+                        // When modifying: COMPARE TO AND SYNCHRONIZE WITH THE TYPES IN the for loop in RestDatabase.processArrayOptionAny .
+                        if type_name == &"Float" {
+                            //was: row(column_counter) = Some(rs.getFloat(column_counter))
+                            let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
+                            let x: f64 = decode_mbe.unwrap(); //%%???
+                            println!("in db_query1: x is {} .", x);
+                            let y = DataType::Float(x);
+                            row.push(Some(y));
+                        } else if type_name == &"String" {
+                            //%%$%
+                            //     was: row(column_counter) = Some(PostgreSQLDatabase.unescape_quotes_etc(rs.getString(column_counter)))
+                            let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
+                            let x: String = decode_mbe.unwrap(); //%%???
+                            println!("in db_query3: x is {} .", x);
+                            let y = DataType::String(Self::unescape_quotes_etc(x));
+                            println!("in db_query3: y is {:?} .", y);
+                            row.push(Some(y));
+                        } else if type_name == &"i64" {
+                            //was: row(column_counter) = Some(rs.getLong(column_counter))
+                            let decode_mbe = sqlx_row.try_get(column_counter);
+                            let x: i64 = decode_mbe.unwrap(); //%%??? for all such.
+                            // let x: i64 = match decode_mbe { //%%???
+                            //     None => %
+                            // };
+                            println!("in db_query4: x is {} .", x);
+                            row.push(Some(DataType::Bigint(x)));
+                        //u64 here unsupported by sqlx:
+                        // } else if type_name == &"u64" {
+                        //     let decode_mbe = sqlx_row.try_get(column_counter);
+                        //     let x: u64 = decode_mbe.unwrap();
+                        //     println!("in db_query4a: x is {} .", x);
+                        //     row.push(Some(DataType::UnsignedInt(x)));
+                        } else if type_name == &"Boolean" {
+                            //was: row(column_counter) = Some(rs.get_boolean(column_counter))
+                            let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
+                            let x: bool = decode_mbe.unwrap(); //%%???
+                            println!("in db_query5: x is {} .", x);
+                            let y = DataType::Boolean(x);
+                            row.push(Some(y));
+                        } else if type_name == &"Int" {
+                            //     row(column_counter) = Some(rs.getInt(column_counter))
+                            let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
+                            let x: i16 = decode_mbe.unwrap(); //%%???
+                            println!("in db_query6: x is {} .", x);
+                            let y = DataType::Smallint(x);
+                            row.push(Some(y));
+                        } else {
+                        //     %% make sure to address this? and that I know what happens when this line is hit: test it (mbe change some code so alw hit, just2see? or in a test?)
+                        //     return Err(anyhow!("In db_query, Unexpected DataType value: '{}' at column: {}, with db_type_info={:?}.",
+                            //     type_name, column_counter, db_type_info));
+                            panic!("Unexpected DataType value: '{}' at column: {}, with db_type_info={:?}.",
+                                type_name, column_counter, db_type_info);
+                        }
                     }
-                    // }
                     column_counter += 1;
+                }
+                if row.len() != types_vec.len() {
+                    //%% make sure to address this? and that I know what happens when this line is hit: test it (mbe change some code so alw hit, just2see? or in a test?)
+                    // return Err(anyhow!("In db_query, Row length {} does not equal expected types list length {}.", row.len(), types_vec.len()));
+                    panic!("Row length {} does not equal expected types list length {}.", row.len(), types_vec.len());
                 }
                  // }
                 results.push(row);
-                //%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            // }).fetch_all(&self.pool);
             });
         //PROBABLY IGNORE/DEL THIS
         // let future = map.fetch_all(&self.pool);
@@ -180,7 +193,6 @@ impl PostgreSQLDatabase {
         //     self.rt.block_on(future).unwrap();
         // };
 
-        //%%%%%%%%%%THIS IS THE BLOCK TO PUT BACK & MAKE IT WORK I THINK
         if let Some(tx) = transaction {
         // if transaction.is_some() {
         //     let mut trans = transaction.unwrap();
@@ -209,8 +221,9 @@ impl PostgreSQLDatabase {
         // let warnings2 = st.getWarnings;
         // if warnings != null || warnings2 != null) throw new OmDatabaseException("Warnings from postgresql. Matters? Says: " + warnings + ", and " + warnings2)
 
-        //%%change to return an err here?:
-        assert_eq!(row_counter, results.len());
+        if row_counter != results.len() {
+            return Err(anyhow!("In db_query: Unexpected values in rowcounter ({}) and results.len ({})", row_counter, results.len()));
+        }
         Ok(results)
     }
 
@@ -223,7 +236,7 @@ impl PostgreSQLDatabase {
         sql_in: &str,
         fail_if_more_than_one_found: bool, /*%% = true*/
     ) -> Result<bool, anyhow::Error> {
-        let row_count: i64 = self.extract_row_count_from_count_query(transaction, sql_in)?;
+        let row_count: u64 = self.extract_row_count_from_count_query(transaction, sql_in)?;
         if fail_if_more_than_one_found {
             if row_count == 1 {
                 Ok(true)
@@ -245,16 +258,18 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         sql_in: &str,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         let results: Vec<DataType> =
-            self.db_query_wrapper_for_one_row(transaction, sql_in.to_string(), "i64")?;
+            self.db_query_wrapper_for_one_row(transaction, sql_in, "i64")?;
         let result: i64 = match results[0] {
             DataType::Bigint(x) => x,
-            _ => return Err(anyhow!("Should never happen".to_string())),
+            _ => return Err(anyhow!("In extract_row_count_from_count_query, Should never happen".to_string())),
         };
-        Ok(result)
+        let result_u64: u64 = result.try_into()?;
+        Ok(result_u64)
     }
 
+    /// Used, for example, when test code is finished with its test data. Be careful.
     pub fn destroy_tables(&self) -> Result<(), anyhow::Error> {
         //%%see comments at similar places elsewhere, re:
         // conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
@@ -387,40 +402,28 @@ impl PostgreSQLDatabase {
         skip_check_for_bad_sql_in: bool,   /*%% = false*/
     ) -> Result<u64, anyhow::Error> {
         let mut rows_affected: u64 = 0;
-        //%%let mut st: Statement = null;
         let is_create_drop_or_alter = sql_in.to_lowercase().starts_with("create ")
             || sql_in.to_lowercase().starts_with("drop ")
             || sql_in.to_lowercase().starts_with("alter ");
-        //%% st = connIn.createStatement
         if !skip_check_for_bad_sql_in {
             Self::check_for_bad_sql(sql_in)?;
         }
         let x: Result<PgQueryResult, sqlx::Error> = if let Some(tx) = transaction {
-            //%%%%%%%%%%WHEN FIXING, PUT NEXT LINE BACK AND REMOVE THE ONE AFTER and remove comment
+            //%%%%%%%%%%WHEN FIXING, PUT NEXT LINE BACK AND REMOVE THE ONE AFTER, and remove comment
             //re this, in failing test, if also fixed in fn db_query.
-            // let future = sqlx::query(sql_in).execute(tx);
-            let future = sqlx::query(sql_in).execute(&self.pool);
+            // let future = sqlx::query(sql_in).execute(tx); //a try
+            // let future = sqlx::query(sql_in).execute(transaction.as_ref().unwrap()); //another try
+            let future = sqlx::query(sql_in).execute(&self.pool); //the fallback, but loses transaction features
             self.rt.block_on(future)
         } else {
             let future = sqlx::query(sql_in).execute(&self.pool);
             self.rt.block_on(future)
         };
-        // let future = match transaction {
-        //     Some(tx) => sqlx::query(sql_in).execute(tx),
-        //     None => sqlx::query(sql_in).execute(&self.pool),
-        // };
-        // let x: Result<PgQueryResult, sqlx::Error> = /*%%: i32 asking compiler or println below*/ self.rt.block_on(future);
-        // /*let y: PgQueryResult = */match x {
-        //  //     Err(e) => return Err(anyhow!(e.to_string())),
-        //     Err(e) => return Err(anyhow!(e.to_string())),
-        //     Ok(r) => r,
-        // };
         println!(
             "Query: \n    {}\n... result?, w/ {:?} rows affected:  {:?}",
             sql_in, rows_affected, &x
         );
         match x {
-            // Err(e) => return Err(e.to_string()),
             Err(e) => return Err(anyhow!(e.to_string())),
             Ok(res) => {
                 rows_affected = res.rows_affected();
@@ -460,8 +463,7 @@ impl PostgreSQLDatabase {
         }
     }
 
-    /* %%$%%%%%%%%%%%
-    // is just to see what is different that casues compile errors, between code in util.rs
+    /* %%$%%%%%%%%%%%  is just to see what is different that causes compile errors, between code in util.rs
     // fn initialize_test_db and fn new here.
     // pub fn new_test(username: &str,
     //         password: &str,) -> Result<Box<dyn Database>, String> {
@@ -498,7 +500,7 @@ impl PostgreSQLDatabase {
         });
         Ok(db)
     }
-    %%$%%%%%%%%%%%*/
+    */
 
     /// Any code that would change when we change storage systems (like from postgresql to
     /// an object database or who knows), goes in this class.
@@ -550,7 +552,7 @@ impl PostgreSQLDatabase {
         //%%$%%%%%%%%%%%% why does having this here instead of in a separate fn setup_db cause
         //a compile error about using a moved value new_db (moved on the next line, returned in the
         //"Ok" line below)????  should I make a test and submit it, to learn or have it fixed or??
-        //Note that another seeming solution is the line "TEST_DB_INIT2.call_once(|| {" (and the
+        //Note that *another* seeming solution is the line "TEST_DB_INIT2.call_once(|| {" (and the
         //part to end its block) found in experimental fn new_test, above.
         // // let x = new_db.begin_trans_test();
         // let mut tx = new_db.begin_trans();
@@ -570,7 +572,7 @@ impl PostgreSQLDatabase {
         //     //%%$% try to see what happens if pg down be4 & during this--does the err propagate ok?
         //     new_db.create_base_data(&Some(&mut tx))?;
         // }
-        // //%% doDatabaseUpgradesIfNeeded()
+        // //%% do_database_upgrades_if_needed()
         // new_db.create_and_check_expected_data(&Some(&mut tx))?;
         // match new_db.commit_trans(&mut tx) {
         //     Err(e) => {
@@ -589,35 +591,27 @@ impl PostgreSQLDatabase {
     //moved from fn new to see about addressing a compile error. See cmts there.
     fn setup_db(&self) -> Result<(), anyhow::Error> {
         // let x = new_db.begin_trans_test();
-        let mut tx = self.begin_trans();
-        let mut tx = match tx {
-            // let mut tx = match rt.block_on(pool.begin()) {
-            Err(e) => {
-                return Err(anyhow!(format!(
-                    "Unable to start a database transaction to set up database?: {}",
-                    e.to_string()
-                )))
-            }
-            Ok(t) => t,
-        };
+        let mut tx = self.begin_trans()?;
         if !self.model_tables_exist(&Some(&mut tx))? {
             // //%%$% try to see what happens if pg down be4 & during this--does the err propagate ok?
             self.create_tables(&Some(&mut tx))?;
             //%%$% try to see what happens if pg down be4 & during this--does the err propagate ok?
             self.create_base_data(&Some(&mut tx))?;
         }
-        //%% doDatabaseUpgradesIfNeeded()
+        self.do_database_upgrades_if_needed(&Some(&mut tx));
         self.create_and_check_expected_data(&Some(&mut tx))?;
-        match self.commit_trans(tx) {
-            Err(e) => {
-                return Err(anyhow!(format!(
-                    "Unable to commit database transaction for db setup: {}",
-                    e.to_string()
-                )))
-            }
-            Ok(t) => t,
-        }
-        Ok(())
+
+        // %%next line is effectively the same as this cmt block, right?
+        // match self.commit_trans(tx) {
+        //     Err(e) => {
+        //         return Err(anyhow!(format!(
+        //             "Unable to commit database transaction for db setup: {}",
+        //             e.to_string()
+        //         )))
+        //     }
+        //     Ok(t) => t,
+        // }
+        self.commit_trans(tx)
     }
 
     /// For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
@@ -635,9 +629,9 @@ impl PostgreSQLDatabase {
         // "rollback" for related comments/explanation?).  See also the below tests
         // "test_rollback_and_commit" and "test_rollback_and_commit_with_less_helper_code".  See
         // also comments in delete_objects.
-        //%%%%%%%%%%del above cmt? "transaction2".
+        //%%del above cmt? "transaction2".
         let type_id_of_the_has_relation: i64 =
-            self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME.to_string())?;
+            self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
 
         let preferences_container_id: i64 = {
             let preferences_entity_id: Option<i64> = self.get_relation_to_local_entity_by_name(
@@ -649,7 +643,7 @@ impl PostgreSQLDatabase {
                 Some(id) => id,
                 None => {
                     // Since necessary, also create the entity that contains all the preferences:
-                    //%%$%%%%D?OES THE .0 here get the first one? USED TO BE _1 in scala!
+                    //%%$%%%%DOES THE .0 here get the first one? USED TO BE _1 in scala!
                     let now = Utc::now().timestamp_millis();
                     let new_entity_id: i64 = self
                         .create_entity_and_relation_to_local_entity(
@@ -767,12 +761,16 @@ impl PostgreSQLDatabase {
         // table has 1 row and 1 column, to say what db version we are on.
         self.db_action(
             transaction,
+            // default 1 due to lack of a better idea.  See comment just below.
             "create table om_db_version (version integer DEFAULT 1) ",
             false,
             false,
         )?;
         self.db_action(
             transaction,
+            // Initially 0 due to lack of a better idea.  The other setup code (fn create_tables
+            // currently) should set it correctly to the updated version, once the schema with
+            // that specific version has actually been created.
             "INSERT INTO om_db_version (version) values (0)",
             false,
             false,
@@ -781,6 +779,8 @@ impl PostgreSQLDatabase {
 
     /// Does standard setup for a "OneModel" database, such as when starting up for the first time, or when creating a test system.
     /// Currently returns the # of rows affected by the last sql command (not interesting).
+    /// NOTE: MAKE SURE everything this does is also covered elsewhere as needed: see the comment at
+    /// the top of fn do_database_upgrades_if_needed.
     pub fn create_tables(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -1158,7 +1158,7 @@ impl PostgreSQLDatabase {
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('TextAttributeKeySequence') PRIMARY KEY, \
             entity_id bigint NOT NULL, \
-            textValue text NOT NULL, \
+            text_value text NOT NULL, \
             attr_type_id bigint not null, \
             valid_on_date bigint, \
             observation_date bigint not null, \
@@ -1206,7 +1206,8 @@ impl PostgreSQLDatabase {
             .get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)
             .unwrap();
         // See comment for form_id, under "create table RelationToGroup", below.
-        // The "id" column can be treated like a primary key (with the advantages of being artificial) but the real one is a bit farther down. This one has the
+        // The "id" column can be treated like a primary key (with the advantages of being
+        // artificial) but the real one is a bit farther down. This one has the
         // slight or irrelevant disadvantage that it artificially limits the # of rows in this table, but it's still a big #.
         // The rel_type_id column is for lookup in RelationType table, eg "has".
         // About the entity_id column: what is related (see RelationConnection for "related to what" (related_to_entity_id).
@@ -1682,9 +1683,9 @@ impl PostgreSQLDatabase {
         let the_rest = format!(
             "lower(name) = lower('{}') {} ",
             name_in,
-            Self::limit_to_entities_only(Self::ENTITY_ONLY_SELECT_PART.to_string())
+            Self::limit_to_entities_only(Self::ENTITY_ONLY_SELECT_PART)
         );
-        let rows: Vec<Vec<DataType>> = self.db_query(
+        let rows: Vec<Vec<Option<DataType>>> = self.db_query(
             transaction,
             format!(
                 "select id from entity where {}{}",
@@ -1699,9 +1700,9 @@ impl PostgreSQLDatabase {
         for row in rows.iter() {
             // results = row(0).get.asInstanceOf[i64] :: results
             let id = match row[0] {
-                DataType::Bigint(x) => x,
+                Some(DataType::Bigint(x)) => x,
                 // next line is intended to be impossible, based on the query
-                _ => return Err(anyhow!("This should never happen.".to_string())),
+                _ => return Err(anyhow!("In find_entity_only_ids_by_name, this should never happen: {:?}.", row[0])),
             };
             results.push(id);
         }
@@ -1720,16 +1721,12 @@ impl PostgreSQLDatabase {
         let class_name: String = Self::escape_quotes_etc(class_name_in);
         let entity_name: String = Self::escape_quotes_etc(entity_name_in);
         if class_name.len() == 0 {
-            return Err(anyhow!("Class name must have a value.".to_string()));
+            return Err(anyhow!("In create_class_and_its_template_entity2, Class name must have a value.".to_string()));
         }
         if entity_name.len() == 0 {
-            return Err(anyhow!("Entity name must have a value.".to_string()));
+            return Err(anyhow!("In create_class_and_its_template_entity2, Entity name must have a value.".to_string()));
         }
-        let mut tx: Transaction<Postgres> = match self.begin_trans() {
-            // Err(e) => return Err(e.to_string()),
-            Err(e) => return Err(anyhow!(e.to_string())),
-            Ok(t) => t,
-        };
+        let mut tx: Transaction<Postgres> = self.begin_trans()?;
         let class_id: i64 = self.get_new_key(&Some(&mut tx), "ClassKeySequence")?;
         let entity_id: i64 = self.get_new_key(&Some(&mut tx), "EntityKeySequence")?;
         // Start the entity w/ a NULL class_id so that it can be inserted w/o the class present, then update it afterward; constraints complain otherwise.
@@ -1771,9 +1768,12 @@ impl PostgreSQLDatabase {
         if class_group_id.is_some() {
             self.add_entity_to_group(&Some(&mut tx), class_group_id.unwrap(), entity_id, None, false)?;
         }
-        if let Err(e) = self.commit_trans(tx) {
-            return Err(anyhow!(e.to_string()));
-        }
+
+        // if let Err(e) = self.commit_trans(tx) {
+        //     return Err(anyhow!(e.to_string()));
+        // }
+        self.commit_trans(tx)?;
+
         Ok((class_id, entity_id))
     }
 
@@ -1820,11 +1820,11 @@ impl PostgreSQLDatabase {
     ) -> Result<i64, anyhow::Error> {
         let row: Vec<DataType> = self.db_query_wrapper_for_one_row(
             transaction,
-            format!("SELECT nextval('{}')", sequence_name_in),
+            format!("SELECT nextval('{}')", sequence_name_in).as_str(),
             "i64",
         )?;
         if row.is_empty() {
-            return Err(anyhow!("No elements found, in get_new_key().".to_string()));
+            return Err(anyhow!("In get_new_key, No elements found, in get_new_key().".to_string()));
         } else {
             match row[0] {
                 // None => return Err("None found, in get_new_key()."),
@@ -1838,9 +1838,9 @@ impl PostgreSQLDatabase {
     fn are_mixed_classes_allowed(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-        group_id: i64,
+        group_id: &i64,
     ) -> Result<bool, anyhow::Error> {
-        let rows: Vec<Vec<DataType>> = self.db_query(
+        let rows: Vec<Vec<Option<DataType>>> = self.db_query(
             transaction,
             format!(
                 "select allow_mixed_classes from grupo where id ={}",
@@ -1850,8 +1850,8 @@ impl PostgreSQLDatabase {
             "Boolean",
         )?;
         let mixed_classes_allowed: bool = match rows[0][0] {
-            DataType::Boolean(b) => b,
-            _ => return Err(anyhow!("This should never happen".to_string())),
+            Some(DataType::Boolean(b)) => b,
+            _ => return Err(anyhow!("In are_mixed_classes_allowed, this should never happen".to_string())),
         };
         Ok(mixed_classes_allowed)
     }
@@ -1863,7 +1863,7 @@ impl PostgreSQLDatabase {
                let id = match row[0] {
                    DataType::Bigint(x) => x,
                    // next line is intended to be impossible, based on the query
-                   _ => return Err(anyhow!("This should never happen.")),
+                   _ => return Err(anyhow!("In a tmp/example, This should never happen.")),
                };
                results.push(id);
            }
@@ -1872,7 +1872,7 @@ impl PostgreSQLDatabase {
     fn has_mixed_classes(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-        group_id_in: i64,
+        group_id_in: &i64,
     ) -> Result<bool, anyhow::Error> {
         // Enforce that all entities in so-marked groups have the same class (or they all have no class; too bad).
         // (This could be removed or modified, but some user scripts attached to groups might (someday?) rely on their uniformity, so this
@@ -1883,7 +1883,7 @@ impl PostgreSQLDatabase {
 
         // (Had to ask for them all and expect 1, instead of doing a count, because for some reason "select count(class_id) ... group by class_id" doesn't
         // group, and you get > 1 when I wanted just 1. This way it seems to work if I just check the # of rows returned.)
-        let rows: Vec<Vec<DataType>> = self.db_query(
+        let rows: Vec<Vec<Option<DataType>>> = self.db_query(
             transaction,
             format!(
                 "select class_id from EntitiesInAGroup eiag, entity e \
@@ -1895,6 +1895,7 @@ impl PostgreSQLDatabase {
         )?;
         let num_classes_in_group_entities = rows.len();
         // nulls don't show up in a count(class_id), so get those separately
+        //%%but does it matter that we are not doing such a count(class_id)? have a test4this?
         let num_null_classes_in_group_entities = self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -1913,31 +1914,31 @@ impl PostgreSQLDatabase {
         }
     }
 
-    fn limit_to_entities_only(select_column_names: String) -> String {
-        // IN MAINTENANCE: compare to logic in method getEntitiesUsedAsAttributeTypes_sql, and related/similar logic near the top of
+    fn limit_to_entities_only(select_column_names: &str) -> String {
+        // IN MAINTENANCE: compare to logic in method get_entities_used_as_attribute_types_sql, and related/similar logic near the top of
         // Controller.chooseOrCreateObject (if it is still there; as of
         // 2017-8-21 starts with "val (numObjectsAvailable: i64, showOnlyAttributeTypes: bool) = {".
         let mut sql: String = String::new();
         sql.push_str("except (");
-        sql.push_str(select_column_names.as_str());
+        sql.push_str(select_column_names);
         sql.push_str(" from entity e, quantityattribute q where e.id=q.unit_id) ");
         sql.push_str("except (");
-        sql.push_str(select_column_names.as_str());
+        sql.push_str(select_column_names);
         sql.push_str(" from entity e, quantityattribute q where e.id=q.attr_type_id) ");
         sql.push_str("except (");
-        sql.push_str(select_column_names.as_str());
+        sql.push_str(select_column_names);
         sql.push_str(" from entity e, dateattribute t where e.id=t.attr_type_id) ");
         sql.push_str("except (");
-        sql.push_str(select_column_names.as_str());
+        sql.push_str(select_column_names);
         sql.push_str(" from entity e, booleanattribute t where e.id=t.attr_type_id) ");
         sql.push_str("except (");
-        sql.push_str(select_column_names.as_str());
+        sql.push_str(select_column_names);
         sql.push_str(" from entity e, fileattribute t where e.id=t.attr_type_id) ");
         sql.push_str("except (");
-        sql.push_str(select_column_names.as_str());
+        sql.push_str(select_column_names);
         sql.push_str(" from entity e, textattribute t where e.id=t.attr_type_id) ");
         sql.push_str("except (");
-        sql.push_str(select_column_names.as_str());
+        sql.push_str(select_column_names);
         sql.push_str(" from entity e, relationtype t where e.id=t.entity_id) ");
         sql
     }
@@ -1946,7 +1947,7 @@ impl PostgreSQLDatabase {
     ///                       An alternate approach could be to pass in a callback to code like in SortableEntriesMenu.placeEntryInPosition (or what it calls),
     ///                       which this can call if it thinks it
     ///                       is taking a long time to find a free value, to give the eventual caller chance to give up if needed.  Or just pass in a known
-    ///                       good value or call the renumberSortingIndexes method in SortableEntriesMenu.
+    ///                       good value or call the renumber_sorting_indexes method in SortableEntriesMenu.
     /// @return the sorting_index value that is actually used.
     fn add_attribute_sorting_row(
         &self,
@@ -2016,7 +2017,7 @@ impl PostgreSQLDatabase {
         Ok(ids[0])
     }
 
-    //%%$%%remove now?:
+    //%%$%%remove now? Or, can I find a way to do it in a fn again somehow? w/ online help?
     // fn confirm_which_transaction(
     //     &self,
     //     transaction_in: &Option<&mut Transaction<Postgres>>,
@@ -2051,7 +2052,7 @@ impl PostgreSQLDatabase {
     //     }
     // }
 
-    // Cloned to archiveObjects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
+    // Cloned to archive_objects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
     /// Unless the parameter rows_expected==-1, it will allow any # of rows to be deleted; otherwise if the # of rows is wrong it will abort tran & fail.
     fn delete_objects<'a>(
         &'a self,
@@ -2079,33 +2080,21 @@ impl PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In delete_objects, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                     .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In delete_objects, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ))
@@ -2125,7 +2114,7 @@ impl PostgreSQLDatabase {
 
         let rows_deleted = self.db_action(
             // match local_tx {
-            //     //%%$%%%%%%%%%%does this work? each arm when it should??
+            //     //%%does this work? each arm when it should??
             //     Some(mut tx) => &Some(&mut tx),
             //     None => transaction_in,
             // },
@@ -2145,6 +2134,7 @@ impl PostgreSQLDatabase {
                 rows_deleted, rows_expected, sql
             )));
         } else {
+            //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
             if !caller_manages_transactions_in {
                 // Using local_tx to make the compiler happy and because it is the one we need,
                 // if !caller_manages_transactions_in. Ie, there is no transaction provided by
@@ -2198,7 +2188,7 @@ impl PostgreSQLDatabase {
                 preference_entity_id = *x;
             }
             let preference_entity = Entity::new2(Box::new(self), transaction, preference_entity_id);
-            let relevant_attribute_rows: Vec<Vec<DataType>> = {
+            let relevant_attribute_rows: Vec<Vec<Option<DataType>>> = {
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
                     // (Using the preference_entity.get_id for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
                     // IN setUserPreference METHOD CALL TO create_boolean_attribute!)
@@ -2236,14 +2226,11 @@ impl PostgreSQLDatabase {
                     // ASSUMED it is 1, below!
                     // preference_entity.get_id()
                     let (pref_entity_name, id) = match preference_entity {
+                        // Using 0 as a best-effort non-existent id (even though it does exists) because
+                        // no better idea came to mind, at least for this error handling.
                         Err(e) => (format!("(Unknown/error: {})", e.to_string()), 0_i64),
                         Ok(mut entity) => (entity.get_name(transaction)?.clone(), entity.get_id()),
                     };
-                    //delme
-                    // let pref_entity_name = match self.get_entity_name(id)? {
-                    //     None => "(None)".to_string(),
-                    //     Some(s) => s,
-                    // };
                     return Err(anyhow!(format!("Under the entity {} ({}), there are {}{}so the program does not know what to use for this.  There should be *one*.",
                                        pref_entity_name,
                                         id,
@@ -2252,18 +2239,33 @@ impl PostgreSQLDatabase {
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
                     //PROVEN to have 1 row, just above!
                     // let DataType::Bigint(preference_id) = relevant_attribute_rows[0][0];
-                    let preference_id: DataType/*i64*/ = relevant_attribute_rows[0][0].clone();
+                    let preference_id: DataType/*i64*/ = match relevant_attribute_rows[0][0].clone() {
+                        Some(x) => x.clone(),
+                        None => return Err(anyhow!("In get_user_preference2, Did not expect null in retrieved column for preference_id value")),
+                    };
                     // let DataType::Boolean(preference_value) = relevant_attribute_rows[0][1];
-                    let preference_value: DataType/*bool*/ = relevant_attribute_rows[0][1].clone();
+                    let preference_value: DataType/*bool*/ = match relevant_attribute_rows[0][1].clone() {
+                        Some(x) => x.clone(),
+                        None => return Err(anyhow!("In get_user_preference2, Did not expect null in retrieved column for boolean value")),
+                    };
                     Ok(vec![preference_id, preference_value])
                 } else if preference_type == Util::PREF_TYPE_ENTITY_ID {
                     //PROVEN to have 1 row, just above!
-                    let rel_type_id: DataType/*i64*/ = relevant_attribute_rows[0][0].clone();
-                    let entity_id1: DataType/*i64*/ = relevant_attribute_rows[0][1].clone();
-                    let entity_id2: DataType/*i64*/ = relevant_attribute_rows[0][2].clone();
+                    let rel_type_id: DataType/*i64*/ = match relevant_attribute_rows[0][0].clone() {
+                        Some(x) => x.clone(),
+                        None => return Err(anyhow!("In get_user_preference2, Did not expect null in retrieved column for rel_type_id value")),
+                    };
+                    let entity_id1: DataType/*i64*/ = match relevant_attribute_rows[0][1].clone() {
+                        Some(x) => x.clone(),
+                        None => return Err(anyhow!("In get_user_preference2, Did not expect null in retrieved column for entity_id1 value")),
+                    };
+                    let entity_id2: DataType/*i64*/ = match relevant_attribute_rows[0][2].clone() {
+                        Some(x) => x.clone(),
+                        None => return Err(anyhow!("In get_user_preference2, Did not expect null in retrieved column for entity_id2 value")),
+                    };
                     Ok(vec![rel_type_id, entity_id1, entity_id2])
                 } else {
-                    return Err(anyhow!(format!("Unexpected preference_type: {}", preference_type)));
+                    return Err(anyhow!("In get_user_preference2, Unexpected preference_type: {}", preference_type));
                 }
             }
         }
@@ -2303,7 +2305,7 @@ impl PostgreSQLDatabase {
             //idea: surely there is some better way than what I am doing here? See other places similarly.
             // let DataType::Bigint(id) = related_entity_id_rows[0][0];
             let id = match related_entity_id_rows[0][0] {
-                DataType::Bigint(x) => x,
+                Some(DataType::Bigint(x)) => x,
                 _ => {
                     return Err(anyhow!(format!(
                         "How did we get here for {:?}?",
@@ -2319,7 +2321,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2334,7 +2336,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2349,7 +2351,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2364,7 +2366,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2379,7 +2381,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
@@ -2389,6 +2391,884 @@ impl PostgreSQLDatabase {
             .as_str(),
         )
     }
+    /// Performs automatic database upgrades as required by evolving versions of OneModel.
+    /// ******MAKE SURE*****:       ...that everything this does is also done in create_tables (and probably also
+    /// the testing script integration/bin/purgue-om-test-database.psql) so that create_tables is a single reference
+    /// point for a developer to go read about the database structure, and for testing!  I.e., a newly-created OM instance shouldn't have to be upgraded,
+    /// because create_tables always provides the latest structure in a new system.  This method is just for updating older instances to what is in create_tables!
+    fn do_database_upgrades_if_needed(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<(), anyhow::Error> {
+        let version_table_exists: bool = self.does_this_exist(transaction, "select count(1) from pg_class where relname='om_db_version'", true)?;
+        if ! version_table_exists {
+            self.create_version_table(transaction)?;
+        }
+        let db_version_row: Vec<DataType> = self.db_query_wrapper_for_one_row(transaction, "select version from om_db_version", "Int")?;
+        let db_version = match db_version_row.get(0) {
+            Some(DataType::Smallint(i)) => i.clone(),
+            _ => return Err(anyhow!("In do_database_upgrades_if_needed, unexpected db_version: {:?}", db_version_row)),
+        };
+        // PUT THIS BACK & delete this cmt, when there is another upgrade, and similar ones to follow:
+        // if db_version == 7 {
+        //     db_version = upgradeDbFrom7to8()
+        // }
+
+        /* NOTE FOR FUTURE METHODS LIKE upgradeDbFrom0to1: methods like this should be designed carefully and very well-tested:
+           0) make & test periodic backups of your live data to be safe!
+           1) Consider designing it to be idempotent: so multiple runs on a production db (if by some mistake) will no harm (or at least will err out safely).
+           2) Could run it against the test db (even though its tables already should have these changes, by being created from scratch), by not yet updating
+              the table om_db_version (perhaps by temporarily commenting out the line with
+              "UPDATE om_db_version ..." from create_tables while running tests).  AND,
+           3) Could do a backup, open psql, start a transaction, paste the method's upgrade
+              commands there, do manual verifications, then rollback.
+           It doesn't seem to make sense to test methods like this with a unit test because the tests are run on a db created as a new
+           system, so there is no upgrade to do on a new test, and no known need to call this method except on old systems being upgraded.
+           (See also related comment above this do_database_upgrades_if_needed method.)  Better ideas?
+          */
+
+        // This at least makes sure all the upgrades ran to completion.
+        // Idea: Should it be instead more specific to what versions of the db are compatible with
+        // this version of the OM program, in case someone for example needs to restore old data but doesn't have an
+        // older version of the OM program to go with it?
+        if db_version as i32 != PostgreSQLDatabase::SCHEMA_VERSION {
+            return Err(anyhow!("In do_database_upgrades_if_needed, db_version ({}) != PostgreSQLDatabase::SCHEMA_VERSION ({}).", db_version, PostgreSQLDatabase::SCHEMA_VERSION));
+        }
+        Ok(())
+    }
+
+    // See comment in ImportExport.processUriContent method which uses it, about where the
+    // code should really go. Not sure if that idea includes this method or not.
+    fn find_first_class_id_by_name(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                   name_in: String, case_sensitive: bool /*= false*/) -> Result<Option<i64>, anyhow::Error> {
+        // idea: see if queries like this are using the expected db index (run & ck the query
+        // plan). Create tests around that, for benefit of future dbs? Or, just wait for
+        // a performance issue then look at it?
+        let nameClause = {
+            if case_sensitive {
+                format!("name = '{}'", name_in)
+            } else {
+                format!("lower(name) = lower('{}')", name_in)
+            }
+        };
+        let sql = format!("select id from class where {} order by id limit 1", nameClause);
+        let rows = self.db_query(transaction, sql.as_str(), "i64")?;
+
+        if rows.is_empty() {
+            Ok(None)
+        } else {
+            let mut results = get_i64s_from_rows(&rows)?;
+            if results.len() > 1 {
+                return Err(anyhow!("In find_first_class_id_by_name, Expected 1 row (wanted just the first one), found {} rows.", results.len()));
+            }
+            Ok(Some(results[0]))
+        }
+    }
+    /// @return the id of the new RTE
+    fn add_HAS_relation_to_local_entity<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>,
+                                        from_entity_id_in: i64, to_entity_id_in: i64,
+                                        valid_on_date_in: Option<i64>, observation_date_in: i64,
+                                        sorting_index_in: Option<i64> /*= None*/) -> Result<RelationToLocalEntity, anyhow::Error> {
+        let relation_type_id: i64 = self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
+        let new_rte = self.create_relation_to_local_entity(transaction,
+                                                           relation_type_id, from_entity_id_in,
+                                                           to_entity_id_in, valid_on_date_in, observation_date_in,  sorting_index_in, false)?;
+        Ok(new_rte)
+    }
+
+    fn update_class_name(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, name_in: String) -> Result<u64, anyhow::Error> {
+        let name: String = Self::escape_quotes_etc(name_in);
+        self.db_action(transaction, format!("update class set (name) = ROW('{}') where id={}", name, id_in).as_str(),
+                       false, false)
+    }
+
+    // This isn't really recursive and I don't immediately remember why.  Maybe it didn't make sense
+    // or I was going to do it later.  It could use more thought.  Like how does that relate to
+    // "deletions2" if at all.
+    fn delete_relation_to_group_and_all_recursively<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>,
+                                                    group_id_in: i64) -> Result<(u64, u64), anyhow::Error> {
+        let entity_ids: Vec<Vec<Option<DataType>>> = self.db_query(transaction, format!("select entity_id from entitiesinagroup where group_id={}",
+                                                                      group_id_in).as_str(), "i64")?;
+        let num_e_ids: u64 = entity_ids.len().try_into()?;
+        let deletions1 = self.delete_objects(transaction, "entitiesinagroup", format!("where group_id={}", group_id_in).as_str(),
+                                        num_e_ids, true)?;
+        // Have to delete these 2nd because of a constraint on EntitiesInAGroup:
+        // idea: is there a temp table somewhere that these could go into instead, for efficiency?
+        // idea: batch these, would be much better performance.
+        // idea: BUT: what is the length limit: should we do it it sets of N to not exceed sql command size limit?
+        // idea: (also on task list i think but) we should not delete entities until dealing with their use as attrtypeids etc!
+        for id_vec in entity_ids {
+            match id_vec[0] {
+                Some(DataType::Bigint(id)) => {
+                    self.delete_objects(transaction, Util::ENTITY_TYPE,
+                                format!("where id={}", id).as_str(), 1, true)?
+                },
+                None => return Err(anyhow!("In delete_relation_to_group_and_all_recursively, How did we get a null entity_id back from query?")),
+                _ => return Err(anyhow!("In delete_relation_to_group_and_all_recursively, How did we get {:?} back from query?", id_vec)),
+            };
+        }
+
+        let deletions2 = 0;
+        //and finally:
+        // (passing 0 for rows expected, because there either could be some, or none if the group is not contained in any entity.)
+        self.delete_objects(transaction, Util::RELATION_TO_GROUP_TYPE,
+                            format!("where group_id={}", group_id_in).as_str(), 0, true)?;
+        self.delete_objects(transaction, "grupo", format!("where id={}", group_id_in).as_str(), 1, true)?;
+        Ok((deletions1, deletions2))
+    }
+
+    fn get_entity_attribute_sorting_data(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, limit_in: Option<i64> /*= None*/)
+        -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
+        // see comments in get_group_entries_data
+        self.db_query(transaction, format!("select attribute_form_id, attribute_id, sorting_index from AttributeSorting where \
+                                    entity_id = {} order by sorting_index limit {}", entity_id_in, Self::check_if_should_be_all_results(limit_in)).as_str(),
+                    "Int,i64,i64")
+    }
+
+    fn check_if_should_be_all_results(max_vals_in: Option<i64>) -> String {
+        match max_vals_in {
+            None => "ALL".to_string(),
+            Some(x) if x <= 0 => "1".to_string(),
+            Some(x) => format!("{}", x),
+        }
+    }
+
+    fn class_limit(limit_by_class: bool, class_id_in: Option<i64>) ->  Result<String, anyhow::Error>  {
+        let res = if limit_by_class {
+            match class_id_in {
+                Some(x) => format!(" and e.class_id={} ", x).to_string(),
+                _ => " and e.class_id is NULL ".to_string()
+            }
+        } else {
+            "".to_string()
+        };
+        Ok(res)
+    }
+
+    fn get_attribute_sorting_rows_count(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: Option<i64> /*= None*/) -> Result<u64, anyhow::Error> {
+        let where_entity_id = match entity_id_in {
+            Some(x) => format!("where entity_id={}", x),
+            _ => "".to_string(),
+        };
+        let sql = format!("select count(1) from AttributeSorting {}", where_entity_id.as_str());
+        self.extract_row_count_from_count_query(transaction, sql.as_str())
+    }
+
+    fn get_relation_to_group_count_by_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64) -> Result<u64, anyhow::Error>  {
+        self.extract_row_count_from_count_query(transaction,
+                                                format!("select count(1) from relationtogroup where group_id={}", group_id_in).as_str())
+    }
+
+    fn get_all_relation_to_local_entity_data_by_id(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64)
+            -> Result<Vec<DataType>, anyhow::Error>  {
+        self.db_query_wrapper_for_one_row(transaction,
+                                          format!("select form_id, id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date from RelationToEntity where id={}", id_in).as_str(),
+                                          "Int,i64,i64,i64,i64,i64,i64")
+    }
+
+    fn get_all_relation_to_remote_entity_data_by_id(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+        self.db_query_wrapper_for_one_row(transaction,
+                                          format!("select form_id, id, rel_type_id, entity_id, remote_instance_id, entity_id_2, valid_on_date, \
+                                          observation_date from RelationToRemoteEntity where id={}", id_in).as_str(),
+                                     "Int,i64,i64,i64,String,i64,i64,i64")
+    }
+
+    fn get_all_relation_to_group_data_by_id(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+        self.db_query_wrapper_for_one_row(transaction,
+                                          format!("select form_id, id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from \
+                                          RelationToGroup where id={}", id_in).as_str(),
+                                     "Int,i64,i64,i64,i64,i64,i64")
+    }
+
+    // fn get_file_attribute_content(&self, transaction: &Option<&mut Transaction<Postgres>>, fileAttributeIdIn: i64, outputStreamIn: java.io.OutputStream) -> Result<(i64, String), anyhow::Error>  { {
+    //     fn action(bufferIn: Array[Byte], starting_index_in: Int, numBytesIn: Int) {
+    //         outputStreamIn.write(bufferIn, starting_index_in, numBytesIn)
+    //     }
+    //     let (fileSize, md5hash): (i64, String) = self.act_on_file_from_server(fileAttributeIdIn, action);
+    //     (fileSize, md5hash)
+    // }
+
+    fn relation_to_group_keys_exist(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id: i64, relation_type_id: i64, group_id: i64) -> Result<bool, anyhow::Error> {
+        self.does_this_exist(transaction,
+                 format!("SELECT count(1) from RelationToGroup where entity_id={} and rel_type_id={} and group_id={}",
+                         entity_id, relation_type_id, group_id).as_str(), true)
+    }
+
+    /// Excludes those entities that are really relationtypes, attribute types, or quantity units.
+    fn entity_only_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+        let not_archived = if !self.include_archived_entities { "(not archived) and " } else { ""};
+        let limit = Self::limit_to_entities_only(Self::ENTITY_ONLY_SELECT_PART);
+        self.does_this_exist(transaction, format!("SELECT count(1) from Entity where {} id={} and id in (select id from entity {}",
+            not_archived, id_in, limit). as_str(), true)
+    }
+
+    fn relation_to_local_entity_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, rel_type_id_in: i64, entity_id1_in: i64,
+                                       entity_id2_in: i64) -> Result<bool, anyhow::Error> {
+        self.does_this_exist(transaction, format!("SELECT count(1) from RelationToEntity where rel_type_id={} and entity_id={} and entity_id_2={}",
+                                                  rel_type_id_in, entity_id1_in, entity_id2_in).as_str(), true)
+    }
+
+    fn relation_to_remote_entity_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, rel_type_id_in: i64, entity_id1_in: i64,
+                                        remote_instance_id_in: String, entity_id2_in: i64) -> Result<bool, anyhow::Error> {
+        self.does_this_exist(transaction, format!("SELECT count(1) from RelationToRemoteEntity where rel_type_id={} and entity_id={} and \
+                        remote_instance_id='{}' and entity_id_2={}",
+                                                  rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in).as_str(), true)
+    }
+
+    // fn add_new_entity_to_results(&self, transaction: &Option<&mut Transaction<Postgres>>, final_results: Vec<Entity>,
+    //                              intermediate_result_in: Vec<Option<DataType>>) -> Result<bool, anyhow::Error> {
+    //     let result = intermediate_result_in;
+    //     // None of these values should be of "None" type. If they are it's a bug:
+    //     let DataType::Bigint(id) = result.get(0)?;
+    //     let DataType::String(name) = result.get(1)?;
+    //     let Option(DataType::Bigint(class_id)) = result.get(2);
+    //     let DataType::Bigint(insertion_date) = result.get(3)?;
+    //     let Option(DataType::Boolean(public)) = result.get(4);
+    //     let DataType::Boolean(archived) = result.get(5)?;
+    //     let DataType::Boolean(new_entries_stick_to_top_) = result.get(6)?;
+    //     final_results.add(Entity::new2(this, transaction, id, name, class_id, insertion_date, public, archived, new_entries_stick_to_top)
+    // }
+
+    fn get_containing_entities_helper(&self, transaction: &Option<&mut Transaction<Postgres>>, sql_in: &str) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+        let early_results = self.db_query(transaction, sql_in, "i64,i64")?;
+        let early_results_len = early_results.len();
+        let mut final_results: Vec<(i64, Entity)> = Vec::new();
+        // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+        // dependencies? is a cleaner design?.)
+        for result in early_results {
+            // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
+            let rel_type_id = get_i64_from_row(&result, 0)?;
+            let id = get_i64_from_row(&result, 1)?;
+            let entity: Entity = Entity::new2(Box::new(self), transaction, id.clone()).unwrap();
+            final_results.push((rel_type_id.clone(), entity))
+        }
+
+        if ! (final_results.len() == early_results_len) {
+            return Err(anyhow!("In get_containing_entities_helper, final_results.len() ({}) != early_results.len() ({}).", final_results.len(), early_results_len));
+        }
+        Ok(final_results)
+    }
+    //%%
+    // fn get_containing_relation_to_groups_helper(&self, transaction: &Option<&mut Transaction<Postgres>>, sql_in: &str)  -> Result<Vec<RelationToGroup>, anyhow::Error>  {
+    //     let early_results = self.db_query(transaction, sql_in, "i64")?;
+    //     let mut group_id_results: Vec<i64> = Vec::new();
+    //     // idea: should the remainder of this method be moved to Group, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+    //     // dependencies? is a cleaner design?)
+    //     for result in early_results {
+    //         //val group:Group = new Group(this, result(0).asInstanceOf[i64])
+    //         let DataType::Bigint(id) = result.get(0)?;
+    //         group_id_results.push(id.clone());
+    //     }
+    //     if group_id_results.len() != early_results.len() {
+    //         return Err(anyhow!("In get_containing_relation_to_groups_helper, group_id_results.len() ({}) != early_results.len() ({})", group_id_results.len(), early_results.len()));
+    //     }
+    //     let mut containing_relations_to_group: Vec<RelationToGroup> = Vec::new();
+    //     for gid in group_id_results {
+    //         let rtgs: Vec<RelationToGroup> = self.get_relations_to_group_containing_this_group(transaction, gid, 0)?;
+    //         for rtg in rtgs {
+    //             containing_relations_to_group.push(rtg);
+    //         }
+    //     }
+    //     Ok(containing_relations_to_group)
+    // }
+    fn get_entities_used_as_attribute_types_sql(&self, attribute_type_in: String,
+                                                quantity_seeks_unit_not_type_in: bool)  -> Result<String, anyhow::Error>  {
+        // whether it is archived doesn't seem relevant in the use case, but, it is debatable:
+        //              (if !include_archived_entities) {
+        //                "(not archived) and "
+        //              } else {
+        //                ""
+        //              }) +
+        let id_type = {
+            // IN MAINTENANCE: compare to logic in method limit_to_entities_only.
+            if Util::QUANTITY_TYPE == attribute_type_in && quantity_seeks_unit_not_type_in {
+                "unit_id"
+            } else if Util::NON_RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in.as_str()) {
+                "attr_type_id"
+            } else if Util::RELATION_TYPE_TYPE == attribute_type_in {
+                "entity_id"
+            } else if Util::RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in.as_str()) {
+                "rel_type_id"
+            } else {
+                return Err(anyhow!("In get_entities_used_as_attribute_types_sql, unexpected attribute_type_in: {}", attribute_type_in))
+            }
+        };
+        let mut sql: String = format!(" from Entity e where e.id in (select {} from ", id_type);
+        if Util::NON_RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in.as_str())
+            || Util::RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in.as_str()) {
+
+            // it happens to match the table name, which is convenient:
+            sql = format!("{}{})", sql, attribute_type_in);
+        } else {
+            return Err(anyhow!("In get_entities_used_as_attribute_types_sql, unexpected attribute_type_in: {}", attribute_type_in));
+        }
+        Ok(sql)
+    }
+
+    // 1st parm is 0-based index to start with, 2nd parm is # of obj's to return (if None, means no limit).
+    fn get_entities_generic(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                            starting_object_index_in: i64, max_vals_in: Option<i64>, table_name_in: &str,
+                            class_id_in: Option<i64> /*= None*/, limit_by_class: bool /*= false*/,
+                            template_entity: Option<i64> /*= None*/, group_to_omit_id_in: Option<i64> /*= None*/)  -> Result<Vec<Entity>, anyhow::Error>  {
+        let some_sql = if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
+            ", r.name_in_reverse_direction, r.directionality "
+        } else {
+            ""
+        };
+        let more = " from Entity e ";
+        let more2 = if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
+            // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
+            // for which a RelationType row also exists.
+            ", RelationType r "
+        } else {
+            ""
+        };
+        let more3 = " where";
+        let more4 = if !self.include_archived_entities {
+            " (not archived) and"
+        } else {
+            ""
+        };
+        let more5 = Self::class_limit(limit_by_class, class_id_in)?;
+        let more6 = if limit_by_class && template_entity.is_some() {
+            format!(" and id != {}", template_entity.unwrap())
+        } else {
+            "".to_string()
+        };
+        let more7 = if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
+            // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
+            // for which a RelationType row also exists.
+            " and e.id = r.entity_id "
+        } else {
+            ""
+        };
+        let more8 = if table_name_in.eq_ignore_ascii_case("EntityOnly") {
+            Self::limit_to_entities_only(Util::SELECT_ENTITY_START)
+        } else {
+            "".to_string()
+        };
+        let more9 = if group_to_omit_id_in.is_some() {
+            format!(" except ({} from entity e, EntitiesInAGroup eiag where e.id=eiag.entity_id and group_id={})",
+                    Util::SELECT_ENTITY_START, group_to_omit_id_in.unwrap())
+        } else {
+                "".to_string()
+            };
+        let types = if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
+            "i64,String,i64,i64,Boolean,Boolean,String,String"
+        } else {
+            "i64,String,i64,i64,Boolean,Boolean,Boolean"
+        };
+        let sql = format!("{}{}{}{}{}{} true {}{}{}{}{} order by id limit {} offset {}",
+                    Util::SELECT_ENTITY_START, some_sql, more, more2, more3, more4, more5, more6, more7, more8, more9,
+                    Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in);
+        let early_results = self.db_query(transaction, sql.as_str(), types)?;
+        let early_results_len = early_results.len();
+
+        let final_results: Vec<Entity> = Vec::new();
+        // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+        // dependencies; is a cleaner design?)  (and similar ones)
+        for result in early_results {
+            // None of these values should be of "None" type. If they are it's a bug:
+            if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
+                //%%$%%%
+                // final_results.push(RelationType::new(&self, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(6).get.asInstanceOf[String],
+                //                                    result(7).get.asInstanceOf[String]))
+            } else {
+                //%%$%%%
+                // add_new_entity_to_results(final_results, result)
+            }
+        }
+        if final_results.len() != early_results_len {
+            return Err(anyhow!("In get_entities_generic, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results_len));
+        }
+        Ok(final_results)
+    }
+
+//%%
+    // fn get_text_editor_command(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<String, anyhow::Error> {
+    //     let system_entity_id = self.get_system_entity_id(transaction)?;
+    //     let has_relation_type_id: i64 = self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
+    //     let editor_info_system_entities: Vec<Entity> = self.get_entities_from_relations_to_local_entity(transaction, system_entity_id,
+    //                                                                                              Util::EDITOR_INFO_ENTITY_NAME,
+    //                                                                                              Some(has_relation_type_id),
+    //                                                                                                   Some(1))?;
+    //     if editor_info_system_entities.len() < 1 {
+    //         return Err(anyhow!("In get_text_editor_command, Unexpected # of results in get_text_editor_command a: {}", editor_info_system_entities.len()));
+    //     }
+    //     let id = editor_info_system_entities[0].get_id();
+    //     let text_editor_info_system_entities: Vec<Entity> = self.get_entities_from_relations_to_local_entity(transaction, id,
+    //                         Util::TEXT_EDITOR_INFO_ENTITY_NAME, Some(has_relation_type_id), Some(1))?;
+    //     if text_editor_info_system_entities.len() < 1 {
+    //         return Err(anyhow!("In get_text_editor_command, Unexpected # of results in get_text_editor_command b: {}", text_editor_info_system_entities.len()));
+    //     }
+    //     let text_editor_info_system_entity_id = text_editor_info_system_entities[0].get_id();
+    //     let text_editor_command_name_attr_types: Vec<Entity> = self.get_entities_from_relations_to_local_entity(transaction,
+    //                                                                            text_editor_info_system_entity_id,
+    //                 Util::TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME, Some(has_relation_type_id), Some(1))?;
+    //     if text_editor_command_name_attr_types.len() < 1 {
+    //         return Err(anyhow!("In get_text_editor_command, Unexpected # of results in get_text_editor_command c: {}", text_editor_command_name_attr_types.len()));
+    //     }
+    //     let text_editor_command_name_attr_type_id = text_editor_command_name_attr_types[0].get_id();
+    //     let tas: Vec<TextAttribute> = self.get_text_attribute_by_type_id(transaction, text_editor_info_system_entity_id,
+    //                                                                      text_editor_command_name_attr_type_id, Some(1))?;
+    //     if tas.len() < 1 {
+    //         return Err(anyhow!("In get_text_editor_command, Unexpected # of results in get_text_editor_command d: {}", tas.len()));
+    //     }
+    //     tas[0].get_text()
+    // }
+
+    fn get_entities_from_relations_to_local_entity(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                                   parent_entity_id_in: i64, name_in: &str,
+                                                   rel_type_id_in: Option<i64> /*= None*/,
+                                                   expected_rows: Option<u64> /*= None*/) -> Result<Vec<Entity>, anyhow::Error> {
+        // (not getting all the attributes in this case, and doing another query to the entity table (less efficient), to save programming
+        // time for the case that the entity table changes, we don't have to carefully update all the columns selected here & the mappings.  This is a more
+        // likely change than for the TextAttribute table, below.
+            let rel_type = match rel_type_id_in {
+                Some(rtid) => format!(" and rel_type_id={}", rtid),
+                _ => "".to_string(),
+            };
+        let query_results: Vec<Vec<Option<DataType>>> = self.db_query(transaction,
+                                                                     format!("select id from entity where name='{}' and id in (select entity_id_2 from \
+                                                                     relationToEntity where entity_id={} {})",
+                                                                         name_in, parent_entity_id_in, rel_type).as_str(),
+                                                        "i64")?;
+        if let Some(expected_row_count) = expected_rows {
+            let count = query_results.len();
+            if count as u128 != expected_row_count as u128 {
+                return Err(anyhow!("In get_entities_from_relations_to_local_entity, In get_entities_from_relations_to_local_entity, found {} rows in instead of expected {}", count, expected_row_count));
+            }
+        }
+        let mut final_result: Vec<Entity> = Vec::with_capacity(query_results.len());
+        // let mut index: usize = 0;
+        for r in query_results {
+            if r.len() == 0 {
+                return Err(anyhow!("In get_entities_from_relations_to_local_entity, in get_entities_from_relations_to_local_entity, did not expect returned row to have 0 elements!: {:?}", r));
+            }
+            if let Some(DataType::Bigint(id)) = r[0] {
+                final_result.push(Entity::new2(Box::new(self), transaction, id)?);
+                // index += 1
+            } else {
+                return Err(anyhow!("In get_entities_from_relations_to_local_entity, in get_entities_from_relations_to_local_entity, did not expect this: {:?}", r[0]));
+            }
+        }
+        Ok(final_result)
+    }
+// //%%
+//     fn get_text_attribute_by_type_id(&self, transaction: &Option<&mut Transaction<Postgres>>,
+//                                      parent_entity_id_in: i64, type_id_in: i64,
+//                                      expected_rows: Option<usize> /*= None*/) -> Result<Vec<TextAttribute>, anyhow::Error> {
+//         let form_id: i32 = self.get_attribute_form_id(Util::TEXT_TYPE).unwrap();
+//         let sql = format!("select ta.id, ta.text_value, ta.attr_type_id, ta.valid_on_date, ta.observation_date, asort.sorting_index from \
+//         textattribute ta, AttributeSorting asort where ta.entity_id={} and ta.attr_type_id={} and ta.entity_id=asort.entity_id and \
+//         asort.attribute_form_id={} and ta.id=asort.attribute_id",
+//             parent_entity_id_in, type_id_in, form_id).as_str();
+//         let query_results: Vec<Vec<Option<DataType>>> = self.db_query(transaction, sql, "i64,String,i64,i64,i64,i64")?;
+//         if let Some(expected_rows_len) = expected_rows {
+//             if query_results.len() != expected_rows_len {
+//                 return Err(anyhow!("In get_text_attribute_by_type_id, found {} rows instead of expected {}", query_results.len(), expected_rows_len));
+//             }
+//         }
+//         let final_result: Vec<TextAttribute> = Vec::with_capacity(query_results.len());
+//         for r in query_results {
+//             if r.len() < 6 {
+//                 return Err(anyhow!("In get_text_attribute_by_type_id, expected 6 elements in row returned, but found {}: {:?}", r.len(), r));
+//             }
+//             let Some(DataType::Bigint(text_attribute_id)) = r.get(0)?;
+//             let Some(DataType::String(text_value)) = r.get(1)?;
+//             let Some(DataType::Bigint(attr_type_id)) = r.get(2)?;
+//             let valid_on_date = match r.get(3) {
+//                 None => None,
+//                 Some(DataType::Bigint(vod)) => Some(vod),
+//                 _ => return Err(anyhow!("In get_text_attribute_by_type_id, unexpected value in {:?}", r.get(3))),
+//             };
+//             let Some(DataType::Bigint(observation_date)) = r.get(4)?;
+//             let Some(DataType::Bigint(sorting_index)) = r.get(5)?;
+//             final_result.add(TextAttribute::new(Box::new(self), text_attribute_id, parent_entity_id_in, attr_type_id, text_value, valid_on_date, observation_date, sorting_index));
+//         }
+//         Ok(final_result)
+//     }
+
+    // %%$%%%%%
+    // /// Returns an array of tuples, each of which is of (sorting_index, Attribute), and a i64 indicating the total # that could be returned with
+    // /// infinite display space (total existing).
+    // ///
+    // /// The parameter max_vals_in can be 0 for 'all'.
+    // ///
+    // /// Idea to improve efficiency: make this able to query only those attributes needed to satisfy the max_vals_in parameter (by first checking
+    // /// the AttributeSorting table).  In other words, no need to read all 1500 attributes to display on the screen, just to know which ones come first, if
+    // /// only 10 can be displayed right now and the rest might not need to be displayed.  Because right now, we have to query all data from the AttributeSorting
+    // /// table, then all attributes (since remember they might not *be* in the AttributeSorting table), then sort them with the best available information,
+    // /// then decide which ones to return.  Maybe instead we could do that smartly, on just the needed subset.  But it still need to gracefully handle it
+    // /// when a given attribute (or all) is not found in the sorting table.
+    // fn get_sorted_attributes(&self, transaction: &Option<&mut Transaction<Postgres>>,
+    //                          entity_id_in: i64, starting_object_index_in: usize /*= 0*/, max_vals_in: usize /*= 0*/,
+    //                          only_public_entities_in: bool /*= true*/) -> Result<(Vec<(i64, Attribute)>, usize), anyhow::Error> {
+    //     let allResults: java.util.ArrayList[(Option<i64>, Attribute)] = new java.util.ArrayList[(Option<i64>, Attribute)];
+    //     // First select the counts from each table, keep a running total so we know when to select attributes (compared to inStartingObjectIndex)
+    //     // and when to stop.
+    //     let tables: Vec<String> = Array(Util.QUANTITY_TYPE, Util.BOOLEAN_TYPE, Util.DATE_TYPE, Util.TEXT_TYPE, Util.FILE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE,;
+    //     Util.RELATION_TO_GROUP_TYPE, Util.RELATION_TO_REMOTE_ENTITY_TYPE)
+    //     let columnsSelectedByTable: Vec<String> = Array("id,entity_id,attr_type_id,unit_id,quantity_number,valid_on_date,observation_date",;
+    //     "id,entity_id,attr_type_id,booleanValue,valid_on_date,observation_date",
+    //     "id,entity_id,attr_type_id,date",
+    //     "id,entity_id,attr_type_id,text_value,valid_on_date,observation_date",
+    //
+    //     "id,entity_id,attr_type_id,description,original_file_date,stored_date,original_file_path,readable," +
+    //     "writable,executable,size,md5hash",
+    //
+    //     "id,rel_type_id,entity_id,entity_id_2,valid_on_date,observation_date",
+    //     "id,entity_id,rel_type_id,group_id,valid_on_date,observation_date",
+    //     "id,rel_type_id,entity_id,remote_instance_id,entity_id_2,valid_on_date,observation_date")
+    //     let typesByTable: Vec<String> = Array("i64,i64,i64,i64,i64,Float,i64,i64",;
+    //     "i64,i64,i64,i64,Boolean,i64,i64",
+    //     "i64,i64,i64,i64,i64",
+    //     "i64,i64,i64,i64,String,i64,i64",
+    //     "i64,i64,i64,i64,String,i64,i64,String,Boolean,Boolean,Boolean,i64,String",
+    //     "i64,i64,i64,i64,i64,i64,i64",
+    //     "i64,i64,i64,i64,i64,i64,i64",
+    //     "i64,i64,i64,i64,String,i64,i64,i64")
+    //     let where_clausesByTable: Vec<String> = Array(tables(0) + ".entity_id=" + entity_id_in, tables(1) + ".entity_id=" + entity_id_in,;
+    //     tables(2) + ".entity_id=" + entity_id_in, tables(3) + ".entity_id=" + entity_id_in,
+    //     tables(4) + ".entity_id=" + entity_id_in, tables(5) + ".entity_id=" + entity_id_in,
+    //     tables(6) + ".entity_id=" + entity_id_in, tables(7) + ".entity_id=" + entity_id_in)
+    //     let orderByClausesByTable: Vec<String> = Array("id", "id", "id", "id", "id", "entity_id", "group_id", "entity_id");
+    //
+    //     // *******************************************
+    //     //****** NOTE **********: some logic here for counting & looping has been commented out because it is not yet updated to work with the sorting of
+    //     // attributes on an entity.  But it is left here because it was so carefully debugged, once, and seems likely to be used again if we want to limit the
+    //     // data queried and sorted to that amount which can be displayed at a given time.  For example,
+    //     // we could query first from the AttributeSorting table, then based on that decide for which ones to get all the data. But maybe for now there's a small
+    //     // enough amount of data that we can query all rows all the time.
+    //     // *******************************************
+    //
+    //     // first just get a total row count for UI convenience later (to show how many left not viewed yet)
+    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+    //     //    let mut totalRowsAvailable: i64 = 0;
+    //     //    let mut tableIndexForrow_counting = 0;
+    //     //    while ((max_vals_in == 0 || totalRowsAvailable <= max_vals_in) && tableIndexForrow_counting < tables.length) {
+    //     //      let table_name = tables(tableIndexForrow_counting);
+    //     //      totalRowsAvailable += extract_row_count_from_count_query("select count(*) from " + table_name + " where " + where_clausesByTable(tableIndexForrow_counting))
+    //     //      tableIndexForrow_counting += 1
+    //     //    }
+    //
+    //     // idea: this could change to a let and be filled w/ a recursive helper method; other vars might go away then too.;
+    //     let mut tableListIndex: i32 = 0;
+    //
+    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+    //     //keeps track of where we are in getting rows >= inStartingObjectIndex and <= max_vals_in
+    //     //    let mut counter: i64 = 0;
+    //     //    while ((max_vals_in == 0 || counter - inStartingObjectIndex <= max_vals_in) && tableListIndex < tables.length) {
+    //     while (tableListIndex < tables.length) {
+    //     let table_name = tables(tableListIndex);
+    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+    //     //val thisTablesrow_count: i64 = extract_row_count_from_count_query("select count(*) from " + table_name + " where " + where_clausesByTable(tableListIndex))
+    //     //if thisTablesrow_count > 0 && counter + thisTablesrow_count >= inStartingObjectIndex) {
+    //     //try {
+    //
+    //     // Idea: could speed this query up in part? by doing on each query something like:
+    //     //       limit max_vals_in+" offset "+ inStartingObjectIndex-counter;
+    //     // ..and then incrementing the counters appropriately.
+    //     // Idea: could do the sorting (currently done just before the end of this method) in sql? would have to combine all queries to all tables, though.
+    //     let key = where_clausesByTable(tableListIndex).substring(0, where_clausesByTable(tableListIndex).indexOf("="));
+    //     let columns = table_name + "." + columnsSelectedByTable(tableListIndex).replace(",", "," + table_name + ".");
+    //     let mut sql: String = "select attributesorting.sorting_index, " + columns +;
+    //     " from " +
+    //     // idea: is the RIGHT JOIN really needed, or can it be a normal join? ie, given tables' setup can there really be
+    //     // rows of any Attribute (or RelationTo*) table without a corresponding attributesorting row?  Going to assume not,
+    //     // for some changes below adding the sortingindex parameter to the Attribute constructors, for now at least until this is studied
+    //     // again.  Maybe it had to do with the earlier unreliability of always deleting rows from attributesorting when Attributes were
+    //     // deleted (and in fact an attributesorting can in theory still be created without an Attribute row, and maybe other such problems).
+    //     "   attributesorting RIGHT JOIN " + table_name +
+    //     "     ON (attributesorting.attribute_form_id=" + Database.get_attribute_form_id(table_name) +
+    //     "     and attributesorting.attribute_id=" + table_name + ".id )" +
+    //     "   JOIN entity ON entity.id=" + key +
+    //     " where " +
+    //     (if !include_archived_entities) {
+    //     "(not entity.archived) and "
+    //     } else {
+    //     ""
+    //     }) +
+    //     where_clausesByTable(tableListIndex)
+    //     if table_name == Util.RELATION_TO_LOCAL_ENTITY_TYPE && !include_archived_entities) {
+    //     sql += " and not exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
+    //     " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.archived)"
+    //     }
+    //     if table_name == Util.RELATION_TO_LOCAL_ENTITY_TYPE && only_public_entities_in) {
+    //     sql += " and exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
+    //     " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.public)"
+    //     }
+    //     sql += " order by " + table_name + "." + orderByClausesByTable(tableListIndex)
+    //     let results = db_query(sql, typesByTable(tableListIndex));
+    //     for (result: Vec<Option<DataType>> <- results) {
+    //     // skip past those that are outside the range to retrieve
+    //     //idea: use some better scala/function construct here so we don't keep looping after counter hits the max (and to make it cleaner)?
+    //     //idea: move it to the same layer of code that has the Attribute classes?
+    //
+    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+    //     // Don't get it if it's not in the requested range:
+    //     //            if counter >= inStartingObjectIndex && (max_vals_in == 0 || counter <= inStartingObjectIndex + max_vals_in)) {
+    //     if table_name == Util.QUANTITY_TYPE) {
+    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
+    //     new QuantityAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
+    //     result(4).get.asInstanceOf[i64], result(5).get.asInstanceOf[Float],
+    //     if result(6).isEmpty) None else Some(result(6).get.asInstanceOf[i64]), result(7).get.asInstanceOf[i64],
+    //     result(0).get.asInstanceOf[i64])))
+    //     } else if table_name == Util.TEXT_TYPE) {
+    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
+    //     new TextAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
+    //     result(4).get.asInstanceOf[String], if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]),
+    //     result(6).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
+    //     } else if table_name == Util.DATE_TYPE) {
+    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
+    //     new DateAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
+    //     result(4).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
+    //     } else if table_name == Util.BOOLEAN_TYPE) {
+    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
+    //     new BooleanAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
+    //     result(4).get.asInstanceOf[Boolean], if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]),
+    //     result(6).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
+    //     } else if table_name == Util.FILE_TYPE) {
+    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
+    //     new FileAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
+    //     result(4).get.asInstanceOf[String], result(5).get.asInstanceOf[i64], result(6).get.asInstanceOf[i64],
+    //     result(7).get.asInstanceOf[String], result(8).get.asInstanceOf[Boolean], result(9).get.asInstanceOf[Boolean],
+    //     result(10).get.asInstanceOf[Boolean], result(11).get.asInstanceOf[i64], result(12).get.asInstanceOf[String],
+    //     result(0).get.asInstanceOf[i64])))
+    //     } else if table_name == Util.RELATION_TO_LOCAL_ENTITY_TYPE) {
+    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
+    //     new RelationToLocalEntity(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
+    //     result(4).get.asInstanceOf[i64],
+    //     if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]), result(6).get.asInstanceOf[i64],
+    //     result(0).get.asInstanceOf[i64])))
+    //     } else if table_name == Util.RELATION_TO_GROUP_TYPE) {
+    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
+    //     new RelationToGroup(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
+    //     result(4).get.asInstanceOf[i64],
+    //     if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]),
+    //     result(6).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
+    //     } else if table_name == Util.RELATION_TO_REMOTE_ENTITY_TYPE) {
+    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
+    //     new RelationToRemoteEntity(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64],
+    //     result(3).get.asInstanceOf[i64],
+    //     result(4).get.asInstanceOf[String], result(5).get.asInstanceOf[i64],
+    //     if result(6).isEmpty) None else Some(result(6).get.asInstanceOf[i64]),
+    //     result(7).get.asInstanceOf[i64],
+    //     result(0).get.asInstanceOf[i64])))
+    //     } else throw new OmDatabaseException("invalid table type?: '" + table_name + "'")
+    //
+    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+    //     //}
+    //     //            counter += 1
+    //     }
+    //
+    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+    //     //}
+    //     //remove the try permanently, or, what should be here as a 'catch'? how interacts w/ 'throw' or anything related just above?
+    //     //} else {
+    //     //  counter += thisTablesrow_count
+    //     //}
+    //     tableListIndex += 1
+    //     }
+    //
+    //     let allResultsArray: Array[(i64, Attribute)] = new Array[(i64, Attribute)](allResults.size);
+    //     let mut index = -1;
+    //     for (element: (Option<i64>, Attribute) <- allResults.toArray(new Array[(Option<i64>, Attribute)](0))) {
+    //     index += 1
+    //     // using max_id_value as the max value of a long so those w/o sorting information will just sort last:
+    //     allResultsArray(index) = (element._1.getOrElse(self.max_id_value()), element._2)
+    //     }
+    //     // Per the scalaDocs for scala.math.Ordering, this sorts by the first element of the tuple (ie, .z_1) which at this point is attributesorting.sorting_index.
+    //     // (The "getOrElse" on next line is to allow for the absence of a value in case the attributeSorting table doesn't have an entry for some attributes.
+    //     Sorting.quickSort(allResultsArray)(Ordering[i64].on(x => x._1.asInstanceOf[i64]))
+    //
+    //     let from: i32 = starting_object_index_in;
+    //     let numVals: i32 = if max_vals_in > 0) max_vals_in else allResultsArray.length;
+    //     let until: i32 = Math.min(starting_object_index_in + numVals, allResultsArray.length);
+    //     (allResultsArray.slice(from, until), allResultsArray.length)
+    // }
+
+    /// The inSelfIdToIgnore parameter is to avoid saying a class is a duplicate of itself: checks for all others only.
+    fn is_duplicate_row(&self, transaction: &Option<&mut Transaction<Postgres>>, possible_duplicate_in: &str, table: &str,
+                           key_column_to_ignore_on: &str, column_to_check_for_dup_values: &str, extra_condition: Option<&str>,
+                           self_id_to_ignore_in: Option<String> /*= None*/) -> Result<bool, anyhow::Error> {
+        let valueToCheck: String = Self::escape_quotes_etc(possible_duplicate_in.to_string());
+
+        let exception = match self_id_to_ignore_in {
+            None => "".to_string(),
+            Some(s) => format!("and not {}={}", key_column_to_ignore_on, s)
+        };
+        let ec = match extra_condition {
+            Some(s) if s.len() > 0 => s,
+            _ => "true",
+        };
+        self.does_this_exist(transaction,
+                             format!("SELECT count({}) from {} where {} and lower({})=lower('{}') {}",
+                                 key_column_to_ignore_on, table, ec, column_to_check_for_dup_values, valueToCheck, exception).as_str(),
+                            false)
+    }
+
+                  /// Cloned from delete_objects: CONSIDER UPDATING BOTH if updating one.
+                  /// Returns the # of rows affected (archived or un-archived).
+                fn archive_objects<'a>(&'a self, transaction_in: &Option<&mut Transaction<'a, Postgres>>,
+                                   table_name_in: &str, where_clause_in: &str, rows_expected: u64 /*= 1*/, caller_manages_transactions_in: bool /*= false*/,
+                                             unarchive: bool /*= false*/) -> Result<u64, anyhow::Error> {
+                    //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
+
+                      //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+                      // Try creating a local transaction whether we use it or not, to handle compiler errors
+                      // about variable moves. I'm not seeing a better way to get around them by just using
+                      // conditions and an Option (many errors):
+                      // (I tried putting this in a function, then a macro, but it gets compile errors.
+                      // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+                      // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+                      // I didn't try a proc macro but based on some reading I think it would have the same
+                      // problem.)
+                      let mut local_tx: Transaction<Postgres> = {
+                          if transaction_in.is_none() {
+                              if caller_manages_transactions_in {
+                                  return Err(anyhow!("In archive_objects, inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                    .to_string()));
+                              } else {
+                                  self.begin_trans()?
+                              }
+                          } else {
+                              if caller_manages_transactions_in {
+                                  // That means we have determined that the caller is to use the transaction_in .
+                                  // was just:  None
+                                  // But now instead, create it anyway, per comment above.
+                                  self.begin_trans()?
+                              } else {
+                                  return Err(anyhow!(
+                        "In archive_objects, inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    ))
+                              }
+                          }
+                      };
+                      let local_tx_option = &Some(&mut local_tx);
+                      let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+                          transaction_in
+                      } else {
+                          local_tx_option
+                      };
+                      //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
+
+                      let archive = if unarchive { "false" } else { "true" };
+                      let archived_date = if unarchive {
+                        "NULL".to_string()
+                      } else {
+                          Utc::now().timestamp_millis().to_string()
+                      };
+                      let sql = format!("update {} set (archived, archived_date) = ({}, {}), {}",
+                                        table_name_in, archive, archived_date, where_clause_in);
+                      let rows_affected = self.db_action(transaction, sql.as_str(),
+                                                         true, false)?;
+                      if rows_expected > 0 && rows_affected != rows_expected {
+                          // No need to explicitly roll back a locally created transaction aka tx, though we
+                          // definitely don't want to archive an unexpected # of rows,
+                          // because rollback is implicit whenever the transaction goes out of scope without a commit.
+                          // Caller should roll back (or fail to commit, same thing) in case of error.
+                          return Err(anyhow!(format!(
+                            "In archive_objects, archive (or unarchive) would have affected {} rows, but {} were expected! \
+                            Did not perform archive (or unarchive).  SQL is: \"{}\"",
+                            rows_affected, rows_expected, sql)));
+                      } else {
+                          //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
+                          if !caller_manages_transactions_in {
+                              // Using local_tx to make the compiler happy and because it is the one we need,
+                              // if !caller_manages_transactions_in. Ie, there is no transaction provided by
+                              // the caller.
+                              if let Err(e) = self.commit_trans(local_tx) {
+                                  return Err(anyhow!(e.to_string()));
+                              }
+                          }
+                          Ok(rows_affected)
+                      }
+                  }
+
+                fn delete_object_by_id<'a>(&'a self, transaction_in: &Option<&mut Transaction<'a, Postgres>>, table_name_in: &str,
+                                       id_in: i64, caller_manages_transactions_in: bool /*= false*/)  -> Result<u64, anyhow::Error>  {
+                    self.delete_objects(transaction_in, table_name_in, format!("where id={}", id_in).as_str(),
+                                        1, caller_manages_transactions_in)
+                  }
+
+                fn delete_object_by_id2<'a>(&'a self, transaction_in: &Option<&mut Transaction<'a, Postgres>>, table_name_in: &str, id_in: &str,
+                                        caller_manages_transactions_in: bool /*= false*/)  -> Result<u64, anyhow::Error>  {
+                    self.delete_objects(transaction_in, table_name_in, format!("where id='{}'", id_in).as_str(),
+                                        1, caller_manages_transactions_in)
+                  }
+/*%%$%%%%%
+                  // (idea: find out: why doesn't compiler (ide or cli) complain when the 'override' is removed from next line?)
+                  // idea: see comment on findUnusedSortingIndex
+                    fn findIdWhichIsNotKeyOfAnyEntity -> i64 {
+                    //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
+                    //only one iteration, ever.  (See similar comments elsewhere.)
+                    let starting_id: i64 = self.max_id_value() - 1;
+
+                    @tailrec fn findIdWhichIsNotKeyOfAnyEntity_helper(working_id: i64, counter: i64) -> i64 {
+                      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
+                      if entity_key_exists(working_id)) {
+                        if working_id == self.max_id_value()) {
+                          // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
+                          throw new OmDatabaseException("No id found which is not a key of any entity in the system. How could all id's be used??")
+                        }
+                        // idea: this check assumes that the thing to get IDs will re-use deleted ones and wrap around the set of #'s. That fix is on the list (informally
+                        // at this writing, 2013-11-18).
+                        if counter > 1000) throw new OmDatabaseException("Very unexpected, but could it be that you are running out of available entity IDs?? Have someone check, " +
+                                                                "before you need to create, for example, a thousand more entities.")
+                        findIdWhichIsNotKeyOfAnyEntity_helper(working_id - 1, counter + 1)
+                      } else working_id
+                    }
+
+                    findIdWhichIsNotKeyOfAnyEntity_helper(starting_id, 0)
+                  }
+
+                  // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
+                    fn addUriEntityWithUriAttribute(containingEntityIn: Entity, new_entity_name_in: String, uriIn: String, observation_date_in: i64,
+                                                   makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool,
+                                                   quoteIn: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity) {
+                    if quoteIn.is_some()) require(!quoteIn.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                    // if !caller_manages_transactions_in { self.begin_trans() }
+                    try {
+                      // **idea: BAD SMELL: should this method be moved out of the db class, since it depends on higher-layer components, like EntityClass and
+                      // those in the same package? It was in Controller, but moved here
+                      // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
+
+                      let (uriClassId: i64, uriClassTemplateId: i64) = get_or_create_class_and_template_entity("URI", caller_manages_transactions_in);
+                      let (_, quotationClassTemplateId: i64) = get_or_create_class_and_template_entity("quote", caller_manages_transactions_in);
+                      let (newEntity: Entity, newRTLE: RelationToLocalEntity) = containingEntityIn.create_entityAndAddHASLocalRelationToIt(new_entity_name_in, observation_date_in,;
+                                                                                                                               makeThem_publicIn, caller_manages_transactions_in)
+                      update_entitys_class(newEntity.get_id, Some(uriClassId), caller_manages_transactions_in)
+                      newEntity.addTextAttribute(uriClassTemplateId, uriIn, None, None, observation_date_in, caller_manages_transactions_in)
+                      if quoteIn.is_some()) {
+                        newEntity.addTextAttribute(quotationClassTemplateId, quoteIn.get, None, None, observation_date_in, caller_manages_transactions_in)
+                      }
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                      // if !caller_manages_transactions_in {self.commit_trans() }
+                      (newEntity, newRTLE)
+                    } catch {
+                      case e: Exception =>
+                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                        // if !caller_manages_transactions_in) rollback_trans()
+                        throw e
+                    }
+                  }
+
+              /// @return the OmInstance object that stands for *this*: the OmInstance to which this PostgreSQLDatabase class instance reads/writes directly.
+            fn get_local_om_instance_data() -> OmInstance {
+                let sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE";
+                let results = db_query(sql, "String,String,i64,i64");
+                if results.size != 1) throw new OmDatabaseException("Got " + results.size + " instead of 1 result from sql " + sql +
+                                                                     ".  Does the usage now warrant removing this check (ie, multiple locals stored)?")
+                let result = results.head;
+                new OmInstance(this, result(0).get.asInstanceOf[String], is_local_in = true,
+                               result(1).get.asInstanceOf[String],
+                               result(2).get.asInstanceOf[i64], if result(3).isEmpty) None else Some(result(3).get.asInstanceOf[i64]))
+              }
+
+    */
+    //%%$%% moved methods that are not part of the Database trait go here
 }
 
 impl Database for PostgreSQLDatabase {
@@ -2404,141 +3284,61 @@ impl Database for PostgreSQLDatabase {
     /// Like jdbc's default, if you don't call begin/rollback/commit, sqlx will commit after every
     /// sql statement, but if you call begin/rollback/commit, it will let you manage
     /// explicitly and will automatically turn autocommit on/off as needed to allow that. (???)
-    fn begin_trans(&self) -> Result<Transaction<Postgres>, sqlx::Error> {
-        let mut tx = self.rt.block_on(self.pool.begin())?;
+    fn begin_trans(&self) -> Result<Transaction<Postgres>, anyhow::Error> {
+        // let mut tx = self.rt.block_on(self.pool.begin())?;
+        let mut tx: Transaction<Postgres> = match self.rt.block_on(self.pool.begin()) {
+            Err(e) => return Err(anyhow!(e.to_string())),
+            Ok(t) => t,
+        };
         // %% see comments in fn connect() re this AND remove above method comment??
         // connection.setAutoCommit(false);
         Ok(tx)
     }
-    // fn begin_trans_test(&self)  -> Result<Transaction<Postgres>, sqlx::Error> {
-    fn begin_trans_test(&self) -> Result<i32, sqlx::Error> {
-        let mut tx = self.rt.block_on(self.pool.begin())?;
-        // // %% see comments in fn connect() re this AND remove above method comment??
-        // connection.setAutoCommit(false);
-        // Ok(tx)
-        Ok(15)
+    /// Not needed when the transaction simply goes out of scope! Rollback is then automatic, per
+    /// sqlx and a test I wrote to verify it, below.
+    fn rollback_trans(&self, tx: Transaction<Postgres>) -> Result<(), anyhow::Error> {
+        match self.rt.block_on(tx.rollback()) {
+            Err(e) => return Err(anyhow!(e.to_string())),
+            Ok(()) => return Ok(()),
+        };
+        // so future work is auto- committed unless programmer explicitly opens another transaction
+        //%% see comments in fn connect() re this
+        // connection.setAutoCommit(true);
     }
-
-    /// Not needed when the transaction simply goes out of scope! Rollback is then automatic.
-    fn rollback_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error> {
-        self.rt.block_on(tx.rollback())
+    fn commit_trans(&self, tx: Transaction<Postgres>) -> Result<(), anyhow::Error> {
+        if let Err(e) = self.rt.block_on(tx.commit()) {
+            return Err(anyhow!(e.to_string()));
+        }
+        Ok(())
         // so future work is auto- committed unless programmer explicitly opens another transaction
         //%% see comments in fn connect() re this
         // connection.setAutoCommit(true);
     }
 
-    fn commit_trans(&self, tx: Transaction<Postgres>) -> Result<(), sqlx::Error> {
-        self.rt.block_on(tx.commit())
-        // so future work is auto- committed unless programmer explicitly opens another transaction
-        //%% see comments in fn connect() re this
-        // connection.setAutoCommit(true);
-    }
-
-    // /** @param skip_check_for_bad_sql_in   Avoid using this parameter! See comment on PostgreSQLDatabase.db_action.
-    //   */
-    //   fn db_action(sql_in: String, caller_checks_row_count_etc: bool = false, skip_check_for_bad_sql_in: bool = false) -> i64 {
-    //   PostgreSQLDatabase.db_action(sql_in, caller_checks_row_count_etc, connection, skip_check_for_bad_sql_in)
-    // }
-
-    /*
-             /** Performs automatic database upgrades as required by evolving versions of OneModel.
-               *
-               * ******MAKE SURE*****:       ...that everything this does is also done in create_tables so that create_tables is a single reference
-               * point for a developer to go read about the database structure, and for testing!  I.e., a newly-created OM instance shouldn't have to be upgraded,
-               * because create_tables always provides the latest structure in a new system.  This method is just for updating older instances to what is in create_tables!
-               */
-               fn doDatabaseUpgradesIfNeeded() /* -> Unit%%*/ {
-               let versionTableExists: bool = does_this_exist("select count(1) from pg_class where relname='om_db_version'");
-               if ! versionTableExists) {
-                 create_version_table()
-               }
-               let mut dbVersion: i32 = db_query_wrapper_for_one_row("select version from om_db_version", "Int")(0).get.asInstanceOf[Int];
-               if dbVersion == 0) {
-                 dbVersion = upgradeDbFrom0to1()
-               }
-               if dbVersion == 1) {
-                 dbVersion = upgradeDbFrom1to2()
-               }
-               if dbVersion == 2) {
-                 dbVersion = upgradeDbFrom2to3()
-               }
-               if dbVersion == 3) {
-                 dbVersion = upgradeDbFrom3to4()
-               }
-               if dbVersion == 4) {
-                 dbVersion = upgradeDbFrom4to5()
-               }
-               if dbVersion == 5) {
-                 dbVersion = upgradeDbFrom5to6()
-               }
-               if dbVersion == 6) {
-                 dbVersion = upgradeDbFrom6to7()
-               }
-               /* NOTE FOR FUTURE METHODS LIKE upgradeDbFrom0to1: methods like this should be designed carefully and very well-tested:
-                  0) make & test periodic backups of your live data to be safe!
-                  1) Consider designing it to be idempotent: so multiple runs on a production db (if by some mistake) will no harm (or at least will err out safely).
-                  2) Could run it against the test db (even though its tables already should have these changes, by being created from scratch), by not yet updating
-                     the table om_db_version (perhaps by temporarily commenting out the line with
-                     "UPDATE om_db_version ..." from create_tables while running tests).  AND,
-                  3) Could do a backup, open psql, start a transaction, paste the method's upgrade
-                     commands there, do manual verifications, then rollback.
-                  It doesn't seem to make sense to test methods like this with a unit test because the tests are run on a db created as a new
-                  system, so there is no upgrade to do on a new test, and no known need to call this method except on old systems being upgraded.
-                  (See also related comment above this doDatabaseUpgradesIfNeeded method.)  Better ideas?
-                 */
-
-               // This at least makes sure all the upgrades ran to completion.
-               // Idea: Should it be instead more specific to what versions of the db are compatible with
-               // this .jar, in case someone for example needs to restore old data but doesn't have an older .jar to go with it?
-               require(dbVersion == PostgreSQLDatabase.SCHEMA_VERSION)
-             }
-
-               fn findAllEntityIdsByName(name_in: String, caseSensitive: bool = false) -> java.util.ArrayList[i64] {
-               // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
-               // a performance issue then look at it?
-               let sql = "select id from entity where " +;
-                         (if !include_archived_entities) {
-                           "(not archived) and "
-                         } else {
-                           ""
-                         }) +
-                         {
-                           if caseSensitive) "name = '" + name_in + "'"
-                           else "lower(name) = lower('" + name_in + "'" + ")"
-                         }
-               let rows = db_query(sql, "i64");
-               let results = new java.util.ArrayList[i64]();
-               for (row <- rows) {
-                 results.add(row(0).get.asInstanceOf[i64])
-               }
-               results
-             }
-
-             // See comment in ImportExport.processUriContent method which uses it, about where the code should really go. Not sure if that idea includes this
-             // method or not.
-               fn findFIRSTClassIdByName(name_in: String, caseSensitive: bool = false) -> Option<i64> {
-               // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
-               // a performance issue then look at it?
-               let nameClause = {;
-                 if caseSensitive) "name = '" + name_in + "'"
-                 else "lower(name) = lower('" + name_in + "'" + ")"
-               }
-               let sql = "select id from class where " + nameClause + " order by id limit 1";
-               let rows = db_query(sql, "i64");
-
-               if rows.isEmpty) None
-               else {
-                 let mut results: List[i64] = Nil;
-                 for (row <- rows) {
-                   results = row(0).get.asInstanceOf[i64] :: results
-                 }
-                 if results.size > 1) throw new OmDatabaseException("Expected 1 row (wanted just the first one), found " + results.size + " rows.")
-                 Some(results.head)
-               }
-             }
+    fn find_all_entity_ids_by_name(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                   name_in: String, case_sensitive: bool /*= false*/) -> Result<Vec<i64>, anyhow::Error> {
+       // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
+       // a performance issue then look at it?
+        let notArchived = if !self.include_archived_entities {
+            "(not archived) and "
+        } else {
+            ""
+        };
+        let case: String = {
+            if case_sensitive {
+                format!("name = '{}'", name_in)
+            } else {
+                format!("lower(name) = lower('{})", name_in)
+            }
+        };
+       let sql = format!("select id from entity where {}{}", notArchived, case);
+       let rows = self.db_query(transaction, sql.as_str(), "i64")?;
+       let mut results = get_i64s_from_rows(&rows)?;
+       Ok(results)
+     }
 
 
-    */
+
     /// @param search_string_in is case-insensitive.
     /// @param stop_after_any_found is to prevent a serious performance problem when searching for the default entity at startup, if that default entity
     ///                          eventually links to 1000's of others.  Alternatives included specifying a different levels_remaining parameter in that
@@ -2573,20 +3373,20 @@ impl Database for PostgreSQLDatabase {
             );
             let related_entity_id_rows = self.db_query(transaction, sql.as_str(), "i64,String")?;
             // let lower_cased_regex_pattern = Pattern.compile(".*" + search_string_in.to_lowercase() + ".*");
-            let mut id: i64 = 0;
-            let mut name: String = "".to_string();
+            let mut id: i64;
+            let mut name: String;
             for row in related_entity_id_rows {
                 //%%$%%%%does this work?? or have to use a match to pull it out? see other places calling or inside db_query?
                 // or a let statement w/ same names + type, just before?
                 //idea: surely there is some better way than what I am doing here? See other places similarly.
                 // DataType::Bigint(id) = *row.get(0).unwrap();
-                id = match row.get(0).unwrap() {
-                    DataType::Bigint(x) => *x,
+                id = match row.get(0) {
+                    Some(Some(DataType::Bigint(x))) => *x,
                     _ => return Err(anyhow!(format!("How did we get here for {:?}?", row.get(0)))),
                 };
                 // DataType::String(name) = *row.get(1).unwrap();
                 name = match row.get(1).unwrap() {
-                    DataType::String(x) => x.clone(),
+                    Some(DataType::String(x)) => x.clone(),
                     _ => return Err(anyhow!(format!("How did we get here for {:?}?", row.get(1)))),
                 };
 
@@ -2623,13 +3423,13 @@ impl Database for PostgreSQLDatabase {
                     //idea: surely there is some better way than what I am doing here? See other places similarly.
                     //   DataType::Bigint(id) = *row.get(0).unwrap();
                     //   DataType::String(name) = *row.get(1).unwrap();
-                    id = match row.get(0).unwrap() {
-                        DataType::Bigint(x) => *x,
+                    id = match row.get(0) {
+                        Some(Some(DataType::Bigint(x))) => *x,
                         _ => return Err(anyhow!(format!("How did we get here for {:?}?", row.get(0)))),
                     };
                     // DataType::String(name) = *row.get(1).unwrap();
-                    name = match row.get(1).unwrap() {
-                        DataType::String(x) => x.clone(),
+                    name = match row.get(1) {
+                        Some(Some(DataType::String(x))) => x.clone(),
                         _ => return Err(anyhow!(format!("How did we get here for {:?}?", row.get(1)))),
                     };
 
@@ -2659,11 +3459,11 @@ impl Database for PostgreSQLDatabase {
                 } else {
                     ""
                 };
-                // *NOTE*: this line about textValue, similar lines just above (doing "matcher ..."), and the prompt
+                // *NOTE*: this line about text_value, similar lines just above (doing "matcher ..."), and the prompt
                 // inside EntityMenu.entitySearchSubmenu __should all match__.
                 let sql3 = format!(
                     "select ta.id from textattribute ta, entity e where \
-                                entity_id=e.id{} and entity_id={} and textValue ~* '{}'",
+                                entity_id=e.id{} and entity_id={} and text_value ~* '{}'",
                     if_archived, from_entity_id_in, search_string_in
                 );
                 //idea: just select a count, instead of requesting all the data back?
@@ -2686,25 +3486,31 @@ impl Database for PostgreSQLDatabase {
             format!("{}{}", class_name_in.clone(), Util::TEMPLATE_NAME_SUFFIX),
         )
     }
-    /*
-                        fn deleteClassAndItsTemplateEntity(class_id_in: i64) {
-                        self.begin_trans()
-                        try {
-                          let templateEntityId: i64 = getClassData(class_id_in)(1).get.asInstanceOf[i64];
-                          let class_group_id = get_system_entitys_class_group_id;
-                          if class_group_id.is_some()) {
-                            removeEntityFromGroup(class_group_id.get, templateEntityId, caller_manages_transactions_in = true)
+
+                    fn delete_class_and_its_template_entity(&self, class_id_in: i64) -> Result<(), anyhow::Error> {
+                        let mut tx: Transaction<Postgres> = self.begin_trans()?;
+                        let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+                          let template_entity_id_vec: Vec<DataType> = self.get_class_data(transaction, class_id_in)?;
+                          let template_entity_id: i64 = match template_entity_id_vec.get(1) {
+                              Some(DataType::Bigint(n)) => *n,
+                              _ => return Err(anyhow!("In delete_class_and_its_template_entity, Unexpected values for template: {:?}", template_entity_id_vec)),
+                          };
+                          let class_group_id: Option<i64> = self.get_system_entitys_class_group_id(transaction)?;
+                          if class_group_id.is_some() {
+                            self.remove_entity_from_group(transaction, class_group_id.unwrap(), template_entity_id, true)?;
                           }
-                          updateEntitysClass(templateEntityId, None, caller_manages_transactions_in = true)
-                          deleteObjectById("class", class_id_in, caller_manages_transactions_in = true)
-                          deleteObjectById(Util::ENTITY_TYPE, templateEntityId, caller_manages_transactions_in = true)
-                        } catch {
-                          case e: Exception => throw rollbackWithCatch(e)
-                        }
-                        commit_trans()
+                          self.update_entitys_class(transaction, template_entity_id, None, true)?;
+                          self.delete_object_by_id2(transaction, "class", class_id_in.to_string().as_str(), true)?;
+                          self.delete_object_by_id2(transaction, Util::ENTITY_TYPE, template_entity_id.to_string().as_str(), true)?;
+
+                        // if let Err(e) = self.commit_trans(tx) {
+                        //     return Err(anyhow!(e.to_string()));
+                        // }
+                        // Ok(())
+                        self.commit_trans(tx)
                       }
-    */
-    /// Returns at most 1 row's info (id, relationTypeId, group_id, name), and a boolean indicating if more were available.
+
+    /// Returns at most 1 row's info (id, relation_type_id, group_id, name), and a boolean indicating if more were available.
     /// If 0 rows are found, returns (None, None, None, false), so this expects the caller
     /// to know there is only one or deal with the None.
     fn find_relation_to_and_group_on_entity(
@@ -2722,60 +3528,51 @@ impl Database for PostgreSQLDatabase {
         };
 
         // "limit 2", so we know and can return whether more were available:
-        let rows: Vec<Vec<DataType>> = self.db_query(transaction, format!("select rtg.id, rtg.rel_type_id, g.id, g.name from relationtogroup rtg, grupo g where rtg.group_id=g.id \
+        let rows: Vec<Vec<Option<DataType>>> = self.db_query(transaction, format!("select rtg.id, rtg.rel_type_id, g.id, g.name from relationtogroup rtg, grupo g where rtg.group_id=g.id \
                                        and rtg.entity_id={} and {} order by rtg.id limit 2",
                                         entity_id_in, name_condition).as_str(), "i64,i64,i64,String")?;
         // there could be none found, or more than one, but:
         if rows.is_empty() {
             return Ok((None, None, None, None, false));
         } else {
-            let row: Vec<DataType> = rows[0].clone();
+            let row: Vec<Option<DataType>> = rows[0].clone();
             let id: Option<i64> = {
                 match row[0] {
-                    DataType::Bigint(x) => Some(x),
-                    _ => return Err(anyhow!("should never happen 2".to_string())),
+                    Some(DataType::Bigint(x)) => Some(x),
+                    _ => return Err(anyhow!("In find_relation_to_and_group_on_entity, should never happen 2".to_string())),
                 }
             };
             let rel_type_id: Option<i64> = {
                 match row[1] {
-                    DataType::Bigint(x) => Some(x),
-                    _ => return Err(anyhow!("should never happen 3".to_string())),
+                    Some(DataType::Bigint(x)) => Some(x),
+                    _ => return Err(anyhow!("In find_relation_to_and_group_on_entity, should never happen 3".to_string())),
                 }
             };
             let group_id: Option<i64> = {
                 match row[2] {
-                    DataType::Bigint(x) => Some(x),
-                    _ => return Err(anyhow!("should never happen 4".to_string())),
+                    Some(DataType::Bigint(x)) => Some(x),
+                    _ => return Err(anyhow!("In find_relation_to_and_group_on_entity, should never happen 4".to_string())),
                 }
             };
             let name: Option<String> = {
                 match row[3].clone() {
-                    DataType::String(x) => Some(x),
-                    _ => return Err(anyhow!("should never happen 5".to_string())),
+                    Some(DataType::String(x)) => Some(x),
+                    _ => return Err(anyhow!("In find_relation_to_and_group_on_entity, should never happen 5".to_string())),
                 }
             };
             return Ok((id, rel_type_id, group_id, name, rows.len() > 1));
         }
     }
-    /*
-                      ///
-                      // @return the id of the new RTE
-                        fn addHASRelationToLocalEntity(from_entity_id_in: i64, toEntityIdIn: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
-                                                      sorting_index_in: Option<i64> = None):  -> RelationToLocalEntity {
-                        let relationTypeId = find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-                        let new_rte = create_relation_to_local_entity(relationTypeId, from_entity_id_in, toEntityIdIn, valid_on_date_in, observation_date_in, sorting_index_in);
-                        new_rte
-                      }
-    */
+
     /// Returns at most 1 id (and a the ideas was?: boolean indicating if more were available?).
     /// If 0 rows are found, return(ed?) (None,false), so this expects the caller
     /// to know there is only one or deal with the None.
     fn find_relation_type(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-        type_name_in: String,
+        type_name_in: &str,
     ) -> Result<i64, anyhow::Error> {
-        let name = Self::escape_quotes_etc(type_name_in);
+        let name = Self::escape_quotes_etc(type_name_in.to_string());
         let rows = self.db_query(
             transaction,
             format!(
@@ -2795,7 +3592,7 @@ impl Database for PostgreSQLDatabase {
         //     let mut final_result: Vec<i64> = Vec::new();
         // for row in rows {
         let id: i64 = match rows[0].get(0) {
-            Some(DataType::Bigint(i)) => *i,
+            Some(Some(DataType::Bigint(i))) => *i,
             _ => return Err(anyhow!(format!("Found not 1 row with i64 but {:?} .", rows))),
         };
         // final_result.push(id);
@@ -2803,90 +3600,139 @@ impl Database for PostgreSQLDatabase {
         // Ok(final_result)
         Ok(id)
     }
-    /*
-                      // /** Used, for example, when test code is finished with its test data. Be careful. */
-                      //   fn destroy_tables() {
-                      //   PostgreSQLDatabase.destroy_tables(connection)
-                      // }
+    /// Saves data for a quantity attribute for a Entity (i.e., "6 inches length").<br>
+    /// parent_id_in is the key of the Entity for which the info is being saved.<br>
+    /// inUnitId represents a Entity; indicates the unit for this quantity (i.e., liters or inches).<br>
+    /// inNumber represents "how many" of the given unit.<br>
+    /// attr_type_id_in represents the attribute type and also is a Entity (i.e., "volume" or "length")<br>
+    /// valid_on_date_in represents the date on which this began to be true (seems it could match the observation date if needed,
+    /// or guess when it was definitely true);
+    /// NULL means unknown, 0 means it is asserted true for all time. observation_date_in is the date the fact was observed. <br>
+    /// <br>
+    /// We store the dates in
+    /// postgresql (at least) as bigint which should be the same size as a java long, with the understanding that we are
+    /// talking about java-style dates here; it is my understanding that such long's can also be negative to represent
+    /// dates long before 1970, or positive for dates long after 1970. <br>
+    /// <br>
+    /// In the case of inNumber, note
+    /// that the postgresql docs give some warnings about the precision of its real and "double precision" types. Given those
+    /// warnings and the fact that I haven't investigated carefully (as of 9/2002) how the data will be saved and read
+    /// between the java float type and the postgresql types, I am using "double precision" as the postgresql data type,
+    /// as a guess to try to lose as
+    /// little information as possible, and I'm making this note to you the reader, so that if you care about the exactness
+    /// of the data you can do some research and let us know what you find.
+    /// <p/>
+    /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
+                    fn create_quantity_attribute<'a>(&'a self, transaction_in: &Option<&mut Transaction<'a, Postgres>>, parent_id_in: i64, attr_type_id_in: i64,
+                                                 unit_id_in: i64, number_in: f64, valid_on_date_in: Option<i64>,
+                                                  observation_date_in: i64, caller_manages_transactions_in: bool /*= false*/,
+                                                 sorting_index_in: Option<i64> /*= None*/) -> Result</*id*/ i64, anyhow::Error> {
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err(anyhow!("In create_quantity_attribute, Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                    .to_string()));
+                } else {
+                    self.begin_trans()?
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    self.begin_trans()?
+                } else {
+                    return Err(anyhow!(
+                        "In create_quantity_attribute, Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    ))
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-                      /**
-                       * Saves data for a quantity attribute for a Entity (i.e., "6 inches length").<br>
-                       * parent_id_in is the key of the Entity for which the info is being saved.<br>
-                       * inUnitId represents a Entity; indicates the unit for this quantity (i.e., liters or inches).<br>
-                       * inNumber represents "how many" of the given unit.<br>
-                       * attr_type_id_in represents the attribute type and also is a Entity (i.e., "volume" or "length")<br>
-                       * valid_on_date_in represents the date on which this began to be true (seems it could match the observation date if needed,
-                       * or guess when it was definitely true);
-                       * NULL means unknown, 0 means it is asserted true for all time. observation_date_in is the date the fact was observed. <br>
-                       * <br>
-                       * We store the dates in
-                       * postgresql (at least) as bigint which should be the same size as a java long, with the understanding that we are
-                       * talking about java-style dates here; it is my understanding that such long's can also be negative to represent
-                       * dates long before 1970, or positive for dates long after 1970. <br>
-                       * <br>
-                       * In the case of inNumber, note
-                       * that the postgresql docs give some warnings about the precision of its real and "double precision" types. Given those
-                       * warnings and the fact that I haven't investigated carefully (as of 9/2002) how the data will be saved and read
-                       * between the java float type and the postgresql types, I am using "double precision" as the postgresql data type,
-                       * as a guess to try to lose as
-                       * little information as possible, and I'm making this note to you the reader, so that if you care about the exactness
-                       * of the data you can do some research and let us know what you find.
-                       * <p/>
-                       * Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-                       */
-                        fn createQuantityAttribute(parent_id_in: i64, attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>,
-                                                  observation_date_in: i64, caller_manages_transactions_in: bool = false, sorting_index_in: Option<i64> = None) -> /*id*/ i64 {
-                        if !caller_manages_transactions_in { self.begin_trans() }
-                        let mut id: i64 = 0L;
-                        try {
-                          id = get_new_key("QuantityAttributeKeySequence")
-                          add_attribute_sorting_row(parent_id_in, Database.get_attribute_form_id(Util::QUANTITY_TYPE), id, sorting_index_in)
-                          self.db_action(format!"insert into QuantityAttribute (id, entity_id, unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) " +
-                                   "values (" + id + "," + parent_id_in + "," + unitIdIn + "," + numberIn + "," + attr_type_id_in + "," +
-                                   (if valid_on_date_in.isEmpty) "NULL" else valid_on_date_in.get) + "," + observation_date_in + ")").as_str(), false, false);
-                        }
-                        catch {
-                          case e: Exception =>
-                            if !caller_manages_transactions_in) rollback_trans()
-                            throw e
-                        }
-                        if !caller_manages_transactions_in {self.commit_trans() }
-                        id
+
+                        let mut id: i64 = self.get_new_key(transaction, "QuantityAttributeKeySequence")?;
+                            let form_id = self.get_attribute_form_id(Util::QUANTITY_TYPE)?;
+                          self.add_attribute_sorting_row(transaction, parent_id_in,
+                                                         form_id,
+                                                         id, sorting_index_in)?;
+                            let valid_on = match valid_on_date_in {
+                                None => "NULL".to_string(),
+                                Some(d) => format!("{}", d),
+                            };
+                          self.db_action(transaction,
+                                         format!("insert into QuantityAttribute (id, entity_id, unit_id, \
+                                         quantity_number, attr_type_id, valid_on_date, observation_date) values ({},{},{},{},\
+                                         {},{},{})", id, parent_id_in, unit_id_in, number_in, attr_type_id_in, valid_on, observation_date_in).as_str(),
+                                         false, false)?;
+                            if !caller_manages_transactions_in {
+                                // see comments at similar location in delete_objects about local_tx
+                                if let Err(e) = self.commit_trans(local_tx) {
+                                    // see comments in delete_objects about rollback
+                                    return Err(anyhow!(e.to_string()));
+                                }
+                            }
+                        Ok(id)
                       }
 
-                        fn escape_quotes_etc(s: String) -> String {
-                        PostgreSQLDatabase.escape_quotes_etc(s)
-                      }
 
-                        fn check_for_bad_sql(s: String) {
-                        PostgreSQLDatabase.check_for_bad_sql(s)
-                      }
-
-                        fn updateQuantityAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, unitIdIn: i64, numberIn: Float, valid_on_date_in: Option<i64>,
-                                                  observation_date_in: i64) {
+                      fn update_quantity_attribute(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, parent_id_in: i64,
+                                                   attr_type_id_in: i64, unit_id_in: i64, number_in: f64, valid_on_date_in: Option<i64>,
+                                                  observation_date_in: i64) -> Result<u64, anyhow::Error> {
                         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
                         // in memory when the db updates, and the behavior gets weird.
-                        self.(format!("update QuantityAttribute set (unit_id, quantity_number, attr_type_id, valid_on_date, observation_date) = (" + unitIdIn + "," +
-                                 "" + numberIn + "," + attr_type_id_in + "," + (if valid_on_date_in.isEmpty) "NULL" else valid_on_date_in.get) + "," +
-                                 "" + observation_date_in + ") where id=" + id_in + " and  entity_id=" + parent_id_in).as_str, false, false);
+                          let valid_on = match valid_on_date_in {
+                              None => "NULL".to_string(),
+                              Some(d) => format!("{}", d),
+                          };
+                        self.db_action(transaction, format!("update QuantityAttribute set (unit_id, quantity_number, attr_type_id, valid_on_date, \
+                        observation_date) = ({},{},{},{},{}) where id={} and  entity_id={}", unit_id_in, number_in, attr_type_id_in,
+                            valid_on, observation_date_in, id_in, parent_id_in).as_str(),
+                                       false, false)
                       }
 
-                        fn updateTextAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64>, observation_date_in: i64) {
-                        let text: String = self.escape_quotes_etc(text_in);
+                    fn update_text_attribute(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, parent_id_in: i64,
+                                             attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64>, observation_date_in: i64)
+                                            -> Result<u64, anyhow::Error> {
+                        let text: String = Self::escape_quotes_etc(text_in);
+                        let valid_on = match valid_on_date_in {
+                            None => "NULL".to_string(),
+                            Some(d) => format!("{}", d),
+                        };
                         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
                         // in memory when the db updates, and the behavior gets weird.
-                        db_action("update TextAttribute set (textValue, attr_type_id, valid_on_date, observation_date) = ('" + text + "'," + attr_type_id_in + "," +
-                                 "" + (if valid_on_date_in.isEmpty) "NULL" else valid_on_date_in.get) + "," + observation_date_in + ") where id=" + id_in + " and  " +
-                                 "entity_id=" + parent_id_in)
-                      }
+                        self.db_action(transaction, format!("update TextAttribute set (text_value, attr_type_id, valid_on_date, observation_date) \
+                        = ('{}',{},{},{}) where id={} and entity_id={}", text, attr_type_id_in,
+                                 valid_on, observation_date_in, id_in, parent_id_in).as_str(),
+                        false, false)
+                    }
 
-                        fn updateDateAttribute(id_in: i64, parent_id_in: i64, date_in: i64, attr_type_id_in: i64) {
+                    fn update_date_attribute(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, parent_id_in: i64,
+                                                 date_in: i64, attr_type_id_in: i64)  -> Result<u64, anyhow::Error> {
                         // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
                         // in memory when the db updates, and the behavior gets weird.
-                        self.db_action(format!("update DateAttribute set (date, attr_type_id) = (" + date_in + "," + attr_type_id_in + ") where id=" + id_in + " and  " +
-                                 "entity_id=" + parent_id_in).as_str(), false, false);
+                        self.db_action(transaction, format!("update DateAttribute set (date, attr_type_id) \
+                        = ({},{}) where id={} and entity_id={}", date_in, attr_type_id_in, id_in, parent_id_in).as_str(),
+                                       false, false)
                       }
-    */
     fn update_boolean_attribute(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -2909,107 +3755,164 @@ impl Database for PostgreSQLDatabase {
                                    false, false)?;
         Ok(())
     }
-    /*
-                 // We don't update the dates, path, size, hash because we set those based on the file's own timestamp, path current date,
-                 // & contents when it is written. So the only
-                 // point to having an update method might be the attribute type & description.
-                 // AND THAT: The valid_on_date for a file attr shouldn't ever be None/NULL like with other attrs, because it is the file date in the filesystem before it was
-                 // read into OM.
-                   fn updateFileAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, descriptionIn: String) {
+                 /// We don't update the dates, path, size, hash because we set those based on the file's own timestamp, path current date,
+                 /// & contents when it is written. So the only
+                 /// point to having an update method might be the attribute type & description.
+                 /// AND THAT: The valid_on_date for a file attr shouldn't ever be None/NULL like with other attrs, because it is the file date in the filesystem before it was
+                 /// read into OM.
+                 fn update_file_attribute(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, parent_id_in: i64,
+                                          attr_type_id_in: i64, description_in: String) -> Result<u64, anyhow::Error> {
                    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
                    // in memory when the db updates, and the behavior gets weird.
-                   self.db_action(format!("update FileAttribute set (description, attr_type_id) = ('" + descriptionIn + "'," + attr_type_id_in + ")" +
-                            " where id=" + id_in + " and entity_id=" + parent_id_in).as_str(), false, false);
+                   self.db_action(transaction, format!("update FileAttribute set (description, attr_type_id) \
+                   = ('{}',{}) where id={} and entity_id={}", description_in, attr_type_id_in, id_in, parent_id_in).as_str(),
+                                  false, false)
                  }
 
-                 // first take on this: might have a use for it later.  It's tested, and didn't delete, but none known now. Remove?
-                   fn updateFileAttribute(id_in: i64, parent_id_in: i64, attr_type_id_in: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
-                                         original_file_path_in: String, readableIn: bool, writableIn: bool, executableIn: bool, sizeIn: i64, md5hashIn: String) {
+                 /// first take on this: might have a use for it later.  It's tested, and didn't delete, but none known now. Remove?
+                 fn update_file_attribute2(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, parent_id_in: i64, attr_type_id_in: i64,
+                                           description_in: String, original_file_date_in: i64, stored_date_in: i64,
+                                         original_file_path_in: String, readable_in: bool, writable_in: bool, executable_in: bool, size_in: i64,
+                                           md5_hash_in: String) -> Result<u64, anyhow::Error> {
                    // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
                    // in memory when the db updates, and the behavior gets weird.
-                   self.db_action(format!("update FileAttribute set " +
-                            " (description, attr_type_id, original_file_date, stored_date, original_file_path, readable, writable, executable, size, md5hash) =" +
-                            " ('" + descriptionIn + "'," + attr_type_id_in + "," + originalFileDateIn + "," + storedDateIn + ",'" + original_file_path_in + "'," +
-                            " " + readableIn + "," + writableIn + "," + executableIn + "," +
-                            " " + sizeIn + "," +
-                            " '" + md5hashIn + "')" +
-                            " where id=" + id_in + " and entity_id=" + parent_id_in).as_str(), false, false);
+                   self.db_action(transaction, format!("update FileAttribute set (description, attr_type_id, original_file_date, stored_date, \
+                   original_file_path, readable, writable, executable, size, md5hash) = ('{}',{},{},{},'{}', {},{},{}, {}, '{}') where id={} and entity_id={}",
+                       description_in, attr_type_id_in, original_file_date_in, stored_date_in, original_file_path_in, readable_in, writable_in, executable_in,
+                            size_in, md5_hash_in, id_in, parent_id_in).as_str(),
+                                  false, false)
                  }
 
-                   fn updateEntityOnlyName(id_in: i64, name_in: String) {
-                   let name: String = self.escape_quotes_etc(name_in);
-                   self.db_action(format!("update Entity set (name) = ROW('" + name + "') where id=" + id_in).as_str(), false, false);
+                 fn update_entity_only_name(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, name_in: String) -> Result<u64, anyhow::Error> {
+                   let name: String = Self::escape_quotes_etc(name_in);
+                   self.db_action(transaction, format!("update Entity set (name) = ROW('{}') where id={}", name, id_in).as_str(),
+                                  false, false)
                  }
 
-                   fn updateEntityOnlyPublicStatus(id_in: i64, value: Option<bool>) {
-                   self.db_action(format!("update Entity set (public) = ROW(" +
-                            (if value.isEmpty) "NULL" else if value.get) "true" else "false") +
-                            ") where id=" + id_in).as_str(), false, false);
+               fn update_entity_only_public_status(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, value_in: Option<bool>) -> Result<u64, anyhow::Error> {
+                   let value = match value_in {
+                       None => "NULL",
+                       Some(v) => if v {
+                           "true"
+                       } else {
+                           "false"
+                       }
+                   };
+                   self.db_action(transaction, format!("update Entity set (public) = ROW({}) where id={}", value, id_in).as_str(),
+                                  false, false)
                  }
 
-                   fn updateEntityOnlyNewEntriesStickToTop(id_in: i64, newEntriesStickToTop: bool) {
-                   self.db_action(format!("update Entity set (new_entries_stick_to_top) = ROW('" + newEntriesStickToTop + "') where id=" + id_in).as_str(), false, false);
+                 fn update_entity_only_new_entries_stick_to_top(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64,
+                                                                new_entries_stick_to_top: bool) -> Result<u64, anyhow::Error> {
+                   self.db_action(transaction, format!("update Entity set (new_entries_stick_to_top) = ROW('{}\
+                   ') where id={}", new_entries_stick_to_top, id_in).as_str(), false, false)
                  }
 
-                   fn updateClassAndTemplateEntityName(class_id_in: i64, name: String) -> i64 {
-                   let mut entity_id: i64 = 0;
-                   self.begin_trans()
-                   try {
-                     updateClassName(class_id_in, name)
-                     entity_id = new EntityClass(this, class_id_in).getTemplateEntityId
-                     updateEntityOnlyName(entity_id, name  + Database.TEMPLATE_NAME_SUFFIX)
-                   }
-                   catch {
-                     case e: Exception => throw rollbackWithCatch(e)
-                   }
-                   commit_trans()
-                   entity_id
-                 }
+    // //%%put back after EntityClass fleshed out w/ ::new() ?
+    //              fn update_class_and_template_entity_name(&self, class_id_in: i64,
+    //                                                       name: &str) -> Result<i64, anyhow::Error> {
+    //                let mut tx = self.begin_trans()?;
+    //                  let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+    //                  self.update_class_name(transaction, class_id_in, name)?;
+    //                  let mut entity_id: i64 = EntityClass::new(this, class_id_in).get_template_entity_id()?;
+    //                  self.update_entity_only_name(transaction, entity_id, format!("{}{}", name, Util::TEMPLATE_NAME_SUFFIX)?;
+    //                  if let Err(e) = self.commit_trans(tx) {
+    //                      // see comments in delete_objects about rollback
+    //                      return Err(anyhow!(e.to_string()));
+    //                  }
+    //                Ok(entity_id)
+    //              }
 
-                   fn updateClassName(id_in: i64, name_in: String) {
-                   let name: String = self.escape_quotes_etc(name_in);
-                   self.db_action(format!("update class set (name) = ROW('" + name + "') where id=" + id_in).as_str(), false, false);
-                 }
+               fn update_entitys_class<'a>(&'a self, transaction_in: &Option<&mut Transaction<'a, Postgres>>, entity_id: i64, class_id: Option<i64>, caller_manages_transactions_in: bool /*= false*/) -> Result<(), anyhow::Error> {
+                   //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+                   // Try creating a local transaction whether we use it or not, to handle compiler errors
+                   // about variable moves. I'm not seeing a better way to get around them by just using
+                   // conditions and an Option (many errors):
+                   // (I tried putting this in a function, then a macro, but it gets compile errors.
+                   // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+                   // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+                   // I didn't try a proc macro but based on some reading I think it would have the same
+                   // problem.)
+                   let mut local_tx: Transaction<Postgres> = {
+                       if transaction_in.is_none() {
+                           if caller_manages_transactions_in {
+                               return Err(anyhow!("In update_entitys_class, Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                    .to_string()));
+                           } else {
+                               self.begin_trans()?
+                           }
+                       } else {
+                           if caller_manages_transactions_in {
+                               // That means we have determined that the caller is to use the transaction_in .
+                               // was just:  None
+                               // But now instead, create it anyway, per comment above.
+                               self.begin_trans()?
+                           } else {
+                               return Err(anyhow!(
+                        "In update_entitys_class, Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    ))
+                           }
+                       }
+                   };
+                   let local_tx_option = &Some(&mut local_tx);
+                   let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+                       transaction_in
+                   } else {
+                       local_tx_option
+                   };
+                   //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-                   fn updateEntitysClass(entity_id: i64, class_id: Option<i64>, caller_manages_transactions_in: bool = false) {
-                   if !caller_manages_transactions_in) self.begin_trans()
-                   self.db_action(format!("update Entity set (class_id) = ROW(" +
-                            (if class_id.isEmpty) "NULL" else class_id.get) +
-                            ") where id=" + entity_id).as_str(), false, false);
-                   let group_ids = db_query("select group_id from EntitiesInAGroup where entity_id=" + entity_id, "i64");
-                   for (row <- group_ids) {
-                     let group_id = row(0).get.asInstanceOf[i64];
-                     let mixed_classes_allowed: bool = are_mixed_classes_allowed(group_id);
-                     if (!mixed_classes_allowed) && has_mixed_classes(group_id)) {
-                       throw rollbackWithCatch(new OmDatabaseException(Database.MIXED_CLASSES_EXCEPTION))
+                   let ci = match class_id {
+                       None => "NULL".to_string(),
+                       Some(x) => format!("{}",x),
+                   };
+                   self.db_action(transaction, format!("update Entity set (class_id) = ROW({}) where id={}",
+                        ci, entity_id).as_str(), false, false)?;
+                   let group_ids = self.db_query(transaction, format!("select group_id from \
+                        EntitiesInAGroup where entity_id={}", entity_id).as_str(), "i64")?;
+                   for row in group_ids {
+                     let group_id = match row.get(0) {
+                         Some(Some(DataType::Bigint(gid))) => *gid,
+                         _ => return Err(anyhow!("In update_entitys_class, unsure how got here for row {:?}", row)),
+                       };
+                     let mixed_classes_allowed: bool = self.are_mixed_classes_allowed(transaction, &group_id)?;
+                     if !mixed_classes_allowed && self.has_mixed_classes(transaction, &group_id)? {
+                       return Err(anyhow!("In update_entitys_class: {}", Util::MIXED_CLASSES_EXCEPTION));
                      }
                    }
-                   if !caller_manages_transactions_in) commit_trans()
-                 }
-
-                   fn updateRelationType(id_in: i64, name_in: String, name_in_reverse_direction_in: String, directionality_in: String) {
-                   require(name_in != null)
-                   require(name_in.length > 0)
-                   require(name_in_reverse_direction_in != null)
-                   require(name_in_reverse_direction_in.length > 0)
-                   require(directionality_in != null)
-                   require(directionality_in.length > 0)
-                   let name_in_reverse_direction: String = self.escape_quotes_etc(name_in_reverse_direction_in);
-                   let name: String = self.escape_quotes_etc(name_in);
-                   let directionality: String = self.escape_quotes_etc(directionality_in);
-                   self.begin_trans()
-                   try {
-                     self.db_action(format!("update Entity set (name) = ROW('" + name + "') where id=" + id_in).as_str(), false, false);
-                     self.db_action(format!("update RelationType set (name_in_reverse_direction, directionality) = ROW('" + name_in_reverse_direction + "', " +
-                              "'" + directionality + "') where entity_id=" + id_in).as_str(), false, false);
-                   } catch {
-                     case e: Exception => throw rollbackWithCatch(e)
+                   if !caller_manages_transactions_in {
+                       // see comments at similar location in delete_objects about local_tx
+                       if let Err(e) = self.commit_trans(local_tx) {
+                           // see comments in delete_objects about rollback
+                           return Err(anyhow!("In update_entitys_class: {}", e.to_string()));
+                       }
                    }
-                   commit_trans()
+                   Ok(())
+                 }
+
+               fn update_relation_type(&self, id_in: i64, name_in: String,
+                                       name_in_reverse_direction_in: String, directionality_in: String) -> Result<(), anyhow::Error> {
+                   assert!(name_in.len() > 0);
+                   assert!(name_in_reverse_direction_in.len() > 0);
+                   assert!(directionality_in.len() > 0);
+                   let name_in_reverse_direction: String = Self::escape_quotes_etc(name_in_reverse_direction_in);
+                   let name: String = Self::escape_quotes_etc(name_in);
+                   let directionality: String = Self::escape_quotes_etc(directionality_in);
+                   let mut tx = self.begin_trans()?;
+                   let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+                     self.db_action(transaction, format!("update Entity set (name) = ROW('{}') where id={}", name, id_in).as_str(),
+                                    false, false)?;
+                     self.db_action(transaction, format!("update RelationType set (name_in_reverse_direction, directionality) = \
+                        ROW('{}', '{}') where entity_id={}", name_in_reverse_direction, directionality, id_in).as_str(),
+                                    false, false)?;
+
+                   self.commit_trans(tx)
                  }
 
 
-    */
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
     fn create_text_attribute<'a>(
         &'a self,
@@ -3036,33 +3939,21 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_text_attribute, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_text_attribute, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ))
@@ -3109,7 +4000,6 @@ impl Database for PostgreSQLDatabase {
             }
             _ => {}
         };
-        //%%%%%%%%confirm that this commits the transaction, unless db is down or errs above, then rolls back? should there be tests or is enuf alr, w cmts?
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
@@ -3119,23 +4009,22 @@ impl Database for PostgreSQLDatabase {
         }
         Ok(id)
     }
-    /*
-                       fn createDateAttribute(parent_id_in: i64, attr_type_id_in: i64, date_in: i64, sorting_index_in: Option<i64> = None) -> /*id*/ i64 {
-                       let id: i64 = get_new_key("DateAttributeKeySequence");
-                       self.begin_trans()
-                       try {
-                         add_attribute_sorting_row(parent_id_in, Database.get_attribute_form_id(Util::DATE_TYPE), id, sorting_index_in)
-                         self.db_action(format!("insert into DateAttribute (id, entity_id, attr_type_id, date) " +
-                                  "values (" + id + "," + parent_id_in + ",'" + attr_type_id_in + "'," + date_in + ")").as_str(), false, false);
-                       }
-                       catch {
-                         case e: Exception => throw rollbackWithCatch(e)
-                       }
-                       commit_trans()
-                       id
-                     }
 
-    */
+   fn create_date_attribute(&self, parent_id_in: i64, attr_type_id_in: i64,
+                            date_in: i64, sorting_index_in: Option<i64> /*= None*/) -> Result</*id*/ i64, anyhow::Error> {
+       let mut tx = self.begin_trans()?;
+       let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+       let id: i64 = self.get_new_key(transaction, "DateAttributeKeySequence")?;
+         self.add_attribute_sorting_row(transaction, parent_id_in, self.get_attribute_form_id(Util::DATE_TYPE).unwrap(),
+                                        id, sorting_index_in)?;
+         self.db_action(transaction, format!("insert into DateAttribute (id, entity_id, attr_type_id, date) \
+                    values ({},{},'{}',{})", id, parent_id_in, attr_type_id_in, date_in).as_str(),
+                        false, false)?;
+       self.commit_trans(tx)?;
+       Ok(id)
+     }
+
+
     fn create_boolean_attribute(
         &self,
         parent_id_in: i64,
@@ -3145,11 +4034,7 @@ impl Database for PostgreSQLDatabase {
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*%%= None*/
     ) -> Result<i64, anyhow::Error> {
-        let mut tx: Transaction<Postgres> = match self.begin_trans() {
-            // Err(e) => return Err(e.to_string()),
-            Err(e) => return Err(anyhow!(e.to_string())),
-            Ok(t) => t,
-        };
+        let mut tx: Transaction<Postgres> = self.begin_trans()?;
         let id: i64 = self.get_new_key(&Some(&mut tx), "BooleanAttributeKeySequence")?;
         // try {
         self.add_attribute_sorting_row(
@@ -3175,81 +4060,82 @@ impl Database for PostgreSQLDatabase {
             false,
             false,
         )?;
-        if let Err(e) = self.commit_trans(tx) {
-            return Err(anyhow!(e.to_string()));
-        }
+        self.commit_trans(tx)?;
         Ok(id)
     }
-    /*
 
-      fn createFileAttribute(parent_id_in: i64, attr_type_id_in: i64, descriptionIn: String, originalFileDateIn: i64, storedDateIn: i64,
-                            original_file_path_in: String, readableIn: bool, writableIn: bool, executableIn: bool, sizeIn: i64,
-                            md5hashIn: String, inputStreamIn: java.io.FileInputStream, sorting_index_in: Option<i64> = None) -> /*id*/ i64 {
-      let description: String = self.escape_quotes_etc(descriptionIn);
-      // (Next 2 for completeness but there shouldn't ever be a problem if other code is correct.)
-      let original_file_path: String = self.escape_quotes_etc(original_file_path_in);
-      // Escaping the md5hash string shouldn't ever matter, but security is more important than the md5hash:
-      let md5hash: String = self.escape_quotes_etc(md5hashIn);
-      let mut obj: LargeObject = null;
-      let mut id: i64 = 0;
-      try {
-        id = get_new_key("FileAttributeKeySequence")
-        self.begin_trans()
-        add_attribute_sorting_row(parent_id_in, Database.get_attribute_form_id(Util::FILE_TYPE), id, sorting_index_in)
-        self.db_action(format!("insert into FileAttribute (id, entity_id, attr_type_id, description, original_file_date, stored_date, original_file_path, readable, writable," +
-                 " executable, size, md5hash)" +
-                 " values (" + id + "," + parent_id_in + "," + attr_type_id_in + ",'" + description + "'," + originalFileDateIn + "," + storedDateIn + "," +
-                 " '" + original_file_path + "', " + readableIn + ", " + writableIn + ", " + executableIn + ", " + sizeIn + ",'" + md5hash + "')").as_str(), false, false);
-        // from the example at:   http://jdbc.postgresql.org/documentation/80/binary-data.html & info
-        // at http://jdbc.postgresql.org/documentation/publicapi/org/postgresql/largeobject/LargeObjectManager.html & its links.
-        let lobjManager: LargeObjectManager = connection.asInstanceOf[org.postgresql.PGConnection].getLargeObjectAPI;
-        let oid: i64 = lobjManager.createLO();
-        obj = lobjManager.open(oid, LargeObjectManager.WRITE)
-        let buffer = new Array[Byte](2048);
-        let mut numBytesRead = 0;
-        let mut total: i64 = 0;
-        @tailrec
-        //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-        fn saveFileToDb() {
-          numBytesRead = inputStreamIn.read(buffer)
-          // (intentional style violation, for readability):
-          //noinspection ScalaUselessExpression
-          if numBytesRead == -1) Unit
-          else {
-            // (just once by a subclass is enough to mess w/ the md5sum for testing:)
-            if total == 0) damageBuffer(buffer)
+    //%%
+    //   fn create_file_attribute(&self, parent_id_in: i64, attr_type_id_in: i64, description_in: String, original_file_date_in: i64, stored_date_in: i64,
+    //                         original_file_path_in: String, readable_in: bool, writable_in: bool, executable_in: bool, size_in: i64,
+    //                         md5_hash_in: String, inputStreamIn: java.io.FileInputStream, sorting_index_in: Option<i64> /*= None*/) -> Result</*id*/ i64, anyhow::Error> {
+    //   let description: String = self.escape_quotes_etc(description_in);
+    //   // (Next 2 for completeness but there shouldn't ever be a problem if other code is correct.)
+    //   let original_file_path: String = self.escape_quotes_etc(original_file_path_in);
+    //   // Escaping the md5hash string shouldn't ever matter, but security is more important than the md5hash:
+    //   let md5hash: String = self.escape_quotes_etc(md5_hash_in);
+    //   let mut obj: LargeObject = null;
+    //   let mut id: i64 = 0;
+    //   try {
+    //     id = get_new_key("FileAttributeKeySequence")?;
+    //     let mut tx = self.begin_trans()?;
+    //       let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+    //     self.add_attribute_sorting_row(transaction, parent_id_in, self.get_attribute_form_id(Util::FILE_TYPE).unwrap(), id, sorting_index_in)?;
+    //     self.db_action(transaction, format!("insert into FileAttribute (id, entity_id, attr_type_id, description, original_file_date, \
+    //         stored_date, original_file_path, readable, writable, executable, size, md5hash)" +
+    //          " values ({},{},{},'{}',{},{}, '{}', {}, {}, {}, {},'{}')", id, parent_id_in, attr_type_id_in, description, original_file_date_in,
+    //             stored_date_in, original_file_path, readable_in, writable_in, executable_in, size_in, md5hash).as_str(),
+    //                    false, false);
+    //     // from the example at:   http://jdbc.postgresql.org/documentation/80/binary-data.html & info
+    //     // at http://jdbc.postgresql.org/documentation/publicapi/org/postgresql/largeobject/LargeObjectManager.html & its links.
+    //     let lobjManager: LargeObjectManager = connection.asInstanceOf[org.postgresql.PGConnection].getLargeObjectAPI;
+    //     let oid: i64 = lobjManager.createLO();
+    //     obj = lobjManager.open(oid, LargeObjectManager.WRITE)
+    //     let buffer = new Array[Byte](2048);
+    //     let mut numBytesRead = 0;
+    //     let mut total: i64 = 0;
+    //     @tailrec
+    //     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
+    //     fn saveFileToDb() {
+    //       numBytesRead = inputStreamIn.read(buffer)
+    //       // (intentional style violation, for readability):
+    //       //noinspection ScalaUselessExpression
+    //       if numBytesRead == -1) Unit
+    //       else {
+    //         // (just once by a subclass is enough to mess w/ the md5sum for testing:)
+    //         if total == 0) damageBuffer(buffer)
+    //
+    //         obj.write(buffer, 0, numBytesRead)
+    //         total += numBytesRead
+    //         saveFileToDb()
+    //       }
+    //     }
+    //     saveFileToDb()
+    //     if total != size_in {
+    //       return Err(anyhow!("In create_file_attribute, Transferred {} bytes instead of {}??", total, size_in));
+    //     }
+    //     self.db_action(transaction, format!("INSERT INTO FileAttributeContent (file_attribute_id, contents_oid) \
+    //         VALUES ({},{})", id, oid).as_str(), false, false);
+    //
+    //     let (success, errMsgOption) = self.verify_file_attribute_content_integrity(id);
+    //     if !success {
+    //         let msg = errMsgOption.getOrElse("(verification provided no error message? How?)");
+    //       return Err(anyhow!("In create_file_attribute, Failure to successfully upload file content: {}", msg));
+    //     }
+    //     self.commit_trans(tx)?;
+    //     id
+    //   } finally {
+    //     if obj != null) {
+    //           try {
+    //             obj.close()
+    //           } catch {
+    //               case e: Exception =>
+    //               // not sure why this fails sometimes, if it's a bad thing or not, but for now not going to be stuck on it.
+    //               // idea: look at the source code that throws it..?.
+    //           }
+    //       }
+    //   }
+    // }
 
-            obj.write(buffer, 0, numBytesRead)
-            total += numBytesRead
-            saveFileToDb()
-          }
-        }
-        saveFileToDb()
-        if total != sizeIn) {
-          throw new OmDatabaseException("Transferred " + total + " bytes instead of " + sizeIn + "??")
-        }
-        self.db_action(format!("INSERT INTO FileAttributeContent (file_attribute_id, contents_oid) VALUES (" + id + "," + oid + ")").as_str(), false, false);
-
-        let (success, errMsgOption) = verifyFileAttributeContentIntegrity(id);
-        if !success) {
-          throw new OmFileTransferException("Failure to successfully upload file content: " + errMsgOption.getOrElse("(verification provided no error message? " +
-                                                                                                                     "how?)"))
-        }
-        commit_trans()
-        id
-      } catch {
-        case e: Exception => throw rollbackWithCatch(e)
-      } finally {
-        if obj != null)
-          try {
-            obj.close()
-          } catch {
-            case e: Exception =>
-            // not sure why this fails sometimes, if it's a bad thing or not, but for now not going to be stuck on it.
-            // idea: look at the source code.
-          }
-      }
-    }
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
     fn create_relation_to_local_entity<'a>(
         &'a self,
@@ -3276,30 +4162,18 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_relation_to_local_entity, Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
                         "Inconsistent values for caller_manages_transactions_in & transaction_in: \
@@ -3362,7 +4236,7 @@ impl Database for PostgreSQLDatabase {
         entity_id2_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-        remote_instance_id_in: String,
+        remote_instance_id_in: &str,
         sorting_index_in: Option<i64>, /*%% = None*/
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
@@ -3383,29 +4257,17 @@ impl Database for PostgreSQLDatabase {
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_relation_to_local_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ))
@@ -3456,82 +4318,106 @@ impl Database for PostgreSQLDatabase {
         }
         Ok(RelationToRemoteEntity {}) //%%$%%really: self, rte_id, relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in
     }
-    /*
-                  /** Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
-                    fn updateRelationToLocalEntity(oldRelationTypeIdIn: i64, entity_id1_in: i64, entity_id2_in: i64,
-                                             newRelationTypeIdIn: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) {
+
+                  /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
+                fn update_relation_to_local_entity(&self, transaction: &Option<&mut Transaction<Postgres>>, old_relation_type_id_in: i64,
+                                                   entity_id1_in: i64, entity_id2_in: i64,
+                                             new_relation_type_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64)
+                  -> Result<u64, anyhow::Error> {
                     // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
                     // in memory when the db updates, and the behavior gets weird.
-                    self.db_action(format!("UPDATE RelationToEntity SET (rel_type_id, valid_on_date, observation_date)" +
-                             " = (" + newRelationTypeIdIn + "," + (if valid_on_date_in.isEmpty) "NULL" else valid_on_date_in.get) + "," + observation_date_in + ")" +
-                             " where rel_type_id=" + oldRelationTypeIdIn + " and entity_id=" + entity_id1_in + " and entity_id_2=" + entity_id2_in).as_str(), false, false);
+                      let valid = match valid_on_date_in {
+                          None => "NULL".to_string(),
+                          Some(v) => format!("{}", v),
+                      };
+                    self.db_action(transaction, format!("UPDATE RelationToEntity SET (rel_type_id, valid_on_date, observation_date) \
+                            = ({},{},{}) where rel_type_id={} and entity_id={} and entity_id_2={}", new_relation_type_id_in, valid,
+                            observation_date_in, old_relation_type_id_in, entity_id1_in, entity_id2_in).as_str(),
+                                   false, false)
                   }
 
-                  /** Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
-                    fn updateRelationToRemoteEntity(oldRelationTypeIdIn: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
-                                             newRelationTypeIdIn: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) {
+                  /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
+                    fn update_relation_to_remote_entity(&self, transaction: &Option<&mut Transaction<Postgres>>, old_relation_type_id_in: i64,
+                                                        entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
+                                             new_relation_type_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64)
+                      -> Result<u64, anyhow::Error> {
                     // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
                     // in memory when the db updates, and the behavior gets weird.
-                    self.db_action(format!("UPDATE RelationToRemoteEntity SET (rel_type_id, valid_on_date, observation_date)" +
-                             " = (" + newRelationTypeIdIn + "," + (if valid_on_date_in.isEmpty) "NULL" else valid_on_date_in.get) + "," + observation_date_in + ")" +
-                             " where rel_type_id=" + oldRelationTypeIdIn + " and entity_id=" + entity_id1_in + " and remote_instance_id='" + remote_instance_id_in
-                             + "' and entity_id_2=" + entity_id2_in).as_str(), false, false);
+                      let valid = match valid_on_date_in {
+                          None => "NULL".to_string(),
+                          Some(v) => format!("{}", v),
+                      };
+                      self.db_action(transaction, format!("UPDATE RelationToRemoteEntity SET (rel_type_id, valid_on_date, observation_date) = \
+                      ({},{},{}) where rel_type_id={} and entity_id={} and remote_instance_id='{}' and entity_id_2={}", new_relation_type_id_in,
+                                      valid, observation_date_in, old_relation_type_id_in, entity_id1_in, remote_instance_id_in,
+                             entity_id2_in).as_str(), false, false)
                   }
 
-                  /**
-                   * Takes an RTLE and unlinks it from one local entity, and links it under another instead.
-                   * @param sorting_index_in Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
-                   * @return the new RelationToLocalEntity
-                   */
-                    fn moveRelationToLocalEntityToLocalEntity(rtleIdIn: i64, toContainingEntityIdIn: i64, sorting_index_in: i64) -> RelationToLocalEntity {
-                    self.begin_trans();
-                    try {
-                      let rteData: Array[Option[Any]] = getAllRelationToLocalEntityDataById(rtleIdIn);
-                      let oldRteRelType: i64 = rteData(2).get.asInstanceOf[i64];
-                      let oldRteEntity1: i64 = rteData(3).get.asInstanceOf[i64];
-                      let oldRteEntity2: i64 = rteData(4).get.asInstanceOf[i64];
-                      let valid_on_date: Option<i64> = rteData(5).asInstanceOf[Option<i64>];
-                      let observed_date: i64 = rteData(6).get.asInstanceOf[i64];
-                      deleteRelationToLocalEntity(oldRteRelType, oldRteEntity1, oldRteEntity2)
-                      let newRTE: RelationToLocalEntity = create_relation_to_local_entity(oldRteRelType, toContainingEntityIdIn, oldRteEntity2, valid_on_date, observed_date,;
-                                                                                      Some(sorting_index_in), caller_manages_transactions_in = true)
+                   /// Takes an RTLE and unlinks it from one local entity, and links it under another instead.
+                   /// @param sorting_index_in Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
+                   /// @return the new RelationToLocalEntity
+                fn move_relation_to_local_entity_to_local_entity(&self, rtle_id_in: i64, to_containing_entity_id_in: i64, sorting_index_in: i64)
+                            -> Result<RelationToLocalEntity, anyhow::Error> {
+                    let mut tx = self.begin_trans()?;
+                    let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+                      let rte_data: Vec<DataType> = self.get_all_relation_to_local_entity_data_by_id(transaction, rtle_id_in)?;
+                       // next lines are the same as in move_relation_to_remote_entity_to_local_entity and move_relation_to_group; could maintain them similarly.
+                       let old_rte_rel_type = get_i64_from_row_without_option(&rte_data, 2)?;
+                      let old_rte_entity_1 = get_i64_from_row_without_option(&rte_data, 3)?;
+                      let old_rte_entity_2 = get_i64_from_row_without_option(&rte_data, 4)?;
+                      let valid_on_date: Option<i64> = match rte_data.get(5) {
+                          //%%does this work in both cases?? (ie, from fn db_query, to here)
+                          None => None,
+                          Some(DataType::Bigint(i)) => Some(i.clone()),
+                          _ => return Err(anyhow!("In move_relation_to_local_entity_to_local_entity, Unexpected valid_on_date: {:?}", rte_data.get(5))),
+                      };
+                      let observed_date = get_i64_from_row_without_option(&rte_data,6)?;
+                      self.delete_relation_to_local_entity(transaction, old_rte_rel_type, old_rte_entity_1, old_rte_entity_2)?;
+                      let new_rte: RelationToLocalEntity = self.create_relation_to_local_entity(transaction, old_rte_rel_type,
+                                                                                                to_containing_entity_id_in, old_rte_entity_2,
+                                                                                                valid_on_date, observed_date,
+                                                                                      Some(sorting_index_in), true)?;
                       //Something like the next line might have been more efficient than the above code to run, but not to write, given that it adds a complexity about updating
                       //the attributesorting table, which might be more tricky in future when something is added to prevent those from being orphaned. The above avoids that or
                       //centralizes the question to one place in the code.
-                      //db_action("UPDATE RelationToEntity SET (entity_id) = ROW(" + newContainingEntityIdIn + ")" + " where id=" + relationToLocalEntityIdIn)
+                      //db_action("UPDATE RelationToEntity SET (entity_id) = ROW(" + new_containing_entity_id_in + ")" + " where id=" + relationToLocalEntityIdIn)
 
-                      self.commit_trans();
-                      newRTE
-                    } catch {
-                      case e: Exception => throw rollbackWithCatch(e)
-                    }
+                      self.commit_trans(tx)?;
+                      Ok(new_rte)
                   }
 
-                  /**
-                   * See comments on & in method moveRelationToLocalEntityToLocalEntity.  Only this one takes an RTRE (stored locally), and instead of linking it inside one local
-                   * entity, links it inside another local entity.
-                   */
-                    fn moveRelationToRemoteEntityToLocalEntity(remote_instance_id_in: String, relationToRemoteEntityIdIn: i64, toContainingEntityIdIn: i64,
-                                                              sorting_index_in: i64) -> RelationToRemoteEntity {
-                    self.begin_trans()
-                    try {
-                      let rteData: Array[Option[Any]] = getAllRelationToRemoteEntityDataById(relationToRemoteEntityIdIn);
-                      let oldRteRelType: i64 = rteData(2).get.asInstanceOf[i64];
-                      let oldRteEntity1: i64 = rteData(3).get.asInstanceOf[i64];
-                      let oldRteEntity2: i64 = rteData(4).get.asInstanceOf[i64];
-                      let valid_on_date: Option<i64> = rteData(5).asInstanceOf[Option<i64>];
-                      let observed_date: i64 = rteData(6).get.asInstanceOf[i64];
-                      deleteRelationToRemoteEntity(oldRteRelType, oldRteEntity1, remote_instance_id_in, oldRteEntity2)
-                      let newRTE: RelationToRemoteEntity = create_relation_to_remote_entity(oldRteRelType, toContainingEntityIdIn, oldRteEntity2, valid_on_date, observed_date,;
-                                                                                      remote_instance_id_in, Some(sorting_index_in), caller_manages_transactions_in = true)
-                      commit_trans()
-                      newRTE
-                    } catch {
-                      case e: Exception => throw rollbackWithCatch(e)
-                    }
+                   /// See comments on & in method move_relation_to_local_entity_to_local_entity.  Only this one takes an RTRE (stored locally), and instead of linking it inside one local
+                   /// entity, links it inside another local entity.
+                fn move_relation_to_remote_entity_to_local_entity(&self, remote_instance_id_in: &str, relation_to_remote_entity_id_in: i64,
+                                                                  to_containing_entity_id_in: i64,
+                                                              sorting_index_in: i64) -> Result<RelationToRemoteEntity, anyhow::Error> {
+                    let mut tx = self.begin_trans()?;
+                      let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+                      let rte_data: Vec<DataType> = self.get_all_relation_to_remote_entity_data_by_id(transaction,
+                                                                                                              relation_to_remote_entity_id_in)?;
+                       // next lines are the same as in move_relation_to_local_entity_to_local_entity; could maintain them similarly.
+                       let old_rte_rel_type = get_i64_from_row_without_option(&rte_data, 2)?;
+                       let old_rte_entity_1 = get_i64_from_row_without_option(&rte_data,3)?;
+                       let old_rte_entity_2 = get_i64_from_row_without_option(&rte_data, 4)?;
+                       let valid_on_date: Option<i64> = match rte_data.get(5) {
+                           //%%does this work in both cases?? (ie, from fn db_query, to here)
+                           None => None,
+                           Some(DataType::Bigint(i)) => Some(i.clone()),
+                           _ => return Err(anyhow!("In move_relation_to_local_entity_to_local_entity, Unexpected valid_on_date: {:?}", rte_data.get(5))),
+                       };
+                       let observed_date = get_i64_from_row_without_option(&rte_data,6)?;
+                      self.delete_relation_to_remote_entity(transaction, old_rte_rel_type, old_rte_entity_1,
+                                                            remote_instance_id_in, old_rte_entity_2)?;
+                      let new_rte: RelationToRemoteEntity = self.create_relation_to_remote_entity(transaction,
+                                                                  old_rte_rel_type, to_containing_entity_id_in,
+                                                                  old_rte_entity_2, valid_on_date,
+                                                                                                  observed_date,
+                                                                                      remote_instance_id_in, Some(sorting_index_in),
+                                                                    true)?;
+                      self.commit_trans(tx)?;
+                      Ok(new_rte)
                   }
 
-    */
     fn create_group(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -3590,33 +4476,21 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_group_and_relation_to_group, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_group_and_relation_to_group, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ))
@@ -3685,33 +4559,21 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_entity_and_relation_to_local_entity, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_entity_and_relation_to_local_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ))
@@ -3742,11 +4604,11 @@ impl Database for PostgreSQLDatabase {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
-                return Err(anyhow!(e.to_string()));
+                return Err(anyhow!("In create_entity_and_relation_to_local_entity, {}: ", e.to_string()));
             }
         }
-        //%%%%%%%%%FIX NEXT LINE
-        Ok((new_entity_id, 0)) //really: , new_rte.get_id()))
+        //%%FIX NEXT LINE
+        Ok((new_entity_id, 0)) //%%$%%really: , new_rte.get_id()))
     }
 
     /// I.e., make it so the entity has a group in it, which can contain entities.
@@ -3777,33 +4639,21 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_relation_to_group, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_relation_to_group, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ))
@@ -3846,86 +4696,106 @@ impl Database for PostgreSQLDatabase {
         }
         Ok((id, sorting_index))
     }
-    /*
-               fn updateGroup(group_id_in: i64, name_in: String, allow_mixed_classes_in_group_in: bool = false, newEntriesStickToTopIn: bool = false) {
-               let name: String = self.escape_quotes_etc(name_in);
-               self.db_action(format!("UPDATE grupo SET (name, allow_mixed_classes, new_entries_stick_to_top)" +
-                        " = ('" + name + "', " + (if allow_mixed_classes_in_group_in) "TRUE" else "FALSE") + ", " + (if newEntriesStickToTopIn) "TRUE" else "FALSE") +
-                        ") where id=" + group_id_in).as_str(), false, false);
+
+           fn update_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64, name_in: String,
+                           allow_mixed_classes_in_group_in: bool /*= false*/, new_entries_stick_to_top_in: bool /*= false*/)
+            -> Result<u64, anyhow::Error> {
+               let name: String = Self::escape_quotes_etc(name_in);
+               let mixed = if allow_mixed_classes_in_group_in { "TRUE" } else { "FALSE" };
+               let new_at_top = if new_entries_stick_to_top_in { "TRUE" } else { "FALSE" };
+               self.db_action(transaction,format!("UPDATE grupo SET (name, allow_mixed_classes, new_entries_stick_to_top) \
+                            = ('{}', {}, {}) where id={}" , name, mixed, new_at_top, group_id_in).as_str(),
+                              false, false)
              }
 
-             /** Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-               */
-               fn updateRelationToGroup(entity_id_in: i64, oldRelationTypeIdIn: i64, newRelationTypeIdIn: i64, oldGroupIdIn: i64, newGroupIdIn: i64,
-                                       valid_on_date_in: Option<i64>, observation_date_in: i64) {
+             /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
+           fn update_relation_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, old_relation_type_id_in: i64,
+                                       new_relation_type_id_in: i64, old_group_id_in: i64, new_group_id_in: i64,
+                                       valid_on_date_in: Option<i64>, observation_date_in: i64) -> Result<u64, anyhow::Error>{
                // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields don't get updated
                // in memory when the db updates, and the behavior gets weird.
-               self.db_action(format!("UPDATE RelationToGroup SET (rel_type_id, group_id, valid_on_date, observation_date)" +
-                        " = (" + newRelationTypeIdIn + ", " + newGroupIdIn + ", " +
-                        (if valid_on_date_in.isEmpty) "NULL" else valid_on_date_in.get) + "," + observation_date_in + ")" +
-                        " where entity_id=" + entity_id_in + " and rel_type_id=" + oldRelationTypeIdIn + " and group_id=" + oldGroupIdIn).as_str(), false, false);
+                 let valid = match valid_on_date_in {
+                     None => "NULL".to_string(),
+                     Some(v) => v.to_string(),
+                 };
+               self.db_action(transaction, format!("UPDATE RelationToGroup SET (rel_type_id, group_id, valid_on_date, observation_date) \
+                        = ({}, {}, {},{}) where entity_id={} and rel_type_id={} and group_id={}", new_relation_type_id_in, new_group_id_in,
+                        valid, observation_date_in, entity_id_in, old_relation_type_id_in, old_group_id_in).as_str(),
+                              false, false)
              }
 
-             /**
-              * @param sorting_index_in Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
-              * @return the new RelationToGroup's id.
-              */
-               fn moveRelationToGroup(relationToGroupIdIn: i64, newContainingEntityIdIn: i64, sorting_index_in: i64) -> i64 {
-               self.begin_trans()
-               try {
-                 let rtgData: Array[Option[Any]] = getAllRelationToGroupDataById(relationToGroupIdIn);
-                 let oldRtgEntityId: i64 = rtgData(2).get.asInstanceOf[i64];
-                 let oldRtgRelType: i64 = rtgData(3).get.asInstanceOf[i64];
-                 let oldRtgGroupId: i64 = rtgData(4).get.asInstanceOf[i64];
-                 let valid_on_date: Option<i64> = rtgData(5).asInstanceOf[Option<i64>];
-                 let observed_date: i64 = rtgData(6).get.asInstanceOf[i64];
-                 deleteRelationToGroup(oldRtgEntityId, oldRtgRelType, oldRtgGroupId)
-                 let (newRtg_id: i64,_) = create_relation_to_group(newContainingEntityIdIn, oldRtgRelType, oldRtgGroupId, valid_on_date, observed_date, Some(sorting_index_in),;
-                                                            caller_manages_transactions_in = true)
+              /// @param sorting_index_in Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
+              /// @return the new RelationToGroup's id.
+           fn move_relation_to_group(&self, relation_to_group_id_in: i64, new_containing_entity_id_in: i64, sorting_index_in: i64) -> Result<i64, anyhow::Error> {
+               let mut tx = self.begin_trans()?;
+                  let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+                 let rtg_data: Vec<DataType> = self.get_all_relation_to_group_data_by_id(transaction, relation_to_group_id_in)?;
 
-                 // (see comment at similar commented line in moveRelationToLocalEntityToLocalEntity)
-                 //db_action("UPDATE RelationToGroup SET (entity_id) = ROW(" + newContainingEntityIdIn + ")" + " where id=" + relationToGroupIdIn)
+                  // next lines are the same as in move_relation_to_local_entity_to_local_entity and its sibling; could maintain them similarly.
+                  let old_rtg_entity_id = get_i64_from_row_without_option(&rtg_data,2)?;
+                  let old_rtg_rel_type = get_i64_from_row_without_option(&rtg_data,3)?;
+                  let old_rtg_group_id = get_i64_from_row_without_option(&rtg_data,4)?;
+                  let valid_on_date: Option<i64> = match rtg_data.get(5) {
+                      //%%does this work in both cases?? (ie, from fn db_query, to here)
+                      None => None,
+                      Some(DataType::Bigint(i)) => Some(i.clone()),
+                      _ => return Err(anyhow!("In move_relation_to_group, unexpected valid_on_date: {:?}", rtg_data.get(5))),
+                  };
+                  let observed_date = get_i64_from_row_without_option(&rtg_data, 6)?;
 
-                 self.commit_trans();
-                 newRtg_id
-               } catch {
-                 case e: Exception => throw rollbackWithCatch(e)
-               }
+                 self.delete_relation_to_group(transaction, old_rtg_entity_id, old_rtg_rel_type, old_rtg_group_id)?;
+                 let (new_rtg_id, _) = self.create_relation_to_group(transaction, new_containing_entity_id_in,
+                                                                     old_rtg_rel_type, old_rtg_group_id, valid_on_date,
+                                                                observed_date, Some(sorting_index_in),
+                                                            true)?;
+
+                 // (see comment at similar commented line in move_relation_to_local_entity_to_local_entity)
+                 //db_action("UPDATE RelationToGroup SET (entity_id) = ROW(" + new_containing_entity_id_in + ")" + " where id=" + relation_to_group_id_in)
+
+                 self.commit_trans(tx)?;
+                 Ok(new_rtg_id)
              }
 
-             /** Trying it out with the entity's previous sorting_index (or whatever is passed in) in case it's more convenient, say, when brainstorming a
-               * list then grouping them afterward, to keep them in the same order.  Might be better though just to put them all at the beginning or end; can see....
-               */
-               fn moveLocalEntityFromGroupToGroup(fromGroupIdIn: i64, toGroupIdIn: i64, moveEntityIdIn: i64, sorting_index_in: i64) {
-               self.begin_trans()
-               add_entity_to_group(toGroupIdIn, moveEntityIdIn, Some(sorting_index_in), caller_manages_transactions_in = true)
-               removeEntityFromGroup(fromGroupIdIn, moveEntityIdIn, caller_manages_transactions_in = true)
-               if isEntityInGroup(toGroupIdIn, moveEntityIdIn) && !isEntityInGroup(fromGroupIdIn, moveEntityIdIn)) {
-                 commit_trans()
+             /// Trying it out with the entity's previous sorting_index (or whatever is passed in) in case it's more convenient, say, when brainstorming a
+             /// list then grouping them afterward, to keep them in the same order.  Might be better though just to put them all at the beginning or end; can see....
+           fn move_local_entity_from_group_to_group(&self, from_group_id_in: i64, to_group_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64)
+                 -> Result<(), anyhow::Error>{
+               let mut tx = self.begin_trans()?;
+                 let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+               self.add_entity_to_group(transaction, to_group_id_in, move_entity_id_in,
+                                        Some(sorting_index_in), true)?;
+               self.remove_entity_from_group(transaction, from_group_id_in, move_entity_id_in, true)?;
+               if self.is_entity_in_group(transaction, to_group_id_in, move_entity_id_in)? && !self.is_entity_in_group(transaction, from_group_id_in, move_entity_id_in)? {
+                 self.commit_trans(tx)
                } else {
-                 throw rollbackWithCatch(new OmDatabaseException("Entity didn't get moved properly.  Retry: if predictably reproducible, it should be diagnosed."))
+                 return Err(anyhow!("In move_local_entity_from_group_to_group, Entity didn't get moved properly.  Retry: if predictably reproducible, it should be diagnosed."))
                }
              }
 
-             /** (See comments on moveEntityFromGroupToGroup.)
-               */
-               fn moveEntityFromGroupToLocalEntity(fromGroupIdIn: i64, toEntityIdIn: i64, moveEntityIdIn: i64, sorting_index_in: i64) {
-               self.begin_trans()
-               addHASRelationToLocalEntity(toEntityIdIn, moveEntityIdIn, None, System.currentTimeMillis(), Some(sorting_index_in))
-               removeEntityFromGroup(fromGroupIdIn, moveEntityIdIn, caller_manages_transactions_in = true)
-               commit_trans()
+             /// (See comments on moveEntityFromGroupToGroup.)
+           fn move_entity_from_group_to_local_entity(&self, from_group_id_in: i64, to_entity_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64)
+                 -> Result<(), anyhow::Error> {
+               let mut tx = self.begin_trans()?;
+                 let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+               self.add_HAS_relation_to_local_entity(transaction, to_entity_id_in, move_entity_id_in,
+                                                     None, Utc::now().timestamp_millis(),
+                                                     Some(sorting_index_in))?;
+               self.remove_entity_from_group(transaction, from_group_id_in, move_entity_id_in, true)?;
+               self.commit_trans(tx)
              }
+    // //%%$%%
+    //          /// (See comments on moveEntityFromGroupToGroup.)
+    //        fn move_local_entity_from_local_entity_to_group(&self, removing_rtle_in: RelationToLocalEntity, target_group_id_in: i64, sorting_index_in: i64)
+    //              -> Result<(), anyhow::Error> {
+    //            let mut tx = self.begin_trans()?;
+    //              let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+    //            self.add_entity_to_group(transaction, target_group_id_in, removing_rtle_in.getRelatedId2,
+    //                                     Some(sorting_index_in), true)?;
+    //            self.delete_relation_to_local_entity(transaction, removing_rtle_in.get_attr_type_id(), removing_rtle_in.getRelatedId1,
+    //                                                 removing_rtle_in.getRelatedId2)?;
+    //            self.commit_trans()
+    //          }
 
-             /** (See comments on moveEntityFromGroupToGroup.)
-               */
-               fn moveLocalEntityFromLocalEntityToGroup(removingRtleIn: RelationToLocalEntity, targetGroupIdIn: i64, sorting_index_in: i64) {
-               self.begin_trans()
-               add_entity_to_group(targetGroupIdIn, removingRtleIn.getRelatedId2, Some(sorting_index_in), caller_manages_transactions_in = true)
-               deleteRelationToLocalEntity(removingRtleIn.get_attr_type_id(), removingRtleIn.getRelatedId1, removingRtleIn.getRelatedId2)
-               commit_trans()
-             }
-
-    */
     // SEE ALSO METHOD find_unused_attribute_sorting_index **AND DO MAINTENANCE IN BOTH PLACES**
     // idea: this needs a test, and/or combining with findIdWhichIsNotKeyOfAnyEntity.
     // **ABOUT THE SORTINGINDEX:  SEE the related comment on method add_attribute_sorting_row.
@@ -4016,33 +4886,21 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In add_entity_to_group, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In add_entity_to_group, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ))
@@ -4086,8 +4944,8 @@ impl Database for PostgreSQLDatabase {
         }
         // idea: do this check sooner in this method?:
         let mixed_classes_allowed: bool =
-            self.are_mixed_classes_allowed(transaction, group_id_in)?;
-        if !mixed_classes_allowed && self.has_mixed_classes(transaction, group_id_in)? {
+            self.are_mixed_classes_allowed(transaction, &group_id_in)?;
+        if !mixed_classes_allowed && self.has_mixed_classes(transaction, &group_id_in)? {
             // see comments in delete_objects about rollback
             return Err(anyhow!(Util::MIXED_CLASSES_EXCEPTION.to_string()));
         }
@@ -4112,7 +4970,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<i64, anyhow::Error> {
         let name: String = Self::escape_quotes_etc(name_in.to_string());
         if name.is_empty() {
-            return Err(anyhow!("Name must have a value.".to_string()));
+            return Err(anyhow!("In create_entity, name must have a value.".to_string()));
         }
         let id: i64 = self.get_new_key(transaction, "EntityKeySequence")?;
         let maybe_class_id: &str = if class_id_in.is_some() {
@@ -4162,7 +5020,7 @@ impl Database for PostgreSQLDatabase {
         let name: String = Self::escape_quotes_etc(name_in.to_string());
         let directionality: String = Self::escape_quotes_etc(directionality_in.to_string());
         if name.len() == 0 {
-            return Err(anyhow!("Name must have a value.".to_string()));
+            return Err(anyhow!("In create_relation_type, name must have a value.".to_string()));
         }
 
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
@@ -4177,33 +5035,21 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_relation_type, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_relation_type, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ))
@@ -4254,7 +5100,7 @@ impl Database for PostgreSQLDatabase {
                 // see comments at similar location in delete_objects about local_tx
                 if let Err(e) = self.commit_trans(local_tx) {
                     // see comments in delete_objects about rollback
-                    return Err(anyhow!(e.to_string()));
+                    return Err(anyhow!("In create_relation_type (2), {}", e.to_string()));
                 }
             }
 
@@ -4263,7 +5109,7 @@ impl Database for PostgreSQLDatabase {
             break;
         }
         match result {
-            Err(e) => Err(anyhow!(e)),
+            Err(e) => Err(anyhow!("In create_relation_type, {}.", e)),
             _ => Ok(id),
         }
     }
@@ -4276,7 +5122,7 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(), anyhow::Error> {
-        // idea: (also on task list i think but) we should not delete entities until dealing with their use as attrTypeIds etc!
+        // idea: (also on task list i think but) we should not delete entities until dealing with their use as attr_type_ids etc!
         // (or does the DB's integrity constraints do that for us?)
 
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
@@ -4291,33 +5137,21 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In delete_entity, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 }
             } else {
                 if caller_manages_transactions_in {
                     // That means we have determined that the caller is to use the transaction_in .
                     // was just:  None
                     // But now instead, create it anyway, per comment above.
-                    let mut tx: Transaction<Postgres> = match self.begin_trans() {
-                        // Err(e) => return Err(e.to_string()),
-                        Err(e) => return Err(anyhow!(e.to_string())),
-                        Ok(t) => t,
-                    };
-                    // Some(tx)
-                    tx
+                    self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In delete_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ))
@@ -4363,103 +5197,92 @@ impl Database for PostgreSQLDatabase {
         Ok(())
     }
 
-    /*
-                fn archiveEntity(id_in: i64, caller_manages_transactions_in: bool = false) /* -> Unit%%*/ {
-                archiveObjects(Util::ENTITY_TYPE, "where id=" + id_in, 1, caller_manages_transactions_in)
+            fn archive_entity<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, id_in: i64, caller_manages_transactions_in: bool /*= false*/) -> Result<u64, anyhow::Error> {
+                self.archive_objects(transaction, Util::ENTITY_TYPE,
+                                 format!("where id={}", id_in).as_str(), 1, caller_manages_transactions_in, false)
               }
 
-                fn unarchiveEntity(id_in: i64, caller_manages_transactions_in: bool = false) /* -> Unit%%*/ {
-                archiveObjects(Util::ENTITY_TYPE, "where id=" + id_in, 1, caller_manages_transactions_in, unarchive = true)
+            fn unarchive_entity<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, id_in: i64, caller_manages_transactions_in: bool /*= false*/)  -> Result<u64, anyhow::Error> {
+                self.archive_objects(transaction, Util::ENTITY_TYPE,
+                                 format!("where id={}", id_in).as_str(), 1, caller_manages_transactions_in, true)
               }
 
-                fn deleteQuantityAttribute(id_in: i64) /* -> %%Unit*/ {
-                    deleteObjectById(Util::QUANTITY_TYPE, id_in);
+            fn delete_quantity_attribute<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, id_in: i64) -> Result<u64, anyhow::Error> {
+                    self.delete_object_by_id(transaction, Util::QUANTITY_TYPE, id_in, false)
                     }
 
-                fn deleteTextAttribute(id_in: i64) /*%% -> Unit*/ {
-                    deleteObjectById(Util::TEXT_TYPE, id_in);
+            fn delete_text_attribute<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, id_in: i64) -> Result<u64, anyhow::Error> {
+                    self.delete_object_by_id(transaction, Util::TEXT_TYPE, id_in, false)
                 }
 
-                fn deleteDateAttribute(id_in: i64) /* -> %%Unit*/ {
-                deleteObjectById(Util::DATE_TYPE, id_in);
+            fn delete_date_attribute<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, id_in: i64) -> Result<u64, anyhow::Error> {
+                self.delete_object_by_id(transaction, Util::DATE_TYPE, id_in, false)
                 }
 
-                fn deleteBooleanAttribute(id_in: i64) /*%% -> Unit*/ {
-                deleteObjectById(Util::BOOLEAN_TYPE, id_in);
+            fn delete_boolean_attribute<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, id_in: i64) -> Result<u64, anyhow::Error> {
+                self.delete_object_by_id(transaction, Util::BOOLEAN_TYPE, id_in, false)
                 }
 
-                fn deleteFileAttribute(id_in: i64) /*%% ->  Unit*/ {
-                deleteObjectById(Util::FILE_TYPE, id_in);
+            fn delete_file_attribute<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, id_in: i64)  -> Result<u64, anyhow::Error> {
+                self.delete_object_by_id(transaction, Util::FILE_TYPE, id_in, false)
                 }
 
-                fn deleteRelationToLocalEntity(rel_type_idIn: i64, entity_id1_in: i64, entity_id2_in: i64) {
-                delete_objects(Util::RELATION_TO_LOCAL_ENTITY_TYPE, "where rel_type_id=" + rel_type_idIn + " and entity_id=" + entity_id1_in + " and entity_id_2=" + entity_id2_in)
+            fn delete_relation_to_local_entity<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, rel_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64)  -> Result<u64, anyhow::Error> {
+                self.delete_objects(transaction, Util::RELATION_TO_LOCAL_ENTITY_TYPE,
+                                    format!("where rel_type_id={} and entity_id={} and entity_id_2={}",
+                                            rel_type_id_in, entity_id1_in, entity_id2_in).as_str(), 1, false)
               }
 
-                fn deleteRelationToRemoteEntity(rel_type_idIn: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) {
-                delete_objects(Util::RELATION_TO_REMOTE_ENTITY_TYPE, "where rel_type_id=" + rel_type_idIn + " and entity_id=" + entity_id1_in + " and remote_instance_id='" +
-                                                            remote_instance_id_in + "' and entity_id_2=" + entity_id2_in)
+            fn delete_relation_to_remote_entity<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, rel_type_id_in: i64, entity_id1_in: i64,
+                                                remote_instance_id_in: &str, entity_id2_in: i64)  -> Result<u64, anyhow::Error> {
+                self.delete_objects(transaction, Util::RELATION_TO_REMOTE_ENTITY_TYPE,
+                                    format!("where rel_type_id={} and entity_id={} and remote_instance_id='{}' and entity_id_2={}",
+                                            rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in).as_str(),
+                                    1, false)
               }
 
-                fn deleteRelationToGroup(entity_id_in: i64, rel_type_idIn: i64, group_id_in: i64) {
-                delete_objects(Util::RELATION_TO_GROUP_TYPE, "where entity_id=" + entity_id_in + " and rel_type_id=" + rel_type_idIn + " and group_id=" + group_id_in)
+            fn delete_relation_to_group<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, entity_id_in: i64, rel_type_id_in: i64,
+                                        group_id_in: i64)  -> Result<u64, anyhow::Error> {
+                self.delete_objects(transaction, Util::RELATION_TO_GROUP_TYPE,
+                                    format!("where entity_id={} and rel_type_id={} and group_id={}",
+                                    entity_id_in, rel_type_id_in, group_id_in).as_str(),
+                                    1, false)
               }
 
-                fn deleteGroupAndRelationsToIt(id_in: i64) {
-                self.begin_trans();
-                try {
-                  let entityCount: i64 = get_group_size(id_in);
-                  delete_objects("EntitiesInAGroup", "where group_id=" + id_in, entityCount, caller_manages_transactions_in = true)
-                  let numGroups = get_relation_to_group_countByGroup(id_in);
-                  delete_objects(Util::RELATION_TO_GROUP_TYPE, "where group_id=" + id_in, numGroups, caller_manages_transactions_in = true)
-                  delete_objects("grupo", "where id=" + id_in, 1, caller_manages_transactions_in = true)
-                }
-                catch {
-                  case e: Exception => throw rollbackWithCatch(e)
-                }
-                commit_trans()
+            fn delete_group_and_relations_to_it(&self, id_in: i64)  -> Result<(), anyhow::Error> {
+                let mut tx = self.begin_trans()?;
+                let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+                  let entity_count: u64 = self.get_group_size(transaction, id_in, 3)?;
+                  self.delete_objects(transaction, "EntitiesInAGroup",
+                                      format!("where group_id={}", id_in).as_str(), entity_count,
+                                      true)?;
+                  let num_groups: u64 = self.get_relation_to_group_count_by_group(transaction, id_in)?.try_into()?;
+                  self.delete_objects(transaction, Util::RELATION_TO_GROUP_TYPE, format!("where group_id={}", id_in).as_str(), num_groups, true)?;
+                self.delete_objects(transaction, "grupo", format!("where id={}", id_in).as_str(),
+                                    1, true)?;
+                self.commit_trans(tx)
               }
 
-                fn removeEntityFromGroup(group_id_in: i64, contained_entity_id_in: i64, caller_manages_transactions_in: bool = false) {
-                delete_objects("EntitiesInAGroup", "where group_id=" + group_id_in + " and entity_id=" + contained_entity_id_in,
-                              caller_manages_transactions_in = caller_manages_transactions_in)
+            fn remove_entity_from_group<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, group_id_in: i64, contained_entity_id_in: i64,
+                                        caller_manages_transactions_in: bool /*= false*/)  -> Result<u64, anyhow::Error> {
+                self.delete_objects(transaction, "EntitiesInAGroup",
+                                    format!("where group_id={} and entity_id={}", group_id_in, contained_entity_id_in).as_str(),
+                              1, caller_manages_transactions_in)
               }
 
-              /** I hope you have a backup. */
-                fn deleteGroupRelationsToItAndItsEntries(group_id_in: i64) {
-                self.begin_trans()
-                try {
-                  let entityCount = get_group_size(group_id_in);
-
-                  fn deleteRelationToGroupAndALL_recursively(group_id_in: i64) -> (i64, i64) {
-                    let entity_ids: List[Array[Option[Any]]] = db_query("select entity_id from entitiesinagroup where group_id=" + group_id_in, "i64");
-                    let deletions1 = delete_objects("entitiesinagroup", "where group_id=" + group_id_in, entityCount, caller_manages_transactions_in = true);
-                    // Have to delete these 2nd because of a constraint on EntitiesInAGroup:
-                    // idea: is there a temp table somewhere that these could go into instead, for efficiency?
-                    // idea: batch these, would be much better performance.
-                    // idea: BUT: what is the length limit: should we do it it sets of N to not exceed sql command size limit?
-                    // idea: (also on task list i think but) we should not delete entities until dealing with their use as attrtypeids etc!
-                    for (id <- entity_ids) {
-                      delete_objects(Util::ENTITY_TYPE, "where id=" + id(0).get.asInstanceOf[i64], 1, caller_manages_transactions_in = true)
-                    }
-
-                    let deletions2 = 0;
-                    //and finally:
-                    // (passing 0 for rows expected, because there either could be some, or none if the group is not contained in any entity.)
-                    delete_objects(Util::RELATION_TO_GROUP_TYPE, "where group_id=" + group_id_in, 0, caller_manages_transactions_in = true)
-                    delete_objects("grupo", "where id=" + group_id_in, 1, caller_manages_transactions_in = true)
-                    (deletions1, deletions2)
+              /// I hope you have a backup.
+            fn delete_group_relations_to_it_and_its_entries(&self, group_id_in: i64)  -> Result<(), anyhow::Error> {
+                let mut tx = self.begin_trans()?;
+                  let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+                  let entity_count = self.get_group_size(transaction, group_id_in, 3)?;
+                  let (deletions1, deletions2) = self.delete_relation_to_group_and_all_recursively(transaction, group_id_in)?;
+                  if deletions1.checked_add(deletions2).unwrap() != entity_count {
+                      return Err(anyhow!("Not proceeding: deletions1 {} + deletions2 {} != entity_count {}.", deletions1, deletions2, entity_count));
                   }
-                  let (deletions1, deletions2) = deleteRelationToGroupAndALL_recursively(group_id_in);
-                  require(deletions1 + deletions2 == entityCount)
-                }
-                catch {
-                  case e: Exception => throw rollbackWithCatch(e)
-                }
-                commit_trans()
+                self.commit_trans(tx)
               }
 
-                fn deleteRelationType(id_in: i64) {
+            fn delete_relation_type<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, id_in: i64)  -> Result<u64, anyhow::Error> {
                 // One possibility is that this should ALWAYS fail because it is done by deleting the entity, which cascades.
                 // but that's more confusing to the programmer using the database layer's api calls, because they
                 // have to know to delete an Entity instead of a RelationType. So we just do the desired thing here
@@ -4467,10 +5290,10 @@ impl Database for PostgreSQLDatabase {
                 // Maybe those tables should be separated so this is its own thing? for performance/clarity?
                 // like *attribute and relation don't have a parent 'attribute' table?  But see comments
                 // in create_tables where this one is created.
-                delete_objects(Util::ENTITY_TYPE, "where id=" + id_in)
+                self.delete_objects(transaction, Util::ENTITY_TYPE, format!("where id={}", id_in).as_str(),
+                        1, false)
               }
-    */
-    //%%$%%%
+
     /// Creates the preference if it doesn't already exist.
     fn set_user_preference_boolean<'a>(
         &'a self,
@@ -4512,7 +5335,7 @@ impl Database for PostgreSQLDatabase {
         } else {
             let type_id_of_the_has_relation = self.find_relation_type(
                 transaction,
-                Util::THE_HAS_RELATION_TYPE_NAME.to_string(), /*??:, Some(1)).get(0)*/
+                Util::THE_HAS_RELATION_TYPE_NAME
             )?;
             let preference_entity_id: i64 = self
                 .create_entity_and_relation_to_local_entity(
@@ -4538,58 +5361,76 @@ impl Database for PostgreSQLDatabase {
             Ok(())
         }
     }
-    fn get_user_preference_boolean(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn get_user_preference_boolean<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         preference_name_in: &str,
         default_value_in: Option<bool>, /*%%= None*/
-    ) -> Option<bool> {
-        return None;
-        //%%cont
-        //     let pref = get_user_preference2(get_preferences_container_id, preference_name_in, Database.PREF_TYPE_BOOLEAN);
-        //     if pref.isEmpty) {
-        //       default_value_in
-        //     } else {
-        //       Some(pref.get.asInstanceOf[(i64,Boolean)]._2)
-        //     }
+    ) -> Result<Option<bool>, anyhow::Error> {
+            let pref: Vec<DataType> = self.get_user_preference2(transaction, self.get_preferences_container_id(transaction)?,
+                                                 preference_name_in, Util::PREF_TYPE_BOOLEAN)?;
+            if pref.len() == 0 {
+                Ok(default_value_in)
+            } else {
+              match pref.get(1) {
+                  Some(DataType::Boolean(b)) => Ok(Some(b.clone())),
+                  _ => return Err(anyhow!("In get_user_preference_boolean, This shouldn't happen: {:?}", pref)),
+              }
+            }
     }
-    /*
-              /** Creates the preference if it doesn't already exist.  */
-                fn setUserPreference_EntityId(name_in: String, entity_id_in: i64) /* -> Unit%%*/ {
-                let preferences_container_id: i64 = get_preferences_container_id;
-                let result = get_user_preference2(preferences_container_id, name_in, Database.PREF_TYPE_ENTITY_ID);
-                let preferenceInfo: Option[(i64, i64, i64)] = result.asInstanceOf[Option[(i64,i64,i64)]];
-                if preferenceInfo.is_some()) {
-                  let relationTypeId: i64 = preferenceInfo.get._1;
-                  let entity_id1: i64 = preferenceInfo.get._2;
-                  let entity_id2: i64 = preferenceInfo.get._3;
-                  // didn't bother to put these 2 calls in a transaction because this is likely to be so rarely used and easily fixed by user if it fails (from default
-                  // entity setting on any entity menu)
-                  deleteRelationToLocalEntity(relationTypeId, entity_id1, entity_id2)
+              /// Creates the preference if it doesn't already exist.
+            fn set_user_preference_entity_id<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, name_in: String,
+                                             entity_id_in: i64)  -> Result<(), anyhow::Error> {
+                let preferences_container_id: i64 = self.get_preferences_container_id(transaction)?;
+                let pref: Vec<DataType> = self.get_user_preference2(transaction, preferences_container_id, name_in.as_str(), Util::PREF_TYPE_ENTITY_ID)?;
+              if pref.len() == 3 {
+                // let preferenceInfo: Option<(i64, i64, i64)> = pref.%%asInstanceOf[Option[(i64,i64,i64)]];
+                  let relation_type_id = get_i64_from_row_without_option(&pref, 0)?;
+                  let entity_id1 = get_i64_from_row_without_option(&pref, 1)?;
+                  let entity_id2 = get_i64_from_row_without_option(&pref, 2)?;
+                  // didn't bother to put these 2 calls in a transaction because this is likely to be so rarely used and easily fixed by user if
+                  // it fails (from default entity setting on any entity menu)
+                  self.delete_relation_to_local_entity(transaction, relation_type_id, entity_id1, entity_id2)?;
                   // (Using entity_id1 instead of (the likely identical) preferences_container_id, in case this RTE was originally found down among some
                   // nested preferences (organized for user convenience) under here, in order to keep that organization.)
-                  create_relation_to_local_entity(relationTypeId, entity_id1, entity_id_in, Some(System.currentTimeMillis()), System.currentTimeMillis())
+                  self.create_relation_to_local_entity(transaction, relation_type_id, entity_id1,
+                                                       entity_id_in, Some(Utc::now().timestamp_millis()),
+                                                       Utc::now().timestamp_millis(), None, false)?;
+                  Ok(())
+                } else if pref.len() == 0 {
+                  let type_id_of_the_has_relation: i64 = self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
+                  let preference_entity_id: i64 = self.create_entity_and_relation_to_local_entity(transaction, preferences_container_id,
+                                                                                                  type_id_of_the_has_relation,
+                                                                                                  name_in.as_str(), None,
+                                                                                      Some(Utc::now().timestamp_millis()),
+                                                                                                  Utc::now().timestamp_millis(),
+                                                                                            false)?.0;
+                  self.create_relation_to_local_entity(transaction, type_id_of_the_has_relation,
+                                                       preference_entity_id, entity_id_in,
+                                                       Some(Utc::now().timestamp_millis()),
+                                                       Utc::now().timestamp_millis(), None,
+                                                       false)?;
+                  Ok(())
                 } else {
-                  let type_id_of_the_has_relation = find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-                  let preference_entity_id: i64 = create_entity_and_relation_to_local_entity(preferences_container_id, type_id_of_the_has_relation, name_in, None,;
-                                                                                      Some(System.currentTimeMillis()), System.currentTimeMillis())._1
-                  create_relation_to_local_entity(type_id_of_the_has_relation, preference_entity_id, entity_id_in, Some(System.currentTimeMillis()), System.currentTimeMillis())
+                  Err(anyhow!("Expected 0 or 3, got {}: {:?}", pref.len(), pref))
                 }
               }
-    */
 
-    //%%$%%
-    /*
-                    fn getUserPreference_EntityId(preference_name_in: String, default_value_in: Option<i64> = None) -> Option<i64> {
-                    let pref = get_user_preference2(get_preferences_container_id, preference_name_in, Database.PREF_TYPE_ENTITY_ID);
-                    if pref.isEmpty) {
-                      default_value_in
+                fn get_user_preference_entity_id<'a>(&'a self, transaction: &Option<&mut Transaction<'a, Postgres>>, preference_name_in: String,
+                                                 default_value_in: Option<i64> /*= None*/) -> Result<Option<i64>, anyhow::Error> {
+                    let pref = self.get_user_preference2(transaction,
+                                                         self.get_preferences_container_id(transaction)?,
+                                                         preference_name_in.as_str(), Util::PREF_TYPE_ENTITY_ID)?;
+                    if pref.len() == 0 {
+                      Ok(default_value_in)
+                    } else if pref.len() == 3 {
+                        let id = get_i64_from_row_without_option(&pref, 2)?;
+                        Ok(Some(id))
                     } else {
-                      Some(pref.get.asInstanceOf[(i64,i64,i64)]._3)
+                        Err(anyhow!("Unexpected vec size {}: {:?}", pref.len(), pref))
                     }
                   }
 
-    */
     /// This should never return None, except when method createExpectedData is called for the first time in a given database.
     fn get_preferences_container_id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, anyhow::Error> {
         let related_entity_id = self.get_relation_to_local_entity_by_name(
@@ -4598,86 +5439,154 @@ impl Database for PostgreSQLDatabase {
             Util::USER_PREFERENCES,
         )?;
         match related_entity_id {
-                    None => return Err(anyhow!("This should never happen: method createExpectedData should be run at startup to create this part of the data.".to_string())),
+                    None => return Err(anyhow!("In get_preferences_container_id, This should never happen: method createExpectedData should be run at startup to create this part of the data.".to_string())),
                     Some(id) => Ok(id),
                 }
     }
-    //%%$%%
-    /*
-                fn getEntityCount() ->  i64 {
-                extract_row_count_from_count_query("SELECT count(1) from Entity " +
-                                                                       (if !include_archived_entities) {
-                                                                         "where (not archived)"
-                                                                       } else {
-                                                                         ""
-                                                                       })
-                                                                      );
-                                                                      }
+            fn get_entity_count(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<u64, anyhow::Error>  {
+                let archived = if !self.include_archived_entities { "where (not archived)" } else { "" };
+                let count: u64 = self.extract_row_count_from_count_query(transaction, format!("SELECT count(1) from Entity {}", archived).as_str())?.try_into()?;
+                Ok(count)
+          }
 
-                fn getClassCount(templateEntityIdIn: Option<i64> = None) -> i64 {
-                let whereClause = if templateEntityIdIn.is_some()) " where defining_entity_id=" + templateEntityIdIn.get else "";
-                extract_row_count_from_count_query("SELECT count(1) from class" + whereClause)
+            fn get_class_count(&self, transaction: &Option<&mut Transaction<Postgres>>, template_entity_id_in: Option<i64> /*= None*/)  -> Result<u64, anyhow::Error> {
+                let where_clause = match template_entity_id_in {
+                    Some(x) => format!(" where defining_entity_id={}", x),
+                    _ => "".to_string(),
+                };
+                let cnt: u64 = self.extract_row_count_from_count_query(transaction, format!("SELECT count(1) from class{}", where_clause).as_str())?.try_into()?;
+                Ok(cnt)
               }
 
-                fn getGroupEntrySortingIndex(group_id_in: i64, entity_id_in: i64) -> i64 {
-                let row = db_query_wrapper_for_one_row("select sorting_index from EntitiesInAGroup where group_id=" + group_id_in + " and entity_id=" + entity_id_in, "i64");
-                row(0).get.asInstanceOf[i64]
-              }
-
-                fn getEntityAttributeSortingIndex(entity_id_in: i64, attribute_form_id_in: i64, attribute_id_in: i64) -> i64 {
-                let row = db_query_wrapper_for_one_row("select sorting_index from AttributeSorting where entity_id=" + entity_id_in + " and attribute_form_id=" +;
-                                                  attribute_form_id_in + " and attribute_id=" + attribute_id_in, "i64")
-                row(0).get.asInstanceOf[i64]
-              }
-
-                fn getHighestSortingIndexForGroup(group_id_in: i64) -> i64 {
-                let rows: List[Array[Option[Any]]] = db_query("select max(sorting_index) from EntitiesInAGroup where group_id=" + group_id_in, "i64");
-                require(rows.size == 1)
-                rows.head(0).get.asInstanceOf[i64]
-              }
-
-                fn renumberSortingIndexes(entity_idOrGroupIdIn: i64, caller_manages_transactions_in: bool = false, isEntityAttrsNotGroupEntries: bool = true) {
-                //This used to be called "renumberAttributeSortingIndexes" before it was merged with "renumberGroupSortingIndexes" (very similar).
-                let numberOfEntries: i64 = {;
-                  if isEntityAttrsNotGroupEntries) get_attribute_count(entity_idOrGroupIdIn, include_archived_entities_in = true)
-                  else get_group_size(entity_idOrGroupIdIn)
+            fn get_group_entry_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64, entity_id_in: i64)
+                -> Result<i64, anyhow::Error>  {
+                let row = self.db_query_wrapper_for_one_row(transaction,
+                                                            format!("select sorting_index from EntitiesInAGroup where group_id={} and \
+                                                            entity_id={}", group_id_in, entity_id_in).as_str(),
+                                                            "i64")?;
+                match row.get(0) {
+                    Some(DataType::Bigint(x)) => Ok(x.clone()),
+                    _ => Err(anyhow!("Unexpected row in get_group_entry_sorting_index: {:?}", row)),
                 }
-                if numberOfEntries != 0) {
+              }
+
+            fn get_entity_attribute_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                                  entity_id_in: i64, attribute_form_id_in: i64, attribute_id_in: i64)  -> Result<i64, anyhow::Error>  {
+                let row = self.db_query_wrapper_for_one_row(transaction,
+                                                            format!("select sorting_index from AttributeSorting where entity_id={} and \
+                                                            attribute_form_id={} and attribute_id={}", entity_id_in, attribute_form_id_in,
+                                                            attribute_id_in).as_str(),
+                                                            "i64")?;
+                match row.get(0) {
+                    Some(DataType::Bigint(x)) => Ok(x.clone()),
+                    _ => Err(anyhow!("Unexpected row in get_entity_attribute_sorting_index: {:?}", row)),
+                }
+              }
+
+            fn get_highest_sorting_index_for_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64)  -> Result<i64, anyhow::Error>  {
+                let rows: Vec<Vec<Option<DataType>>> = self.db_query(transaction,
+                                                                format!("select max(sorting_index) from EntitiesInAGroup where group_id={}", group_id_in).as_str(),
+                                                                "i64")?;
+                if rows.len() != 1 || rows[0].len() == 0 || rows[0][0].is_none() {
+                    return Err(anyhow!("In get_highest_sorting_index_for_group, Unexpected rows ({}) in get_highest_sorting_index_for_group: {:?}", rows.len(), rows));
+                }
+                match rows[0][0].clone() {
+                    Some(DataType::Bigint(x)) => Ok(x),
+                    _ => Err(anyhow!("In get_highest_sorting_index_for_group, expected Some(i64), instead of {:?}.", rows[0][0])),
+                }
+              }
+
+
+            fn renumber_sorting_indexes<'a>(&'a self, transaction_in: &Option<&mut Transaction<'a, Postgres>>, entity_id_or_group_id_in: i64,
+                                        caller_manages_transactions_in: bool /*= false*/, is_entity_attrs_not_group_entries: bool /*= true*/)
+                -> Result<(), anyhow::Error> {
+                //This used to be called "renumberAttributeSortingIndexes" before it was merged with "renumberGroupSortingIndexes" (very similar).
+                let number_of_entries: u64 = {
+                  if is_entity_attrs_not_group_entries {
+                      self.get_attribute_count(transaction_in, entity_id_or_group_id_in, true)?
+                  } else {
+                      self.get_group_size(transaction_in, entity_id_or_group_id_in, 3)?.into()
+                  }
+                };
+                if number_of_entries != 0 {
                   // (like a number line so + 1, then add 1 more (so + 2) in case we use up some room on the line due to "attributeSortingIndexInUse" (below))
-                  let numberOfSegments = numberOfEntries + 2;
+                  let number_of_segments = number_of_entries.checked_add(2).unwrap();
                   // ( * 2 on next line, because the min_id_value is negative so there is a larger range to split up, but
                   // doing so without exceeding the value of a i64 during the calculation.)
-                  let increment: i64 = (max_id_value.asInstanceOf[Float] / numberOfSegments * 2).asInstanceOf[i64];
+                  let increment: i64 = (self.max_id_value() as f64 / number_of_segments as f64 * 2.0).round() as i64;
                   // (start with an increment so that later there is room to sort something prior to it, manually)
-                  let mut next: i64 = self.min_id_value() + increment;
+                  let mut next: i64 = self.min_id_value().checked_add(increment).unwrap();
                   let mut previous: i64 = self.min_id_value();
-                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                  // if !caller_manages_transactions_in { self.begin_trans() }
-                  try {
-                    let data: List[Array[Option[Any]]] = {;
-                      if isEntityAttrsNotGroupEntries) getEntityAttributeSortingData(entity_idOrGroupIdIn)
-                      else getGroupEntriesData(entity_idOrGroupIdIn)
-                    }
-                    if data.size != numberOfEntries) {
+
+                    //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+                    // Try creating a local transaction whether we use it or not, to handle compiler errors
+                    // about variable moves. I'm not seeing a better way to get around them by just using
+                    // conditions and an Option (many errors):
+                    // (I tried putting this in a function, then a macro, but it gets compile errors.
+                    // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+                    // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+                    // I didn't try a proc macro but based on some reading I think it would have the same
+                    // problem.)
+                    let mut local_tx: Transaction<Postgres> = {
+                        if transaction_in.is_none() {
+                            if caller_manages_transactions_in {
+                                return Err(anyhow!("In renumber_sorting_indexes, inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                    .to_string()));
+                            } else {
+                                self.begin_trans()?
+                            }
+                        } else {
+                            if caller_manages_transactions_in {
+                                // That means we have determined that the caller is to use the transaction_in .
+                                // was just:  None
+                                // But now instead, create it anyway, per comment above.
+                                self.begin_trans()?
+                            } else {
+                                return Err(anyhow!(
+                        "In renumber_sorting_indexes, inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    ))
+                            }
+                        }
+                    };
+                    let local_tx_option = &Some(&mut local_tx);
+                    let mut transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+                        transaction_in
+                    } else {
+                        local_tx_option
+                    };
+                    //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
+
+                    let data: Vec<Vec<Option<DataType>>> = {
+                      if is_entity_attrs_not_group_entries {
+                          self.get_entity_attribute_sorting_data(transaction_in, entity_id_or_group_id_in, None)?
+                      } else {
+                          self.get_group_entries_data(transaction_in, entity_id_or_group_id_in, None, true)?
+                      }
+                    };
+                    if data.len() as u128 != number_of_entries as u128 {
                       // "Idea:: BAD SMELL! The UI should do all UI communication, no?"
                       // (SEE ALSO comments and code at other places with the part on previous line in quotes).
-                      eprintln!()
-                      eprintln!()
-                      eprintln!()
-                      eprintln!("--------------------------------------")
-                      eprintln!("Unexpected state: data.size (" + data.size +  ") != numberOfEntries (" + numberOfEntries +  "), when they should be equal. ")
-                      if data.size > numberOfEntries) {
-                        eprintln!("Possibly, the database trigger \"attribute_sorting_cleanup\" (created in method create_attribute_sorting_deletion_trigger) is" +
-                        " not always cleaning up when it should or something. ")
+                        // Possible solution: pass a reference to the UI in to here, and use it?
+                      eprintln!();
+                      eprintln!();
+                      eprintln!();
+                      eprintln!("--------------------------------------");
+                      eprintln!("Unexpected state: data.size ({}) != number_of_entries ({}), when they should be equal. ", data.len(), number_of_entries);
+                      if data.len() as u128 > number_of_entries as u128 {
+                        eprintln!("Possibly, the database trigger \"attribute_sorting_cleanup\" (created in method create_attribute_sorting_deletion_trigger) \
+                            is not always cleaning up when it should or something. ");
                       }
-                      eprintln!("If there is a consistent way to reproduce this from scratch (with attributes of a *new* entity), or other information" +
-                                         " to diagnose/improve the situation, please advise.  The program will attempt to continue anyway but a bug around sorting" +
-                                         " or placement in this set of entries might result.")
+                      eprintln!("If there is a consistent way to reproduce this from scratch (with attributes of a *new* entity), or other information \
+                        to diagnose/improve the situation, please advise.  The program will attempt to continue anyway but a bug around sorting \
+                        or placement in this set of entries might result.");
                       eprintln!("--------------------------------------")
                     }
-                    for (entry <- data) {
-                      if isEntityAttrsNotGroupEntries) {
-                        while (is_attribute_sorting_index_in_use(entity_idOrGroupIdIn, next)) {
+                    for entry in data {
+                      if is_entity_attrs_not_group_entries {
+                        while self.is_attribute_sorting_index_in_use(transaction_in, entity_id_or_group_id_in, next)? {
                           // Renumbering might choose already-used numbers, because it always uses the same algorithm.  This causes a constraint violation (unique index)
                           // , so
                           // get around that with a (hopefully quick & simple) increment to get the next unused one.  If they're all used...that's a surprise.
@@ -4685,101 +5594,111 @@ impl Database for PostgreSQLDatabase {
                           next += 1
                         }
                       } else {
-                        while (is_group_entry_sorting_index_in_use(entity_idOrGroupIdIn, next)) {
+                        while self.is_group_entry_sorting_index_in_use(transaction_in, entity_id_or_group_id_in, next)? {
                           next += 1
                         }
                       }
                       // (make sure a bug didn't cause wraparound w/in the set of possible i64 values)
-                      require(previous < next && next < self.max_id_value(), "Requirement failed for values previous, next, and max_id_value(): " + previous + ", " + next + ", " +
-                                                                    self.max_id_value())
-                      if isEntityAttrsNotGroupEntries) {
-                        let form_id: i64 = entry(0).get.asInstanceOf[Int];
-                        let attributeId: i64 = entry(1).get.asInstanceOf[i64];
-                        updateAttributeSortingIndex(entity_idOrGroupIdIn, form_id, attributeId, next)
-                      } else {
-                        let id: i64 = entry(0).get.asInstanceOf[i64];
-                        updateSortingIndexInAGroup(entity_idOrGroupIdIn, id, next)
+                      if ! (previous < next && next < self.max_id_value()) {
+                          return Err(anyhow!("In renumber_sorting_indexes, Requirement failed for values previous, next, and max_id_value(): {}, {}, {}", previous, next,
+                              self.max_id_value()));
                       }
-                      previous = next
-                      next += increment
+                      if is_entity_attrs_not_group_entries {
+                          if entry.len() < 2 {
+                              return Err(anyhow!("In renumber_sorting_indexes, unexpected entry length < 2: {:?}", entry))
+                          }
+                        let form_id: i64 = match entry[0] {
+                            Some(DataType::Bigint(x)) => x,
+                            _ => return Err(anyhow!("In renumber_sorting_indexes, unexpected entry[0]: {:?}", entry[0]))
+                        };
+                          let attribute_id: i64 = match entry[1] {
+                              Some(DataType::Bigint(x)) => x,
+                              _ => return Err(anyhow!("In renumber_sorting_indexes, unexpected entry[1]: {:?}", entry[1]))
+                          };
+                        self.update_attribute_sorting_index(transaction_in, entity_id_or_group_id_in, form_id, attribute_id, next)?;
+                      } else {
+                          // tried this, but no. Is there a smoother way than the way used below & above?
+                          // let id: i64;
+                          // let DataType::Bigint(id) = entry[0].unwrap_or_else(|| {
+                          //     return Err(anyhow!("In renumber_sorting_indexes, another unexpected entry[0]: {:?}", entry[0]))
+                          // });
+                          let id: i64 = match entry[0] {
+                              Some(DataType::Bigint(x)) => x,
+                              _ => return Err(anyhow!("In renumber_sorting_indexes, yet another unexpected entry[0]: {:?}", entry[0]))
+                          };
+                        self.update_sorting_index_in_a_group(transaction_in, entity_id_or_group_id_in, id, next)?;
+                      }
+                      previous = next;
+                      next += increment;
                     }
-                  }
-                  catch {
-                    case e: Exception =>
-                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                      // if !caller_manages_transactions_in) rollback_trans()
-                      throw e
-                  }
 
-                  // require: just to confirm that the generally expected behavior happened, not a requirement other than that:
+                  // assert: just to confirm that the generally expected behavior happened, not a requirement other than that:
                   // (didn't happen in case of newly added entries w/ default values....
                   // idea: could investigate further...does it matter or imply anything for adding entries to *brand*-newly created groups? Is it related
                   // to the fact that when doing that, the 2nd entry goes above, not below the 1st, and to move it down you have to choose the down 1 option
                   // *twice* for some reason (sometimes??)? And to the fact that deleting an entry selects the one above, not below, for next highlighting?)
                   // (See also a comment somewhere else 4 poss. issue that refers, related, to this method name.)
-                  //require((maxIDValue - next) < (increment * 2))
+                    // But anyway, if used, do it with a condition and return an error, not panicking.
+                  //assert((maxIDValue - next) < (increment * 2))
 
-                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                  // if !caller_manages_transactions_in {self.commit_trans() }
+                    //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
+                    if !caller_manages_transactions_in {
+                        // Using local_tx to make the compiler happy and because it is the one we need,
+                        // if !caller_manages_transactions_in. Ie, there is no transaction provided by
+                        // the caller.
+                        if let Err(e) = self.commit_trans(local_tx) {
+                            return Err(anyhow!(e.to_string()));
+                        }
+                    }
                 }
+                Ok(())
               }
 
-                fn classLimit(limitByClass: bool, class_id_in: Option<i64>) -> String {
-                if limitByClass) {
-                  if class_id_in.is_some()) {
-                    " and e.class_id=" + class_id_in.get + " "
+              /// Excludes those entities that are really relationtypes, attribute types, or quantity units.
+              /// The parameter limit_by_class decides whether any limiting is done at all: if true, the query is
+              /// limited to entities having the class specified by inClassId (even if that is None).
+              /// The parameter template_entity *further* limits, if limit_by_class is true, by omitting the template_entity from the results (ex., to help avoid
+              /// counting that one when deciding whether it is OK to delete the class).
+            fn get_entities_only_count(&self, transaction: &Option<&mut Transaction<Postgres>>, limit_by_class: bool /*= false*/,
+                                       class_id_in: Option<i64> /*= None*/,
+                                       template_entity: Option<i64> /*= None*/) -> Result<u64, anyhow::Error>  {
+                  let archived = if !self.include_archived_entities {
+                      "(not archived) and "
                   } else {
-                    " and e.class_id is NULL "
-                  }
-                } else ""
+                      ""
+                  };
+                  let limit = Self::class_limit(limit_by_class, class_id_in)?;
+                  let and_id_not = match template_entity {
+                      Some(s) if limit_by_class => format!(" and id != {}", s),
+                      _ => "".to_string(),
+                  };
+                  let limit2 = Self::limit_to_entities_only(Self::ENTITY_ONLY_SELECT_PART);
+                  self.extract_row_count_from_count_query(transaction, format!("SELECT count(1) from Entity e where {} true {}{} \
+                            and id in (select id from entity {})", archived, limit, and_id_not, limit2).as_str())
               }
 
-              /** Excludes those entities that are really relationtypes, attribute types, or quantity units.
-                *
-                * The parameter limitByClass decides whether any limiting is done at all: if true, the query is
-                * limited to entities having the class specified by inClassId (even if that is None).
-                *
-                * The parameter templateEntity *further* limits, if limitByClass is true, by omitting the templateEntity from the results (ex., to help avoid
-                * counting that one when deciding whether it is OK to delete the class).
-                * */
-                fn getEntitiesOnlyCount(limitByClass: bool = false, class_id_in: Option<i64> = None,
-                                       templateEntity: Option<i64> = None) -> i64 {
-                extract_row_count_from_count_query("SELECT count(1) from Entity e where " +
-                                              (if !include_archived_entities) {
-                                                "(not archived) and "
-                                              } else {
-                                                ""
-                                              }) +
-                                              "true " +
-                                              classLimit(limitByClass, class_id_in) +
-                                              (if limitByClass && templateEntity.is_some()) " and id != " + templateEntity.get else "") +
-                                              " and id in " +
-                                              "(select id from entity " + limit_to_entities_only(Self::ENTITY_ONLY_SELECT_PART) +
-                                              ")")
-              }
+            fn get_relation_type_count(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<u64, anyhow::Error>  {
+                self.extract_row_count_from_count_query(transaction, "select count(1) from RelationType")
+            }
 
-                fn getRelationTypeCount -> i64 {
-                extract_row_count_from_count_query("select count(1) from RelationType")
-                }
-    */
     fn get_attribute_count(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         include_archived_entities_in: bool, /*%%= false*/
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         let total = self.get_quantity_attribute_count(transaction, entity_id_in)?
-            + self.get_text_attribute_count(transaction, entity_id_in)?
-            + self.get_date_attribute_count(transaction, entity_id_in)?
-            + self.get_boolean_attribute_count(transaction, entity_id_in)?
-            + self.get_file_attribute_count(transaction, entity_id_in)?
-            + self.get_relation_to_local_entity_count(
-            transaction,
-                entity_id_in,
-                include_archived_entities_in,
-            )?
-            + self.get_relation_to_remote_entity_count(transaction, entity_id_in)?
-            + self.get_relation_to_group_count(transaction, entity_id_in)?;
+            .checked_add(self.get_text_attribute_count(transaction, entity_id_in)?).unwrap()
+            .checked_add(self.get_date_attribute_count(transaction, entity_id_in)?).unwrap()
+            .checked_add(self.get_boolean_attribute_count(transaction, entity_id_in)?).unwrap()
+            .checked_add(self.get_file_attribute_count(transaction, entity_id_in)?).unwrap()
+            .checked_add(self.get_relation_to_local_entity_count(
+                transaction,
+                    entity_id_in,
+                    include_archived_entities_in,
+                )?).unwrap()
+            .checked_add(self.get_relation_to_remote_entity_count(transaction, entity_id_in)?).unwrap()
+            .checked_add(self.get_relation_to_group_count(transaction, entity_id_in)?).unwrap();
         Ok(total)
     }
 
@@ -4788,7 +5707,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
         include_archived_entities: bool, /*= true*/
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         let appended = if !include_archived_entities && !include_archived_entities {
             " and (not eContained.archived)"
         } else {
@@ -4804,7 +5723,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         let sql = format!(
             "select count(1) from entity eContaining, RelationToRemoteEntity rtre \
             where eContaining.id=rtre.entity_id and rtre.entity_id={}",
@@ -4813,60 +5732,53 @@ impl Database for PostgreSQLDatabase {
         self.extract_row_count_from_count_query(transaction, sql.as_str())
     }
 
-    /** if 1st parm is None, gets all. */
+    /// if 1st parm is None, gets all.
     fn get_relation_to_group_count(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
             transaction,
             format!(
                 "select count(1) from relationtogroup where entity_id={}",
                 entity_id_in
             )
-            .as_str(),
-        )
+            .as_str())
     }
-    /*
 
-         fn getAttributeSortingRowsCount(entity_id_in: Option<i64> = None) -> Result<i64, String> {
-           let sql = "select count(1) from AttributeSorting " + (if entity_id_in.is_some()) "where entity_id=" + entity_id_in.get else "");
-           extract_row_count_from_count_query(sql)
+       //   // Idea: make starting_index_in and max_vals_in do something here.  How was that missed?  Is it needed?
+       // fn get_relations_to_group_containing_this_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64,
+       //                                                 starting_index_in: i64, max_vals_in: Option<u64> /*= None*/)
+       //        -> Result<Vec<RelationToGroup>, anyhow::Error>  {
+       //     let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
+       //     let sql: &str = format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
+       //              asort.sorting_index from RelationToGroup rtg, AttributeSorting asort where group_id={} \
+       //              and rtg.entity_id=asort.entity_id and asort.attribute_form_id={} \
+       //              and rtg.id=asort.attribute_id", group_id_in, af_id).as_str();
+       //     let early_results = self.db_query(transaction, sql, "i64,i64,i64,i64,i64,i64,i64")?;
+       //     let mut final_results: Vec<RelationToGroup> = Vec::new();
+       //     // idea: should the remainder of this method be moved to RelationToGroup, so the persistence layer doesn't know anything about the Model? (helps avoid
+       //     // circular dependencies? is a cleaner design, at least if RTG were in a separate library?)
+       //     for result in early_results {
+       //       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
+       //       //final_results.add(result(0).get.asInstanceOf[i64], new Entity(this, result(1).get.asInstanceOf[i64]))
+       //       let rtg: RelationToGroup = new RelationToGroup(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[i64],;
+       //                                                      result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
+       //                                                      if result(4).isEmpty) None else Some(result(4).get.asInstanceOf[i64]), result(5).get.asInstanceOf[i64],
+       //                                                      result(6).get.asInstanceOf[i64])
+       //       final_results.push(rtg)
+       //     }
+       //     if ! (final_results.len() == early_results.len()) {
+       //         return Err(anyhow!("In get_relations_to_group_containing_this_group, Final results ({}) do not match count of early_results ({})", final_results.len(), early_results.len()));
+       //     }
+       //     Ok(final_results)
+       //   }
+
+       fn get_group_count(&self, transaction: &Option<&mut Transaction<Postgres>>)  -> Result<u64, anyhow::Error>  {
+           self.extract_row_count_from_count_query(transaction, "select count(1) from grupo")
          }
 
-           fn get_relation_to_group_countByGroup(group_id_in: i64) -> i64 {
-           extract_row_count_from_count_query("select count(1) from relationtogroup where group_id=" + group_id_in)
-         }
-
-         // Idea: make maxValsIn do something here.  How was that missed?  Is it needed?
-           fn getRelationsToGroupContainingThisGroup(group_id_in: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
-           let sql: String = "select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, asort.sorting_index" +;
-                             " from RelationToGroup rtg, AttributeSorting asort where group_id=" + group_id_in +
-                             " and rtg.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE) +
-                             " and rtg.id=asort.attribute_id"
-           let earlyResults = db_query(sql, "i64,i64,i64,i64,i64,i64,i64");
-           let final_results = new java.util.ArrayList[RelationToGroup];
-           // idea: should the remainder of this method be moved to RelationToGroup, so the persistence layer doesn't know anything about the Model? (helps avoid
-           // circular dependencies? is a cleaner design?)
-           for (result <- earlyResults) {
-             // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-             //final_results.add(result(0).get.asInstanceOf[i64], new Entity(this, result(1).get.asInstanceOf[i64]))
-             let rtg: RelationToGroup = new RelationToGroup(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[i64],;
-                                                            result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-                                                            if result(4).isEmpty) None else Some(result(4).get.asInstanceOf[i64]), result(5).get.asInstanceOf[i64],
-                                                            result(6).get.asInstanceOf[i64])
-             final_results.add(rtg)
-           }
-           require(final_results.size == earlyResults.size)
-           final_results
-         }
-
-           fn getGroupCount -> i64 {
-           extract_row_count_from_count_query("select count(1) from grupo")
-         }
-
-    */
     /// @param group_id_in group_id
     /// @param include_which_entities_in 1/2/3 means select onlyNon-archived/onlyArchived/all entities, respectively.
     ///                                4 means "it depends on the value of include_archived_entities", which is what callers want in some cases.
@@ -4878,7 +5790,7 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id_in: i64,
         include_which_entities_in: i32, /*%% = 3*/
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         //idea: convert this 1-4 to an enum?
         if include_which_entities_in <= 0 || include_which_entities_in >= 5 {
             return Err(anyhow!(format!("Variable include_which_entities_in ({}) is out of the expected range of 1-4; there is a bug.", include_which_entities_in)));
@@ -4912,343 +5824,375 @@ impl Database for PostgreSQLDatabase {
         )?;
         Ok(count)
     }
-    /*
-             /** For all groups to which the parameter belongs, returns a collection of the *containing* RelationToGroups, in the form of "entity_name -> groupName"'s.
-               * This is useful for example when one is about
-               * to delete an entity and we want to warn first, showing where it is contained.
-               */
-               fn getContainingRelationToGroupDescriptions(entity_id_in: i64, limitIn: Option<i64> = None) -> ArrayList[String] {
-               let rows: List[Array[Option[Any]]] = db_query("select e.name, grp.name, grp.id from entity e, relationtogroup rtg, " +;
-                                                            "grupo grp where " +
-                                                            (if !include_archived_entities) {
-                                                              "(not archived) and "
-                                                            } else {
-                                                              ""
-                                                            }) +
-                                                            "e.id = rtg.entity_id" +
-                                                            " and rtg.group_id = grp.id and rtg.group_id in (SELECT group_id from entitiesinagroup where entity_id=" +
-                                                            entity_id_in + ")" +
-                                                            " order by grp.id limit " + checkIfShouldBeAllResults(limitIn), "String,String,i64")
-               let results: ArrayList[String] = new ArrayList(rows.size);
-               for (row <- rows) {
-                 let entity_name = row(0).get.asInstanceOf[String];
-                 let groupName = row(1).get.asInstanceOf[String];
-                 results.add(entity_name + "->" + groupName)
+             /// For all groups to which the parameter belongs, returns a collection of the *containing* RelationToGroups, in the form of "entity_name -> group_name"'s.
+             /// This is useful for example when one is about
+             /// to delete an entity and we want to warn first, showing where it is contained.
+           fn get_containing_relation_to_group_descriptions(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64,
+                                                            limit_in: Option<i64> /*= None*/)  -> Result<Vec<String>, anyhow::Error>  {
+                 let omit_archived = if !self.include_archived_entities {
+                     "(not archived) and "
+                 } else {
+                     ""
+                 };
+                 let limit = Self::check_if_should_be_all_results(limit_in);
+               let rows: Vec<Vec<Option<DataType>>> = self.db_query(transaction,
+                                                            format!("select e.name, grp.name, grp.id from entity e, relationtogroup rtg, \
+                                                            grupo grp where {} e.id = rtg.entity_id and rtg.group_id = grp.id and rtg.group_id \
+                                                            in (SELECT group_id from entitiesinagroup where entity_id={}) \
+                                                            order by grp.id limit {}",
+                                                            omit_archived, entity_id_in, limit).as_str(),
+                                                            "String,String,i64")?;
+               let mut results: Vec<String> = Vec::new();
+               for row in rows {
+                   let entity_name = match row.get(0) {
+                       Some(Some(DataType::String(x))) => x,
+                       _ => return Err(anyhow!("In get_containing_relation_to_group_descriptions, expected an entity name at index 0 of {:?}", row)),
+                   };
+                   let group_name = match row.get(1) {
+                       Some(Some(DataType::String(x))) => x,
+                       _ => return Err(anyhow!("In get_containing_relation_to_group_descriptions, expected a group name at index 1 of {:?}", row)),
+                   };
+                 results.push(format!("{} -> {}", entity_name, group_name));
                }
-               results
+               Ok(results)
              }
 
-             /** For a given group, find all the RelationsToGroup that contain entities that contain the provided group id, and return their group_ids.
-               * What is really the best name for this method (concise but clear on what it does)?
-               */
-               fn getGroupsContainingEntitysGroupsIds(group_id_in: i64, limitIn: Option<i64> = Some(5)) -> List[Array[Option[Any]]] {
+             /// For a given group, find all the RelationsToGroup that contain entities that contain the provided group id, and return their group_ids.
+             /// What is really the best name for this method (concise but clear on what it does)?
+           fn get_groups_containing_entitys_groups_ids(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64,
+                                                       limit_in: Option<i64> /*= Some(5)*/) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
                //get every entity that contains a rtg that contains this group:
-               let containingEntityIdList: List[Array[Option[Any]]] = db_query("SELECT entity_id from relationtogroup where group_id=" + group_id_in +;
-                                                                              " order by entity_id limit " + checkIfShouldBeAllResults(limitIn), "i64")
-               let mut containingEntityIds: String = "";
+                 let limit = Self::check_if_should_be_all_results(limit_in);
+               let containing_entity_id_list: Vec<Vec<Option<DataType>>> =
+                   self.db_query(transaction,
+                            format!("SELECT entity_id from relationtogroup where group_id={} order by entity_id limit {}", group_id_in, limit).as_str(),
+                            "i64")?;
+               let mut containing_entity_ids: String = "".to_string();
                //for all those entity ids, get every rtg id containing that entity
-               for (row <- containingEntityIdList) {
-                 let entity_id: i64 = row(0).get.asInstanceOf[i64];
-                 containingEntityIds += entity_id
-                 containingEntityIds += ","
+               for row in containing_entity_id_list {
+                    let entity_id = match row.get(0) {
+                        Some(Some(DataType::Bigint(x))) => x,
+                        _ => return Err(anyhow!("In get_groups_containing_entitys_groups_ids, expected an entity id at index 0 of {:?}", row)),
+                    };
+                 containing_entity_ids = format!("{}{},", containing_entity_ids, entity_id);
                }
-               if containingEntityIds.nonEmpty) {
+               if containing_entity_ids.len() > 0 {
                  // remove the last comma
-                 containingEntityIds = containingEntityIds.substring(0, containingEntityIds.length - 1)
-                 let rtgRows: List[Array[Option[Any]]] = db_query("SELECT group_id from entitiesinagroup" +;
-                                                                 " where entity_id in (" + containingEntityIds + ") order by group_id limit " +
-                                                                 checkIfShouldBeAllResults(limitIn), "i64")
-                 rtgRows
-               } else Nil
-             }
-
-             /** Intended to show something like an activity log. Could be used for someone to show their personal journal or for other reporting.
-               */
-               fn findJournalEntries(startTimeIn: i64, endTimeIn: i64, limitIn: Option<i64> = None) -> ArrayList[(i64, String, i64)] {
-               let rows: List[Array[Option[Any]]] = db_query("select insertion_date, 'Added: ' || name, id from entity where insertion_date >= " + startTimeIn +;
-                                                                   " and insertion_date <= " + endTimeIn +
-                                                            " UNION " +
-                                                            "select archived_date, 'Archived: ' || name, id from entity where archived and archived_date >= " + startTimeIn +
-                                                                   " and archived_date <= " + endTimeIn +
-                                                            " order by 1 limit " + checkIfShouldBeAllResults(limitIn), "i64,String,i64")
-               let results = new ArrayList[(i64, String, i64)];
-               let mut n = 0;
-               for (row <- rows) {
-                 results.add((row(0).get.asInstanceOf[i64], row(1).get.asInstanceOf[String], row(2).get.asInstanceOf[i64]))
-                 n += 1
+                 containing_entity_ids.pop();
+                 let rtgRows: Vec<Vec<Option<DataType>>> = self.db_query(transaction,
+                                                             format!("SELECT group_id from entitiesinagroup where entity_id in ({}) order \
+                                                             by group_id limit {}", containing_entity_ids, limit).as_str(),
+                                                             "i64")?;
+                 Ok(rtgRows)
+               } else {
+                   Ok(Vec::new())
                }
-               results
              }
 
-             override fn getCountOfGroupsContainingEntity(entity_id_in: i64) -> i64 {
-               extract_row_count_from_count_query("select count(1) from EntitiesInAGroup where entity_id=" + entity_id_in)
-             }
-
-               fn getContainingGroupsIds(entity_id_in: i64) -> ArrayList[i64] {
-               let group_ids: List[Array[Option[Any]]] = db_query("select group_id from EntitiesInAGroup where entity_id=" + entity_id_in,;
-                                                                "i64")
-               let results = new ArrayList[i64];
-               for (row <- group_ids) {
-                 results.add(row(0).get.asInstanceOf[i64])
+             /// Intended to show something like an activity log. Could be used for someone to show their personal journal or for other reporting.
+           fn find_journal_entries(&self, transaction: &Option<&mut Transaction<Postgres>>, start_time_in: i64, end_time_in: i64,
+                                   limit_in: Option<i64> /*= None*/) -> Result<Vec<(i64, String, i64)>, anyhow::Error> {
+                 let limit = Self::check_if_should_be_all_results(limit_in);
+               let rows: Vec<Vec<Option<DataType>>> = self.db_query(transaction,
+                                                        format!("select insertion_date, 'Added: ' || name, id from entity where insertion_date >= {}\
+                                                         and insertion_date <= {} \
+                                                         UNION \
+                                                         select archived_date, 'Archived: ' || name, id from entity where archived \
+                                                         and archived_date >= {} and archived_date <= {} order by 1 limit {}",
+                                                            start_time_in, end_time_in, start_time_in, end_time_in, limit).as_str(),
+                                                 "i64,String,i64")?;
+               let mut results: Vec<(i64, String, i64)> = Vec::new();
+               // let mut n: u64 = 0;
+               for row in rows {
+                   // let DataType::Bigint(date) = row.get(0).ok_or(anyhow!("In find_journal_entries, unexpected date at index 0 in {:?}.", row))?;
+                   // let DataType::String(desc) = row.get(1).ok_or(anyhow!("In find_journal_entries, unexpected desc at index 1 in {:?}.", row))?;
+                   // let DataType::Bigint(id) = row.get(2).ok_or(anyhow!("In find_journal_entries, unexpected id at index 2 in {:?}.", row))?;
+                   let date = match row.get(0) {
+                       Some(Some(DataType::Bigint(x))) => x,
+                       _ => return Err(anyhow!("In find_journal_entries, expected a date at index 0 of {:?}", row)),
+                   };
+                   let desc = match row.get(1) {
+                       Some(Some(DataType::String(x))) => x,
+                       _ => return Err(anyhow!("In find_journal_entries, expected a desc at index 1 of {:?}", row)),
+                   };
+                   let id = match row.get(2) {
+                       Some(Some(DataType::Bigint(x))) => x,
+                       _ => return Err(anyhow!("In find_journal_entries, expected an id at index 2 of {:?}", row)),
+                   };
+                 results.push((date.clone(), desc.clone(), id.clone()));
+                 // n += 1
                }
-               results
+               Ok(results)
              }
 
-               fn isEntityInGroup(group_id_in: i64, entity_id_in: i64) -> bool {
-               let num = extract_row_count_from_count_query("select count(1) from EntitiesInAGroup eig, entity e where eig.entity_id=e.id" +;
-                                                       (if !include_archived_entities) {
-                                                         " and (not e.archived)"
-                                                       } else {
-                                                         ""
-                                                       }) +
-                                                       " and group_id=" + group_id_in + " and entity_id=" + entity_id_in)
-               if num > 1) throw new OmDatabaseException("Entity " + entity_id_in + " is in group " + group_id_in + " " + num + " times?? Should be 0 or 1.")
-               num == 1
+             fn get_count_of_groups_containing_entity(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64)  -> Result<u64, anyhow::Error>  {
+               self.extract_row_count_from_count_query(transaction, format!("select count(1) from EntitiesInAGroup where entity_id={}", entity_id_in).as_str())
              }
 
-             fn getQuantityAttributeData(quantityIdIn: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select qa.entity_id, qa.unit_id, qa.quantity_number, qa.attr_type_id, qa.valid_on_date, qa.observation_date, asort.sorting_index " +
-                                       "from QuantityAttribute qa, AttributeSorting asort where qa.id=" + quantityIdIn +
-                                       " and qa.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util::QUANTITY_TYPE) +
-                                       " and qa.id=asort.attribute_id",
-                                       GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES)
+           fn get_containing_groups_ids(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64) -> Result<Vec<i64>, anyhow::Error>  {
+               let group_ids: Vec<Vec<Option<DataType>>> = self.db_query(transaction,
+                                                                         format!("select group_id from EntitiesInAGroup \
+                                                                         where entity_id={}",entity_id_in).as_str(),
+                                                                "i64")?;
+               let mut results: Vec<i64> = Vec::new();
+               for row in group_ids {
+                   let id = match row.get(0) {
+                       Some(Some(DataType::Bigint(id))) =>  id,
+                       _ => return Err(anyhow!("In get_containing_groups_ids, expected an entity_id at index 0 instead of {:?}", row)),
+                   };
+                 results.push(id.clone());
+               }
+               Ok(results)
              }
 
-               fn getRelationToLocalEntityData(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select rte.id, rte.valid_on_date, rte.observation_date, asort.sorting_index" +
-                                       " from RelationToEntity rte, AttributeSorting asort" +
-                                       " where rte.rel_type_id=" + relation_type_id_in + " and rte.entity_id=" + entity_id1_in + " and rte.entity_id_2=" + entity_id2_in +
-                                       " and rte.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util.RELATION_TO_LOCAL_ENTITY_TYPE) +
-                                       " and rte.id=asort.attribute_id",
-                                       Database.GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES)
+           fn is_entity_in_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64, entity_id_in: i64) -> Result<bool, anyhow::Error> {
+               let not_archived = if !self.include_archived_entities {
+                   " and (not e.archived)"
+               } else {
+                   ""
+               };
+               let num = self.extract_row_count_from_count_query(transaction,
+                                                                 format!("select count(1) from EntitiesInAGroup eig, entity e \
+                                                                 where eig.entity_id=e.id{} and group_id={} and entity_id={}",
+                                                            not_archived, group_id_in, entity_id_in).as_str())?;
+               if num > 1 {
+                   return Err(anyhow!("In is_entity_in_group, Entity {} is in group {} {} times?? Should be 0 or 1.", entity_id_in, group_id_in, num));
+               }
+               Ok(num == 1)
              }
 
-               fn getRelationToLocalEntityDataById(id_in: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select rte.rel_type_id, rte.entity_id, rte.entity_id_2, rte.valid_on_date, rte.observation_date, asort.sorting_index" +
-                                       " from RelationToEntity rte, AttributeSorting asort" +
-                                       " where rte.id=" + id_in +
-                                       " and rte.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util.RELATION_TO_LOCAL_ENTITY_TYPE) +
-                                       " and rte.id=asort.attribute_id",
-                                       "i64,i64," + Database.GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES)
+         fn get_quantity_attribute_data(&self, transaction: &Option<&mut Transaction<Postgres>>, quantity_id_in: i64) ->  Result<Vec<DataType>, anyhow::Error>  {
+             let af_id = self.get_attribute_form_id(Util::QUANTITY_TYPE)?;
+               self.db_query_wrapper_for_one_row(transaction,
+                                                 format!("select qa.entity_id, qa.unit_id, qa.quantity_number, qa.attr_type_id, qa.valid_on_date, \
+                                                 qa.observation_date, asort.sorting_index \
+                                       from QuantityAttribute qa, AttributeSorting asort where qa.id={} and qa.entity_id=asort.entity_id and \
+                                       asort.attribute_form_id={} and qa.id=asort.attribute_id", quantity_id_in, af_id).as_str(),
+                                       Util::GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES)
              }
 
-               fn getRelationToRemoteEntityData(relation_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select rte.id, rte.valid_on_date, rte.observation_date, asort.sorting_index" +
-                                       " from RelationToRemoteEntity rte, AttributeSorting asort" +
-                                       " where rte.rel_type_id=" + relation_type_id_in + " and rte.entity_id=" + entity_id1_in +
-                                       " and rte.remote_instance_id='" + remote_instance_id_in + "' and rte.entity_id_2=" + entity_id2_in +
-                                       " and rte.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util.RELATION_TO_REMOTE_ENTITY_TYPE) +
-                                       " and rte.id=asort.attribute_id",
-                                       GET_RELATION_TO_REMOTE_ENTITY__RESULT_TYPES)
+           fn get_relation_to_local_entity_data(&self, transaction: &Option<&mut Transaction<Postgres>>, relation_type_id_in: i64, entity_id1_in: i64,
+                                                entity_id2_in: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+               let af_id = self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
+               self.db_query_wrapper_for_one_row(transaction,
+                                                 format!("select rte.id, rte.valid_on_date, rte.observation_date, asort.sorting_index \
+                                                 from RelationToEntity rte, AttributeSorting asort where rte.rel_type_id={} \
+                                                 and rte.entity_id={} and rte.entity_id_2={} and rte.entity_id=asort.entity_id \
+                                                 and asort.attribute_form_id={} and rte.id=asort.attribute_id",
+                                       relation_type_id_in, entity_id1_in, entity_id2_in, af_id).as_str(),
+                                       Util::GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES)
              }
 
-               fn getAllRelationToLocalEntityDataById(id_in: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select form_id, id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date from RelationToEntity where id=" + id_in,
-                                       "Int,i64,i64,i64,i64,i64,i64")
+           fn get_relation_to_local_entity_data_by_id(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+               let af_id = self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
+               self.db_query_wrapper_for_one_row(transaction,
+                                                 format!("select rte.rel_type_id, rte.entity_id, rte.entity_id_2, rte.valid_on_date, \
+                                                 rte.observation_date, asort.sorting_index from RelationToEntity rte, AttributeSorting asort \
+                                                 where rte.id={} and rte.entity_id=asort.entity_id and asort.attribute_form_id={} and \
+                                                 rte.id=asort.attribute_id", id_in, af_id).as_str(),
+                                       format!("i64,i64,{}", Util::GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES).as_str())
              }
 
-               fn getAllRelationToRemoteEntityDataById(id_in: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select form_id, id, rel_type_id, entity_id, remote_instance_id, entity_id_2, valid_on_date, observation_date" +
-                                       " from RelationToRemoteEntity where id=" + id_in,
-                                       "Int,i64,i64,i64,String,i64,i64,i64")
+           fn get_relation_to_remote_entity_data(&self, transaction: &Option<&mut Transaction<Postgres>>, relation_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) -> Result<Vec<DataType>, anyhow::Error> {
+               let af_id = self.get_attribute_form_id(Util::RELATION_TO_REMOTE_ENTITY_TYPE)?;
+               self.db_query_wrapper_for_one_row(transaction,
+                                     format!("select rte.id, rte.valid_on_date, rte.observation_date, asort.sorting_index from RelationToRemoteEntity rte, \
+                                     AttributeSorting asort where rte.rel_type_id={} and rte.entity_id={} and rte.remote_instance_id='{}' and rte.entity_id_2={} \
+                                      and rte.entity_id=asort.entity_id and asort.attribute_form_id={} and rte.id=asort.attribute_id",
+                                             relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in, af_id).as_str(),
+                                       Util::GET_RELATION_TO_REMOTE_ENTITY__RESULT_TYPES)
              }
 
-               fn getGroupData(id_in: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where id=" + id_in,
-                                       GET_GROUP_DATA__RESULT_TYPES)
+           fn get_group_data(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+               self.db_query_wrapper_for_one_row(transaction,
+                                     format!("select name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where id={}",
+                                             id_in).as_str(),
+                                       Util::GET_GROUP_DATA__RESULT_TYPES)
              }
 
-               fn getRelationToGroupDataByKeys(entity_id: i64, rel_type_id: i64, group_id: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, asort.sorting_index " +
-                                       "from RelationToGroup rtg, AttributeSorting asort" +
-                                       " where rtg.entity_id=" + entity_id + " and rtg.rel_type_id=" + rel_type_id + " and rtg.group_id=" + group_id +
-                                       " and rtg.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util.RELATION_TO_GROUP_TYPE) +
-                                       " and rtg.id=asort.attribute_id",
-                                       GET_RELATION_TO_GROUP_DATA_BY_KEYS__RESULT_TYPES)
+           fn get_relation_to_group_data_by_keys(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id: i64, rel_type_id: i64,
+                                                 group_id: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+               let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
+                self.db_query_wrapper_for_one_row(transaction,
+                                  format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
+                                  asort.sorting_index from RelationToGroup rtg, AttributeSorting asort where rtg.entity_id={} \
+                                   and rtg.rel_type_id={} and rtg.group_id={} and rtg.entity_id=asort.entity_id and asort.attribute_form_id={} \
+                                   and rtg.id=asort.attribute_id",
+                                   entity_id, rel_type_id, group_id, af_id).as_str(),
+                                       Util::GET_RELATION_TO_GROUP_DATA_BY_KEYS__RESULT_TYPES)
              }
 
-               fn getAllRelationToGroupDataById(id_in: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select form_id, id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from RelationToGroup " +
-                                       " where id=" + id_in,
-                                       "Int,i64,i64,i64,i64,i64,i64")
+           fn get_relation_to_group_data(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+               let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
+               self.db_query_wrapper_for_one_row(transaction,
+                     format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
+                     asort.sorting_index from RelationToGroup rtg, AttributeSorting asort where id={} and rtg.entity_id=asort.entity_id and \
+                     asort.attribute_form_id={} and rtg.id=asort.attribute_id", id_in, af_id).as_str(),
+                                       Util::GET_RELATION_TO_GROUP_DATA_BY_ID__RESULT_TYPES)
              }
 
-
-               fn getRelationToGroupData(id_in: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, asort.sorting_index " +
-                                       "from RelationToGroup rtg, AttributeSorting asort" +
-                                       " where id=" + id_in +
-                                       " and rtg.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util.RELATION_TO_GROUP_TYPE) +
-                                       " and rtg.id=asort.attribute_id",
-                                       GET_RELATION_TO_GROUP_DATA_BY_ID__RESULT_TYPES)
-             }
-
-               fn getRelationTypeData(id_in: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select name, name_in_reverse_direction, directionality from RelationType r, Entity e where " +
-                                       (if !include_archived_entities) {
-                                         "(not archived) and "
-                                       } else {
-                                         ""
-                                       }) +
-                                       "e.id=r.entity_id " +
-                                       "and r.entity_id=" +
-                                       id_in,
-                                       Database.GET_RELATION_TYPE_DATA__RESULT_TYPES)
+           fn get_relation_type_data(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+               let not_archived = if !self.include_archived_entities {
+                   "(not archived) and "
+               } else {
+                   ""
+               };
+               self.db_query_wrapper_for_one_row(transaction,
+                                format!("select name, name_in_reverse_direction, directionality from RelationType r, Entity e where {} \
+                                    e.id=r.entity_id and r.entity_id={}",
+                                       not_archived, id_in).as_str(),
+                                       Util::GET_RELATION_TYPE_DATA__RESULT_TYPES)
              }
 
              // idea: combine all the methods that look like this (s.b. easier now, in scala, than java)
-               fn getTextAttributeData(textIdIn: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select ta.entity_id, ta.textValue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, asort.sorting_index" +
-                                       " from TextAttribute ta, AttributeSorting asort where id=" + textIdIn +
-                                       " and ta.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util.TEXT_TYPE) +
-                                       " and ta.id=asort.attribute_id",
-                                       GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES)
+           fn get_text_attribute_data(&self, transaction: &Option<&mut Transaction<Postgres>>, text_id_in: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+                 let af_id = self.get_attribute_form_id(Util::TEXT_TYPE)?;
+               self.db_query_wrapper_for_one_row(transaction,
+                             format!("select ta.entity_id, ta.text_value, ta.attr_type_id, ta.valid_on_date, ta.observation_date, \
+                             asort.sorting_index from TextAttribute ta, AttributeSorting asort where id={} and ta.entity_id=asort.entity_id \
+                             and asort.attribute_form_id={} and ta.id=asort.attribute_id",
+                                 text_id_in, af_id).as_str(),
+                                       Util::GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES)
              }
 
-               fn getDateAttributeData(dateIdIn: i64) -> Array[Option[Any]] {
-               db_query_wrapper_for_one_row("select da.entity_id, da.date, da.attr_type_id, asort.sorting_index " +
-                                       "from DateAttribute da, AttributeSorting asort where da.id=" + dateIdIn +
-                                       " and da.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util.DATE_TYPE) +
-                                       " and da.id=asort.attribute_id",
-                                       Database.GET_DATE_ATTRIBUTE_DATA__RESULT_TYPES)
+           fn get_date_attribute_data(&self, transaction: &Option<&mut Transaction<Postgres>>, dateIdIn: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+               let af_id = self.get_attribute_form_id(Util::DATE_TYPE)?;
+               self.db_query_wrapper_for_one_row(transaction,
+                                 format!("select da.entity_id, da.date, da.attr_type_id, asort.sorting_index from DateAttribute da, \
+                                 AttributeSorting asort where da.id={} and da.entity_id=asort.entity_id and asort.attribute_form_id={} \
+                                  and da.id=asort.attribute_id",
+                                 dateIdIn, af_id).as_str(),
+                                       Util::GET_DATE_ATTRIBUTE_DATA__RESULT_TYPES)
              }
 
-    */
     fn get_boolean_attribute_data(&self, transaction: &Option<&mut Transaction<Postgres>>, boolean_id_in: i64) -> Result<Vec<DataType>, anyhow::Error> {
-        let form_id = match self.get_attribute_form_id(Util::BOOLEAN_TYPE) {
-            None => return Err(anyhow!(format!("No form_id found for {}", Util::BOOLEAN_TYPE))),
-            Some(id) => id,
-        };
+        let form_id = self.get_attribute_form_id(Util::BOOLEAN_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction, format!("select ba.entity_id, ba.booleanValue, ba.attr_type_id, ba.valid_on_date, ba.observation_date, asort.sorting_index \
                                     from BooleanAttribute ba, AttributeSorting asort where id={} and ba.entity_id=asort.entity_id and asort.attribute_form_id={} \
                                      and ba.id=asort.attribute_id",
-                                                      boolean_id_in, form_id),
+                                                      boolean_id_in, form_id).as_str(),
                                     Util::GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES)
     }
-    /*
-           fn getFileAttributeData(fileIdIn: i64) -> Array[Option[Any]] {
-           db_query_wrapper_for_one_row("select fa.entity_id, fa.description, fa.attr_type_id, fa.original_file_date, fa.stored_date, fa.original_file_path, fa.readable, " +
-                                   "fa.writable, fa.executable, fa.size, fa.md5hash, asort.sorting_index " +
-                                   " from FileAttribute fa, AttributeSorting asort where id=" + fileIdIn +
-                                   " and fa.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util.FILE_TYPE) +
-                                   " and fa.id=asort.attribute_id",
-                                   GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES)
+
+       fn get_file_attribute_data(&self, transaction: &Option<&mut Transaction<Postgres>>, fileIdIn: i64) -> Result<Vec<DataType>, anyhow::Error>  {
+           let af_id = self.get_attribute_form_id(Util::FILE_TYPE)?;
+           self.db_query_wrapper_for_one_row(transaction,
+                             format!("select fa.entity_id, fa.description, fa.attr_type_id, fa.original_file_date, fa.stored_date, \
+                             fa.original_file_path, fa.readable, fa.writable, fa.executable, fa.size, fa.md5hash, asort.sorting_index \
+                              from FileAttribute fa, AttributeSorting asort where id={} and fa.entity_id=asort.entity_id and asort.attribute_form_id={} \
+                               and fa.id=asort.attribute_id",
+                               fileIdIn, af_id).as_str(),
+                                   Util::GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES)
          }
 
-           fn getFileAttributeContent(fileAttributeIdIn: i64, outputStreamIn: java.io.OutputStream) -> (i64, String) {
-               fn action(bufferIn: Array[Byte], startingIndexIn: Int, numBytesIn: Int) {
-                 outputStreamIn.write(bufferIn, startingIndexIn, numBytesIn)
-               }
-           let (fileSize, md5hash): (i64, String) = actOnFileFromServer(fileAttributeIdIn, action);
-           (fileSize, md5hash)
+       fn update_sorting_index_in_a_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64, entity_id_in: i64, sorting_index_in: i64)  -> Result<u64, anyhow::Error> {
+           self.db_action(transaction,
+                  format!("update EntitiesInAGroup set (sorting_index) = ROW({}) where group_id={} and entity_id={}",
+                      sorting_index_in, group_id_in, entity_id_in).as_str(),
+                          false, false)
          }
 
-           fn updateSortingIndexInAGroup(group_id_in: i64, entity_id_in: i64, sorting_index_in: i64) {
-           self.db_action(format!("update EntitiesInAGroup set (sorting_index) = ROW(" + sorting_index_in + ") where group_id=" + group_id_in + " and  " +
-                    "entity_id=" + entity_id_in).as_str(), false, false);
+       fn update_attribute_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, attribute_form_id_in: i64, attribute_id_in: i64, sorting_index_in: i64)  -> Result<u64, anyhow::Error> {
+           self.db_action(transaction,
+                  format!("update AttributeSorting set (sorting_index) = ROW({}) where entity_id={} and attribute_form_id={} and attribute_id={}",
+                          sorting_index_in, entity_id_in, attribute_form_id_in, attribute_id_in).as_str(),
+                          false, false)
          }
 
-           fn updateAttributeSortingIndex(entity_id_in: i64, attribute_form_id_in: i64, attribute_id_in: i64, sorting_index_in: i64) {
-           self.db_action(format!("update AttributeSorting set (sorting_index) = ROW(" + sorting_index_in + ") where entity_id=" + entity_id_in + " and  " +
-                    "attribute_form_id=" + attribute_form_id_in + " and attribute_id=" + attribute_id_in).as_str(), false, false);
-         }
+       //   /// Returns whether the stored and calculated md5hashes match, and an error message when they don't.
+       // fn verify_file_attribute_content_integrity(fileAttributeIdIn: i64) -> (Boolean, Option<String>) {
+       //     // Idea: combine w/ similar logic in FileAttribute.md5Hash?
+       //     // Idea: compare actual/stored file sizes also? or does the check of md5 do enough as is?
+       //     // Idea (tracked in tasks): switch to some SHA algorithm since they now say md5 is weaker?
+       //     let messageDigest = java.security.MessageDigest.getInstance("MD5");
+       //     fn action(bufferIn: Array[Byte], starting_index_in: Int, numBytesIn: Int) {
+       //       messageDigest.update(bufferIn, starting_index_in, numBytesIn)
+       //     }
+       //     // Next line calls "action" (probably--see javadoc for java.security.MessageDigest for whatever i was thinking at the time)
+       //     // to prepare messageDigest for the digest method to get the md5 value:
+       //     let storedMd5Hash = act_on_file_from_server(fileAttributeIdIn, action)._2;
+       //     //noinspection LanguageFeature ...It is a style violation (advanced feature) but it's what I found when searching for how to do it.
+       //     // outputs same as command 'md5sum <file>'.
+       //     let md5hash: String = messageDigest.digest.map(0xFF &).map {"%02x".format(_)}.foldLeft("") {_ + _};
+       //     if md5hash == storedMd5Hash) (true, None)
+       //     else {
+       //       (false, Some("Mismatched md5hashes: " + storedMd5Hash + " (stored in the md5sum db column) != " + md5hash + "(calculated from stored file contents)"))
+       //     }
+       //   }
 
-         /** Returns whether the stored and calculated md5hashes match, and an error message when they don't.
-           */
-           fn verifyFileAttributeContentIntegrity(fileAttributeIdIn: i64) -> (Boolean, Option<String>) {
-           // Idea: combine w/ similar logic in FileAttribute.md5Hash?
-           // Idea: compare actual/stored file sizes also? or does the check of md5 do enough as is?
-           // Idea (tracked in tasks): switch to some SHA algorithm since they now say md5 is weaker?
-           let messageDigest = java.security.MessageDigest.getInstance("MD5");
-           fn action(bufferIn: Array[Byte], startingIndexIn: Int, numBytesIn: Int) {
-             messageDigest.update(bufferIn, startingIndexIn, numBytesIn)
-           }
-           // Next line calls "action" (probably--see javadoc for java.security.MessageDigest for whatever i was thinking at the time)
-           // to prepare messageDigest for the digest method to get the md5 value:
-           let storedMd5Hash = actOnFileFromServer(fileAttributeIdIn, action)._2;
-           //noinspection LanguageFeature ...It is a style violation (advanced feature) but it's what I found when searching for how to do it.
-           // outputs same as command 'md5sum <file>'.
-           let md5hash: String = messageDigest.digest.map(0xFF &).map {"%02x".format(_)}.foldLeft("") {_ + _};
-           if md5hash == storedMd5Hash) (true, None)
-           else {
-             (false, Some("Mismatched md5hashes: " + storedMd5Hash + " (stored in the md5sum db column) != " + md5hash + "(calculated from stored file contents)"))
-           }
-         }
+         // /** This is a no-op, called in act_on_file_from_server, that a test can customize to simulate a corrupted file on the server. */
+         // //noinspection ScalaUselessExpression (...intentional style violation, for readability)
+         //   fn damageBuffer(buffer: Array[Byte]) /* -> Unit = Unit%%*/
 
-         /** This is a no-op, called in actOnFileFromServer, that a test can customize to simulate a corrupted file on the server. */
-         //noinspection ScalaUselessExpression (...intentional style violation, for readability)
-           fn damageBuffer(buffer: Array[Byte]) /* -> Unit = Unit%%*/
+       //   /// Returns the file size (having confirmed it is the same as the # of bytes processed), and the md5hash that was stored with the document.
+       // fn act_on_file_from_server(fileAttributeIdIn: i64, actionIn: (Array[Byte], Int, Int) => Unit) -> (i64, String) {
+       //     let mut obj: LargeObject = null;
+       //     try {
+       //       // even though we're not storing data, the instructions (see create_tables re this...) said to have it in a transaction.
+       //       self.begin_trans()
+       //       let lobjManager: LargeObjectManager = connection.asInstanceOf[org.postgresql.PGConnection].getLargeObjectAPI;
+       //       let oidOption: Option<i64> = db_query_wrapper_for_one_row("select contents_oid from FileAttributeContent where file_attribute_id=" + fileAttributeIdIn,;
+       //                                                             "i64")(0).asInstanceOf[Option<i64>]
+       //       if oidOption.isEmpty) throw new OmDatabaseException("No contents found for file attribute id " + fileAttributeIdIn)
+       //       let oid: i64 = oidOption.get;
+       //       obj = lobjManager.open(oid, LargeObjectManager.READ)
+       //       // Using 4096 only because this url:
+       //       //   https://commons.apache.org/proper/commons-io/javadocs/api-release/org/apache/commons/io/IOUtils.html
+       //       // ...said, at least for that purpose, that: "The default buffer size of 4K has been shown to be efficient in tests." (retrieved 2016-12-05)
+       //       let buffer = new Array[Byte](4096);
+       //       let mut numBytesRead = 0;
+       //       let mut total: i64 = 0;
+       //       @tailrec
+       //       fn readFileFromDbAndActOnIt() {
+       //         //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
+       //         numBytesRead = obj.read(buffer, 0, buffer.length)
+       //         // (intentional style violation, for readability):
+       //         //noinspection ScalaUselessExpression
+       //         if numBytesRead <= 0) Unit
+       //         else {
+       //           // just once by a test subclass is enough to mess w/ the md5sum.
+       //           if total == 0) damageBuffer(buffer)
+       //
+       //           actionIn(buffer, 0, numBytesRead)
+       //           total += numBytesRead
+       //           readFileFromDbAndActOnIt()
+       //         }
+       //       }
+       //       readFileFromDbAndActOnIt()
+       //       let resultOption = db_query_wrapper_for_one_row("select size, md5hash from fileattribute where id=" + fileAttributeIdIn, "i64,String");
+       //       if resultOption(0).isEmpty) throw new OmDatabaseException("No result from query for fileattribute for id " + fileAttributeIdIn + ".")
+       //       let (contentSize, md5hash) = (resultOption(0).get.asInstanceOf[i64], resultOption(1).get.asInstanceOf[String]);
+       //       if total != contentSize) {
+       //         throw new OmFileTransferException("Transferred " + total + " bytes instead of " + contentSize + "??")
+       //       }
+       //       commit_trans()
+       //       (total, md5hash)
+       //     } catch {
+       //       case e: Exception => throw rollbackWithCatch(e)
+       //     } finally {
+       //       try {
+       //         obj.close()
+       //       } catch {
+       //         case e: Exception =>
+       //         // not sure why this fails sometimes, if it's a bad thing or not, but for now not going to be stuck on it.
+       //         // idea: look at the source code.
+       //       }
+       //     }
+       //   }
 
-         /** Returns the file size (having confirmed it is the same as the # of bytes processed), and the md5hash that was stored with the document.
-           */
-           fn actOnFileFromServer(fileAttributeIdIn: i64, actionIn: (Array[Byte], Int, Int) => Unit) -> (i64, String) {
-           let mut obj: LargeObject = null;
-           try {
-             // even though we're not storing data, the instructions (see create_tables re this...) said to have it in a transaction.
-             self.begin_trans()
-             let lobjManager: LargeObjectManager = connection.asInstanceOf[org.postgresql.PGConnection].getLargeObjectAPI;
-             let oidOption: Option<i64> = db_query_wrapper_for_one_row("select contents_oid from FileAttributeContent where file_attribute_id=" + fileAttributeIdIn,;
-                                                                   "i64")(0).asInstanceOf[Option<i64>]
-             if oidOption.isEmpty) throw new OmDatabaseException("No contents found for file attribute id " + fileAttributeIdIn)
-             let oid: i64 = oidOption.get;
-             obj = lobjManager.open(oid, LargeObjectManager.READ)
-             // Using 4096 only because this url:
-             //   https://commons.apache.org/proper/commons-io/javadocs/api-release/org/apache/commons/io/IOUtils.html
-             // ...said, at least for that purpose, that: "The default buffer size of 4K has been shown to be efficient in tests." (retrieved 2016-12-05)
-             let buffer = new Array[Byte](4096);
-             let mut numBytesRead = 0;
-             let mut total: i64 = 0;
-             @tailrec
-             fn readFileFromDbAndActOnIt() {
-               //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-               numBytesRead = obj.read(buffer, 0, buffer.length)
-               // (intentional style violation, for readability):
-               //noinspection ScalaUselessExpression
-               if numBytesRead <= 0) Unit
-               else {
-                 // just once by a test subclass is enough to mess w/ the md5sum.
-                 if total == 0) damageBuffer(buffer)
-
-                 actionIn(buffer, 0, numBytesRead)
-                 total += numBytesRead
-                 readFileFromDbAndActOnIt()
-               }
-             }
-             readFileFromDbAndActOnIt()
-             let resultOption = db_query_wrapper_for_one_row("select size, md5hash from fileattribute where id=" + fileAttributeIdIn, "i64,String");
-             if resultOption(0).isEmpty) throw new OmDatabaseException("No result from query for fileattribute for id " + fileAttributeIdIn + ".")
-             let (contentSize, md5hash) = (resultOption(0).get.asInstanceOf[i64], resultOption(1).get.asInstanceOf[String]);
-             if total != contentSize) {
-               throw new OmFileTransferException("Transferred " + total + " bytes instead of " + contentSize + "??")
-             }
-             commit_trans()
-             (total, md5hash)
-           } catch {
-             case e: Exception => throw rollbackWithCatch(e)
-           } finally {
-             try {
-               obj.close()
-             } catch {
-               case e: Exception =>
-               // not sure why this fails sometimes, if it's a bad thing or not, but for now not going to be stuck on it.
-               // idea: look at the source code.
-             }
-           }
-         }
-
-           fn quantityAttributeKeyExists(id_in: i64) -> bool {
-            does_this_exist("SELECT count(1) from QuantityAttribute where id=" + id_in)
+           fn quantity_attribute_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+            self.does_this_exist(transaction, format!("SELECT count(1) from QuantityAttribute where id={}", id_in).as_str(), true)
             }
 
-           fn textAttributeKeyExists(id_in: i64) -> bool {
-            does_this_exist("SELECT count(1) from TextAttribute where id=" + id_in)
+           fn text_attribute_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+            self.does_this_exist(transaction, format!("SELECT count(1) from TextAttribute where id={}", id_in).as_str(), true)
             }
 
-           fn dateAttributeKeyExists(id_in: i64) -> bool {
-            does_this_exist("SELECT count(1) from DateAttribute where id=" + id_in)
+           fn date_attribute_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+            self.does_this_exist(transaction, format!("SELECT count(1) from DateAttribute where id={}", id_in).as_str(), true)
             }
 
-    */
+
     fn boolean_attribute_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -5260,49 +6204,38 @@ impl Database for PostgreSQLDatabase {
             true,
         )
     }
-    /*
-            fn fileAttributeKeyExists(id_in: i64) -> bool {
-            does_this_exist("SELECT count(1) from FileAttribute where id=" + id_in)
+
+            fn file_attribute_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+            self.does_this_exist(transaction, format!("SELECT count(1) from FileAttribute where id={}", id_in).as_str(), true)
             }
 
-            fn relationToLocal_entity_key_exists(id_in: i64) -> bool {
-             does_this_exist("SELECT count(1) from RelationToEntity where id=" + id_in)
+            fn relation_to_local_entity_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+             self.does_this_exist(transaction,format!("SELECT count(1) from RelationToEntity where id={}", id_in).as_str(), true)
              }
 
-            fn relationToRemote_entity_key_exists(id_in: i64) -> bool {
-            does_this_exist("SELECT count(1) from RelationToRemoteEntity where id=" + id_in)
+            fn relation_to_remote_entity_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+            self.does_this_exist(transaction, format!("SELECT count(1) from RelationToRemoteEntity where id={}", id_in).as_str(), true)
             }
 
-            fn relationToGroupKeyExists(id_in: i64) -> bool {
-            does_this_exist("SELECT count(1) from RelationToGroup where id=" + id_in)
+            fn relation_to_group_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+            self.does_this_exist(transaction, format!("SELECT count(1) from RelationToGroup where id={}", id_in).as_str(), true)
             }
 
-            fn relationToGroupKeysExist(entity_id: i64, relationTypeId: i64, group_id: i64) -> bool {
-            does_this_exist("SELECT count(1) from RelationToGroup where entity_id=" + entity_id + " and rel_type_id=" + relationTypeId + " and group_id=" + group_id)
-            }
-
-            fn attribute_key_exists(form_id_in: i64, id_in: i64) -> bool {
+            fn attribute_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, form_id_in: i64, id_in: i64) -> Result<bool, anyhow::Error> {
               //MAKE SURE THESE MATCH WITH THOSE IN get_attribute_form_id !
-              form_id_in match {
-                case 1 => quantityAttributeKeyExists(id_in)
-                case 2 => dateAttributeKeyExists(id_in)
-                case 3 => boolean_attribute_key_exists(id_in)
-                case 4 => fileAttributeKeyExists(id_in)
-                case 5 => textAttributeKeyExists(id_in)
-                case 6 => relationToLocal_entity_key_exists(id_in)
-                case 7 => relationToGroupKeyExists(id_in)
-                case 8 => relationToRemote_entity_key_exists(id_in)
-                case _ => throw new OmDatabaseException("unexpected")
+              match form_id_in {
+                1 => self.relation_type_key_exists(transaction, id_in),
+                2 => self.date_attribute_key_exists(transaction, id_in),
+                3 => self.boolean_attribute_key_exists(transaction, id_in),
+                4 => self.file_attribute_key_exists(transaction, id_in),
+                5 => self.text_attribute_key_exists(transaction, id_in),
+                6 => self.relation_to_local_entity_key_exists(transaction, id_in),
+                7 => self.relation_to_group_key_exists(transaction, id_in),
+                8 => self.relation_to_remote_entity_key_exists(transaction, id_in),
+                _ => Err(anyhow!("unexpected")),
               }
           }
 
-          /** Excludes those entities that are really relationtypes, attribute types, or quantity units. */
-            fn entityOnlyKeyExists(id_in: i64) -> bool {
-            does_this_exist("SELECT count(1) from Entity where " +
-                          (if !include_archived_entities) "(not archived) and " else "") +
-                          "id=" + id_in + " and id in (select id from entity " + limit_to_entities_only(Self::ENTITY_ONLY_SELECT_PART) + ")")
-          }
-    */
     /// @param include_archived See comment on similar parameter to method get_group_size.
     //idea: see if any callers should pass the include_archived parameter differently, now that the system can be used with archived entities displayed.
     fn entity_key_exists(
@@ -5343,522 +6276,444 @@ impl Database for PostgreSQLDatabase {
             true,
         )
     }
-    /*
-               fn classKeyExists(id_in: i64) -> bool {
-               does_this_exist("SELECT count(1) from class where id=" + id_in)
+
+           fn class_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+               self.does_this_exist(transaction, format!("SELECT count(1) from class where id={}", id_in).as_str(), true)
                }
 
-               fn relationTypeKeyExists(id_in: i64) -> bool {
-               does_this_exist("SELECT count(1) from RelationType where entity_id=" + id_in)
+           fn relation_type_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+               self.does_this_exist(transaction, format!("SELECT count(1) from RelationType where entity_id={}", id_in).as_str(), true)
                }
 
-               fn relationToLocalEntityKeysExistAndMatch(id_in: i64, rel_type_idIn: i64, entity_id1_in: i64, entity_id2_in: i64) -> bool {
-               does_this_exist("SELECT count(1) from RelationToEntity where id=" + id_in + " and rel_type_id=" + rel_type_idIn + " and entity_id=" + entity_id1_in +
-                             " and entity_id_2=" + entity_id2_in)
+           fn relation_to_local_entity_keys_exist_and_match(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, rel_type_id_in: i64,
+                                                            entity_id1_in: i64, entity_id2_in: i64)  -> Result<bool, anyhow::Error> {
+               self.does_this_exist(transaction, format!("SELECT count(1) from RelationToEntity where id={} and rel_type_id={} and \
+                           entity_id={} and entity_id_2={}",
+                                            id_in, rel_type_id_in, entity_id1_in, entity_id2_in).as_str(), true)
              }
 
-               fn relationToRemoteEntityKeysExistAndMatch(id_in: i64, rel_type_idIn: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) -> bool {
-               does_this_exist("SELECT count(1) from RelationToRemoteEntity where id=" + id_in + " and rel_type_id=" + rel_type_idIn + " and entity_id=" + entity_id1_in +
-                             " and remote_instance_id='" + remote_instance_id_in + "' and entity_id_2=" + entity_id2_in)
+           fn relation_to_remote_entity_keys_exist_and_match(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64, rel_type_id_in: i64,
+                                                             entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) -> Result<bool, anyhow::Error> {
+               self.does_this_exist(transaction, format!("SELECT count(1) from RelationToRemoteEntity where id={} and rel_type_id={} \
+                                                     and entity_id={} and remote_instance_id='{}' and entity_id_2={}",
+                                                         id_in, rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in).as_str(),
+                                                true)
              }
 
-               fn relationToLocalEntityExists(rel_type_idIn: i64, entity_id1_in: i64, entity_id2_in: i64) -> bool {
-               does_this_exist("SELECT count(1) from RelationToEntity where rel_type_id=" + rel_type_idIn + " and entity_id=" + entity_id1_in +
-                             " and entity_id_2=" + entity_id2_in)
+           fn group_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<bool, anyhow::Error> {
+               self.does_this_exist(transaction, format!("SELECT count(1) from grupo where id={}", id_in).as_str(), true)
              }
 
-               fn relationToRemoteEntityExists(rel_type_idIn: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64) -> bool {
-               does_this_exist("SELECT count(1) from RelationToRemoteEntity where rel_type_id=" + rel_type_idIn + " and entity_id=" + entity_id1_in +
-                             " and remote_instance_id='" + remote_instance_id_in + "' and entity_id_2=" + entity_id2_in)
+           fn relation_to_group_keys_exist_and_match(&self, transaction: &Option<&mut Transaction<Postgres>>, id: i64, entity_id: i64,
+                                                     rel_type_id: i64, group_id: i64) -> Result<bool, anyhow::Error> {
+               self.does_this_exist(transaction, format!("SELECT count(1) from RelationToGroup where id={} and entity_id={} and rel_type_id={} \
+                             and group_id={}",
+                                            id, entity_id, rel_type_id, group_id).as_str(), true)
              }
 
-               fn groupKeyExists(id_in: i64) -> bool {
-               does_this_exist("SELECT count(1) from grupo where id=" + id_in)
+            /// Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
+            /// 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
+           fn get_entities(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/)
+                -> Result<Vec<Entity>, anyhow::Error> {
+               self.get_entities_generic(transaction, starting_object_index_in, max_vals_in, Util::ENTITY_TYPE, None, false, None, None)
              }
 
-               fn relationToGroupKeysExistAndMatch(id: i64, entity_id: i64, rel_type_id: i64, group_id: i64) -> bool {
-               does_this_exist("SELECT count(1) from RelationToGroup where id=" + id + " and entity_id=" + entity_id + " and rel_type_id=" + rel_type_id +
-                             " and group_id=" + group_id)
+             /// Excludes those entities that are really relationtypes, attribute types, or quantity units. Otherwise similar to get_entities.
+             /// *****NOTE*****: The limit_by_class:Boolean parameter is not redundant with the inClassId: inClassId could be None and we could still want
+             /// to select only those entities whose class_id is NULL, such as when enforcing group uniformity (see method has_mixed_classes and its
+             /// uses, for more info).
+             ///
+             /// The parameter omitEntity is (at this writing) used for the id of a class-defining (template) entity, which we shouldn't show for editing when showing all the
+             /// entities in the class (editing that is a separate menu option), otherwise it confuses things.
+           fn get_entities_only(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64,
+                                max_vals_in: Option<i64> /*= None*/, class_id_in: Option<i64> /*= None*/,
+                                 limit_by_class: bool /*= false*/, template_entity: Option<i64> /*= None*/,
+                                 group_to_omit_id_in: Option<i64> /*= None*/) -> Result<Vec<Entity>, anyhow::Error> {
+               self.get_entities_generic(transaction, starting_object_index_in, max_vals_in, "EntityOnly", class_id_in, limit_by_class, template_entity, group_to_omit_id_in)
              }
 
-             /**
-              * Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
-              * 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
-              */
-               fn getEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> Vec<Entity> {
-               getEntitiesGeneric(startingObjectIndexIn, maxValsIn, Util.ENTITY_TYPE)
+             /// similar to get_entities
+           fn get_relation_types(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64,
+                                 max_vals_in: Option<i64> /*= None*/) -> Result<Vec<Entity>, anyhow::Error> {
+               self.get_entities_generic(transaction, starting_object_index_in, max_vals_in, Util::RELATION_TYPE_TYPE, None, false, None, None)
              }
 
-             /** Excludes those entities that are really relationtypes, attribute types, or quantity units. Otherwise similar to getEntities.
-               *
-               * *****NOTE*****: The limitByClass:Boolean parameter is not redundant with the inClassId: inClassId could be None and we could still want
-               * to select only those entities whose class_id is NULL, such as when enforcing group uniformity (see method has_mixed_classes and its
-               * uses, for more info).
-               *
-               * The parameter omitEntity is (at this writing) used for the id of a class-defining (template) entity, which we shouldn't show for editing when showing all the
-               * entities in the class (editing that is a separate menu option), otherwise it confuses things.
-               * */
-               fn getEntitiesOnly(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, class_id_in: Option<i64> = None,
-                                 limitByClass: bool = false, templateEntity: Option<i64> = None,
-                                 groupToOmitIdIn: Option<i64> = None) -> Vec<Entity> {
-               getEntitiesGeneric(startingObjectIndexIn, maxValsIn, "EntityOnly", class_id_in, limitByClass, templateEntity, groupToOmitIdIn)
-             }
-
-             /** similar to getEntities */
-               fn getRelationTypes(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> Vec<Entity> {
-               getEntitiesGeneric(startingObjectIndexIn, maxValsIn, Util.RELATION_TYPE_TYPE)
-             }
-
-             let selectEntityStart = "SELECT e.id, e.name, e.class_id, e.insertion_date, e.public, e.archived, e.new_entries_stick_to_top ";
-
-               fn addNewEntityToResults(final_results: Vec<Entity>, intermediateResultIn: Array[Option[Any]]) -> bool {
-               let result = intermediateResultIn;
-               // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-               final_results.add(new Entity(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).asInstanceOf[Option<i64>],
-                                           result(3).get.asInstanceOf[i64], result(4).asInstanceOf[Option<bool>], result(5).get.asInstanceOf[Boolean],
-                                           result(6).get.asInstanceOf[Boolean]))
-             }
-
-               fn getMatchingEntities(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, omitEntityIdIn: Option<i64>,
-                                     nameRegexIn: String) -> Vec<Entity> {
-               let nameRegex = self.escape_quotes_etc(nameRegexIn);
-               let omissionExpression: String = if omitEntityIdIn.isEmpty) "true" else "(not id=" + omitEntityIdIn.get + ")";
-               let sql: String = selectEntityStart + " from entity e where " +;
-                                 (if !include_archived_entities) {
-                                   "not archived and "
-                                 } else {
-                                   ""
-                                 }) +
-                                 omissionExpression +
-                                 " and name ~* '" + nameRegex + "'" +
-                                 " UNION " +
-                                 "select id, name, class_id, insertion_date, public, archived, new_entries_stick_to_top from entity where " +
-                                 (if !include_archived_entities) {
-                                   "not archived and "
-                                 } else {
-                                   ""
-                                 }) +
-                                 omissionExpression +
-                                 " and id in (select entity_id from textattribute where textValue ~* '" + nameRegex + "')" +
-                                 " ORDER BY" +
-                                 " id limit " + checkIfShouldBeAllResults(maxValsIn) + " offset " + startingObjectIndexIn
-               let earlyResults = db_query(sql, "i64,String,i64,i64,Boolean,Boolean,Boolean");
-               let final_results = new Vec<Entity>;
-               // idea: (see getEntitiesGeneric for idea, see if applies here)
-               for (result <- earlyResults) {
-                 addNewEntityToResults(final_results, result)
+           fn get_matching_entities(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64,
+                                    max_vals_in: Option<i64> /*= None*/, omit_entity_id_in: Option<i64>,
+                                     name_regex_in: String) -> Result<Vec<Entity>, anyhow::Error> {
+               let select_columns = Util::SELECT_ENTITY_START;
+               let name_regex = Self::escape_quotes_etc(name_regex_in);
+               let omission_expression = match omit_entity_id_in {
+                   Some(id) => format!("(not id={})", id),
+                   None => "true".to_string(),
+               };
+               let not_archived = if !self.include_archived_entities {
+                   "not archived and "
+               } else {
+                   ""
+               };
+               let limit = Self::check_if_should_be_all_results(max_vals_in);
+               let sql = format!("{} from entity e where {}{} and name ~* '{}' \
+                                UNION \
+                                select id, name, class_id, insertion_date, public, archived, new_entries_stick_to_top from entity where {}{} \
+                                 and id in (select entity_id from textattribute where text_value ~* '{}') ORDER BY id limit {} offset {}",
+                                 select_columns, not_archived, omission_expression, name_regex,
+                                 not_archived, omission_expression, name_regex, limit, starting_object_index_in);
+               let early_results = self.db_query(transaction, sql.as_str(), "i64,String,i64,i64,Boolean,Boolean,Boolean")?;
+               let early_results_len = early_results.len();
+               let final_results: Vec<Entity> = Vec::new();
+               // idea: (see get_entities_generic for an idea, see if it applies here)
+               for result in early_results {
+                   //%%$%% add_new_entity_to_results(final_results, result)
                }
-               require(final_results.size == earlyResults.size)
-               final_results
-             }
-
-               fn getMatchingGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, omitGroupIdIn: Option<i64>,
-                                   nameRegexIn: String) -> java.util.ArrayList[Group] {
-               let nameRegex = self.escape_quotes_etc(nameRegexIn);
-               let omissionExpression: String = if omitGroupIdIn.isEmpty) "true" else "(not id=" + omitGroupIdIn.get + ")";
-               let sql: String = s"select id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where name ~* '$nameRegex'" +;
-                                 " and " + omissionExpression + " order by id limit " + checkIfShouldBeAllResults(maxValsIn) + " offset " + startingObjectIndexIn
-               let earlyResults = db_query(sql, "i64,String,i64,Boolean,Boolean");
-               let final_results = new java.util.ArrayList[Group];
-               // idea: (see getEntitiesGeneric for idea, see if applies here)
-               for (result <- earlyResults) {
-                 // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-                 final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
-                                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
+               if ! (final_results.len() == early_results_len) {
+                   return Err(anyhow!("final_results.len() ({}) != early_results.len() ({}).", final_results.len(), early_results_len));
                }
-               require(final_results.size == earlyResults.size)
-               final_results
+               Ok(final_results)
              }
 
-               fn getContainingEntities_helper(sql_in: String) -> java.util.ArrayList[(i64, Entity)] {
-               let earlyResults = db_query(sql_in, "i64,i64");
-               let final_results = new java.util.ArrayList[(i64, Entity)];
-               // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-               // dependencies? is a cleaner design?.)
-               for (result <- earlyResults) {
-                 // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-                 let rel_type_id: i64 = result(0).get.asInstanceOf[i64];
-                 let entity: Entity = new Entity(this, result(1).get.asInstanceOf[i64]);
-                 final_results.add((rel_type_id, entity))
-               }
+           // fn get_matching_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64,
+           //                        max_vals_in: Option<i64> /*= None*/, omit_group_id_in: Option<i64>,
+           //                         name_regex_in: String) -> Result<Vec<Group>, anyhow::Error> {
+           //     let name_regex = self.escape_quotes_etc(name_regex_in);
+           //     let omission_expression = match omit_group_id_in {
+           //         None => "true",
+           //         Some(ogi) => format!("(not id={})", ogi).as_str(),
+           //     };
+           //     let sql = format!("select id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where name ~* '{}' and {} \
+           //                   order by id limit {} offset {}",
+           //                     name_regex, omission_expression, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in).as_str();
+           //     let early_results = self.db_query(transaction, sql, "i64,String,i64,Boolean,Boolean")?;
+           //     let final_results: Vec<Group> = Vec::new();
+           //     // idea: (see get_entities_generic for idea, see if applies here)
+           //     for result in early_results {
+           //       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
+           //         //%%$%%
+           //       // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
+           //       //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
+           //     }
+           //     if (final_results.len() != early_results.len()) {
+           //         return Err(anyhow!("In get_matching_groups, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
+           //     }
+           //     Ok(final_results)
+           //   }
 
-               require(final_results.size == earlyResults.size)
-               final_results
-             }
-
-               fn getLocalEntitiesContainingLocalEntity(entity_id_in: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)] {
-               let sql: String = "select rel_type_id, entity_id from relationtoentity rte, entity e where rte.entity_id=e.id and rte.entity_id_2=" + entity_id_in +;
-                                 (if !include_archived_entities) {
-                                   " and (not e.archived)"
-                                 } else {
-                                   ""
-                                 }) +
-                                 " order by entity_id limit " + checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
+           fn get_local_entities_containing_local_entity(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64,
+                                                         starting_index_in: i64, max_vals_in: Option<i64> /*= None*/)
+               -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+               let not_archived = if !self.include_archived_entities {
+                   " and (not e.archived)"
+               } else {
+                   ""
+               };
+               let limit = Self::check_if_should_be_all_results(max_vals_in);
+               let sql = format!("select rel_type_id, entity_id from relationtoentity rte, entity e where rte.entity_id=e.id and \
+                            rte.entity_id_2={} {} order by entity_id limit {} offset {}",
+                            entity_id_in, not_archived, limit, starting_index_in);
                //note/idea: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id or
                // entity_id_2: helpfully returned; & in UI?)
-               getContainingEntities_helper(sql)
+               self.get_containing_entities_helper(transaction, sql.as_str())
              }
 
-               fn getEntitiesContainingGroup(group_id_in: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)] {
-               let sql: String = "select rel_type_id, entity_id from relationtogroup where group_id=" + group_id_in +;
-                                 " order by entity_id, rel_type_id limit " +
-                                 checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
+           fn get_entities_containing_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64, starting_index_in: i64,
+                                            max_vals_in: Option<i64> /*= None*/) ->  Result<Vec<(i64, Entity)>, anyhow::Error>  {
+               let sql = format!("select rel_type_id, entity_id from relationtogroup where group_id={}  order by entity_id, rel_type_id \
+                                    limit {} offset {}",
+                                    group_id_in, Self::check_if_should_be_all_results(max_vals_in), starting_index_in);
                //note/idea: this should be changed when we update relation stuff similarly, to go both ways in the relation (either entity_id or
                // entity_id_2: helpfully returned; & in UI?)
                //And, perhaps changed to account for whether something is archived.
-               // See getCountOfEntitiesContainingGroup for example.
-               getContainingEntities_helper(sql)
+               // See get_count_of_entities_containing_group for example.
+               self.get_containing_entities_helper(transaction, sql.as_str())
              }
 
-             /**
-              * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this entity (IN *ONE* DIRECTION ONLY).
-              */
-               fn getCountOfLocalEntitiesContainingLocalEntity(entity_id_in: i64) -> (i64, i64) {
-               let nonArchived2 = extract_row_count_from_count_query("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and not e.archived" +;
-                                                                " and e.id=" + entity_id_in)
-               let archived2 = extract_row_count_from_count_query("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 and e.archived" +;
-                                                             " and e.id=" + entity_id_in)
+              /// @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this entity (IN *ONE* DIRECTION ONLY).
+           fn get_count_of_local_entities_containing_local_entity(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64) -> Result<(u64, u64), anyhow::Error>  {
+               let non_archived2 = self.extract_row_count_from_count_query(transaction,
+                                                                          format!("select count(1) from relationtoentity rte, entity e where e.id=rte.entity_id_2 \
+                                                                and not e.archived and e.id={}", entity_id_in).as_str())?;
+               let archived2 = self.extract_row_count_from_count_query(transaction, format!("select count(1) from \
+                                relationtoentity rte, entity e where e.id=rte.entity_id_2 and e.archived and e.id={}", entity_id_in).as_str())?;
 
-               (nonArchived2, archived2)
+               Ok((non_archived2, archived2))
              }
 
-             /**
-              * @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this group.
-              */
-               fn getCountOfEntitiesContainingGroup(group_id_in: i64) -> (i64, i64) {
-               let nonArchived = extract_row_count_from_count_query("select count(1) from relationtogroup rtg, entity e where e.id=rtg.entity_id and not e.archived" +;
-                                                               " and rtg.group_id=" + group_id_in)
-               let archived = extract_row_count_from_count_query("select count(1) from relationtogroup rtg, entity e where e.id=rtg.entity_id and e.archived" +;
-                                                            " and rtg.group_id=" + group_id_in)
-               (nonArchived, archived)
+              /// @return A tuple showing the # of non-archived entities and the # of archived entities that directly refer to this group.
+           fn get_count_of_entities_containing_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64)  -> Result<(u64, u64), anyhow::Error>  {
+               let non_archived = self.extract_row_count_from_count_query(transaction, format!("select count(1) from \
+                                relationtogroup rtg, entity e where e.id=rtg.entity_id and not e.archived and rtg.group_id={}", group_id_in).as_str())?;
+               let archived = self.extract_row_count_from_count_query(transaction, format!("select count(1) from \
+                                relationtogroup rtg, entity e where e.id=rtg.entity_id and e.archived and rtg.group_id={}", group_id_in).as_str())?;
+               Ok((non_archived, archived))
              }
 
-               fn getContainingRelationsToGroup(entity_id_in: i64, startingIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
-               // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
-               // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
-               // So, could: see the expectation of the place(s) calling this method, if uniform, make these 2 methods more uniform in what they do in meeting that,
-               // OR, could consider whether we really should have an enforcement between the 2 tables...?
-               // THIS BUg currently prevents searching for then deleting the entity w/ this in name: "OTHER ENTITY NOTED IN A DELETION BUG" (see also other issue
-               // in Controller.java where that same name is mentioned. Related, be cause in that case on the line:
-               //    "descriptions = descriptions.substring(0, descriptions.length - delimiter.length) + ".  ""
-               // ...one gets the below exception throw, probably for the same or related reason:
-                   /*
-                   ==============================================
-                   **CURRENT ENTITY:while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)
-                   No attributes have been assigned to this object, yet.
-                   1-Add attribute (quantity, true/false, date, text, external file, relation to entity or group: i.e., ownership of or "has" another entity, family ties, etc)...
-                   2-Import/Export...
-                   3-Edit name
-                   4-Delete or Archive...
-                   5-Go to...
-                   6-List next items
-                   7-Set current entity (while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)) as default (first to come up when launching this program.)
-                   8-Edit public/nonpublic status
-                   0/ESC - back/previous menu
-                   4
+           // fn get_containing_relations_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, starting_index_in: i64,
+           //                                      max_vals_in: Option<i64> /*= None*/)  -> Result<Vec<RelationToGroup>, anyhow::Error>  {
+           //     // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
+           //     // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
+           //     // So, could: see the expectation of the place(s) calling this method, if uniform, make these 2 methods more uniform in what they do in meeting that,
+           //     // OR, could consider whether we really should have an enforcement between the 2 tables...?
+           //     // THIS BUg currently prevents searching for then deleting the entity w/ this in name: "OTHER ENTITY NOTED IN A DELETION BUG" (see also other issue
+           //     // in Controller.java where that same name is mentioned. Related, be cause in that case on the line:
+           //     //    "descriptions = descriptions.substring(0, descriptions.length - delimiter.length) + ".  ""
+           //     // ...one gets the below exception throw, probably for the same or related reason:
+           //         /*
+           //         ==============================================
+           //         **CURRENT ENTITY:while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)
+           //         No attributes have been assigned to this object, yet.
+           //         1-Add attribute (quantity, true/false, date, text, external file, relation to entity or group: i.e., ownership of or "has" another entity, family ties, etc)...
+           //         2-Import/Export...
+           //         3-Edit name
+           //         4-Delete or Archive...
+           //         5-Go to...
+           //         6-List next items
+           //         7-Set current entity (while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)) as default (first to come up when launching this program.)
+           //         8-Edit public/nonpublic status
+           //         0/ESC - back/previous menu
+           //         4
+           //
+           //
+           //         ==============================================
+           //         Choose a deletion or archiving option:
+           //         1-Delete this entity
+           //                  2-Archive this entity (remove from visibility but not permanent/total deletion)
+           //         0/ESC - back/previous menu
+           //         1
+           //         An error occurred: "java.lang.StringIndexOutOfBoundsException: String index out of range: -2".  If you can provide simple instructions to reproduce it consistently, maybe it can be fixed.  Do you want to see the detailed output? (y/n):
+           //           y
+           //
+           //
+           //         ==============================================
+           //         java.lang.StringIndexOutOfBoundsException: String index out of range: -2
+           //         at java.lang.String.substring(String.java:1911)
+           //         at org.onemodel.Controller.Controller.deleteOrArchiveEntity(Controller.scala:644)
+           //         at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:232)
+           //         at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:388)
+           //         at org.onemodel.Controller.Controller.showInEntityMenuThenMainMenu(Controller.scala:277)
+           //         at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:80)
+           //         at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
+           //         at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
+           //         at org.onemodel.Controller.Controller.menuLoop$1(Controller.scala:140)
+           //         at org.onemodel.Controller.Controller.start(Controller.scala:143)
+           //         at org.onemodel.TextUI.launchUI(TextUI.scala:220)
+           //         at org.onemodel.TextUI$.main(TextUI.scala:34)
+           //         at org.onemodel.TextUI.main(TextUI.scala:1)
+           //         */
+           //
+           //     let sql = format!("select group_id from entitiesinagroup where entity_id={} order by group_id limit {} offset {}",
+           //                      entity_id_in, Self::check_if_should_be_all_results(max_vals_in), starting_index_in).as_str();
+           //     get_containing_relation_to_groups_helper(transaction, sql)?;
+           //   }
 
-
-                   ==============================================
-                   Choose a deletion or archiving option:
-                   1-Delete this entity
-                            2-Archive this entity (remove from visibility but not permanent/total deletion)
-                   0/ESC - back/previous menu
-                   1
-                   An error occurred: "java.lang.StringIndexOutOfBoundsException: String index out of range: -2".  If you can provide simple instructions to reproduce it consistently, maybe it can be fixed.  Do you want to see the detailed output? (y/n):
-                     y
-
-
-                   ==============================================
-                   java.lang.StringIndexOutOfBoundsException: String index out of range: -2
-                   at java.lang.String.substring(String.java:1911)
-                   at org.onemodel.Controller.Controller.deleteOrArchiveEntity(Controller.scala:644)
-                   at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:232)
-                   at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:388)
-                   at org.onemodel.Controller.Controller.showInEntityMenuThenMainMenu(Controller.scala:277)
-                   at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:80)
-                   at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
-                   at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
-                   at org.onemodel.Controller.Controller.menuLoop$1(Controller.scala:140)
-                   at org.onemodel.Controller.Controller.start(Controller.scala:143)
-                   at org.onemodel.TextUI.launchUI(TextUI.scala:220)
-                   at org.onemodel.TextUI$.main(TextUI.scala:34)
-                   at org.onemodel.TextUI.main(TextUI.scala:1)
-                   */
-
-               let sql: String = "select group_id from entitiesinagroup where entity_id=" + entity_id_in + " order by group_id limit " +;
-                                 checkIfShouldBeAllResults(maxValsIn) + " offset " + startingIndexIn
-               getContainingRelationToGroups_helper(sql)
+           fn get_count_of_entities_used_as_attribute_types(&self, transaction: &Option<&mut Transaction<Postgres>>, attribute_type_in: String,
+                                                            quantity_seeks_unit_not_type_in: bool)  -> Result<u64, anyhow::Error>  {
+               let entities_sql = self.get_entities_used_as_attribute_types_sql(attribute_type_in, quantity_seeks_unit_not_type_in)?;
+               let sql = format!("SELECT count(1) {}", entities_sql);
+               self.extract_row_count_from_count_query(transaction, sql.as_str())
              }
 
-               fn getContainingRelationToGroups_helper(sql_in: String) -> java.util.ArrayList[RelationToGroup] {
-               let earlyResults = db_query(sql_in, "i64");
-               let group_idResults = new java.util.ArrayList[i64];
-               // idea: should the remainder of this method be moved to Group, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-               // dependencies? is a cleaner design?)
-               for (result <- earlyResults) {
-                 //val group:Group = new Group(this, result(0).asInstanceOf[i64])
-                 group_idResults.add(result(0).get.asInstanceOf[i64])
-               }
-               require(group_idResults.size == earlyResults.size)
-               let containingRelationsToGroup: java.util.ArrayList[RelationToGroup] = new java.util.ArrayList[RelationToGroup];
-               for (gid <- group_idResults.toArray) {
-                 let rtgs = getRelationsToGroupContainingThisGroup(gid.asInstanceOf[i64], 0);
-                 for (rtg <- rtgs.toArray) containingRelationsToGroup.add(rtg.asInstanceOf[RelationToGroup])
-               }
-               containingRelationsToGroup
-             }
+           // fn get_entities_used_as_attribute_types(&self, transaction: &Option<&mut Transaction<Postgres>>, attribute_type_in: String,
+           //                                         starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/,
+           //                                       quantity_seeks_unit_not_type_in: bool) -> Result<Vec<Entity>, anyhow::Error>  {
+           //     let sql = format!("{}{}", Util::SELECT_ENTITY_START, self.get_entities_used_as_attribute_types_sql(attribute_type_in, quantity_seeks_unit_not_type_in)?).as_str();
+           //     let early_results = self.db_query(transaction, sql, "i64,String,i64,i64,Boolean,Boolean,Boolean")?;
+           //     let final_results: Vec<Entity> = Vec::new();
+           //     // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+           //     // dependencies; is a cleaner design.)  (and similar ones)
+           //     for result in early_results {
+           //       add_new_entity_to_results(final_results, result)
+           //     }
+           //     if final_results.len() != early_results.len() {
+           //         return Err(anyhow!("In get_entities_used_as_attribute_types, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
+           //     }
+           //     Ok(final_results)
+           //   }
+//%%:
+           //   /// Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
+           //   // 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
+           // fn get_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/,
+           //               group_to_omit_id_in: Option<i64> /*= None*/)  -> Result<Vec<Group>, anyhow::Error>  {
+           //     let omission_expression: String = match group_to_omit_id_in {
+           //       None => "true".to_string(),
+           //       Some(gtoii) => format!("(not id={})", gtoii),
+           //     };
+           //     let sql = format!("SELECT id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where {} \
+           //                       order by id limit {} offset {}",
+           //               omission_expression, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in).as_str();
+           //     let early_results = self.db_query(transaction, sql, "i64,String,i64,Boolean,Boolean");
+           //     let final_results: Vec<Group> = Vec::new();
+           //     // idea: should the remainder of this method be moved to RTG, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+           //     // dependencies; is a cleaner design?)
+           //     for result in early_results {
+           //       // None of these values should be of "None" type. If they are it's a bug:
+           //         //%%$%%%
+           //       // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
+           //       //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
+           //     }
+           //     if final_results.len() != early_results.len() {
+           //         return Err(anyhow!("In get_groups, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
+           //     }
+           //     Ok(final_results)
+           //   }
 
-               fn getEntitiesUsedAsAttributeTypes_sql(attributeTypeIn: String, quantitySeeksUnitNotTypeIn: bool) -> String {
-               let mut sql: String = " from Entity e where " +;
-                                 // whether it is archived doesn't seem relevant in the use case, but, it is debatable:
-                                 //              (if !include_archived_entities) {
-                                 //                "(not archived) and "
-                                 //              } else {
-                                 //                ""
-                                 //              }) +
-                                 " e.id in (select " +
-                                 {
-                                   // IN MAINTENANCE: compare to logic in method limit_to_entities_only.
-                                   if Util.QUANTITY_TYPE == attributeTypeIn && quantitySeeksUnitNotTypeIn) "unit_id"
-                                   else if Util.NON_RELATION_ATTR_TYPE_NAMES.contains(attributeTypeIn)) "attr_type_id"
-                                   else if Util.RELATION_TYPE_TYPE == attributeTypeIn) "entity_id"
-                                   else if Util.RELATION_ATTR_TYPE_NAMES.contains(attributeTypeIn)) "rel_type_id"
-                                   else throw new Exception("unexpected attributeTypeIn: " + attributeTypeIn)
-                                 } +
-                                 " from "
-               if Util.NON_RELATION_ATTR_TYPE_NAMES.contains(attributeTypeIn) || Util.RELATION_ATTR_TYPE_NAMES.contains(attributeTypeIn)) {
-                 // it happens to match the table name, which is convenient:
-                 sql = sql + attributeTypeIn + ")"
-               } else {
-                 throw new Exception("unexpected attributeTypeIn: " + attributeTypeIn)
-               }
-               sql
-             }
+           // fn get_classes(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/)  -> Result<Vec<EntityClass>, anyhow::Error>  {
+           //     let sql: String = format!("SELECT id, name, defining_entity_id, create_default_attributes from class order by id limit {} offset {}",
+           //                       check_if_should_be_all_results(max_vals_in), starting_object_index_in);
+           //     let early_results = self.db_query(transaction, sql.as_str(), "i64,String,i64,Boolean");
+           //     let final_results: Vec<EntityClass> = Vec::new();
+           //     // idea: should the remainder of this method be moved to EntityClass, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+           //     // dependencies; is a cleaner design?; see similar comment in get_entities_generic.)
+           //     for result in early_results {
+           //       // Only one of these values should be of "None" type.  If they are it's a bug:
+           //         //%%$%%%
+           //       // final_results.push(new EntityClass(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
+           //       //                                  if result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Boolean])))
+           //     }
+           //     if final_results.len() != early_results.len() {
+           //         return Err(anyhow!("In get_classes, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
+           //     }
+           //     Ok(final_results)
+           //   }
 
-               fn getCountOfEntitiesUsedAsAttributeTypes(attributeTypeIn: String, quantitySeeksUnitNotTypeIn: bool) -> i64 {
-               let sql = "SELECT count(1) " + getEntitiesUsedAsAttributeTypes_sql(attributeTypeIn, quantitySeeksUnitNotTypeIn);
-               extract_row_count_from_count_query(sql)
-             }
-
-               fn getEntitiesUsedAsAttributeTypes(attributeTypeIn: String, startingObjectIndexIn: i64, maxValsIn: Option<i64> = None,
-                                                 quantitySeeksUnitNotTypeIn: bool) -> Vec<Entity> {
-               let sql: String = selectEntityStart + getEntitiesUsedAsAttributeTypes_sql(attributeTypeIn, quantitySeeksUnitNotTypeIn);
-               let earlyResults = db_query(sql, "i64,String,i64,i64,Boolean,Boolean,Boolean");
-               let final_results = new Vec<Entity>;
-               // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-               // dependencies; is a cleaner design.)  (and similar ones)
-               for (result <- earlyResults) {
-                 addNewEntityToResults(final_results, result)
-               }
-               require(final_results.size == earlyResults.size)
-               final_results
-             }
-
-             // 1st parm is 0-based index to start with, 2nd parm is # of obj's to return (if None, means no limit).
-               fn getEntitiesGeneric(startingObjectIndexIn: i64, maxValsIn: Option<i64>, table_name_in: String,
-                                            class_id_in: Option<i64> = None, limitByClass: bool = false,
-                                            templateEntity: Option<i64> = None, groupToOmitIdIn: Option<i64> = None) -> Vec<Entity> {
-               let sql: String = selectEntityStart +;
-                                 (if table_name_in.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) ", r.name_in_reverse_direction, r.directionality " else "") +
-                                 " from Entity e " +
-                                 (if table_name_in.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) {
-                                   // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
-                                   // for which a RelationType row also exists.
-                                   ", RelationType r "
-                                 } else "") +
-                                 " where" +
-                                 (if !include_archived_entities) {
-                                   " (not archived) and"
-                                 } else {
-                                   ""
-                                 }) +
-                                 " true " +
-                                 classLimit(limitByClass, class_id_in) +
-                                 (if limitByClass && templateEntity.is_some()) " and id != " + templateEntity.get else "") +
-                                 (if table_name_in.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) {
-                                   // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
-                                   // for which a RelationType row also exists.
-                                   " and e.id = r.entity_id "
-                                 } else "") +
-                                 (if table_name_in.compareToIgnoreCase("EntityOnly") == 0) limit_to_entities_only(selectEntityStart) else "") +
-                                 (if groupToOmitIdIn.is_some()) " except (" + selectEntityStart + " from entity e, " +
-                                                               "EntitiesInAGroup eiag where e.id=eiag.entity_id and " +
-                                                               "group_id=" + groupToOmitIdIn.get + ")"
-                                 else "") +
-                                 " order by id limit " + checkIfShouldBeAllResults(maxValsIn) + " offset " + startingObjectIndexIn
-               let earlyResults = db_query(sql,;
-                                          if table_name_in.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) {
-                                            "i64,String,i64,i64,Boolean,Boolean,String,String"
-                                          } else {
-                                            "i64,String,i64,i64,Boolean,Boolean,Boolean"
-                                          })
-               let final_results = new Vec<Entity>;
-               // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-               // dependencies; is a cleaner design.)  (and similar ones)
-               for (result <- earlyResults) {
-                 // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-                 if table_name_in.compareToIgnoreCase(Util.RELATION_TYPE_TYPE) == 0) {
-                   final_results.add(new RelationType(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(6).get.asInstanceOf[String],
-                                                     result(7).get.asInstanceOf[String]))
-                 } else {
-                   addNewEntityToResults(final_results, result)
-                 }
-               }
-               require(final_results.size == earlyResults.size)
-               final_results
-             }
-
-             /** Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
-               * 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
-               */
-               fn getGroups(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None, groupToOmitIdIn: Option<i64> = None) -> java.util.ArrayList[Group] {
-               let omissionExpression: String = {;
-                 if groupToOmitIdIn.isEmpty) {
-                   "true"
-                 } else {
-                   "(not id=" + groupToOmitIdIn.get + ")"
-                 }
-               }
-               let sql = "SELECT id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo " +;
-                         " where " + omissionExpression +
-                         " order by id limit " + checkIfShouldBeAllResults(maxValsIn) + " offset " + startingObjectIndexIn
-               let earlyResults = db_query(sql, "i64,String,i64,Boolean,Boolean");
-               let final_results = new java.util.ArrayList[Group];
-               // idea: should the remainder of this method be moved to RTG, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-               // dependencies; is a cleaner design.)
-               for (result <- earlyResults) {
-                 // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-                 final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
-                                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
-               }
-               require(final_results.size == earlyResults.size)
-               final_results
-             }
-
-
-               fn getClasses(startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> java.util.ArrayList[EntityClass] {
-               let sql: String = "SELECT id, name, defining_entity_id, create_default_attributes from class order by id limit " +;
-                                 checkIfShouldBeAllResults(maxValsIn) + " offset " + startingObjectIndexIn
-               let earlyResults = db_query(sql, "i64,String,i64,Boolean");
-               let final_results = new java.util.ArrayList[EntityClass];
-               // idea: should the remainder of this method be moved to EntityClass, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-               // dependencies; is a cleaner design; see similar comment in getEntitiesGeneric.)
-               for (result <- earlyResults) {
-                 // Only one of these values should be of "None" type, so not checking the others for that. If they are it's a bug:
-                 final_results.add(new EntityClass(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
-                                                  if result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Boolean])))
-               }
-               require(final_results.size == earlyResults.size)
-               final_results
-             }
-
-               fn checkIfShouldBeAllResults(maxValsIn: Option<i64>) -> String {
-               if maxValsIn.isEmpty) "ALL"
-               else if maxValsIn.get <= 0) "1"
-               else maxValsIn.get.toString
-             }
-
-               fn getGroupEntriesData(group_id_in: i64, limitIn: Option<i64> = None, include_archived_entities_in: bool = true) -> List[Array[Option[Any]]] {
+           fn get_group_entries_data(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64, limit_in: Option<i64> /*= None*/,
+                                     include_archived_entities_in: bool /*= true*/) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
                // LIKE THE OTHER 3 BELOW SIMILAR METHODS:
                // Need to make sure it gets the desired rows, rather than just some, so the order etc matters at each step, probably.
                // idea: needs automated tests (in task list also).
-               let mut sql: String = "select eiag.entity_id, eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id" +;
-                                     " and eiag.group_id=" + group_id_in
-               if !include_archived_entities_in && !include_archived_entities) sql += " and (not e.archived)"
-               sql += " order by eiag.sorting_index, eiag.entity_id limit " + checkIfShouldBeAllResults(limitIn)
-               let results = db_query(sql, GET_GROUP_ENTRIES_DATA__RESULT_TYPES);
-               results
+               let archived = if !include_archived_entities_in && !self.include_archived_entities {
+                   " and (not e.archived)"
+               } else {
+                   ""
+               };
+               let sql = format!("select eiag.entity_id, eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id \
+                                    and eiag.group_id={}{} order by eiag.sorting_index, eiag.entity_id limit {}",
+                                group_id_in, archived, Self::check_if_should_be_all_results(limit_in));
+               self.db_query(transaction, sql.as_str(), Util::GET_GROUP_ENTRIES_DATA__RESULT_TYPES)
              }
 
-               fn getEntityAttributeSortingData(entity_id_in: i64, limitIn: Option<i64> = None) -> List[Array[Option[Any]]] {
-               // see comments in getGroupEntriesData
-               let results = db_query("select attribute_form_id, attribute_id, sorting_index from AttributeSorting where entity_id = " + entity_id_in +;
-                                     " order by sorting_index limit " + checkIfShouldBeAllResults(limitIn),
-                                     "Int,i64,i64")
-               results
-             }
-
-               fn getAdjacentGroupEntriesSortingIndexes(group_id_in: i64, sorting_index_in: i64, limitIn: Option<i64> = None,
-                                                       forwardNotBackIn: bool) -> ListArray[Option[Any]]] {
-               // see comments in getGroupEntriesData.
+           fn get_adjacent_group_entries_sorting_indexes(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                                         group_id_in: i64, sorting_index_in: i64, limit_in: Option<i64> /*= None*/,
+                                                       forward_not_back_in: bool) ->  Result<Vec<Vec<Option<DataType>>>, anyhow::Error>  {
+               // see comments in get_group_entries_data.
                // Doing "not e.archived", because the caller is probably trying to move entries up/down in the UI, and if we count archived entries but
                // are not showing them,
                // we could move relative to invisible entries only, and not make a visible move,  BUT: as of 2014-8-4, a comment was added, now gone, that said to ignore
                // archived entities while getting a new sorting_index is a bug. So if that bug is found again, we should cover all scenarios with automated
                // tests (showAllArchivedEntities is true and false, with archived entities present, and any other).
-               let results = db_query("select eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id" +;
-                                     (if !include_archived_entities) {
-                                       " and (not e.archived)"
-                                     } else {
-                                       ""
-                                     }) +
-                                     " and eiag.group_id=" + group_id_in + " and eiag.sorting_index " + (if forwardNotBackIn) ">" else "<") + sorting_index_in +
-                                     " order by eiag.sorting_index " + (if forwardNotBackIn) "ASC" else "DESC") + ", eiag.entity_id " +
-                                     " limit " + checkIfShouldBeAllResults(limitIn),
-                                     "i64")
-               results
-             }
-
-               fn getAdjacentAttributesSortingIndexes(entity_id_in: i64, sorting_index_in: i64, limitIn: Option<i64>, forwardNotBackIn: bool) -> ListArray[Option[Any]]] {
-               let results = db_query("select sorting_index from AttributeSorting where entity_id=" + entity_id_in +;
-                                     " and sorting_index" + (if forwardNotBackIn) ">" else "<") + sorting_index_in +
-                                     " order by sorting_index " + (if forwardNotBackIn) "ASC" else "DESC") +
-                                     " limit " + checkIfShouldBeAllResults(limitIn),
-                                     "i64")
-               results
-             }
-
-             /** This one should explicitly NOT omit archived entities (unless parameterized for that later). See caller's comments for more, on purpose.
-               */
-               fn getNearestGroupEntrysSortingIndex(group_id_in: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64> {
-               let results = db_query("select sorting_index from entitiesinagroup where group_id=" + group_id_in + " and sorting_index " +;
-                                     (if forwardNotBackIn) ">" else "<") + startingPointSortingIndexIn +
-                                     " order by sorting_index " + (if forwardNotBackIn) "ASC" else "DESC") +
-                                     " limit 1",
-                                     "i64")
-               if results.isEmpty) {
-                 None
+               let not_archived = if !self.include_archived_entities {
+                   " and (not e.archived)"
                } else {
-                 if results.size > 1) throw new OmDatabaseException("Probably the caller didn't expect this to get >1 results...Is that even meaningful?")
-                 else results.head(0).asInstanceOf[Option<i64>]
+                   ""
+               };
+               let results = self.db_query(transaction, format!("select eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id\
+                                {} and eiag.group_id={} and eiag.sorting_index {}{} order by eiag.sorting_index {}, eiag.entity_id limit {}",
+                                not_archived, group_id_in,
+                                if forward_not_back_in { ">" } else { "<" },
+                                sorting_index_in,
+                                if forward_not_back_in { "ASC" } else { "DESC" },
+                                Self::check_if_should_be_all_results(limit_in)).as_str(),
+                                     "i64")?;
+               Ok(results)
+             }
+
+           fn get_adjacent_attributes_sorting_indexes(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, sorting_index_in: i64,
+                                                      limit_in: Option<i64>, forward_not_back_in: bool)  -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error>  {
+               let results = self.db_query(transaction, format!("select sorting_index from AttributeSorting where \
+                             entity_id={} and sorting_index {}{} order by sorting_index {} limit {}",
+                             entity_id_in,
+                             if forward_not_back_in { ">" } else { "<" },
+                             sorting_index_in,
+                             if forward_not_back_in {"ASC" } else { "DESC" },
+                             Self::check_if_should_be_all_results(limit_in)).as_str(),
+                                     "i64")?;
+               Ok(results)
+             }
+
+             /// This one should explicitly NOT omit archived entities (unless parameterized for that later). See caller's comments for more, on purpose.
+           fn get_nearest_group_entrys_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                                     group_id_in: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool)  -> Result<Option<i64>, anyhow::Error>  {
+               let sql = format!("select sorting_index from entitiesinagroup where group_id={} and sorting_index {}{} \
+                                            order by sorting_index {} limit 1",
+                                                        group_id_in, (if forward_not_back_in { ">" } else { "<" }), starting_point_sorting_index_in,
+                                     (if forward_not_back_in { "ASC" } else { "DESC" }));
+              let results: Vec<Vec<Option<DataType>>> = self.db_query(transaction, sql.as_str(), "i64")?;
+               if results.is_empty() {
+                 Ok(None)
+               } else if results.len() > 1 {
+                   return Err(anyhow!("In get_nearest_group_entrys_sorting_index, probably the caller didn't expect this to get >1 results...Is that even meaningful? sql was: {}", sql));
+               } else {
+                   let row = match results.get(0) {
+                       None => return Err(anyhow!("Expected a row result, got none for results at index 0. Results is {:?}", results)),
+                       Some(x) => x,
+                   };
+                   match row.get(0) {
+                       Some(Some(DataType::Bigint(i))) => return Ok(Some(i.clone())),
+                       _ => return Err(anyhow!("In get_nearest_group_entrys_sorting_index, unexpected row {:?}, from sql: {}", row, sql)),
+                   };
+           }
+         }
+
+           fn get_nearest_attribute_entrys_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64,
+                                                         starting_point_sorting_index_in: i64, forward_not_back_in: bool)
+               -> Result<Option<i64>, anyhow::Error>
+           {
+               let results: Vec<Vec<Option<DataType>>> = self.get_adjacent_attributes_sorting_indexes(transaction, entity_id_in,
+                                                                                                      starting_point_sorting_index_in,
+                                                                                                      Some(1), forward_not_back_in)?;
+               if results.is_empty() {
+                 Ok(None)
+               } else if results.len() > 1 {
+                   Err(anyhow!("Probably the caller didn't expect this to get >1 results...Is that even meaningful?: {:?}", results))
+               } else {
+                   if results[0].len() != 1 {
+                        Err(anyhow!("Probably the caller didn't expect this to get != 1 columns...Is that even meaningful?: {:?}", results))
+                   } else {
+                       match results[0][0] {
+                           None => Ok(None),
+                           Some(DataType::Bigint(i)) => Ok(Some(i)),
+                           _ => Err(anyhow!("Unexpected value in results[0][0]: {:?}", results[0][0])),
+                       }
+                   }
                }
              }
 
-               fn getNearestAttributeEntrysSortingIndex(entity_id_in: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64> {
-               let results: List[Array[Option[Any]]] = getAdjacentAttributesSortingIndexes(entity_id_in, startingPointSortingIndexIn, Some(1), forwardNotBackIn = forwardNotBackIn);
-               if results.isEmpty) {
-                 None
-               } else {
-                 if results.size > 1) throw new OmDatabaseException("Probably the caller didn't expect this to get >1 results...Is that even meaningful?")
-                 else results.head(0).asInstanceOf[Option<i64>]
-               }
-             }
 
-             // 2nd parm is 0-based index to start with, 3rd parm is # of obj's to return (if < 1 then it means "all"):
-               fn getGroupEntryObjects(group_id_in: i64, startingObjectIndexIn: i64, maxValsIn: Option<i64> = None) -> Vec<Entity> {
-               // see comments in getGroupEntriesData
-               let sql = "select entity_id, sorting_index from entity e, EntitiesInAGroup eiag where e.id=eiag.entity_id" +;
-                         (if !include_archived_entities) {
-                           " and (not e.archived) "
-                         } else {
-                           ""
-                         }) +
-                         " and eiag.group_id=" + group_id_in +
-                         " order by eiag.sorting_index, eiag.entity_id limit " + checkIfShouldBeAllResults(maxValsIn) + " offset " + startingObjectIndexIn
-               let earlyResults = db_query(sql, "i64,i64");
-               let final_results = new Vec<Entity>;
+
+             // 2nd parm is 0-based index to start with, 3rd parm is # of objs to return (if < 1 then it means "all"):
+           fn get_group_entry_objects(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                      group_id_in: i64, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/) -> Result<Vec<Entity>, anyhow::Error> {
+                 let not_archived = if !self.include_archived_entities {
+                     " and (not e.archived) "
+                 } else {
+                     ""
+                 };
+               // see comments in get_group_entries_data
+               let sql = format!("select entity_id, sorting_index from entity e, EntitiesInAGroup eiag where e.id=eiag.entity_id\
+                                    {} and eiag.group_id={} order by eiag.sorting_index, eiag.entity_id limit {} offset {}",
+                                    not_archived, group_id_in, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in);
+               let early_results = self.db_query(transaction, sql.as_str(), "i64,i64")?;
+                 let early_results_len = early_results.len();
+               let mut final_results: Vec<Entity> = Vec::new();
                // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-               // dependencies; is a cleaner design. Or, maybe this class and all the object classes like Entity, etc, are all part of the same layer.) And
-               // doing similarly elsewhere such as in getOmInstanceData().
-               for (result <- earlyResults) {
-                 // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-                 final_results.add(new Entity(this, result(0).get.asInstanceOf[i64]))
+               // dependencies; is a cleaner design?  Or, maybe this class and all the object classes like Entity, etc, are all part of the same layer.)
+               // And doing similarly elsewhere such as in get_om_instance_data().
+               for result in early_results {
+                   if result.len() == 0 {
+                       return Err(anyhow!("In get_group_entry_objects, Unexpected 0-len() result: {:?}", result));
+                   }
+                   // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
+                   match result[0] {
+                       None => return Err(anyhow!("In get_group_entry_objects, Unexpected None in result[0] {:?}", result[0])),
+                       Some(DataType::Bigint(i)) => final_results.push(Entity::new2(Box::new(self), transaction, i)?),
+                       _ => return Err(anyhow!("In get_group_entry_objects, Unexpected value in result[0] {:?}", result[0])),
+                   };
                }
-               require(final_results.size == earlyResults.size)
-               final_results
+               if ! (final_results.len() == early_results_len) {
+                     return Err(anyhow!("In get_group_entry_objects, final_results.len() ({}) != early_results.len() ({}).", final_results.len(), early_results_len));
+                 }
+               Ok(final_results)
              }
 
-    */
     fn get_entity_data(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -5867,7 +6722,7 @@ impl Database for PostgreSQLDatabase {
         self.db_query_wrapper_for_one_row(transaction,
                                           format!("SELECT name, class_id, insertion_date, public, \
                                           archived, new_entries_stick_to_top from Entity where id={}",
-                                                  id_in),
+                                                  id_in).as_str(),
                                          Util::GET_ENTITY_DATA__RESULT_TYPES)
     }
 
@@ -5883,436 +6738,98 @@ impl Database for PostgreSQLDatabase {
             _ => Err(anyhow!(format!("Unexpected value: {:?}", name))),
         }
     }
-    /*
-                  fn getClassData(id_in: i64) -> Array[Option[Any]] {
-                    db_query_wrapper_for_one_row("SELECT name, defining_entity_id, create_default_attributes from class where id=" + id_in, Database.GET_CLASS_DATA__RESULT_TYPES)
+
+              fn get_class_data(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Vec<DataType>, anyhow::Error> {
+                    self.db_query_wrapper_for_one_row(transaction,
+                                                      format!("SELECT name, defining_entity_id, create_default_attributes from class where id={}", id_in).as_str(),
+                                                      Util::GET_CLASS_DATA__RESULT_TYPES)
                   }
 
-                    fn getClassName(id_in: i64) -> Option<String> {
-                    let name: Option[Any] = getClassData(id_in)(0);
-                    if name.isEmpty) None
-                    else name.asInstanceOf[Option<String>]
+                fn get_class_name(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: i64) -> Result<Option<String>, anyhow::Error> {
+                    let columns = self.get_class_data(transaction, id_in)?;
+                    if columns.len() == 0 {
+                        return Err(anyhow!("In get_class_name, No rows returned for class {} ?", id_in));
+                    }
+                    let name: String = match columns[0].clone() {
+                        DataType::String(s) => s,
+                        _ => return Err(anyhow!("In get_class_name, No name returned for class {} column 0? (columns: {:?})", id_in, columns)),
+                    };
+                    // if name.isEmpty) None
+                    // else name.asInstanceOf[Option<String>]
+                    Ok(Some(name))
                   }
 
-                  /**
-                   * @return the create_default_attributes boolean value from a given class.
-                   */
-                    fn updateClassCreateDefaultAttributes(class_id_in: i64, value: Option<bool>) {
-                    self.db_action(format!("update class set (create_default_attributes) = ROW(" +
-                             (if value.isEmpty) "NULL" else if value.get) "true" else "false") +
-                             ") where id=" + class_id_in).as_str(), false, false);
-                  }
-
-                    fn getTextEditorCommand -> String {
-                    let system_entity_id = get_system_entity_id;
-                    let hasRelationTypeId: i64 = find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-                    let editorInfoSystemEntity: Entity = getEntitiesFromRelationsToLocalEntity(system_entity_id, Database.EDITOR_INFO_ENTITY_NAME,;
-                                                                                          Some(hasRelationTypeId), Some(1))(0)
-                    let textEditorInfoSystemEntity: Entity = getEntitiesFromRelationsToLocalEntity(editorInfoSystemEntity.get_id,;
-                                                                                              Database.TEXT_EDITOR_INFO_ENTITY_NAME, Some(hasRelationTypeId),
-                                                                                              Some(1))(0)
-                    let textEditorCommandNameAttrType: Entity = getEntitiesFromRelationsToLocalEntity(textEditorInfoSystemEntity.get_id,;
-                                                                                         Database.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME, Some(hasRelationTypeId),
-                                                                                         Some(1))(0)
-                    let ta: TextAttribute = getTextAttributeByTypeId(textEditorInfoSystemEntity.get_id, textEditorCommandNameAttrType.get_id, Some(1)).get(0);
-                    ta.getText
-                  }
-
-                    fn getEntitiesFromRelationsToLocalEntity(parentEntityIdIn: i64, name_in: String, rel_type_idIn: Option<i64> = None,
-                                                     expected_rows: Option[Int] = None) -> Array[Entity] {
-                    // (not getting all the attributes in this case, and doing another query to the entity table (less efficient), to save programming
-                    // time for the case that the entity table changes, we don't have to carefully update all the columns selected here & the mappings.  This is a more
-                    // likely change than for the TextAttribute table, below.
-                    let queryResults: List[Array[Option[Any]]] = db_query("select id from entity where name='" + name_in + "' and id in " +;
-                                                                     "(select entity_id_2 from relationToEntity where entity_id=" + parentEntityIdIn +
-                                                                    (if rel_type_idIn.is_some()) " and rel_type_id=" + rel_type_idIn.get + " " else "") + ")",
-                                                                    "i64")
-                    if expected_rows.is_some()) {
-                      let count = queryResults.size;
-                      if count != expected_rows.get) throw new OmDatabaseException("Found " + count + " rows instead of expected " + expected_rows.get)
-                    }
-                    let final_result = new Array[Entity](queryResults.size);
-                    let mut index = 0;
-                    for (r <- queryResults) {
-                      let id: i64 = r(0).get.asInstanceOf[i64];
-                      final_result(index) = new Entity(this, id)
-                      index += 1
-                    }
-                    final_result
-                  }
-
-                    fn getTextAttributeByTypeId(parentEntityIdIn: i64, typeIdIn: i64, expected_rows: Option[Int] = None) -> ArrayList[TextAttribute] {
-                    let sql = "select ta.id, ta.textValue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, asort.sorting_index " +;
-                              " from textattribute ta, AttributeSorting asort where ta.entity_id=" + parentEntityIdIn + " and ta.attr_type_id="+typeIdIn +
-                              " and ta.entity_id=asort.entity_id and asort.attribute_form_id=" + Database.get_attribute_form_id(Util.TEXT_TYPE) +
-                              " and ta.id=asort.attribute_id"
-                    let queryResults: List[Array[Option[Any]]] = db_query(sql, "i64,String,i64,i64,i64,i64");
-                    if expected_rows.is_some()) {
-                      let count = queryResults.size;
-                      if count != expected_rows.get) throw new OmDatabaseException("Found " + count + " rows instead of expected " + expected_rows.get)
-                    }
-                    let final_result = new ArrayList[TextAttribute](queryResults.size);
-                    for (r <- queryResults) {
-                      let textAttributeId: i64 = r(0).get.asInstanceOf[i64];
-                      let textValue: String = r(1).get.asInstanceOf[String];
-                      let attrTypeId: i64 = r(2).get.asInstanceOf[i64];
-                      let valid_on_date: Option<i64> = if r(3).isEmpty) None else Some(r(3).get.asInstanceOf[i64]);
-                      let observationDate: i64 = r(4).get.asInstanceOf[i64];
-                      let sorting_index: i64 = r(5).get.asInstanceOf[i64];
-                      final_result.add(new TextAttribute(this, textAttributeId, parentEntityIdIn, attrTypeId, textValue, valid_on_date, observationDate, sorting_index))
-                    }
-                    final_result
-                  }
-
-                  /** Returns an array of tuples, each of which is of (sorting_index, Attribute), and a i64 indicating the total # that could be returned with
-                    * infinite display space (total existing).
-                    *
-                    * The parameter maxValsIn can be 0 for 'all'.
-                    *
-                    * Idea to improve efficiency: make this able to query only those attributes needed to satisfy the maxValsIn parameter (by first checking
-                    * the AttributeSorting table).  In other words, no need to read all 1500 attributes to display on the screen, just to know which ones come first, if
-                    * only 10 can be displayed right now and the rest might not need to be displayed.  Because right now, we have to query all data from the AttributeSorting
-                    * table, then all attributes (since remember they might not *be* in the AttributeSorting table), then sort them with the best available information,
-                    * then decide which ones to return.  Maybe instead we could do that smartly, on just the needed subset.  But it still need to gracefully handle it
-                    * when a given attribute (or all) is not found in the sorting table.
-                    */
-                    fn getSortedAttributes(entity_id_in: i64, startingObjectIndexIn: Int = 0, maxValsIn: Int = 0,
-                                          onlyPublicEntitiesIn: bool = true): (Array[(i64, Attribute)], Int) {
-                    let allResults: java.util.ArrayList[(Option<i64>, Attribute)] = new java.util.ArrayList[(Option<i64>, Attribute)];
-                    // First select the counts from each table, keep a running total so we know when to select attributes (compared to inStartingObjectIndex)
-                    // and when to stop.
-                    let tables: Vec<String> = Array(Util.QUANTITY_TYPE, Util.BOOLEAN_TYPE, Util.DATE_TYPE, Util.TEXT_TYPE, Util.FILE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE,;
-                                                      Util.RELATION_TO_GROUP_TYPE, Util.RELATION_TO_REMOTE_ENTITY_TYPE)
-                    let columnsSelectedByTable: Vec<String> = Array("id,entity_id,attr_type_id,unit_id,quantity_number,valid_on_date,observation_date",;
-                                                                      "id,entity_id,attr_type_id,booleanValue,valid_on_date,observation_date",
-                                                                      "id,entity_id,attr_type_id,date",
-                                                                      "id,entity_id,attr_type_id,textValue,valid_on_date,observation_date",
-
-                                                                      "id,entity_id,attr_type_id,description,original_file_date,stored_date,original_file_path,readable," +
-                                                                      "writable,executable,size,md5hash",
-
-                                                                      "id,rel_type_id,entity_id,entity_id_2,valid_on_date,observation_date",
-                                                                      "id,entity_id,rel_type_id,group_id,valid_on_date,observation_date",
-                                                                      "id,rel_type_id,entity_id,remote_instance_id,entity_id_2,valid_on_date,observation_date")
-                    let typesByTable: Vec<String> = Array("i64,i64,i64,i64,i64,Float,i64,i64",;
-                                                            "i64,i64,i64,i64,Boolean,i64,i64",
-                                                            "i64,i64,i64,i64,i64",
-                                                            "i64,i64,i64,i64,String,i64,i64",
-                                                            "i64,i64,i64,i64,String,i64,i64,String,Boolean,Boolean,Boolean,i64,String",
-                                                            "i64,i64,i64,i64,i64,i64,i64",
-                                                            "i64,i64,i64,i64,i64,i64,i64",
-                                                            "i64,i64,i64,i64,String,i64,i64,i64")
-                    let whereClausesByTable: Vec<String> = Array(tables(0) + ".entity_id=" + entity_id_in, tables(1) + ".entity_id=" + entity_id_in,;
-                                                                   tables(2) + ".entity_id=" + entity_id_in, tables(3) + ".entity_id=" + entity_id_in,
-                                                                   tables(4) + ".entity_id=" + entity_id_in, tables(5) + ".entity_id=" + entity_id_in,
-                                                                   tables(6) + ".entity_id=" + entity_id_in, tables(7) + ".entity_id=" + entity_id_in)
-                    let orderByClausesByTable: Vec<String> = Array("id", "id", "id", "id", "id", "entity_id", "group_id", "entity_id");
-
-                    // *******************************************
-                    //****** NOTE **********: some logic here for counting & looping has been commented out because it is not yet updated to work with the sorting of
-                    // attributes on an entity.  But it is left here because it was so carefully debugged, once, and seems likely to be used again if we want to limit the
-                    // data queried and sorted to that amount which can be displayed at a given time.  For example,
-                    // we could query first from the AttributeSorting table, then based on that decide for which ones to get all the data. But maybe for now there's a small
-                    // enough amount of data that we can query all rows all the time.
-                    // *******************************************
-
-                    // first just get a total row count for UI convenience later (to show how many left not viewed yet)
-                    // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-                //    let mut totalRowsAvailable: i64 = 0;
-                //    let mut tableIndexForrow_counting = 0;
-                //    while ((maxValsIn == 0 || totalRowsAvailable <= maxValsIn) && tableIndexForrow_counting < tables.length) {
-                //      let table_name = tables(tableIndexForrow_counting);
-                //      totalRowsAvailable += extract_row_count_from_count_query("select count(*) from " + table_name + " where " + whereClausesByTable(tableIndexForrow_counting))
-                //      tableIndexForrow_counting += 1
-                //    }
-
-                    // idea: this could change to a let and be filled w/ a recursive helper method; other vars might go away then too.;
-                    let mut tableListIndex: i32 = 0;
-
-                    // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-                    //keeps track of where we are in getting rows >= inStartingObjectIndex and <= maxValsIn
-                    //    let mut counter: i64 = 0;
-                    //    while ((maxValsIn == 0 || counter - inStartingObjectIndex <= maxValsIn) && tableListIndex < tables.length) {
-                    while (tableListIndex < tables.length) {
-                      let table_name = tables(tableListIndex);
-                      // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-                      //val thisTablesrow_count: i64 = extract_row_count_from_count_query("select count(*) from " + table_name + " where " + whereClausesByTable(tableListIndex))
-                      //if thisTablesrow_count > 0 && counter + thisTablesrow_count >= inStartingObjectIndex) {
-                      //try {
-
-                          // Idea: could speed this query up in part? by doing on each query something like:
-                          //       limit maxValsIn+" offset "+ inStartingObjectIndex-counter;
-                          // ..and then incrementing the counters appropriately.
-                          // Idea: could do the sorting (currently done just before the end of this method) in sql? would have to combine all queries to all tables, though.
-                          let key = whereClausesByTable(tableListIndex).substring(0, whereClausesByTable(tableListIndex).indexOf("="));
-                          let columns = table_name + "." + columnsSelectedByTable(tableListIndex).replace(",", "," + table_name + ".");
-                          let mut sql: String = "select attributesorting.sorting_index, " + columns +;
-                                            " from " +
-                                            // idea: is the RIGHT JOIN really needed, or can it be a normal join? ie, given tables' setup can there really be
-                                            // rows of any Attribute (or RelationTo*) table without a corresponding attributesorting row?  Going to assume not,
-                                            // for some changes below adding the sortingindex parameter to the Attribute constructors, for now at least until this is studied
-                                            // again.  Maybe it had to do with the earlier unreliability of always deleting rows from attributesorting when Attributes were
-                                            // deleted (and in fact an attributesorting can in theory still be created without an Attribute row, and maybe other such problems).
-                                            "   attributesorting RIGHT JOIN " + table_name +
-                                            "     ON (attributesorting.attribute_form_id=" + Database.get_attribute_form_id(table_name) +
-                                            "     and attributesorting.attribute_id=" + table_name + ".id )" +
-                                            "   JOIN entity ON entity.id=" + key +
-                                            " where " +
-                                            (if !include_archived_entities) {
-                                              "(not entity.archived) and "
-                                            } else {
-                                              ""
-                                            }) +
-                                            whereClausesByTable(tableListIndex)
-                          if table_name == Util.RELATION_TO_LOCAL_ENTITY_TYPE && !include_archived_entities) {
-                            sql += " and not exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
-                                   " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.archived)"
-                          }
-                          if table_name == Util.RELATION_TO_LOCAL_ENTITY_TYPE && onlyPublicEntitiesIn) {
-                            sql += " and exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
-                                   " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.public)"
-                          }
-                          sql += " order by " + table_name + "." + orderByClausesByTable(tableListIndex)
-                          let results = db_query(sql, typesByTable(tableListIndex));
-                          for (result: Array[Option[Any]] <- results) {
-                            // skip past those that are outside the range to retrieve
-                            //idea: use some better scala/function construct here so we don't keep looping after counter hits the max (and to make it cleaner)?
-                            //idea: move it to the same layer of code that has the Attribute classes?
-
-                            // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-                            // Don't get it if it's not in the requested range:
-                //            if counter >= inStartingObjectIndex && (maxValsIn == 0 || counter <= inStartingObjectIndex + maxValsIn)) {
-                              if table_name == Util.QUANTITY_TYPE) {
-                                allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-                                           new QuantityAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-                                                                 result(4).get.asInstanceOf[i64], result(5).get.asInstanceOf[Float],
-                                                                 if result(6).isEmpty) None else Some(result(6).get.asInstanceOf[i64]), result(7).get.asInstanceOf[i64],
-                                                                 result(0).get.asInstanceOf[i64])))
-                              } else if table_name == Util.TEXT_TYPE) {
-                                allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-                                           new TextAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-                                                             result(4).get.asInstanceOf[String], if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]),
-                                                             result(6).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
-                              } else if table_name == Util.DATE_TYPE) {
-                                allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-                                           new DateAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-                                                             result(4).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
-                              } else if table_name == Util.BOOLEAN_TYPE) {
-                                allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-                                           new BooleanAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-                                                                result(4).get.asInstanceOf[Boolean], if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]),
-                                                                result(6).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
-                              } else if table_name == Util.FILE_TYPE) {
-                                allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-                                           new FileAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-                                                             result(4).get.asInstanceOf[String], result(5).get.asInstanceOf[i64], result(6).get.asInstanceOf[i64],
-                                                             result(7).get.asInstanceOf[String], result(8).get.asInstanceOf[Boolean], result(9).get.asInstanceOf[Boolean],
-                                                             result(10).get.asInstanceOf[Boolean], result(11).get.asInstanceOf[i64], result(12).get.asInstanceOf[String],
-                                                             result(0).get.asInstanceOf[i64])))
-                              } else if table_name == Util.RELATION_TO_LOCAL_ENTITY_TYPE) {
-                                allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-                                           new RelationToLocalEntity(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-                                                                result(4).get.asInstanceOf[i64],
-                                                                if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]), result(6).get.asInstanceOf[i64],
-                                                                result(0).get.asInstanceOf[i64])))
-                              } else if table_name == Util.RELATION_TO_GROUP_TYPE) {
-                                allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-                                           new RelationToGroup(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-                                                               result(4).get.asInstanceOf[i64],
-                                                               if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]),
-                                                               result(6).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
-                              } else if table_name == Util.RELATION_TO_REMOTE_ENTITY_TYPE) {
-                                allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-                                                 new RelationToRemoteEntity(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64],
-                                                                            result(3).get.asInstanceOf[i64],
-                                                                            result(4).get.asInstanceOf[String], result(5).get.asInstanceOf[i64],
-                                                                            if result(6).isEmpty) None else Some(result(6).get.asInstanceOf[i64]),
-                                                                            result(7).get.asInstanceOf[i64],
-                                                                      result(0).get.asInstanceOf[i64])))
-                              } else throw new OmDatabaseException("invalid table type?: '" + table_name + "'")
-
-                            // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-                            //}
-                //            counter += 1
-                          }
-
-                      // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-                        //}
-                        //remove the try permanently, or, what should be here as a 'catch'? how interacts w/ 'throw' or anything related just above?
-                      //} else {
-                      //  counter += thisTablesrow_count
-                      //}
-                      tableListIndex += 1
-                    }
-
-                    let allResultsArray: Array[(i64, Attribute)] = new Array[(i64, Attribute)](allResults.size);
-                    let mut index = -1;
-                    for (element: (Option<i64>, Attribute) <- allResults.toArray(new Array[(Option<i64>, Attribute)](0))) {
-                      index += 1
-                      // using max_id_value as the max value of a long so those w/o sorting information will just sort last:
-                      allResultsArray(index) = (element._1.getOrElse(self.max_id_value()), element._2)
-                    }
-                    // Per the scalaDocs for scala.math.Ordering, this sorts by the first element of the tuple (ie, .z_1) which at this point is attributesorting.sorting_index.
-                    // (The "getOrElse" on next line is to allow for the absence of a value in case the attributeSorting table doesn't have an entry for some attributes.
-                    Sorting.quickSort(allResultsArray)(Ordering[i64].on(x => x._1.asInstanceOf[i64]))
-
-                    let from: i32 = startingObjectIndexIn;
-                    let numVals: i32 = if maxValsIn > 0) maxValsIn else allResultsArray.length;
-                    let until: i32 = Math.min(startingObjectIndexIn + numVals, allResultsArray.length);
-                    (allResultsArray.slice(from, until), allResultsArray.length)
+                 /// @return the create_default_attributes boolean value from a given class.
+                fn update_class_create_default_attributes(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                                          class_id_in: i64, value: Option<bool>) -> Result<u64, anyhow::Error> {
+                     let value_sql = match value {
+                         None => "NULL",
+                         Some(true) => "true",
+                         _ => "false",
+                     };
+                     self.db_action(transaction,
+                                   format!("update class set (create_default_attributes) = ROW({}) where id={}",
+                                       value_sql, class_id_in).as_str(), false, false)
                   }
 
                   /// The 2nd parameter is to avoid saying an entity is a duplicate of itself: checks for all others only.
-                    fn isDuplicateEntityName(name_in: String, selfIdToIgnoreIn: Option<i64> = None) -> bool {
-                    let first = isDuplicateRow(name_in, Util.ENTITY_TYPE, "id", "name",;
-                                               if !include_archived_entities) {
+                fn is_duplicate_entity_name(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                            name_in: &str, self_id_to_ignore_in: Option<i64> /*= None*/) -> Result<bool, anyhow::Error> {
+                    let first = self.is_duplicate_row(transaction, name_in, Util::ENTITY_TYPE,
+                                                      "id", "name",
+                                               if ! self.include_archived_entities {
                                                  Some("(not archived)")
                                                } else {
                                                  None
                                                },
-                                               selfIdToIgnoreIn)
-                    let second = isDuplicateRow(name_in, Util.RELATION_TYPE_TYPE, "entity_id", "name_in_reverse_direction", None, selfIdToIgnoreIn);
-                    first || second
+                                               match self_id_to_ignore_in {
+                                                   None => None,
+                                                   Some(id) => Some(format!("{}", id)),
+                                               })?;
+                    let second = self.is_duplicate_row(transaction, name_in, Util::RELATION_TYPE_TYPE, "entity_id", "name_in_reverse_direction", None,
+                                                       match self_id_to_ignore_in  {
+                                                           None => None,
+                                                           Some(id) => Some(format!("{}", id)),
+                                                       })?;
+                    Ok(first || second)
                   }
 
-                  /// The inSelfIdToIgnore parameter is to avoid saying a class is a duplicate of itself: checks for all others only.
-                    fn isDuplicateRow[T](possibleDuplicateIn: String, table: String, keyColumnToIgnoreOn: String, columnToCheckForDupValues: String, extraCondition: Option<String>,
-                                     selfIdToIgnoreIn: Option[T] = None) -> bool {
-                    let valueToCheck: String = self.escape_quotes_etc(possibleDuplicateIn);
-
-                    let exception: String =;
-                      if selfIdToIgnoreIn.isEmpty) {
-                        ""
-                      } else {
-                        "and not " + keyColumnToIgnoreOn + "=" + selfIdToIgnoreIn.get.toString
-                      }
-
-                    does_this_exist("SELECT count(" + keyColumnToIgnoreOn + ") from " + table + " where " +
-                                  (if extraCondition.is_some() && extraCondition.get.nonEmpty) extraCondition.get else "true") +
-                                  " and lower(" + columnToCheckForDupValues + ")=lower('" + valueToCheck + "') " + exception,
-                                  fail_if_more_than_one_found = false)
-                  }
-
-
-                  /** The 2nd parameter is to avoid saying a class is a duplicate of itself: checks for all others only. */
-                    fn isDuplicateClassName(name_in: String, selfIdToIgnoreIn: Option<i64> = None) -> bool {
-                    isDuplicateRow[i64](name_in, "class", "id", "name", None, selfIdToIgnoreIn)
+                  /// The 2nd parameter is to avoid saying a class is a duplicate of itself: checks for all others only. */
+                fn is_duplicate_class_name(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                           name_in: &str, self_id_to_ignore_in: Option<i64> /*= None*/) -> Result<bool, anyhow::Error> {
+                    self.is_duplicate_row(transaction, name_in, "class", "id",
+                                          "name", None,
+                                          match self_id_to_ignore_in {
+                                              None => None,
+                                              Some(id) => Some(format!("{}", id)),
+                                          })
                   }
 
                   /// The 2nd parameter is to avoid saying an instance is a duplicate of itself: checks for all others only.
-                    fn isDuplicateOmInstanceAddress(address_in: String, selfIdToIgnoreIn: Option<String> = None) -> bool {
-                    isDuplicateRow[String](address_in, "omInstance", "id", "address", None,
-                                           if selfIdToIgnoreIn.isEmpty) None else Some("'" + selfIdToIgnoreIn.get + "'"))
-                  }
-                  protected override fn finalize() {
-                    super.finalize()
-                    if connection != null) connection.close()
+                fn is_duplicate_om_instance_address(&self, transaction: &Option<&mut Transaction<Postgres>>, address_in: &str,
+                                                    self_id_to_ignore_in: Option<String> /*= None*/) -> Result<bool, anyhow::Error> {
+                    self.is_duplicate_row(transaction, address_in, "omInstance", "id",
+                                          "address", None,
+                                          self_id_to_ignore_in)
                   }
 
+                  // fn finalize() {
+                    //fn drop .. what form?
+                  //   //%%$%%%%%?:  super.finalize()
+                  //   // if connection != null) connection.close()
+                  //     self.pool.%%?
+                  // }
 
-                  /** Cloned from delete_objects: CONSIDER UPDATING BOTH if updating one.
-                    */
-                    fn archiveObjects(table_name_in: String, where_clause_in: String, rows_expected: i64 = 1, caller_manages_transactions_in: bool = false,
-                                             unarchive: bool = false) {
-                    //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
-                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                    // if !caller_manages_transactions_in) self.begin_trans()
-                    try {
-                      let archive = if unarchive) "false" else "true";
-                      let archivedDate = if unarchive) {;
-                        "NULL"
-                      } else {
-                        "" + System.currentTimeMillis()
-                      }
-                      let rows_affected = self.db_action(format!("update " + table_name_in + " set (archived, archived_date) = (" + archive + ", " + archivedDate + ") " + where_clause_in).as_str(), false, false);
-                      if rows_expected >= 0 && rows_affected != rows_expected) {
-                        // Roll back, as we definitely don't want to affect an unexpected # of rows.
-                        // Do it ***EVEN THOUGH callerManagesTransaction IS true***: seems cleaner/safer this way.
-                        throw rollbackWithCatch(new OmDatabaseException("Archive command would have updated " + rows_affected + "rows, but " +
-                                                              rows_expected + " were expected! Did not perform archive."))
-                      } else {
-                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                        // if !caller_manages_transactions_in) commit_trans()
-                      }
-                    } catch {
-                      case e: Exception => throw rollbackWithCatch(e)
-                    }
-                  }
-
-                    fn deleteObjectById(table_name_in: String, id_in: i64, caller_manages_transactions_in: bool = false) /* -> Unit%%*/ {
-                    delete_objects(table_name_in, "where id=" + id_in, caller_manages_transactions_in = caller_manages_transactions_in)
-                  }
-
-                    fn deleteObjectById2(table_name_in: String, id_in: String, caller_manages_transactions_in: bool = false) /* -> Unit%%*/ {
-                    delete_objects(table_name_in, "where id='" + id_in + "'", caller_manages_transactions_in = caller_manages_transactions_in)
-                  }
-
-                  // (idea: find out: why doesn't compiler (ide or cli) complain when the 'override' is removed from next line?)
-                  // idea: see comment on findUnusedSortingIndex
-                    fn findIdWhichIsNotKeyOfAnyEntity -> i64 {
-                    //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
-                    //only one iteration, ever.  (See similar comments elsewhere.)
-                    let starting_id: i64 = self.max_id_value() - 1;
-
-                    @tailrec fn findIdWhichIsNotKeyOfAnyEntity_helper(working_id: i64, counter: i64) -> i64 {
-                      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                      if entity_key_exists(working_id)) {
-                        if working_id == self.max_id_value()) {
-                          // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
-                          throw new OmDatabaseException("No id found which is not a key of any entity in the system. How could all id's be used??")
-                        }
-                        // idea: this check assumes that the thing to get IDs will re-use deleted ones and wrap around the set of #'s. That fix is on the list (informally
-                        // at this writing, 2013-11-18).
-                        if counter > 1000) throw new OmDatabaseException("Very unexpected, but could it be that you are running out of available entity IDs?? Have someone check, " +
-                                                                "before you need to create, for example, a thousand more entities.")
-                        findIdWhichIsNotKeyOfAnyEntity_helper(working_id - 1, counter + 1)
-                      } else working_id
-                    }
-
-                    findIdWhichIsNotKeyOfAnyEntity_helper(starting_id, 0)
-                  }
-
-                  // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
-                    fn addUriEntityWithUriAttribute(containingEntityIn: Entity, new_entity_name_in: String, uriIn: String, observation_date_in: i64,
-                                                   makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool,
-                                                   quoteIn: Option<String> = None) -> (Entity, RelationToLocalEntity) {
-                    if quoteIn.is_some()) require(!quoteIn.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
-                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                    // if !caller_manages_transactions_in { self.begin_trans() }
-                    try {
-                      // **idea: BAD SMELL: should this method be moved out of the db class, since it depends on higher-layer components, like EntityClass and
-                      // those in the same package? It was in Controller, but moved here
-                      // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
-
-                      let (uriClassId: i64, uriClassTemplateId: i64) = getOrCreateClassAndTemplateEntity("URI", caller_manages_transactions_in);
-                      let (_, quotationClassTemplateId: i64) = getOrCreateClassAndTemplateEntity("quote", caller_manages_transactions_in);
-                      let (newEntity: Entity, newRTLE: RelationToLocalEntity) = containingEntityIn.create_entityAndAddHASLocalRelationToIt(new_entity_name_in, observation_date_in,;
-                                                                                                                               makeThem_publicIn, caller_manages_transactions_in)
-                      updateEntitysClass(newEntity.get_id, Some(uriClassId), caller_manages_transactions_in)
-                      newEntity.addTextAttribute(uriClassTemplateId, uriIn, None, None, observation_date_in, caller_manages_transactions_in)
-                      if quoteIn.is_some()) {
-                        newEntity.addTextAttribute(quotationClassTemplateId, quoteIn.get, None, None, observation_date_in, caller_manages_transactions_in)
-                      }
-                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                      // if !caller_manages_transactions_in {self.commit_trans() }
-                      (newEntity, newRTLE)
-                    } catch {
-                      case e: Exception =>
-                          //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                        // if !caller_manages_transactions_in) rollback_trans()
-                        throw e
-                    }
-                  }
-
-                    fn getOrCreateClassAndTemplateEntity(class_name_in: String, caller_manages_transactions_in: bool) -> (i64, i64) {
+/*%%$%%%%%
+                fn get_or_create_class_and_template_entity(class_name_in: String, caller_manages_transactions_in: bool) -> (i64, i64) {
                     //(see note above re 'bad smell' in method addUriEntityWithUriAttribute.)
                           //rollbacketc%%%%%%%%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                     // if !caller_manages_transactions_in { self.begin_trans() }
                     try {
-                      let (class_id, entity_id) = {;
-                        let foundId = findFIRSTClassIdByName(class_name_in, caseSensitive = true);
+                      let (class_id, entity_id) = {
+                        let foundId = find_first_class_id_by_name(class_name_in, case_sensitive = true);
                         if foundId.is_some()) {
-                          let entity_id: i64 = new EntityClass(this, foundId.get).getTemplateEntityId;
+                          let entity_id: i64 = new EntityClass(this, foundId.get).get_template_entity_id;
                           (foundId.get, entity_id)
                         } else {
                           let (class_id: i64, entity_id: i64) = create_class_and_its_template_entity(class_name_in);
@@ -6330,15 +6847,15 @@ impl Database for PostgreSQLDatabase {
                         throw e
                     }
                   }
-                  fn set_include_archived_entities(in: bool) /* -> Unit%%*/ {
-                    include_archived_entities = in
+    */
+
+                  fn set_include_archived_entities(&mut self, iae_in: bool) {
+                    self.include_archived_entities = iae_in;
                   }
 
-                    fn getOmInstanceCount() -> i64 {
-                    extract_row_count_from_count_query("SELECT count(1) from omInstance")
+                fn get_om_instance_count(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<u64, anyhow::Error> {
+                    self.extract_row_count_from_count_query(transaction, "SELECT count(1) from omInstance")
                   }
-    */
-    */
 
     fn create_om_instance(
         &self,
@@ -6350,22 +6867,22 @@ impl Database for PostgreSQLDatabase {
         old_table_name: bool,      /*%% = false*/
     ) -> Result<i64, anyhow::Error> {
         if id_in.len() == 0 {
-            return Err(anyhow!("ID must have a value.".to_string()));
+            return Err(anyhow!("In create_om_instance, ID must have a value.".to_string()));
         }
         if address_in.len() == 0 {
-            return Err(anyhow!("Address must have a value.".to_string()));
+            return Err(anyhow!("In create_om_instance, Address must have a value.".to_string()));
         }
         let id: String = Self::escape_quotes_etc(id_in.clone());
         let address: String = Self::escape_quotes_etc(address_in.clone());
         if id != id_in {
             return Err(anyhow!(format!(
-                "Didn't expect quotes etc in the UUID provided: {}",
+                "In create_om_instance, Didn't expect quotes etc in the UUID provided: {}",
                 id_in
             )));
         };
         if address != address_in {
             return Err(anyhow!(format!(
-                "Didn't expect quotes etc in the address provided: {}",
+                "In create_om_instance, didn't expect quotes etc in the address provided: {}",
                 address
             )));
         }
@@ -6391,37 +6908,26 @@ impl Database for PostgreSQLDatabase {
         Ok(insertion_date)
     }
 
-    /*
-                fn getOmInstanceData(id_in: String) -> Array[Option[Any]] {
-                let row: Array[Option[Any]] = db_query_wrapper_for_one_row("SELECT local, address, insertion_date, entity_id from omInstance" +;
-                                                                      " where id='" + id_in + "'", Database.GET_OM_INSTANCE_DATA__RESULT_TYPES)
-                row
+                fn get_om_instance_data(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: String) -> Result<Vec<DataType>, anyhow::Error> {
+                self.db_query_wrapper_for_one_row(transaction,
+                              format!("SELECT local, address, insertion_date, entity_id from omInstance where id='{}'", id_in).as_str(),
+                                                  Util::GET_OM_INSTANCE_DATA__RESULT_TYPES)
               }
 
+    /*%%$%%
               lazy let id: String = {;
-                getLocalOmInstanceData.get_id
+                get_local_om_instance_data.get_id
               }
+*/
+        fn om_instance_key_exists(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: String) -> Result<bool, anyhow::Error> {
+            self.does_this_exist(transaction, format!("SELECT count(1) from omInstance where id='{}'", id_in).as_str(),
+                                 true)
+        }
 
-              /// @return the OmInstance object that stands for *this*: the OmInstance to which this PostgreSQLDatabase class instance reads/writes directly.
-                fn getLocalOmInstanceData -> OmInstance {
-                let sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE";
-                let results = db_query(sql, "String,String,i64,i64");
-                if results.size != 1) throw new OmDatabaseException("Got " + results.size + " instead of 1 result from sql " + sql +
-                                                                     ".  Does the usage now warrant removing this check (ie, multiple locals stored)?")
-                let result = results.head;
-                new OmInstance(this, result(0).get.asInstanceOf[String], is_local_in = true,
-                               result(1).get.asInstanceOf[String],
-                               result(2).get.asInstanceOf[i64], if result(3).isEmpty) None else Some(result(3).get.asInstanceOf[i64]))
-              }
-
-                fn omInstanceKeyExists(id_in: String) -> bool {
-                does_this_exist("SELECT count(1) from omInstance where id='" + id_in + "'")
-              }
-    */
 
     //%%$%%
     /*
-                fn getOmInstances(localIn: Option<bool> = None) -> java.util.ArrayList[OmInstance] {
+                fn get_om_instances(localIn: Option<bool> = None) -> java.util.ArrayList[OmInstance] {
                 let sql = "select id, local, address, insertion_date, entity_id from omInstance" +;
                           (if localIn.is_some()) {
                             if localIn.get) {
@@ -6432,71 +6938,71 @@ impl Database for PostgreSQLDatabase {
                           } else {
                             ""
                           })
-                let earlyResults = db_query(sql, "String,Boolean,String,i64,i64");
+                let early_results = db_query(sql, "String,Boolean,String,i64,i64");
                 let final_results = new java.util.ArrayList[OmInstance];
-                // (Idea: See note in similar point in getGroupEntryObjects.)
-                for (result <- earlyResults) {
+                // (Idea: See note in similar point in get_group_entry_objects.)
+                for (result <- early_results) {
                   final_results.add(new OmInstance(this, result(0).get.asInstanceOf[String], is_local_in = result(1).get.asInstanceOf[Boolean],
                                                   result(2).get.asInstanceOf[String],
                                                   result(3).get.asInstanceOf[i64], if result(4).isEmpty) None else Some(result(4).get.asInstanceOf[i64])))
                 }
-                require(final_results.size == earlyResults.size)
+                require(final_results.size == early_results.size)
                 if localIn.is_some() && localIn.get && final_results.size == 0) {
-                  let total = getOmInstanceCount;
+                  let total = get_om_instance_count();
                   throw new OmDatabaseException("Unexpected: the # of rows omInstance where local=TRUE is 0, and there should always be at least one." +
                                                 "(See insert at end of create_base_data and upgradeDbFrom3to4.)  Total # of rows: " + total)
                 }
                 final_results
               }
 
-      "getLocalOmInstanceData and friends" should "work" in {
-        let oi: OmInstance = m_db.getLocalOmInstanceData;
+      "get_local_om_instance_data and friends" should "work" in {
+        let oi: OmInstance = m_db.get_local_om_instance_data;
         let uuid: String = oi.get_id;
         assert(oi.getLocal)
-        assert(m_db.omInstanceKeyExists(uuid))
-        let startingOmiCount = m_db.getOmInstanceCount;
+        assert(m_db.om_instance_key_exists(uuid))
+        let startingOmiCount = m_db.get_om_instance_count();
         assert(startingOmiCount > 0)
-        let oiAgainAddress = m_db.getOmInstanceData(uuid)(1).get.asInstanceOf[String];
+        let oiAgainAddress = m_db.get_om_instance_data(uuid)(1).get.asInstanceOf[String];
         assert(oiAgainAddress == Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION)
-        let omInstances: util.ArrayList[OmInstance] = m_db.getOmInstances();
+        let omInstances: util.ArrayList[OmInstance] = m_db.get_om_instances();
         assert(omInstances.size == startingOmiCount)
-        let sizeNowTrue = m_db.getOmInstances(Some(true)).size;
+        let sizeNowTrue = m_db.get_om_instances(Some(true)).size;
         assert(sizeNowTrue > 0)
         // Idea: fix: Next line fails at times, maybe due to code running in parallel between this and RestDatabaseTest, creating/deleting rows.  Only seems to happen
         // when all tests are run, never when the test classes are run separately.
-        //    let sizeNowFalse = m_db.getOmInstances(Some(false)).size;
+        //    let sizeNowFalse = m_db.get_om_instances(Some(false)).size;
         //assert(sizeNowFalse < sizeNowTrue)
-        assert(! m_db.omInstanceKeyExists(java.util.UUID.randomUUID().toString))
+        assert(! m_db.om_instance_key_exists(java.util.UUID.randomUUID().toString))
         assert(new OmInstance(m_db, uuid).getAddress == Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION)
 
         let uuid2 = java.util.UUID.randomUUID().toString;
         m_db.create_om_instance(uuid2, is_local_in = false, "om.example.com", Some(m_db.get_system_entity_id))
         // should have the local one created at db creation, and now the one for this test:
-        assert(m_db.getOmInstanceCount == startingOmiCount + 1)
+        assert(m_db.get_om_instance_count() == startingOmiCount + 1)
         let mut i2: OmInstance = new OmInstance(m_db, uuid2);
         assert(i2.getAddress == "om.example.com")
-        m_db.updateOmInstance(uuid2, "address", None)
+        m_db.update_om_instance(uuid2, "address", None)
         i2  = new OmInstance(m_db,uuid2)
         assert(i2.getAddress == "address")
         assert(!i2.getLocal)
         assert(i2.getEntityId.isEmpty)
         assert(i2.getCreationDate > 0)
         assert(i2.getCreationDateFormatted.length > 0)
-        m_db.updateOmInstance(uuid2, "address", Some(m_db.get_system_entity_id))
+        m_db.update_om_instance(uuid2, "address", Some(m_db.get_system_entity_id))
         i2  = new OmInstance(m_db,uuid2)
         assert(i2.getEntityId.get == m_db.get_system_entity_id)
-        assert(m_db.isDuplicateOmInstanceAddress("address"))
-        assert(m_db.isDuplicateOmInstanceAddress(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION))
-        assert(!m_db.isDuplicateOmInstanceAddress("address", Some(uuid2)))
-        assert(!m_db.isDuplicateOmInstanceAddress(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION, Some(uuid)))
+        assert(m_db.is_duplicate_om_instance_address("address"))
+        assert(m_db.is_duplicate_om_instance_address(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION))
+        assert(!m_db.is_duplicate_om_instance_address("address", Some(uuid2)))
+        assert(!m_db.is_duplicate_om_instance_address(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION, Some(uuid)))
         let uuid3 = java.util.UUID.randomUUID().toString;
         m_db.create_om_instance(uuid3, is_local_in = false, "address", Some(m_db.get_system_entity_id))
-        assert(m_db.isDuplicateOmInstanceAddress("address", Some(uuid2)))
-        assert(m_db.isDuplicateOmInstanceAddress("address", Some(uuid3)))
+        assert(m_db.is_duplicate_om_instance_address("address", Some(uuid2)))
+        assert(m_db.is_duplicate_om_instance_address("address", Some(uuid3)))
         i2.delete()
-        assert(m_db.isDuplicateOmInstanceAddress("address"))
-        assert(m_db.isDuplicateOmInstanceAddress("address", Some(uuid2)))
-        assert(!m_db.isDuplicateOmInstanceAddress("address", Some(uuid3)))
+        assert(m_db.is_duplicate_om_instance_address("address"))
+        assert(m_db.is_duplicate_om_instance_address("address", Some(uuid2)))
+        assert(!m_db.is_duplicate_om_instance_address("address", Some(uuid3)))
         assert(intercept[Exception] {
                                       new OmInstance(m_db, uuid2)
                                     }.getMessage.contains("does not exist"))
@@ -6504,7 +7010,7 @@ impl Database for PostgreSQLDatabase {
     */
 
     /*
-        fn updateOmInstance(id_in: String, address_in: String, entity_id_in: Option<i64>) {
+        fn update_om_instance(id_in: String, address_in: String, entity_id_in: Option<i64>) {
         let address: String = self.escape_quotes_etc(address_in);
         let sql = format!("UPDATE omInstance SET (address, entity_id)" +;
                   " = ('" + address + "', " +
@@ -6517,12 +7023,36 @@ impl Database for PostgreSQLDatabase {
         self.db_action(sql.as_str(), false, false);
       }
 
-        fn deleteOmInstance(id_in: String) /* -> Unit%%*/ {
-        deleteObjectById2("omInstance", id_in)
+        fn delete_om_instance(id_in: String) /* -> Unit%%*/ {
+        delete_object_by_id2("omInstance", id_in)
       }
 
     */
 }
+
+fn get_i64s_from_rows(rows: &Vec<Vec<Option<DataType>>>) -> Result<Vec<i64>, anyhow::Error> {
+    let mut results: Vec<i64> = Vec::new();
+    for row in rows {
+        let id = get_i64_from_row(&row, 0)?;
+        results.push(id);
+    }
+    Ok(results)
+}
+fn get_i64_from_row(row: &Vec<Option<DataType>>, index: usize) -> Result<i64, anyhow::Error> {
+    let id: i64 = match row.get(index) {
+        Some(Some(DataType::Bigint(n))) => *n,
+        _ => return Err(anyhow!("In get_i64_from_row for index {}, Unexpected row: {:?}", index, row)),
+    };
+    Ok(id)
+}
+fn get_i64_from_row_without_option(row: &Vec<DataType>, index: usize) -> Result<i64, anyhow::Error> {
+    let id: i64 = match row.get(index) {
+        Some(DataType::Bigint(n)) => *n,
+        _ => return Err(anyhow!("In get_i64_from_row for index {}, Unexpected row: {:?}", index, row)),
+    };
+    Ok(id)
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -6759,13 +7289,13 @@ mod tests {
         //noinspection OptionEqualsSome
         assert(m_db.get_user_preference_boolean("xyznevercreatemeinreallife", Some(true)) == Some(false))
 
-        assert(m_db.getUserPreference_EntityId("xyz2").isEmpty)
+        assert(m_db.get_user_preference_entity_id("xyz2").isEmpty)
         // (intentional style violation for readability - the ".contains" suggested by the IDE just caused another problem)
         //noinspection OptionEqualsSome
-        assert(m_db.getUserPreference_EntityId("xyz2", Some(0L)) == Some(0L))
-        m_db.setUserPreference_EntityId("xyz2", m_db.get_system_entity_id)
+        assert(m_db.get_user_preference_entity_id("xyz2", Some(0L)) == Some(0L))
+        m_db.set_user_preference_entity_id("xyz2", m_db.get_system_entity_id)
         //noinspection OptionEqualsSome
-        assert(m_db.getUserPreference_EntityId("xyz2", Some(0L)) == Some(m_db.get_system_entity_id))
+        assert(m_db.get_user_preference_entity_id("xyz2", Some(0L)) == Some(m_db.get_system_entity_id))
                  */
     }
 

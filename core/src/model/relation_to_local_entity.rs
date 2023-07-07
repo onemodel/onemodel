@@ -16,7 +16,7 @@ pub struct RelationToLocalEntity {
       /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
         */
         fn getRelationToLocalEntity(db_in: Database, id: i64) -> Option[RelationToLocalEntity] {
-        let result: Array[Option[Any]] = db_in.getRelationToLocalEntityDataById(id);
+        let result: Vec<Option<DataType>> = db_in.get_relation_to_local_entity_data_by_id(id);
         let rel_type_id = result(0).get.asInstanceOf[i64];
         let eid1 = result(1).get.asInstanceOf[i64];
         let eid2 = result(2).get.asInstanceOf[i64];
@@ -44,7 +44,7 @@ pub struct RelationToLocalEntity {
       // Even a RelationToRemoteEntity can have m_db.is_remote == true, if it is viewing data *in* a remote OM instance
       // looking at RTLEs that are remote to that remote instance.
       // See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.
-      if m_db.is_remote || m_db.relationToLocalEntityKeysExistAndMatch(m_id, mRelTypeId, mEntityId1, mEntityId2)) {
+      if m_db.is_remote || m_db.relation_to_local_entity_keys_exist_and_match(m_id, mRelTypeId, mEntityId1, mEntityId2)) {
         // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:;
         m_attr_type_id = mRelTypeId
       } else {
@@ -57,9 +57,9 @@ pub struct RelationToLocalEntity {
        * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
        * one that already exists.
        */
-        fn this(m_db: Database, id_in: i64, rel_type_idIn: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+        fn this(m_db: Database, id_in: i64, rel_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
                sorting_index_in: i64) {
-        this(m_db, id_in, rel_type_idIn, entity_id1_in, entity_id2_in)
+        this(m_db, id_in, rel_type_id_in, entity_id1_in, entity_id2_in)
         //    if this.isInstanceOf[RelationToRemoteEntity]) {
         //      //idea: this test & exception feel awkward. What is the better approach?  Maybe using scala's type features?
         //      throw new OmException("This constructor should not be called by the subclass.")
@@ -67,7 +67,7 @@ pub struct RelationToLocalEntity {
 
         // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
         // the class hierarchy which wants it. Improve...?)
-        assignCommonVars(entity_id1_in, rel_type_idIn, valid_on_date_in, observation_date_in, sorting_index_in)
+        assignCommonVars(entity_id1_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
       }
 
         fn getRemoteDescription() -> String {
@@ -80,7 +80,7 @@ pub struct RelationToLocalEntity {
       }
 
       protected fn read_data_from_db() {
-        let relationData: Array[Option[Any]] = m_db.getRelationToLocalEntityData(m_attr_type_id, mEntityId1, mEntityId2);
+        let relationData: Vec<Option<DataType>> = m_db.get_relation_to_local_entity_data(m_attr_type_id, mEntityId1, mEntityId2);
         if relationData.length == 0) {
           throw new OmException("No results returned from data request for: " + m_attr_type_id + ", " + mEntityId1 + ", " + mEntityId2)
         }
@@ -93,11 +93,11 @@ pub struct RelationToLocalEntity {
       }
 
         fn move(toLocalContainingEntityIdIn: i64, sorting_index_in: i64) -> RelationToLocalEntity {
-        m_db.moveRelationToLocalEntityToLocalEntity(get_id, toLocalContainingEntityIdIn, sorting_index_in)
+        m_db.move_relation_to_local_entity_to_local_entity(get_id, toLocalContainingEntityIdIn, sorting_index_in)
       }
 
-        fn moveEntityFromEntityToGroup(targetGroupIdIn: i64, sorting_index_in: i64) {
-        m_db.moveLocalEntityFromLocalEntityToGroup(this, targetGroupIdIn, sorting_index_in)
+        fn moveEntityFromEntityToGroup(target_group_id_in: i64, sorting_index_in: i64) {
+        m_db.move_local_entity_from_local_entity_to_group(this, target_group_id_in, sorting_index_in)
       }
 
         fn update(valid_on_date_in:Option<i64>, observation_date_in:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
@@ -107,7 +107,7 @@ pub struct RelationToLocalEntity {
         // & how to be most clear (could be the same in RelationToGroup & other Attribute subclasses).)
         let vod = if valid_on_date_in.is_some()) valid_on_date_in else get_valid_on_date();
         let od = if observation_date_in.is_some()) observation_date_in.get else get_observation_date();
-        m_db.updateRelationToLocalEntity(m_attr_type_id, mEntityId1, mEntityId2, newAttrTypeId, vod, od)
+        m_db.update_relation_to_local_entity(m_attr_type_id, mEntityId1, mEntityId2, newAttrTypeId, vod, od)
         valid_on_date = vod
         observation_date = od
         m_attr_type_id = newAttrTypeId
@@ -115,7 +115,7 @@ pub struct RelationToLocalEntity {
 
       /** Removes this object from the system. */
         fn delete() {
-        m_db.deleteRelationToLocalEntity(get_attr_type_id(), mEntityId1, mEntityId2)
+        m_db.delete_relation_to_local_entity(get_attr_type_id(), mEntityId1, mEntityId2)
         }
 
     */

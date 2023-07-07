@@ -19,7 +19,7 @@ import org.onemodel.core.{OmException, Util}
   *
 class DateAttribute(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.dateAttributeKeyExists(m_id)) {
+  if !m_db.is_remote && !m_db.date_attribute_key_exists(m_id)) {
     throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
   }
 
@@ -48,7 +48,7 @@ class DateAttribute(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
   }
 
   protected fn read_data_from_db() {
-    let daTypeData = m_db.getDateAttributeData(m_id);
+    let daTypeData = m_db.get_date_attribute_data(m_id);
     if daTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + m_id)
     }
@@ -59,18 +59,18 @@ class DateAttribute(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
     fn update(inAttrTypeId: i64, inDate: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    m_db.updateDateAttribute(m_id, get_parent_id(), inDate, inAttrTypeId)
+    m_db.update_date_attribute(m_id, get_parent_id(), inDate, inAttrTypeId)
     mDate = inDate
     m_attr_type_id = inAttrTypeId
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    m_db.deleteDateAttribute(m_id)
+    m_db.delete_date_attribute(m_id)
     }
 
   /** For descriptions of the meanings of these variables, see the comments
-    with createDateAttribute(...) or create_tables() in PostgreSQLDatabase or Database classes
+    with create_date_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes
     */
     private let mut mDate: i64 = 0L;
  */

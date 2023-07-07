@@ -103,13 +103,13 @@ struct OtherEntityMenu {
               otherEntityMenu(entity_in, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn, containingGroupIn,
                               attributeTuplesIn)
             } else if answer == 3) {
-              let templateEntity: Option<Entity> =;
+              let template_entity: Option<Entity> =;
                 if entity_in.getClassTemplateEntityId.isEmpty) {
                   None
                 } else {
                   Some(new Entity(entity_in.m_db, entity_in.getClassTemplateEntityId.get))
                 }
-              let templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(templateEntity, attributeTuplesIn);
+              let templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(template_entity, attributeTuplesIn);
               let editAnswer = ui.ask_which(Some(Vec<String>{Util.entity_menu_leading_text(entity_in)}),;
                                            Array("Edit entity name",
                                                  "Change its class",
@@ -152,10 +152,10 @@ struct OtherEntityMenu {
                   delete_entity(entity_in)
                 } else if delAnswer == 2) {
                   if !entity_in.is_archived) {
-                    archiveEntity(entity_in)
+                    archive_entity(entity_in)
                   } else {
                     // ** IF THIS menu OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in Controller.get_default_entity. **
-                    unarchiveEntity(entity_in)
+                    unarchive_entity(entity_in)
                   }
                 } else if delAnswer == delEntityLink_choiceNumber && containingRelationToEntityIn.is_defined && delAnswer <= choices.length) {
                   let ans = ui.ask_yes_no_question("DELETE the relation: ARE YOU SURE?", Some(""));
@@ -176,15 +176,15 @@ struct OtherEntityMenu {
                 }
               }
             } else if answer == 5) {
-              let templateEntityId: Option<i64> = entity_in.getClassTemplateEntityId;
-              goToRelatedPlaces(entity_in, relationSourceEntityIn, containingRelationToEntityIn, templateEntityId)
+              let template_entity_id: Option<i64> = entity_in.getClassTemplateEntityId;
+              goToRelatedPlaces(entity_in, relationSourceEntityIn, containingRelationToEntityIn, template_entity_id)
               //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
               if entity_in.m_db.entity_key_exists(entity_in.get_id, include_archived = false)) {
                 new EntityMenu(ui, controller).entityMenu(entity_in, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
               }
             } else if answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault && !entity_in.m_db.is_remote) {
               // updates user preferences such that this obj will be the one displayed by default in future.
-              entity_in.m_db.setUserPreference_EntityId(Util.DEFAULT_ENTITY_PREFERENCE, entity_in.get_id)
+              entity_in.m_db.set_user_preference_entity_id(Util.DEFAULT_ENTITY_PREFERENCE, entity_in.get_id)
               controller.refreshDefaultDisplayEntityId()
             } else {
               ui.display_text("invalid response")
@@ -205,9 +205,9 @@ struct OtherEntityMenu {
 
         fn removeEntityReferenceFromGroup_Menu(entity_in: Entity, containingGroupIn: Option[Group]) -> bool {
         let groupCount: i64 = entity_in.getCountOfContainingGroups;
-        let (entityCountNonArchived, entityCountArchived) = entity_in.getCountOfContainingLocalEntities;
+        let (entity_countNonArchived, entity_countArchived) = entity_in.getCountOfContainingLocalEntities;
         let ans = ui.ask_yes_no_question("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion: the entity can still be found by searching, and " +;
-                                      "is " + Util.get_containing_entities_description(entityCountNonArchived, entityCountArchived) +
+                                      "is " + Util.get_containing_entities_description(entity_countNonArchived, entity_countArchived) +
                                       (if groupCount > 1) ", and will still be in " + (groupCount - 1) + " group(s).)" else ""),
                                       Some(""))
         if ans.is_defined && ans.get) {
@@ -251,7 +251,7 @@ struct OtherEntityMenu {
 
       * @return whether entity was archived.
         *
-        fn archiveEntity(entity_in: Entity) -> bool {
+        fn archive_entity(entity_in: Entity) -> bool {
         let name = entity_in.get_name;
         let groupCount: i64 = entity_in.getCountOfContainingGroups;
         let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entity_in);
@@ -273,7 +273,7 @@ struct OtherEntityMenu {
 
       * @return whether entity was un-archived.
         *
-        fn unarchiveEntity(entity_in: Entity) -> bool {
+        fn unarchive_entity(entity_in: Entity) -> bool {
         let name = entity_in.get_name;
         let groupCount: i64 = entity_in.getCountOfContainingGroups;
         let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entity_in);
@@ -300,7 +300,7 @@ struct OtherEntityMenu {
           let limit = 10;
           let delimiter = ", ";
           // (BUG: see comments in psql.java re "OTHER ENTITY NOTED IN A DELETION BUG")
-          let descrArray = entity_in.getContainingRelationToGroupDescriptions(Some(limit));
+          let descrArray = entity_in.get_containing_relation_to_group_descriptions(Some(limit));
           let mut descriptions = "";
           let mut counter = 0;
           for (s: String <- descrArray) {
@@ -318,9 +318,9 @@ struct OtherEntityMenu {
         // (Wrote "lines" plural, to clarify when this is presented with the "SINGLE LINE" copyright prompt below.)
         let prompt4 = ", and put the relevant lines of html (or nothing) in the value for that attribute.  Or just press Enter to skip through this each time.)";
 
-        let headerTypeIds: java.util.ArrayList[i64] = entity_in.m_db.findAllEntityIdsByName(Util.HEADER_CONTENT_TAG, caseSensitive = true);
-        let bodyContentTypeIds: java.util.ArrayList[i64] = entity_in.m_db.findAllEntityIdsByName(Util.BODY_CONTENT_TAG, caseSensitive = true);
-        let footerTypeIds: java.util.ArrayList[i64] = entity_in.m_db.findAllEntityIdsByName(Util.FOOTER_CONTENT_TAG, caseSensitive = true);
+        let headerTypeIds: java.util.ArrayList[i64] = entity_in.m_db.find_all_entity_ids_by_name(Util.HEADER_CONTENT_TAG, case_sensitive = true);
+        let bodyContentTypeIds: java.util.ArrayList[i64] = entity_in.m_db.find_all_entity_ids_by_name(Util.BODY_CONTENT_TAG, case_sensitive = true);
+        let footerTypeIds: java.util.ArrayList[i64] = entity_in.m_db.find_all_entity_ids_by_name(Util.FOOTER_CONTENT_TAG, case_sensitive = true);
         if (headerTypeIds.size > 1) || (bodyContentTypeIds.size > 1) || (footerTypeIds.size > 1)) {
           throw new OmException("Expected at most one entity (as typeId) each, with the names " + Util.HEADER_CONTENT_TAG + ", " +
                                 Util.BODY_CONTENT_TAG + ", or " + Util.FOOTER_CONTENT_TAG + ", but found respectively " +
@@ -330,12 +330,12 @@ struct OtherEntityMenu {
 
         }
 
-        fn getAttrText(entity_in: Entity, typeIdIn: i64) -> Option<String> {
-          let attrs: java.util.ArrayList[TextAttribute] = entity_in.getTextAttributeByTypeId(typeIdIn);
+        fn getAttrText(entity_in: Entity, type_id_in: i64) -> Option<String> {
+          let attrs: java.util.ArrayList[TextAttribute] = entity_in.get_text_attribute_by_type_id(type_id_in);
           if attrs.size == 0) None
           else if attrs.size > 1) throw new OmException("The program doesn't know what to do with > 1 text_attributes with this type on the same " +
-                                                           "entity, for entity " + entity_in.get_id + ", and typeId " + typeIdIn)
-          else Some(attrs.get(0).getText)
+                                                           "entity, for entity " + entity_in.get_id + ", and typeId " + type_id_in)
+          else Some(attrs.get(0).get_text)
         }
 
         // (Idea: combine the next 3 let definitions' code into one method with the "else" part as a parameter, but it should still be clear to most beginner;
@@ -399,7 +399,7 @@ struct OtherEntityMenu {
        * @param relationIn  (See comment on "@param relationIn" on method askWhetherDeleteOrArchiveEtc. )
        *
         fn goToRelatedPlaces(entity_in: Entity, relationSourceEntityIn: Option<Entity> = None,
-                            relationIn: Option[AttributeWithValidAndObservedDates] = None, templateEntityId: Option<i64>) {
+                            relationIn: Option[AttributeWithValidAndObservedDates] = None, template_entity_id: Option<i64>) {
         //idea: make this and similar locations share code? What other places could?? There is plenty of duplicated code here!
         require(relationIn.isEmpty || relationIn.get.isInstanceOf[RelationToLocalEntity] || relationIn.get.isInstanceOf[RelationToRemoteEntity])
         let leading_text = Some(Array("Go to..."));
@@ -411,21 +411,21 @@ struct OtherEntityMenu {
         let mut goToTemplateEntity_choiceNumber: i32 = 3;
         let mut goToClass_choiceNumber: i32 = 4;
         let numContainingEntities: i64 = {;
-          let (nonArchived, archived) = entity_in.getCountOfContainingLocalEntities;
-          if entity_in.m_db.include_archived_entities)  nonArchived + archived
-          else nonArchived
+          let (non_archived, archived) = entity_in.getCountOfContainingLocalEntities;
+          if entity_in.m_db.include_archived_entities)  non_archived + archived
+          else non_archived
         }
         // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
         let numContainingGroups = entity_in.getCountOfContainingGroups;
         let mut containingGroup: Option[Group] = None;
         let mut containingRtg: Option[RelationToGroup] = None;
         if numContainingGroups == 1) {
-          let containingGroupsIds: java.util.ArrayList[i64] = entity_in.getContainingGroupsIds;
+          let containingGroupsIds: java.util.ArrayList[i64] = entity_in.get_containing_groups_ids;
           // (Next line is just confirming the consistency of logic that got us here: see 'if' just above.)
           require(containingGroupsIds.size == 1)
           containingGroup = Some(new Group(entity_in.m_db, containingGroupsIds.get(0)))
 
-          let containingRtgList: util.ArrayList[RelationToGroup] = entity_in.getContainingRelationsToGroup(0, Some(1));
+          let containingRtgList: util.ArrayList[RelationToGroup] = entity_in.get_containing_relations_to_group(0, Some(1));
           if containingRtgList.size < 1) {
             ui.display_text("There is a group containing the entity (" + entity_in.get_name + "), but:  " + Util.ORPHANED_GROUP_MESSAGE)
           } else {
@@ -447,7 +447,7 @@ struct OtherEntityMenu {
           goToTemplateEntity_choiceNumber += 2
           goToClass_choiceNumber += 2
         }
-        if templateEntityId.is_defined) {
+        if template_entity_id.is_defined) {
           choices = choices ++ Vec<String>("Go to template entity")
           choices = choices ++ Vec<String>("Go to class")
         }
@@ -462,7 +462,7 @@ struct OtherEntityMenu {
             let choices: Vec<String> = Array(Util.LIST_NEXT_ITEMS_PROMPT);
             let numDisplayableItems: i64 = ui.maxColumnarChoicesToDisplayAfter(leading_text.size, choices.length, Util.maxNameLength);
             // This is partly set up so it could handle multiple screensful, but would need to be broken into a recursive method that
-            // can specify dif't values on each call, for the startingIndexIn parm of getRelatingEntities.  I.e., could make it look more like
+            // can specify dif't values on each call, for the starting_index_in parm of getRelatingEntities.  I.e., could make it look more like
             // searchForExistingObject or such ? IF needed.  But to be needed means the user is putting the same object related by multiple
             // entities: enough to fill > 1 screen when listed.
             let containingEntities: util.ArrayList[(i64, Entity)] = entity_in.getLocalEntitiesContainingEntity(0, Some(numDisplayableItems));
@@ -503,9 +503,9 @@ struct OtherEntityMenu {
               // This "if" exists only to get things to compile while limiting visibility of "RelationToEntity" (per comments in that class).
               //noinspection TypeCheckCanBeMatch
               if relationIn.get.isInstanceOf[RelationToLocalEntity]) {
-                relationIn.get.asInstanceOf[RelationToLocalEntity].update(dhInOut.valid_on_date, Some(dhInOut.observationDate), Some(dhInOut.attrTypeId))
+                relationIn.get.asInstanceOf[RelationToLocalEntity].update(dhInOut.valid_on_date, Some(dhInOut.observation_date), Some(dhInOut.attr_type_id))
               } else if relationIn.get.isInstanceOf[RelationToRemoteEntity]) {
-                relationIn.get.asInstanceOf[RelationToRemoteEntity].update(dhInOut.valid_on_date, Some(dhInOut.observationDate), Some(dhInOut.attrTypeId))
+                relationIn.get.asInstanceOf[RelationToRemoteEntity].update(dhInOut.valid_on_date, Some(dhInOut.observation_date), Some(dhInOut.attr_type_id))
               } else {
                 throw new OmException("unexpected type: " + relationIn.getClass.getCanonicalName)
               }
@@ -533,9 +533,9 @@ struct OtherEntityMenu {
             //                                             relationIn.get.getRelatedId2))
           } else if goWhereAnswer == goToRelationType_choiceNumber && relationIn.is_defined && goWhereAnswer <= choices.length) {
             new EntityMenu(ui, controller).entityMenu(new Entity(relationIn.get.m_db, relationIn.get.get_attr_type_id()))
-          } else if goWhereAnswer == goToTemplateEntity_choiceNumber && templateEntityId.is_defined && goWhereAnswer <= choices.length) {
-            new EntityMenu(ui, controller).entityMenu(new Entity(entity_in.m_db, templateEntityId.get))
-          } else if goWhereAnswer == goToClass_choiceNumber && templateEntityId.is_defined && goWhereAnswer <= choices.length) {
+          } else if goWhereAnswer == goToTemplateEntity_choiceNumber && template_entity_id.is_defined && goWhereAnswer <= choices.length) {
+            new EntityMenu(ui, controller).entityMenu(new Entity(entity_in.m_db, template_entity_id.get))
+          } else if goWhereAnswer == goToClass_choiceNumber && template_entity_id.is_defined && goWhereAnswer <= choices.length) {
             let classId: Option<i64> = entity_in.getClassId;
             if classId.isEmpty) {
               throw new OmException("Unexpectedly, this entity doesn't seem to have a class id.  That is probably a bug.")
@@ -554,7 +554,7 @@ struct OtherEntityMenu {
         let choices: Vec<String> = Array(Util.LIST_NEXT_ITEMS_PROMPT);
         let numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leading_text.size, choices.length, Util.maxNameLength);
         // (see comment in similar location just above where this is called, near "val containingEntities: util.ArrayList"...)
-        let containingRelationToGroups: util.ArrayList[RelationToGroup] = entity_in.getContainingRelationsToGroup(0, Some(numDisplayableItems));
+        let containingRelationToGroups: util.ArrayList[RelationToGroup] = entity_in.get_containing_relations_to_group(0, Some(numDisplayableItems));
         let containingRtgDescriptions: Vec<String> = containingRelationToGroups.toArray.map {;
                                                                                                 case rtg: (RelationToGroup) =>
                                                                                                   let entityName: String = new Entity(rtg.m_db,;
@@ -579,7 +579,7 @@ struct OtherEntityMenu {
             // This displays (or allows to choose) the entity that contains the group, rather than the chosen group itself.  Probably did it that way originally
             // because I thought it made more sense to show a group in context than by itself.
             let containingRelationToGroup = containingRelationToGroups.get(index);
-            let containingEntities = containingRelationToGroup.m_db.getEntitiesContainingGroup(containingRelationToGroup.getGroupId, 0);
+            let containingEntities = containingRelationToGroup.m_db.get_entities_containing_group(containingRelationToGroup.getGroupId, 0);
             let numContainingEntities = containingEntities.size;
             if numContainingEntities == 1) {
               let containingEntity: Entity = containingEntities.get(0)._2;
@@ -616,7 +616,7 @@ struct OtherEntityMenu {
         require(relationIn.isEmpty || relationIn.get.isInstanceOf[RelationToLocalEntity] || relationIn.get.isInstanceOf[RelationToRemoteEntity])
 
         let groupCount: i64 = entity_in.getCountOfContainingGroups;
-        let (entityCountNonArchived, entityCountArchived) = entity_in.getCountOfContainingLocalEntities;
+        let (entity_countNonArchived, entity_countArchived) = entity_in.getCountOfContainingLocalEntities;
         let relToGroupCnt = entity_in.get_relation_to_group_count;
         let relToLocalEntityCnt = entity_in.get_relation_to_local_entity_count(true);
         let relToLocalEntityCntNotArchived = entity_in.get_relation_to_local_entity_count(false);
@@ -626,8 +626,8 @@ struct OtherEntityMenu {
         let adjNumOfAttributes = (totalNumOfAttributes - relToGroupCnt) - relToLocalEntityCnt;
         //(Idea: the next line/block could use thorough tests, incl of the "remote" part)
         let leading_text = Some(Array(("Choose a deletion or archiving option:  " + Util.NEWLN +;
-          (if entityCountNonArchived != 0 || entityCountArchived != 0) {
-            "  The entity is " + Util.get_containing_entities_description(entityCountNonArchived, entityCountArchived) + "." + Util.NEWLN
+          (if entity_countNonArchived != 0 || entity_countArchived != 0) {
+            "  The entity is " + Util.get_containing_entities_description(entity_countNonArchived, entity_countArchived) + "." + Util.NEWLN
           } else "")
           +
           (if groupCount != 0) {

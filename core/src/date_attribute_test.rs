@@ -24,7 +24,7 @@ class DateAttributeTest extends FlatSpec with MockitoSugar {
     let date = 304;
     let attrTypeName = "aDateTypeName";
     when(mockDB.get_entity_name(otherEntityId)).thenReturn(Some(attrTypeName))
-    when(mockDB.dateAttributeKeyExists(dateAttributeId)).thenReturn(true)
+    when(mockDB.date_attribute_key_exists(dateAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
     let dateAttribute = new DateAttribute(mockDB, dateAttributeId, entityId, otherEntityId, date, 0);

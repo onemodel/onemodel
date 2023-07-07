@@ -32,7 +32,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     * therefore the attribute already in that position, and the  one added at that position are different.
     *
   protected fn placeEntryInPosition(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64,
-                                     numRowsToMoveIfThereAreThatManyIn: Int, forwardNotBackIn: bool,
+                                     numRowsToMoveIfThereAreThatManyIn: Int, forward_not_back_in: bool,
                                      starting_display_row_index_in: Int, movingObjIdIn: i64, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option<i64>,
                                      numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]) -> Int {
 
@@ -51,7 +51,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     }
 
     let (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option<i64>, farNewNeighborSortingIndex: Option<i64>) =;
-      findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex)
+      findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forward_not_back_in, movingFromPosition_sortingIndex)
 
     let mut displayStartingRowNumber = starting_display_row_index_in;
 
@@ -61,12 +61,12 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       let (newSortingIndex: i64, trouble: bool) = {;
         let mut (newSortingIndex: i64, trouble: bool, newStartingRowNum: Int) = {;
           getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In, starting_display_row_index_in,
-                             nearNewNeighborSortingIndex, farNewNeighborSortingIndex, forwardNotBackIn,
+                             nearNewNeighborSortingIndex, farNewNeighborSortingIndex, forward_not_back_in,
                              byHowManyEntriesActuallyMoving, movingFromPosition_sortingIndex, moveFromIndexInObjListIn, numDisplayLinesIn)
         }
         displayStartingRowNumber = newStartingRowNum
         if trouble) {
-          renumberSortingIndexes(dbIn, containingObjectIdIn)
+          renumber_sorting_indexes(dbIn, containingObjectIdIn)
 
           // Get the sortingIndex of the entry right before the one being placed, increment (since just renumbered; or not?), then use that as the "old
           // position" moving from.  (Getting a new value because the old movingFromPosition_sortingIndex value is now invalid, since we just renumbered above.)
@@ -79,11 +79,11 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
             }
           }
           let (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option<i64>, farNewNeighborSortingIndex2: Option<i64>) =;
-            findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forwardNotBackIn, movingFromPosition_sortingIndex2)
+            findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forward_not_back_in, movingFromPosition_sortingIndex2)
           // (for some reason, can't reassign the results directly to the vars like this "(newSortingIndex, trouble, newStartingRowNum) = ..."?
           let (a: i64, b: bool, c: Int) = getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,;
                                                                  starting_display_row_index_in, nearNewNeighborSortingIndex2,
-                                                                 farNewNeighborSortingIndex2, forwardNotBackIn,
+                                                                 farNewNeighborSortingIndex2, forward_not_back_in,
                                                                  byHowManyEntriesMoving2, movingFromPosition_sortingIndex2, moveFromIndexInObjListIn,
                                                                  numDisplayLinesIn)
           newSortingIndex = a
@@ -208,7 +208,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
   /** The dbIn should represent the *same* database as where groupOrEntityIdIn is stored!  (See details in comments at similar location
     * about containingObjectIdIn.)
     */
-  protected fn findNewNeighbors(dbIn: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forwardNotBackIn: bool,
+  protected fn findNewNeighbors(dbIn: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forward_not_back_in: bool,
                                  movingFromPosition_sortingIndex: i64) -> (Int, Option<i64>, Option<i64>) {
 
     // (idea: this could probably be made more efficient by combining the 2nd part of the (fixed) algorithm (the call to m_db.getNearestEntry)
@@ -218,8 +218,8 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     // get enough data to represent the new location in the sort order: movingDistanceIn entries away, and one beyond, and place this entity between them:
     let queryLimit = movingDistanceIn + 1;
 
-    let results: Array[Array[Option[Any]]] = getAdjacentEntriesSortingIndexes(dbIn, groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),;
-                                                                     forwardNotBackIn = forwardNotBackIn).toArray
+    let results: Array[Vec<Option<DataType>>] = getAdjacentEntriesSortingIndexes(dbIn, groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),;
+                                                                     forward_not_back_in = forward_not_back_in).toArray
     require(results.length <= queryLimit)
     // (get the last result's sortingIndex, if possible; 0-based of course; i.e., that of the first entry beyond where we're moving to):
     let farNewNeighborSortingIndex: Option<i64> =;
@@ -230,7 +230,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
         // It could be a new entry trying to be moved to the a first or last position, or a mistake with the current entity. Both seem OK if we
         // just say we need to move from a slightly incremented/decremented position.  Maybe the increment/decrement isn't even needed, but harmless & cheap.
         let newNearIndex = {;
-          if forwardNotBackIn) movingFromPosition_sortingIndex + 1
+          if forward_not_back_in) movingFromPosition_sortingIndex + 1
           else movingFromPosition_sortingIndex - 1
         }
         (Some(newNearIndex), 1)
@@ -259,18 +259,18 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       if nearNewNeighborSortingIndex.isEmpty || farNewNeighborSortingIndex.isEmpty)
         None
       else
-        getSortingIndexOfNearestEntry(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forwardNotBackIn = forwardNotBackIn)
+        getSortingIndexOfNearestEntry(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forward_not_back_in = forward_not_back_in)
     }
 
     (byHowManyEntriesMoving, nearNewNeighborSortingIndex, adjustedFarNewNeighborSortingIndex)
   }
 
   protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
-                                                 forwardNotBackIn: bool) -> List[Array[Option[Any]]]
+                                                 forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>>
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: i64, startingPointSortingIndexIn: i64, forwardNotBackIn: bool) -> Option<i64>
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64>
 
-  protected fn renumberSortingIndexes(dbIn: Database, containingObjectIdIn: i64)
+  protected fn renumber_sorting_indexes(dbIn: Database, containingObjectIdIn: i64)
 
   protected fn updateSortedEntry(dbIn: Database, containingObjectIdIn: i64, movingObjsAttributeFormIdIn: Int, movingObjIdIn: i64, sortingIndexIn: i64)
 

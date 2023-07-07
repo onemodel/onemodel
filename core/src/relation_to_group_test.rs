@@ -52,13 +52,13 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     // arbitrary, in milliseconds:
     let date = 304;
     let relationTypeName: String = Database.THE_HAS_RELATION_TYPE_NAME;
-    when(mockDB.groupKeyExists(groupId)).thenReturn(true)
-    when(mockDB.relationTypeKeyExists(rel_type_id)).thenReturn(true)
+    when(mockDB.group_key_exists(groupId)).thenReturn(true)
+    when(mockDB.relation_type_key_exists(rel_type_id)).thenReturn(true)
     when(mockDB.entity_key_exists(rel_type_id)).thenReturn(true)
-    when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, rel_type_id, groupId)).thenReturn(true)
-    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true), Some(false)))
+    when(mockDB.relation_to_group_keys_exist_and_match(rtgId, entityId, rel_type_id, groupId)).thenReturn(true)
+    when(mockDB.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(true), Some(false)))
     when(mockDB.getGroupSize(groupId, 1)).thenReturn(grpEntryCount)
-    when(mockDB.getRelationTypeData(rel_type_id)).thenReturn(Array[Option[Any]](Some(relationTypeName), Some(Database.THE_IS_HAD_BY_REVERSE_NAME), Some("xyz..")))
+    when(mockDB.get_relation_type_data(rel_type_id)).thenReturn(Vec<Option<DataType>>(Some(relationTypeName), Some(Database.THE_IS_HAD_BY_REVERSE_NAME), Some("xyz..")))
     when(mockDB.get_remote_address).thenReturn(None)
 
     // (using arbitrary numbers for the unnamed parameters):
@@ -75,7 +75,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     //  assert(all == wholeThing)
 
     let relationToGroup2 = new RelationToGroup(mockDB, rtgId, entityId, rel_type_id, groupId, None, date, 0);
-    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(false), Some(false)))
+    when(mockDB.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(false), Some(false)))
     let all2: String = relationToGroup2.get_display_string(0, None);
     assert(!all2.contains("(mixed)"))
     assert(all2.contains(", class: (unspecified)"))
@@ -84,7 +84,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
     let list = new Vec<Entity>(1);
     list.add(new Entity(mockDB, classTemplateEntityId, "asdf", None, 0L, None, false, false))
-    when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(list)
+    when(mockDB.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list)
     when(mockDB.getGroupSize(groupId, 3)).thenReturn(list.size)
     let all3: String = relationToGroup3.get_display_string(0, None);
     assert(!all3.contains("(mixed)"))
@@ -94,10 +94,10 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let list4 = new Vec<Entity>(1);
     list4.add(new Entity(mockDB, classTemplateEntityId, "asdf", Some(classId), 0L, Some(true), false, false))
     when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
-    when(mockDB.classKeyExists(classId)).thenReturn(true)
-    when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(list4)
+    when(mockDB.class_key_exists(classId)).thenReturn(true)
+    when(mockDB.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list4)
     let className = "someClassName";
-    when(mockDB.getClassData(classId)).thenReturn(Array[Option[Any]](Some(className), Some(classTemplateEntityId), Some(true)))
+    when(mockDB.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(classTemplateEntityId), Some(true)))
     let all4: String = relationToGroup4.get_display_string(0, None);
     assert(!all4.contains("(mixed)"))
     assert(all4.contains(", class: " + className))
@@ -114,19 +114,19 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let classId: i64 = 501;
     let className = "someclassname";
     let grpName: String = "somename";
-    when(mockDB.relationTypeKeyExists(rel_type_id)).thenReturn(true)
+    when(mockDB.relation_type_key_exists(rel_type_id)).thenReturn(true)
     when(mockDB.entity_key_exists(rel_type_id)).thenReturn(true)
-    when(mockDB.relationToGroupKeysExistAndMatch(rtgId, entityId, rel_type_id, groupId)).thenReturn(true)
-    when(mockDB.groupKeyExists(groupId)).thenReturn(true)
+    when(mockDB.relation_to_group_keys_exist_and_match(rtgId, entityId, rel_type_id, groupId)).thenReturn(true)
+    when(mockDB.group_key_exists(groupId)).thenReturn(true)
 
     let group = new Group(mockDB, groupId);
-    when(mockDB.groupKeyExists(groupId)).thenReturn(true)
+    when(mockDB.group_key_exists(groupId)).thenReturn(true)
     when(mockDB.entity_key_exists(entityId)).thenReturn(true)
     when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
-    when(mockDB.classKeyExists(classId)).thenReturn(true)
-    when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(new Vec<Entity>(0))
-    when(mockDB.getClassData(classId)).thenReturn(Array[Option[Any]](Some(className), Some(classTemplateEntityId), Some(true)))
-    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(false), Some(false)))
+    when(mockDB.class_key_exists(classId)).thenReturn(true)
+    when(mockDB.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(new Vec<Entity>(0))
+    when(mockDB.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(classTemplateEntityId), Some(true)))
+    when(mockDB.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(false), Some(false)))
     when(mockDB.get_remote_address).thenReturn(None)
     // should be None because it is not yet specified (no entities added):
     assert(group.getClassTemplateEntity.isEmpty)
@@ -134,21 +134,21 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let list = new Vec<Entity>(1);
     let entity = new Entity(mockDB, entityId, "testEntityName", Some(classId), 0L, Some(false), false, false);
     list.add(entity)
-    when(mockDB.getGroupEntryObjects(groupId, 0, Some(1))).thenReturn(list)
+    when(mockDB.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list)
     // should be != None because mixed classes are NOT allowed in the group and an entity was added:
     assert(group.getClassTemplateEntity.get.get_id == classTemplateEntityId)
 
     //relationToGroup = new RelationToGroup(mockDB, entityId, rel_type_id, groupId, None, date)
     // should be None when mixed classes are allowed in the group:
-    when(mockDB.getGroupData(groupId)).thenReturn(Array[Option[Any]](Some(grpName), Some(0L), Some(true), Some(false)))
+    when(mockDB.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(true), Some(false)))
     let group2 = new Group(mockDB, groupId);
     assert(group2.getClassTemplateEntity.isEmpty)
   }
 
   "move and update" should "work" in {
     let entity1 = new Entity(m_db, m_db.createEntity("entityName1"));
-    let (_, rtg: RelationToGroup) = entity1.create_groupAndAddHASRelationToIt("groupName", mixedClassesAllowedIn = false, 0);
-    let (attributeTuples1: Array[(i64, Attribute)], _) = entity1.getSortedAttributes(0, 0);
+    let (_, rtg: RelationToGroup) = entity1.create_groupAndAddHASRelationToIt("group_name", mixedClassesAllowedIn = false, 0);
+    let (attributeTuples1: Array[(i64, Attribute)], _) = entity1.get_sorted_attributes(0, 0);
     let rtg1 = attributeTuples1(0)._2.asInstanceOf[RelationToGroup];
     assert(rtg1.get_parent_id() == entity1.get_id)
     assert(rtg1.get_id == rtg.get_id)
@@ -158,9 +158,9 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let entity2 = new Entity(m_db, m_db.createEntity("entityName2"));
     rtg.move(entity2.get_id, 0)
 
-    let (attributeTuples1a: Array[(i64, Attribute)], _) = entity1.getSortedAttributes(0, 0);
+    let (attributeTuples1a: Array[(i64, Attribute)], _) = entity1.get_sorted_attributes(0, 0);
     assert(attributeTuples1a.length == 0)
-    let (attributeTuples2: Array[(i64, Attribute)], _) = entity2.getSortedAttributes(0, 0);
+    let (attributeTuples2: Array[(i64, Attribute)], _) = entity2.get_sorted_attributes(0, 0);
     let rtg2 = attributeTuples2(0)._2.asInstanceOf[RelationToGroup];
     let rtg2RelTypeId = rtg2.get_attr_type_id();
     let rtg2GroupId = rtg2.getGroupId;
