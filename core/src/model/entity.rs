@@ -7,9 +7,9 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use anyhow::{anyhow, Result};
 use crate::model::database::{DataType, Database};
 use crate::util::Util;
+use anyhow::{anyhow, Result};
 use sqlx::{Postgres, Transaction};
 
 pub struct Entity<'a> {
@@ -73,7 +73,11 @@ impl Entity<'_> {
     /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
     /// (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
     /// set... method to fix it.)
-    pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<Entity<'a>, anyhow::Error> {
+    pub fn new2<'a>(
+        db: Box<&'a dyn Database>,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        id: i64,
+    ) -> Result<Entity<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
         if !db.is_remote() && !db.entity_key_exists(transaction, id, true)? {
             return Err(anyhow!(format!("Key {}{}", id, Util::DOES_NOT_EXIST)));
@@ -117,7 +121,10 @@ impl Entity<'_> {
 
     */
     /// When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
-    pub fn get_name(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<&String, anyhow::Error> {
+    pub fn get_name(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<&String, anyhow::Error> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
@@ -213,7 +220,10 @@ impl Entity<'_> {
       }
     */
 
-    fn read_data_from_db(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<(), anyhow::Error> {
+    fn read_data_from_db(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<(), anyhow::Error> {
         let entity_data = self.m_db.get_entity_data(transaction, self.m_id)?;
         if entity_data.len() == 0 {
             return Err(anyhow!(format!(
@@ -226,7 +236,12 @@ impl Entity<'_> {
         // DataType::String(self.m_name) = entity_data[0];
         self.m_name = match &entity_data[0] {
             DataType::String(x) => x.clone(),
-            _ => return Err(anyhow!(format!("How did we get here for {:?}?", entity_data[0]))),
+            _ => {
+                return Err(anyhow!(format!(
+                    "How did we get here for {:?}?",
+                    entity_data[0]
+                )))
+            }
         };
 
         //%%$%FIXME TO USE: entity_data[1]; RELY ON TESTS that I find or uncomment in order, to
@@ -249,17 +264,32 @@ impl Entity<'_> {
         // DataType::Bigint(self.m_insertion_date) = entity_data[2];
         self.m_insertion_date = match entity_data[2] {
             DataType::Bigint(x) => x,
-            _ => return Err(anyhow!(format!("How did we get here for {:?}?", entity_data[2]))),
+            _ => {
+                return Err(anyhow!(format!(
+                    "How did we get here for {:?}?",
+                    entity_data[2]
+                )))
+            }
         };
         // DataType::Boolean(self.m_archived) = entity_data[4];
         self.m_archived = match entity_data[4] {
             DataType::Boolean(x) => x,
-            _ => return Err(anyhow!(format!("How did we get here for {:?}?", entity_data[4]))),
+            _ => {
+                return Err(anyhow!(format!(
+                    "How did we get here for {:?}?",
+                    entity_data[4]
+                )))
+            }
         };
         // DataType::Boolean(self.m_new_entries_stick_to_top) = entity_data[5];
         self.m_new_entries_stick_to_top = match entity_data[5] {
             DataType::Boolean(x) => x,
-            _ => return Err(anyhow!(format!("How did we get here for {:?}?", entity_data[5]))),
+            _ => {
+                return Err(anyhow!(format!(
+                    "How did we get here for {:?}?",
+                    entity_data[5]
+                )))
+            }
         };
         self.m_already_read_data = true;
         Ok(())

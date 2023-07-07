@@ -64,7 +64,11 @@ impl Controller {
             std::process::exit(1);
         });
         //
-        let show_public_private_status_preference: Option<bool> = db.get_user_preference_boolean(&None, Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE, None)?;
+        let show_public_private_status_preference: Option<bool> = db.get_user_preference_boolean(
+            &None,
+            Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE,
+            None,
+        )?;
         //%%$%temp values:
         // let show_public_private_status_preference: Option<bool> = Some(true);
         // let default_display_entity_id: Option<i64> = localDb.get_user_preference_entity_id(Util::DEFAULT_ENTITY_PREFERENCE);

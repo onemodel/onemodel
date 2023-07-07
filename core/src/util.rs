@@ -349,7 +349,10 @@ impl Util {
         entity_count_non_archived_in: i64,
         entity_count_archived_in: i64,
     ) -> String {
-        format!("contained in {} entities, and in {} archived entities", entity_count_non_archived_in, entity_count_archived_in)
+        format!(
+            "contained in {} entities, and in {} archived entities",
+            entity_count_non_archived_in, entity_count_archived_in
+        )
     }
 
     const PICK_FROM_LIST_PROMPT: &'static str = "Pick from menu, or an item by letter to select; Alt+<letter> to go to the item then come back here";

@@ -8,14 +8,14 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 // use anyhow::{anyhow};
+pub mod color;
 pub mod controllers;
 pub mod model;
-pub mod color;
 pub mod om_exception;
 pub mod text_ui;
 pub mod util;
-use std::env;
 use crate::controllers::controller::Controller;
+use std::env;
 // use crate::util::Util;
 use crate::text_ui::TextUI;
 
@@ -24,14 +24,14 @@ use crate::text_ui::TextUI;
 /// or a library and/or good REST api for such.
 fn main() -> Result<(), anyhow::Error> {
     /*%%$%%next tasks?:
-        do all util, db, pg, & their tests at once: style and compile and test.
-        MAKE TESTS for code be4 ckin! see them each fail then pass.
-        Debug/breakpoints...? ??? (esp in pg and util?)
-        make code compile that i have now?
-        fix more/warnings? formatting? (sep't ckin)
-        In OM,  using #[derive(Debug)] on a all? And fmt::Display (vs fmt::Debug) on all public types.
-        other %%$%s, %%s &c
-     */
+       do all util, db, pg, & their tests at once: style and compile and test.
+       MAKE TESTS for code be4 ckin! see them each fail then pass.
+       Debug/breakpoints...? ??? (esp in pg and util?)
+       make code compile that i have now?
+       fix more/warnings? formatting? (sep't ckin)
+       In OM,  using #[derive(Debug)] on a all? And fmt::Display (vs fmt::Debug) on all public types.
+       other %%$%s, %%s &c
+    */
     //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
 
     // According to the docs for the crate anyhow, and stack overflow, this is to get backtraces
@@ -53,15 +53,14 @@ fn main() -> Result<(), anyhow::Error> {
     // java, only user-provided arguments being included in args, so the length check then was
     // just 1 to set forceUsernamePasswordPrompt to true.)
     let force_user_pass_prompt: bool = if args.len() == 2 { true } else { false };
-    println!("args.len: {}", args.len());//%%
-    println!( //%%
+    println!("args.len: {}", args.len()); //%%
+    println!(
+        //%%
         "forceUsernamePasswordPrompt: {}",
         force_user_pass_prompt
     );
 
-    let ui = TextUI{
-        testing: false,
-    };
+    let ui = TextUI { testing: false };
 
     let controller = Controller::new_for_non_tests(
         ui,

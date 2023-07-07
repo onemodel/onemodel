@@ -7,10 +7,10 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use anyhow::{anyhow, Result};
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::util::Util;
+use anyhow::{anyhow, Result};
 // use sqlx::{PgPool, Postgres, Row, Transaction};
 use sqlx::{Postgres, Transaction};
 
@@ -29,7 +29,11 @@ pub struct BooleanAttribute<'a> {
 }
 
 impl BooleanAttribute<'_> {
-    pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<BooleanAttribute<'a>, anyhow::Error> {
+    pub fn new2<'a>(
+        db: Box<&'a dyn Database>,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        id: i64,
+    ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
         // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
         // wait for an error later to see if there is a problem (ie, assuming usually not).
         // idea: And today having doubts about that.
@@ -50,15 +54,23 @@ impl BooleanAttribute<'_> {
         }
     }
 
-    fn get_boolean(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<bool, anyhow::Error> {
+    fn get_boolean(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<bool, anyhow::Error> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
         Ok(self.m_boolean)
     }
 
-    fn read_data_from_db(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<(), anyhow::Error> {
-        let ba_type_data: Vec<DataType> = self.m_db.get_boolean_attribute_data(transaction, self.m_id)?;
+    fn read_data_from_db(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<(), anyhow::Error> {
+        let ba_type_data: Vec<DataType> = self
+            .m_db
+            .get_boolean_attribute_data(transaction, self.m_id)?;
         if ba_type_data.len() == 0 {
             return Err(anyhow!(format!(
                 "No results returned from data request for: {}",
@@ -68,7 +80,12 @@ impl BooleanAttribute<'_> {
         // DataType::Boolean(self.m_boolean) = ba_type_data[1];
         self.m_boolean = match ba_type_data[1] {
             DataType::Boolean(b) => b,
-            _ => return Err(anyhow!(format!("How did we get here for {:?}?", ba_type_data[1]))),
+            _ => {
+                return Err(anyhow!(format!(
+                    "How did we get here for {:?}?",
+                    ba_type_data[1]
+                )))
+            }
         };
 
         //%%$%%%%what do about making this into shared code? duplicate it or can work from the Trait/s?
@@ -80,12 +97,22 @@ impl BooleanAttribute<'_> {
         // DataType::Bigint(self.m_parent_id) = ba_type_data[0];
         self.m_parent_id = match ba_type_data[0] {
             DataType::Bigint(x) => x,
-            _ => return Err(anyhow!(format!("How did we get here for {:?}?", ba_type_data[0]))),
+            _ => {
+                return Err(anyhow!(format!(
+                    "How did we get here for {:?}?",
+                    ba_type_data[0]
+                )))
+            }
         };
         // DataType::Bigint(self.m_attr_type_id) = ba_type_data[2];
         self.m_attr_type_id = match ba_type_data[2] {
             DataType::Bigint(x) => x,
-            _ => return Err(anyhow!(format!("How did we get here for {:?}?", ba_type_data[2]))),
+            _ => {
+                return Err(anyhow!(format!(
+                    "How did we get here for {:?}?",
+                    ba_type_data[2]
+                )))
+            }
         };
 
         //%%$%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
@@ -100,17 +127,30 @@ impl BooleanAttribute<'_> {
         // DataType::Bigint(self.m_observation_date) = ba_type_data[4];
         self.m_observation_date = match ba_type_data[4] {
             DataType::Bigint(x) => x,
-            _ => return Err(anyhow!(format!("How did we get here for {:?}?", ba_type_data[4]))),
+            _ => {
+                return Err(anyhow!(format!(
+                    "How did we get here for {:?}?",
+                    ba_type_data[4]
+                )))
+            }
         };
         // DataType::Bigint(self.m_sorting_index) = ba_type_data[5];
         self.m_sorting_index = match ba_type_data[4] {
             DataType::Bigint(x) => x,
-            _ => return Err(anyhow!(format!("How did we get here for {:?}?", ba_type_data[5]))),
+            _ => {
+                return Err(anyhow!(format!(
+                    "How did we get here for {:?}?",
+                    ba_type_data[5]
+                )))
+            }
         };
         Ok(())
     }
 
-    pub fn get_parent_id(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, anyhow::Error> {
+    pub fn get_parent_id(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
@@ -121,19 +161,28 @@ impl BooleanAttribute<'_> {
         // regardless of m_already_read_data / read_data_from_db().
         self.m_id
     }
-    pub fn get_attr_type_id(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, anyhow::Error> {
+    pub fn get_attr_type_id(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
         Ok(self.m_attr_type_id)
     }
-    pub fn get_valid_on_date(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Option<i64>, anyhow::Error> {
+    pub fn get_valid_on_date(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<Option<i64>, anyhow::Error> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
         Ok(self.m_valid_on_date)
     }
-    pub fn get_observation_date(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, anyhow::Error> {
+    pub fn get_observation_date(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
         if !self.m_already_read_data {
             self.read_data_from_db(transaction)?;
         }
