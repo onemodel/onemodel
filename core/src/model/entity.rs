@@ -605,8 +605,8 @@ impl Entity<'_> {
       /**
        * @return the id of the new RTE
        */
-        fn add_HAS_relation_to_local_entity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
-        m_db.add_HAS_relation_to_local_entity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
+        fn add_has_relation_to_local_entity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
+        m_db.add_has_relation_to_local_entity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
       }
 
       /** Creates new entity then adds it a particular kind of rte to this entity.

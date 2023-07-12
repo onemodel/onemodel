@@ -1082,7 +1082,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                              valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: Option<i64>,
                                              caller_manages_transactions_in: bool): (i64, i64) = ???
 
-  override fn  add_HAS_relation_to_local_entity(from_entity_id_in: i64, to_entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+  override fn  add_has_relation_to_local_entity(from_entity_id_in: i64, to_entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
                                            sorting_index_in: Option<i64>): RelationToLocalEntity = ???
 
   override fn  update_relation_to_local_entity(old_relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, new_relation_type_id_in: i64,

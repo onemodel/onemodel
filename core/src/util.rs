@@ -25,6 +25,11 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 // use futures::stream_select;
 // use sqlx::PgPool;
 use std::string::ToString;
+//ordered by decreasing verbosity:
+// use tracing::{trace, debug, info, warn, error, Level};
+// for actual use now:
+use tracing::{debug};
+// use tracing_subscriber::FmtSubscriber;
 
 /// This is just a place to put shared code ("Utility") until a grouping for some, or a better idea emerges.  Using it also
 /// had (in Scala anyway) the benefit of making the Controller file smaller, so it is more quickly compiled (especially by the IDE).
@@ -38,6 +43,7 @@ enum DateType {
 
 // for explanation, see fn initialize_test_db() below
 static TEST_DB_INIT: std::sync::Once = std::sync::Once::new();
+static TEST_TRACING_INIT: std::sync::Once = std::sync::Once::new();
 // static mut TEST_DB: Option<PostgreSQLDatabase> = None;
 
 impl Util {
@@ -852,11 +858,11 @@ impl Util {
     //%%move to some *relation* struct like RelationType? same w/ others below? Or keep together for maintenance?
     //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) within this method, below!
     fn ask_for_name_in_reverse_direction(
-        directionality_in: String,
-        name_length_in: i32,
-        name_in: String,
-        previous_name_in_reverse_in: Option<&str>, /*%%= None*/
-        ui: &TextUI,
+        _directionality_in: String,
+        _name_length_in: i32,
+        _name_in: String,
+        _previous_name_in_reverse_in: Option<&str>, /*%%= None*/
+        _ui: &TextUI,
     ) -> String {
         // see create_tables (or UI prompts) for meanings of bi/uni/non...
         //   match directionality_in {
@@ -1055,7 +1061,7 @@ impl Util {
         }
     }
 
-    //%%shouldn't this be in the pg.rs file, and make its struct fields not pub? or cmt why isn't?
+    //%%shouldn't this be in the postgresql_database.rs file, and make its struct fields not pub? or cmt why it isn't?
     pub fn initialize_test_db() -> Result<PostgreSQLDatabase, &'static str> {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -1078,7 +1084,7 @@ impl Util {
             //   https://stackoverflow.com/questions/58006033/how-to-run-setup-code-before-any-tests-run-in-rust/58006287#58006287
 
             //%%log instead?
-            println!("starting call_once");
+            debug!("starting db call_once");
             //mbe not needed?: just return the db?
             // for why this is safe, see explanation & examples in above link to doc.rust-lang.org .
             // unsafe {
@@ -1087,16 +1093,26 @@ impl Util {
 
             // no point in a transaction to destroy tables, it seems.
             db.destroy_tables().unwrap();
-            let mut tx = db
-                .begin_trans()
-                .expect("Failure to begin transaction before creating test data.");
-            db.create_tables(&Some(&mut tx)).unwrap();
-            db.commit_trans(tx)
-                .expect("Failure to commit transaction after creating test data.");
+            // let mut tx = db
+            //     .begin_trans()
+            //     .expect("Failure to begin transaction before creating test data.");
+            // db.create_tables(&Some(&mut tx)).unwrap();
+            db.setup_db().unwrap();
+            // db.commit_trans(tx)
+            //     .expect("Failure to commit transaction after creating test data.");
 
-            println!("finishing call_once");
+            debug!("finishing db call_once");
         });
         Ok(db)
+    }
+
+    pub fn initialize_tracing() {
+        TEST_TRACING_INIT.call_once(|| {
+            let subscriber = tracing_subscriber::FmtSubscriber::builder()
+                .with_max_level(tracing::Level::TRACE).finish();
+            tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+            debug!("testing tracing at debug level (they go by verbosity).");
+        });
     }
 
     /// Used for example after one has been deleted, to put the highlight on right next one:

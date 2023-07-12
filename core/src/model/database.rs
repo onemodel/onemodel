@@ -25,7 +25,7 @@ pub enum DataType {
     // UnsignedInt(u64),
     Bigint(i64),
     Boolean(bool),
-    Smallint(i16),
+    Smallint(i32),
 }
 
 pub trait Database {
@@ -221,9 +221,9 @@ pub trait Database {
         name_in_reverse_direction_in: &str,
         directionality_in: &str,
     ) -> Result<i64, anyhow::Error>;
-    fn create_class_and_its_template_entity(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn create_class_and_its_template_entity<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         class_name_in: String,
     ) -> Result<(i64, i64), anyhow::Error>;
     fn find_contained_local_entity_ids<'a>(
@@ -329,7 +329,7 @@ pub trait Database {
     //                          inputStreamIn: java.io.FileInputStream,
     //                          sorting_index_in: Option<i64> /*= None*/) -> /*id*/ Result<i64, anyhow::Error>;
     //%%
-    // fn add_HAS_relation_to_local_entity(&self, transaction: &Option<&mut Transaction<Postgres>>,
+    // fn add_has_relation_to_local_entity(&self, transaction: &Option<&mut Transaction<Postgres>>,
     //                                     from_entity_id_in: i64, to_entity_id_in: i64,
     //                                     valid_on_date_in: Option<i64>, observation_date_in: i64,
     //                            sorting_index_in: Option<i64> /*= None*/) -> RelationToLocalEntity;
@@ -373,12 +373,12 @@ pub trait Database {
     fn relation_to_local_entity_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-        relation_to_local_entity_key_existsid_in: i64,
+        id_in: i64,
     ) -> Result<bool, anyhow::Error>;
     fn group_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-        relation_to_local_entity_key_existsid_in: i64,
+        id_in: i64,
     ) -> Result<bool, anyhow::Error>;
     fn relation_to_group_keys_exist_and_match(
         &self,

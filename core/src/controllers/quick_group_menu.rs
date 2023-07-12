@@ -411,7 +411,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
                                                                                       classIdIn = group_in.getClassId)
                   if newEntity.is_defined) {
                     let new_entity_id: i64 = newEntity.get.get_id;
-                    let new_rte: RelationToLocalEntity = highlightedEntry.add_HAS_relation_to_local_entity(new_entity_id, None, System.currentTimeMillis());
+                    let new_rte: RelationToLocalEntity = highlightedEntry.add_has_relation_to_local_entity(new_entity_id, None, System.currentTimeMillis());
                     require(new_rte.get_parent_id() == highlightedEntry.get_id)
                     new EntityMenu(ui, controller).entityMenu(newEntity.get, containingRelationToEntityIn = Some(new_rte))
                   }

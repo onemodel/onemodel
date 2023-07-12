@@ -54,7 +54,7 @@ impl BooleanAttribute<'_> {
         }
     }
 
-    fn get_boolean(
+    fn _get_boolean(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<bool, anyhow::Error> {
@@ -88,7 +88,9 @@ impl BooleanAttribute<'_> {
             }
         };
 
-        //%%$%%%%what do about making this into shared code? duplicate it or can work from the Trait/s?
+        //%%$%%%what do about making this into shared code? duplicate it or can work from the Trait/s? see in anki re : to get fns from a trait (search
+        // rustlang deck re trait, is near end of a note), or
+        // the newtype pattern?
         //idea: surely there is some better way than what I am doing here? See other places similarly.  Maybe implement DataType.clone() ?
 
         // super.assignCommonVars(ba_type_data(0).get.asInstanceOf[i64], ba_type_data(2).get.asInstanceOf[i64], ba_type_data(3).asInstanceOf[Option<i64>],
@@ -115,7 +117,7 @@ impl BooleanAttribute<'_> {
             }
         };
 
-        //%%$%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
+        //%%$%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
         // valid_on_date: Option<i64> /*%%= None*/,
         /*DataType::Bigint(%%)*/
         self.m_valid_on_date = None; //ba_type_data[3];

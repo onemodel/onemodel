@@ -20,6 +20,8 @@ futures = "0.3.25"
 # next lines added %% to the debug binary (from 84MB to %%)
 chrono = "0.4.23"
 randlib = "0.2.0"
+tracing = "0.1.37"
+tracing-subscriber = "0.3.17"
 [dependencies.anyhow]
 version = "1.0.71"
 features = ["backtrace"]
@@ -30,5 +32,4 @@ features = [
     #"fast-rng",          # Use a faster (but still sufficiently random) RNG
     #"macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
 ]
-
 

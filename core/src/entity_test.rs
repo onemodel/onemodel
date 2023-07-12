@@ -212,7 +212,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
   "updateContainedEntitiesPublicStatus" should "work" in {
     let e1Id: i64 = m_db.createEntity("test object1");
     let e1 = new Entity(m_db, e1Id);
-    mEntity.add_HAS_relation_to_local_entity(e1.get_id, Some(0), 0)
+    mEntity.add_has_relation_to_local_entity(e1.get_id, Some(0), 0)
     let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.addGroupAndRelationToGroup(mRelationTypeId, "grpName",;
                                                                                     allowMixedClassesInGroupIn = true, Some(0), 0, None)
     let e2Id: i64 = m_db.createEntity("test object2");

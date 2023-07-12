@@ -265,8 +265,8 @@ impl TextUI {
         default_value_in: &str,
         //%%use rest of parms
         //%%for pwd entry, sch crates.ui for "password entry" and/or use dialoguer and/or can rustyline do it/modify it/ask somewhere anyway?
-        is_password_in: bool,
-        esc_key_skips_criteria_check_in: bool,
+        _is_password_in: bool,
+        _esc_key_skips_criteria_check_in: bool,
     ) -> Option<String> {
         let mut count = 0;
         let last_line_of_prompt: String = {

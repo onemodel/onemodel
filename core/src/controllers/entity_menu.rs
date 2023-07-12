@@ -152,7 +152,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           // ask for less info when here, to add entity quickly w/ no fuss, like brainstorming. Like in QuickGroupMenu.  User can always use option 2.
           let newEntity: Option<Entity> = controller.askForNameAndWriteEntity(entity_in.m_db, Util.ENTITY_TYPE, leading_text_in = Some("NAME THE ENTITY:"));
           if newEntity.is_defined) {
-            let newAttribute: Attribute = entity_in.add_HAS_relation_to_local_entity(newEntity.get.get_id, None, System.currentTimeMillis());
+            let newAttribute: Attribute = entity_in.add_has_relation_to_local_entity(newEntity.get.get_id, None, System.currentTimeMillis());
             // The next 2 lines are so if adding a new entry on the 1st entry, and if the user so prefers, the new one becomes the
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
             let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.getNewEntriesStickToTop;

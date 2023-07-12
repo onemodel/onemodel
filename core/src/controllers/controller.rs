@@ -1795,7 +1795,7 @@ impl Controller {
           // re "100": see javadoc comments above re attrFormIn
           let eId: Option[IdWrapper] = askForNameAndSearchForEntity(entity_in.m_db);
           if eId.is_defined) {
-            Some(entity_in.add_HAS_relation_to_local_entity(eId.get.get_id, None, System.currentTimeMillis))
+            Some(entity_in.add_has_relation_to_local_entity(eId.get.get_id, None, System.currentTimeMillis))
           } else {
             None
           }
