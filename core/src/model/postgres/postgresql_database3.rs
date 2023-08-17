@@ -7,15 +7,14 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-/// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
-/// faster.
-
-use crate::model::postgres::*;
-use crate::model::postgres::postgresql_database::*;
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
+use crate::model::postgres::postgresql_database::*;
+/// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
+/// faster.
+use crate::model::postgres::*;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::util::Util;
@@ -395,7 +394,7 @@ impl Database for PostgreSQLDatabase {
                                  e.id=rt.entity_id and name='{}' order by id limit 2",
                 name
             )
-                .as_str(),
+            .as_str(),
             "i64",
         )?;
         let count = rows.len();
@@ -584,7 +583,7 @@ impl Database for PostgreSQLDatabase {
                         = ({},{}) where id={} and entity_id={}",
                 date_in, attr_type_id_in, id_in, parent_id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )
@@ -633,7 +632,7 @@ impl Database for PostgreSQLDatabase {
                    = ('{}',{}) where id={} and entity_id={}",
                 description_in, attr_type_id_in, id_in, parent_id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )
@@ -678,7 +677,7 @@ impl Database for PostgreSQLDatabase {
                 "update Entity set (name) = ROW('{}') where id={}",
                 name, id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )
@@ -706,7 +705,7 @@ impl Database for PostgreSQLDatabase {
                 "update Entity set (public) = ROW({}) where id={}",
                 value, id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )
@@ -725,7 +724,7 @@ impl Database for PostgreSQLDatabase {
                    ') where id={}",
                 new_entries_stick_to_top, id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )
@@ -804,7 +803,7 @@ impl Database for PostgreSQLDatabase {
                 "update Entity set (class_id) = ROW({}) where id={}",
                 ci, entity_id
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )?;
@@ -815,7 +814,7 @@ impl Database for PostgreSQLDatabase {
                         EntitiesInAGroup where entity_id={}",
                 entity_id
             )
-                .as_str(),
+            .as_str(),
             "i64",
         )?;
         for row in group_ids {
@@ -869,7 +868,7 @@ impl Database for PostgreSQLDatabase {
                 "update Entity set (name) = ROW('{}') where id={}",
                 name, id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )?;
@@ -880,7 +879,7 @@ impl Database for PostgreSQLDatabase {
                         ROW('{}', '{}') where entity_id={}",
                 name_in_reverse_direction, directionality, id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )?;
@@ -974,7 +973,7 @@ impl Database for PostgreSQLDatabase {
                 },
                 observation_date_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         );
@@ -1019,7 +1018,7 @@ impl Database for PostgreSQLDatabase {
                     values ({},{},'{}',{})",
                 id, parent_id_in, attr_type_id_in, date_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )?;
@@ -1058,7 +1057,7 @@ impl Database for PostgreSQLDatabase {
             values ({},{},'{}',{},{},{})",
                 id, parent_id_in, boolean_in, attr_type_id_in, vod, observation_date_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )?;
@@ -1357,7 +1356,7 @@ impl Database for PostgreSQLDatabase {
                 entity_id1_in,
                 entity_id2_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )
@@ -1517,7 +1516,7 @@ impl Database for PostgreSQLDatabase {
                 Utc::now().timestamp_millis(),
                 allow_mixed
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )?;
@@ -1802,7 +1801,7 @@ impl Database for PostgreSQLDatabase {
                             = ('{}', {}, {}) where id={}",
                 name, mixed, new_at_top, group_id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )
@@ -2239,7 +2238,7 @@ impl Database for PostgreSQLDatabase {
                     Utc::now().timestamp_millis(),
                     name
                 )
-                    .as_str(),
+                .as_str(),
                 false,
                 false,
             );
@@ -2441,7 +2440,7 @@ impl Database for PostgreSQLDatabase {
                 "where rel_type_id={} and entity_id={} and entity_id_2={}",
                 rel_type_id_in, entity_id1_in, entity_id2_in
             )
-                .as_str(),
+            .as_str(),
             1,
             false,
         )
@@ -2475,7 +2474,7 @@ impl Database for PostgreSQLDatabase {
                 "where entity_id={} and rel_type_id={} and group_id={}",
                 entity_id_in, rel_type_id_in, group_id_in
             )
-                .as_str(),
+            .as_str(),
             1,
             false,
         )
@@ -2526,7 +2525,7 @@ impl Database for PostgreSQLDatabase {
                 "where group_id={} and entity_id={}",
                 group_id_in, contained_entity_id_in
             )
-                .as_str(),
+            .as_str(),
             1,
             caller_manages_transactions_in,
         )
@@ -2822,7 +2821,7 @@ impl Database for PostgreSQLDatabase {
                                                             entity_id={}",
                 group_id_in, entity_id_in
             )
-                .as_str(),
+            .as_str(),
             "i64",
         )?;
         match row.get(0) {
@@ -2866,7 +2865,7 @@ impl Database for PostgreSQLDatabase {
                 "select max(sorting_index) from EntitiesInAGroup where group_id={}",
                 group_id_in
             )
-                .as_str(),
+            .as_str(),
             "i64",
         )?;
         if rows.len() != 1 || rows[0].len() == 0 || rows[0][0].is_none() {
@@ -3116,7 +3115,7 @@ impl Database for PostgreSQLDatabase {
                             and id in (select id from entity {})",
                 archived, limit, and_id_not, limit2
             )
-                .as_str(),
+            .as_str(),
         )
     }
 
@@ -3198,7 +3197,7 @@ impl Database for PostgreSQLDatabase {
                 "select count(1) from relationtogroup where entity_id={}",
                 entity_id_in
             )
-                .as_str(),
+            .as_str(),
         )
     }
 
@@ -3278,7 +3277,7 @@ impl Database for PostgreSQLDatabase {
                 eiag where e.id=eiag.entity_id and {} and eiag.group_id={}",
                 archived_sql_condition, group_id_in
             )
-                .as_str(),
+            .as_str(),
         )?;
         Ok(count)
     }
@@ -3352,7 +3351,7 @@ impl Database for PostgreSQLDatabase {
                                                              by group_id limit {}",
                     containing_entity_ids, limit
                 )
-                    .as_str(),
+                .as_str(),
                 "i64",
             )?;
             Ok(rtg_rows)
@@ -3428,7 +3427,7 @@ impl Database for PostgreSQLDatabase {
                 "select count(1) from EntitiesInAGroup where entity_id={}",
                 entity_id_in
             )
-                .as_str(),
+            .as_str(),
         )
     }
 
@@ -3444,7 +3443,7 @@ impl Database for PostgreSQLDatabase {
                                                                          where entity_id={}",
                 entity_id_in
             )
-                .as_str(),
+            .as_str(),
             "i64",
         )?;
         let mut results: Vec<i64> = Vec::new();
@@ -3851,7 +3850,7 @@ impl Database for PostgreSQLDatabase {
                 "SELECT count(1) from RelationToRemoteEntity where id={}",
                 id_in
             )
-                .as_str(),
+            .as_str(),
             true,
         )
     }
@@ -3907,7 +3906,7 @@ impl Database for PostgreSQLDatabase {
                 "SELECT count(1) from Entity where id={}{}",
                 id_in, condition
             )
-                .as_str(),
+            .as_str(),
             true,
         )
     }
@@ -3924,7 +3923,7 @@ impl Database for PostgreSQLDatabase {
                 "SELECT count(1) from Entitiesinagroup where group_id={} and sorting_index={}",
                 group_id_in, sorting_index_in
             )
-                .as_str(),
+            .as_str(),
             true,
         )
     }
@@ -3952,7 +3951,7 @@ impl Database for PostgreSQLDatabase {
                 "SELECT count(1) from RelationType where entity_id={}",
                 id_in
             )
-                .as_str(),
+            .as_str(),
             true,
         )
     }
@@ -3972,7 +3971,7 @@ impl Database for PostgreSQLDatabase {
                            entity_id={} and entity_id_2={}",
                 id_in, rel_type_id_in, entity_id1_in, entity_id2_in
             )
-                .as_str(),
+            .as_str(),
             true,
         )
     }
@@ -4209,7 +4208,7 @@ impl Database for PostgreSQLDatabase {
                                                                 and not e.archived and e.id={}",
                 entity_id_in
             )
-                .as_str(),
+            .as_str(),
         )?;
         let archived2 = self.extract_row_count_from_count_query(transaction, format!("select count(1) from \
                                 relationtoentity rte, entity e where e.id=rte.entity_id_2 and e.archived and e.id={}", entity_id_in).as_str())?;
@@ -4613,7 +4612,7 @@ impl Database for PostgreSQLDatabase {
                 "SELECT name, defining_entity_id, create_default_attributes from class where id={}",
                 id_in
             )
-                .as_str(),
+            .as_str(),
             Util::GET_CLASS_DATA__RESULT_TYPES,
         )
     }
@@ -4663,7 +4662,7 @@ impl Database for PostgreSQLDatabase {
                 "update class set (create_default_attributes) = ROW({}) where id={}",
                 value_sql, class_id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )
@@ -4859,7 +4858,7 @@ impl Database for PostgreSQLDatabase {
                 "SELECT local, address, insertion_date, entity_id from omInstance where id='{}'",
                 id_in
             )
-                .as_str(),
+            .as_str(),
             Util::GET_OM_INSTANCE_DATA__RESULT_TYPES,
         )
     }

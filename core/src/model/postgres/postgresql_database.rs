@@ -7,12 +7,12 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use crate::model::postgres::*;
-use crate::model::postgres::postgresql_database2::*;
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
+use crate::model::postgres::postgresql_database2::*;
+use crate::model::postgres::*;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::util::Util;
@@ -2069,4 +2069,3 @@ pub fn get_i64_from_row_without_option(
     };
     Ok(id)
 }
-

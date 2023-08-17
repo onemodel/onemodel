@@ -9,7 +9,6 @@
 */
 /// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
 /// faster.
-
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
@@ -31,11 +30,10 @@ use std::collections::HashSet;
 use tracing::*;
 // use tracing_subscriber::FmtSubscriber;
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::*;
+    use super::*;
 
     const QUANTITY_TYPE_NAME: &str = "length";
     const RELATION_TYPE_NAME: &str = "someRelationToEntityTypeName";
@@ -384,8 +382,8 @@ mod tests {
     // fn sqlx_get_int(tx: &mut Transaction<Postgres>, rt: &tokio::runtime::Runtime, sql: &str) -> i64 {
     // see comment (question) on below method sqlx_do_query.
     fn sqlx_get_int<'a, E>(executor: E, rt: &tokio::runtime::Runtime, sql: &str) -> i64
-        where
-            E: sqlx::Executor<'a, Database = Postgres>,
+    where
+        E: sqlx::Executor<'a, Database = Postgres>,
     {
         // let future = sqlx::query_as(sql.as_str()).bind(150_i64).fetch_one(&pool);
         // let row: (i64,) = rt.block_on(future).expect(format!("Failed sql: {count_sql}").as_str());
@@ -434,8 +432,8 @@ mod tests {
     // Why does below line not work (compile errors), but the 2 lines below it do work (as mimicked from sqlx:;query.execute(...))?
     // fn sqlx_do_query<'a>(executor: sqlx::Executor<'a, Database = Postgres>, rt: &tokio::runtime::Runtime, sql: &str) {
     fn sqlx_do_query<'a, E>(executor: E, rt: &tokio::runtime::Runtime, sql: &str)
-        where
-            E: sqlx::Executor<'a, Database = Postgres>,
+    where
+        E: sqlx::Executor<'a, Database = Postgres>,
     {
         let x: PgQueryResult = rt
             .block_on(sqlx::query(sql).execute(executor))
@@ -800,5 +798,19 @@ mod tests {
         let entity_count_after_rollback = db.get_entity_count(&None).unwrap();
         assert_eq!(entity_count_after_rollback, entity_count_before_creating);
         assert!(!db.entity_key_exists(&None, id, true).unwrap());
+    }
+
+    #[test]
+    fn find_id_which_is_not_key_of_any_entity() {
+        Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        // let mut tx1 = db.begin_trans().unwrap();
+        // let tx = &Some(&mut tx1);
+
+        assert!(!db.entity_key_exists(
+            &None,
+            db.find_id_which_is_not_key_of_any_entity(&None).unwrap(),
+            true
+        ).unwrap());
     }
 }

@@ -79,10 +79,6 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     result
   }
 
-  "findIdWhichIsNotKeyOfAnyEntity" should "find a nonexistent entity key" in {
-    assert(!m_db.entity_key_exists(m_db.findIdWhichIsNotKeyOfAnyEntity))
-  }
-
   "entity_only_key_exists" should "not find RelationToLocalEntity record" in {
     m_db.begin_trans()
     let tempRelTypeId: i64 = m_db.createRelationType(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);

@@ -7,15 +7,14 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-/// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
-/// faster.
-
-use crate::model::postgres::*;
-use crate::model::postgres::postgresql_database::*;
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
+use crate::model::postgres::postgresql_database::*;
+/// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
+/// faster.
+use crate::model::postgres::*;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::util::Util;
@@ -111,7 +110,7 @@ impl PostgreSQLDatabase {
                 "SELECT count(1) from AttributeSorting where entity_id={} and sorting_index={}",
                 entity_id_in, sorting_index_in
             )
-                .as_str(),
+            .as_str(),
             true,
         )
     }
@@ -123,12 +122,12 @@ impl PostgreSQLDatabase {
         let ids: Vec<i64> =
             self.find_entity_only_ids_by_name(transaction, Util::SYSTEM_ENTITY_NAME.to_string())?;
         if ids.is_empty() {
-            return Err(anyhow!(format!(
+            return Err(anyhow!(
                 "No system entity id (named \"{}\") was \
                  found in the entity table.  Did a new data import fail partway through or \
                  something?",
                 Util::SYSTEM_ENTITY_NAME
-            )));
+            ));
         }
         assert_eq!(ids.len(), 1);
         Ok(ids[0])
@@ -454,7 +453,7 @@ impl PostgreSQLDatabase {
                 "select count(1) from QuantityAttribute where entity_id={}",
                 entity_id_in
             )
-                .as_str(),
+            .as_str(),
         )
     }
 
@@ -469,7 +468,7 @@ impl PostgreSQLDatabase {
                 "select count(1) from TextAttribute where entity_id={}",
                 entity_id_in
             )
-                .as_str(),
+            .as_str(),
         )
     }
 
@@ -484,7 +483,7 @@ impl PostgreSQLDatabase {
                 "select count(1) from DateAttribute where entity_id={}",
                 entity_id_in
             )
-                .as_str(),
+            .as_str(),
         )
     }
 
@@ -499,7 +498,7 @@ impl PostgreSQLDatabase {
                 "select count(1) from BooleanAttribute where entity_id={}",
                 entity_id_in
             )
-                .as_str(),
+            .as_str(),
         )
     }
 
@@ -514,7 +513,7 @@ impl PostgreSQLDatabase {
                 "select count(1) from FileAttribute where entity_id={}",
                 entity_id_in
             )
-                .as_str(),
+            .as_str(),
         )
     }
     /// Performs automatic database upgrades as required by evolving versions of OneModel.
@@ -648,7 +647,7 @@ impl PostgreSQLDatabase {
                 "update class set (name) = ROW('{}') where id={}",
                 name, id_in
             )
-                .as_str(),
+            .as_str(),
             false,
             false,
         )
@@ -668,7 +667,7 @@ impl PostgreSQLDatabase {
                 "select entity_id from entitiesinagroup where group_id={}",
                 group_id_in
             )
-                .as_str(),
+            .as_str(),
             "i64",
         )?;
         let num_e_ids: u64 = entity_ids.len().try_into()?;
@@ -777,7 +776,7 @@ impl PostgreSQLDatabase {
                 "select count(1) from relationtogroup where group_id={}",
                 group_id_in
             )
-                .as_str(),
+            .as_str(),
         )
     }
 
@@ -851,7 +850,7 @@ impl PostgreSQLDatabase {
                 "SELECT count(1) from Entity where {} id={} and id in (select id from entity {})",
                 not_archived, id_in, limit
             )
-                .as_str(),
+            .as_str(),
             true,
         )
     }
@@ -1426,7 +1425,7 @@ impl PostgreSQLDatabase {
                 value_to_check,
                 exception
             )
-                .as_str(),
+            .as_str(),
             false,
         )
     }
@@ -1550,32 +1549,42 @@ impl PostgreSQLDatabase {
             caller_manages_transactions_in,
         )
     }
+    // (idea: find out: why doesn't compiler (ide or cli) complain when the 'override' is removed from next line?)
+    // idea: see comment on findUnusedSortingIndex
+    pub fn find_id_which_is_not_key_of_any_entity<'a>(
+        &'a self,
+        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
+        //only one iteration, ever.  (See similar comments elsewhere.)
+        let mut working_id: i64 = self.max_id_value() - 1;
+        let mut counter: i64 = 0;
+        loop {
+            if self.entity_key_exists(transaction_in, working_id, true)? {
+                if working_id == self.max_id_value() {
+                    // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a
+                    // performance problem long before. It's a bug.
+                    return Err(anyhow!("In find_id_which_is_not_key_of_any_entity: No id found \
+                          which is not a key of any entity in the system. How could all id's be used??"));
+                }
+                // idea: this check assumes that the thing to get IDs will re-use deleted ones
+                // and wrap around the set of #'s. That fix is on the list (informally
+                // at this writing, 2013-11-18).
+                if counter > 1000 {
+                    return Err(anyhow!("In find_id_which_is_not_key_of_any_entity: Very unexpected, \
+                            but could it be that you are running out of available entity IDs?? Have someone \
+                            check, before you need to create, for example, a thousand more entities."));
+                }
+                working_id -= 1;
+                counter += 1;
+                continue;
+            } else {
+                return Ok(working_id);
+            }
+        }
+    }
+
     /*%%
-                  // (idea: find out: why doesn't compiler (ide or cli) complain when the 'override' is removed from next line?)
-                  // idea: see comment on findUnusedSortingIndex
-                    fn findIdWhichIsNotKeyOfAnyEntity -> i64 {
-                    //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
-                    //only one iteration, ever.  (See similar comments elsewhere.)
-                    let starting_id: i64 = self.max_id_value() - 1;
-
-                    @tailrec fn findIdWhichIsNotKeyOfAnyEntity_helper(working_id: i64, counter: i64) -> i64 {
-                      //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
-                      if entity_key_exists(working_id)) {
-                        if working_id == self.max_id_value()) {
-                          // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
-                          throw new OmDatabaseException("No id found which is not a key of any entity in the system. How could all id's be used??")
-                        }
-                        // idea: this check assumes that the thing to get IDs will re-use deleted ones and wrap around the set of #'s. That fix is on the list (informally
-                        // at this writing, 2013-11-18).
-                        if counter > 1000) throw new OmDatabaseException("Very unexpected, but could it be that you are running out of available entity IDs?? Have someone check, " +
-                                                                "before you need to create, for example, a thousand more entities.")
-                        findIdWhichIsNotKeyOfAnyEntity_helper(working_id - 1, counter + 1)
-                      } else working_id
-                    }
-
-                    findIdWhichIsNotKeyOfAnyEntity_helper(starting_id, 0)
-                  }
-
                   // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
                     fn addUriEntityWithUriAttribute(containingEntityIn: Entity, new_entity_name_in: String, uriIn: String, observation_date_in: i64,
                                                    makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool,
@@ -1622,5 +1631,4 @@ impl PostgreSQLDatabase {
 
     */
     //%%$%% moved methods that are not part of the Database trait go here
-
 }
