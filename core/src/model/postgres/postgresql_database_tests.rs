@@ -807,10 +807,12 @@ mod tests {
         // let mut tx1 = db.begin_trans().unwrap();
         // let tx = &Some(&mut tx1);
 
-        assert!(!db.entity_key_exists(
-            &None,
-            db.find_id_which_is_not_key_of_any_entity(&None).unwrap(),
-            true
-        ).unwrap());
+        assert!(!db
+            .entity_key_exists(
+                &None,
+                db.find_id_which_is_not_key_of_any_entity(&None).unwrap(),
+                true
+            )
+            .unwrap());
     }
 }

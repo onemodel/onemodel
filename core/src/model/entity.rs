@@ -80,7 +80,7 @@ impl Entity<'_> {
     ) -> Result<Entity<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
         if !db.is_remote() && !db.entity_key_exists(transaction, id, true)? {
-            return Err(anyhow!(format!("Key {}{}", id, Util::DOES_NOT_EXIST)));
+            return Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST));
         }
         Ok(Entity {
             m_id: id,
@@ -226,10 +226,10 @@ impl Entity<'_> {
     ) -> Result<(), anyhow::Error> {
         let entity_data = self.m_db.get_entity_data(transaction, self.m_id)?;
         if entity_data.len() == 0 {
-            return Err(anyhow!(format!(
+            return Err(anyhow!(
                 "No results returned from data request for: {}",
                 self.m_id
-            )));
+            ));
         }
         //idea: surely there is some better way than what I am doing here? See other places similarly.
 
@@ -237,10 +237,10 @@ impl Entity<'_> {
         self.m_name = match &entity_data[0] {
             Some(DataType::String(x)) => x.clone(),
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here for {:?}?",
                     entity_data[0]
-                )))
+                ))
             }
         };
 
@@ -252,43 +252,43 @@ impl Entity<'_> {
         self.m_class_id = None;
         // self.m_class_id = match entity_data[1] {
         //     DataType::Bigint(x) => x,
-        //     _ => return Err(anyhow!(format!("How did we get here for {:?}?", entity_data[1]))),
+        //     _ => return Err(anyhow!(("How did we get here for {:?}?", entity_data[1])),
         // };
 
         self.m_public = None; //%%$%7FIXME TO USE:entity_data[3].asInstanceOf[Option<bool>]
                               // self.m_public = match entity_data[3] {
                               //     DataType::Boolean(x) => x,
-                              //     _ => return Err(anyhow!(format!("How did we get here for {:?}?", entity_data[3]))),
+                              //     _ => return Err(anyhow!("How did we get here for {:?}?", entity_data[3])),
                               // };
 
         // DataType::Bigint(self.m_insertion_date) = entity_data[2];
         self.m_insertion_date = match entity_data[2] {
             Some(DataType::Bigint(x)) => x,
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here for {:?}?",
                     entity_data[2]
-                )))
+                ))
             }
         };
         // DataType::Boolean(self.m_archived) = entity_data[4];
         self.m_archived = match entity_data[4] {
             Some(DataType::Boolean(x)) => x,
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here for {:?}?",
                     entity_data[4]
-                )))
+                ))
             }
         };
         // DataType::Boolean(self.m_new_entries_stick_to_top) = entity_data[5];
         self.m_new_entries_stick_to_top = match entity_data[5] {
             Some(DataType::Boolean(x)) => x,
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here for {:?}?",
                     entity_data[5]
-                )))
+                ))
             }
         };
         self.m_already_read_data = true;

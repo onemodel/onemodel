@@ -7,13 +7,13 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+/// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
+/// faster.
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::*;
-/// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
-/// faster.
 use crate::model::postgres::*;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
@@ -139,20 +139,20 @@ impl Database for PostgreSQLDatabase {
                 // id = match row.get(0) {
                 //     Some(Some(DataType::Bigint(x))) => *x,
                 //     _ => {
-                //         return Err(anyhow!(format!(
+                //         return Err(anyhow!(
                 //             "How did we get here for {:?}?",
                 //             row.get(0)
-                //         )))
+                //         ))
                 //     }
                 // };
                 id = get_i64_from_row(&row, 0)?;
                 name = match row.get(1) {
                     Some(Some(DataType::String(x))) => x.clone(),
                     _ => {
-                        return Err(anyhow!(format!(
+                        return Err(anyhow!(
                             "How did we get here for {:?}?",
                             row.get(1)
-                        )))
+                        ))
                     }
                 };
 
@@ -192,20 +192,20 @@ impl Database for PostgreSQLDatabase {
                     id = match row.get(0) {
                         Some(Some(DataType::Bigint(x))) => *x,
                         _ => {
-                            return Err(anyhow!(format!(
+                            return Err(anyhow!(
                                 "How did we get here for {:?}?",
                                 row.get(0)
-                            )))
+                            ))
                         }
                     };
                     // DataType::String(name) = *row.get(1).unwrap();
                     name = match row.get(1) {
                         Some(Some(DataType::String(x))) => x.clone(),
                         _ => {
-                            return Err(anyhow!(format!(
+                            return Err(anyhow!(
                                 "How did we get here for {:?}?",
                                 row.get(1)
-                            )))
+                            ))
                         }
                     };
 
@@ -399,10 +399,10 @@ impl Database for PostgreSQLDatabase {
         )?;
         let count = rows.len();
         if count != 1 {
-            return Err(anyhow!(format!(
+            return Err(anyhow!(
                 "Found {} rows instead of expected {}",
                 count, 1
-            )));
+            ));
             //?: expected_rows.unwrap()));
         }
         // there could be none found, or more than one, but not after above check.
@@ -411,10 +411,10 @@ impl Database for PostgreSQLDatabase {
         let id: i64 = match rows[0].get(0) {
             Some(Some(DataType::Bigint(i))) => *i,
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "Found not 1 row with i64 but {:?} .",
                     rows
-                )))
+                ))
             }
         };
         // final_result.push(id);
@@ -2593,7 +2593,7 @@ impl Database for PostgreSQLDatabase {
             // let DataType::Bigint(preference_attribute_id) = result[0];
             let preference_attribute_id = match result[0] {
                 DataType::Bigint(x) => x,
-                _ => return Err(anyhow!(format!("How did we get here for {:?}?", result[0]))),
+                _ => return Err(anyhow!("How did we get here for {:?}?", result[0])),
             };
 
             let mut attribute =
@@ -3250,7 +3250,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<u64, anyhow::Error> {
         //idea: convert this 1-4 to an enum?
         if include_which_entities_in <= 0 || include_which_entities_in >= 5 {
-            return Err(anyhow!(format!("Variable include_which_entities_in ({}) is out of the expected range of 1-4; there is a bug.", include_which_entities_in)));
+            return Err(anyhow!("Variable include_which_entities_in ({}) is out of the expected range of 1-4; there is a bug.", include_which_entities_in));
         }
         let archived_sql_condition: &str = match include_which_entities_in {
             1 => "(not archived)",
@@ -3264,10 +3264,10 @@ impl Database for PostgreSQLDatabase {
                 }
             }
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here? includeWhichEntities={}",
                     include_which_entities_in
-                )))
+                ))
             }
         };
         let count = self.extract_row_count_from_count_query(
@@ -4597,7 +4597,7 @@ impl Database for PostgreSQLDatabase {
         match name.get(0) {
             None => Ok(None),
             Some(Some(DataType::String(x))) => Ok(Some(x.to_string())),
-            _ => Err(anyhow!(format!("Unexpected value: {:?}", name))),
+            _ => Err(anyhow!("Unexpected value: {:?}", name)),
         }
     }
 
@@ -4814,16 +4814,16 @@ impl Database for PostgreSQLDatabase {
         let id: String = Self::escape_quotes_etc(id_in.clone());
         let address: String = Self::escape_quotes_etc(address_in.clone());
         if id != id_in {
-            return Err(anyhow!(format!(
+            return Err(anyhow!(
                 "In create_om_instance, Didn't expect quotes etc in the UUID provided: {}",
                 id_in
-            )));
+            ));
         };
         if address != address_in {
-            return Err(anyhow!(format!(
+            return Err(anyhow!(
                 "In create_om_instance, didn't expect quotes etc in the address provided: {}",
                 address
-            )));
+            ));
         }
         let insertion_date: i64 = Utc::now().timestamp_millis();
         // next line is for the method upgradeDbFrom3to4 so it can work before upgrading 4to5:

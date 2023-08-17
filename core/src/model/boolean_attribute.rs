@@ -38,7 +38,7 @@ impl BooleanAttribute<'_> {
         // wait for an error later to see if there is a problem (ie, assuming usually not).
         // idea: And today having doubts about that.
         if !db.is_remote() && !db.boolean_attribute_key_exists(transaction, id)? {
-            Err(anyhow!(format!("Key {}{}", id, Util::DOES_NOT_EXIST)))
+            Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(BooleanAttribute {
                 m_id: id,
@@ -72,19 +72,19 @@ impl BooleanAttribute<'_> {
             .m_db
             .get_boolean_attribute_data(transaction, self.m_id)?;
         if ba_type_data.len() == 0 {
-            return Err(anyhow!(format!(
+            return Err(anyhow!(
                 "No results returned from data request for: {}",
                 self.m_id
-            )));
+            ));
         }
         // DataType::Boolean(self.m_boolean) = ba_type_data[1];
         self.m_boolean = match ba_type_data[1] {
             Some(DataType::Boolean(b)) => b,
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here for {:?}?",
                     ba_type_data[1]
-                )))
+                ))
             }
         };
 
@@ -100,20 +100,20 @@ impl BooleanAttribute<'_> {
         self.m_parent_id = match ba_type_data[0] {
             Some(DataType::Bigint(x)) => x,
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here for {:?}?",
                     ba_type_data[0]
-                )))
+                ))
             }
         };
         // DataType::Bigint(self.m_attr_type_id) = ba_type_data[2];
         self.m_attr_type_id = match ba_type_data[2] {
             Some(DataType::Bigint(x)) => x,
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here for {:?}?",
                     ba_type_data[2]
-                )))
+                ))
             }
         };
 
@@ -123,27 +123,27 @@ impl BooleanAttribute<'_> {
         self.m_valid_on_date = None; //ba_type_data[3];
                                      // self.m_valid_on_date = match ba_type_data[3] {
                                      //     DataType::Bigint(x) => x,
-                                     //     _ => return Err(anyhow!(format!("How did we get here for {:?}?", ba_type_data[3]))),
+                                     //     _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[3])),
                                      // };
 
         // DataType::Bigint(self.m_observation_date) = ba_type_data[4];
         self.m_observation_date = match ba_type_data[4] {
             Some(DataType::Bigint(x)) => x,
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here for {:?}?",
                     ba_type_data[4]
-                )))
+                ))
             }
         };
         // DataType::Bigint(self.m_sorting_index) = ba_type_data[5];
         self.m_sorting_index = match ba_type_data[4] {
             Some(DataType::Bigint(x)) => x,
             _ => {
-                return Err(anyhow!(format!(
+                return Err(anyhow!(
                     "How did we get here for {:?}?",
                     ba_type_data[5]
-                )))
+                ))
             }
         };
         Ok(())

@@ -57,11 +57,11 @@ impl PostgreSQLDatabase {
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let results: Vec<Vec<Option<DataType>>> = self.db_query(transaction, sql, types)?;
         if results.len() != 1 {
-            Err(anyhow!(format!(
+            Err(anyhow!(
                 "Got {} instead of 1 result from sql \"{}\" ??",
                 results.len(),
                 sql
-            )))
+            ))
         } else {
             let oldrow = &results[0];
             let mut newrow = Vec::new();
@@ -77,10 +77,10 @@ impl PostgreSQLDatabase {
                     Some(DataType::Smallint(y)) => Some(DataType::Smallint(y.clone())),
                     None => None,
                     _ => {
-                        return Err(anyhow!(format!(
+                        return Err(anyhow!(
                             "How did we get here for x of {:?} in {:?}?",
                             x, results[0]
-                        )))
+                        ))
                     }
                 };
                 newrow.push(z);
@@ -261,10 +261,10 @@ impl PostgreSQLDatabase {
             if row_count == 1 {
                 Ok(true)
             } else if row_count > 1 {
-                Err(anyhow!(format!(
+                Err(anyhow!(
                     "Should there be > 1 entries for sql: {}?? ({} were found.)",
                     sql_in, row_count
-                )))
+                ))
             } else {
                 assert!(row_count < 1);
                 Ok(false)
@@ -468,10 +468,10 @@ impl PostgreSQLDatabase {
         //   throw new OmDatabaseException("Warnings from postgresql. Matters? Says: " + warnings)
         // }
         if !caller_checks_row_count_etc && !is_create_drop_or_alter && rows_affected != 1 {
-            return Err(anyhow!(format!(
+            return Err(anyhow!(
                 "Affected {} rows instead of 1?? SQL was: {}",
                 rows_affected, sql_in
-            )));
+            ));
         }
         Ok(rows_affected)
     }
@@ -583,10 +583,10 @@ impl PostgreSQLDatabase {
         // let mut tx = match tx {
         // // let mut tx = match rt.block_on(pool.begin()) {
         //     Err(e) => {
-        //         return Err(anyhow!(format!(
+        //         return Err(anyhow!(
         //             "Unable to start a database transaction to set up database?: {}",
         //             e.to_string()
-        //         )))
+        //         ))
         //     }
         //     Ok(t) => t,
         // };
@@ -600,10 +600,10 @@ impl PostgreSQLDatabase {
         // new_db.create_and_check_expected_data(&Some(&mut tx))?;
         // match new_db.commit_trans(&mut tx) {
         //     Err(e) => {
-        //         return Err(anyhow!(format!(
+        //         return Err(anyhow!(
         //             "Unable to commit database transaction for db setup: {}",
         //             e.to_string()
-        //         )))
+        //         ))
         //     }
         //     Ok(t) => t,
         // }

@@ -7,13 +7,13 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+/// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
+/// faster.
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::*;
-/// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
-/// faster.
 use crate::model::postgres::*;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
@@ -244,11 +244,11 @@ impl PostgreSQLDatabase {
             // definitely don't want to delete an unexpected # of rows,
             // because rollback is implicit whenever the transaction goes out of scope without a commit.
             // Caller should roll back (or fail to commit, same thing) in case of error.
-            return Err(anyhow!(format!(
-                "Delete command would have removed {} rows, but {} were expected! \
+            return Err(anyhow!(
+                "Delete command  have removed {} rows, but {} were expected! \
                 Did not perform delete.  SQL is: \"{}\"",
                 rows_deleted, rows_expected, sql
-            )));
+            ));
         } else {
             //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
             if !caller_manages_transactions_in {
@@ -294,9 +294,9 @@ impl PostgreSQLDatabase {
                         None => "(None)".to_string(),
                         Some(x) => x,
                     };
-                return Err(anyhow!(format!("Under the entity \"{}\" ({}, possibly under {}), there \
+                return Err(anyhow!("Under the entity \"{}\" ({}, possibly under {}), there \
                         are (eventually) more than one entity with the name \"{}\", so the program does not know which one to use for this.",
-                                   pref_container_entity_name, preferences_container_id_in, Util::SYSTEM_ENTITY_NAME, preference_name_in)));
+                                   pref_container_entity_name, preferences_container_id_in, Util::SYSTEM_ENTITY_NAME, preference_name_in));
             }
             let mut preference_entity_id: i64 = 0;
             for x in found_preferences.iter() {
@@ -314,10 +314,10 @@ impl PostgreSQLDatabase {
                     let sql2 = format!("select rel_type_id, entity_id, entity_id_2 from relationtoentity where entity_id={}", preference_entity_id);
                     self.db_query(transaction, sql2.as_str(), "i64,i64,i64")?
                 } else {
-                    return Err(anyhow!(format!(
+                    return Err(anyhow!(
                         "Unexpected preference_type: {}",
                         preference_type
-                    )));
+                    ));
                 }
             };
             if relevant_attribute_rows.len() == 0 {
@@ -338,10 +338,10 @@ impl PostgreSQLDatabase {
                 } else if preference_type == Util::PREF_TYPE_ENTITY_ID {
                     " RelationToEntity values ".to_string()
                 } else {
-                    return Err(anyhow!(format!(
+                    return Err(anyhow!(
                         "Unexpected preference_type: {}",
                         preference_type
-                    )));
+                    ));
                 };
 
                 if relevant_attribute_rows.len() != 1 {
@@ -353,10 +353,10 @@ impl PostgreSQLDatabase {
                         Err(e) => (format!("(Unknown/error: {})", e.to_string()), 0_i64),
                         Ok(mut entity) => (entity.get_name(transaction)?.clone(), entity.get_id()),
                     };
-                    return Err(anyhow!(format!("Under the entity {} ({}), there are {}{}so the program does not know what to use for this.  There should be *one*.",
+                    return Err(anyhow!("Under the entity {} ({}), there are {}{}so the program does not know what to use for this.  There should be *one*.",
                                        pref_entity_name,
                                         id,
-                                       relevant_attribute_rows.len(), attr_msg)));
+                                       relevant_attribute_rows.len(), attr_msg));
                 }
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
                     //PROVEN to have 1 row, just above!
@@ -422,9 +422,9 @@ impl PostgreSQLDatabase {
                         None => "(None)".to_string(),
                         Some(s) => s,
                     };
-                return Err(anyhow!(format!("Under the entity {}({}), there is more one than entity with the name \"{}\", so the program does not know which one to use for this.",
+                return Err(anyhow!("Under the entity {}({}), there is more one than entity with the name \"{}\", so the program does not know which one to use for this.",
                            containing_entity_name, containing_entity_id_in,
-                    Util::USER_PREFERENCES)));
+                    Util::USER_PREFERENCES));
             }
 
             //idea: surely there is some better way than what I am doing here? See other places similarly.
