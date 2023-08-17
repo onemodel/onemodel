@@ -251,7 +251,7 @@ pub trait Database {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_entity_name(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -266,7 +266,7 @@ pub trait Database {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_group_size(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -412,29 +412,29 @@ pub trait Database {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_quantity_attribute_data(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_date_attribute_data(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_file_attribute_data(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     //%%
     // fn get_file_attribute_content(&self, transaction: &Option<&mut Transaction<Postgres>>, fileAttributeIdIn: i64, outputStreamIn: java.io.OutputStream) -> -> Result<(i64, String), anyhow::Error>
     fn get_text_attribute_data(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn relation_to_local_entity_keys_exist_and_match(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -463,12 +463,12 @@ pub trait Database {
         rel_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_relation_to_local_entity_data_by_id(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_relation_to_remote_entity_data(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -476,12 +476,12 @@ pub trait Database {
         entity_id1_in: i64,
         remote_instance_id_in: String,
         entity_id2_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_group_data(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_group_entry_objects(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -500,12 +500,12 @@ pub trait Database {
         entity_id: i64,
         rel_type_id: i64,
         group_id: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_relation_to_group_data(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_group_entries_data(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -535,7 +535,7 @@ pub trait Database {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn get_attribute_count(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -572,7 +572,7 @@ pub trait Database {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: String,
-    ) -> Result<Vec<DataType>, anyhow::Error>;
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error>;
     fn is_duplicate_om_instance_address(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -819,7 +819,7 @@ pub trait Database {
     fn set_user_preference_entity_id<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        name_in: String,
+        name_in: &str,
         entity_id_in: i64,
     ) -> Result<(), anyhow::Error>;
     fn update_entity_only_public_status(
@@ -991,7 +991,7 @@ pub trait Database {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-        name_in: String,
+        name_in: &str,
     ) -> Result<u64, anyhow::Error>;
     fn update_relation_type(
         &self,
@@ -1094,7 +1094,7 @@ pub trait Database {
     fn get_user_preference_entity_id<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        preference_name_in: String,
+        preference_name_in: &str,
         default_value_in: Option<i64>, /*= None*/
     ) -> Result<Option<i64>, anyhow::Error>;
     // fn get_om_instances(&self, transaction: &Option<&mut Transaction<Postgres>>, localIn: Option<bool> /*= None*/) -> Result<Vec<OmInstance>, anyhow::Error>;

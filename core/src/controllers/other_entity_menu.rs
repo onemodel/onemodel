@@ -591,11 +591,11 @@ struct OtherEntityMenu {
           } else if answer > choices.length && answer <= (choices.length + containingRelationToGroups.size) && userPressedAltKey) {
             // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
             let id: i64 = containingRelationToGroups.get(index).get_id;
-            let entityId: i64 = containingRelationToGroups.get(index).get_parent_id();
+            let entity_id: i64 = containingRelationToGroups.get(index).get_parent_id();
             let groupId: i64 = containingRelationToGroups.get(index).getGroupId;
             let rel_type_id: i64 = containingRelationToGroups.get(index).get_attr_type_id();
             new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(entity_in.m_db, groupId), 0,
-                                                              Some(new RelationToGroup(entity_in.m_db, id, entityId, rel_type_id, groupId)),
+                                                              Some(new RelationToGroup(entity_in.m_db, id, entity_id, rel_type_id, groupId)),
                                                               Some(entity_in), containingEntityIn = None)
           } else {
             ui.display_text("unknown response")
@@ -672,7 +672,7 @@ struct OtherEntityMenu {
         let mut showAllArchivedEntities_choiceNumber: i32 = 3;
         // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
         if relationIn.is_defined && relationSourceEntityIn.is_defined && relationSourceEntityIn.get.m_db.entity_key_exists(relationSourceEntityIn.get.get_id)) {
-          // means we got here by selecting a Relation attribute on another entity, so entity_in is the "entityId2" in that relation; so show some options,
+          // means we got here by selecting a Relation attribute on another entity, so entity_in is the "entity_id2" in that relation; so show some options,
           // because
           // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
           choices = choices :+ "Delete the link from the linking (or containing) entity:" + Util.NEWLN +

@@ -386,7 +386,7 @@ impl Controller {
                 else {
                   if type_in == Util.ENTITY_TYPE) {
                     if createNotUpdate) {
-                      let newId = model.Entity.createEntity(dbIn, name, classIdIn).get_id;
+                      let newId = model.Entity.create_entity(dbIn, name, classIdIn).get_id;
                       Some(newId, 0L)
                     } else {
                       existingEntityIn.get.updateName(name)
@@ -451,7 +451,7 @@ impl Controller {
 
       /**
         * @param classIn (1st parameter) should be None only if the call is intended to create; otherwise it is an edit.
-        * @return None if user wants out, otherwise returns the new or updated classId and entityId.
+        * @return None if user wants out, otherwise returns the new or updated classId and entity_id.
         * */
         fn askForAndWriteClassAndTemplateEntityName(dbIn: Database, classIn: Option[EntityClass] = None) -> Option[(i64, i64)] {
         if classIn.is_defined) {
@@ -464,8 +464,8 @@ impl Controller {
         let oldTemplateNamePrompt = {;
           if createNotUpdate) ""
           else {
-            let entityId = classIn.get.get_template_entity_id;
-            let template_entityName = new Entity(dbIn, entityId).get_name;
+            let entity_id = classIn.get.get_template_entity_id;
+            let template_entityName = new Entity(dbIn, entity_id).get_name;
             " (which is currently \"" + template_entityName + "\")"
           }
         }
@@ -486,8 +486,8 @@ impl Controller {
                 if createNotUpdate) {
                   Some(dbIn.createClassAndItsTemplateEntity(name))
                 } else {
-                  let entityId: i64 = classIn.get.update_class_and_template_entity_name(name);
-                  Some(classIn.get.get_id, entityId)
+                  let entity_id: i64 = classIn.get.update_class_and_template_entity_name(name);
+                  Some(classIn.get.get_id, entity_id)
                 }
               }
             }
@@ -1173,7 +1173,7 @@ impl Controller {
           index
         }
 
-        let (choices, keepPreviousSelectionChoice, createEntityOrAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, createRelationTypeChoice, createClassChoice, createInstanceChoice, swapObjectsToDisplayChoice, linkToRemoteInstanceChoice): (Vec<String>,;
+        let (choices, keepPreviousSelectionChoice, create_entityOrAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, createRelationTypeChoice, createClassChoice, createInstanceChoice, swapObjectsToDisplayChoice, linkToRemoteInstanceChoice): (Vec<String>,;
           Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = getChoiceList
 
         let (leading_text, objectsToDisplay, statusesAndNames) = getLeadTextAndObjectList(choices);
@@ -1193,7 +1193,7 @@ impl Controller {
             // Not using "get out" option for this because it would exit from a few levels at once and
             // then user wouldn't be able to proceed to other field edits.
             Some(new IdWrapper(previousSelectionIdIn.get), false, "")
-          } else if answer == createEntityOrAttrTypeChoice && answer <= choices.length) {
+          } else if answer == create_entityOrAttrTypeChoice && answer <= choices.length) {
             let e: Option<Entity> = askForClassInfoAndNameAndCreateEntity(dbIn, classIdIn);
             if e.isEmpty) {
               None
@@ -1306,12 +1306,12 @@ impl Controller {
             let result: Option[(i64, i64)] = askForAndWriteClassAndTemplateEntityName(dbIn);
             if result.isEmpty) None
             else {
-              let (classId, entityId) = result.get;
+              let (classId, entity_id) = result.get;
               let ans = ui.ask_yes_no_question("Do you want to add attributes to the newly created template entity for this class? (These will be used for the " +;
                                             "prompts " +
                                             "and defaults when creating/editing entities in this class).", Some("y"))
               if ans.is_defined && ans.get) {
-                new EntityMenu(ui, this).entityMenu(new Entity(dbIn, entityId))
+                new EntityMenu(ui, this).entityMenu(new Entity(dbIn, entity_id))
               }
               Some(new IdWrapper(classId), false, "")
             }
@@ -1529,11 +1529,11 @@ impl Controller {
         fn askForRelationEntityIdNumber2(dbIn: Database, dhIn: RelationToEntityDataHolder, editing_in: bool, uiIn: TextUI) -> Option[RelationToEntityDataHolder] {
         let previousSelectionDesc = {;
           if !editing_in) None
-          else Some(new Entity(dbIn, dhIn.entityId2).get_name)
+          else Some(new Entity(dbIn, dhIn.entity_id2).get_name)
         }
         let previousSelectionId = {;
           if !editing_in) None
-          else Some(dhIn.entityId2)
+          else Some(dhIn.entity_id2)
         }
         let selection: Option[(IdWrapper, Boolean, String)] = chooseOrCreateObject(dbIn, Some(List("SELECT OTHER (RELATED) ENTITY FOR THIS RELATION")),;
                                                                                    previousSelectionDesc, previousSelectionId, Util.ENTITY_TYPE)
@@ -1541,7 +1541,7 @@ impl Controller {
         else {
           let outDH = dhIn;
           let id: i64 = selection.get._1.get_id;
-          outDH.entityId2 = id
+          outDH.entity_id2 = id
           outDH.is_remote = selection.get._2
           outDH.remoteInstanceId = selection.get._3
           Some(outDH)
@@ -1622,11 +1622,11 @@ impl Controller {
                                                                               limit_by_classIn = true, containingGroupIn = Some(group_in.get_id))
               if idWrapper.isEmpty) None
               else {
-                let entityId = idWrapper.get._1.get_id;
+                let entity_id = idWrapper.get._1.get_id;
                 //%%see 1st instance of try {  for rust-specific idea here.
                 try {
-                  group_in.addEntity(entityId)
-                  Some(entityId)
+                  group_in.addEntity(entity_id)
+                  Some(entity_id)
                 } catch {
                   case e: Exception =>
                     if e.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION)) {
@@ -1635,7 +1635,7 @@ impl Controller {
                       } else {
                         new EntityClass(group_in.m_db, entityClassInUse.get).get_display_string
                       }
-                      let newClassId = new Entity(group_in.m_db, entityId).getClassId;
+                      let newClassId = new Entity(group_in.m_db, entity_id).getClassId;
                       let newClass: String =;
                         if newClassId.isEmpty || entityClassInUse.isEmpty) "(none)"
                         else {
@@ -1779,9 +1779,9 @@ impl Controller {
           def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[AttributeWithValidAndObservedDates] = {
             let relation = {;
               if dhIn.is_remote) {
-                entity_in.addRelationToRemoteEntity(dhIn.attr_type_id, dhIn.entityId2, None, dhIn.valid_on_date, dhIn.observation_date, dhIn.remoteInstanceId)
+                entity_in.addRelationToRemoteEntity(dhIn.attr_type_id, dhIn.entity_id2, None, dhIn.valid_on_date, dhIn.observation_date, dhIn.remoteInstanceId)
               } else {
-                entity_in.addRelationToLocalEntity(dhIn.attr_type_id, dhIn.entityId2, None, dhIn.valid_on_date, dhIn.observation_date)
+                entity_in.addRelationToLocalEntity(dhIn.attr_type_id, dhIn.entity_id2, None, dhIn.valid_on_date, dhIn.observation_date)
               }
             }
             Some(relation)
@@ -1801,7 +1801,7 @@ impl Controller {
           }
         } else if attrFormIn == Database.get_attribute_form_id(Util.RELATION_TO_GROUP_TYPE)) {
           def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
-            require(dhIn.entityId == entity_in.get_id)
+            require(dhIn.entity_id == entity_in.get_id)
             let newRTG: RelationToGroup = entity_in.addRelationToGroup(dhIn.attr_type_id, dhIn.groupId, None, dhIn.valid_on_date, dhIn.observation_date);
             Some(newRTG)
           }
@@ -2101,15 +2101,15 @@ impl Controller {
                 let rteDh = new RelationToEntityDataHolder(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), None, System.currentTimeMillis(), 0, false, "");
                 let dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(entity_in.m_db, rteDh, editing_in = false, ui);
                 if dh.is_defined) {
-      //            let relation = entity_in.addRelationToEntity(dh.get.attr_type_id, dh.get.entityId2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
+      //            let relation = entity_in.addRelationToEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
       //                                                        dh.get.valid_on_date, dh.get.observation_date,
       //                                                        dh.get.is_remote, if !dh.get.is_remote) None else Some(dh.get.remoteInstanceId))
                   if dh.get.is_remote) {
-                    let rtre = entity_in.addRelationToRemoteEntity(dh.get.attr_type_id, dh.get.entityId2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
+                    let rtre = entity_in.addRelationToRemoteEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
                                                                   dh.get.valid_on_date, dh.get.observation_date, dh.get.remoteInstanceId)
                     (Some(rtre), askEveryTime)
                   } else {
-                    let rtle = entity_in.addRelationToLocalEntity(dh.get.attr_type_id, dh.get.entityId2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
+                    let rtle = entity_in.addRelationToLocalEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
                                                                  dh.get.valid_on_date, dh.get.observation_date)
                     (Some(rtle), askEveryTime)
                   }

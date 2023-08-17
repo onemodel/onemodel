@@ -160,7 +160,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
                                                                                      "CHOOSE TYPE OF Relation to Entity:",
                                                                                      controller.askForRelToGroupInfo, update_relation_to_group)) {
                 //force a reread from the DB so it shows the right info on the repeated menu, for these things which could have been changed:
-                (Some(new RelationToGroup(relationToGroupIn.get.m_db, relationToGroupIn.get.get_id, relationToGroupDH.entityId,
+                (Some(new RelationToGroup(relationToGroupIn.get.m_db, relationToGroupIn.get.get_id, relationToGroupDH.entity_id,
                                          relationToGroupDH.attr_type_id, relationToGroupDH.groupId)),
                   new Group(group_in.m_db, relationToGroupDH.groupId))
               } else {

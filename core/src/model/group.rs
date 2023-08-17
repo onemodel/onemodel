@@ -126,8 +126,8 @@ class Group(val m_db: Database, m_id: i64) {
     m_db.get_group_entry_objects(m_id, starting_index_in, max_vals_in)
   }
 
-    fn addEntity(inEntityId: i64, sorting_index_in: Option<i64> = None, caller_manages_transactions_in: bool = false) {
-    m_db.add_entity_to_group(get_id, inEntityId, sorting_index_in, caller_manages_transactions_in)
+    fn addEntity(in_entity_id: i64, sorting_index_in: Option<i64> = None, caller_manages_transactions_in: bool = false) {
+    m_db.add_entity_to_group(get_id, in_entity_id, sorting_index_in, caller_manages_transactions_in)
   }
 
     fn get_id() -> i64 {

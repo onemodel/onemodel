@@ -68,20 +68,20 @@ impl Util {
     pub const TEXT_EDITOR_INFO_ENTITY_NAME: &'static str = "textEditorInfo";
     pub const TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME: &'static str = "textEditorCommand";
     pub const PREF_TYPE_BOOLEAN: &'static str = "boolean";
-    pub const PREF_TYPE_ENTITY_ID: &'static str = "entityId";
+    pub const PREF_TYPE_ENTITY_ID: &'static str = "entity_id";
     pub const TEMPLATE_NAME_SUFFIX: &'static str = "-template";
     pub const UNUSED_GROUP_ERR1: &'static str =
         "No available index found which is not already used. How would so many be used?";
     pub const UNUSED_GROUP_ERR2: &'static str = "Very unexpected, but could it be that you are running out of available sorting indexes!?  Have someone check, before you need to create, for example, a thousand more entities.";
-    pub const GET_CLASS_DATA__RESULT_TYPES: &'static str = "String,i64,Bool";
+    pub const GET_CLASS_DATA__RESULT_TYPES: &'static str = "String,i64,bool";
     pub const GET_RELATION_TYPE_DATA__RESULT_TYPES: &'static str = "String,String,String";
-    pub const GET_OM_INSTANCE_DATA__RESULT_TYPES: &'static str = "Bool,String,i64,i64";
+    pub const GET_OM_INSTANCE_DATA__RESULT_TYPES: &'static str = "bool,String,i64,i64";
     pub const GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
         "i64,i64,Float,i64,i64,i64,i64";
     pub const GET_DATE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
-    pub const GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,Bool,i64,i64,i64,i64";
+    pub const GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,bool,i64,i64,i64,i64";
     pub const GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
-        "i64,String,i64,i64,i64,String,Bool,Bool,Bool,i64,String,i64";
+        "i64,String,i64,i64,i64,String,bool,bool,bool,i64,String,i64";
     pub const GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,String,i64,i64,i64,i64";
     pub const GET_RELATION_TO_GROUP_DATA_BY_ID__RESULT_TYPES: &'static str =
         "i64,i64,i64,i64,i64,i64,i64";
@@ -89,8 +89,8 @@ impl Util {
         "i64,i64,i64,i64,i64,i64,i64";
     pub const GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
     pub const GET_RELATION_TO_REMOTE_ENTITY__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
-    pub const GET_GROUP_DATA__RESULT_TYPES: &'static str = "String,i64,Bool,Bool";
-    pub const GET_ENTITY_DATA__RESULT_TYPES: &'static str = "String,i64,i64,Bool,Bool,Bool";
+    pub const GET_GROUP_DATA__RESULT_TYPES: &'static str = "String,i64,bool,bool";
+    pub const GET_ENTITY_DATA__RESULT_TYPES: &'static str = "String,i64,i64,bool,bool,bool";
     pub const GET_GROUP_ENTRIES_DATA__RESULT_TYPES: &'static str = "i64,i64";
 
     pub fn entity_name_length() -> u32 {
@@ -1111,7 +1111,7 @@ impl Util {
             let subscriber = tracing_subscriber::FmtSubscriber::builder()
                 .with_max_level(tracing::Level::TRACE).finish();
             tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-            debug!("testing tracing at debug level (they go by verbosity).");
+            debug!("testing tracing at debug level (they go by verbosity--high level = higher verbosity).");
         });
     }
 

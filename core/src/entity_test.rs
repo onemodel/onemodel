@@ -41,14 +41,14 @@ class EntityTest extends FlatSpec with MockitoSugar {
     // instantiation does DB setup (creates tables, default data, etc):
     m_db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
 
-    mUnitId = m_db.createEntity("centimeters")
-    mQuantityAttrTypeId = m_db.createEntity("length")
-    mTextAttrTypeId = m_db.createEntity("someName")
-    mDateAttrTypeId = m_db.createEntity("someName")
-    m_booleanAttrTypeId = m_db.createEntity("someName")
-    mFileAttrTypeId = m_db.createEntity("someName")
+    mUnitId = m_db.create_entity("centimeters")
+    mQuantityAttrTypeId = m_db.create_entity("length")
+    mTextAttrTypeId = m_db.create_entity("someName")
+    mDateAttrTypeId = m_db.create_entity("someName")
+    m_booleanAttrTypeId = m_db.create_entity("someName")
+    mFileAttrTypeId = m_db.create_entity("someName")
     mRelationTypeId = m_db.createRelationType("someRelationType", "reversedName", "NON")
-    let id: i64 = m_db.createEntity("test object");
+    let id: i64 = m_db.create_entity("test object");
     mEntity = new Entity(m_db, id)
   }
 
@@ -210,12 +210,12 @@ class EntityTest extends FlatSpec with MockitoSugar {
   }
 
   "updateContainedEntitiesPublicStatus" should "work" in {
-    let e1Id: i64 = m_db.createEntity("test object1");
+    let e1Id: i64 = m_db.create_entity("test object1");
     let e1 = new Entity(m_db, e1Id);
     mEntity.add_has_relation_to_local_entity(e1.get_id, Some(0), 0)
     let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.addGroupAndRelationToGroup(mRelationTypeId, "grpName",;
                                                                                     allowMixedClassesInGroupIn = true, Some(0), 0, None)
-    let e2Id: i64 = m_db.createEntity("test object2");
+    let e2Id: i64 = m_db.create_entity("test object2");
     let e2 = new Entity(m_db, e1Id);
     group.addEntity(e2Id)
 
@@ -229,12 +229,12 @@ class EntityTest extends FlatSpec with MockitoSugar {
   }
 
   "getCountOfContainingLocalEntities etc" should "work" in {
-    let e1 = Entity.createEntity(m_db, "e1");
-    let (e2id: i64, rteId: i64) = m_db.createEntityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e2", None, None, 0L);
+    let e1 = Entity.create_entity(m_db, "e1");
+    let (e2id: i64, rteId: i64) = m_db.create_entityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e2", None, None, 0L);
     let e2: Option<Entity> = Entity.getEntity(m_db, e2id);
     assert(e2.get.getCountOfContainingLocalEntities._1 == 1)
     assert(e2.get.getLocalEntitiesContainingEntity().size == 1)
-    /*val (e3id: i64, rte2id: i64) = */m_db.createEntityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e3", None, None, 0L)
+    /*val (e3id: i64, rte2id: i64) = */m_db.create_entityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e3", None, None, 0L)
     assert(e1.get_adjacent_attributes_sorting_indexes(Database.min_id_value).nonEmpty)
     let nearestSortingIndex = e1.get_nearest_attribute_entrys_sorting_index(Database.min_id_value).get;
     assert(nearestSortingIndex > Database.min_id_value)

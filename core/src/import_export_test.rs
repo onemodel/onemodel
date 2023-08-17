@@ -58,8 +58,8 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     mImportExport = new ImportExport(ui, new Controller(ui, forceUserPassPromptIn = false,
                                                              defaultUsername_in = Some(Database.TEST_USER), defaultPasswordIn = Some(Database.TEST_PASS)))
 
-    let entityId: i64 = m_db.createEntity("test object");
-    mEntity = new Entity(m_db, entityId)
+    let entity_id: i64 = m_db.create_entity("test object");
+    mEntity = new Entity(m_db, entity_id)
   }
 
   protected fn tearDown() {
@@ -68,8 +68,8 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
     fn tryExportingHtml(ids: java.util.ArrayList[i64]) -> (String, Vec<String>) {
     assert(ids.size > 0)
-    let entityId: i64 = ids.get(0);
-    let startingEntity: Entity = new Entity(m_db, entityId);
+    let entity_id: i64 = ids.get(0);
+    let startingEntity: Entity = new Entity(m_db, entity_id);
 
     // For explanation of the next few lines, see declaration of similar things, in comments in ImportExport.export() method.
     let exportedEntityIds = new scala.collection.mutable.HashMap[String,Integer];
@@ -87,7 +87,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
 
     assert(outputDirectory.toFile.exists)
     let newFiles: Vec<String> = outputDirectory.toFile.list;
-    let firstNewFileName = "e" + entityId + ".html";
+    let firstNewFileName = "e" + entity_id + ".html";
     let firstNewFile = new File(outputDirectory.toFile, firstNewFileName);
     let firstNewFileContents: String = new Predef.String(Files.readAllBytes(firstNewFile.toPath));
     assert(newFiles.contains(firstNewFileName), "unexpected filenames, like: " + newFiles(0))
@@ -152,9 +152,9 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     assert(ids.size > 0)
     let mut foundIt = false;
     let relation_type_id = m_db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-    for (entityId: i64 <- ids) {
+    for (entity_id: i64 <- ids) {
       // (could have used m_db.getContainingEntities1 here perhaps)
-      if m_db.relation_to_local_entity_exists(relation_type_id, mEntity.get_id, entityId) {
+      if m_db.relation_to_local_entity_exists(relation_type_id, mEntity.get_id, entity_id) {
         foundIt = true
       }
     }

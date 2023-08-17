@@ -11,6 +11,12 @@ use crate::util::Util;
 use chrono::prelude::*;
 use chrono::LocalResult;
 
+//%%$%%%%IDEAS: mbe do polymorphism by 1) seeing how postgresql obj does it as a trait obj,
+//2) considering that ":" to have one trait have the methods of another, 3) include BA has-a AttributeData to hold the data parts,
+// and Attr holds the methods?
+// Reread the Book ch/s on traits, applicable sections, & see if there is some betr way? Such as in ch 17 section 17.3
+// "requesting a review of the post changes its state" and teh following code w/ an example.
+
 pub struct Attribute {}
 
 impl Attribute {

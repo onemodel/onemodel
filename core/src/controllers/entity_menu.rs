@@ -420,32 +420,32 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
                                                         " searching from main/top menu is often faster)")),
                                              Some(Util.is_numeric), Some("5"))
           let levels: i32 = levelsAnswer.getOrElse("4").toInt;
-          let entityIdsTreeSet: mutable.TreeSet[i64] = entity_in.find_contained_local_entity_ids(new mutable.TreeSet[i64], searchString, levels,;
+          let entity_idsTreeSet: mutable.TreeSet[i64] = entity_in.find_contained_local_entity_ids(new mutable.TreeSet[i64], searchString, levels,;
                                                                                              stop_after_any_foundIn = false)
-          let entityIds = entityIdsTreeSet.toArray;
+          let entity_ids = entity_idsTreeSet.toArray;
           let leading_text2 = Vec<String>(Util.PICK_FROM_LIST_PROMPT);
           // could be like if numAttrsInEntity > 0) Controller.LIST_NEXT_ITEMS_PROMPT else "(stub)" above, if we made the method more sophisticated to do that.
           let choices: Vec<String> = Array("(stub)");
-          let entityIdsTruncated: Array[i64] = {;
+          let entity_idsTruncated: Array[i64] = {;
             //(A temporary workaround for too little info.  Better ideas in my OM todos: search for "show more search results in entitymenu",
             //entry created 2020-12-28.)
             //was:  let numDisplayableAttributes: i32 = ui.maxColumnarChoicesToDisplayAfter(leading_text2.length, choices.length, Util.maxNameLength);
             let numDisplayableAttributes = 84;
 
-            if entityIds.length <= numDisplayableAttributes) {
-              entityIds
+            if entity_ids.length <= numDisplayableAttributes) {
+              entity_ids
             } else {
               let newarray: Array[i64] = new Array(numDisplayableAttributes);
-              entityIds.copyToArray(newarray, 0, numDisplayableAttributes)
+              entity_ids.copyToArray(newarray, 0, numDisplayableAttributes)
               // (This is to avoid the later "require" error not far from the top of TextUI.ask_whichChoiceOrItsAlternate, if there are too many
               // menu items to display. It could be done better if we implement scrolling among the attrs, similarly to the other use of
               // ui.maxColumnarChoicesToDisplayAfter above, but in a way to avoid re-doing the search each time.)
-              ui.display_text("There were " + entityIds.length + " results, but truncated them to " + numDisplayableAttributes + " for display.  (If" +
+              ui.display_text("There were " + entity_ids.length + " results, but truncated them to " + numDisplayableAttributes + " for display.  (If" +
                              " desired this can be improved, per the comments in the code.)")
               newarray
             }
           }
-          let entityStatusesAndNames: Vec<String> = entityIdsTruncated.map {;
+          let entityStatusesAndNames: Vec<String> = entity_idsTruncated.map {;
                                                                                id: i64 =>
                                                                                  let entity = new Entity(entity_in.m_db, id);
                                                                                  entity.getArchivedStatusDisplayString + entity.get_name
@@ -462,7 +462,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
               } else if relatedEntitiesAnswer > choices.length && relatedEntitiesAnswer <= (choices.length + entityStatusesAndNames.length)) {
                 // those in the condition on the previous line are 1-based, not 0-based.
                 let index = relatedEntitiesAnswer - choices.length - 1;
-                let id: i64 = entityIds(index);
+                let id: i64 = entity_ids(index);
                 entityMenu(new Entity(entity_in.m_db, id))
               }
               showSearchResults()
@@ -783,39 +783,39 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     startingIndex
   }
 
-  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, entityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
+  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, entity_idIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
                                                  forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>> {
-    let entity = new Entity(dbIn, entityIdIn);
+    let entity = new Entity(dbIn, entity_idIn);
     entity.get_adjacent_attributes_sorting_indexes(movingFromPosition_sortingIndexIn, queryLimitIn, forward_not_back_in)
   }
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entityIdIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
-    let entity = new Entity(dbIn, entityIdIn);
+  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entity_idIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
+    let entity = new Entity(dbIn, entity_idIn);
     entity.get_nearest_attribute_entrys_sorting_index(starting_point_sorting_index_in, forward_not_back_in = forward_not_back_in)
   }
 
-  protected fn renumber_sorting_indexes(dbIn: Database, entityIdIn: i64) -> /*Unit%%*/ {
-    let entity = new Entity(dbIn, entityIdIn);
+  protected fn renumber_sorting_indexes(dbIn: Database, entity_idIn: i64) -> /*Unit%%*/ {
+    let entity = new Entity(dbIn, entity_idIn);
     entity.renumber_sorting_indexes()
   }
 
-  protected fn updateSortedEntry(dbIn: Database, entityIdIn: i64, movingAttributeFormIdIn: Int, movingAttributeIdIn: i64, sortingIndexIn: i64) /*-> Unit%%*/ {
-    let entity = new Entity(dbIn, entityIdIn);
+  protected fn updateSortedEntry(dbIn: Database, entity_idIn: i64, movingAttributeFormIdIn: Int, movingAttributeIdIn: i64, sortingIndexIn: i64) /*-> Unit%%*/ {
+    let entity = new Entity(dbIn, entity_idIn);
     entity.update_attribute_sorting_index(movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
   }
 
-  protected fn getSortingIndex(dbIn: Database, entityIdIn: i64, attribute_form_id_in: Int, attribute_id_in: i64) -> i64 {
-    let entity = new Entity(dbIn, entityIdIn);
+  protected fn getSortingIndex(dbIn: Database, entity_idIn: i64, attribute_form_id_in: Int, attribute_id_in: i64) -> i64 {
+    let entity = new Entity(dbIn, entity_idIn);
     entity.getAttributeSortingIndex(attribute_form_id_in, attribute_id_in)
   }
 
-  protected fn indexIsInUse(dbIn: Database, entityIdIn: i64, sortingIndexIn: i64) -> bool {
-    let entity = new Entity(dbIn, entityIdIn);
+  protected fn indexIsInUse(dbIn: Database, entity_idIn: i64, sortingIndexIn: i64) -> bool {
+    let entity = new Entity(dbIn, entity_idIn);
     entity.is_attribute_sorting_index_in_use(sortingIndexIn)
   }
 
-  protected fn findUnusedSortingIndex(dbIn: Database, entityIdIn: i64, startingWithIn: i64) -> i64 {
-    let entity = new Entity(dbIn, entityIdIn);
+  protected fn findUnusedSortingIndex(dbIn: Database, entity_idIn: i64, startingWithIn: i64) -> i64 {
+    let entity = new Entity(dbIn, entity_idIn);
     entity.find_unused_attribute_sorting_index(Some(startingWithIn))
   }
 

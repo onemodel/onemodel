@@ -29,10 +29,10 @@ class DateAttribute(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(m_db: Database, m_id: i64, inParentId: i64, attr_type_id_in: i64, inDate: i64, sorting_index_in: i64) {
+    fn this(m_db: Database, m_id: i64, in_parent_id: i64, attr_type_id_in: i64, inDate: i64, sorting_index_in: i64) {
     this(m_db, m_id)
     mDate = inDate
-    super.assignCommonVars(inParentId, attr_type_id_in, sorting_index_in)
+    super.assignCommonVars(in_parent_id, attr_type_id_in, sorting_index_in)
   }
 
     fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {

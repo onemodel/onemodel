@@ -17,7 +17,7 @@ import org.scalatest.FlatSpec
 class FileAttributeTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct string and length" in {
     let mockDB = mock[PostgreSQLDatabase];
-    let entityId: i64 = 0;
+    let entity_id: i64 = 0;
     let otherEntityId: i64 = 1;
     let fileAttributeId: i64 = 0;
     //arbitrary, in milliseconds:
@@ -33,7 +33,7 @@ class FileAttributeTest extends FlatSpec with MockitoSugar {
     when(mockDB.file_attribute_key_exists(fileAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    let fileAttribute = new FileAttribute(mockDB, fileAttributeId, entityId, otherEntityId, longDescription, modifiedDate, storedDate, filePath, true, true,;
+    let fileAttribute = new FileAttribute(mockDB, fileAttributeId, entity_id, otherEntityId, longDescription, modifiedDate, storedDate, filePath, true, true,;
                                           false, size, hash, 0)
     let smallLimit = 35;
     let display1: String = fileAttribute.get_display_string(smallLimit);

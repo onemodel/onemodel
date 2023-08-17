@@ -164,9 +164,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
     fn createAndAddEntityToGroup(line: String, group: Group, newSortingIndex: i64, isPublicIn: Option<bool>) -> Entity {
-    let entityId: i64 = group.m_db.createEntity(line.trim, group.getClassId, isPublicIn);
-    group.addEntity(entityId, Some(newSortingIndex), caller_manages_transactions_in = true)
-    new Entity(group.m_db, entityId)
+    let entity_id: i64 = group.m_db.create_entity(line.trim, group.getClassId, isPublicIn);
+    group.addEntity(entity_id, Some(newSortingIndex), caller_manages_transactions_in = true)
+    new Entity(group.m_db, entity_id)
   }
 
   * The parameter lastEntityIdAdded means the one to which a new subgroup will be added, such as in a series of entities
@@ -231,7 +231,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             let newEntity: Entity = {;
               containerList.head match {
                 case entity: Entity =>
-                  entity.createEntityAndAddHASLocalRelationToIt(line, observation_dateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
+                  entity.create_entityAndAddHASLocalRelationToIt(line, observation_dateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
                 case group: Group =>
                   createAndAddEntityToGroup(line, containerList.head.asInstanceOf[Group], newSortingIndex, makeThem_publicIn)
                 case _ => throw new OmException("??")
@@ -251,7 +251,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             let newEntity: Entity = {;
               newContainerList.head match {
                 case entity: Entity =>
-                  entity.createEntityAndAddHASLocalRelationToIt(line, observation_dateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
+                  entity.create_entityAndAddHASLocalRelationToIt(line, observation_dateIn, makeThem_publicIn, caller_manages_transactions_in = true)._1
                 case group: Group =>
                   createAndAddEntityToGroup(line, group, newSortingIndex, makeThem_publicIn)
                 case _ => throw new OmException("??")
@@ -525,9 +525,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           case relation: RelationToGroup =>
             // Needed, or is accurate without? (depends on how groups are processed in txt exports: if they count as top-level entities/shown so...
             // probably not so don't increment at all in that case?:
-            //                    let entityIds: Array[i64] = getCachedGroupData(relation, cachedGroupInfo);
-            //                    for (entityIdInGrp <- entityIds) {
-            //                      let entity_in_group: Entity = getCachedEntity(entityIdInGrp, cachedEntities, relation.m_db);
+            //                    let entity_ids: Array[i64] = getCachedGroupData(relation, cachedGroupInfo);
+            //                    for (entity_idInGrp <- entity_ids) {
+            //                      let entity_in_group: Entity = getCachedEntity(entity_idInGrp, cachedEntities, relation.m_db);
             //                    if levelsRemainAndPublicEnough(e, includePublicData, includeNonPublicData, includeUnspecifiedData,
             //                                                    levelsToExportIsInfiniteIn = false, 1)) {
             count = count + 1
@@ -566,7 +566,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       // The caches are to reduce the expensive repeated queries of attribute lists & entity objects (not all of which are known at the time we write to
       // exportedEntityIds.  Html exports were getting very slow before this caching logic was added.)
       let cachedEntities = new mutable.HashMap[String, Entity];
-      // (The key is the entityId, and the value contains the attributes (w/ id & attr) as returned from db.get_sorted_attributes.)
+      // (The key is the entity_id, and the value contains the attributes (w/ id & attr) as returned from db.get_sorted_attributes.)
       let cachedAttrs = new mutable.HashMap[i64, Array[(i64, Attribute)]];
 
       let cachedGroupInfo = new mutable.HashMap[i64, Array[i64]];
@@ -968,9 +968,9 @@ class ImportExport(val ui: TextUI, controller: Controller) {
                        headerContentIn, beginBodyContentIn, copyrightYearAndNameIn)
 //          }
         case relation: RelationToGroup =>
-          let entityIds: Array[i64] = getCachedGroupData(relation, cachedGroupInfoIn);
-          for (entityIdInGrp <- entityIds) {
-            let entity_in_group: Entity = getCachedEntity(entityIdInGrp, cachedEntitiesIn, relation.m_db);
+          let entity_ids: Array[i64] = getCachedGroupData(relation, cachedGroupInfoIn);
+          for (entity_idInGrp <- entity_ids) {
+            let entity_in_group: Entity = getCachedEntity(entity_idInGrp, cachedEntitiesIn, relation.m_db);
             exportHtml(entity_in_group, levelsToExportIsInfiniteIn, levels_remainingToExportIn - 1,
                        outputDirectoryIn, exportedEntityIdsIn, cachedEntitiesIn,
                        cachedAttrsIn, cachedGroupInfoIn, entitiesAlreadyProcessedInThisRefChainIn, uriClassIdIn, quoteClassId,
@@ -981,7 +981,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           // nothing intended here
       }
     }
-    // remove the entityId we've just processed, in order to allow traversing through it again later on a different ref chain if needed.  See
+    // remove the entity_id we've just processed, in order to allow traversing through it again later on a different ref chain if needed.  See
     // comments on this method, above, for more explanation.
     entitiesAlreadyProcessedInThisRefChainIn.remove(entity_in.get_id)
   }
@@ -992,15 +992,15 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       cachedIds.get
     } else {
       let data: Vec<Vec<Option<DataType>>> = rtg.m_db.get_group_entries_data(rtg.getGroupId, None, include_archived_entities_in = false);
-      let entityIds = new Array[i64](data.size);
+      let entity_ids = new Array[i64](data.size);
       let mut count = 0;
       for (entry <- data) {
-        let entityIdInGroup: i64 = entry(0).get.asInstanceOf[i64];
-        entityIds(count) = entityIdInGroup
+        let entity_idInGroup: i64 = entry(0).get.asInstanceOf[i64];
+        entity_ids(count) = entity_idInGroup
         count += 1
       }
-      cachedGroupInfoIn.put(rtg.getGroupId, entityIds)
-      entityIds
+      cachedGroupInfoIn.put(rtg.getGroupId, entity_ids)
+      entity_ids
     }
   }
 
@@ -1016,13 +1016,13 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
   }
 
-    fn getCachedEntity(entityIdIn: i64, cachedEntitiesIn: mutable.HashMap[String, Entity], dbIn: Database) -> Entity = {
-    let key: String = dbIn.id + entityIdIn.toString;
+    fn getCachedEntity(entity_idIn: i64, cachedEntitiesIn: mutable.HashMap[String, Entity], dbIn: Database) -> Entity = {
+    let key: String = dbIn.id + entity_idIn.toString;
     let cachedInfo: Option<Entity> = cachedEntitiesIn.get(key);
     if cachedInfo.is_defined) {
       cachedInfo.get
     } else {
-      let entity = new Entity(dbIn, entityIdIn);
+      let entity = new Entity(dbIn, entity_idIn);
       cachedEntitiesIn.put(key, entity)
       entity
     }
@@ -1352,7 +1352,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
     fn getExportFileNamePrefix(entity: Entity, exportTypeIn: String) -> String {
-    let entityIdentifier: String = {;
+    let entity_identifier: String = {;
       if entity.m_db.is_remote) {
         require(entity.m_db.get_remote_address.is_defined)
         "remote-" + entity.readableIdentifier
@@ -1362,18 +1362,18 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     }
     if exportTypeIn == ImportExport.HTML_EXPORT_TYPE) {
       // (The 'e' is for "entity"; for explanation see cmts in methods createOutputDir and createOutputFile.)
-      "e" + entityIdentifier
+      "e" + entity_identifier
     } else {
       //idea (also in task list): change this to be a reliable filename (incl no backslashes? limit it to a whitelist of chars? a simple fn for that?
       let mut fixedEntityName = entity.get_name.replace(" ", "");
       fixedEntityName = fixedEntityName.replace("/", "-")
       //fixedEntityName = fixedEntityName.replace("\\","-")
-      "onemodel-export_" + entityIdentifier + "_" + fixedEntityName + "-"
+      "onemodel-export_" + entity_identifier + "_" + fixedEntityName + "-"
     }
   }
 
     fn createOutputDir(prefix: String) -> Path {
-    // even though entityIds start with a '-', it's a problem if a filename does (eg, "ls" cmd thinks it is an option, not a name):
+    // even though entity_ids start with a '-', it's a problem if a filename does (eg, "ls" cmd thinks it is an option, not a name):
     // (there's a similar line elsewhere)
     require(!prefix.startsWith("-"))
     // hyphen after the prefix is in case one wants to see where the id ends & the temporary/generated name begins, for understanding/diagnosing things:
@@ -1381,7 +1381,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
   }
 
     fn createOutputFile(prefix:String, exportTypeIn: String, exportDirectory: Option[Path]) -> (File, PrintWriter) {
-    // even though entityIds start with a '-', it's a problem if a filename does (eg, "ls" cmd thinks it is an option, not a name):
+    // even though entity_ids start with a '-', it's a problem if a filename does (eg, "ls" cmd thinks it is an option, not a name):
     // (there's a similar line elsewhere)
     require(!prefix.startsWith("-"));
 
@@ -1431,8 +1431,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     fn tryExportingTxt_FOR_TESTS(ids: java.util.ArrayList[i64], dbIn: Database, wrapLongLinesIn: bool = false,
                                 wrapColumnIn: Int = 80, includeOutlineNumberingIn: bool = false) -> (String, File) {
     assert(ids.size > 0)
-    let entityId: i64 = ids.get(0);
-    let startingEntity: Entity = new Entity(dbIn, entityId);
+    let entity_id: i64 = ids.get(0);
+    let startingEntity: Entity = new Entity(dbIn, entity_id);
 
     // see comments in ImportExport.export() method for explanation of these 3
     let exportedEntityIds = new mutable.HashMap[String, Integer];

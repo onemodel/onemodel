@@ -51,7 +51,7 @@ class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntity
     fn this(m_db: Database, id_in: i64, rel_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
            valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: i64) {
     this(m_db, id_in, rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in)
-    // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
+    // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
     assignCommonVars(entity_id1_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
   }
@@ -63,7 +63,7 @@ class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntity
   protected override fn read_data_from_db() {
     let relationData: Vec<Option<DataType>> = m_db.get_relation_to_remote_entity_data(m_attr_type_id, mEntityId1, mRemoteInstanceId, mEntityId2);
     // No other local variables to assign.  All are either in the superclass or the primary key.
-    // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
+    // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
     if relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + m_attr_type_id + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)

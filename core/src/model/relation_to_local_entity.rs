@@ -65,7 +65,7 @@ pub struct RelationToLocalEntity {
         //      throw new OmException("This constructor should not be called by the subclass.")
         //    }
 
-        // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
+        // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
         // the class hierarchy which wants it. Improve...?)
         assignCommonVars(entity_id1_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
       }
@@ -85,7 +85,7 @@ pub struct RelationToLocalEntity {
           throw new OmException("No results returned from data request for: " + m_attr_type_id + ", " + mEntityId1 + ", " + mEntityId2)
         }
         // No other local variables to assign.  All are either in the superclass or the primary key.
-        // (The inEntityId1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
+        // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
         // the class hierarchy which wants it. Improve...?)
         assignCommonVars(mEntityId1, m_attr_type_id,
                          relationData(1).asInstanceOf[Option<i64>],

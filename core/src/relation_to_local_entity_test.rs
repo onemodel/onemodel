@@ -43,10 +43,10 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let relationType = new RelationType(m_db, relation_type_id);
     let entity1Name = "husbandName";
     let entity2Name = "wifeName";
-    let entity1 = new Entity(m_db, m_db.createEntity(entity1Name));
-    let entity2 = new Entity(m_db, m_db.createEntity(entity2Name));
+    let entity1 = new Entity(m_db, m_db.create_entity(entity1Name));
+    let entity2 = new Entity(m_db, m_db.create_entity(entity2Name));
     let date = 304;
-    let rtle: RelationToLocalEntity = m_db.createRelationToLocalEntity(relation_type_id, entity1.get_id, entity2.get_id, None, date, Some(0));
+    let rtle: RelationToLocalEntity = m_db.create_relation_to_local_entity(relation_type_id, entity1.get_id, entity2.get_id, None, date, Some(0));
 
     let smallLimit = 15;
     let displayed1: String = rtle.get_display_string(smallLimit, Some(entity2), Some(relationType));
@@ -65,11 +65,11 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   }
 
   "move and update" should "work" in {
-    let entity1 = new Entity(m_db, m_db.createEntity("entity1"));
-    let entity2 = new Entity(m_db, m_db.createEntity("entity2"));
-    let entity3 = new Entity(m_db, m_db.createEntity("entity3"));
+    let entity1 = new Entity(m_db, m_db.create_entity("entity1"));
+    let entity2 = new Entity(m_db, m_db.create_entity("entity2"));
+    let entity3 = new Entity(m_db, m_db.create_entity("entity3"));
     let relType = new RelationType(m_db, m_db.createRelationType("reltype1", "", "UNI"));
-    let rtle: RelationToLocalEntity = m_db.createRelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
+    let rtle: RelationToLocalEntity = m_db.create_relation_to_local_entity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
     let firstParent = rtle.getRelatedId1;
     assert(firstParent == entity1.get_id)
     let newRtle: RelationToLocalEntity = rtle.move(entity3.get_id, 0);
@@ -98,20 +98,20 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   }
 
   "delete etc" should "work" in {
-    let entity1 = new Entity(m_db, m_db.createEntity("entity1"));
-    let entity2 = new Entity(m_db, m_db.createEntity("entity2"));
+    let entity1 = new Entity(m_db, m_db.create_entity("entity1"));
+    let entity2 = new Entity(m_db, m_db.create_entity("entity2"));
     let relType = new RelationType(m_db, m_db.createRelationType("reltype1", "", "UNI"));
-    let rtle: RelationToLocalEntity = m_db.createRelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
+    let rtle: RelationToLocalEntity = m_db.create_relation_to_local_entity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
     assert(m_db.relation_to_local_entity_exists(relType.get_id, entity1.get_id, entity2.get_id))
     rtle.delete()
     assert(!m_db.relation_to_local_entity_exists(relType.get_id, entity1.get_id, entity2.get_id))
 
     // throwing in this test for ease & faster running: otherwise should be in RelationTypeTest:
-    let newName = "new-reltype-name";
+    let new_name = "new-reltype-name";
     let newInReverseName = "new-in-reverse";
-    relType.update(newName, newInReverseName, "NON")
+    relType.update(new_name, newInReverseName, "NON")
     let updatedRelationType = new RelationType(m_db, relType.get_id);
-    assert(updatedRelationType.get_name == newName)
+    assert(updatedRelationType.get_name == new_name)
     assert(updatedRelationType.get_name_in_reverse_direction == newInReverseName)
     assert(updatedRelationType.getDirectionality == "NON")
   }

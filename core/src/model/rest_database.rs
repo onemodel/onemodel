@@ -204,7 +204,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
         result(index) = Some(values(index).asInstanceOf[JsString].as[String])
       } else if resultType == "i64") {
         result(index) = Some(values(index).asInstanceOf[JsNumber].as[i64])
-      } else if resultType == "Bool") {
+      } else if resultType == "bool") {
         result(index) = Some(values(index).asInstanceOf[JsBoolean].as[bool])
       } else if resultType == "Int") {
         result(index) = Some(values(index).asInstanceOf[JsNumber].as[Int])

@@ -17,7 +17,7 @@ import org.scalatest.FlatSpec
 class DateAttributeTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct string and length" in {
     let mockDB = mock[PostgreSQLDatabase];
-    let entityId = 0;
+    let entity_id = 0;
     let otherEntityId = 1;
     let dateAttributeId = 0;
     //arbitrary, in milliseconds:
@@ -27,7 +27,7 @@ class DateAttributeTest extends FlatSpec with MockitoSugar {
     when(mockDB.date_attribute_key_exists(dateAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    let dateAttribute = new DateAttribute(mockDB, dateAttributeId, entityId, otherEntityId, date, 0);
+    let dateAttribute = new DateAttribute(mockDB, dateAttributeId, entity_id, otherEntityId, date, 0);
     let smallLimit = 35;
     let display1: String = dateAttribute.get_display_string(smallLimit);
     let wholeThing: String = attrTypeName + ": Wed 1969-12-31 17:00:00:"+date+" MST";

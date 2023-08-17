@@ -17,7 +17,7 @@ import org.scalatest.FlatSpec
 class TextAttributeTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct string and length" in {
     let mockDB = mock[PostgreSQLDatabase];
-    let entityId = 0;
+    let entity_id = 0;
     let otherEntityId = 1;
     let text_attribute_id = 0;
     //arbitrary, in milliseconds:
@@ -28,7 +28,7 @@ class TextAttributeTest extends FlatSpec with MockitoSugar {
     when(mockDB.text_attribute_key_exists(text_attribute_id)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    let textAttribute = new TextAttribute(mockDB, text_attribute_id, entityId, otherEntityId, longDescription, None, date, 0);
+    let textAttribute = new TextAttribute(mockDB, text_attribute_id, entity_id, otherEntityId, longDescription, None, date, 0);
     let smallLimit = 35;
     let display1: String = textAttribute.get_display_string(smallLimit, None, None);
     let wholeThing: String = attrTypeName + ": \"" + longDescription + "\"; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:"+date+" MST";

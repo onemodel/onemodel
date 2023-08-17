@@ -597,9 +597,9 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     group.updateSortingIndex(movingEntityIdIn, sortingIndexIn)
   }
 
-  protected fn getSortingIndex(dbIn: Database, groupIdIn: i64, ignoredParameter: Int, entityIdIn: i64) -> i64 {
+  protected fn getSortingIndex(dbIn: Database, groupIdIn: i64, ignoredParameter: Int, entity_idIn: i64) -> i64 {
     let group = new Group(dbIn, groupIdIn);
-    group.getEntrySortingIndex(entityIdIn)
+    group.getEntrySortingIndex(entity_idIn)
   }
 
   protected fn indexIsInUse(dbIn: Database, groupIdIn: i64, sortingIndexIn: i64) -> bool {

@@ -235,7 +235,7 @@ impl Entity<'_> {
 
         // DataType::String(self.m_name) = entity_data[0];
         self.m_name = match &entity_data[0] {
-            DataType::String(x) => x.clone(),
+            Some(DataType::String(x)) => x.clone(),
             _ => {
                 return Err(anyhow!(format!(
                     "How did we get here for {:?}?",
@@ -263,7 +263,7 @@ impl Entity<'_> {
 
         // DataType::Bigint(self.m_insertion_date) = entity_data[2];
         self.m_insertion_date = match entity_data[2] {
-            DataType::Bigint(x) => x,
+            Some(DataType::Bigint(x)) => x,
             _ => {
                 return Err(anyhow!(format!(
                     "How did we get here for {:?}?",
@@ -273,7 +273,7 @@ impl Entity<'_> {
         };
         // DataType::Boolean(self.m_archived) = entity_data[4];
         self.m_archived = match entity_data[4] {
-            DataType::Boolean(x) => x,
+            Some(DataType::Boolean(x)) => x,
             _ => {
                 return Err(anyhow!(format!(
                     "How did we get here for {:?}?",
@@ -283,7 +283,7 @@ impl Entity<'_> {
         };
         // DataType::Boolean(self.m_new_entries_stick_to_top) = entity_data[5];
         self.m_new_entries_stick_to_top = match entity_data[5] {
-            DataType::Boolean(x) => x,
+            Some(DataType::Boolean(x)) => x,
             _ => {
                 return Err(anyhow!(format!(
                     "How did we get here for {:?}?",
@@ -375,10 +375,10 @@ impl Entity<'_> {
        See PostgreSQLDatabase.create_quantity_attribute(...) for details.
         */
         fn addQuantityAttribute(inAttrTypeId: i64, inUnitId: i64, inNumber: Float, sorting_index_in: Option<i64> = None,
-                               inValidOnDate: Option<i64>, observation_date_in: i64) -> QuantityAttribute {
+                               in_valid_on_date: Option<i64>, observation_date_in: i64) -> QuantityAttribute {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        let id = m_db.create_quantity_attribute(m_id, inAttrTypeId, inUnitId, inNumber, inValidOnDate, observation_date_in, sorting_index_in = sorting_index_in);
+        let id = m_db.create_quantity_attribute(m_id, inAttrTypeId, inUnitId, inNumber, in_valid_on_date, observation_date_in, sorting_index_in = sorting_index_in);
         new QuantityAttribute(m_db, id)
       }
 
@@ -519,9 +519,9 @@ impl Entity<'_> {
         addTextAttribute(inAttrTypeId, inText, sorting_index_in, None, System.currentTimeMillis)
       }
 
-        fn addTextAttribute(inAttrTypeId: i64, inText: String, sorting_index_in: Option<i64>, inValidOnDate: Option<i64>, observation_date_in: i64,
+        fn addTextAttribute(inAttrTypeId: i64, inText: String, sorting_index_in: Option<i64>, in_valid_on_date: Option<i64>, observation_date_in: i64,
                            caller_manages_transactions_in: bool = false) -> TextAttribute {
-        let id = m_db.create_text_attribute(m_id, inAttrTypeId, inText, inValidOnDate, observation_date_in, caller_manages_transactions_in, sorting_index_in);
+        let id = m_db.create_text_attribute(m_id, inAttrTypeId, inText, in_valid_on_date, observation_date_in, caller_manages_transactions_in, sorting_index_in);
         new TextAttribute(m_db, id)
       }
 
@@ -535,8 +535,8 @@ impl Entity<'_> {
       }
 
         fn addBooleanAttribute(inAttrTypeId: i64, inBoolean: bool, sorting_index_in: Option<i64> = None,
-                              inValidOnDate: Option<i64>, observation_date_in: i64) -> BooleanAttribute {
-        let id = m_db.create_boolean_attribute(m_id, inAttrTypeId, inBoolean, inValidOnDate, observation_date_in, sorting_index_in);
+                              in_valid_on_date: Option<i64>, observation_date_in: i64) -> BooleanAttribute {
+        let id = m_db.create_boolean_attribute(m_id, inAttrTypeId, inBoolean, in_valid_on_date, observation_date_in, sorting_index_in);
         new BooleanAttribute(m_db, id)
       }
 
@@ -565,18 +565,18 @@ impl Entity<'_> {
         }
       }
 
-        fn addRelationToLocalEntity(inAttrTypeId: i64, inEntityId2: i64, sorting_index_in: Option<i64>,
-                              inValidOnDate: Option<i64> = None, observation_date_in: i64 = System.currentTimeMillis) -> RelationToLocalEntity {
-        let rte_id = m_db.create_relation_to_local_entity(inAttrTypeId, get_id, inEntityId2, inValidOnDate, observation_date_in, sorting_index_in).get_id;
-        new RelationToLocalEntity(m_db, rte_id, inAttrTypeId, get_id, inEntityId2)
+        fn addRelationToLocalEntity(inAttrTypeId: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
+                              in_valid_on_date: Option<i64> = None, observation_date_in: i64 = System.currentTimeMillis) -> RelationToLocalEntity {
+        let rte_id = m_db.create_relation_to_local_entity(inAttrTypeId, get_id, in_entity_id2, in_valid_on_date, observation_date_in, sorting_index_in).get_id;
+        new RelationToLocalEntity(m_db, rte_id, inAttrTypeId, get_id, in_entity_id2)
       }
 
-        fn addRelationToRemoteEntity(inAttrTypeId: i64, inEntityId2: i64, sorting_index_in: Option<i64>,
-                              inValidOnDate: Option<i64> = None, observation_date_in: i64 = System.currentTimeMillis,
+        fn addRelationToRemoteEntity(inAttrTypeId: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
+                              in_valid_on_date: Option<i64> = None, observation_date_in: i64 = System.currentTimeMillis,
                               remote_instance_id_in: String) -> RelationToRemoteEntity {
-        let rte_id = m_db.create_relation_to_remote_entity(inAttrTypeId, get_id, inEntityId2, inValidOnDate, observation_date_in,;
+        let rte_id = m_db.create_relation_to_remote_entity(inAttrTypeId, get_id, in_entity_id2, in_valid_on_date, observation_date_in,;
                                                      remote_instance_id_in, sorting_index_in).get_id
-        new RelationToRemoteEntity(m_db, rte_id, inAttrTypeId, get_id, remote_instance_id_in, inEntityId2)
+        new RelationToRemoteEntity(m_db, rte_id, inAttrTypeId, get_id, remote_instance_id_in, in_entity_id2)
       }
 
       /** Creates then adds a particular kind of rtg to this entity.

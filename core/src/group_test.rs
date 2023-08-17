@@ -41,7 +41,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
   "moveEntityToDifferentGroup etc" should "work" in {
     let group1 = new Group(m_db, m_db.create_group("group_name1"));
     let group2 = new Group(m_db, m_db.create_group("group_name2"));
-    let e1 = new Entity(m_db, m_db.createEntity("e1"));
+    let e1 = new Entity(m_db, m_db.create_entity("e1"));
     group1.addEntity(e1.get_id)
     assert(group1.is_entity_in_group(e1.get_id))
     assert(! group2.is_entity_in_group(e1.get_id))
@@ -61,7 +61,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
 
     let index2: i64 = group2.getEntrySortingIndex(e1.get_id);
     assert(group2.findUnusedSortingIndex(None) != index2)
-    let e3: Entity = new Entity(m_db, m_db.createEntity("e3"));
+    let e3: Entity = new Entity(m_db, m_db.create_entity("e3"));
     group2.addEntity(e3.get_id)
     group2.updateSortingIndex(e3.get_id, Database.min_id_value)
     // next lines not much of a test but is something:
@@ -71,7 +71,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
     let indexes = group2.get_adjacent_group_entries_sorting_indexes(Database.min_id_value, Some(0), forward_not_back_in = true);
     assert(indexes.nonEmpty)
 
-    let e2 = new Entity(m_db, m_db.createEntity("e2"));
+    let e2 = new Entity(m_db, m_db.create_entity("e2"));
     let results_in_out1: mutable.TreeSet[i64] = e2.find_contained_local_entity_ids(new mutable.TreeSet[i64], "e2");
     assert(results_in_out1.isEmpty)
     group2.move_entity_from_group_to_local_entity(e2.get_id, e1.get_id, 0)
@@ -85,8 +85,8 @@ class GroupTest extends FlatSpec with MockitoSugar {
     let group1 = new Group(m_db, m_db.create_group("g1"));
     let group2 = new Group(m_db, m_db.create_group("g2"));
     let group3 = new Group(m_db, m_db.create_group("g3"));
-    let entity1 = new Entity(m_db, m_db.createEntity("e1"));
-    let entity2 = new Entity(m_db, m_db.createEntity("e2"));
+    let entity1 = new Entity(m_db, m_db.create_entity("e1"));
+    let entity2 = new Entity(m_db, m_db.create_entity("e2"));
     group1.addEntity(entity1.get_id)
     group2.addEntity(entity2.get_id)
     let rt = new RelationType(m_db, m_db.createRelationType("rt", "rtReversed", "BI"));

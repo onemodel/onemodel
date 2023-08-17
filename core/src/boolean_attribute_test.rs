@@ -18,7 +18,7 @@ import org.scalatest.FlatSpec
 class BooleanAttributeTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct string and length" in {
     let mockDB = mock[PostgreSQLDatabase];
-    let entityId = 0;
+    let entity_id = 0;
     let booleanValue = true;
     let otherEntityId = 1;
     let booleanAttributeId = 0;
@@ -29,7 +29,7 @@ class BooleanAttributeTest extends FlatSpec with MockitoSugar {
     when(mockDB.boolean_attribute_key_exists(booleanAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    let booleanAttribute = new BooleanAttribute(mockDB, booleanAttributeId, entityId, otherEntityId, booleanValue, None, date, 0);
+    let booleanAttribute = new BooleanAttribute(mockDB, booleanAttributeId, entity_id, otherEntityId, booleanValue, None, date, 0);
     let smallLimit = 35;
     let display1: String = booleanAttribute.get_display_string(smallLimit, None, None);
     let wholeThing: String = attrTypeName + ": true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:"+date+" MST";

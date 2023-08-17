@@ -20,7 +20,7 @@ use chrono::Utc;
 use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
 // in use, in the code.
-use sqlx::{Column, PgPool, Postgres, Row, Transaction, TypeInfo};
+use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
 use std::collections::HashSet;
 // use std::fmt::format;
 use tracing::*;
@@ -52,7 +52,7 @@ impl PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         sql: &str,
         types: &str,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let results: Vec<Vec<Option<DataType>>> = self.db_query(transaction, sql, types)?;
         if results.len() != 1 {
             Err(anyhow!(format!(
@@ -66,12 +66,14 @@ impl PostgreSQLDatabase {
             for x in oldrow {
                 let z = match x {
                     //idea: surely there is some better way than what I am doing here? See other places similarly.  Maybe implement DataType.clone() ?
-                    Some(DataType::Bigint(y)) => DataType::Bigint(y.clone()),
+                    Some(DataType::Bigint(y)) => Some(DataType::Bigint(y.clone())),
                     // Some(DataType::UnsignedInt(y)) => DataType::UnsignedInt(y.clone()),
-                    Some(DataType::Boolean(y)) => DataType::Boolean(y.clone()),
-                    Some(DataType::String(y)) => DataType::String(y.clone()),
-                    Some(DataType::Float(y)) => DataType::Float(y.clone()),
-                    Some(DataType::Smallint(y)) => DataType::Smallint(y.clone()),
+                    Some(DataType::Boolean(y)) => Some(DataType::Boolean(y.clone())),
+                    Some(DataType::String(y)) => Some(DataType::String(y.clone())),
+                    Some(DataType::Float(y)) => Some(DataType::Float(y.clone())),
+                    Some(DataType::Smallint(y)) => Some(DataType::Smallint(y.clone())),
+                    Some(DataType::Smallint(y)) => Some(DataType::Smallint(y.clone())),
+                    None => None,
                     _ => {
                         return Err(anyhow!(format!(
                             "How did we get here for x of {:?} in {:?}?",
@@ -98,10 +100,7 @@ impl PostgreSQLDatabase {
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
         // Note: pgsql docs say "Under the JDBC specification, you should access a field only
         // once" (under the JDBC interface part).  Not sure if that applies now to sqlx in rust.
-        debug!(
-            "In db_query, sql is: {}\n...and types: {:?} .",
-            sql, types
-        );
+        debug!("In db_query, sql is: {}\n...and types: {:?} .", sql, types);
 
         Self::check_for_bad_sql(sql)?;
         let mut results: Vec<Vec<Option<DataType>>> = Vec::new();
@@ -124,11 +123,13 @@ impl PostgreSQLDatabase {
                     //%%what should error handling in this context be like? how should it work? see the open tabs re errs in closures,
                     // AND/OR the sqlx doc for this closure for what err it returns, or what caller expects...???
                     let col: &PgColumn = sqlx_row.try_column(column_counter).unwrap();
+                    let value_ref = sqlx_row.try_get_raw(column_counter).unwrap();
                     let ti: &PgTypeInfo = col.type_info();
-                    let is_null: bool = ti.is_null();
+                    // %%let is_null: bool = ti.is_null();
+                    let is_null: bool = value_ref.is_null();
                     //%%next 2 lines just for development:
                     let db_type_info = ti.to_string();
-                    debug!("In fn db_query, is_null: {}, type_name={}, and db_type_info: {}", is_null, type_name, db_type_info);
+                    debug!("In fn db_query, is_null: {}, type_name={}, col={:?}, and db_type_info: {}", is_null, type_name, col, db_type_info);
                     if is_null {
                         row.push(None);
                     } else {
@@ -152,6 +153,7 @@ impl PostgreSQLDatabase {
                         } else if type_name == &"i64" {
                             //was: row(column_counter) = Some(rs.getLong(column_counter))
                             let decode_mbe = sqlx_row.try_get(column_counter);
+                            // let decode_mbe = sqlx_row.try_column(column_counter);
                             let x: i64 = decode_mbe.unwrap(); //%%??? for all such.
                             // let x: i64 = match decode_mbe { //%%???
                             //     None => %
@@ -164,7 +166,7 @@ impl PostgreSQLDatabase {
                         //     let x: u64 = decode_mbe.unwrap();
                         //     debug!("in db_query4a: x is {} .", x);
                         //     row.push(Some(DataType::UnsignedInt(x)));
-                        } else if type_name == &"Boolean" {
+                        } else if type_name == &"bool" {
                             //was: row(column_counter) = Some(rs.get_boolean(column_counter))
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
                             let x: bool = decode_mbe.unwrap(); //%%???
@@ -275,10 +277,10 @@ impl PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         sql_in: &str,
     ) -> Result<u64, anyhow::Error> {
-        let results: Vec<DataType> =
+        let results: Vec<Option<DataType>> =
             self.db_query_wrapper_for_one_row(transaction, sql_in, "i64")?;
         let result: i64 = match results[0] {
-            DataType::Bigint(x) => x,
+            Some(DataType::Bigint(x)) => x,
             _ => {
                 return Err(anyhow!(
                     "In extract_row_count_from_count_query, Should never happen".to_string()
@@ -760,7 +762,10 @@ impl PostgreSQLDatabase {
         // a pool).  Search for related cmts w/ "isolation".
         let future = sqlx::query("show transaction isolation level").execute(&pool);
         let x = rt.block_on(future)?;
-        debug!("In connect: Query result re transaction isolation lvl?:  {:?}", x);
+        debug!(
+            "In connect: Query result re transaction isolation lvl?:  {:?}",
+            x
+        );
 
         Ok(pool)
     }
@@ -1793,8 +1798,7 @@ impl PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -1918,7 +1922,7 @@ impl PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         sequence_name_in: &str,
     ) -> Result<i64, anyhow::Error> {
-        let row: Vec<DataType> = self.db_query_wrapper_for_one_row(
+        let row: Vec<Option<DataType>> = self.db_query_wrapper_for_one_row(
             transaction,
             format!("SELECT nextval('{}')", sequence_name_in).as_str(),
             "i64",
@@ -1930,8 +1934,8 @@ impl PostgreSQLDatabase {
         } else {
             match row[0] {
                 // None => return Err("None found, in get_new_key()."),
-                // Some(DataType::Bigint(new_id)) => Ok(new_id),
-                DataType::Bigint(new_id) => Ok(new_id),
+                Some(DataType::Bigint(new_id)) => Ok(new_id),
+                // DataType::Bigint(new_id) => Ok(new_id),
                 _ => {
                     return Err(anyhow!(
                         "In get_new_key() this should never happen".to_string()
@@ -1953,7 +1957,7 @@ impl PostgreSQLDatabase {
                 group_id
             )
             .as_str(),
-            "Boolean",
+            "bool",
         )?;
         let mixed_classes_allowed: bool = match rows[0][0] {
             Some(DataType::Boolean(b)) => b,
@@ -2212,8 +2216,7 @@ impl PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -2304,7 +2307,7 @@ impl PostgreSQLDatabase {
                     // (Using the preference_entity.get_id for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
                     // IN setUserPreference METHOD CALL TO create_boolean_attribute!)
                     let sql2 = format!("select id, booleanValue from booleanattribute where entity_id={} and attr_type_id={}", preference_entity_id, preference_entity_id);
-                    self.db_query(transaction, sql2.as_str(), "i64,Boolean")?
+                    self.db_query(transaction, sql2.as_str(), "i64,bool")?
                 } else if preference_type == Util::PREF_TYPE_ENTITY_ID {
                     let sql2 = format!("select rel_type_id, entity_id, entity_id_2 from relationtoentity where entity_id={}", preference_entity_id);
                     self.db_query(transaction, sql2.as_str(), "i64,i64,i64")?
@@ -2528,13 +2531,13 @@ impl PostgreSQLDatabase {
         if !version_table_exists {
             self.create_version_table(transaction)?;
         }
-        let db_version_row: Vec<DataType> = self.db_query_wrapper_for_one_row(
+        let db_version_row: Vec<Option<DataType>> = self.db_query_wrapper_for_one_row(
             transaction,
             "select version from om_db_version",
             "Int",
         )?;
         let db_version = match db_version_row.get(0) {
-            Some(DataType::Smallint(i)) => i.clone(),
+            Some(Some(DataType::Smallint(i))) => i.clone(),
             _ => {
                 return Err(anyhow!(
                     "In do_database_upgrades_if_needed, unexpected db_version: {:?}",
@@ -2779,7 +2782,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(transaction,
                                           format!("select form_id, id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date from RelationToEntity where id={}", id_in).as_str(),
                                           "Int,i64,i64,i64,i64,i64,i64")
@@ -2789,7 +2792,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(transaction,
                                           format!("select form_id, id, rel_type_id, entity_id, remote_instance_id, entity_id_2, valid_on_date, \
                                           observation_date from RelationToRemoteEntity where id={}", id_in).as_str(),
@@ -2800,7 +2803,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(transaction,
                                           format!("select form_id, id, entity_id, rel_type_id, group_id, valid_on_date, observation_date from \
                                           RelationToGroup where id={}", id_in).as_str(),
@@ -2842,7 +2845,7 @@ impl PostgreSQLDatabase {
         self.does_this_exist(
             transaction,
             format!(
-                "SELECT count(1) from Entity where {} id={} and id in (select id from entity {}",
+                "SELECT count(1) from Entity where {} id={} and id in (select id from entity {})",
                 not_archived, id_in, limit
             )
             .as_str(),
@@ -3033,9 +3036,9 @@ impl PostgreSQLDatabase {
             "".to_string()
         };
         let types = if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
-            "i64,String,i64,i64,Boolean,Boolean,String,String"
+            "i64,String,i64,i64,bool,bool,String,String"
         } else {
-            "i64,String,i64,i64,Boolean,Boolean,Boolean"
+            "i64,String,i64,i64,bool,bool,bool"
         };
         let sql = format!(
             "{}{}{}{}{}{} true {}{}{}{}{} order by id limit {} offset {}",
@@ -3221,10 +3224,10 @@ impl PostgreSQLDatabase {
     //     "id,entity_id,rel_type_id,group_id,valid_on_date,observation_date",
     //     "id,rel_type_id,entity_id,remote_instance_id,entity_id_2,valid_on_date,observation_date")
     //     let typesByTable: Vec<String> = Array("i64,i64,i64,i64,i64,Float,i64,i64",;
-    //     "i64,i64,i64,i64,Boolean,i64,i64",
+    //     "i64,i64,i64,i64,bool,i64,i64",
     //     "i64,i64,i64,i64,i64",
     //     "i64,i64,i64,i64,String,i64,i64",
-    //     "i64,i64,i64,i64,String,i64,i64,String,Boolean,Boolean,Boolean,i64,String",
+    //     "i64,i64,i64,i64,String,i64,i64,String,bool,bool,bool,i64,String",
     //     "i64,i64,i64,i64,i64,i64,i64",
     //     "i64,i64,i64,i64,i64,i64,i64",
     //     "i64,i64,i64,i64,String,i64,i64,i64")
@@ -3472,8 +3475,7 @@ impl PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -3851,23 +3853,24 @@ impl Database for PostgreSQLDatabase {
             transaction,
             class_name_in.clone(),
             format!("{}{}", class_name_in.clone(), Util::TEMPLATE_NAME_SUFFIX),
-            transaction.is_some()
+            transaction.is_some(),
         )
     }
 
     fn delete_class_and_its_template_entity(&self, class_id_in: i64) -> Result<(), anyhow::Error> {
         let mut tx: Transaction<Postgres> = self.begin_trans()?;
         let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-        let template_entity_id_vec: Vec<DataType> =
+        let template_entity_id_vec: Vec<Option<DataType>> =
             self.get_class_data(transaction, class_id_in)?;
-        let template_entity_id: i64 =
-            match template_entity_id_vec.get(1) {
-                Some(DataType::Bigint(n)) => *n,
-                _ => return Err(anyhow!(
+        let template_entity_id: i64 = match template_entity_id_vec.get(1) {
+            Some(Some(DataType::Bigint(n))) => *n,
+            _ => {
+                return Err(anyhow!(
                     "In delete_class_and_its_template_entity, Unexpected values for template: {:?}",
                     template_entity_id_vec
-                )),
-            };
+                ))
+            }
+        };
         let class_group_id: Option<i64> = self.get_system_entitys_class_group_id(transaction)?;
         if class_group_id.is_some() {
             self.remove_entity_from_group(
@@ -4080,8 +4083,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -4258,9 +4260,9 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-        name_in: String,
+        name_in: &str,
     ) -> Result<u64, anyhow::Error> {
-        let name: String = Self::escape_quotes_etc(name_in);
+        let name: String = Self::escape_quotes_etc(name_in.to_string());
         self.db_action(
             transaction,
             format!(
@@ -4376,8 +4378,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -4526,8 +4527,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -4778,8 +4778,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -4876,8 +4875,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -4991,22 +4989,24 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
         let mut tx = self.begin_trans()?;
         let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-        let rte_data: Vec<DataType> =
+        let rte_data: Vec<Option<DataType>> =
             self.get_all_relation_to_local_entity_data_by_id(transaction, rtle_id_in)?;
         // next lines are the same as in move_relation_to_remote_entity_to_local_entity and move_relation_to_group; could maintain them similarly.
-        let old_rte_rel_type = get_i64_from_row_without_option(&rte_data, 2)?;
-        let old_rte_entity_1 = get_i64_from_row_without_option(&rte_data, 3)?;
-        let old_rte_entity_2 = get_i64_from_row_without_option(&rte_data, 4)?;
+        let old_rte_rel_type = get_i64_from_row(&rte_data, 2)?;
+        let old_rte_entity_1 = get_i64_from_row(&rte_data, 3)?;
+        let old_rte_entity_2 = get_i64_from_row(&rte_data, 4)?;
         let valid_on_date: Option<i64> = match rte_data.get(5) {
             //%%does this work in both cases?? (ie, from fn db_query, to here)
-            None => None,
-            Some(DataType::Bigint(i)) => Some(i.clone()),
-            _ => return Err(anyhow!(
+            Some(None) => None,
+            Some(Some(DataType::Bigint(i))) => Some(i.clone()),
+            _ => {
+                return Err(anyhow!(
                 "In move_relation_to_local_entity_to_local_entity, Unexpected valid_on_date: {:?}",
                 rte_data.get(5)
-            )),
+            ))
+            }
         };
-        let observed_date = get_i64_from_row_without_option(&rte_data, 6)?;
+        let observed_date = get_i64_from_row(&rte_data, 6)?;
         self.delete_relation_to_local_entity(
             transaction,
             old_rte_rel_type,
@@ -5043,24 +5043,26 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<RelationToRemoteEntity, anyhow::Error> {
         let mut tx = self.begin_trans()?;
         let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-        let rte_data: Vec<DataType> = self.get_all_relation_to_remote_entity_data_by_id(
+        let rte_data: Vec<Option<DataType>> = self.get_all_relation_to_remote_entity_data_by_id(
             transaction,
             relation_to_remote_entity_id_in,
         )?;
         // next lines are the same as in move_relation_to_local_entity_to_local_entity; could maintain them similarly.
-        let old_rte_rel_type = get_i64_from_row_without_option(&rte_data, 2)?;
-        let old_rte_entity_1 = get_i64_from_row_without_option(&rte_data, 3)?;
-        let old_rte_entity_2 = get_i64_from_row_without_option(&rte_data, 4)?;
+        let old_rte_rel_type = get_i64_from_row(&rte_data, 2)?;
+        let old_rte_entity_1 = get_i64_from_row(&rte_data, 3)?;
+        let old_rte_entity_2 = get_i64_from_row(&rte_data, 4)?;
         let valid_on_date: Option<i64> = match rte_data.get(5) {
             //%%does this work in both cases?? (ie, from fn db_query, to here)
-            None => None,
-            Some(DataType::Bigint(i)) => Some(i.clone()),
-            _ => return Err(anyhow!(
+            Some(None) => None,
+            Some(Some(DataType::Bigint(i))) => Some(i.clone()),
+            _ => {
+                return Err(anyhow!(
                 "In move_relation_to_local_entity_to_local_entity, Unexpected valid_on_date: {:?}",
                 rte_data.get(5)
-            )),
+            ))
+            }
         };
-        let observed_date = get_i64_from_row_without_option(&rte_data, 6)?;
+        let observed_date = get_i64_from_row(&rte_data, 6)?;
         self.delete_relation_to_remote_entity(
             transaction,
             old_rte_rel_type,
@@ -5163,8 +5165,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -5247,8 +5248,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -5331,8 +5331,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -5434,17 +5433,17 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<i64, anyhow::Error> {
         let mut tx = self.begin_trans()?;
         let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-        let rtg_data: Vec<DataType> =
+        let rtg_data: Vec<Option<DataType>> =
             self.get_all_relation_to_group_data_by_id(transaction, relation_to_group_id_in)?;
 
         // next lines are the same as in move_relation_to_local_entity_to_local_entity and its sibling; could maintain them similarly.
-        let old_rtg_entity_id = get_i64_from_row_without_option(&rtg_data, 2)?;
-        let old_rtg_rel_type = get_i64_from_row_without_option(&rtg_data, 3)?;
-        let old_rtg_group_id = get_i64_from_row_without_option(&rtg_data, 4)?;
+        let old_rtg_entity_id = get_i64_from_row(&rtg_data, 2)?;
+        let old_rtg_rel_type = get_i64_from_row(&rtg_data, 3)?;
+        let old_rtg_group_id = get_i64_from_row(&rtg_data, 4)?;
         let valid_on_date: Option<i64> = match rtg_data.get(5) {
             //%%does this work in both cases?? (ie, from fn db_query, to here)
-            None => None,
-            Some(DataType::Bigint(i)) => Some(i.clone()),
+            Some(None) => None,
+            Some(Some(DataType::Bigint(i))) => Some(i.clone()),
             _ => {
                 return Err(anyhow!(
                     "In move_relation_to_group, unexpected valid_on_date: {:?}",
@@ -5452,7 +5451,7 @@ impl Database for PostgreSQLDatabase {
                 ))
             }
         };
-        let observed_date = get_i64_from_row_without_option(&rtg_data, 6)?;
+        let observed_date = get_i64_from_row(&rtg_data, 6)?;
 
         self.delete_relation_to_group(
             transaction,
@@ -5652,8 +5651,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -5806,8 +5804,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -5911,8 +5908,7 @@ impl Database for PostgreSQLDatabase {
             }
         };
         let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
-        {
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -6264,14 +6260,14 @@ impl Database for PostgreSQLDatabase {
     fn set_user_preference_entity_id<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        name_in: String,
+        name_in: &str,
         entity_id_in: i64,
     ) -> Result<(), anyhow::Error> {
         let preferences_container_id: i64 = self.get_preferences_container_id(transaction)?;
         let pref: Vec<DataType> = self.get_user_preference2(
             transaction,
             preferences_container_id,
-            name_in.as_str(),
+            name_in,
             Util::PREF_TYPE_ENTITY_ID,
         )?;
         if pref.len() == 3 {
@@ -6308,11 +6304,11 @@ impl Database for PostgreSQLDatabase {
                     transaction,
                     preferences_container_id,
                     type_id_of_the_has_relation,
-                    name_in.as_str(),
+                    name_in,
                     None,
                     Some(Utc::now().timestamp_millis()),
                     Utc::now().timestamp_millis(),
-                    false,
+                    true,
                 )?
                 .0;
             self.create_relation_to_local_entity(
@@ -6323,7 +6319,7 @@ impl Database for PostgreSQLDatabase {
                 Some(Utc::now().timestamp_millis()),
                 Utc::now().timestamp_millis(),
                 None,
-                false,
+                true,
             )?;
             Ok(())
         } else {
@@ -6334,13 +6330,13 @@ impl Database for PostgreSQLDatabase {
     fn get_user_preference_entity_id<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        preference_name_in: String,
+        preference_name_in: &str,
         default_value_in: Option<i64>, /*= None*/
     ) -> Result<Option<i64>, anyhow::Error> {
         let pref = self.get_user_preference2(
             transaction,
             self.get_preferences_container_id(transaction)?,
-            preference_name_in.as_str(),
+            preference_name_in,
             Util::PREF_TYPE_ENTITY_ID,
         )?;
         if pref.len() == 0 {
@@ -6421,7 +6417,7 @@ impl Database for PostgreSQLDatabase {
             "i64",
         )?;
         match row.get(0) {
-            Some(DataType::Bigint(x)) => Ok(x.clone()),
+            Some(Some(DataType::Bigint(x))) => Ok(x.clone()),
             _ => Err(anyhow!(
                 "Unexpected row in get_group_entry_sorting_index: {:?}",
                 row
@@ -6442,7 +6438,7 @@ impl Database for PostgreSQLDatabase {
                                                             attribute_id_in).as_str(),
                                                             "i64")?;
         match row.get(0) {
-            Some(DataType::Bigint(x)) => Ok(x.clone()),
+            Some(Some(DataType::Bigint(x))) => Ok(x.clone()),
             _ => Err(anyhow!(
                 "Unexpected row in get_entity_attribute_sorting_index: {:?}",
                 row
@@ -6537,12 +6533,12 @@ impl Database for PostgreSQLDatabase {
                 }
             };
             let local_tx_option = &Some(&mut local_tx);
-            let transaction: &Option<&mut Transaction<Postgres>> =
-                if caller_manages_transactions_in {
-                    transaction_in
-                } else {
-                    local_tx_option
-                };
+            let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in
+            {
+                transaction_in
+            } else {
+                local_tx_option
+            };
             //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
             let data: Vec<Vec<Option<DataType>>> = {
@@ -6553,12 +6549,7 @@ impl Database for PostgreSQLDatabase {
                         None,
                     )?
                 } else {
-                    self.get_group_entries_data(
-                        transaction,
-                        entity_id_or_group_id_in,
-                        None,
-                        true,
-                    )?
+                    self.get_group_entries_data(transaction, entity_id_or_group_id_in, None, true)?
                 }
             };
             if data.len() as u128 != number_of_entries as u128 {
@@ -6646,10 +6637,12 @@ impl Database for PostgreSQLDatabase {
                     // });
                     let id: i64 = match entry[0] {
                         Some(DataType::Bigint(x)) => x,
-                        _ => return Err(anyhow!(
+                        _ => {
+                            return Err(anyhow!(
                             "In renumber_sorting_indexes, yet another unexpected entry[0]: {:?}",
                             entry[0]
-                        )),
+                        ))
+                        }
                     };
                     self.update_sorting_index_in_a_group(
                         transaction,
@@ -7086,7 +7079,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         quantity_id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::QUANTITY_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                                                  format!("select qa.entity_id, qa.unit_id, qa.quantity_number, qa.attr_type_id, qa.valid_on_date, \
@@ -7102,7 +7095,7 @@ impl Database for PostgreSQLDatabase {
         relation_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                                                  format!("select rte.id, rte.valid_on_date, rte.observation_date, asort.sorting_index \
@@ -7117,7 +7110,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                                                  format!("select rte.rel_type_id, rte.entity_id, rte.entity_id_2, rte.valid_on_date, \
@@ -7134,7 +7127,7 @@ impl Database for PostgreSQLDatabase {
         entity_id1_in: i64,
         remote_instance_id_in: String,
         entity_id2_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_REMOTE_ENTITY_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                                      format!("select rte.id, rte.valid_on_date, rte.observation_date, asort.sorting_index from RelationToRemoteEntity rte, \
@@ -7148,7 +7141,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(transaction,
                                      format!("select name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where id={}",
                                              id_in).as_str(),
@@ -7161,7 +7154,7 @@ impl Database for PostgreSQLDatabase {
         entity_id: i64,
         rel_type_id: i64,
         group_id: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                                   format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
@@ -7176,7 +7169,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                      format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
@@ -7189,7 +7182,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let not_archived = if !self.include_archived_entities {
             "(not archived) and "
         } else {
@@ -7207,7 +7200,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         text_id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::TEXT_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                              format!("select ta.entity_id, ta.textvalue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, \
@@ -7221,7 +7214,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         date_id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::DATE_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                                  format!("select da.entity_id, da.date, da.attr_type_id, asort.sorting_index from DateAttribute da, \
@@ -7235,7 +7228,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         boolean_id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let form_id = self.get_attribute_form_id(Util::BOOLEAN_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction, format!("select ba.entity_id, ba.booleanValue, ba.attr_type_id, ba.valid_on_date, ba.observation_date, asort.sorting_index \
                                     from BooleanAttribute ba, AttributeSorting asort where id={} and ba.entity_id=asort.entity_id and asort.attribute_form_id={} \
@@ -7248,7 +7241,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         file_id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::FILE_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                              format!("select fa.entity_id, fa.description, fa.attr_type_id, fa.original_file_date, fa.stored_date, \
@@ -7712,7 +7705,7 @@ impl Database for PostgreSQLDatabase {
         let early_results = self.db_query(
             transaction,
             sql.as_str(),
-            "i64,String,i64,i64,Boolean,Boolean,Boolean",
+            "i64,String,i64,i64,bool,bool,bool",
         )?;
         let early_results_len = early_results.len();
         let final_results: Vec<Entity> = Vec::new();
@@ -7741,7 +7734,7 @@ impl Database for PostgreSQLDatabase {
     //     let sql = format!("select id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where name ~* '{}' and {} \
     //                   order by id limit {} offset {}",
     //                     name_regex, omission_expression, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in).as_str();
-    //     let early_results = self.db_query(transaction, sql, "i64,String,i64,Boolean,Boolean")?;
+    //     let early_results = self.db_query(transaction, sql, "i64,String,i64,bool,bool")?;
     //     let final_results: Vec<Group> = Vec::new();
     //     // idea: (see get_entities_generic for idea, see if applies here)
     //     for result in early_results {
@@ -7904,7 +7897,7 @@ impl Database for PostgreSQLDatabase {
     //                                         starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/,
     //                                       quantity_seeks_unit_not_type_in: bool) -> Result<Vec<Entity>, anyhow::Error>  {
     //     let sql = format!("{}{}", Util::SELECT_ENTITY_START, self.get_entities_used_as_attribute_types_sql(attribute_type_in, quantity_seeks_unit_not_type_in)?).as_str();
-    //     let early_results = self.db_query(transaction, sql, "i64,String,i64,i64,Boolean,Boolean,Boolean")?;
+    //     let early_results = self.db_query(transaction, sql, "i64,String,i64,i64,bool,bool,bool")?;
     //     let final_results: Vec<Entity> = Vec::new();
     //     // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
     //     // dependencies; is a cleaner design.)  (and similar ones)
@@ -7928,7 +7921,7 @@ impl Database for PostgreSQLDatabase {
     //     let sql = format!("SELECT id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where {} \
     //                       order by id limit {} offset {}",
     //               omission_expression, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in).as_str();
-    //     let early_results = self.db_query(transaction, sql, "i64,String,i64,Boolean,Boolean");
+    //     let early_results = self.db_query(transaction, sql, "i64,String,i64,bool,bool");
     //     let final_results: Vec<Group> = Vec::new();
     //     // idea: should the remainder of this method be moved to RTG, so the persistence layer doesn't know anything about the Model? (helps avoid circular
     //     // dependencies; is a cleaner design?)
@@ -7947,7 +7940,7 @@ impl Database for PostgreSQLDatabase {
     // fn get_classes(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/)  -> Result<Vec<EntityClass>, anyhow::Error>  {
     //     let sql: String = format!("SELECT id, name, defining_entity_id, create_default_attributes from class order by id limit {} offset {}",
     //                       check_if_should_be_all_results(max_vals_in), starting_object_index_in);
-    //     let early_results = self.db_query(transaction, sql.as_str(), "i64,String,i64,Boolean");
+    //     let early_results = self.db_query(transaction, sql.as_str(), "i64,String,i64,bool");
     //     let final_results: Vec<EntityClass> = Vec::new();
     //     // idea: should the remainder of this method be moved to EntityClass, so the persistence layer doesn't know anything about the Model? (helps avoid circular
     //     // dependencies; is a cleaner design?; see similar comment in get_entities_generic.)
@@ -8060,21 +8053,24 @@ impl Database for PostgreSQLDatabase {
         } else if results.len() > 1 {
             return Err(anyhow!("In get_nearest_group_entrys_sorting_index, probably the caller didn't expect this to get >1 results...Is that even meaningful? sql was: {}", sql));
         } else {
-            let row =
-                match results.get(0) {
-                    None => return Err(anyhow!(
+            let row = match results.get(0) {
+                None => {
+                    return Err(anyhow!(
                         "Expected a row result, got none for results at index 0. Results is {:?}",
                         results
-                    )),
-                    Some(x) => x,
-                };
+                    ))
+                }
+                Some(x) => x,
+            };
             match row.get(0) {
                 Some(Some(DataType::Bigint(i))) => return Ok(Some(i.clone())),
-                _ => return Err(anyhow!(
+                _ => {
+                    return Err(anyhow!(
                     "In get_nearest_group_entrys_sorting_index, unexpected row {:?}, from sql: {}",
                     row,
                     sql
-                )),
+                ))
+                }
             };
         }
     }
@@ -8176,7 +8172,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(transaction,
                                           format!("SELECT name, class_id, insertion_date, public, \
                                           archived, new_entries_stick_to_top from Entity where id={}",
@@ -8189,10 +8185,10 @@ impl Database for PostgreSQLDatabase {
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
     ) -> Result<Option<String>, anyhow::Error> {
-        let name: Vec<DataType> = self.get_entity_data(transaction, id_in)?;
+        let name: Vec<Option<DataType>> = self.get_entity_data(transaction, id_in)?;
         match name.get(0) {
             None => Ok(None),
-            Some(DataType::String(x)) => Ok(Some(x.to_string())),
+            Some(Some(DataType::String(x))) => Ok(Some(x.to_string())),
             _ => Err(anyhow!(format!("Unexpected value: {:?}", name))),
         }
     }
@@ -8201,7 +8197,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(
             transaction,
             format!(
@@ -8225,15 +8221,16 @@ impl Database for PostgreSQLDatabase {
                 id_in
             ));
         }
-        let name: String =
-            match columns[0].clone() {
-                DataType::String(s) => s,
-                _ => return Err(anyhow!(
+        let name: String = match columns[0].clone() {
+            Some(DataType::String(s)) => s,
+            _ => {
+                return Err(anyhow!(
                     "In get_class_name, No name returned for class {} column 0? (columns: {:?})",
                     id_in,
                     columns
-                )),
-            };
+                ))
+            }
+        };
         // if name.isEmpty) None
         // else name.asInstanceOf[Option<String>]
         Ok(Some(name))
@@ -8446,7 +8443,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: String,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(
             transaction,
             format!(
@@ -8488,7 +8485,7 @@ impl Database for PostgreSQLDatabase {
                           } else {
                             ""
                           })
-                let early_results = db_query(sql, "String,Boolean,String,i64,i64");
+                let early_results = db_query(sql, "String,bool,String,i64,i64");
                 let final_results = new java.util.ArrayList[OmInstance];
                 // (Idea: See note in similar point in get_group_entry_objects.)
                 for (result <- early_results) {
@@ -8621,6 +8618,10 @@ fn get_i64_from_row_without_option(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const QUANTITY_TYPE_NAME: &str = "length";
+    const RELATION_TYPE_NAME: &str = "someRelationToEntityTypeName";
+    const RELATED_ENTITY_NAME: &str = "someRelatedEntityName";
 
     /// This fn is used in important (informative) commented lines elsewhere.
     fn db_query_for_test1<'a>(
@@ -8796,7 +8797,10 @@ mod tests {
         // %%Search for related cmts w/ "isolation".
 
         for c in 1..=150 {
-            debug!("in test_basic_sql_connectivity_with_async_and_tokio: before, {}", c);
+            debug!(
+                "in test_basic_sql_connectivity_with_async_and_tokio: before, {}",
+                c
+            );
 
             // hung after 1-4 iterations, when block_on didn't have "rt.":
             let sql: String = "DROP table IF EXISTS test_doesnt_exist CASCADE".to_string();
@@ -8807,7 +8811,12 @@ mod tests {
             if let Err(e) = x {
                 panic!("FAILURE 1: {}", e.to_string());
             } else {
-                 debug!("in test_basic_sql_connectivity_with_async_and_tokio: ok {}: {}, {:?}", c, &sql, x.unwrap());
+                debug!(
+                    "in test_basic_sql_connectivity_with_async_and_tokio: ok {}: {}, {:?}",
+                    c,
+                    &sql,
+                    x.unwrap()
+                );
             }
 
             // Hung similarly to above section, after ~ 6 iterations.  Has valid output.
@@ -8822,9 +8831,16 @@ mod tests {
                 })
                 .fetch_all(&pool);
             let res = rt.block_on(future).unwrap();
-            debug!("in test_basic_sql_connectivity_with_async_and_tokio: result vec (length {}): {:?}", res.len(), res);
+            debug!(
+                "in test_basic_sql_connectivity_with_async_and_tokio: result vec (length {}): {:?}",
+                res.len(),
+                res
+            );
             for (c, e) in res.iter().enumerate() {
-                debug!("in test_basic_sql_connectivity_with_async_and_tokio:  vec element {}: {:?}", c, e);
+                debug!(
+                    "in test_basic_sql_connectivity_with_async_and_tokio:  vec element {}: {:?}",
+                    c, e
+                );
             }
 
             // hung at 8-9 iterations, similarly:
@@ -8834,7 +8850,10 @@ mod tests {
             let row: (i64,) = rt.block_on(future).unwrap();
             //using next line instead avoids the problem, before I used rt! (see more detailed comment above.)
             // let row: (i64, ) = future.await.unwrap();
-            debug!("in test_basic_sql_connectivity_with_async_and_tokio: in query {}: {:?} and {}", c, row, row.0);
+            debug!(
+                "in test_basic_sql_connectivity_with_async_and_tokio: in query {}: {:?} and {}",
+                c, row, row.0
+            );
         }
     }
 
@@ -8846,24 +8865,42 @@ mod tests {
         let mut tx = db.begin_trans().unwrap();
         let tx = &Some(&mut tx);
         let pref_name = "xyznevercreatemeinreallife";
-        assert!(db.get_user_preference_boolean(tx,pref_name, None).unwrap().is_none());
+        assert!(db
+            .get_user_preference_boolean(tx, pref_name, None)
+            .unwrap()
+            .is_none());
 
-        assert_eq!(db.get_user_preference_boolean(tx, pref_name, Some(true)).unwrap(), Some(true));
-        db.set_user_preference_boolean(tx, pref_name, false).unwrap();
-        assert_eq!(db.get_user_preference_boolean(tx, pref_name, Some(true)).unwrap(), Some(false));
+        assert_eq!(
+            db.get_user_preference_boolean(tx, pref_name, Some(true))
+                .unwrap(),
+            Some(true)
+        );
+        db.set_user_preference_boolean(tx, pref_name, false)
+            .unwrap();
+        assert_eq!(
+            db.get_user_preference_boolean(tx, pref_name, Some(true))
+                .unwrap(),
+            Some(false)
+        );
 
-        /* //%%$%%%% cont uncommenting tests & making them pass, until at EOF.
         let pref_name2 = "xyz2";
-        assert(m_db.get_user_preference_entity_id(pref_name2).isEmpty)
-        // (intentional style violation for readability - the ".contains" suggested by the IDE just caused another problem)
-        //noinspection OptionEqualsSome
-        assert(m_db.get_user_preference_entity_id(pref_name2, Some(0L)) == Some(0L))
-        m_db.set_user_preference_entity_id(pref_name2, m_db.get_system_entity_id)
-        //noinspection OptionEqualsSome
-        assert(m_db.get_user_preference_entity_id(pref_name2, Some(0L)) == Some(m_db.get_system_entity_id))
-                 */
+        assert!(db
+            .get_user_preference_entity_id(tx, pref_name2, None)
+            .unwrap()
+            .is_none());
+        assert_eq!(
+            db.get_user_preference_entity_id(tx, pref_name2, Some(0))
+                .unwrap(),
+            Some(0)
+        );
+        db.set_user_preference_entity_id(tx, pref_name2, db.get_system_entity_id(tx).unwrap())
+            .unwrap();
+        assert_eq!(
+            db.get_user_preference_entity_id(tx, pref_name2, Some(0))
+                .unwrap(),
+            Some(db.get_system_entity_id(tx).unwrap())
+        );
         // no need to db.rollback_trans(), because that is automatic when tx goes out of scope, per sqlx docs.
-        //mbe next: get all big %%%s, uncmt all in Database and pgdb.rs, fix red/style/format, compile, make this test work incl above line.
     }
 
     #[test]
@@ -8987,6 +9024,7 @@ mod tests {
             .expect(format!("Failed sql: {}", sql).as_str());
         debug!("in sqlx_do_query: inserted: {}: {:?}", sql, x);
     }
+
     #[test]
     ///yes it actually was failing when written, in my use of Sqlx somehow.%%finish cmt--what fixed?
     fn test_rollback_and_commit_with_less_helper_code() {
@@ -9016,20 +9054,29 @@ mod tests {
         let mut x: PgQueryResult = rt
             .block_on(sqlx::query(sql.as_str()).execute(&pool))
             .expect(format!("Error from sql: {}", sql).as_str());
-        debug!("in test_rollback_and_commit_with_less_helper_code: dropped table if exists: {}: {:?}", &sql, x);
+        debug!(
+            "in test_rollback_and_commit_with_less_helper_code: dropped table if exists: {}: {:?}",
+            &sql, x
+        );
 
         let sql = format!("create table {} (datum varchar(99) NOT NULL) ", table_name);
         x = rt
             .block_on(sqlx::query(sql.as_str()).execute(&pool))
             .expect(format!("Error from sql: {}", sql).as_str());
-        debug!("in test_rollback_and_commit_with_less_helper_code: created table: {}: {:?}", &sql, x);
+        debug!(
+            "in test_rollback_and_commit_with_less_helper_code: created table: {}: {:?}",
+            &sql, x
+        );
 
         let count_sql = format!("select count(*) from {}", table_name);
         let mut count: i64 = sqlx_get_int(&pool, &rt, count_sql.as_str());
         // let mut count = 0;
         // let mut count: i64 = sqlx_get_int(&mut tx, &rt, count_sql.as_str());
         assert_eq!(count, 0);
-        debug!("test_rollback_and_commit_with_less_helper_code: count before insertion: {}", count);
+        debug!(
+            "test_rollback_and_commit_with_less_helper_code: count before insertion: {}",
+            count
+        );
 
         // now we have a table w/ no rows, so see about a transaction and its effects.
         let mut tx: Transaction<Postgres> = rt.block_on(pool.begin()).unwrap();
@@ -9041,7 +9088,10 @@ mod tests {
         // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
         count = sqlx_get_int(&mut tx, &rt, count_sql.as_str());
         assert_eq!(count, 1);
-        debug!("in test_rollback_and_commit_with_less_helper_code: count after insertion: {}", count);
+        debug!(
+            "in test_rollback_and_commit_with_less_helper_code: count after insertion: {}",
+            count
+        );
         rt.block_on(tx.rollback()).unwrap();
 
         // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
@@ -9065,7 +9115,10 @@ mod tests {
             // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
             count = sqlx_get_int(&mut tx, &rt, count_sql.as_str());
             assert_eq!(count, 1);
-            debug!("in test_rollback_and_commit_with_less_helper_code: count after insert: {}", count);
+            debug!(
+                "in test_rollback_and_commit_with_less_helper_code: count after insert: {}",
+                count
+            );
 
             rt.block_on(tx.rollback()).unwrap();
         }
@@ -9083,7 +9136,10 @@ mod tests {
         // count = sqlx_get_int(&pool, &rt, count_sql.as_str());
         count = sqlx_get_int(&mut tx, &rt, count_sql.as_str());
         assert_eq!(count, 1);
-        debug!("in test_rollback_and_commit_with_less_helper_code: count after insert: {}", count);
+        debug!(
+            "in test_rollback_and_commit_with_less_helper_code: count after insert: {}",
+            count
+        );
 
         rt.block_on(tx.commit()).unwrap();
 
@@ -9091,5 +9147,240 @@ mod tests {
         count = sqlx_get_int(&pool, &rt, count_sql.as_str());
         debug!("in test_rollback_and_commit_with_less_helper_code: count after commit should still be 1: {}", count);
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_database_version_table_has_right_data() {
+        Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let version_table_exists: bool = db
+            .does_this_exist(
+                &None,
+                "select count(1) from pg_class where relname='om_db_version'",
+                true,
+            )
+            .unwrap();
+        assert!(version_table_exists);
+        let results = db
+            .db_query_wrapper_for_one_row(&None, "select version from om_db_version", "Int")
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        if let Some(DataType::Smallint(db_ver)) = results.get(0).unwrap() {
+            assert_eq!(
+                *db_ver,
+                PostgreSQLDatabase::SCHEMA_VERSION,
+                "db_ver ({}) != PostgreSQLDatabase.SCHEMA_VERSION ({}).",
+                db_ver,
+                PostgreSQLDatabase::SCHEMA_VERSION
+            );
+        } else {
+            panic!("Unexpected value: {:?}.", results.get(0).unwrap());
+        }
+    }
+
+    //%%
+    // fn create_test_text_attribute_with_one_entity(db: PostgreSQLDatabase, in_parent_id: i64, in_valid_on_date: Option<i64> /*= None*/) -> i64 {
+    //     let attr_type_id: i64 = db.create_entity("textAttributeTypeLikeSsn");
+    //     let default_date: i64 = Utc::now().timestamp_millis();
+    //     let valid_on_date: Option<i64> = in_valid_on_date;
+    //     let observation_date: i64 = default_date;
+    //     let text = "some test text";
+    //     let text_attribute_id: i64 = db.create_text_attribute(&None, in_parent_id, attr_type_id, text, valid_on_date, observation_date).unwrap();
+    //     // and verify it:
+    //     let ta: TextAttribute = new TextAttribute(m_db, text_attribute_id);
+    //     assert(ta.get_parent_id() == in_parent_id)
+    //     assert(ta.get_text == text)
+    //     assert(ta.get_attr_type_id() == attr_type_id)
+    //     if in_valid_on_date.isEmpty {
+    //         assert(ta.get_valid_on_date().isEmpty)
+    //     } else {
+    //         assert(ta.get_valid_on_date().get == in_valid_on_date.get)
+    //     }
+    //     assert(ta.get_observation_date() == observation_date)
+    //
+    //     text_attribute_id
+    // }
+    //
+    // fn createTestDateAttributeWithOneEntity(in_parent_id: i64) -> i64 {
+    //     let attr_type_id: i64 = m_db.create_entity("dateAttributeType--likeDueOn");
+    //     let date: i64 = System.currentTimeMillis;
+    //     let dateAttributeId: i64 = m_db.create_date_attribute(in_parent_id, attr_type_id, date);
+    //     let ba: DateAttribute = new DateAttribute(m_db, dateAttributeId);
+    //     assert(ba.get_parent_id() == in_parent_id)
+    //     assert(ba.getDate == date)
+    //     assert(ba.get_attr_type_id() == attr_type_id)
+    //     dateAttributeId
+    // }
+    //
+    // fn createTestBooleanAttributeWithOneEntity(in_parent_id: i64, valIn: bool, in_valid_on_date: Option<i64> = None, observation_date_in: i64) -> i64 {
+    //     let attr_type_id: i64 = m_db.create_entity("boolAttributeType-like-isDone");
+    //     let booleanAttributeId: i64 = m_db.create_boolean_attribute(in_parent_id, attr_type_id, valIn, in_valid_on_date, observation_date_in);
+    //     let ba = new BooleanAttribute(m_db, booleanAttributeId);
+    //     assert(ba.get_attr_type_id() == attr_type_id)
+    //     assert(ba.get_boolean == valIn)
+    //     assert(ba.get_valid_on_date() == in_valid_on_date)
+    //     assert(ba.get_parent_id() == in_parent_id)
+    //     assert(ba.get_observation_date() == observation_date_in)
+    //     booleanAttributeId
+    // }
+    //
+    // fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: bool = true) -> FileAttribute {
+    //     let attr_type_id: i64 = m_db.create_entity("fileAttributeType");
+    //     let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
+    //     let mut writer: java.io.FileWriter = null;
+    //     let mut verificationFile: java.io.File = null;
+    //     try {
+    //         writer = new java.io.FileWriter(file)
+    //         writer.write(addedKiloBytesIn + "+ kB file from: " + file.getCanonicalPath + ", created " + new java.util.Date())
+    //         let mut nextInteger: i64 = 1;
+    //         for (i: Int <- 1 to (1000 * addedKiloBytesIn)) {
+    //             // there's a bug here: files aren't the right size (not single digits being added) but oh well it's just to make some file.
+    //             writer.write(nextInteger.toString)
+    //             if i % 1000 == 0 { nextInteger += 1 }
+    //         }
+    //         writer.close();
+    //
+    //         // sleep is so we can see a difference between the 2 dates to be saved, in later assertion.
+    //         let sleepPeriod = 5;
+    //         Thread.sleep(sleepPeriod);
+    //         let size = file.length();
+    //         let mut inputStream: java.io.FileInputStream = null;
+    //         let mut fa: FileAttribute = null;
+    //         try {
+    //             inputStream = new java.io.FileInputStream(file)
+    //             fa = inParentEntity.addFileAttribute(attr_type_id, inDescr, file)
+    //         } finally {
+    //             if inputStream != null { inputStream.close() }
+    //     }
+    //
+    //     if verifyIn {
+    //         // this first part is just testing DB consistency from add to retrieval, not the actual file:
+    //         assert(fa.get_parent_id() == inParentEntity.get_id)
+    //         assert(fa.get_attr_type_id() == attr_type_id)
+    //         assert((fa.getStoredDate - (sleepPeriod - 1)) > fa.getOriginalFileDate)
+    //         // (easily fails if the program pauses when debugging):
+    //         assert((fa.getStoredDate - 10000) < fa.getOriginalFileDate)
+    //         assert(file.lastModified() == fa.getOriginalFileDate)
+    //         assert(file.length() == fa.getSize)
+    //         assert(file.getCanonicalPath == fa.getOriginalFilePath)
+    //         assert(fa.getDescription == inDescr)
+    //         assert(fa.getSize == size)
+    //         // (startsWith, because the db pads with characters up to the full size)
+    //         assert(fa.getReadable && fa.getWritable && !fa.getExecutable)
+    //
+    //         // now ck the content itself
+    //         verificationFile = File.createTempFile("om-fileattr-retrieved-content-", null)
+    //         fa.retrieveContent(verificationFile)
+    //         assert(verificationFile.canRead == fa.getReadable)
+    //         assert(verificationFile.canWrite == fa.getWritable)
+    //         assert(verificationFile.canExecute == fa.getExecutable)
+    //     }
+    //     fa
+    // } finally {
+    //     if verificationFile != null { verificationFile.delete() }
+    //     if writer != null { writer.close() }
+    //     if file != null { file.delete() }
+    //     }
+    // }
+
+    fn create_test_relation_to_local_entity_with_one_entity(
+        in_entity_id: i64,
+        in_rel_type_id: i64,
+        in_valid_on_date: Option<i64>, /*= None*/
+    ) -> i64 {
+        Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        // idea: could use here instead: db.create_entityAndRelationToLocalEntity
+        let related_entity_id: i64 = db
+            .create_entity(&None, RELATED_ENTITY_NAME, None, None)
+            .unwrap();
+        // let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty { None } else { in_valid_on_date };
+        let observation_date: i64 = Utc::now().timestamp_millis();
+        0_i64
+
+        //%%finish when attrs in place again:
+        // let id = db.create_relation_to_local_entity(&None, in_rel_type_id,
+        //                                             in_entity_id, related_entity_id,
+        //                                             in_valid_on_date, observation_date).get_id;
+        //
+        // // and verify it:
+        // let rtle: RelationToLocalEntity = new RelationToLocalEntity(m_db, id, in_rel_type_id, in_entity_id, related_entity_id);
+        // if in_valid_on_date.isEmpty {
+        //     assert(rtle.get_valid_on_date().isEmpty)
+        // } else {
+        //     let inDt: i64 = in_valid_on_date.get;
+        //     let gotDt: i64 = rtle.get_valid_on_date().get;
+        //     assert(inDt == gotDt)
+        // }
+        // assert(rtle.get_observation_date() == observation_date)
+        // related_entity_id
+    }
+
+    #[test]
+    fn escape_quotes_etc_allow_updating_db_with_single_quotes() {
+        Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let name = "This ' name contains a single-quote.";
+        let mut tx = db.begin_trans().unwrap();
+        let tx = &Some(&mut tx);
+        //on a create:
+        let entity_id: i64 = db.create_entity(tx, name, None, None).unwrap();
+        let new_name = db.get_entity_name(tx, entity_id);
+        assert_eq!(name, new_name.unwrap().unwrap().as_str());
+
+        //and on an update:
+        //%%FINISH WHEN ATTRS and other above cmted fns are in place
+        // let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(db entity_id);
+        // let a_text_value = "as'dfjkl";
+        // let ta = new TextAttribute(m_db, text_attribute_id);
+        // let (pid1, atid1) = (ta.get_parent_id(), ta.get_attr_type_id());
+        // m_db.update_text_attribute(text_attribute_id, pid1, atid1, a_text_value, Some(123), 456)
+        // // have to create new instance to re-read the data:
+        // let ta2 = new TextAttribute(m_db, text_attribute_id);
+        // let txt2 = ta2.get_text;
+        //
+        // assert(txt2 == a_text_value)
+    }
+
+    #[test]
+    /// With transaction rollback, this should create one new entity, work right, then have none.
+    fn test_entity_creation_and_update() {
+        Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let name = "test: org.onemodel.PSQLDbTest.entitycreation...";
+        let mut tx1 = db.begin_trans().unwrap();
+        let tx = &Some(&mut tx1);
+
+        let entity_count_before_creating: u64 = db.get_entity_count(tx).unwrap();
+        let entities_only_first_count: u64 =
+            db.get_entities_only_count(tx, false, None, None).unwrap();
+
+        let id: i64 = db.create_entity(tx, name, None, None).unwrap();
+        let new_name = db.get_entity_name(tx, id);
+        assert_eq!(name, new_name.unwrap().unwrap().as_str());
+        let entity_count_after_1st_create = db.get_entity_count(tx).unwrap();
+        let entities_only_new_count = db.get_entities_only_count(tx, false, None, None).unwrap();
+        if entity_count_before_creating + 1 != entity_count_after_1st_create
+            || entities_only_first_count + 1 != entities_only_new_count
+        {
+            panic!("get_entity_count() after adding doesn't match prior count+1! Before: {} and {}, after: {} and {}.",
+                   entity_count_before_creating,  entities_only_new_count, entity_count_after_1st_create, entities_only_new_count);
+        }
+        assert!(db.entity_key_exists(tx, id, true).unwrap());
+
+        let new_name = "test: ' org.onemodel.PSQLDbTest.entityupdate...";
+        db.update_entity_only_name(tx, id, new_name).unwrap();
+        // have to create new instance to re-read the data:
+        let mut updated_entity = Entity::new2(Box::new(&db as &dyn Database), tx, id).unwrap();
+        let name3 = updated_entity.get_name(tx).unwrap().as_str();
+        assert_eq!(name3, new_name);
+
+        assert!(db.entity_only_key_exists(tx, id).unwrap());
+        db.rollback_trans(tx1).unwrap();
+
+        // now should not exist
+        let entity_count_after_rollback = db.get_entity_count(&None).unwrap();
+        assert_eq!(entity_count_after_rollback, entity_count_before_creating);
+        assert!(!db.entity_key_exists(&None, id, true).unwrap());
     }
 }
