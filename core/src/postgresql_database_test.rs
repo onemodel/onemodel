@@ -79,14 +79,6 @@ class PostgreSQLDatabaseTest extends FlatSpec with MockitoSugar {
     result
   }
 
-  "entity_only_key_exists" should "not find RelationToLocalEntity record" in {
-    m_db.begin_trans()
-    let tempRelTypeId: i64 = m_db.createRelationType(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);
-    assert(!m_db.entity_only_key_exists(tempRelTypeId))
-    m_db.delete_relation_type(tempRelTypeId)
-    m_db.rollback_trans()
-  }
-
   "getAttrCount, get_attribute_sorting_rows_count" should "work in all circumstances" in {
     m_db.begin_trans()
 

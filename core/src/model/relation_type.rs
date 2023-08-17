@@ -16,11 +16,15 @@ enum RelationDirectionality {
     NON,
 }
 
-struct RelationType {
+pub struct RelationType {
 
 }
 
 impl RelationType {
+    // idea: should use these more, elsewhere (replacing hard-coded values! )
+    pub const BIDIRECTIONAL: &'static str = "BI";
+    pub const UNIDIRECTIONAL: &'static str = "UNI";
+    pub const NONDIRECTIONAL: &'static str = "NON";
 
 
 /*%%
@@ -35,10 +39,6 @@ object RelationType {
     Util::relation_type_name_length()
   }
 
-  // idea: should use these more, elsewhere (replacing hard-coded values! )
-  let BIDIRECTIONAL: String = "BI";
-  let UNIDIRECTIONAL: String = "UNI";
-  let NONDIRECTIONAL: String = "NON";
 }
 
 /** This constructor instantiates an existing object from the DB. You can use Entity.addRelationTypeAttribute() to
