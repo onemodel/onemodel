@@ -12,7 +12,7 @@
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
-use crate::model::postgresql_database::PostgreSQLDatabase;
+use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
 // use std::error::Error;
 use std::str::FromStr;
 // use crate::controllers::controller::Controller;

@@ -10,7 +10,7 @@
 */
 
 use crate::model::database::Database;
-use crate::model::postgresql_database::PostgreSQLDatabase;
+use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
 use crate::util::Util;
 use crate::TextUI;
 
