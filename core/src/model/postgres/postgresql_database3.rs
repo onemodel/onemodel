@@ -148,12 +148,7 @@ impl Database for PostgreSQLDatabase {
                 id = get_i64_from_row(&row, 0)?;
                 name = match row.get(1) {
                     Some(Some(DataType::String(x))) => x.clone(),
-                    _ => {
-                        return Err(anyhow!(
-                            "How did we get here for {:?}?",
-                            row.get(1)
-                        ))
-                    }
+                    _ => return Err(anyhow!("How did we get here for {:?}?", row.get(1))),
                 };
 
                 // NOTE: this line, similar lines just below, and the prompt inside EntityMenu.entitySearchSubmenu __should all match__.
@@ -191,22 +186,12 @@ impl Database for PostgreSQLDatabase {
                     //   DataType::String(name) = *row.get(1).unwrap();
                     id = match row.get(0) {
                         Some(Some(DataType::Bigint(x))) => *x,
-                        _ => {
-                            return Err(anyhow!(
-                                "How did we get here for {:?}?",
-                                row.get(0)
-                            ))
-                        }
+                        _ => return Err(anyhow!("How did we get here for {:?}?", row.get(0))),
                     };
                     // DataType::String(name) = *row.get(1).unwrap();
                     name = match row.get(1) {
                         Some(Some(DataType::String(x))) => x.clone(),
-                        _ => {
-                            return Err(anyhow!(
-                                "How did we get here for {:?}?",
-                                row.get(1)
-                            ))
-                        }
+                        _ => return Err(anyhow!("How did we get here for {:?}?", row.get(1))),
                     };
 
                     // NOTE: this line, similar or related lines just above & below, and the prompt inside EntityMenu.entitySearchSubmenu __should all match__.
@@ -399,10 +384,7 @@ impl Database for PostgreSQLDatabase {
         )?;
         let count = rows.len();
         if count != 1 {
-            return Err(anyhow!(
-                "Found {} rows instead of expected {}",
-                count, 1
-            ));
+            return Err(anyhow!("Found {} rows instead of expected {}", count, 1));
             //?: expected_rows.unwrap()));
         }
         // there could be none found, or more than one, but not after above check.
@@ -410,12 +392,7 @@ impl Database for PostgreSQLDatabase {
         // for row in rows {
         let id: i64 = match rows[0].get(0) {
             Some(Some(DataType::Bigint(i))) => *i,
-            _ => {
-                return Err(anyhow!(
-                    "Found not 1 row with i64 but {:?} .",
-                    rows
-                ))
-            }
+            _ => return Err(anyhow!("Found not 1 row with i64 but {:?} .", rows)),
         };
         // final_result.push(id);
         // }
@@ -4427,14 +4404,33 @@ impl Database for PostgreSQLDatabase {
         limit_in: Option<i64>,
         forward_not_back_in: bool,
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
-        let results = self.db_query(transaction, format!("select sorting_index from AttributeSorting where \
-                             entity_id={} and sorting_index {}{} order by sorting_index {} limit {}",
-                                                         entity_id_in,
-                                                         if forward_not_back_in { ">" } else { "<" },
-                                                         sorting_index_in,
-                                                         if forward_not_back_in {"ASC" } else { "DESC" },
-                                                         Self::check_if_should_be_all_results(limit_in)).as_str(),
-                                    "i64")?;
+        // (See comments in getAdjacentGroupEntriesSortingIndexes, at least about the "...archived..." stuff.)
+        let rtle_form_id = self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
+        // NOTE: the 2 main (UNION-ed) sql sections differ by the attribute_form_id and presence/absence of the "not in" stuff.
+        let results = self.db_query(transaction,
+       format!("select sorting_index from AttributeSorting asort where asort.attribute_form_id={} \
+            and asort.entity_id={} and asort.sorting_index {}{} \
+            \
+            and asort.attribute_id not in \
+                (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived)) \
+            \
+            UNION \
+            \
+            select sorting_index from AttributeSorting asort where asort.attribute_form_id!={} \
+            and asort.entity_id={} and asort.sorting_index {}{} \
+            \
+            order by sorting_index {} limit {}",
+            rtle_form_id,
+            entity_id_in,
+            if forward_not_back_in { ">" } else { "<" },
+            sorting_index_in,
+            rtle_form_id,
+            entity_id_in,
+            if forward_not_back_in { ">" } else { "<" },
+            sorting_index_in,
+            if forward_not_back_in {"ASC" } else { "DESC" },
+            Self::check_if_should_be_all_results(limit_in)).as_str(),
+            "i64")?;
         Ok(results)
     }
 

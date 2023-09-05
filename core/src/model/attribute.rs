@@ -60,7 +60,7 @@ impl Attribute {
       /// @param input The value to chop down in size.
       /// @param lengthLimitIn If <= 0, no change.
       /// @return A value equal or shorter in length.
-        fn limitDescriptionLength(input: String, lengthLimitIn: Int) -> String {
+      fn limitDescriptionLength(input: String, lengthLimitIn: Int) -> String {
         if lengthLimitIn != 0 && input.length > lengthLimitIn) {
           input.substring(0, lengthLimitIn - 3) + "..."
         } else input

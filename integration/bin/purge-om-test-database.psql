@@ -35,6 +35,7 @@ drop table AttributeSorting cascade;
 drop table omInstance cascade;
 drop table Entity cascade;
 drop table class cascade;
+drop table test_rollback_temp cascade;
 drop sequence EntityKeySequence cascade;
 drop sequence ClassKeySequence cascade;
 drop sequence TextAttributeKeySequence cascade;

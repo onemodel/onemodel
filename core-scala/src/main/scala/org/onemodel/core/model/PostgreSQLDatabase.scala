@@ -3436,8 +3436,20 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
   }
 
   def getAdjacentAttributesSortingIndexes(entityIdIn: Long, sortingIndexIn: Long, limitIn: Option[Long], forwardNotBackIn: Boolean): List[Array[Option[Any]]] = {
-    val results = dbQuery("select sorting_index from AttributeSorting where entity_id=" + entityIdIn +
-                          " and sorting_index" + (if (forwardNotBackIn) ">" else "<") + sortingIndexIn +
+    // (See comments in getAdjacentGroupEntriesSortingIndexes, at least about the "...archived..." stuff.)
+    val rtleFormId = getAttributeFormId(Util.RELATION_TO_LOCAL_ENTITY_TYPE)
+    // NOTE: the 2 main (UNION-ed) sql sections differ by the attribute_form_id and presence/absence of the "not in" clause.
+    val results = dbQuery("select sorting_index from AttributeSorting asort where attribute_form_id=" + rtleFormId +
+                          " and asort.entity_id=" + entityIdIn + " and asort.sorting_index" + (if (forwardNotBackIn) ">" else "<") + sortingIndexIn +
+
+                          " and asort.attribute_id not in " +
+                          "    (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived)) " +
+
+                          " UNION " +
+
+                          "select sorting_index from AttributeSorting asort where attribute_form_id!=" + rtleFormId +
+                          " and asort.entity_id=" + entityIdIn + " and asort.sorting_index" + (if (forwardNotBackIn) ">" else "<") + sortingIndexIn +
+
                           " order by sorting_index " + (if (forwardNotBackIn) "ASC" else "DESC") +
                           " limit " + checkIfShouldBeAllResults(limitIn),
                           "Long")
