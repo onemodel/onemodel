@@ -346,7 +346,7 @@ Compiling, above), you can:
     a) Installing dejagnu (details in the file integration/testsuite/README).
     b) Making sure that the following om directories are in the path, for 
        running of scripts like "c" and "oet" etc: 
-         core/bin  
+         core/bin  or   core-scala/bin
          integration/bin
          
        (Scripts have been tested on Debian GNU/Linux and OpenBSD. For other 

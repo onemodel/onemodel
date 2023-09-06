@@ -7,15 +7,18 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use crate::util::Util;
-use chrono::prelude::*;
 use chrono::LocalResult;
+use chrono::prelude::*;
+
+use crate::util::Util;
 
 //%%$%%%%IDEAS: mbe do polymorphism by 1) seeing how postgresql obj does it as a trait obj,
 //2) considering that ":" to have one trait have the methods of another, 3) include BA has-a AttributeData to hold the data parts,
 // and Attr holds the methods?
 // Reread the Book ch/s on traits, applicable sections, & see if there is some betr way? Such as in ch 17 section 17.3
 // "requesting a review of the post changes its state" and teh following code w/ an example.
+// Also, see what code reuse can be achieved by having methods defined here only in terms of other
+// methods (not using data that is not part of a method of the trait).
 
 pub struct Attribute {}
 

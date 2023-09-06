@@ -608,7 +608,7 @@ impl Controller {
         let mut firstChoices = Array("Edit the attribute type, " +;
                                  (if Util.can_edit_attribute_on_single_line(attributeIn)) "content (single line)," else "") +
                                  " and valid/observed dates",
-
+                                    // for rust equiv of isInstanceOf, mbe see Any.is() or print out the type_id per my ex in ~/proj/learnrust/my_cargo_app/src/main.rx ?
                                  if attributeIn.isInstanceOf[TextAttribute]) "Edit (as multi-line value)" else "(stub)",
                                  if Util.can_edit_attribute_on_single_line(attributeIn)) "Edit the attribute content (single line)" else "(stub)",
                                  "Delete",

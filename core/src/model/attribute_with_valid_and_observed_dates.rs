@@ -36,6 +36,7 @@ impl AttributeWithValidAndObservedDates {
         super.assignCommonVars(parent_id_in, attr_type_id_in, sorting_index_in)
       }
 
+        //%%make this one not only a method on the trait but one to which we pass the value (code is in the trait)
         fn get_dates_description -> String {
         AttributeWithValidAndObservedDates.get_dates_description(get_valid_on_date(), get_observation_date())
       }
