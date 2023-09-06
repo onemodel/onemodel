@@ -3442,8 +3442,12 @@ class PostgreSQLDatabase(username: String, var password: String) extends Databas
     val results = dbQuery("select sorting_index from AttributeSorting asort where attribute_form_id=" + rtleFormId +
                           " and asort.entity_id=" + entityIdIn + " and asort.sorting_index" + (if (forwardNotBackIn) ">" else "<") + sortingIndexIn +
 
-                          " and asort.attribute_id not in " +
-                          "    (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived)) " +
+                          (if (!includeArchivedEntities) {
+                            " and asort.attribute_id not in " +
+                            "    (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived)) "
+                          } else {
+                            ""
+                          }) +
 
                           " UNION " +
 

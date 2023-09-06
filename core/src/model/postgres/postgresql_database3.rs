@@ -4385,14 +4385,15 @@ impl Database for PostgreSQLDatabase {
         } else {
             ""
         };
-        let results = self.db_query(transaction, format!("select eiag.sorting_index from entity e, entitiesinagroup eiag where e.id=eiag.entity_id\
+        let results = self.db_query(transaction, format!("select eiag.sorting_index from entity e, entitiesinagroup eiag \
+                                where e.id=eiag.entity_id \
                                 {} and eiag.group_id={} and eiag.sorting_index {}{} order by eiag.sorting_index {}, eiag.entity_id limit {}",
-                                                         not_archived, group_id_in,
-                                                         if forward_not_back_in { ">" } else { "<" },
-                                                         sorting_index_in,
-                                                         if forward_not_back_in { "ASC" } else { "DESC" },
-                                                         Self::check_if_should_be_all_results(limit_in)).as_str(),
-                                    "i64")?;
+                                not_archived, group_id_in,
+                                if forward_not_back_in { ">" } else { "<" },
+                                sorting_index_in,
+                                if forward_not_back_in { "ASC" } else { "DESC" },
+                                Self::check_if_should_be_all_results(limit_in)).as_str(),
+                                "i64")?;
         Ok(results)
     }
 
@@ -4407,30 +4408,39 @@ impl Database for PostgreSQLDatabase {
         // (See comments in getAdjacentGroupEntriesSortingIndexes, at least about the "...archived..." stuff.)
         let rtle_form_id = self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
         // NOTE: the 2 main (UNION-ed) sql sections differ by the attribute_form_id and presence/absence of the "not in" stuff.
+        let not_archived = if !self.include_archived_entities {
+            "and asort.attribute_id not in \
+                (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived)) "
+        } else {
+            " "
+        };
         let results = self.db_query(transaction,
+       // Next query could be faster when showing archived entities, if we combined the two selects,
+       // since it is just doing a UNION of two things where we could remove the condition. But not
+       // so for the more likely case of hiding archived entities.
        format!("select sorting_index from AttributeSorting asort where asort.attribute_form_id={} \
-            and asort.entity_id={} and asort.sorting_index {}{} \
-            \
-            and asort.attribute_id not in \
-                (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived)) \
-            \
-            UNION \
-            \
-            select sorting_index from AttributeSorting asort where asort.attribute_form_id!={} \
-            and asort.entity_id={} and asort.sorting_index {}{} \
-            \
-            order by sorting_index {} limit {}",
-            rtle_form_id,
-            entity_id_in,
-            if forward_not_back_in { ">" } else { "<" },
-            sorting_index_in,
-            rtle_form_id,
-            entity_id_in,
-            if forward_not_back_in { ">" } else { "<" },
-            sorting_index_in,
-            if forward_not_back_in {"ASC" } else { "DESC" },
-            Self::check_if_should_be_all_results(limit_in)).as_str(),
-            "i64")?;
+           and asort.entity_id={} and asort.sorting_index {}{} \
+           \
+           {}
+           \
+           UNION \
+           \
+           select sorting_index from AttributeSorting asort where asort.attribute_form_id != {} \
+           and asort.entity_id={} and asort.sorting_index {}{} \
+           \
+           order by sorting_index {} limit {}",
+           rtle_form_id,
+           entity_id_in,
+           if forward_not_back_in { ">" } else { "<" },
+           not_archived,
+           sorting_index_in,
+           rtle_form_id,
+           entity_id_in,
+           if forward_not_back_in { ">" } else { "<" },
+           sorting_index_in,
+           if forward_not_back_in {"ASC" } else { "DESC" },
+           Self::check_if_should_be_all_results(limit_in)).as_str(),
+           "i64")?;
         Ok(results)
     }
 
