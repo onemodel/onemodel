@@ -35,11 +35,11 @@ object OmInstance {
   * This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
   * Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
   */
-class OmInstance(val m_db: Database, m_id: String) {
-  //Idea: make m_id *etc* private in all model classes? and rename m_db to just db ("uniform access principle")?
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.om_instance_key_exists(m_id)) {
-    throw new OmException("Key " + m_id + Util::DOES_NOT_EXIST)
+class OmInstance(val db: Database, id: String) {
+  //Idea: make id *etc* private in all model classes? and rename db to just db ("uniform access principle")?
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+  if !db.is_remote && !db.om_instance_key_exists(id)) {
+    throw new OmException("Key " + id + Util::DOES_NOT_EXIST)
   }
 
 
@@ -47,29 +47,29 @@ class OmInstance(val m_db: Database, m_id: String) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(m_db: Database, m_id: String, is_local_in: bool, address_in: String, insertion_dateIn: i64, entity_id_in: Option<i64> = None) {
-    this(m_db, m_id)
+    fn this(db: Database, id: String, is_local_in: bool, address_in: String, insertion_dateIn: i64, entity_id_in: Option<i64> = None) {
+    this(db, id)
     mLocal = is_local_in
     mAddress = address_in
     m_insertion_date = insertion_dateIn
     mEntityId = entity_id_in
-    m_already_read_data = true
+    already_read_data = true
   }
 
   /** When using, consider if getArchivedStatusDisplayString should be called with it in the display (see usage examples of getArchivedStatusDisplayString).
     * */
     fn get_id() -> String {
-    if !m_already_read_data) read_data_from_db()
-    m_id
+    if !already_read_data) read_data_from_db()
+    id
   }
 
     fn getLocal() -> bool {
-    if !m_already_read_data) read_data_from_db()
+    if !already_read_data) read_data_from_db()
     mLocal
   }
 
     fn getCreationDate() -> i64 {
-    if !m_already_read_data) read_data_from_db()
+    if !already_read_data) read_data_from_db()
     m_insertion_date
   }
 
@@ -78,41 +78,41 @@ class OmInstance(val m_db: Database, m_id: String) {
   }
 
     fn getAddress() -> String {
-    if !m_already_read_data) read_data_from_db()
+    if !already_read_data) read_data_from_db()
     mAddress
   }
 
     fn getEntityId() -> Option<i64> {
-    if !m_already_read_data) read_data_from_db()
+    if !already_read_data) read_data_from_db()
     mEntityId
   }
 
   protected fn read_data_from_db() {
-    let omInstanceData: Vec<Option<DataType>> = m_db.get_om_instance_data(m_id);
+    let omInstanceData: Vec<Option<DataType>> = db.get_om_instance_data(id);
     if omInstanceData.length == 0) {
-      throw new OmException("No results returned from data request for: " + m_id)
+      throw new OmException("No results returned from data request for: " + id)
     }
     mLocal = omInstanceData(0).get.asInstanceOf[bool]
     mAddress = omInstanceData(1).get.asInstanceOf[String]
     m_insertion_date = omInstanceData(2).get.asInstanceOf[i64]
     mEntityId = omInstanceData(3).asInstanceOf[Option<i64>]
-    m_already_read_data = true
+    already_read_data = true
   }
 
     fn get_display_string() -> String {
-    let result: String = m_id + ":" + (if mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted;
+    let result: String = id + ":" + (if mLocal) " (local)" else "") + " " + getAddress + ", created on " + getCreationDateFormatted;
     result
   }
 
     fn update(newAddress: String) /*%%-> Unit*/ {
-    m_db.update_om_instance(get_id, newAddress, getEntityId)
+    db.update_om_instance(get_id, newAddress, getEntityId)
   }
 
     fn delete() {
-    m_db.delete_om_instance(m_id)
+    db.delete_om_instance(id)
     }
 
-  let mut m_already_read_data: bool = false;
+  let mut already_read_data: bool = false;
   let mut mLocal: bool = false;
   let mut mAddress: String = "";
   let mut m_insertion_date: i64 = 0;

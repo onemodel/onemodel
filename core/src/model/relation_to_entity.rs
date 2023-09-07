@@ -23,8 +23,8 @@ import org.onemodel.core.{OmException, Color}
  * You can use Entity.addRelationTo[Local|Remote]Entity() to create a new object.
  *
  *
-abstract protected[this] class RelationToEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntityId1: i64,
-                                                            mEntityId2: i64) extends AttributeWithValidAndObservedDates(m_db, m_id) {
+abstract protected[this] class RelationToEntity(db: Database, id: i64, mRelTypeId: i64, mEntityId1: i64,
+                                                            mEntityId2: i64) extends AttributeWithValidAndObservedDates(db, id) {
   // (the next line used to be coded so instead of working it would return an exception, like this:
   //     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
   // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
@@ -58,7 +58,7 @@ abstract protected[this] class RelationToEntity(m_db: Database, m_id: i64, mRelT
         }
         relationTypeIn.get
       } else {
-        new RelationType(m_db, get_attr_type_id())
+        new RelationType(db, get_attr_type_id())
       }
     }
     //   *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:

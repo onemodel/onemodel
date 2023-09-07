@@ -457,7 +457,7 @@ impl Controller {
         if classIn.is_defined) {
           // dbIn is required even if classIn is not provided, but if classIn is provided, make sure things are in order:
           // (Idea:  check: does scala do a deep equals so it is valid?  also tracked in tasks.)
-          require(classIn.get.m_db == dbIn)
+          require(classIn.get.db == dbIn)
         }
         let createNotUpdate: bool = classIn.isEmpty;
         let name_length = model.EntityClass.name_length(dbIn);
@@ -612,7 +612,7 @@ impl Controller {
                                  if attributeIn.isInstanceOf[TextAttribute]) "Edit (as multi-line value)" else "(stub)",
                                  if Util.can_edit_attribute_on_single_line(attributeIn)) "Edit the attribute content (single line)" else "(stub)",
                                  "Delete",
-                                 "Go to entity representing the type: " + new Entity(attributeIn.m_db, attributeIn.get_attr_type_id()).get_name)
+                                 "Go to entity representing the type: " + new Entity(attributeIn.db, attributeIn.get_attr_type_id()).get_name)
         if attributeIn.isInstanceOf[FileAttribute]) {
           firstChoices = firstChoices ++ Vec<String>("Export the file")
         }
@@ -627,7 +627,7 @@ impl Controller {
                   quantityAttribute.update(dhInOut.attr_type_id, dhInOut.unitId, dhInOut.number, dhInOut.valid_on_date,
                                            dhInOut.observation_date)
                 }
-                askForInfoAndUpdateAttribute[QuantityAttributeDataHolder](attributeIn.m_db,
+                askForInfoAndUpdateAttribute[QuantityAttributeDataHolder](attributeIn.db,
                                                                           new QuantityAttributeDataHolder(quantityAttribute.get_attr_type_id(),
                                                                                                           quantityAttribute.get_valid_on_date(),
                                                                                                           quantityAttribute.get_observation_date(),
@@ -635,27 +635,27 @@ impl Controller {
                                                                           askForAttrTypeId = true, Util.QUANTITY_TYPE, Util.QUANTITY_TYPE_PROMPT,
                                                                           ask_for_quantity_attribute_numberAndUnit, update_quantity_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
-                attributeEditMenu(new QuantityAttribute(attributeIn.m_db, attributeIn.get_id))
+                attributeEditMenu(new QuantityAttribute(attributeIn.db, attributeIn.get_id))
               case textAttribute: TextAttribute =>
                 def update_text_attribute(dhInOut: TextAttributeDataHolder) {
                   textAttribute.update(dhInOut.attr_type_id, dhInOut.text, dhInOut.valid_on_date, dhInOut.observation_date)
                 }
                 let textAttributeDH: TextAttributeDataHolder = new TextAttributeDataHolder(textAttribute.get_attr_type_id(), textAttribute.get_valid_on_date(),;
                                                                                            textAttribute.get_observation_date(), textAttribute.get_text)
-                askForInfoAndUpdateAttribute[TextAttributeDataHolder](attributeIn.m_db, textAttributeDH, askForAttrTypeId = true, Util.TEXT_TYPE,
+                askForInfoAndUpdateAttribute[TextAttributeDataHolder](attributeIn.db, textAttributeDH, askForAttrTypeId = true, Util.TEXT_TYPE,
                                                                       "CHOOSE TYPE OF " + Util.TEXT_DESCRIPTION + ":",
                                                                       Util.ask_for_text_attribute_text, update_text_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
-                attributeEditMenu(new TextAttribute(attributeIn.m_db, attributeIn.get_id))
+                attributeEditMenu(new TextAttribute(attributeIn.db, attributeIn.get_id))
               case dateAttribute: DateAttribute =>
                 def update_date_attribute(dhInOut: DateAttributeDataHolder) {
                   dateAttribute.update(dhInOut.attr_type_id, dhInOut.date)
                 }
                 let dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.get_attr_type_id(), dateAttribute.getDate);
-                askForInfoAndUpdateAttribute[DateAttributeDataHolder](attributeIn.m_db, dateAttributeDH, askForAttrTypeId = true, Util.DATE_TYPE, "CHOOSE TYPE OF DATE:",
+                askForInfoAndUpdateAttribute[DateAttributeDataHolder](attributeIn.db, dateAttributeDH, askForAttrTypeId = true, Util.DATE_TYPE, "CHOOSE TYPE OF DATE:",
                                                                       Util.ask_for_date_attribute_value, update_date_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
-                attributeEditMenu(new DateAttribute(attributeIn.m_db, attributeIn.get_id))
+                attributeEditMenu(new DateAttribute(attributeIn.db, attributeIn.get_id))
               case booleanAttribute: BooleanAttribute =>
                 def update_boolean_attribute(dhInOut: BooleanAttributeDataHolder) {
                   booleanAttribute.update(dhInOut.attr_type_id, dhInOut.boolean, dhInOut.valid_on_date, dhInOut.observation_date)
@@ -663,20 +663,20 @@ impl Controller {
                 let booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.get_attr_type_id(), booleanAttribute.get_valid_on_date(),;
                                                                                                     booleanAttribute.get_observation_date(),
                                                                                                     booleanAttribute.get_boolean)
-                askForInfoAndUpdateAttribute[BooleanAttributeDataHolder](attributeIn.m_db, booleanAttributeDH, askForAttrTypeId = true, Util.BOOLEAN_TYPE,
+                askForInfoAndUpdateAttribute[BooleanAttributeDataHolder](attributeIn.db, booleanAttributeDH, askForAttrTypeId = true, Util.BOOLEAN_TYPE,
                                                                          "CHOOSE TYPE OF TRUE/FALSE VALUE:", Util.askForBooleanAttributeValue,
                                                                          update_boolean_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
-                attributeEditMenu(new BooleanAttribute(attributeIn.m_db, attributeIn.get_id))
+                attributeEditMenu(new BooleanAttribute(attributeIn.db, attributeIn.get_id))
               case fa: FileAttribute =>
                 def update_file_attribute(dhInOut: FileAttributeDataHolder) {
                   fa.update(Some(dhInOut.attr_type_id), Some(dhInOut.description))
                 }
                 let fileAttributeDH: FileAttributeDataHolder = new FileAttributeDataHolder(fa.get_attr_type_id(), fa.getDescription, fa.getOriginalFilePath);
-                askForInfoAndUpdateAttribute[FileAttributeDataHolder](attributeIn.m_db, fileAttributeDH, askForAttrTypeId = true, Util.FILE_TYPE, "CHOOSE TYPE OF FILE:",
+                askForInfoAndUpdateAttribute[FileAttributeDataHolder](attributeIn.db, fileAttributeDH, askForAttrTypeId = true, Util.FILE_TYPE, "CHOOSE TYPE OF FILE:",
                                                                       Util.ask_for_file_attribute_info, update_file_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
-                attributeEditMenu(new FileAttribute(attributeIn.m_db, attributeIn.get_id))
+                attributeEditMenu(new FileAttribute(attributeIn.db, attributeIn.get_id))
               case _ => throw new Exception("Unexpected type: " + attributeIn.getClass.get_name)
             }
           } else if answer == 2 && attributeIn.isInstanceOf[TextAttribute]) {
@@ -684,7 +684,7 @@ impl Controller {
             let new_content: String = Util.edit_multiline_text(ta.get_text, ui);
             ta.update(ta.get_attr_type_id(), new_content, ta.get_valid_on_date(), ta.get_observation_date())
             //then force a reread from the DB so it shows the right info on the repeated menu:
-            attributeEditMenu(new TextAttribute(attributeIn.m_db, attributeIn.get_id))
+            attributeEditMenu(new TextAttribute(attributeIn.db, attributeIn.get_id))
           } else if answer == 3 && Util.can_edit_attribute_on_single_line(attributeIn)) {
             editAttributeOnSingleLine(attributeIn)
             false
@@ -698,7 +698,7 @@ impl Controller {
               attributeEditMenu(attributeIn)
             }
           } else if answer == 5) {
-            new EntityMenu(ui, this).entityMenu(new Entity(attributeIn.m_db, attributeIn.get_attr_type_id()))
+            new EntityMenu(ui, this).entityMenu(new Entity(attributeIn.db, attributeIn.get_attr_type_id()))
             attributeEditMenu(attributeIn)
           } else if answer == 6) {
             if !attributeIn.isInstanceOf[FileAttribute]) throw new Exception("Menu shouldn't have allowed us to get here w/ a type other than FA (" +
@@ -743,29 +743,29 @@ impl Controller {
           case textAttribute: TextAttribute =>
             let textAttributeDH: TextAttributeDataHolder = new TextAttributeDataHolder(textAttribute.get_attr_type_id(), textAttribute.get_valid_on_date(),;
                                                                                        textAttribute.get_observation_date(), textAttribute.get_text)
-            let outDH: Option[TextAttributeDataHolder] = Util.ask_for_text_attribute_text(attributeIn.m_db, textAttributeDH, editing_in = true, ui);
+            let outDH: Option[TextAttributeDataHolder] = Util.ask_for_text_attribute_text(attributeIn.db, textAttributeDH, editing_in = true, ui);
             if outDH.is_defined) textAttribute.update(outDH.get.attr_type_id, outDH.get.text, outDH.get.valid_on_date, outDH.get.observation_date)
             outDH.isEmpty
           case dateAttribute: DateAttribute =>
             let dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.get_attr_type_id(), dateAttribute.getDate);
-            let outDH: Option[DateAttributeDataHolder] = Util.ask_for_date_attribute_value(attributeIn.m_db, dateAttributeDH, editing_in = true, ui);
+            let outDH: Option[DateAttributeDataHolder] = Util.ask_for_date_attribute_value(attributeIn.db, dateAttributeDH, editing_in = true, ui);
             if outDH.is_defined) dateAttribute.update(outDH.get.attr_type_id, outDH.get.date)
             outDH.isEmpty
           case booleanAttribute: BooleanAttribute =>
             let booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.get_attr_type_id(), booleanAttribute.get_valid_on_date(),;
                                                                                                 booleanAttribute.get_observation_date(),
                                                                                                 booleanAttribute.get_boolean)
-            let outDH: Option[BooleanAttributeDataHolder] = Util.askForBooleanAttributeValue(booleanAttribute.m_db, booleanAttributeDH, editing_in = true, ui);
+            let outDH: Option[BooleanAttributeDataHolder] = Util.askForBooleanAttributeValue(booleanAttribute.db, booleanAttributeDH, editing_in = true, ui);
             if outDH.is_defined) booleanAttribute.update(outDH.get.attr_type_id, outDH.get.boolean, outDH.get.valid_on_date, outDH.get.observation_date)
             outDH.isEmpty
           case rtle: RelationToLocalEntity =>
-            let editedEntity: Option<Entity> = editEntityName(new Entity(rtle.m_db, rtle.getRelatedId2));
+            let editedEntity: Option<Entity> = editEntityName(new Entity(rtle.db, rtle.getRelatedId2));
             editedEntity.isEmpty
           case rtre: RelationToRemoteEntity =>
             let editedEntity: Option<Entity> = editEntityName(new Entity(rtre.getRemoteDatabase, rtre.getRelatedId2));
             editedEntity.isEmpty
           case rtg: RelationToGroup =>
-            let editedGroupName: Option<String> = Util::edit_group_name(new Group(rtg.m_db, rtg.getGroupId), ui);
+            let editedGroupName: Option<String> = Util::edit_group_name(new Group(rtg.db, rtg.getGroupId), ui);
             editedGroupName.isEmpty
           case _ => throw new scala.Exception("Unexpected type: " + attributeIn.getClass.getCanonicalName)
         }
@@ -795,12 +795,12 @@ impl Controller {
         let editedEntity: Option<Entity> = entity_in match {;
           case relTypeIn: RelationType =>
             let previousNameInReverse: String = relTypeIn.get_name_in_reverse_direction //idea: check: this edits name w/ prefill also?:;
-            askForNameAndWriteEntity(entity_in.m_db, Util.RELATION_TYPE_TYPE, Some(relTypeIn), Some(relTypeIn.get_name), Some(relTypeIn.getDirectionality),
+            askForNameAndWriteEntity(entity_in.db, Util.RELATION_TYPE_TYPE, Some(relTypeIn), Some(relTypeIn.get_name), Some(relTypeIn.getDirectionality),
                                      if previousNameInReverse == null || previousNameInReverse.trim().isEmpty) None else Some(previousNameInReverse),
                                      None)
           case entity: Entity =>
             let entityNameBeforeEdit: String = entity_in.get_name;
-            let editedEntity: Option<Entity> = askForNameAndWriteEntity(entity_in.m_db, Util.ENTITY_TYPE, Some(entity), Some(entity.get_name), None, None, None);
+            let editedEntity: Option<Entity> = askForNameAndWriteEntity(entity_in.db, Util.ENTITY_TYPE, Some(entity), Some(entity.get_name), None, None, None);
             if editedEntity.is_defined) {
               let entityNameAfterEdit: String = editedEntity.get.get_name;
               if entityNameBeforeEdit != entityNameAfterEdit) {
@@ -814,7 +814,7 @@ impl Controller {
                                                 "; possibly it and this entity were created at the same time.  Also change" +
                                                 " the subgroup's name now to be identical?", defaultAnswer)
                   if ans.is_defined && ans.get) {
-                    let group = new Group(entity_in.m_db, groupId.get);
+                    let group = new Group(entity_in.db, groupId.get);
                     group.update(name_in = Some(entityNameAfterEdit), valid_on_date_inIGNORED4NOW = None, observation_dateInIGNORED4NOW = None)
                   }
                 }
@@ -929,7 +929,7 @@ impl Controller {
                                                                             let numSubgroupsPrefix: String = getEntityContentSizePrefix(entity);
                                                                             numSubgroupsPrefix + entity.getArchivedStatusDisplayString + entity.get_name
                                                                           case group: Group =>
-                                                                            let numSubgroupsPrefix: String = getGroupContentSizePrefix(group.m_db, group.get_id);
+                                                                            let numSubgroupsPrefix: String = getGroupContentSizePrefix(group.db, group.get_id);
                                                                             numSubgroupsPrefix + group.get_name
                                                                           case x: Any => throw new Exception("unexpected class: " + x.getClass.get_name)
                                                                           case _ => throw new OmException("??")
@@ -1556,9 +1556,9 @@ impl Controller {
           // In quick menu, for efficiency of some work like brainstorming, if it's obvious which subgroup to go to, just go there.
           // We DON'T want @tailrec on this method for this call, so that we can ESC back to the current menu & list! (so what balance/best? Maybe move this
           // to its own method, so it doesn't try to tail optimize it?)  See also the comment with 'tailrec', mentioning why to have it, above.
-          new QuickGroupMenu(ui, this).quickGroupMenu(new Group(userSelection.m_db, groupId.get),
+          new QuickGroupMenu(ui, this).quickGroupMenu(new Group(userSelection.db, groupId.get),
                                                           0,
-                                                          Some(new RelationToGroup(userSelection.m_db, rtgId.get, userSelection.get_id, rtId.get, groupId.get)),
+                                                          Some(new RelationToGroup(userSelection.db, rtgId.get, userSelection.get_id, rtId.get, groupId.get)),
                                                           callingMenusRtgIn = relationToGroupIn,
                                                           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s)
                                                           // w/in this method!
@@ -1591,7 +1591,7 @@ impl Controller {
             let (_, _, gid: Option<i64>, _, moreAvailable) = entity_in.findRelationToAndGroup;
             if gid.isEmpty || moreAvailable) throw new OmException("Found " + (if gid.isEmpty) 0 else ">1") + " but by the earlier checks, " +
                                                                             "there should be exactly one group in entity " + entity_in.get_id + " .")
-            let groupSize = entity_in.m_db.getGroupSize(gid.get, 1);
+            let groupSize = entity_in.db.getGroupSize(gid.get, 1);
             groupSize == 0
           }
         }
@@ -1609,7 +1609,7 @@ impl Controller {
             if group_in.getSize() == 0) {
               // adding 1st entity to this group, so:
               let leading_text = List("ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):");
-              let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.m_db, Some(leading_text), None, None, Util.ENTITY_TYPE,;
+              let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.db, Some(leading_text), None, None, Util.ENTITY_TYPE,;
                                                                       containingGroupIn = Some(group_in.get_id))
               if id_wrapper.is_defined) {
                 group_in.addEntity(id_wrapper.get._1.get_id)
@@ -1618,7 +1618,7 @@ impl Controller {
             } else {
               // it's not the 1st entry in the group, so add an entity using the same class as those previously added (or None as case may be).
               let entityClassInUse: Option<i64> = group_in.getClassId;
-              let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.m_db, None, None, None, Util.ENTITY_TYPE, 0, entityClassInUse,;
+              let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.db, None, None, None, Util.ENTITY_TYPE, 0, entityClassInUse,;
                                                                               limit_by_classIn = true, containingGroupIn = Some(group_in.get_id))
               if id_wrapper.isEmpty) None
               else {
@@ -1633,13 +1633,13 @@ impl Controller {
                       let oldClass: String = if entityClassInUse.isEmpty) {;
                         "(none)"
                       } else {
-                        new EntityClass(group_in.m_db, entityClassInUse.get).get_display_string
+                        new EntityClass(group_in.db, entityClassInUse.get).get_display_string
                       }
-                      let newClassId = new Entity(group_in.m_db, entity_id).getClassId;
+                      let newClassId = new Entity(group_in.db, entity_id).getClassId;
                       let newClass: String =;
                         if newClassId.isEmpty || entityClassInUse.isEmpty) "(none)"
                         else {
-                          let ec = new EntityClass(group_in.m_db, entityClassInUse.get);
+                          let ec = new EntityClass(group_in.db, entityClassInUse.get);
                           ec.get_display_string
                         }
                       ui.display_text("Adding an entity with class '" + newClass + "' to a group that doesn't allow mixed classes, " +
@@ -1652,7 +1652,7 @@ impl Controller {
             }
           } else {
             let leading_text = List("ADD ENTITY TO A (mixed-class) GROUP");
-            let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.m_db, Some(leading_text), None, None, Util.ENTITY_TYPE,;
+            let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.db, Some(leading_text), None, None, Util.ENTITY_TYPE,;
                                                                     containingGroupIn = Some(group_in.get_id))
             if id_wrapper.is_defined) {
               group_in.addEntity(id_wrapper.get._1.get_id)
@@ -1673,7 +1673,7 @@ impl Controller {
                                                                                                     let rel_type_id: i64 = rel_type_idAndEntity._1;
                                                                                                     let entity: Entity = rel_type_idAndEntity._2;
                                                                                                     let relTypeName: String = {;
-                                                                                                      let relType = new RelationType(entity.m_db, rel_type_id);
+                                                                                                      let relType = new RelationType(entity.db, rel_type_id);
                                                                                                       relType.getArchivedStatusDisplayString + relType.get_name
                                                                                                     }
                                                                                                     "the entity \"" + entity.getArchivedStatusDisplayString +
@@ -1733,20 +1733,20 @@ impl Controller {
           def addQuantityAttribute(dhIn: QuantityAttributeDataHolder): Option[QuantityAttribute] = {
             Some(entity_in.addQuantityAttribute(dhIn.attr_type_id, dhIn.unitId, dhIn.number, None, dhIn.valid_on_date, dhIn.observation_date))
           }
-          askForInfoAndAddAttribute[QuantityAttributeDataHolder](entity_in.m_db, new QuantityAttributeDataHolder(attr_type_id, None, System.currentTimeMillis(), 0, 0),
+          askForInfoAndAddAttribute[QuantityAttributeDataHolder](entity_in.db, new QuantityAttributeDataHolder(attr_type_id, None, System.currentTimeMillis(), 0, 0),
                                                                  askForAttrTypeId, Util.QUANTITY_TYPE,
                                                                  Some(Util.QUANTITY_TYPE_PROMPT), ask_for_quantity_attribute_numberAndUnit, addQuantityAttribute)
         } else if attrFormIn == Database.get_attribute_form_id(Util.DATE_TYPE)) {
           def addDateAttribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
             Some(entity_in.addDateAttribute(dhIn.attr_type_id, dhIn.date))
           }
-          askForInfoAndAddAttribute[DateAttributeDataHolder](entity_in.m_db, new DateAttributeDataHolder(attr_type_id, 0), askForAttrTypeId, Util.DATE_TYPE,
+          askForInfoAndAddAttribute[DateAttributeDataHolder](entity_in.db, new DateAttributeDataHolder(attr_type_id, 0), askForAttrTypeId, Util.DATE_TYPE,
                                                              Some("SELECT TYPE OF DATE: "), Util.ask_for_date_attribute_value, addDateAttribute)
         } else if attrFormIn == Database.get_attribute_form_id(Util.BOOLEAN_TYPE)) {
           def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
             Some(entity_in.addBooleanAttribute(dhIn.attr_type_id, dhIn.boolean, None))
           }
-          askForInfoAndAddAttribute[BooleanAttributeDataHolder](entity_in.m_db, new BooleanAttributeDataHolder(attr_type_id, None, System.currentTimeMillis(), false),
+          askForInfoAndAddAttribute[BooleanAttributeDataHolder](entity_in.db, new BooleanAttributeDataHolder(attr_type_id, None, System.currentTimeMillis(), false),
                                                                 askForAttrTypeId,
                                                                 Util.BOOLEAN_TYPE, Some("SELECT TYPE OF TRUE/FALSE VALUE: "),  Util.askForBooleanAttributeValue,
                                                                 addBooleanAttribute)
@@ -1754,7 +1754,7 @@ impl Controller {
           def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
             Some(entity_in.addFileAttribute(dhIn.attr_type_id, dhIn.description, new File(dhIn.original_file_path)))
           }
-          let result: Option[FileAttribute] = askForInfoAndAddAttribute[FileAttributeDataHolder](entity_in.m_db, new FileAttributeDataHolder(attr_type_id, "", ""),;
+          let result: Option[FileAttribute] = askForInfoAndAddAttribute[FileAttributeDataHolder](entity_in.db, new FileAttributeDataHolder(attr_type_id, "", ""),;
                                                                                                  askForAttrTypeId, Util.FILE_TYPE,
                                                                                                  Some("SELECT TYPE OF FILE: "), Util.ask_for_file_attribute_info,
                                                                                                  addFileAttribute).asInstanceOf[Option[FileAttribute]]
@@ -1771,7 +1771,7 @@ impl Controller {
           def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
             Some(entity_in.addTextAttribute(dhIn.attr_type_id, dhIn.text, None, dhIn.valid_on_date, dhIn.observation_date))
           }
-          askForInfoAndAddAttribute[TextAttributeDataHolder](entity_in.m_db, new TextAttributeDataHolder(attr_type_id, None, System.currentTimeMillis(), ""),
+          askForInfoAndAddAttribute[TextAttributeDataHolder](entity_in.db, new TextAttributeDataHolder(attr_type_id, None, System.currentTimeMillis(), ""),
                                                              askForAttrTypeId, Util.TEXT_TYPE,
                                                              Some("SELECT TYPE OF " + Util.TEXT_DESCRIPTION + ": "), Util.ask_for_text_attribute_text, addTextAttribute)
         } else if attrFormIn == Database.get_attribute_form_id(Util.RELATION_TO_LOCAL_ENTITY_TYPE)) {
@@ -1786,14 +1786,14 @@ impl Controller {
             }
             Some(relation)
           }
-          askForInfoAndAddAttribute[RelationToEntityDataHolder](entity_in.m_db, new RelationToEntityDataHolder(attr_type_id, None, System.currentTimeMillis(),
+          askForInfoAndAddAttribute[RelationToEntityDataHolder](entity_in.db, new RelationToEntityDataHolder(attr_type_id, None, System.currentTimeMillis(),
                                                                                                              0, false, ""),
                                                                 askForAttrTypeId, Util.RELATION_TYPE_TYPE,
                                                                 Some("CREATE OR SELECT RELATION TYPE: (" + Util.REL_TYPE_EXAMPLES + ")"),
                                                                 askForRelationEntityIdNumber2, addRelationToEntity)
         } else if attrFormIn == 100) {
           // re "100": see javadoc comments above re attrFormIn
-          let eId: Option[IdWrapper] = askForNameAndSearchForEntity(entity_in.m_db);
+          let eId: Option[IdWrapper] = askForNameAndSearchForEntity(entity_in.db);
           if eId.is_defined) {
             Some(entity_in.add_has_relation_to_local_entity(eId.get.get_id, None, System.currentTimeMillis))
           } else {
@@ -1805,7 +1805,7 @@ impl Controller {
             let newRTG: RelationToGroup = entity_in.addRelationToGroup(dhIn.attr_type_id, dhIn.groupId, None, dhIn.valid_on_date, dhIn.observation_date);
             Some(newRTG)
           }
-          let result: Option[Attribute] = askForInfoAndAddAttribute[RelationToGroupDataHolder](entity_in.m_db,;
+          let result: Option[Attribute] = askForInfoAndAddAttribute[RelationToGroupDataHolder](entity_in.db,;
                                                                                                new RelationToGroupDataHolder(entity_in.get_id, attr_type_id, 0,
                                                                                                                              None, System.currentTimeMillis()),
                                                                                                askForAttrTypeId, Util.RELATION_TYPE_TYPE,
@@ -1818,9 +1818,9 @@ impl Controller {
             None
           } else {
             let newRtg = result.get.asInstanceOf[RelationToGroup];
-            new QuickGroupMenu(ui, this).quickGroupMenu(new Group(entity_in.m_db, newRtg.getGroupId), 0, Some(newRtg), None, containingEntityIn = Some(entity_in))
+            new QuickGroupMenu(ui, this).quickGroupMenu(new Group(entity_in.db, newRtg.getGroupId), 0, Some(newRtg), None, containingEntityIn = Some(entity_in))
             // user could have deleted the new result: check that before returning it as something to act upon:
-            if entity_in.m_db.relation_to_group_key_exists(newRtg.get_id)) {
+            if entity_in.db.relation_to_group_key_exists(newRtg.get_id)) {
               result
             } else {
               None
@@ -1873,7 +1873,7 @@ impl Controller {
                                                                                               entity_in.getPublic, caller_manages_transactions_in = false, quote)
           new EntityMenu(ui, this).entityMenu(newEntity, containingRelationToEntityIn = Some(new_rte))
           // user could have deleted the new result: check that before returning it as something to act upon:
-          if entity_in.m_db.relationToLocalentity_key_exists(new_rte.get_id) && entity_in.m_db.entity_key_exists(newEntity.get_id)) {
+          if entity_in.db.relationToLocalentity_key_exists(new_rte.get_id) && entity_in.db.entity_key_exists(newEntity.get_id)) {
             Some(new_rte)
           } else {
             None
@@ -1895,7 +1895,7 @@ impl Controller {
             if templateId.isEmpty) {
               None
             } else {
-              Some(new Entity(targetEntityIn.m_db, templateId.get))
+              Some(new Entity(targetEntityIn.db, templateId.get))
             }
           }
           let templateAttributesToCopy: ArrayBuffer[Attribute] = getMissingAttributes(template_entity, attributeTuples);
@@ -2067,16 +2067,16 @@ impl Controller {
 
               if allCopy || (howCopyRteResponse.is_defined && howCopyRteResponse.get == copyFromTemplateAndEditNameChoiceNum)) {
                 let currentOrRemoteDbForRelatedEntity = Database.currentOrRemoteDb(relationToEntityAttributeFromTemplateIn,;
-                                                                                   relationToEntityAttributeFromTemplateIn.m_db)
+                                                                                   relationToEntityAttributeFromTemplateIn.db)
                 let templatesRelatedEntity: Entity = new Entity(currentOrRemoteDbForRelatedEntity, relatedId2);
                 let oldName: String = templatesRelatedEntity.get_name;
                 let newEntity: Option<Entity> = {;
                   //noinspection TypeCheckCanBeMatch
                   if relationToEntityAttributeFromTemplateIn.isInstanceOf[RelationToLocalEntity]) {
-                    askForNameAndWriteEntity(entity_in.m_db, Util.ENTITY_TYPE, None, Some(oldName), None, None, templatesRelatedEntity.getClassId,
+                    askForNameAndWriteEntity(entity_in.db, Util.ENTITY_TYPE, None, Some(oldName), None, None, templatesRelatedEntity.getClassId,
                                              Some("EDIT THE " + "ENTITY NAME:"), duplicate_name_probably_ok = true)
                   } else if relationToEntityAttributeFromTemplateIn.isInstanceOf[RelationToRemoteEntity]) {
-                    let e = askForNameAndWriteEntity(entity_in.m_db, Util.ENTITY_TYPE, None, Some(oldName), None, None, None,;
+                    let e = askForNameAndWriteEntity(entity_in.db, Util.ENTITY_TYPE, None, Some(oldName), None, None, None,;
                                              Some("EDIT THE ENTITY NAME:"), duplicate_name_probably_ok = true)
                     if e.is_defined && templatesRelatedEntity.getClassId.is_defined) {
                       let remoteClassId: i64 = templatesRelatedEntity.getClassId.get;
@@ -2099,7 +2099,7 @@ impl Controller {
                 }
               } else if allCreateOrSearch || (howCopyRteResponse.is_defined && howCopyRteResponse.get == createOrSearchForEntityChoiceNum)) {
                 let rteDh = new RelationToEntityDataHolder(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), None, System.currentTimeMillis(), 0, false, "");
-                let dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(entity_in.m_db, rteDh, editing_in = false, ui);
+                let dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(entity_in.db, rteDh, editing_in = false, ui);
                 if dh.is_defined) {
       //            let relation = entity_in.addRelationToEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.get_sorting_index),;
       //                                                        dh.get.valid_on_date, dh.get.observation_date,
@@ -2118,7 +2118,7 @@ impl Controller {
                 }
               } else if allKeepReference || (howCopyRteResponse.is_defined && howCopyRteResponse.get == keepSameReferenceAsInTemplateChoiceNum)) {
                 let relation = {;
-                  if relationToEntityAttributeFromTemplateIn.m_db.is_remote) {
+                  if relationToEntityAttributeFromTemplateIn.db.is_remote) {
                     entity_in.addRelationToRemoteEntity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), relatedId2,
                                                        Some(relationToEntityAttributeFromTemplateIn.get_sorting_index), None, System.currentTimeMillis(),
                                                        relationToEntityAttributeFromTemplateIn.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId)
@@ -2176,14 +2176,14 @@ impl Controller {
         if entity_in.getClassId.isEmpty) {
           false
         } else {
-          let createAttributes: Option<bool> = new EntityClass(entity_in.m_db, entity_in.getClassId.get).getCreateDefaultAttributes;
+          let createAttributes: Option<bool> = new EntityClass(entity_in.db, entity_in.getClassId.get).getCreateDefaultAttributes;
           if createAttributes.is_defined) {
             createAttributes.get
           } else {
             if entity_in.getClassTemplateEntityId.isEmpty) {
               false
             } else {
-              let attrCount = new Entity(entity_in.m_db, entity_in.getClassTemplateEntityId.get).get_attribute_count();
+              let attrCount = new Entity(entity_in.db, entity_in.getClassTemplateEntityId.get).get_attribute_count();
               if attrCount == 0) {
                 false
               } else {

@@ -30,15 +30,15 @@ import org.onemodel.core.{OmException, Util}
 
    *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:
  *
-class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntityId1: i64, mRemoteInstanceId: String,
-                       mEntityId2: i64) extends RelationToEntity(m_db, m_id, mRelTypeId, mEntityId1, mEntityId2) {
+class RelationToRemoteEntity(db: Database, id: i64, mRelTypeId: i64, mEntityId1: i64, mRemoteInstanceId: String,
+                       mEntityId2: i64) extends RelationToEntity(db, id, mRelTypeId, mEntityId1, mEntityId2) {
   // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if m_db.is_remote || m_db.relation_to_remote_entity_keys_exist_and_match(m_id, mRelTypeId, mEntityId1, mRemoteInstanceId, mEntityId2)) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+  if db.is_remote || db.relation_to_remote_entity_keys_exist_and_match(id, mRelTypeId, mEntityId1, mRemoteInstanceId, mEntityId2)) {
     // something else might be cleaner, but these are the same thing and we need to make sure an eventual superclass' var doesn't overwrite this w/ 0:;
-    m_attr_type_id = mRelTypeId
+    attr_type_id = mRelTypeId
   } else {
-    throw new scala.Exception("Key id=" + m_id + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
+    throw new scala.Exception("Key id=" + id + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
                               " and entity_id_2=" + mEntityId2 + " and remote_instance_id='" + mRemoteInstanceId + Util::DOES_NOT_EXIST)
   }
 
@@ -48,9 +48,9 @@ class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntity
    * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
    * one that already exists.
    */
-    fn this(m_db: Database, id_in: i64, rel_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
+    fn this(db: Database, id_in: i64, rel_type_id_in: i64, entity_id1_in: i64, remote_instance_id_in: String, entity_id2_in: i64,
            valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: i64) {
-    this(m_db, id_in, rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in)
+    this(db, id_in, rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in)
     // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
     assign_common_vars(entity_id1_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
@@ -61,23 +61,23 @@ class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntity
     }
 
   protected override fn read_data_from_db() {
-    let relationData: Vec<Option<DataType>> = m_db.get_relation_to_remote_entity_data(m_attr_type_id, mEntityId1, mRemoteInstanceId, mEntityId2);
+    let relationData: Vec<Option<DataType>> = db.get_relation_to_remote_entity_data(attr_type_id, mEntityId1, mRemoteInstanceId, mEntityId2);
     // No other local variables to assign.  All are either in the superclass or the primary key.
     // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
     if relationData.length == 0) {
-      throw new OmException("No results returned from data request for: " + m_attr_type_id + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)
+      throw new OmException("No results returned from data request for: " + attr_type_id + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)
     }
-    assign_common_vars(mEntityId1, m_attr_type_id, relationData(1).asInstanceOf[Option<i64>],
+    assign_common_vars(mEntityId1, attr_type_id, relationData(1).asInstanceOf[Option<i64>],
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 
     fn move(to_containing_entity_id_in: i64, sorting_index_in: i64) -> RelationToRemoteEntity {
-    m_db.move_relation_to_remote_entity_to_local_entity(getRemoteInstanceId, get_id, to_containing_entity_id_in, sorting_index_in)
+    db.move_relation_to_remote_entity_to_local_entity(getRemoteInstanceId, get_id, to_containing_entity_id_in, sorting_index_in)
   }
 
   override fn getRemoteDescription() {
-    let remoteOmInstance = new OmInstance(m_db, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId);
+    let remoteOmInstance = new OmInstance(db, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId);
     " (at " + remoteOmInstance.getAddress + ")"
   }
 
@@ -96,18 +96,18 @@ class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntity
     // & how to be most clear (could be the same in RelationToGroup & other Attribute subclasses).)
     let vod = if valid_on_date_in.is_some()) valid_on_date_in else get_valid_on_date();
     let od = if observation_date_in.is_some()) observation_date_in.get else get_observation_date();
-    m_db.update_relation_to_remote_entity(m_attr_type_id, mEntityId1, getRemoteInstanceId, mEntityId2, newAttrTypeId, vod, od)
+    db.update_relation_to_remote_entity(attr_type_id, mEntityId1, getRemoteInstanceId, mEntityId2, newAttrTypeId, vod, od)
     valid_on_date = vod
     observation_date = od
-    m_attr_type_id = newAttrTypeId
+    attr_type_id = newAttrTypeId
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    m_db.delete_relation_to_remote_entity(get_attr_type_id(), getRelatedId1, mRemoteInstanceId, getRelatedId2)
+    db.delete_relation_to_remote_entity(get_attr_type_id(), getRelatedId1, mRemoteInstanceId, getRelatedId2)
     }
 
-  lazy private let mRemoteAddress = new OmInstance(m_db, getRemoteInstanceId).getAddress;
+  lazy private let mRemoteAddress = new OmInstance(db, getRemoteInstanceId).getAddress;
 
 */
 }

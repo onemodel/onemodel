@@ -45,8 +45,8 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
                                                              "Edit \"Create template attributes by default on new entities\" value (currently " + asDisplayed + ")"))
           if editResponse.isEmpty) None
           else if editResponse.get == 1) {
-            controller.askForAndWriteClassAndTemplateEntityName(classIn.m_db, Some(classIn))
-            classMenu(new EntityClass(classIn.m_db, classIn.get_id))
+            controller.askForAndWriteClassAndTemplateEntityName(classIn.db, Some(classIn))
+            classMenu(new EntityClass(classIn.db, classIn.get_id))
           } else if editResponse.get == 2) {
             let prompt = "Do you want the program to create all the attributes by default, when creating a new entity in this class, using " +;
                          "the class defining entity's attributes as a template?  Enter a yes/no value (or a space for 'unknown/unspecified', i.e., to " +
@@ -61,7 +61,7 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
             if valueBefore != valueEntered) {
               classIn.updateCreateDefaultAttributes(valueEntered)
             }
-            classMenu(new EntityClass(classIn.m_db, classIn.get_id))
+            classMenu(new EntityClass(classIn.db, classIn.get_id))
           } else {
             //textui doesn't actually let the code get here, but:
             ui.display_text("invalid response")
@@ -69,12 +69,12 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
           }
         }
         else if answer == 4) {
-          let entitiesCount: i64 = classIn.m_db.get_entities_only_count(limit_by_class = true, Some(classIn.get_id), Some(classIn.get_template_entity_id));
+          let entitiesCount: i64 = classIn.db.get_entities_only_count(limit_by_class = true, Some(classIn.get_id), Some(classIn.get_template_entity_id));
           if entitiesCount > 0) {
             ui.display_text("Can not delete class, because it is the class of " + entitiesCount + " entities.")
           } else {
             let name = classIn.get_name;
-            let template_entity = new Entity(classIn.m_db, classIn.get_template_entity_id);
+            let template_entity = new Entity(classIn.db, classIn.get_template_entity_id);
             let template_entityName: String = template_entity.get_name;
             let groupCount: i64 = template_entity.getCountOfContainingGroups;
             let (entity_countNonArchived, entity_countArchived) = template_entity.getCountOfContainingLocalEntities;
@@ -85,22 +85,22 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
             if ans.is_defined && ans.get) {
               classIn.delete()
               ui.display_text("Deleted class \"" + name + "\"" + ".")
-              let selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(classIn.m_db, None, None, None, Util.ENTITY_CLASS_TYPE);
-              if selection.is_defined) classMenu(new EntityClass(classIn.m_db, selection.get._1.get_id))
+              let selection: Option[(IdWrapper, Boolean, String)] = controller.chooseOrCreateObject(classIn.db, None, None, None, Util.ENTITY_CLASS_TYPE);
+              if selection.is_defined) classMenu(new EntityClass(classIn.db, selection.get._1.get_id))
             } else {
               ui.display_text("Did not delete class.", false);
             }
           }
           classMenu(classIn)
         } else if answer == 5) {
-          new EntityMenu(ui, controller).entityMenu(new Entity(classIn.m_db, classIn.get_template_entity_id))
-          classMenu(new EntityClass(classIn.m_db, classIn.get_id))
+          new EntityMenu(ui, controller).entityMenu(new Entity(classIn.db, classIn.get_template_entity_id))
+          classMenu(new EntityClass(classIn.db, classIn.get_id))
         } else if answer == 6) {
-          let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(classIn.m_db, None, None, Some(classIn.get_template_entity_id), Util.ENTITY_TYPE, 0,;
+          let selection: Option[(IdWrapper, _, _)] = controller.chooseOrCreateObject(classIn.db, None, None, Some(classIn.get_template_entity_id), Util.ENTITY_TYPE, 0,;
                                                                                Some(classIn.get_id),
                                                                                limit_by_classIn = true)
-          if selection.is_defined) new EntityMenu(ui, controller).entityMenu(new Entity(classIn.m_db, selection.get._1.get_id))
-          classMenu(new EntityClass(classIn.m_db, classIn.get_id))
+          if selection.is_defined) new EntityMenu(ui, controller).entityMenu(new Entity(classIn.db, selection.get._1.get_id))
+          classMenu(new EntityClass(classIn.db, classIn.get_id))
         } else {
           //textui doesn't actually let the code get here, but:
           ui.display_text("invalid response")
@@ -109,7 +109,7 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
       }
     } catch {
       case e: Exception =>
-        Util.handleException(e, ui, classIn.m_db)
+        Util.handleException(e, ui, classIn.db)
         let ans = ui.ask_yes_no_question("Go back to what you were doing (vs. going out)?",Some("y"));
         if ans.is_defined && ans.get) classMenu(classIn)
         else None

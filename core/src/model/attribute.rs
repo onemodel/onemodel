@@ -36,13 +36,13 @@ pub trait Attribute {
     fn get_id_wrapper() -> IdWrapper;
     // was:
     // fn get_id_wrapper -> IdWrapper {
-    //   new IdWrapper(m_id)
+    //   new IdWrapper(id)
     // }
 
     fn get_id() -> i64;
     // was:
     // fn get_id -> i64 {
-    //     m_id
+    //     id
     // }
 
     fn get_form_id(&self) -> Result<i32, anyhow::Error>;
@@ -54,40 +54,40 @@ pub trait Attribute {
     fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64);
     //was:
     // protected fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64) {
-    //   m_parent_id = parent_id_in
-    //   m_attr_type_id = attr_type_id_in
-    //   m_sorting_index = sorting_index_in
-    //   m_already_read_data = true
+    //   parent_id = parent_id_in
+    //   attr_type_id = attr_type_id_in
+    //   sorting_index = sorting_index_in
+    //   already_read_data = true
     // }
 
     fn get_attr_type_id() -> i64;
     // was:
     // fn get_attr_type_id() -> i64 {
-    //   if !m_already_read_data) read_data_from_db()
-    //   m_attr_type_id
+    //   if !already_read_data) read_data_from_db()
+    //   attr_type_id
     // }
 
     fn get_sorting_index() -> i64;
     // was:
     //   fn get_sorting_index -> i64 {
-    //   if !m_already_read_data) read_data_from_db()
-    //   m_sorting_index
+    //   if !already_read_data) read_data_from_db()
+    //   sorting_index
     // }
 
     fn get_parent_id() -> i64;
     // was:
     // fn get_parent_id() -> i64 {
-    //   if !m_already_read_data) read_data_from_db()
-    //   m_parent_id
+    //   if !already_read_data) read_data_from_db()
+    //   parent_id
     // }
 
     // For descriptions of the meanings of these variables, see the comments
     // on create_tables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
     // %%put these in the structs implementing this trait, along w/ those above methods!
-    //m_db: Database;
-    //m_id: i64;
-    // protected let mut m_parent_id: i64 = 0L;
-    // protected let mut m_attr_type_id: i64 = 0L;
-    // protected let mut m_already_read_data: bool = false;
-    // protected let mut m_sorting_index: i64 = 0L;
+    //db: Database;
+    //id: i64;
+    // protected let mut parent_id: i64 = 0L;
+    // protected let mut attr_type_id: i64 = 0L;
+    // protected let mut already_read_data: bool = false;
+    // protected let mut sorting_index: i64 = 0L;
 }

@@ -45,10 +45,10 @@ object RelationType {
     create a new object. Assumes caller just read it from the DB and the info is accurate (i.e., this may only ever need to be called by
     a Database instance?).
   */
-class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.relation_type_key_exists(m_id)) {
-    throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
+class RelationType(db: Database, id: i64) extends Entity(db, id) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+  if !db.is_remote && !db.relation_type_key_exists(id)) {
+    throw new Exception("Key " + id + Util::DOES_NOT_EXIST)
   }
 
 
@@ -62,25 +62,25 @@ class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
     m_name = name_in
     m_nameInReverseDirection = name_in_reverse_direction_in
     mDirectionality = inDirectionality
-    m_already_read_data = true
+    already_read_data = true
   }
 
   private[onemodel] fn get_name_in_reverse_direction() -> String {
-    if !m_already_read_data) {
+    if !already_read_data) {
       read_data_from_db()
     }
     m_nameInReverseDirection
   }
 
   private[onemodel] fn getDirectionality() -> String {
-    if !m_already_read_data) {
+    if !already_read_data) {
       read_data_from_db()
     }
     mDirectionality
   }
 
   override fn get_name() -> String {
-    if !m_already_read_data) {
+    if !already_read_data) {
       read_data_from_db()
     }
     m_name
@@ -91,20 +91,20 @@ class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
   }
 
   protected override fn read_data_from_db() {
-    let relationTypeData: Vec<Option<DataType>> = m_db.get_relation_type_data(m_id);
+    let relationTypeData: Vec<Option<DataType>> = db.get_relation_type_data(id);
     if relationTypeData.length == 0) {
-      throw new OmException("No results returned from data request for: " + m_id)
+      throw new OmException("No results returned from data request for: " + id)
     }
     m_name = relationTypeData(0).get.asInstanceOf[String]
     m_nameInReverseDirection = relationTypeData(1).get.asInstanceOf[String]
     mDirectionality = relationTypeData(2).get.asInstanceOf[String].trim
-    m_already_read_data = true
+    already_read_data = true
   }
 
     fn update(name_in: String, name_in_reverse_direction_in: String, directionality_in: String) -> /*%% -> Unit*/ {
-    if !m_already_read_data) read_data_from_db()
+    if !already_read_data) read_data_from_db()
     if name_in != m_name || name_in_reverse_direction_in != m_nameInReverseDirection || directionality_in != mDirectionality) {
-      m_db.update_relation_type(get_id, name_in, name_in_reverse_direction_in, directionality_in)
+      db.update_relation_type(get_id, name_in, name_in_reverse_direction_in, directionality_in)
       m_name = name_in
       m_nameInReverseDirection = name_in_reverse_direction_in
       mDirectionality = directionality_in
@@ -114,7 +114,7 @@ class RelationType(m_db: Database, m_id: i64) extends Entity(m_db, m_id) {
   /** Removes this object from the system.
     */
   override fn delete() {
-    m_db.delete_relation_type(m_id)
+    db.delete_relation_type(id)
   }
 
   /** For descriptions of the meanings of these variables, see the comments

@@ -16,7 +16,7 @@ import org.scalatest.{Args, FlatSpec, Status}
 import scala.collection.mutable
 
 class GroupTest extends FlatSpec with MockitoSugar {
-  let mut m_db: PostgreSQLDatabase = null;
+  let mut db: PostgreSQLDatabase = null;
 
   // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks. (?)
   override fn runTests(testName: Option<String>, args: Args) -> Status {
@@ -31,7 +31,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
 
     // instantiation does DB setup (creates tables, default data, etc):
-    m_db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+    db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
   }
 
   protected fn tearDown() {
@@ -39,9 +39,9 @@ class GroupTest extends FlatSpec with MockitoSugar {
   }
 
   "moveEntityToDifferentGroup etc" should "work" in {
-    let group1 = new Group(m_db, m_db.create_group("group_name1"));
-    let group2 = new Group(m_db, m_db.create_group("group_name2"));
-    let e1 = new Entity(m_db, m_db.create_entity("e1"));
+    let group1 = new Group(db, db.create_group("group_name1"));
+    let group2 = new Group(db, db.create_group("group_name2"));
+    let e1 = new Entity(db, db.create_entity("e1"));
     group1.addEntity(e1.get_id)
     assert(group1.is_entity_in_group(e1.get_id))
     assert(! group2.is_entity_in_group(e1.get_id))
@@ -61,7 +61,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
 
     let index2: i64 = group2.getEntrySortingIndex(e1.get_id);
     assert(group2.findUnusedSortingIndex(None) != index2)
-    let e3: Entity = new Entity(m_db, m_db.create_entity("e3"));
+    let e3: Entity = new Entity(db, db.create_entity("e3"));
     group2.addEntity(e3.get_id)
     group2.updateSortingIndex(e3.get_id, Database.min_id_value)
     // next lines not much of a test but is something:
@@ -71,7 +71,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
     let indexes = group2.get_adjacent_group_entries_sorting_indexes(Database.min_id_value, Some(0), forward_not_back_in = true);
     assert(indexes.nonEmpty)
 
-    let e2 = new Entity(m_db, m_db.create_entity("e2"));
+    let e2 = new Entity(db, db.create_entity("e2"));
     let results_in_out1: mutable.TreeSet[i64] = e2.find_contained_local_entity_ids(new mutable.TreeSet[i64], "e2");
     assert(results_in_out1.isEmpty)
     group2.move_entity_from_group_to_local_entity(e2.get_id, e1.get_id, 0)
@@ -82,14 +82,14 @@ class GroupTest extends FlatSpec with MockitoSugar {
   }
 
   "get_groups_containing_entitys_groups_ids etc" should "work" in {
-    let group1 = new Group(m_db, m_db.create_group("g1"));
-    let group2 = new Group(m_db, m_db.create_group("g2"));
-    let group3 = new Group(m_db, m_db.create_group("g3"));
-    let entity1 = new Entity(m_db, m_db.create_entity("e1"));
-    let entity2 = new Entity(m_db, m_db.create_entity("e2"));
+    let group1 = new Group(db, db.create_group("g1"));
+    let group2 = new Group(db, db.create_group("g2"));
+    let group3 = new Group(db, db.create_group("g3"));
+    let entity1 = new Entity(db, db.create_entity("e1"));
+    let entity2 = new Entity(db, db.create_entity("e2"));
     group1.addEntity(entity1.get_id)
     group2.addEntity(entity2.get_id)
-    let rt = new RelationType(m_db, m_db.createRelationType("rt", "rtReversed", "BI"));
+    let rt = new RelationType(db, db.createRelationType("rt", "rtReversed", "BI"));
     entity1.addRelationToGroup(rt.get_id, group3.get_id, None)
     entity2.addRelationToGroup(rt.get_id, group3.get_id, None)
     let results = group3.get_groups_containing_entitys_groups_ids();
@@ -100,7 +100,7 @@ class GroupTest extends FlatSpec with MockitoSugar {
     assert(group3.get_count_of_entities_containing_group._1 == 2)
     assert(group3.get_containing_relations_to_group(0).size == 2)
 
-    assert(Group.getGroup(m_db, group3.get_id).is_defined)
+    assert(Group.getGroup(db, group3.get_id).is_defined)
   }
 
 }

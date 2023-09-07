@@ -18,10 +18,10 @@ import org.onemodel.core.{OmException, Util}
     This constructor instantiates an existing object from the DB. You can use Entity.addTextAttribute() to
     create a new object.
   *
-class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObservedDates(m_db, m_id) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.text_attribute_key_exists(m_id)) {
-    throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
+class TextAttribute(db: Database, id: i64) extends AttributeWithValidAndObservedDates(db, id) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+  if !db.is_remote && !db.text_attribute_key_exists(id)) {
+    throw new Exception("Key " + id + Util::DOES_NOT_EXIST)
   }
 
 
@@ -29,9 +29,9 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-    fn this(m_db: Database, m_id: i64, parent_id_in: i64, attr_type_id_in: i64, text_in: String, valid_on_date: Option<i64>, observation_date: i64,
+    fn this(db: Database, id: i64, parent_id_in: i64, attr_type_id_in: i64, text_in: String, valid_on_date: Option<i64>, observation_date: i64,
            sorting_index_in: i64) {
-    this(m_db, m_id)
+    this(db, id)
     assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
     mText = text_in
   }
@@ -39,7 +39,7 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
   /** return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
     */
     fn get_display_string(length_limit_in: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
-    let type_name: String = m_db.get_entity_name(get_attr_type_id()).get;
+    let type_name: String = db.get_entity_name(get_attr_type_id()).get;
     let mut result: String = {;
       if simplify && (type_name == "paragraph" || type_name == "quote")) get_text
       else type_name + ": \"" + get_text + "\""
@@ -49,14 +49,14 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
   }
 
     fn get_text -> String {
-    if !m_already_read_data) read_data_from_db()
+    if !already_read_data) read_data_from_db()
     mText
   }
 
   protected fn read_data_from_db() {
-    let taTypeData = m_db.get_text_attribute_data(m_id);
+    let taTypeData = db.get_text_attribute_data(id);
     if taTypeData.length == 0) {
-      throw new OmException("No results returned from data request for: " + m_id)
+      throw new OmException("No results returned from data request for: " + id)
     }
     mText = taTypeData(1).get.asInstanceOf[String]
     super.assign_common_vars(taTypeData(0).get.asInstanceOf[i64], taTypeData(2).get.asInstanceOf[i64], taTypeData(3).asInstanceOf[Option<i64>],
@@ -66,15 +66,15 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
     fn update(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64>, observation_date_in: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    m_db.update_text_attribute(m_id, get_parent_id(), attr_type_id_in, text_in, valid_on_date_in, observation_date_in)
+    db.update_text_attribute(id, get_parent_id(), attr_type_id_in, text_in, valid_on_date_in, observation_date_in)
     mText = text_in
-    m_attr_type_id = attr_type_id_in
+    attr_type_id = attr_type_id_in
     valid_on_date = valid_on_date_in
     observation_date = observation_date_in
   }
 
   /** Removes this object from the system. */
-    fn delete() = m_db.delete_text_attribute(m_id)
+    fn delete() = db.delete_text_attribute(id)
 
   /** For descriptions of the meanings of these variables, see the comments
     on create_text_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes.

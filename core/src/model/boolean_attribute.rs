@@ -20,17 +20,17 @@ use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 
 pub struct BooleanAttribute<'a> {
-    m_id: i64,
-    m_db: Box<&'a dyn Database>,
+    id: i64,
+    db: Box<&'a dyn Database>,
     // For descriptions of the meanings of these variables, see the comments
     // on create_tables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
     m_boolean: bool,              /*%%false*/
-    m_already_read_data: bool,    /*%%= false*/
-    m_parent_id: i64,             /*%%= 0L*/
-    m_attr_type_id: i64,          /*%%= 0L*/
-    m_valid_on_date: Option<i64>, /*%%= None*/
-    m_observation_date: i64,      /*%%= 0L*/
-    m_sorting_index: i64,         /*%%= 0L*/
+    already_read_data: bool,    /*%%= false*/
+    parent_id: i64,             /*%%= 0L*/
+    attr_type_id: i64,          /*%%= 0L*/
+    valid_on_date: Option<i64>, /*%%= None*/
+    observation_date: i64,      /*%%= 0L*/
+    sorting_index: i64,         /*%%= 0L*/
 }
 
 impl BooleanAttribute<'_> {
@@ -46,15 +46,15 @@ impl BooleanAttribute<'_> {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(BooleanAttribute {
-                m_id: id,
-                m_db: db,
+                id: id,
+                db: db,
                 m_boolean: false,
-                m_already_read_data: false,
-                m_parent_id: 0,
-                m_attr_type_id: 0,
-                m_valid_on_date: None,
-                m_observation_date: 0,
-                m_sorting_index: 0,
+                already_read_data: false,
+                parent_id: 0,
+                attr_type_id: 0,
+                valid_on_date: None,
+                observation_date: 0,
+                sorting_index: 0,
             })
         }
     }
@@ -63,7 +63,7 @@ impl BooleanAttribute<'_> {
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<bool, anyhow::Error> {
-        if !self.m_already_read_data {
+        if !self.already_read_data {
             self.read_data_from_db(transaction)?;
         }
         Ok(self.m_boolean)
@@ -74,12 +74,12 @@ impl BooleanAttribute<'_> {
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<(), anyhow::Error> {
         let ba_type_data: Vec<Option<DataType>> = self
-            .m_db
-            .get_boolean_attribute_data(transaction, self.m_id)?;
+            .db
+            .get_boolean_attribute_data(transaction, self.id)?;
         if ba_type_data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
-                self.m_id
+                self.id
             ));
         }
         // DataType::Boolean(self.m_boolean) = ba_type_data[1];
@@ -100,9 +100,9 @@ impl BooleanAttribute<'_> {
 
         // super.assign_common_vars(ba_type_data(0).get.asInstanceOf[i64], ba_type_data(2).get.asInstanceOf[i64], ba_type_data(3).asInstanceOf[Option<i64>],
         //                        ba_type_data(4).get.asInstanceOf[i64], ba_type_data(5).get.asInstanceOf[i64])
-        self.m_already_read_data = true;
-        // DataType::Bigint(self.m_parent_id) = ba_type_data[0];
-        self.m_parent_id = match ba_type_data[0] {
+        self.already_read_data = true;
+        // DataType::Bigint(self.parent_id) = ba_type_data[0];
+        self.parent_id = match ba_type_data[0] {
             Some(DataType::Bigint(x)) => x,
             _ => {
                 return Err(anyhow!(
@@ -111,8 +111,8 @@ impl BooleanAttribute<'_> {
                 ))
             }
         };
-        // DataType::Bigint(self.m_attr_type_id) = ba_type_data[2];
-        self.m_attr_type_id = match ba_type_data[2] {
+        // DataType::Bigint(self.attr_type_id) = ba_type_data[2];
+        self.attr_type_id = match ba_type_data[2] {
             Some(DataType::Bigint(x)) => x,
             _ => {
                 return Err(anyhow!(
@@ -125,14 +125,14 @@ impl BooleanAttribute<'_> {
         //%%$%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
         // valid_on_date: Option<i64> /*%%= None*/,
         /*DataType::Bigint(%%)*/
-        self.m_valid_on_date = None; //ba_type_data[3];
-                                     // self.m_valid_on_date = match ba_type_data[3] {
+        self.valid_on_date = None; //ba_type_data[3];
+                                     // self.valid_on_date = match ba_type_data[3] {
                                      //     DataType::Bigint(x) => x,
                                      //     _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[3])),
                                      // };
 
-        // DataType::Bigint(self.m_observation_date) = ba_type_data[4];
-        self.m_observation_date = match ba_type_data[4] {
+        // DataType::Bigint(self.observation_date) = ba_type_data[4];
+        self.observation_date = match ba_type_data[4] {
             Some(DataType::Bigint(x)) => x,
             _ => {
                 return Err(anyhow!(
@@ -141,8 +141,8 @@ impl BooleanAttribute<'_> {
                 ))
             }
         };
-        // DataType::Bigint(self.m_sorting_index) = ba_type_data[5];
-        self.m_sorting_index = match ba_type_data[4] {
+        // DataType::Bigint(self.sorting_index) = ba_type_data[5];
+        self.sorting_index = match ba_type_data[4] {
             Some(DataType::Bigint(x)) => x,
             _ => {
                 return Err(anyhow!(
@@ -158,24 +158,24 @@ impl BooleanAttribute<'_> {
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<i64, anyhow::Error> {
-        if !self.m_already_read_data {
+        if !self.already_read_data {
             self.read_data_from_db(transaction)?;
         }
-        Ok(self.m_parent_id)
+        Ok(self.parent_id)
     }
     pub fn get_id(&self) -> i64 {
         // This datum is provided upon construction (new2(), at minimum), so can be returned
-        // regardless of m_already_read_data / read_data_from_db().
-        self.m_id
+        // regardless of already_read_data / read_data_from_db().
+        self.id
     }
     pub fn get_attr_type_id(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<i64, anyhow::Error> {
-        if !self.m_already_read_data {
+        if !self.already_read_data {
             self.read_data_from_db(transaction)?;
         }
-        Ok(self.m_attr_type_id)
+        Ok(self.attr_type_id)
     }
 
     /// See TextAttribute etc for some comments.
@@ -188,9 +188,9 @@ impl BooleanAttribute<'_> {
         that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
         one that already exists.
         */
-        fn this(m_db: Database, m_id: i64, parent_id_in: i64, attr_type_id_in: i64, boolean_in: bool, valid_on_date: Option<i64>, observation_date: i64,
+        fn this(db: Database, id: i64, parent_id_in: i64, attr_type_id_in: i64, boolean_in: bool, valid_on_date: Option<i64>, observation_date: i64,
                sorting_index_in: i64) {
-        this(m_db, m_id)
+        this(db, id)
         m_boolean = boolean_in
         assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
       }
@@ -206,9 +206,9 @@ impl BooleanAttribute<'_> {
     ) -> Result<(), anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        self.m_db.update_boolean_attribute(
+        self.db.update_boolean_attribute(
             transaction,
-            self.m_id,
+            self.id,
             self.get_parent_id(transaction)?,
             attr_type_id_in,
             boolean_in,
@@ -217,16 +217,16 @@ impl BooleanAttribute<'_> {
         )?;
         self.m_boolean = boolean_in;
         // (next line is already set by just-above call to get_parent_id().)
-        // self.m_already_read_data = true;
-        self.m_attr_type_id = attr_type_id_in;
-        self.m_valid_on_date = valid_on_date_in;
-        self.m_observation_date = observation_date_in;
+        // self.already_read_data = true;
+        self.attr_type_id = attr_type_id_in;
+        self.valid_on_date = valid_on_date_in;
+        self.observation_date = observation_date_in;
         Ok(())
     }
     /*
      /** Removes this object from the system. */
        fn delete() {
-       m_db.delete_boolean_attribute(m_id)
+       db.delete_boolean_attribute(id)
        }
 
      /** For descriptions of the meanings of these variables, see the comments
@@ -241,7 +241,7 @@ impl Attribute for BooleanAttribute {
 
     /// Return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
     fn get_display_string(length_limit_in: i32, unused: Option<Entity> /*= None*/, unused2: Option<RelationType>/*=None*/, simplify: bool/* = false*/) -> String {
-        let type_name: String = m_db.get_entity_name(get_attr_type_id()).get;
+        let type_name: String = db.get_entity_name(get_attr_type_id()).get;
         let mut result: String = type_name + ": " + get_boolean + "";
         if ! simplify) result += "; " + get_dates_description
         Attribute.limit_attribute_description_length(result, length_limit_in)
@@ -289,18 +289,18 @@ impl AttributeWithValidAndObservedDates for BooleanAttribute {
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<Option<i64>, anyhow::Error> {
-        if !self.m_already_read_data {
+        if !self.already_read_data {
             self.read_data_from_db(transaction)?;
         }
-        Ok(self.m_valid_on_date)
+        Ok(self.valid_on_date)
     }
     fn get_observation_date(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<i64, anyhow::Error> {
-        if !self.m_already_read_data {
+        if !self.already_read_data {
             self.read_data_from_db(transaction)?;
         }
-        Ok(self.m_observation_date)
+        Ok(self.observation_date)
     }
 }

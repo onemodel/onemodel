@@ -43,7 +43,7 @@ struct OtherEntityMenu {
           let defaultEntity: Option<i64> = if defaultEntityTuple.isEmpty) None else Some(defaultEntityTuple.get._1);
           let entityIsAlreadyTheDefault: bool = defaultEntity.is_defined && defaultEntity.get == entity_in.get_id;
           if ! entityIsAlreadyTheDefault) {
-            choices = choices :+ ((if defaultEntity.isEmpty && !entity_in.m_db.is_remote) "****TRY ME---> " else "") +
+            choices = choices :+ ((if defaultEntity.isEmpty && !entity_in.db.is_remote) "****TRY ME---> " else "") +
                                   "Set current entity as default (first to come up when launching this program.)")
           } else choices = choices :+ "(stub)"
 
@@ -107,7 +107,7 @@ struct OtherEntityMenu {
                 if entity_in.getClassTemplateEntityId.isEmpty) {
                   None
                 } else {
-                  Some(new Entity(entity_in.m_db, entity_in.getClassTemplateEntityId.get))
+                  Some(new Entity(entity_in.db, entity_in.getClassTemplateEntityId.get))
                 }
               let templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(template_entity, attributeTuplesIn);
               let editAnswer = ui.ask_which(Some(Vec<String>{Util.entity_menu_leading_text(entity_in)}),;
@@ -126,7 +126,7 @@ struct OtherEntityMenu {
                   otherEntityMenu(if editedEntity.is_defined) editedEntity.get else entity_in, attributeRowsStartingIndexIn, relationSourceEntityIn,
                                   containingRelationToEntityIn, containingGroupIn, attributeTuplesIn)
                 } else if editAnswer.get == 2) {
-                  let classId: Option<i64> = controller.askForClass(entity_in.m_db);
+                  let classId: Option<i64> = controller.askForClass(entity_in.db);
                   if classId.is_defined) {
                     entity_in.updateClass(classId)
 
@@ -168,10 +168,10 @@ struct OtherEntityMenu {
                   removeEntityReferenceFromGroup_Menu(entity_in, containingGroupIn)
                 } else if delAnswer == showAllArchivedEntities_choiceNumber) {
                   // ** IF THIS OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in Controller.get_default_entity. **
-                  entity_in.m_db.set_include_archived_entities(! entity_in.m_db.include_archived_entities)
+                  entity_in.db.set_include_archived_entities(! entity_in.db.include_archived_entities)
                 } else {
                   ui.display_text("invalid response")
-                  otherEntityMenu(new Entity(entity_in.m_db, entity_in.get_id), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
+                  otherEntityMenu(new Entity(entity_in.db, entity_in.get_id), attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
                                   containingGroupIn, attributeTuplesIn)
                 }
               }
@@ -179,12 +179,12 @@ struct OtherEntityMenu {
               let template_entity_id: Option<i64> = entity_in.getClassTemplateEntityId;
               goToRelatedPlaces(entity_in, relationSourceEntityIn, containingRelationToEntityIn, template_entity_id)
               //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
-              if entity_in.m_db.entity_key_exists(entity_in.get_id, include_archived = false)) {
+              if entity_in.db.entity_key_exists(entity_in.get_id, include_archived = false)) {
                 new EntityMenu(ui, controller).entityMenu(entity_in, attributeRowsStartingIndexIn, None, None, containingRelationToEntityIn, containingGroupIn)
               }
-            } else if answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault && !entity_in.m_db.is_remote) {
+            } else if answer == 7 && answer <= choices.length && !entityIsAlreadyTheDefault && !entity_in.db.is_remote) {
               // updates user preferences such that this obj will be the one displayed by default in future.
-              entity_in.m_db.set_user_preference_entity_id(Util.DEFAULT_ENTITY_PREFERENCE, entity_in.get_id)
+              entity_in.db.set_user_preference_entity_id(Util.DEFAULT_ENTITY_PREFERENCE, entity_in.get_id)
               controller.refreshDefaultDisplayEntityId()
             } else {
               ui.display_text("invalid response")
@@ -194,7 +194,7 @@ struct OtherEntityMenu {
           }
         } catch {
           case e: Exception =>
-            Util.handleException(e, ui, entity_in.m_db)
+            Util.handleException(e, ui, entity_in.db)
             let ans = ui.ask_yes_no_question("Go back to what you were doing (vs. going out)?", Some("y"));
             if ans.is_defined && ans.get) {
               otherEntityMenu(entity_in, attributeRowsStartingIndexIn, relationSourceEntityIn, containingRelationToEntityIn,
@@ -318,9 +318,9 @@ struct OtherEntityMenu {
         // (Wrote "lines" plural, to clarify when this is presented with the "SINGLE LINE" copyright prompt below.)
         let prompt4 = ", and put the relevant lines of html (or nothing) in the value for that attribute.  Or just press Enter to skip through this each time.)";
 
-        let headerTypeIds: java.util.ArrayList[i64] = entity_in.m_db.find_all_entity_ids_by_name(Util.HEADER_CONTENT_TAG, case_sensitive = true);
-        let bodyContentTypeIds: java.util.ArrayList[i64] = entity_in.m_db.find_all_entity_ids_by_name(Util.BODY_CONTENT_TAG, case_sensitive = true);
-        let footerTypeIds: java.util.ArrayList[i64] = entity_in.m_db.find_all_entity_ids_by_name(Util.FOOTER_CONTENT_TAG, case_sensitive = true);
+        let headerTypeIds: java.util.ArrayList[i64] = entity_in.db.find_all_entity_ids_by_name(Util.HEADER_CONTENT_TAG, case_sensitive = true);
+        let bodyContentTypeIds: java.util.ArrayList[i64] = entity_in.db.find_all_entity_ids_by_name(Util.BODY_CONTENT_TAG, case_sensitive = true);
+        let footerTypeIds: java.util.ArrayList[i64] = entity_in.db.find_all_entity_ids_by_name(Util.FOOTER_CONTENT_TAG, case_sensitive = true);
         if (headerTypeIds.size > 1) || (bodyContentTypeIds.size > 1) || (footerTypeIds.size > 1)) {
           throw new OmException("Expected at most one entity (as typeId) each, with the names " + Util.HEADER_CONTENT_TAG + ", " +
                                 Util.BODY_CONTENT_TAG + ", or " + Util.FOOTER_CONTENT_TAG + ", but found respectively " +
@@ -412,7 +412,7 @@ struct OtherEntityMenu {
         let mut goToClass_choiceNumber: i32 = 4;
         let numContainingEntities: i64 = {;
           let (non_archived, archived) = entity_in.getCountOfContainingLocalEntities;
-          if entity_in.m_db.include_archived_entities)  non_archived + archived
+          if entity_in.db.include_archived_entities)  non_archived + archived
           else non_archived
         }
         // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
@@ -423,7 +423,7 @@ struct OtherEntityMenu {
           let containingGroupsIds: java.util.ArrayList[i64] = entity_in.get_containing_groups_ids;
           // (Next line is just confirming the consistency of logic that got us here: see 'if' just above.)
           require(containingGroupsIds.size == 1)
-          containingGroup = Some(new Group(entity_in.m_db, containingGroupsIds.get(0)))
+          containingGroup = Some(new Group(entity_in.db, containingGroupsIds.get(0)))
 
           let containingRtgList: util.ArrayList[RelationToGroup] = entity_in.get_containing_relations_to_group(0, Some(1));
           if containingRtgList.size < 1) {
@@ -440,10 +440,10 @@ struct OtherEntityMenu {
                                       "See groups containing this entity (" + numContainingGroups + ")"
                                     })
         // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
-        if relationIn.is_defined && relationSourceEntityIn.is_defined && relationSourceEntityIn.get.m_db.entity_key_exists(relationSourceEntityIn.get.get_id)) {
+        if relationIn.is_defined && relationSourceEntityIn.is_defined && relationSourceEntityIn.get.db.entity_key_exists(relationSourceEntityIn.get.get_id)) {
           choices = choices :+ "Go edit the relation to entity that led here: " +
-                               relationIn.get.get_display_string(15, Some(entity_in), Some(new RelationType(relationIn.get.m_db, relationIn.get.get_attr_type_id())))
-          choices = choices :+ "Go to the type, for the relation that led here: " + new Entity(relationIn.get.m_db, relationIn.get.get_attr_type_id()).get_name
+                               relationIn.get.get_display_string(15, Some(entity_in), Some(new RelationType(relationIn.get.db, relationIn.get.get_attr_type_id())))
+          choices = choices :+ "Go to the type, for the relation that led here: " + new Entity(relationIn.get.db, relationIn.get.get_attr_type_id()).get_name
           goToTemplateEntity_choiceNumber += 2
           goToClass_choiceNumber += 2
         }
@@ -523,8 +523,8 @@ struct OtherEntityMenu {
             }
             let relationToEntityDH: RelationToEntityDataHolder = new RelationToEntityDataHolder(relationIn.get.get_attr_type_id(), relationIn.get.get_valid_on_date(),;
                                                                                                 relationIn.get.get_observation_date(), relatedId2,
-                                                                                                relationIn.get.m_db.is_remote, relationIn.get.m_db.id)
-            controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationIn.get.m_db, relationToEntityDH, askForAttrTypeId = true,
+                                                                                                relationIn.get.db.is_remote, relationIn.get.db.id)
+            controller.askForInfoAndUpdateAttribute[RelationToEntityDataHolder](relationIn.get.db, relationToEntityDH, askForAttrTypeId = true,
                                                                                 Util.RELATION_TO_LOCAL_ENTITY_TYPE,
                                                                                 "CHOOSE TYPE OF Relation to Entity:", dummyMethod, updateRelationToEntity)
             // Force a reread from the DB so it shows the right info SO THIS IS NOT FORGOTTEN, IN CASE we add later a call a menu which
@@ -532,15 +532,15 @@ struct OtherEntityMenu {
             //relationToEntity = Some(new RelationToEntity(db, relationIn.get.get_id, relationIn.get.get_attr_type_id(), relationIn.get.getRelatedId1,
             //                                             relationIn.get.getRelatedId2))
           } else if goWhereAnswer == goToRelationType_choiceNumber && relationIn.is_defined && goWhereAnswer <= choices.length) {
-            new EntityMenu(ui, controller).entityMenu(new Entity(relationIn.get.m_db, relationIn.get.get_attr_type_id()))
+            new EntityMenu(ui, controller).entityMenu(new Entity(relationIn.get.db, relationIn.get.get_attr_type_id()))
           } else if goWhereAnswer == goToTemplateEntity_choiceNumber && template_entity_id.is_defined && goWhereAnswer <= choices.length) {
-            new EntityMenu(ui, controller).entityMenu(new Entity(entity_in.m_db, template_entity_id.get))
+            new EntityMenu(ui, controller).entityMenu(new Entity(entity_in.db, template_entity_id.get))
           } else if goWhereAnswer == goToClass_choiceNumber && template_entity_id.is_defined && goWhereAnswer <= choices.length) {
             let classId: Option<i64> = entity_in.getClassId;
             if classId.isEmpty) {
               throw new OmException("Unexpectedly, this entity doesn't seem to have a class id.  That is probably a bug.")
             } else {
-              new ClassMenu(ui, controller).classMenu(new EntityClass(entity_in.m_db, classId.get))
+              new ClassMenu(ui, controller).classMenu(new EntityClass(entity_in.db, classId.get))
             }
           } else {
             ui.display_text("invalid response")
@@ -557,9 +557,9 @@ struct OtherEntityMenu {
         let containingRelationToGroups: util.ArrayList[RelationToGroup] = entity_in.get_containing_relations_to_group(0, Some(numDisplayableItems));
         let containingRtgDescriptions: Vec<String> = containingRelationToGroups.toArray.map {;
                                                                                                 case rtg: (RelationToGroup) =>
-                                                                                                  let entityName: String = new Entity(rtg.m_db,;
+                                                                                                  let entityName: String = new Entity(rtg.db,;
                                                                                                                                       rtg.get_parent_id()).get_name
-                                                                                                  let rt: RelationType = new RelationType(rtg.m_db,;
+                                                                                                  let rt: RelationType = new RelationType(rtg.db,;
                                                                                                                                           rtg.get_attr_type_id())
                                                                                                   "entity " + entityName + " " +
                                                                                                   rtg.get_display_string(Util.maxNameLength, None, Some(rt))
@@ -579,11 +579,11 @@ struct OtherEntityMenu {
             // This displays (or allows to choose) the entity that contains the group, rather than the chosen group itself.  Probably did it that way originally
             // because I thought it made more sense to show a group in context than by itself.
             let containingRelationToGroup = containingRelationToGroups.get(index);
-            let containingEntities = containingRelationToGroup.m_db.get_entities_containing_group(containingRelationToGroup.getGroupId, 0);
+            let containingEntities = containingRelationToGroup.db.get_entities_containing_group(containingRelationToGroup.getGroupId, 0);
             let numContainingEntities = containingEntities.size;
             if numContainingEntities == 1) {
               let containingEntity: Entity = containingEntities.get(0)._2;
-              new EntityMenu(ui, controller).entityMenu(containingEntity, containingGroupIn = Some(new Group(containingRelationToGroup.m_db,
+              new EntityMenu(ui, controller).entityMenu(containingEntity, containingGroupIn = Some(new Group(containingRelationToGroup.db,
                                                                                                              containingRelationToGroup.getGroupId)))
             } else {
               controller.chooseAmongEntities(containingEntities)
@@ -594,8 +594,8 @@ struct OtherEntityMenu {
             let entity_id: i64 = containingRelationToGroups.get(index).get_parent_id();
             let groupId: i64 = containingRelationToGroups.get(index).getGroupId;
             let rel_type_id: i64 = containingRelationToGroups.get(index).get_attr_type_id();
-            new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(entity_in.m_db, groupId), 0,
-                                                              Some(new RelationToGroup(entity_in.m_db, id, entity_id, rel_type_id, groupId)),
+            new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(entity_in.db, groupId), 0,
+                                                              Some(new RelationToGroup(entity_in.db, id, entity_id, rel_type_id, groupId)),
                                                               Some(entity_in), containingEntityIn = None)
           } else {
             ui.display_text("unknown response")
@@ -671,7 +671,7 @@ struct OtherEntityMenu {
         let mut delFromContainingGroup_choiceNumber: i32 = 3;
         let mut showAllArchivedEntities_choiceNumber: i32 = 3;
         // (check for existence because other things could have been deleted or archived while browsing around different menu options.)
-        if relationIn.is_defined && relationSourceEntityIn.is_defined && relationSourceEntityIn.get.m_db.entity_key_exists(relationSourceEntityIn.get.get_id)) {
+        if relationIn.is_defined && relationSourceEntityIn.is_defined && relationSourceEntityIn.get.db.entity_key_exists(relationSourceEntityIn.get.get_id)) {
           // means we got here by selecting a Relation attribute on another entity, so entity_in is the "entity_id2" in that relation; so show some options,
           // because
           // we eliminated a separate menu just for the relation and put them here, for UI usage simplicity.
@@ -689,7 +689,7 @@ struct OtherEntityMenu {
                                "    \"" + entity_in.get_name + "\""
           showAllArchivedEntities_choiceNumber += 1
         }
-        choices = choices :+ (if !entity_in.m_db.include_archived_entities) "Show archived entities" else "Do not show archived entities")
+        choices = choices :+ (if !entity_in.db.include_archived_entities) "Show archived entities" else "Do not show archived entities")
 
         let delOrArchiveAnswer: Option[(Int)] = ui.ask_which(leading_text, choices, Vec<String>());
         (delOrArchiveAnswer, delEntityLink_choiceNumber, delFromContainingGroup_choiceNumber, showAllArchivedEntities_choiceNumber)

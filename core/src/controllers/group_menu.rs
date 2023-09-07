@@ -30,7 +30,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
       groupMenu_helper(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
     } catch {
       case e: Exception =>
-        Util::handleException(e, ui, group_in.m_db)
+        Util::handleException(e, ui, group_in.db)
         let ans = ui.ask_yes_no_question("Go back to what you were doing (vs. going out)?",Some("y"));
         if ans.is_defined && ans.get) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
         else None
@@ -107,7 +107,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
               // reread the RTG to get the updated info:
               groupMenu(group_in, displayStartingRowNumberIn,
                         if relationToGroupIn.is_defined) {
-                          Some(new RelationToGroup(relationToGroupIn.get.m_db, relationToGroupIn.get.get_id, relationToGroupIn.get.get_parent_id(),
+                          Some(new RelationToGroup(relationToGroupIn.get.db, relationToGroupIn.get.get_id, relationToGroupIn.get.get_parent_id(),
                                                    relationToGroupIn.get.get_attr_type_id(), relationToGroupIn.get.getGroupId))
                         } else None,
                         callingMenusRtgIn,
@@ -138,7 +138,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
         //idea: consider: do we want this?:
         //(see similar comment in postgresqldatabase)
         //"See groups containing this group (" + numContainingGroups + ")")
-        //val numContainingGroups = m_db.getContainingRelationToGroups(relationToGroupIn, 0).size
+        //val numContainingGroups = db.getContainingRelationToGroups(relationToGroupIn, 0).size
 
         let response = ui.ask_which(None, choices, Vec<String>());
         if response.isEmpty) None
@@ -155,14 +155,14 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
                                                                                              relationToGroupIn.get.get_valid_on_date(),
                                                                                              relationToGroupIn.get.get_observation_date())
             let (newRelationToGroup: Option[RelationToGroup], newGroup: Group) = {;
-              if controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupIn.get.m_db, relationToGroupDH, askForAttrTypeId = true,
+              if controller.askForInfoAndUpdateAttribute[RelationToGroupDataHolder](relationToGroupIn.get.db, relationToGroupDH, askForAttrTypeId = true,
                                                                                      Util::RELATION_TO_GROUP_TYPE,
                                                                                      "CHOOSE TYPE OF Relation to Entity:",
                                                                                      controller.askForRelToGroupInfo, update_relation_to_group)) {
                 //force a reread from the DB so it shows the right info on the repeated menu, for these things which could have been changed:
-                (Some(new RelationToGroup(relationToGroupIn.get.m_db, relationToGroupIn.get.get_id, relationToGroupDH.entity_id,
+                (Some(new RelationToGroup(relationToGroupIn.get.db, relationToGroupIn.get.get_id, relationToGroupDH.entity_id,
                                          relationToGroupDH.attr_type_id, relationToGroupDH.groupId)),
-                  new Group(group_in.m_db, relationToGroupDH.groupId))
+                  new Group(group_in.db, relationToGroupDH.groupId))
               } else {
                 (relationToGroupIn, group_in)
               }
@@ -180,12 +180,12 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
               new EntityMenu(ui, controller).entityMenu(entity.get)
             }
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
-            if group_in.m_db.group_key_exists(group_in.get_id)) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+            if group_in.db.group_key_exists(group_in.get_id)) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             else None
           } else if ans == 3 && template_entity.is_defined && ans <= choices.length) {
             new EntityMenu(ui, controller).entityMenu(template_entity.get)
             //ck 1st if it exists, if not return None. It could have been deleted while navigating around.
-            if group_in.m_db.group_key_exists(group_in.get_id)) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
+            if group_in.db.group_key_exists(group_in.get_id)) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
             else None
           } else {
             ui.display_text("invalid response")

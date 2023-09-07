@@ -303,7 +303,7 @@ impl PostgreSQLDatabase {
         // Doing these individually so that if one fails (not previously existing, such as
         // testing or a new installation), the others can proceed (drop method ignores that
         // exception).
-        self.drop(&None, "table", "om_db_version")?;
+        self.drop(&None, "table", "odb_version")?;
         self.drop(&None, "table", Util::QUANTITY_TYPE)?;
         self.drop(&None, "table", Util::DATE_TYPE)?;
         self.drop(&None, "table", Util::BOOLEAN_TYPE)?;
@@ -790,7 +790,7 @@ impl PostgreSQLDatabase {
         self.db_action(
             transaction,
             // default 1 due to lack of a better idea.  See comment just below.
-            "create table om_db_version (version integer DEFAULT 1) ",
+            "create table odb_version (version integer DEFAULT 1) ",
             false,
             false,
         )?;
@@ -799,7 +799,7 @@ impl PostgreSQLDatabase {
             // Initially 0 due to lack of a better idea.  The other setup code (fn create_tables
             // currently) should set it correctly to the updated version, once the schema with
             // that specific version has actually been created.
-            "INSERT INTO om_db_version (version) values (0)",
+            "INSERT INTO odb_version (version) values (0)",
             false,
             false,
         )
@@ -1532,7 +1532,7 @@ impl PostgreSQLDatabase {
         self.db_action(
             transaction,
             format!(
-                "UPDATE om_db_version SET (version) = ROW({})",
+                "UPDATE odb_version SET (version) = ROW({})",
                 PostgreSQLDatabase::SCHEMA_VERSION
             )
             .as_str(),

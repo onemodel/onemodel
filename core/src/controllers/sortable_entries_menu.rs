@@ -211,7 +211,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
   protected fn findNewNeighbors(dbIn: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forward_not_back_in: bool,
                                  movingFromPosition_sortingIndex: i64) -> (Int, Option<i64>, Option<i64>) {
 
-    // (idea: this could probably be made more efficient by combining the 2nd part of the (fixed) algorithm (the call to m_db.getNearestEntry)
+    // (idea: this could probably be made more efficient by combining the 2nd part of the (fixed) algorithm (the call to db.getNearestEntry)
     // with the first part.  I.e., maybe we don't need to calculate the farNewNeighborSortingIndex at first, since we're just going to soon replace
     // it with the "next one after the nearNewNeighbor" anyway.  But first it should have some good tests around it: coverage.)
 

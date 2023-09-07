@@ -18,10 +18,10 @@ import org.onemodel.core.{OmException, Util}
   * This constructor instantiates an existing object from the DB. You can use Entity.addQuantityAttribute() to
   * create a new object.
   *
-class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObservedDates(m_db, m_id) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if !m_db.is_remote && !m_db.relation_type_key_exists(m_id)) {
-    throw new Exception("Key " + m_id + Util::DOES_NOT_EXIST)
+class QuantityAttribute(db: Database, id: i64) extends AttributeWithValidAndObservedDates(db, id) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+  if !db.is_remote && !db.relation_type_key_exists(id)) {
+    throw new Exception("Key " + id + Util::DOES_NOT_EXIST)
   }
 
   /**
@@ -44,28 +44,28 @@ class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAnd
    * otherwise can be None.
    */
     fn get_display_string(length_limit_in: Int, unused: Option<Entity>=None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
-    let type_name: String = m_db.get_entity_name(get_attr_type_id()).get;
+    let type_name: String = db.get_entity_name(get_attr_type_id()).get;
     let number: Float = getNumber;
     let unitId: i64 = getUnitId;
-    let mut result: String = type_name + ": " + number + " " + m_db.get_entity_name(unitId).get;
+    let mut result: String = type_name + ": " + number + " " + db.get_entity_name(unitId).get;
     if ! simplify) result += "; " + get_dates_description
     Attribute.limit_attribute_description_length(result, length_limit_in)
   }
 
   private[onemodel] fn getNumber -> Float {
-    if !m_already_read_data) read_data_from_db()
+    if !already_read_data) read_data_from_db()
     mNumber
   }
 
   private[onemodel] fn getUnitId -> i64 {
-    if !m_already_read_data) read_data_from_db()
+    if !already_read_data) read_data_from_db()
     mUnitId
   }
 
   protected fn read_data_from_db() {
-    let quantityData = m_db.get_quantity_attribute_data(m_id);
+    let quantityData = db.get_quantity_attribute_data(id);
     if quantityData.length == 0) {
-      throw new OmException("No results returned from data request for: " + m_id)
+      throw new OmException("No results returned from data request for: " + id)
     }
     mUnitId = quantityData(1).get.asInstanceOf[i64]
     mNumber = quantityData(2).get.asInstanceOf[Float]
@@ -76,8 +76,8 @@ class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAnd
     fn update(attr_type_id_in: i64, unit_id_in: i64, number_in: Float, valid_on_date_in: Option<i64>, observation_date_in: i64) {
     // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
     // it all goes with
-    m_db.update_quantity_attribute(m_id, get_parent_id(), attr_type_id_in, unit_id_in, number_in, valid_on_date_in, observation_date_in)
-    m_attr_type_id = attr_type_id_in
+    db.update_quantity_attribute(id, get_parent_id(), attr_type_id_in, unit_id_in, number_in, valid_on_date_in, observation_date_in)
+    attr_type_id = attr_type_id_in
     mUnitId = unit_id_in
     mNumber = number_in
     valid_on_date = valid_on_date_in
@@ -86,7 +86,7 @@ class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAnd
 
   /** Removes this object from the system. */
     fn delete() {
-    m_db.delete_quantity_attribute(m_id)
+    db.delete_quantity_attribute(id)
     }
 
   // **idea: make these members into vals not vars, by replacing them with the next line.

@@ -38,17 +38,17 @@ pub struct RelationToLocalEntity {
       * This 1st constructor instantiates an existing object from the DB and is rarely needed. You can use Entity.addRelationTo[Local|Remote]Entity() to
       * create a new persistent record.
       */
-    class RelationToLocalEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntityId1: i64,
-                                 mEntityId2: i64) extends RelationToEntity(m_db, m_id, mRelTypeId, mEntityId1, mEntityId2) {
+    class RelationToLocalEntity(db: Database, id: i64, mRelTypeId: i64, mEntityId1: i64,
+                                 mEntityId2: i64) extends RelationToEntity(db, id, mRelTypeId, mEntityId1, mEntityId2) {
       // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
-      // Even a RelationToRemoteEntity can have m_db.is_remote == true, if it is viewing data *in* a remote OM instance
+      // Even a RelationToRemoteEntity can have db.is_remote == true, if it is viewing data *in* a remote OM instance
       // looking at RTLEs that are remote to that remote instance.
-      // See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.
-      if m_db.is_remote || m_db.relation_to_local_entity_keys_exist_and_match(m_id, mRelTypeId, mEntityId1, mEntityId2)) {
+      // See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.
+      if db.is_remote || db.relation_to_local_entity_keys_exist_and_match(id, mRelTypeId, mEntityId1, mEntityId2)) {
         // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:;
-        m_attr_type_id = mRelTypeId
+        attr_type_id = mRelTypeId
       } else {
-        throw new OmException("Key id=" + m_id + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
+        throw new OmException("Key id=" + id + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
                               " and entity_id_2=" + mEntityId2 + Util::DOES_NOT_EXIST)
       }
 
@@ -57,9 +57,9 @@ pub struct RelationToLocalEntity {
        * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
        * one that already exists.
        */
-        fn this(m_db: Database, id_in: i64, rel_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+        fn this(db: Database, id_in: i64, rel_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
                sorting_index_in: i64) {
-        this(m_db, id_in, rel_type_id_in, entity_id1_in, entity_id2_in)
+        this(db, id_in, rel_type_id_in, entity_id1_in, entity_id2_in)
         //    if this.isInstanceOf[RelationToRemoteEntity]) {
         //      //idea: this test & exception feel awkward. What is the better approach?  Maybe using scala's type features?
         //      throw new OmException("This constructor should not be called by the subclass.")
@@ -76,28 +76,28 @@ pub struct RelationToLocalEntity {
         }
 
         fn getEntityForEntityId2 -> Entity {
-        new Entity(m_db, mEntityId2)
+        new Entity(db, mEntityId2)
       }
 
       protected fn read_data_from_db() {
-        let relationData: Vec<Option<DataType>> = m_db.get_relation_to_local_entity_data(m_attr_type_id, mEntityId1, mEntityId2);
+        let relationData: Vec<Option<DataType>> = db.get_relation_to_local_entity_data(attr_type_id, mEntityId1, mEntityId2);
         if relationData.length == 0) {
-          throw new OmException("No results returned from data request for: " + m_attr_type_id + ", " + mEntityId1 + ", " + mEntityId2)
+          throw new OmException("No results returned from data request for: " + attr_type_id + ", " + mEntityId1 + ", " + mEntityId2)
         }
         // No other local variables to assign.  All are either in the superclass or the primary key.
         // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
         // the class hierarchy which wants it. Improve...?)
-        assign_common_vars(mEntityId1, m_attr_type_id,
+        assign_common_vars(mEntityId1, attr_type_id,
                          relationData(1).asInstanceOf[Option<i64>],
                          relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
       }
 
         fn move(toLocalContainingEntityIdIn: i64, sorting_index_in: i64) -> RelationToLocalEntity {
-        m_db.move_relation_to_local_entity_to_local_entity(get_id, toLocalContainingEntityIdIn, sorting_index_in)
+        db.move_relation_to_local_entity_to_local_entity(get_id, toLocalContainingEntityIdIn, sorting_index_in)
       }
 
         fn moveEntityFromEntityToGroup(target_group_id_in: i64, sorting_index_in: i64) {
-        m_db.move_local_entity_from_local_entity_to_group(this, target_group_id_in, sorting_index_in)
+        db.move_local_entity_from_local_entity_to_group(this, target_group_id_in, sorting_index_in)
       }
 
         fn update(valid_on_date_in:Option<i64>, observation_date_in:Option<i64>, newAttrTypeIdIn: Option<i64> = None) {
@@ -107,15 +107,15 @@ pub struct RelationToLocalEntity {
         // & how to be most clear (could be the same in RelationToGroup & other Attribute subclasses).)
         let vod = if valid_on_date_in.is_some()) valid_on_date_in else get_valid_on_date();
         let od = if observation_date_in.is_some()) observation_date_in.get else get_observation_date();
-        m_db.update_relation_to_local_entity(m_attr_type_id, mEntityId1, mEntityId2, newAttrTypeId, vod, od)
+        db.update_relation_to_local_entity(attr_type_id, mEntityId1, mEntityId2, newAttrTypeId, vod, od)
         valid_on_date = vod
         observation_date = od
-        m_attr_type_id = newAttrTypeId
+        attr_type_id = newAttrTypeId
       }
 
       /** Removes this object from the system. */
         fn delete() {
-        m_db.delete_relation_to_local_entity(get_attr_type_id(), mEntityId1, mEntityId2)
+        db.delete_relation_to_local_entity(get_attr_type_id(), mEntityId1, mEntityId2)
         }
 
     */

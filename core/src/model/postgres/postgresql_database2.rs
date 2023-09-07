@@ -528,7 +528,7 @@ impl PostgreSQLDatabase {
     ) -> Result<(), anyhow::Error> {
         let version_table_exists: bool = self.does_this_exist(
             transaction,
-            "select count(1) from pg_class where relname='om_db_version'",
+            "select count(1) from pg_class where relname='odb_version'",
             true,
         )?;
         if !version_table_exists {
@@ -536,7 +536,7 @@ impl PostgreSQLDatabase {
         }
         let db_version_row: Vec<Option<DataType>> = self.db_query_wrapper_for_one_row(
             transaction,
-            "select version from om_db_version",
+            "select version from odb_version",
             "Int",
         )?;
         let db_version = match db_version_row.get(0) {
@@ -557,8 +557,8 @@ impl PostgreSQLDatabase {
          0) make & test periodic backups of your live data to be safe!
          1) Consider designing it to be idempotent: so multiple runs on a production db (if by some mistake) will no harm (or at least will err out safely).
          2) Could run it against the test db (even though its tables already should have these changes, by being created from scratch), by not yet updating
-            the table om_db_version (perhaps by temporarily commenting out the line with
-            "UPDATE om_db_version ..." from create_tables while running tests).  AND,
+            the table odb_version (perhaps by temporarily commenting out the line with
+            "UPDATE odb_version ..." from create_tables while running tests).  AND,
          3) Could do a backup, open psql, start a transaction, paste the method's upgrade
             commands there, do manual verifications, then rollback.
          It doesn't seem to make sense to test methods like this with a unit test because the tests are run on a db created as a new

@@ -20,34 +20,34 @@ package org.onemodel.core.model
 import org.onemodel.core.{OmException, Util}
 
 object RelationToGroup {
-  // Old idea: could change this into a constructor if the "class" line's parameters are changed to be only m_db and m_id, and a new constructor is created
+  // Old idea: could change this into a constructor if the "class" line's parameters are changed to be only db and id, and a new constructor is created
   // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
   // new constructors just wasn't working out.
   // Idea: rename this to instantiateRelationToGroup, since create sounds like inserting a new row in the db. Not sure if there's a convention for that case.
-    fn create_relation_to_group(m_db: Database, id_in: i64) -> RelationToGroup {
-    let relationData: Vec<Option<DataType>> = m_db.get_relation_to_group_data(id_in);
+    fn create_relation_to_group(db: Database, id_in: i64) -> RelationToGroup {
+    let relationData: Vec<Option<DataType>> = db.get_relation_to_group_data(id_in);
     if relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + id_in)
     }
-    new RelationToGroup(m_db, id_in, relationData(1).get.asInstanceOf[i64], relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64],
+    new RelationToGroup(db, id_in, relationData(1).get.asInstanceOf[i64], relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64],
                      relationData(4).asInstanceOf[Option<i64>], relationData(5).get.asInstanceOf[i64], relationData(6).get.asInstanceOf[i64])
   }
 }
 
 /** See comments on similar methods in RelationToEntity (or maybe its subclasses). */
-class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64, mGroupId: i64) extends AttributeWithValidAndObservedDates(m_db, m_id) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if m_db.is_remote.)
-  if m_db.is_remote || m_db.relation_to_group_keys_exist_and_match(m_id, mEntityId, mRelTypeId, mGroupId)) {
+class RelationToGroup(db: Database, id: i64, mEntityId:i64, mRelTypeId: i64, mGroupId: i64) extends AttributeWithValidAndObservedDates(db, id) {
+  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+  if db.is_remote || db.relation_to_group_keys_exist_and_match(id, mEntityId, mRelTypeId, mGroupId)) {
     // something else might be cleaner, but these are the same thing and we need to make sure the superclass' let mut doesn't overwrite this w/ 0:;
-    m_attr_type_id = mRelTypeId
+    attr_type_id = mRelTypeId
   } else {
-    throw new Exception("Key id=" + m_id + ", " + mEntityId + "/" + mRelTypeId + "/" + mGroupId + Util::DOES_NOT_EXIST)
+    throw new Exception("Key id=" + id + ", " + mEntityId + "/" + mRelTypeId + "/" + mGroupId + Util::DOES_NOT_EXIST)
   }
 
   /** See comment about these 2 dates in PostgreSQLDatabase.create_tables() */
-    fn this(m_db: Database, id_in: i64, entity_id_in: i64, rel_type_id_in: i64, group_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+    fn this(db: Database, id_in: i64, entity_id_in: i64, rel_type_id_in: i64, group_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
            sorting_index_in: i64) {
-    this(m_db, id_in, entity_id_in, rel_type_id_in, group_id_in)
+    this(db, id_in, entity_id_in, rel_type_id_in, group_id_in)
     assign_common_vars(entity_id_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
   }
 
@@ -56,12 +56,12 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
     }
 
     fn getGroup -> Group {
-    new Group(m_db, getGroupId)
+    new Group(db, getGroupId)
   }
 
     fn get_display_string(length_limit_in: Int, unused: Option<Entity> = None, ignoredParameter: Option[RelationType] = None, simplify: bool = false) -> String {
-    let group = new Group(m_db, mGroupId);
-    let rtName = new RelationType(m_db, this.get_attr_type_id()).get_name;
+    let group = new Group(db, mGroupId);
+    let rtName = new RelationType(db, this.get_attr_type_id()).get_name;
     let mut result: String = if simplify && rtName == Database.THE_HAS_RELATION_TYPE_NAME) "" else rtName + " ";
     result += group.get_display_string(0, simplify)
     if ! simplify) result += "; " + get_dates_description
@@ -69,7 +69,7 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
   }
 
   protected fn read_data_from_db() {
-    let relationData: Vec<Option<DataType>> = m_db.get_relation_to_group_data_by_keys(mEntityId, mRelTypeId, mGroupId);
+    let relationData: Vec<Option<DataType>> = db.get_relation_to_group_data_by_keys(mEntityId, mRelTypeId, mGroupId);
     if relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mEntityId + ", " + mRelTypeId + ", " + mGroupId)
     }
@@ -79,7 +79,7 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
   }
 
     fn move(new_containing_entity_id_in: i64, sorting_index_in: i64) -> i64 {
-    m_db.move_relation_to_group(get_id, new_containing_entity_id_in, sorting_index_in)
+    db.move_relation_to_group(get_id, new_containing_entity_id_in, sorting_index_in)
   }
 
     fn update(new_relation_type_id_in: Option<i64>, new_group_id_in: Option<i64>, valid_on_date_in:Option<i64>, observation_date_in:Option<i64>) {
@@ -89,19 +89,19 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
     let newGroupId: i64 = if new_group_id_in.is_some()) new_group_id_in.get else getGroupId;
     let vod = if valid_on_date_in.is_some()) valid_on_date_in else get_valid_on_date();
     let od = if observation_date_in.is_some()) observation_date_in.get else get_observation_date();
-    m_db.update_relation_to_group(mEntityId, mRelTypeId, newRelationTypeId, mGroupId, newGroupId, vod, od)
+    db.update_relation_to_group(mEntityId, mRelTypeId, newRelationTypeId, mGroupId, newGroupId, vod, od)
     valid_on_date = vod
     observation_date = od
   }
 
   /** Removes this object from the system. */
     fn delete() {
-    m_db.delete_relation_to_group(mEntityId, mRelTypeId, mGroupId)
+    db.delete_relation_to_group(mEntityId, mRelTypeId, mGroupId)
     }
 
   /** Removes this object from the system. */
     fn delete_group_and_relations_to_it() {
-    m_db.delete_group_and_relations_to_it(mGroupId)
+    db.delete_group_and_relations_to_it(mGroupId)
     }
 */
 }

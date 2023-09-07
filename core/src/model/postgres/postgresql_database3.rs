@@ -4931,55 +4931,55 @@ impl Database for PostgreSQLDatabase {
               }
 
       "get_local_om_instance_data and friends" should "work" in {
-        let oi: OmInstance = m_db.get_local_om_instance_data;
+        let oi: OmInstance = db.get_local_om_instance_data;
         let uuid: String = oi.get_id;
         assert(oi.getLocal)
-        assert(m_db.om_instance_key_exists(uuid))
-        let startingOmiCount = m_db.get_om_instance_count();
+        assert(db.om_instance_key_exists(uuid))
+        let startingOmiCount = db.get_om_instance_count();
         assert(startingOmiCount > 0)
-        let oiAgainAddress = m_db.get_om_instance_data(uuid)(1).get.asInstanceOf[String];
+        let oiAgainAddress = db.get_om_instance_data(uuid)(1).get.asInstanceOf[String];
         assert(oiAgainAddress == Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION)
-        let omInstances: util.ArrayList[OmInstance] = m_db.get_om_instances();
+        let omInstances: util.ArrayList[OmInstance] = db.get_om_instances();
         assert(omInstances.size == startingOmiCount)
-        let sizeNowTrue = m_db.get_om_instances(Some(true)).size;
+        let sizeNowTrue = db.get_om_instances(Some(true)).size;
         assert(sizeNowTrue > 0)
         // Idea: fix: Next line fails at times, maybe due to code running in parallel between this and RestDatabaseTest, creating/deleting rows.  Only seems to happen
         // when all tests are run, never when the test classes are run separately.
-        //    let sizeNowFalse = m_db.get_om_instances(Some(false)).size;
+        //    let sizeNowFalse = db.get_om_instances(Some(false)).size;
         //assert(sizeNowFalse < sizeNowTrue)
-        assert(! m_db.om_instance_key_exists(java.util.UUID.randomUUID().toString))
-        assert(new OmInstance(m_db, uuid).getAddress == Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION)
+        assert(! db.om_instance_key_exists(java.util.UUID.randomUUID().toString))
+        assert(new OmInstance(db, uuid).getAddress == Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION)
 
         let uuid2 = java.util.UUID.randomUUID().toString;
-        m_db.create_om_instance(uuid2, is_local_in = false, "om.example.com", Some(m_db.get_system_entity_id))
+        db.create_om_instance(uuid2, is_local_in = false, "om.example.com", Some(db.get_system_entity_id))
         // should have the local one created at db creation, and now the one for this test:
-        assert(m_db.get_om_instance_count() == startingOmiCount + 1)
-        let mut i2: OmInstance = new OmInstance(m_db, uuid2);
+        assert(db.get_om_instance_count() == startingOmiCount + 1)
+        let mut i2: OmInstance = new OmInstance(db, uuid2);
         assert(i2.getAddress == "om.example.com")
-        m_db.update_om_instance(uuid2, "address", None)
-        i2  = new OmInstance(m_db,uuid2)
+        db.update_om_instance(uuid2, "address", None)
+        i2  = new OmInstance(db,uuid2)
         assert(i2.getAddress == "address")
         assert(!i2.getLocal)
         assert(i2.getEntityId.isEmpty)
         assert(i2.getCreationDate > 0)
         assert(i2.getCreationDateFormatted.length > 0)
-        m_db.update_om_instance(uuid2, "address", Some(m_db.get_system_entity_id))
-        i2  = new OmInstance(m_db,uuid2)
-        assert(i2.getEntityId.get == m_db.get_system_entity_id)
-        assert(m_db.is_duplicate_om_instance_address("address"))
-        assert(m_db.is_duplicate_om_instance_address(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION))
-        assert(!m_db.is_duplicate_om_instance_address("address", Some(uuid2)))
-        assert(!m_db.is_duplicate_om_instance_address(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION, Some(uuid)))
+        db.update_om_instance(uuid2, "address", Some(db.get_system_entity_id))
+        i2  = new OmInstance(db,uuid2)
+        assert(i2.getEntityId.get == db.get_system_entity_id)
+        assert(db.is_duplicate_om_instance_address("address"))
+        assert(db.is_duplicate_om_instance_address(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION))
+        assert(!db.is_duplicate_om_instance_address("address", Some(uuid2)))
+        assert(!db.is_duplicate_om_instance_address(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION, Some(uuid)))
         let uuid3 = java.util.UUID.randomUUID().toString;
-        m_db.create_om_instance(uuid3, is_local_in = false, "address", Some(m_db.get_system_entity_id))
-        assert(m_db.is_duplicate_om_instance_address("address", Some(uuid2)))
-        assert(m_db.is_duplicate_om_instance_address("address", Some(uuid3)))
+        db.create_om_instance(uuid3, is_local_in = false, "address", Some(db.get_system_entity_id))
+        assert(db.is_duplicate_om_instance_address("address", Some(uuid2)))
+        assert(db.is_duplicate_om_instance_address("address", Some(uuid3)))
         i2.delete()
-        assert(m_db.is_duplicate_om_instance_address("address"))
-        assert(m_db.is_duplicate_om_instance_address("address", Some(uuid2)))
-        assert(!m_db.is_duplicate_om_instance_address("address", Some(uuid3)))
+        assert(db.is_duplicate_om_instance_address("address"))
+        assert(db.is_duplicate_om_instance_address("address", Some(uuid2)))
+        assert(!db.is_duplicate_om_instance_address("address", Some(uuid3)))
         assert(intercept[Exception] {
-                                      new OmInstance(m_db, uuid2)
+                                      new OmInstance(db, uuid2)
                                     }.getMessage.contains("does not exist"))
       }
     */

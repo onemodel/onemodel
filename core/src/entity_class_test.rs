@@ -19,7 +19,7 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
 
   let mut mTemplateEntity: Entity = null;
   let mut mEntityClass: EntityClass = null;
-  let mut m_db: PostgreSQLDatabase = null;
+  let mut db: PostgreSQLDatabase = null;
 
   override fn runTests(testName: Option<String>, args: Args) -> Status {
     setUp()
@@ -33,12 +33,12 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     PostgreSQLDatabaseTest.tearDownTestDB()
 
     // instantiation does DB setup (creates tables, default data, etc):
-    m_db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+    db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
 
     let name = "name of test class and its template entity";
-    let (classId, entity_id): (i64, i64) = m_db.createClassAndItsTemplateEntity(name, name);
-    mTemplateEntity = new Entity(m_db, entity_id)
-    mEntityClass = new EntityClass(m_db, classId)
+    let (classId, entity_id): (i64, i64) = db.createClassAndItsTemplateEntity(name, name);
+    mTemplateEntity = new Entity(db, entity_id)
+    mEntityClass = new EntityClass(db, classId)
   }
 
   protected fn tearDown() {
@@ -76,25 +76,25 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
 
   "update_class_and_template_entity_name" should "work" in {
     //about begintrans: see comment farther below.
-//    m_db.begin_trans()
+//    db.begin_trans()
     let tmpName = "garbage-temp";
     mEntityClass.update_class_and_template_entity_name(tmpName)
     assert(mEntityClass.m_name == tmpName)
     // have to reread to see the change:
-    assert(new EntityClass(m_db, mEntityClass.get_id).get_name == tmpName)
-    assert(new Entity(m_db, mTemplateEntity.get_id).get_name == tmpName + "-template")
+    assert(new EntityClass(db, mEntityClass.get_id).get_name == tmpName)
+    assert(new Entity(db, mTemplateEntity.get_id).get_name == tmpName + "-template")
     // See comment about next 3 lines, at the rollback_trans call at the end of the PostgreSQLDatabaseTest.scala test
     // "getAttrCount, get_attribute_sorting_rows_count".
-//    m_db.rollback_trans()
-//    assert(new EntityClass(m_db, mEntityClass.get_id).get_name != tmpName)
-//    assert(new Entity(m_db, mTemplateEntity.get_id).get_name != tmpName + "-template")
+//    db.rollback_trans()
+//    assert(new EntityClass(db, mEntityClass.get_id).get_name != tmpName)
+//    assert(new Entity(db, mTemplateEntity.get_id).get_name != tmpName + "-template")
   }
 
   "updateCreateDefaultAttributes" should "work" in {
     assert(mEntityClass.getCreateDefaultAttributes.isEmpty)
     mEntityClass.updateCreateDefaultAttributes(Some(true))
     assert(mEntityClass.getCreateDefaultAttributes.get)
-    assert(new EntityClass(m_db, mEntityClass.get_id).getCreateDefaultAttributes.get)
+    assert(new EntityClass(db, mEntityClass.get_id).getCreateDefaultAttributes.get)
   }
 
 }

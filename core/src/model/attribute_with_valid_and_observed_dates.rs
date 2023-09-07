@@ -37,14 +37,14 @@ pub trait AttributeWithValidAndObservedDates: Attribute {
     fn get_valid_on_date() -> Option<i64>;
     // was:
     // fn get_valid_on_date() -> Option<i64> {
-    //   if !m_already_read_data) read_data_from_db()
+    //   if !already_read_data) read_data_from_db()
     //   valid_on_date
     // }
 
     fn get_observation_date() -> i64;
     // was:
     // fn get_observation_date() -> i64 {
-    //   if !m_already_read_data) read_data_from_db()
+    //   if !already_read_data) read_data_from_db()
     //   observation_date
     // }
 
