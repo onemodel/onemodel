@@ -7,14 +7,14 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use crate::model::boolean_attribute::BooleanAttribute;
+// use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
-use crate::model::entity::Entity;
-use crate::model::postgres::postgresql_database2::*;
-use crate::model::postgres::*;
-use crate::model::relation_to_local_entity::RelationToLocalEntity;
-use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
+// use crate::model::entity::Entity;
+// use crate::model::postgres::postgresql_database2::*;
+// use crate::model::postgres::*;
+// use crate::model::relation_to_local_entity::RelationToLocalEntity;
+// use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::util::Util;
 use anyhow::anyhow;
 use chrono::Utc;
@@ -23,7 +23,7 @@ use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
 // in use, in the code.
 use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
-use std::collections::HashSet;
+// use std::collections::HashSet;
 // use std::fmt::format;
 use tracing::*;
 // use tracing_subscriber::FmtSubscriber;
@@ -74,14 +74,13 @@ impl PostgreSQLDatabase {
                     Some(DataType::String(y)) => Some(DataType::String(y.clone())),
                     Some(DataType::Float(y)) => Some(DataType::Float(y.clone())),
                     Some(DataType::Smallint(y)) => Some(DataType::Smallint(y.clone())),
-                    Some(DataType::Smallint(y)) => Some(DataType::Smallint(y.clone())),
                     None => None,
-                    _ => {
-                        return Err(anyhow!(
-                            "How did we get here for x of {:?} in {:?}?",
-                            x, results[0]
-                        ))
-                    }
+                    // _ => {
+                    //     return Err(anyhow!(
+                    //         "How did we get here for x of {:?} in {:?}?",
+                    //         x, results[0]
+                    //     ))
+                    // }
                 };
                 newrow.push(z);
             }

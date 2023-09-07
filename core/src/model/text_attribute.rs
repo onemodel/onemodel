@@ -32,20 +32,20 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
     fn this(m_db: Database, m_id: i64, parent_id_in: i64, attr_type_id_in: i64, text_in: String, valid_on_date: Option<i64>, observation_date: i64,
            sorting_index_in: i64) {
     this(m_db, m_id)
-    assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
+    assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
     mText = text_in
   }
 
   /** return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
     */
-    fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
-    let typeName: String = m_db.get_entity_name(get_attr_type_id()).get;
+    fn get_display_string(length_limit_in: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
+    let type_name: String = m_db.get_entity_name(get_attr_type_id()).get;
     let mut result: String = {;
-      if simplify && (typeName == "paragraph" || typeName == "quote")) get_text
-      else typeName + ": \"" + get_text + "\""
+      if simplify && (type_name == "paragraph" || type_name == "quote")) get_text
+      else type_name + ": \"" + get_text + "\""
     }
     if ! simplify) result += "; " + get_dates_description
-    Attribute.limitDescriptionLength(result, lengthLimitIn)
+    Attribute.limit_attribute_description_length(result, length_limit_in)
   }
 
     fn get_text -> String {
@@ -59,7 +59,7 @@ class TextAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAndObse
       throw new OmException("No results returned from data request for: " + m_id)
     }
     mText = taTypeData(1).get.asInstanceOf[String]
-    super.assignCommonVars(taTypeData(0).get.asInstanceOf[i64], taTypeData(2).get.asInstanceOf[i64], taTypeData(3).asInstanceOf[Option<i64>],
+    super.assign_common_vars(taTypeData(0).get.asInstanceOf[i64], taTypeData(2).get.asInstanceOf[i64], taTypeData(3).asInstanceOf[Option<i64>],
                            taTypeData(4).get.asInstanceOf[i64], taTypeData(5).get.asInstanceOf[i64])
   }
 

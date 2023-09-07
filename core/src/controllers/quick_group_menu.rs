@@ -153,7 +153,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
         } else {
           if targetRtgCount > 1) {
             // can't guess which subgroup so just move it to the entity (idea: could ask whether to do that or go to which subgroup, perhaps...)
-            group_in.move_entity_from_group_to_local_entity(targetForMovesIn.get.get_id, highlightedObjId, getSortingIndex(group_in.m_db, group_in.get_id, -1, highlightedObjId))
+            group_in.move_entity_from_group_to_local_entity(targetForMovesIn.get.get_id, highlightedObjId, get_sorting_index(group_in.m_db, group_in.get_id, -1, highlightedObjId))
             let entityToHighlight: Option<Entity> = Util.find_entity_to_highlight_next(obj_ids.length, objectsToDisplay, removedOneIn = true,;
                                                                                          highlightedIndexInObjListIn, highlightedEntry)
             quickGroupMenu(group_in, starting_display_row_index_in, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
@@ -168,10 +168,10 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
                 // if there is 1 (obvious) destination, or no RTG on the selected entity (1 can be created), then move it there
                 let (_, _, targetGroupId) = createNewOrFindOneGroupOnEntity(group_in, targetRtgCount, targetForMovesIn.get);
                 // about the sortingIndex:  see comment on db.moveEntityToNewGroup.
-                group_in.moveEntityToDifferentGroup(targetGroupId, highlightedObjId, getSortingIndex(group_in.m_db, group_in.get_id, -1, highlightedObjId))
+                group_in.moveEntityToDifferentGroup(targetGroupId, highlightedObjId, get_sorting_index(group_in.m_db, group_in.get_id, -1, highlightedObjId))
               } else {
                 // getting here means to just create a RelationToLocalEntity on the entity, not a subgroup:
-                group_in.move_entity_from_group_to_local_entity(targetForMovesIn.get.get_id, highlightedObjId, getSortingIndex(group_in.m_db, group_in.get_id,
+                group_in.move_entity_from_group_to_local_entity(targetForMovesIn.get.get_id, highlightedObjId, get_sorting_index(group_in.m_db, group_in.get_id,
                                                                                                                   -1, highlightedObjId))
               }
               let entityToHighlight: Option<Entity> = Util.find_entity_to_highlight_next(obj_ids.length, objectsToDisplay, removedOneIn = true,;
@@ -220,13 +220,13 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
         }
         if targetEntity.is_defined) {
           require(targetGroupId.isEmpty)
-          group_in.move_entity_from_group_to_local_entity(containingEntityIn.get.get_id, highlightedObjId, getSortingIndex(group_in.m_db, group_in.get_id, -1, highlightedObjId))
+          group_in.move_entity_from_group_to_local_entity(containingEntityIn.get.get_id, highlightedObjId, get_sorting_index(group_in.m_db, group_in.get_id, -1, highlightedObjId))
           let entityToHighlight: Option<Entity> = Util.find_entity_to_highlight_next(obj_ids.length, objectsToDisplay, removedOneIn = true,;
                                                                                        highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(group_in, starting_display_row_index_in, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
         } else if targetGroupId.is_defined) {
           require(targetEntity.isEmpty)
-          group_in.moveEntityToDifferentGroup(targetGroupId.get, highlightedObjId, getSortingIndex(group_in.m_db, group_in.get_id, -1, highlightedObjId))
+          group_in.moveEntityToDifferentGroup(targetGroupId.get, highlightedObjId, get_sorting_index(group_in.m_db, group_in.get_id, -1, highlightedObjId))
           let entityToHighlight: Option<Entity> = Util.find_entity_to_highlight_next(obj_ids.length, objectsToDisplay, removedOneIn = true,;
                                                                                       highlightedIndexInObjListIn, highlightedEntry)
           quickGroupMenu(group_in, starting_display_row_index_in, relationToGroupIn, entityToHighlight, targetForMovesIn, callingMenusRtgIn, containingEntityIn)
@@ -582,7 +582,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     group.get_adjacent_group_entries_sorting_indexes(movingFromPosition_sortingIndexIn, queryLimitIn, forward_not_back_in)
   }
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, groupIdIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
+  protected fn get_sorting_indexOfNearestEntry(dbIn: Database, groupIdIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
     let group = new Group(dbIn, groupIdIn);
     group.get_nearest_group_entrys_sorting_index(starting_point_sorting_index_in, forward_not_back_in = forward_not_back_in)
   }
@@ -597,7 +597,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     group.updateSortingIndex(movingEntityIdIn, sortingIndexIn)
   }
 
-  protected fn getSortingIndex(dbIn: Database, groupIdIn: i64, ignoredParameter: Int, entity_idIn: i64) -> i64 {
+  protected fn get_sorting_index(dbIn: Database, groupIdIn: i64, ignoredParameter: Int, entity_idIn: i64) -> i64 {
     let group = new Group(dbIn, groupIdIn);
     group.getEntrySortingIndex(entity_idIn)
   }

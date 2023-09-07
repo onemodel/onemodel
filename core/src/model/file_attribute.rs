@@ -102,15 +102,15 @@ class FileAttribute(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
     mExecutable = executable_in
     mSize = size_in
     mMd5hash = md5_hash_in
-    assignCommonVars(parent_id_in, attr_type_id_in, sorting_index_in)
+    assign_common_vars(parent_id_in, attr_type_id_in, sorting_index_in)
   }
 
-    fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType] = None, simplify: bool = false) -> String {
-    let typeName: String = m_db.get_entity_name(get_attr_type_id()).get;
-    let mut result: String = getDescription + " (" + typeName + "); " + getFileSizeDescription;
+    fn get_display_string(length_limit_in: Int, unused: Option<Entity> = None, unused2: Option[RelationType] = None, simplify: bool = false) -> String {
+    let type_name: String = m_db.get_entity_name(get_attr_type_id()).get;
+    let mut result: String = getDescription + " (" + type_name + "); " + getFileSizeDescription;
     if ! simplify) result = result + " " + getPermissionsDescription + " from " +
                              getOriginalFilePath + ", " + get_dates_description + "; md5 " + getMd5Hash + "."
-    Attribute.limitDescriptionLength(result, lengthLimitIn)
+    Attribute.limit_attribute_description_length(result, length_limit_in)
   }
 
     fn getPermissionsDescription -> String {
@@ -143,7 +143,7 @@ class FileAttribute(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
     mExecutable = faTypeData(8).get.asInstanceOf[bool]
     mSize = faTypeData(9).get.asInstanceOf[i64]
     mMd5hash = faTypeData(10).get.asInstanceOf[String]
-    assignCommonVars(faTypeData(0).get.asInstanceOf[i64], faTypeData(2).get.asInstanceOf[i64], faTypeData(11).get.asInstanceOf[i64])
+    assign_common_vars(faTypeData(0).get.asInstanceOf[i64], faTypeData(2).get.asInstanceOf[i64], faTypeData(11).get.asInstanceOf[i64])
   }
 
 

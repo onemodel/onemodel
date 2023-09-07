@@ -48,7 +48,7 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
     fn this(m_db: Database, id_in: i64, entity_id_in: i64, rel_type_id_in: i64, group_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
            sorting_index_in: i64) {
     this(m_db, id_in, entity_id_in, rel_type_id_in, group_id_in)
-    assignCommonVars(entity_id_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
+    assign_common_vars(entity_id_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
   }
 
     fn getGroupId -> i64 {
@@ -59,13 +59,13 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
     new Group(m_db, getGroupId)
   }
 
-    fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, ignoredParameter: Option[RelationType] = None, simplify: bool = false) -> String {
+    fn get_display_string(length_limit_in: Int, unused: Option<Entity> = None, ignoredParameter: Option[RelationType] = None, simplify: bool = false) -> String {
     let group = new Group(m_db, mGroupId);
     let rtName = new RelationType(m_db, this.get_attr_type_id()).get_name;
     let mut result: String = if simplify && rtName == Database.THE_HAS_RELATION_TYPE_NAME) "" else rtName + " ";
     result += group.get_display_string(0, simplify)
     if ! simplify) result += "; " + get_dates_description
-    Attribute.limitDescriptionLength(result, lengthLimitIn)
+    Attribute.limit_attribute_description_length(result, length_limit_in)
   }
 
   protected fn read_data_from_db() {
@@ -73,7 +73,7 @@ class RelationToGroup(m_db: Database, m_id: i64, mEntityId:i64, mRelTypeId: i64,
     if relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + mEntityId + ", " + mRelTypeId + ", " + mGroupId)
     }
-    super.assignCommonVars(mEntityId, mRelTypeId,
+    super.assign_common_vars(mEntityId, mRelTypeId,
                            relationData(4).asInstanceOf[Option<i64>],
                            relationData(5).get.asInstanceOf[i64], relationData(6).get.asInstanceOf[i64])
   }

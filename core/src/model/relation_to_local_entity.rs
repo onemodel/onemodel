@@ -67,7 +67,7 @@ pub struct RelationToLocalEntity {
 
         // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
         // the class hierarchy which wants it. Improve...?)
-        assignCommonVars(entity_id1_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
+        assign_common_vars(entity_id1_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
       }
 
         fn getRemoteDescription() -> String {
@@ -87,7 +87,7 @@ pub struct RelationToLocalEntity {
         // No other local variables to assign.  All are either in the superclass or the primary key.
         // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
         // the class hierarchy which wants it. Improve...?)
-        assignCommonVars(mEntityId1, m_attr_type_id,
+        assign_common_vars(mEntityId1, m_attr_type_id,
                          relationData(1).asInstanceOf[Option<i64>],
                          relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
       }

@@ -99,7 +99,7 @@ class Group(val m_db: Database, m_id: i64) {
     m_db.get_group_size(m_id, includeWhichEntities)
   }
 
-    fn get_display_string(lengthLimitIn: Int = 0, simplifyIn: bool = false) -> String {
+    fn get_display_string(length_limit_in: Int = 0, simplifyIn: bool = false) -> String {
     let numEntries = m_db.get_group_size(get_id, 1);
     let mut result: String =  "";
     result += {
@@ -119,7 +119,7 @@ class Group(val m_db: Database, m_id: i64) {
       result += class_name
     }
     if simplifyIn) result
-    else Attribute.limitDescriptionLength(result, lengthLimitIn)
+    else Attribute.limit_attribute_description_length(result, length_limit_in)
   }
 
     fn getGroupEntries(starting_index_in: i64, max_vals_in: Option<i64> = None) -> Vec<Entity> {

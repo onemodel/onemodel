@@ -53,7 +53,7 @@ class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntity
     this(m_db, id_in, rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in)
     // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
-    assignCommonVars(entity_id1_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
+    assign_common_vars(entity_id1_in, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
   }
 
     fn getRemoteInstanceId -> String {
@@ -68,7 +68,7 @@ class RelationToRemoteEntity(m_db: Database, m_id: i64, mRelTypeId: i64, mEntity
     if relationData.length == 0) {
       throw new OmException("No results returned from data request for: " + m_attr_type_id + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)
     }
-    assignCommonVars(mEntityId1, m_attr_type_id, relationData(1).asInstanceOf[Option<i64>],
+    assign_common_vars(mEntityId1, m_attr_type_id, relationData(1).asInstanceOf[Option<i64>],
                      relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
   }
 

@@ -7,12 +7,17 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::util::Util;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Error, Result};
 // use sqlx::{PgPool, Postgres, Row, Transaction};
 use sqlx::{Postgres, Transaction};
+use crate::model::attribute::Attribute;
+use crate::model::entity::Entity;
+use crate::model::id_wrapper::IdWrapper;
+use crate::model::relation_type::RelationType;
 
 pub struct BooleanAttribute<'a> {
     m_id: i64,
@@ -93,7 +98,7 @@ impl BooleanAttribute<'_> {
         // the newtype pattern?
         //idea: surely there is some better way than what I am doing here? See other places similarly.  Maybe implement DataType.clone() ?
 
-        // super.assignCommonVars(ba_type_data(0).get.asInstanceOf[i64], ba_type_data(2).get.asInstanceOf[i64], ba_type_data(3).asInstanceOf[Option<i64>],
+        // super.assign_common_vars(ba_type_data(0).get.asInstanceOf[i64], ba_type_data(2).get.asInstanceOf[i64], ba_type_data(3).asInstanceOf[Option<i64>],
         //                        ba_type_data(4).get.asInstanceOf[i64], ba_type_data(5).get.asInstanceOf[i64])
         self.m_already_read_data = true;
         // DataType::Bigint(self.m_parent_id) = ba_type_data[0];
@@ -172,25 +177,6 @@ impl BooleanAttribute<'_> {
         }
         Ok(self.m_attr_type_id)
     }
-    pub fn get_valid_on_date(
-        &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<Option<i64>, anyhow::Error> {
-        if !self.m_already_read_data {
-            self.read_data_from_db(transaction)?;
-        }
-        Ok(self.m_valid_on_date)
-    }
-    pub fn get_observation_date(
-        &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<i64, anyhow::Error> {
-        if !self.m_already_read_data {
-            self.read_data_from_db(transaction)?;
-        }
-        Ok(self.m_observation_date)
-    }
-    // }
 
     /// See TextAttribute etc for some comments.
     // impl AttributeWithValidAndObservedDates for BooleanAttribute {
@@ -206,17 +192,9 @@ impl BooleanAttribute<'_> {
                sorting_index_in: i64) {
         this(m_db, m_id)
         m_boolean = boolean_in
-        assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
+        assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
       }
 
-      /** return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
-        */
-        fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
-        let typeName: String = m_db.get_entity_name(get_attr_type_id()).get;
-        let mut result: String = typeName + ": " + get_boolean + "";
-        if ! simplify) result += "; " + get_dates_description
-        Attribute.limitDescriptionLength(result, lengthLimitIn)
-      }
     */
     fn update(
         &mut self,
@@ -256,4 +234,73 @@ impl BooleanAttribute<'_> {
        */
        private let mut m_boolean: bool = false;
     */
+}
+
+impl Attribute for BooleanAttribute {
+    %%CK THE ABOVE AND SEE IF THEY ARE THERE FIRST, MOVE BEFORE REDOING!
+
+    /// Return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
+    fn get_display_string(length_limit_in: i32, unused: Option<Entity> /*= None*/, unused2: Option<RelationType>/*=None*/, simplify: bool/* = false*/) -> String {
+        let type_name: String = m_db.get_entity_name(get_attr_type_id()).get;
+        let mut result: String = type_name + ": " + get_boolean + "";
+        if ! simplify) result += "; " + get_dates_description
+        Attribute.limit_attribute_description_length(result, length_limit_in)
+    }
+
+    fn read_data_from_db() {
+        to%%do!()
+    }
+
+    fn delete() {
+        todo%%!()
+    }
+
+    fn get_id_wrapper() -> IdWrapper {
+        todo!(%%)
+    }
+
+    fn get_id() -> i64 {
+        todo!()%%
+    }
+
+    fn get_form_id(&self) -> Result<i32, Error> {
+        todo!()%%
+    }
+
+    fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64) {
+        todo!()%%
+    }
+
+    fn get_attr_type_id() -> i64 {
+        todo!()%%
+    }
+
+    fn get_sorting_index() -> i64 {
+        todo!()%%
+    }
+
+    fn get_parent_id() -> i64 {
+        todo!()%%
+    }
+}
+
+impl AttributeWithValidAndObservedDates for BooleanAttribute {
+    fn get_valid_on_date(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<Option<i64>, anyhow::Error> {
+        if !self.m_already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.m_valid_on_date)
+    }
+    fn get_observation_date(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        if !self.m_already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.m_observation_date)
+    }
 }

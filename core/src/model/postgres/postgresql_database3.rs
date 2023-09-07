@@ -14,17 +14,18 @@ use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::*;
-use crate::model::postgres::*;
+// use crate::model::postgres::*;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::util::Util;
 use anyhow::anyhow;
 use chrono::Utc;
 // use futures::executor::block_on;
-use sqlx::postgres::*;
+// use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
 // in use, in the code.
-use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
+// use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
+use sqlx::{Postgres, Transaction};
 use std::collections::HashSet;
 // use std::fmt::format;
 use tracing::*;
@@ -4407,7 +4408,19 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
         // (See comments in getAdjacentGroupEntriesSortingIndexes, at least about the "...archived..." stuff.)
         let rtle_form_id = self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
-        // NOTE: the 2 main (UNION-ed) sql sections differ by the attribute_form_id and presence/absence of the "not in" stuff.
+        // IDEA: would the query be faster on larger data volumes, if the
+        //      not in (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived))
+        // ...were replaced with:
+        //      not in (select rte.id from relationtoentity rte, entity e where rte.entity_id_2=e.id and e.archived)
+        // ...and are those truly equivalent? They yielded the same results in an ad-hoc test like:
+        /*  select sorting_index from AttributeSorting asort where attribute_form_id = 6 and asort.entity_id=-9223372036854567954 and asort.sorting_index>-7142999829835153408
+            and asort.attribute_id not in (select rte.id from relationtoentity rte, entity e where rte.entity_id_2=e.id and e.archived)
+        */
+        // ...vs. this (but I did not easily, interactively, observe a performance difference:
+        /*
+            select sorting_index from AttributeSorting asort where attribute_form_id = 6 and asort.entity_id=-9223372036854567954 and asort.sorting_index>-7142999829835153408
+            and asort.attribute_id not in (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived))
+         */
         let not_archived = if !self.include_archived_entities {
             "and asort.attribute_id not in \
                 (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived)) "
@@ -4415,9 +4428,10 @@ impl Database for PostgreSQLDatabase {
             " "
         };
         let results = self.db_query(transaction,
-       // Next query could be faster when showing archived entities, if we combined the two selects,
-       // since it is just doing a UNION of two things where we could remove the condition. But not
-       // so for the more likely case of hiding archived entities.
+        // NOTE: the 2 main (UNION-ed) sql sections differ by the attribute_form_id and presence/absence of the "not in" stuff.
+        // Next query could be faster in the infrequent case of showing archived entities, if we combined the two selects,
+        // since it is just doing a UNION of two things where we could remove the condition. But not
+        // so for the more likely case of hiding archived entities (and maintenance seems easier as-is).
        format!("select sorting_index from AttributeSorting asort where asort.attribute_form_id={} \
            and asort.entity_id={} and asort.sorting_index {}{} \
            \

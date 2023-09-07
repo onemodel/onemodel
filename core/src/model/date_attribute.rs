@@ -32,14 +32,14 @@ class DateAttribute(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
     fn this(m_db: Database, m_id: i64, in_parent_id: i64, attr_type_id_in: i64, inDate: i64, sorting_index_in: i64) {
     this(m_db, m_id)
     mDate = inDate
-    super.assignCommonVars(in_parent_id, attr_type_id_in, sorting_index_in)
+    super.assign_common_vars(in_parent_id, attr_type_id_in, sorting_index_in)
   }
 
-    fn get_display_string(lengthLimitIn: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
-    let typeName: String = m_db.get_entity_name(get_attr_type_id()).get;
-    let mut result: String = typeName + ": ";
+    fn get_display_string(length_limit_in: Int, unused: Option<Entity> = None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
+    let type_name: String = m_db.get_entity_name(get_attr_type_id()).get;
+    let mut result: String = type_name + ": ";
     result += Attribute.useful_date_format(mDate)
-    Attribute.limitDescriptionLength(result, lengthLimitIn)
+    Attribute.limit_attribute_description_length(result, length_limit_in)
   }
 
     fn getDate -> i64 {
@@ -53,7 +53,7 @@ class DateAttribute(m_db: Database, m_id: i64) extends Attribute(m_db, m_id) {
       throw new OmException("No results returned from data request for: " + m_id)
     }
     mDate = daTypeData(1).get.asInstanceOf[i64]
-    assignCommonVars(daTypeData(0).get.asInstanceOf[i64], daTypeData(2).get.asInstanceOf[i64], daTypeData(3).get.asInstanceOf[i64])
+    assign_common_vars(daTypeData(0).get.asInstanceOf[i64], daTypeData(2).get.asInstanceOf[i64], daTypeData(3).get.asInstanceOf[i64])
   }
 
     fn update(inAttrTypeId: i64, inDate: i64) {

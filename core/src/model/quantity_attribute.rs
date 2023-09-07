@@ -34,22 +34,22 @@ class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAnd
     this(db, id)
     mUnitId = unit_id_in
     mNumber = number_in
-    assignCommonVars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index)
+    assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index)
   }
 
   /**
    * return something like "volume: 15.1 liters". For full length, pass in 0 for
-   * inLengthLimit. The parameter inParentEntity refers to the Entity whose
+   * in_length_limit. The parameter inParentEntity refers to the Entity whose
    * attribute this is. 3rd parameter really only applies in one of the subclasses of Attribute,
    * otherwise can be None.
    */
-    fn get_display_string(lengthLimitIn: Int, unused: Option<Entity>=None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
-    let typeName: String = m_db.get_entity_name(get_attr_type_id()).get;
+    fn get_display_string(length_limit_in: Int, unused: Option<Entity>=None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
+    let type_name: String = m_db.get_entity_name(get_attr_type_id()).get;
     let number: Float = getNumber;
     let unitId: i64 = getUnitId;
-    let mut result: String = typeName + ": " + number + " " + m_db.get_entity_name(unitId).get;
+    let mut result: String = type_name + ": " + number + " " + m_db.get_entity_name(unitId).get;
     if ! simplify) result += "; " + get_dates_description
-    Attribute.limitDescriptionLength(result, lengthLimitIn)
+    Attribute.limit_attribute_description_length(result, length_limit_in)
   }
 
   private[onemodel] fn getNumber -> Float {
@@ -69,7 +69,7 @@ class QuantityAttribute(m_db: Database, m_id: i64) extends AttributeWithValidAnd
     }
     mUnitId = quantityData(1).get.asInstanceOf[i64]
     mNumber = quantityData(2).get.asInstanceOf[Float]
-    assignCommonVars(quantityData(0).get.asInstanceOf[i64], quantityData(3).get.asInstanceOf[i64], quantityData(4).asInstanceOf[Option<i64>],
+    assign_common_vars(quantityData(0).get.asInstanceOf[i64], quantityData(3).get.asInstanceOf[i64], quantityData(4).asInstanceOf[Option<i64>],
                            quantityData(5).get.asInstanceOf[i64], quantityData(6).get.asInstanceOf[i64])
   }
 

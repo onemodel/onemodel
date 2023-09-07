@@ -9,31 +9,32 @@
 */
 /// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
 /// faster.
-use crate::model::boolean_attribute::BooleanAttribute;
+// use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::*;
-use crate::model::postgres::*;
-use crate::model::relation_to_local_entity::RelationToLocalEntity;
-use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
+// use crate::model::postgres::*;
+// use crate::model::relation_to_local_entity::RelationToLocalEntity;
+// use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::relation_type::RelationType;
 use crate::util::Util;
-use anyhow::anyhow;
+// use anyhow::anyhow;
 use chrono::Utc;
 // use futures::executor::block_on;
 use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
 // in use, in the code.
-use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
-use std::collections::HashSet;
+// use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
+use sqlx::{Postgres, Row, Transaction};
+// use std::collections::HashSet;
 // use std::fmt::format;
 use tracing::*;
 // use tracing_subscriber::FmtSubscriber;
 
 #[cfg(test)]
 mod tests {
-    use super::super::*;
+    // use super::super::*;
     use super::*;
 
     const QUANTITY_TYPE_NAME: &str = "length";
@@ -819,20 +820,22 @@ mod tests {
     fn entity_only_key_exists_should_not_find_relation_to_local_entity_record() {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
-        let mut tx1 = db.begin_trans().unwrap();
-        let tx = &Some(&mut tx1);
+        // let mut tx1 = db.begin_trans().unwrap();
+        // let tx = &Some(&mut tx1);
         let temp_rel_type_id: i64 = db
             .create_relation_type(
-                true,
-                tx,
+                false,
+                &None,
                 RELATION_TYPE_NAME,
                 "",
                 RelationType::UNIDIRECTIONAL,
             )
             .unwrap();
-        assert!(!db.entity_only_key_exists(tx, temp_rel_type_id).unwrap());
-        db.delete_relation_type(tx, temp_rel_type_id);
-        db.rollback_trans(tx1);
+        // assert!(!db.entity_only_key_exists(tx, temp_rel_type_id).unwrap());
+        assert!(!db.entity_only_key_exists(&None, temp_rel_type_id).unwrap());
+        // db.delete_relation_type(tx, temp_rel_type_id).unwrap();
+        db.delete_relation_type(&None, temp_rel_type_id).unwrap();
+        // db.rollback_trans(tx1).unwrap();
     }
 
 /*%%%%

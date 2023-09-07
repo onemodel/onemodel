@@ -1344,8 +1344,8 @@ impl Controller {
                                    starting_display_row_index_in, classIdIn, limit_by_classIn,
                                    containingGroupIn, markPreviousSelectionIn, Some(showOnlyAttributeTypes), quantity_seeks_unit_not_type_in)
             } else {
-              if evenMoreAttrTypeNames.contains(object_type_in)) Some(o.asInstanceOf[Entity].get_idWrapper, false, "")
-              else if object_type_in == Util.ENTITY_CLASS_TYPE) Some(o.asInstanceOf[EntityClass].get_idWrapper,false,  "")
+              if evenMoreAttrTypeNames.contains(object_type_in)) Some(o.asInstanceOf[Entity].get_id_wrapper, false, "")
+              else if object_type_in == Util.ENTITY_CLASS_TYPE) Some(o.asInstanceOf[EntityClass].get_id_wrapper,false,  "")
               // using null on next line was easier than the visible alternatives (same in one other place w/ this comment)
               else if object_type_in == Util.OM_INSTANCE_TYPE) Some(null, false, o.asInstanceOf[OmInstance].get_id)
               else throw new Exception("invalid object_type_in: " + object_type_in)
@@ -1609,20 +1609,20 @@ impl Controller {
             if group_in.getSize() == 0) {
               // adding 1st entity to this group, so:
               let leading_text = List("ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):");
-              let idWrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.m_db, Some(leading_text), None, None, Util.ENTITY_TYPE,;
+              let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.m_db, Some(leading_text), None, None, Util.ENTITY_TYPE,;
                                                                       containingGroupIn = Some(group_in.get_id))
-              if idWrapper.is_defined) {
-                group_in.addEntity(idWrapper.get._1.get_id)
-                Some(idWrapper.get._1.get_id)
+              if id_wrapper.is_defined) {
+                group_in.addEntity(id_wrapper.get._1.get_id)
+                Some(id_wrapper.get._1.get_id)
               } else None
             } else {
               // it's not the 1st entry in the group, so add an entity using the same class as those previously added (or None as case may be).
               let entityClassInUse: Option<i64> = group_in.getClassId;
-              let idWrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.m_db, None, None, None, Util.ENTITY_TYPE, 0, entityClassInUse,;
+              let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.m_db, None, None, None, Util.ENTITY_TYPE, 0, entityClassInUse,;
                                                                               limit_by_classIn = true, containingGroupIn = Some(group_in.get_id))
-              if idWrapper.isEmpty) None
+              if id_wrapper.isEmpty) None
               else {
-                let entity_id = idWrapper.get._1.get_id;
+                let entity_id = id_wrapper.get._1.get_id;
                 //%%see 1st instance of try {  for rust-specific idea here.
                 try {
                   group_in.addEntity(entity_id)
@@ -1652,11 +1652,11 @@ impl Controller {
             }
           } else {
             let leading_text = List("ADD ENTITY TO A (mixed-class) GROUP");
-            let idWrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.m_db, Some(leading_text), None, None, Util.ENTITY_TYPE,;
+            let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.m_db, Some(leading_text), None, None, Util.ENTITY_TYPE,;
                                                                     containingGroupIn = Some(group_in.get_id))
-            if idWrapper.is_defined) {
-              group_in.addEntity(idWrapper.get._1.get_id)
-              Some(idWrapper.get._1.get_id)
+            if id_wrapper.is_defined) {
+              group_in.addEntity(id_wrapper.get._1.get_id)
+              Some(id_wrapper.get._1.get_id)
             } else None
           }
         }
@@ -1945,20 +1945,20 @@ impl Controller {
                 case templateAttribute: QuantityAttribute =>
                   promptToEditAttributeCopy()
                   Some(entity_in.addQuantityAttribute(templateAttribute.get_attr_type_id(), templateAttribute.getUnitId, templateAttribute.getNumber,
-                                                     Some(templateAttribute.getSortingIndex)))
+                                                     Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: DateAttribute =>
                   promptToEditAttributeCopy()
-                  Some(entity_in.addDateAttribute(templateAttribute.get_attr_type_id(), templateAttribute.getDate, Some(templateAttribute.getSortingIndex)))
+                  Some(entity_in.addDateAttribute(templateAttribute.get_attr_type_id(), templateAttribute.getDate, Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: BooleanAttribute =>
                   promptToEditAttributeCopy()
-                  Some(entity_in.addBooleanAttribute(templateAttribute.get_attr_type_id(), templateAttribute.get_boolean, Some(templateAttribute.getSortingIndex)))
+                  Some(entity_in.addBooleanAttribute(templateAttribute.get_attr_type_id(), templateAttribute.get_boolean, Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: FileAttribute =>
                   ui.display_text("You can add a FileAttribute manually afterwards for this attribute.  Maybe it can be automated " +
                                  "more, when use cases for this part are more clear.")
                   None
                 case templateAttribute: TextAttribute =>
                   promptToEditAttributeCopy()
-                  Some(entity_in.addTextAttribute(templateAttribute.get_attr_type_id(), templateAttribute.get_text, Some(templateAttribute.getSortingIndex)))
+                  Some(entity_in.addTextAttribute(templateAttribute.get_attr_type_id(), templateAttribute.get_text, Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: RelationToLocalEntity =>
                   let (new_rte, askEveryTime) = copyAndEditRelationToEntity(entity_in, templateAttribute, askAboutRteEveryTime);
                   askAboutRteEveryTime = askEveryTime
@@ -1972,7 +1972,7 @@ impl Controller {
                   let templateGroup = templateAttribute.getGroup;
                   let (_, newRTG: RelationToGroup) = entity_in.addGroupAndRelationToGroup(templateAttribute.get_attr_type_id(), templateGroup.get_name,;
                                                                                          templateGroup.getMixedClassesAllowed, None,
-                                                                                         System.currentTimeMillis(), Some(templateAttribute.getSortingIndex))
+                                                                                         System.currentTimeMillis(), Some(templateAttribute.get_sorting_index))
                   Some(newRTG)
                 case _ => throw new OmException("Unexpected type: " + attributeFromTemplate.getClass.getCanonicalName)
               }
@@ -2094,22 +2094,22 @@ impl Controller {
                 } else {
                   newEntity.get.updateNewEntriesStickToTop(templatesRelatedEntity.getNewEntriesStickToTop)
                   let newRTLE = Some(entity_in.addRelationToLocalEntity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), newEntity.get.get_id,;
-                                                         Some(relationToEntityAttributeFromTemplateIn.getSortingIndex)))
+                                                         Some(relationToEntityAttributeFromTemplateIn.get_sorting_index)))
                   (newRTLE, askEveryTime)
                 }
               } else if allCreateOrSearch || (howCopyRteResponse.is_defined && howCopyRteResponse.get == createOrSearchForEntityChoiceNum)) {
                 let rteDh = new RelationToEntityDataHolder(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), None, System.currentTimeMillis(), 0, false, "");
                 let dh: Option[RelationToEntityDataHolder] = askForRelationEntityIdNumber2(entity_in.m_db, rteDh, editing_in = false, ui);
                 if dh.is_defined) {
-      //            let relation = entity_in.addRelationToEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
+      //            let relation = entity_in.addRelationToEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.get_sorting_index),;
       //                                                        dh.get.valid_on_date, dh.get.observation_date,
       //                                                        dh.get.is_remote, if !dh.get.is_remote) None else Some(dh.get.remoteInstanceId))
                   if dh.get.is_remote) {
-                    let rtre = entity_in.addRelationToRemoteEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
+                    let rtre = entity_in.addRelationToRemoteEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.get_sorting_index),;
                                                                   dh.get.valid_on_date, dh.get.observation_date, dh.get.remoteInstanceId)
                     (Some(rtre), askEveryTime)
                   } else {
-                    let rtle = entity_in.addRelationToLocalEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.getSortingIndex),;
+                    let rtle = entity_in.addRelationToLocalEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.get_sorting_index),;
                                                                  dh.get.valid_on_date, dh.get.observation_date)
                     (Some(rtle), askEveryTime)
                   }
@@ -2120,11 +2120,11 @@ impl Controller {
                 let relation = {;
                   if relationToEntityAttributeFromTemplateIn.m_db.is_remote) {
                     entity_in.addRelationToRemoteEntity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), relatedId2,
-                                                       Some(relationToEntityAttributeFromTemplateIn.getSortingIndex), None, System.currentTimeMillis(),
+                                                       Some(relationToEntityAttributeFromTemplateIn.get_sorting_index), None, System.currentTimeMillis(),
                                                        relationToEntityAttributeFromTemplateIn.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId)
                   } else {
                     entity_in.addRelationToLocalEntity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), relatedId2,
-                                                      Some(relationToEntityAttributeFromTemplateIn.getSortingIndex), None, System.currentTimeMillis())
+                                                      Some(relationToEntityAttributeFromTemplateIn.get_sorting_index), None, System.currentTimeMillis())
                   }
                 }
                 (Some(relation), askEveryTime)

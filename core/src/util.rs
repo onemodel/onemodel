@@ -9,7 +9,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
+// use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
@@ -19,6 +19,7 @@ use std::str::FromStr;
 // use crate::model::relation_type::*;
 use crate::text_ui::TextUI;
 use chrono::format::ParseResult;
+use chrono::LocalResult;
 // use chrono::offset::LocalResult;
 use chrono::prelude::*;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -139,6 +140,13 @@ impl Util {
     // const DATEFORMAT2_WITH_ERA: &'static str = "%Y-%m-%d %H:%M:%S %Z";
     // const DATEFORMAT3_WITH_ERA: &'static str = "GGyyyy-MM-dd HH:mm zzz";
     // const DATEFORMAT3_WITH_ERA: &'static str = "%Y-%m-%d %H:%M %Z";
+
+    // The next 2 are from Attribute.scala or object Attribute{..}, and were used in
+    // method useful_date_format, which has been moved here to satisfy rustc.
+    // object Attribute{..} said: "unlike in Controller, these are intentionally a little different, for displaying also the day of the week:"
+    // let DATEFORMAT = new java.text.SimpleDateFormat("EEE yyyy-MM-dd HH:mm:ss:SSS zzz");
+    // let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("EEE GGyyyy-MM-dd HH:mm:ss:SSS zzz");
+
     // DON'T CHANGE this msg unless you also change the trap for it in TextUI.java.
     pub const DOES_NOT_EXIST: &'static str = " does not exist in database.";
 
@@ -554,7 +562,7 @@ impl Util {
                         }
                         Some(od) => {
                             let dates_descr: String =
-                                AttributeWithValidAndObservedDates::get_dates_description(
+                                Util::get_dates_description(
                                     valid_on_date,
                                     od,
                                 );
@@ -572,6 +580,80 @@ impl Util {
             }
         }
         // }%%
+    }
+
+    // (This was probably originally in AttributeWithValidAndObservedDates.scala, moved here so can be called w/o rustc complaining.)
+    pub fn get_dates_description(valid_on_date: Option<i64>, observation_date: i64) -> String {
+        let valid_date_descr: String = {
+            match valid_on_date {
+                None => "unsp'd".to_string(),
+                Some(date) if date == 0 => "all time".to_string(),
+                Some(date) => Util::useful_date_format(date),
+            }
+        };
+        let observed_date_descr: String = Util::useful_date_format(observation_date);
+        format!("valid {}, obsv'd {}", valid_date_descr, observed_date_descr)
+    }
+
+    // This came from Attribute.rs, to to be able to call it w/o  errors from rustc.
+    pub fn useful_date_format(d: i64) -> String {
+        // No need to print "AD" unless we're really close?, as in this example:
+        //scala > let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz");
+        //scala > DATEFORMAT_WITH_ERA.parse("ad 1-03-01 00:00:00:000 GMT").getTime //i.e., Jan 3, 1 AD.
+        //res100: i64 = -62130672000000
+        // see Util::DATEFORMAT* for comment about ERA (BC/AD).
+        // if d > -62130672000000_i64 {
+        //     DATEFORMAT.format(d)
+        // %%need to test this date thing also to confirm works as expected/same as scala OM.
+        //See also uses of this, in case need to borrow one or update both, in util.rs .
+        let date: LocalResult<DateTime<Utc>> = Utc.timestamp_opt(d, 0);
+        match date {
+            LocalResult::None => {
+                "Error(1) trying to format {} as a date/time; probably a bug.".to_string()
+            }
+            LocalResult::Single(dt) => {
+                let typed_dt: DateTime<Utc> = dt;
+                typed_dt.format(Util::DATEFORMAT).to_string()
+            }
+            _ => "Error(2) trying to format {} as a date/time; probably a bug.".to_string(),
+        }
+
+        //%%see above comment at ..."from Attribute.scala".
+        // } else {
+        //     DATEFORMAT_WITH_ERA.format(d)
+        // }
+        // I.e., The full code in Attribute.scala for this was this: need to mimic any further?:
+        // def usefulDateFormat(d: Long): String = {
+        //     // No need to print "AD" unless we're really close?, as in this example:
+        //     //scala > val DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz")
+        //     //scala > DATEFORMAT_WITH_ERA.parse("ad 1-03-01 00:00:00:000 GMT").getTime //i.e., Jan 3, 1 AD.
+        //     //res100: Long = -62130672000000
+        //     if (d > -62130672000000L) DATEFORMAT.format(d)
+        //     else DATEFORMAT_WITH_ERA.format(d)
+        // }
+    }
+
+    /// @param input The value to chop down in size.
+    /// @param length_limit_in If <= 0, no change.
+    /// @return A value equal or shorter in length.
+    // This came from Attribute.rs, to be able to call it w/o errors from rustc.
+    pub fn limit_attribute_description_length(input: &str, length_limit_in: usize) -> String {
+        if length_limit_in != 0 && input.length > length_limit_in {
+            //In scala this was:   input.substring(0, length_limit_in - 3) + "..."
+
+            // This is a convenience, and maybe good enough for roughly displaying text when only
+            // the last letter(s) could be in error (right?).  But instead should I
+            // be using something like the unicode-segmentation crate, then UnicodeSegmentation::graphemes() ?
+            // This per https://users.rust-lang.org/t/how-to-get-a-substring-of-a-string/1351 .
+            // (The next 2 lines are another suggestion from that same above URL:)
+            //let mut end : usize = 0;
+            //s.chars().into_iter().take(6).for_each(|x| end += x.len_utf8());
+            let limit = length_limit_in - 3;
+            let end = input.chars().map(|c| c.len_utf8()).take(limit).sum();
+            format!("{}...", &input[..end])
+        } else {
+            input.to_string()
+        }
     }
 
     //idea: make this more generic, passing in prompt strings &c, so it's more cleanly useful for DateAttribute instances. Or not: lacks shared code.

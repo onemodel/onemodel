@@ -799,8 +799,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             }
             printWriter.println("    </ul>")
           case textAttr: TextAttribute =>
-            let typeName: String = getCachedEntity(textAttr.get_attr_type_id(), cachedEntitiesIn, textAttr.m_db).get_name;
-            if typeName==Util::HEADER_CONTENT_TAG || typeName == Util::BODY_CONTENT_TAG || typeName==Util::FOOTER_CONTENT_TAG) {
+            let type_name: String = getCachedEntity(textAttr.get_attr_type_id(), cachedEntitiesIn, textAttr.m_db).get_name;
+            if type_name==Util::HEADER_CONTENT_TAG || type_name == Util::BODY_CONTENT_TAG || type_name==Util::FOOTER_CONTENT_TAG) {
               //skip it: this is used to create the pages and should not be considered a normal kind of displayable content in them:
             } else {
               printWriter.println("    <li><pre>" + htmlEncode(textAttr.get_display_string(0, None, None, simplify = true)) + "</pre></li>")

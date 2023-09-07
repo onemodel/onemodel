@@ -585,26 +585,26 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             let movingRtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
             let targetEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2;
             require(movingRtle.get_parent_id() == entity_in.get_id)
-            movingRtle.move(targetEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
+            movingRtle.move(targetEntityId, get_sorting_index(entity_in.m_db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             let movingRtre: RelationToRemoteEntity = highlightedAttributeIn.asInstanceOf[RelationToRemoteEntity];
             let targetEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2;
             require(movingRtre.get_parent_id() == entity_in.get_id)
-            movingRtre.move(targetEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
+            movingRtre.move(targetEntityId, get_sorting_index(entity_in.m_db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             require(targetForMovesIn.get.get_form_id == Database.get_attribute_form_id(Util.RELATION_TO_GROUP_TYPE))
             let targetGroupId = RelationToGroup.create_relation_to_group(targetForMovesIn.get.m_db, targetForMovesIn.get.get_id).getGroupId;
             let rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
             // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-            rtle.moveEntityFromEntityToGroup(targetGroupId, getSortingIndex(entity_in.m_db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
+            rtle.moveEntityFromEntityToGroup(targetGroupId, get_sorting_index(entity_in.m_db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             let movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup];
             let newContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2;
             require(movingRtg.get_parent_id() == entity_in.get_id)
-            movingRtg.move(newContainingEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
+            movingRtg.move(newContainingEntityId, get_sorting_index(entity_in.m_db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             ui.display_text("Unsupported: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
@@ -636,15 +636,15 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             //noinspection TypeCheckCanBeMatch
             if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity]) {
               let movingRtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
-              movingRtle.move(newContainingEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
+              movingRtle.move(newContainingEntityId, get_sorting_index(entity_in.m_db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
               let movingRtre = highlightedAttributeIn.asInstanceOf[RelationToRemoteEntity];
-              movingRtre.move(newContainingEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
+              movingRtre.move(newContainingEntityId, get_sorting_index(entity_in.m_db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToGroup]) {
               let movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup];
-              movingRtg.move(newContainingEntityId, getSortingIndex(entity_in.m_db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
+              movingRtg.move(newContainingEntityId, get_sorting_index(entity_in.m_db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
               (starting_display_row_index_in, true)
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [1]")
           } else if containingGroupIn.is_defined) {
@@ -654,7 +654,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
               let targetGroupId = containingGroupIn.get.get_id;
               let rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
               // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-              rtle.moveEntityFromEntityToGroup(targetGroupId, getSortingIndex(entity_in.m_db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
+              rtle.moveEntityFromEntityToGroup(targetGroupId, get_sorting_index(entity_in.m_db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
               ui.display_text("Unsupported: groups cannot directly contain remote entities.  Only local entities can contain relations" +
@@ -789,7 +789,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     entity.get_adjacent_attributes_sorting_indexes(movingFromPosition_sortingIndexIn, queryLimitIn, forward_not_back_in)
   }
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, entity_idIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
+  protected fn get_sorting_indexOfNearestEntry(dbIn: Database, entity_idIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
     let entity = new Entity(dbIn, entity_idIn);
     entity.get_nearest_attribute_entrys_sorting_index(starting_point_sorting_index_in, forward_not_back_in = forward_not_back_in)
   }
@@ -804,7 +804,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     entity.update_attribute_sorting_index(movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
   }
 
-  protected fn getSortingIndex(dbIn: Database, entity_idIn: i64, attribute_form_id_in: Int, attribute_id_in: i64) -> i64 {
+  protected fn get_sorting_index(dbIn: Database, entity_idIn: i64, attribute_form_id_in: Int, attribute_id_in: i64) -> i64 {
     let entity = new Entity(dbIn, entity_idIn);
     entity.getAttributeSortingIndex(attribute_form_id_in, attribute_id_in)
   }

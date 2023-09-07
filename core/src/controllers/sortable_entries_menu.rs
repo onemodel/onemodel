@@ -42,7 +42,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
 
     let movingFromPosition_sortingIndex: i64 = {;
       if objectAtThatIndexIdIn.is_defined) {
-        getSortingIndex(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
+        get_sorting_index(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
       } else {
         // could happen if it's the first entry (first attribute) in an entity, or if the caller (due to whatever reason including possibly a bug) did not
         // know what objectAtThatIndexIdIn value to use, so passed None: attempting to be resilient to that here.
@@ -72,7 +72,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
           // position" moving from.  (Getting a new value because the old movingFromPosition_sortingIndex value is now invalid, since we just renumbered above.)
           let movingFromPosition_sortingIndex2: i64 = {;
             if objectAtThatIndexIdIn.is_defined) {
-              getSortingIndex(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
+              get_sorting_index(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
             } else {
               // (reason for next line is in related comments above at "val movingFromPosition_sortingIndex: i64 =".)
               Database.min_id_value + 990
@@ -105,7 +105,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     displayStartingRowNumber
   }
 
-  protected fn getSortingIndex(dbIn: Database, containingObjectIdIn: i64, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: i64) -> i64
+  protected fn get_sorting_index(dbIn: Database, containingObjectIdIn: i64, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: i64) -> i64
 
   /** The dbIn should represent the *same* database as where containingObjectIdIn is stored!  (Idea: enforce that by passing in a containingObject instead
     * of a containingObjectIdIn (ie an Entity or Group, using scala's type system), or a boolean saying which it is, then get the db from it instead of
@@ -259,7 +259,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       if nearNewNeighborSortingIndex.isEmpty || farNewNeighborSortingIndex.isEmpty)
         None
       else
-        getSortingIndexOfNearestEntry(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forward_not_back_in = forward_not_back_in)
+        get_sorting_indexOfNearestEntry(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forward_not_back_in = forward_not_back_in)
     }
 
     (byHowManyEntriesMoving, nearNewNeighborSortingIndex, adjustedFarNewNeighborSortingIndex)
@@ -268,7 +268,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
   protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
                                                  forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>>
 
-  protected fn getSortingIndexOfNearestEntry(dbIn: Database, containingIdIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64>
+  protected fn get_sorting_indexOfNearestEntry(dbIn: Database, containingIdIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64>
 
   protected fn renumber_sorting_indexes(dbIn: Database, containingObjectIdIn: i64)
 

@@ -46,9 +46,9 @@ abstract protected[this] class RelationToEntity(m_db: Database, m_id: i64, mRelT
    *
    * @param relationTypeIn can be left None, but will run faster if not.
    *
-   * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If inLengthLimit is 0 you get the whole thing.
+   * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If in_length_limit is 0 you get the whole thing.
    */
-    fn get_display_string(lengthLimitIn: Int, relatedEntityIn: Option<Entity>, relationTypeIn: Option[RelationType], simplify: bool = false) -> String {
+    fn get_display_string(length_limit_in: Int, relatedEntityIn: Option<Entity>, relationTypeIn: Option[RelationType], simplify: bool = false) -> String {
     let relType: RelationType = {;
       if relationTypeIn.is_some()) {
         if relationTypeIn.get.get_id != get_attr_type_id()) {
@@ -87,7 +87,7 @@ abstract protected[this] class RelationToEntity(m_db: Database, m_id: i64, mRelT
 //    if this.isInstanceOf[RelationToRemoteEntity]) {
 //      result = "[remote]" + result
 //    }
-    Attribute.limitDescriptionLength(result, lengthLimitIn)
+    Attribute.limit_attribute_description_length(result, length_limit_in)
   }
 
     //%%?: fn getRemoteDescription -> String

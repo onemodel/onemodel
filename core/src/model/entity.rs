@@ -246,7 +246,7 @@ impl Entity<'_> {
 
         //%%$%FIXME TO USE: entity_data[1]; RELY ON TESTS that I find or uncomment in order, to
         //see what will happen when a null is returned from get_entity_data above, and its dependencies
-        // that eventually call pgdb.db_query and see how they all handle a NULL coming back from pg, therefore
+        // that eventually call postgresql_databaseN.db_query and see how they all handle a NULL coming back from pg, therefore
         // how to handle that when it gets here.  AND SIMILARLY/SAME do for the fixme just below!
         // DataType::Bigint(self.m_class_id) = None;
         self.m_class_id = None;
@@ -295,7 +295,7 @@ impl Entity<'_> {
         Ok(())
     }
     /*
-     fn get_idWrapper -> IdWrapper() {
+     fn get_id_wrapper -> IdWrapper() {
      new IdWrapper(m_id)
      }
 

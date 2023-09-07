@@ -7,124 +7,87 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use chrono::LocalResult;
-use chrono::prelude::*;
+use anyhow::{anyhow, Result};
+// use chrono::LocalResult;
+// use chrono::prelude::*;
+// use crate::util::Util;
+use crate::model::entity::Entity;
+use crate::model::id_wrapper::IdWrapper;
+use crate::model::relation_type::RelationType;
 
-use crate::util::Util;
+/// Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
+/// Originally created as a place to put common stuff between Relation/QuantityAttribute/TextAttribute.
+pub trait Attribute {
+    // Idea: somehow use language features better to make it cleaner, so we don't need these extra 2 vars, because they are
+    // used in 1-2 instances, and ignored in the rest.  One thing is that RelationTo[Local|Remote]Entity and RelationToGroup
+    // are Attributes. Should they be?
 
-//%%$%%%%IDEAS: mbe do polymorphism by 1) seeing how postgresql obj does it as a trait obj,
-//2) considering that ":" to have one trait have the methods of another, 3) include BA has-a AttributeData to hold the data parts,
-// and Attr holds the methods?
-// Reread the Book ch/s on traits, applicable sections, & see if there is some betr way? Such as in ch 17 section 17.3
-// "requesting a review of the post changes its state" and teh following code w/ an example.
-// Also, see what code reuse can be achieved by having methods defined here only in terms of other
-// methods (not using data that is not part of a method of the trait).
+    fn get_display_string(
+        in_length_limit: i32,
+        parent_entity: Option<Entity>,
+        in_rt_id: Option<RelationType>,
+        simplify: bool, /* = false*/
+    ) -> String;
 
-pub struct Attribute {}
+    fn read_data_from_db();
 
-impl Attribute {
-    /*%%
-    package org.onemodel.core.model
+    fn delete();
 
-    object Attribute {
-      // unlike in Controller, these are intentionally a little different, for displaying also the day of the week:
-      //%%see if below uses are tested/working/done or if these are needed for anything
-      let DATEFORMAT = new java.text.SimpleDateFormat("EEE yyyy-MM-dd HH:mm:ss:SSS zzz");
-      let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("EEE GGyyyy-MM-dd HH:mm:ss:SSS zzz");
-    */
-    pub fn useful_date_format(d: i64) -> String {
-        // No need to print "AD" unless we're really close?, as in this example:
-        //scala > let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz");
-        //scala > DATEFORMAT_WITH_ERA.parse("ad 1-03-01 00:00:00:000 GMT").getTime //i.e., Jan 3, 1 AD.
-        //res100: i64 = -62130672000000
-        // see Util::DATEFORMAT* for comment about ERA (BC/AD).
-        // if d > -62130672000000_i64 {
-        //     DATEFORMAT.format(d)
-        // %%need to test this date thing also to confirm works as expected/same as scala OM.
-        //See also uses of this, in case need to borrow one or update both, in util.rs .
-        let date: LocalResult<DateTime<Utc>> = Utc.timestamp_opt(d, 0);
-        match date {
-            LocalResult::None => {
-                "Error(1) trying to format {} as a date/time; probably a bug.".to_string()
-            }
-            LocalResult::Single(dt) => {
-                let typed_dt: DateTime<Utc> = dt;
-                typed_dt.format(Util::DATEFORMAT).to_string()
-            }
-            _ => "Error(2) trying to format {} as a date/time; probably a bug.".to_string(),
-        }
+    fn get_id_wrapper() -> IdWrapper;
+    // was:
+    // fn get_id_wrapper -> IdWrapper {
+    //   new IdWrapper(m_id)
+    // }
 
-        // } else {
-        //     DATEFORMAT_WITH_ERA.format(d)
-        // }
-    }
+    fn get_id() -> i64;
+    // was:
+    // fn get_id -> i64 {
+    //     m_id
+    // }
 
-    /*
-      /// @param input The value to chop down in size.
-      /// @param lengthLimitIn If <= 0, no change.
-      /// @return A value equal or shorter in length.
-      fn limitDescriptionLength(input: String, lengthLimitIn: Int) -> String {
-        if lengthLimitIn != 0 && input.length > lengthLimitIn) {
-          input.substring(0, lengthLimitIn - 3) + "..."
-        } else input
-      }
+    fn get_form_id(&self) -> Result<i32, anyhow::Error>;
+    // was:
+    // fn get_form_id -> Int {
+    //     Database.get_attribute_form_id(this.getClass.getSimpleName)
+    // }
 
-    }
-    /**
-     * Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
-     * Originally created as a place to put common stuff between Relation/QuantityAttribute/TextAttribute.
-     */
-    abstract class Attribute(val m_db: Database, m_id: i64) {
-      // idea: somehow use scala features better to make it cleaner, so we don't need these extra 2 vars, because they are
-      // used in 1-2 instances, and ignored in the rest.  One thing is that RelationTo[Local|Remote]Entity and RelationToGroup are Attributes. Should they be?
-        fn get_display_string(inLengthLimit: Int, parentEntity: Option<Entity>, inRTId: Option[RelationType], simplify: bool = false) -> String;
+    fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64);
+    //was:
+    // protected fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64) {
+    //   m_parent_id = parent_id_in
+    //   m_attr_type_id = attr_type_id_in
+    //   m_sorting_index = sorting_index_in
+    //   m_already_read_data = true
+    // }
 
-      protected fn read_data_from_db();
+    fn get_attr_type_id() -> i64;
+    // was:
+    // fn get_attr_type_id() -> i64 {
+    //   if !m_already_read_data) read_data_from_db()
+    //   m_attr_type_id
+    // }
 
-        fn delete();
+    fn get_sorting_index() -> i64;
+    // was:
+    //   fn get_sorting_index -> i64 {
+    //   if !m_already_read_data) read_data_from_db()
+    //   m_sorting_index
+    // }
 
-      private[onemodel] fn get_idWrapper -> IdWrapper {
-        new IdWrapper(m_id)
-      }
+    fn get_parent_id() -> i64;
+    // was:
+    // fn get_parent_id() -> i64 {
+    //   if !m_already_read_data) read_data_from_db()
+    //   m_parent_id
+    // }
 
-        fn get_id -> i64 {
-        m_id
-      }
-
-        fn get_form_id -> Int {
-        Database.get_attribute_form_id(this.getClass.getSimpleName)
-      }
-
-      protected fn assignCommonVars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64) {
-        m_parent_id = parent_id_in
-        m_attr_type_id = attr_type_id_in
-        m_sorting_index = sorting_index_in
-        m_already_read_data = true
-      }
-
-        fn get_attr_type_id() -> i64 {
-        if !m_already_read_data) read_data_from_db()
-        m_attr_type_id
-      }
-
-        fn getSortingIndex -> i64 {
-        if !m_already_read_data) read_data_from_db()
-        m_sorting_index
-      }
-
-    //(already implemented in boolean_attribute.  should move here?? Look how traits have traits!: "rust super trait"?)
-      fn get_parent_id() -> i64 {
-        if !m_already_read_data) read_data_from_db()
-        m_parent_id
-      }
-
-      /**
-       * For descriptions of the meanings of these variables, see the comments
-       * on create_tables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
-       */
-      protected let mut m_parent_id: i64 = 0L;
-      protected let mut m_attr_type_id: i64 = 0L;
-      protected let mut m_already_read_data: bool = false;
-      protected let mut m_sorting_index: i64 = 0L;
-    */
+    // For descriptions of the meanings of these variables, see the comments
+    // on create_tables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
+    // %%put these in the structs implementing this trait, along w/ those above methods!
+    //m_db: Database;
+    //m_id: i64;
+    // protected let mut m_parent_id: i64 = 0L;
+    // protected let mut m_attr_type_id: i64 = 0L;
+    // protected let mut m_already_read_data: bool = false;
+    // protected let mut m_sorting_index: i64 = 0L;
 }

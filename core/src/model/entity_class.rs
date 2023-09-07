@@ -69,7 +69,7 @@ class EntityClass(val m_db: Database, m_id: i64) {
     m_already_read_data = true
   }
 
-    fn get_idWrapper -> IdWrapper {
+    fn get_id_wrapper -> IdWrapper {
      new IdWrapper(m_id)
      }
 

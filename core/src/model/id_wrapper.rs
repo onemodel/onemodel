@@ -7,19 +7,16 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-struct IdWrapper {
-    /*%%
-    package org.onemodel.core.model
+/// Represents the unique ID (key) for an Entity or Attribute object in the system. Benefit is that we can return
+/// one of these from a method and the signature of the method does not have to specify whether it is
+/// the ID of a QuantityAttribute, Relation, etc (relation ID has 3 parts, Attribute and Entity ID's for example have one).
+/// (But: why not just return a i64 or Option<i64>?)
+pub struct IdWrapper {
+    id: i64,
+}
 
-    ** Represents the unique ID (key) for an Entity or Attribute object in the system. Benefit is that we can return
-      one of these from a method and the signature of the method does not have to specify whether it is
-      the ID of a QuantityAttribute, Relation, etc (relation ID has 3 parts, Attribute and Entity ID's for example have one).
-
-      (But: why not just return a i64 or Option<i64>?)
-      *
-    class IdWrapper(id: i64) {
-        fn get_id: i64 = {
+impl IdWrapper {
+    fn get_id() -> i64 {
         id
     }
-     */
 }
