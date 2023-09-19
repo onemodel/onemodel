@@ -442,7 +442,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   override fn boolean_attribute_key_exists(id_in: i64) -> bool {
-    get_boolean("/booleanAttributes/" + id_in + "/exists")
+    get_boolean("/boolean_attributes/" + id_in + "/exists")
   }
 
   override fn file_attribute_key_exists(id_in: i64) -> bool {
@@ -555,7 +555,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   }
 
   override  fn get_boolean_attribute_data(id_in: i64) -> Vec<Option<DataType>> {
-    getArrayOptionAny("/booleanAttributes/" + id_in, Array(Database.GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES))
+    getArrayOptionAny("/boolean_attributes/" + id_in, Array(Database.GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES))
   }
 
   override fn  get_relation_to_local_entity_data(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64) -> Vec<Option<DataType>> {

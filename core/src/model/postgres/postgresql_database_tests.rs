@@ -33,8 +33,7 @@ use tracing::*;
 // use tracing_subscriber::FmtSubscriber;
 
 #[cfg(test)]
-mod tests {
-    // use super::super::*;
+mod test {
     use super::*;
 
     const QUANTITY_TYPE_NAME: &str = "length";
@@ -632,14 +631,14 @@ mod tests {
     //
     // fn createTestBooleanAttributeWithOneEntity(in_parent_id: i64, valIn: bool, in_valid_on_date: Option<i64> = None, observation_date_in: i64) -> i64 {
     //     let attr_type_id: i64 = db.create_entity("boolAttributeType-like-isDone");
-    //     let booleanAttributeId: i64 = db.create_boolean_attribute(in_parent_id, attr_type_id, valIn, in_valid_on_date, observation_date_in);
-    //     let ba = new BooleanAttribute(db, booleanAttributeId);
+    //     let boolean_attribute_id: i64 = db.create_boolean_attribute(in_parent_id, attr_type_id, valIn, in_valid_on_date, observation_date_in);
+    //     let ba = new BooleanAttribute(db, boolean_attribute_id);
     //     assert(ba.get_attr_type_id() == attr_type_id)
     //     assert(ba.get_boolean == valIn)
     //     assert(ba.get_valid_on_date() == in_valid_on_date)
     //     assert(ba.get_parent_id() == in_parent_id)
     //     assert(ba.get_observation_date() == observation_date_in)
-    //     booleanAttributeId
+    //     boolean_attribute_id
     // }
     //
     // fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: bool = true) -> FileAttribute {
@@ -1032,17 +1031,17 @@ mod tests {
     let observation_date: i64 = System.currentTimeMillis;
     let valid_on_date: Option<i64> = Some(1234L);
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-    let booleanAttributeId: i64 = createTestBooleanAttributeWithOneEntity(entity_id, val1, valid_on_date, observation_date);
+    let boolean_attribute_id: i64 = createTestBooleanAttributeWithOneEntity(entity_id, val1, valid_on_date, observation_date);
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
 
-    let ba = new BooleanAttribute(db, booleanAttributeId);
+    let ba = new BooleanAttribute(db, boolean_attribute_id);
     let (pid1, atid1) = (ba.get_parent_id(), ba.get_attr_type_id());
     assert(entity_id == pid1)
 
     let val2 = false;
-    db.update_boolean_attribute(booleanAttributeId, pid1, atid1, val2, Some(123), 456)
+    db.update_boolean_attribute(boolean_attribute_id, pid1, atid1, val2, Some(123), 456)
     // have to create new instance to re-read the data:
-    let ba2 = new BooleanAttribute(db, booleanAttributeId);
+    let ba2 = new BooleanAttribute(db, boolean_attribute_id);
     let (pid2, atid2, bool2, vod2, od2) = (ba2.get_parent_id(), ba2.get_attr_type_id(), ba2.get_boolean, ba2.get_valid_on_date(), ba2.get_observation_date());
     assert(pid2 == pid1)
     assert(atid2 == atid1)
@@ -1055,7 +1054,7 @@ mod tests {
     assert(db.get_boolean_attribute_count(entity_id) == 1)
 
     let entity_countBeforeAttrDeletion: i64 = db.get_entity_count();
-    db.delete_boolean_attribute(booleanAttributeId)
+    db.delete_boolean_attribute(boolean_attribute_id)
     assert(db.get_boolean_attribute_count(entity_id) == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)

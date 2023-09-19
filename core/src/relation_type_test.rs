@@ -18,17 +18,17 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "work with a populated entity or relationtype" in {
     // idea: parts of this test should probably be moved back up to the EntityTest class.
     let id = 0L;
-    let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.entity_key_exists(id)).thenReturn(true)
+    let mock_db = mock[PostgreSQLDatabase];
+    when(mock_db.entity_key_exists(id)).thenReturn(true)
     let testRelTypeName = Database.THE_HAS_RELATION_TYPE_NAME;
     let testNameReversed = "is had";
     let testDir = "BI";
-    when(mockDB.relation_type_key_exists(id)).thenReturn(true)
-    when(mockDB.get_remote_address).thenReturn(None)
-    /*val reltype: RelationType = */new RelationType(mockDB, id, testRelTypeName, testNameReversed, testDir)
+    when(mock_db.relation_type_key_exists(id)).thenReturn(true)
+    when(mock_db.get_remote_address).thenReturn(None)
+    /*val reltype: RelationType = */new RelationType(mock_db, id, testRelTypeName, testNameReversed, testDir)
     // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
     //val testName = "thisIsAName"
-    //val entity = new Entity(mockDB, id, testName, Some(1L), 2L, Some(true), false)
+    //val entity = new Entity(mock_db, id, testName, Some(1L), 2L, Some(true), false)
     //assert(entity.get_display_string == testName)
     //assert(reltype.get_display_string == "" + testRelTypeName + " (a relation type with: " + testDir + "/'" + testNameReversed + "')")
   }
@@ -38,11 +38,11 @@ class RelationTypeTest extends FlatSpec with MockitoSugar {
     // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an entity that's gone due to a bug).
     // (But should this issue go away w/ better design involving more use of immutability or something?)
     let id = 0L;
-    let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.entity_key_exists(id)).thenReturn(true)
-    when(mockDB.relation_type_key_exists(id)).thenReturn(true)
-    when(mockDB.get_remote_address).thenReturn(None)
-    let relationType = new RelationType(mockDB, id);
+    let mock_db = mock[PostgreSQLDatabase];
+    when(mock_db.entity_key_exists(id)).thenReturn(true)
+    when(mock_db.relation_type_key_exists(id)).thenReturn(true)
+    when(mock_db.get_remote_address).thenReturn(None)
+    let relationType = new RelationType(mock_db, id);
     let sr = relationType.get_display_string();
     assert(sr.contains("Unable to get entity description due to"))
     assert(sr.toLowerCase.contains("exception"))

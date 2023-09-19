@@ -7,17 +7,39 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-struct DateAttribute {
-/*%%
-package org.onemodel.core.model
+use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
+use crate::model::database::DataType;
+use crate::model::database::Database;
+use crate::util::Util;
+use anyhow::{anyhow, Error, Result};
+// use sqlx::{PgPool, Postgres, Row, Transaction};
+use crate::model::attribute::Attribute;
+use crate::model::entity::Entity;
+use crate::model::id_wrapper::IdWrapper;
+use crate::model::relation_type::RelationType;
+use sqlx::{Postgres, Transaction};
 
-import org.onemodel.core.{OmException, Util}
+/// See TextAttribute etc code, for some comments.
+/// Also, though this doesn't formally extend Attribute, it still belongs to the same group conceptually (just doesn't have the same date variables so code
+/// not shared (idea: model that better, and in FileAttribute).
+pub struct DateAttribute {
+    /*
+    // For descriptions of the meanings of these variables, see the comments
+    // with create_date_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes
+    id: i64,
+    db: Box<&'a dyn Database>,
+    date_value: i64 /*= 0L*/,
+    already_read_data: bool,
+    /*%%= false*/
+    parent_id: i64,
+    /*%%= 0L*/
+    attr_type_id: i64,
+    /*%%= 0L*/
+    sorting_index: i64,
+    /*%%= 0L*/
+}
 
-** See TextAttribute etc for some comments.
-  * Also, though this doesn't formally extend Attribute, it still belongs to the same group conceptually (just doesn't have the same date variables so code
-  * not shared (idea: model that better, and in FileAttribute).
-  *
-class DateAttribute(db: Database, id: i64) extends Attribute(db, id) {
+impl DateAttribute<'_> {
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
   if !db.is_remote && !db.date_attribute_key_exists(id)) {
     throw new Exception("Key " + id + Util::DOES_NOT_EXIST)
@@ -68,10 +90,5 @@ class DateAttribute(db: Database, id: i64) extends Attribute(db, id) {
     fn delete() {
     db.delete_date_attribute(id)
     }
-
-  /** For descriptions of the meanings of these variables, see the comments
-    with create_date_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes
-    */
-    private let mut mDate: i64 = 0L;
- */
+*/
 }

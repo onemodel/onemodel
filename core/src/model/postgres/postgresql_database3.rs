@@ -29,6 +29,8 @@ use sqlx::{Postgres, Transaction};
 use std::collections::HashSet;
 // use std::fmt::format;
 use tracing::*;
+use crate::model::attribute::Attribute;
+use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 
 impl Database for PostgreSQLDatabase {
     fn is_remote(&self) -> bool {
@@ -582,7 +584,7 @@ impl Database for PostgreSQLDatabase {
             None => "NULL".to_string(),
             Some(date) => date.to_string(),
         };
-        self.db_action(transaction, format!("update BooleanAttribute set (booleanValue, attr_type_id, valid_on_date, observation_date) \
+        self.db_action(transaction, format!("update BooleanAttribute set (boolean_value, attr_type_id, valid_on_date, observation_date) \
                         = ({},{},{},{}) where id={} and entity_id={}",
                                             boolean_in, attr_type_id_in, if_valid_on_date, observation_date_in, id_in, parent_id_in).as_str(),
                        false, false)?;
@@ -1031,7 +1033,7 @@ impl Database for PostgreSQLDatabase {
             &Some(&mut tx),
             format!(
                 "insert into BooleanAttribute (id, \
-            entity_id, booleanvalue, attr_type_id, valid_on_date, observation_date) \
+            entity_id, boolean_value, attr_type_id, valid_on_date, observation_date) \
             values ({},{},'{}',{},{},{})",
                 id, parent_id_in, boolean_in, attr_type_id_in, vod, observation_date_in
             )
@@ -3616,7 +3618,7 @@ impl Database for PostgreSQLDatabase {
         boolean_id_in: i64,
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let form_id = self.get_attribute_form_id(Util::BOOLEAN_TYPE)?;
-        self.db_query_wrapper_for_one_row(transaction, format!("select ba.entity_id, ba.booleanValue, ba.attr_type_id, ba.valid_on_date, ba.observation_date, asort.sorting_index \
+        self.db_query_wrapper_for_one_row(transaction, format!("select ba.entity_id, ba.boolean_value, ba.attr_type_id, ba.valid_on_date, ba.observation_date, asort.sorting_index \
                                     from BooleanAttribute ba, AttributeSorting asort where id={} and ba.entity_id=asort.entity_id and asort.attribute_form_id={} \
                                      and ba.id=asort.attribute_id",
                                                                boolean_id_in, form_id).as_str(),

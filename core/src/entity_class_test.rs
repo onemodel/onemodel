@@ -50,11 +50,11 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
     // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an class that's gone due to a bug).
     // (But should this issue go away w/ better design involving more use of immutability or something?)
     let id = 0L;
-    let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.class_key_exists(id)).thenReturn(true)
-    when(mockDB.get_class_data(id)).thenThrow(new RuntimeException("some exception"))
+    let mock_db = mock[PostgreSQLDatabase];
+    when(mock_db.class_key_exists(id)).thenReturn(true)
+    when(mock_db.get_class_data(id)).thenThrow(new RuntimeException("some exception"))
 
-    let entityClass = new EntityClass(mockDB, id);
+    let entityClass = new EntityClass(mock_db, id);
     let ec = entityClass.get_display_string;
     assert(ec.contains("Unable to get class description due to"))
     assert(ec.toLowerCase.contains("exception"))
@@ -64,12 +64,12 @@ class EntityClassTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return name" in {
     let id = 0L;
     let template_entity_id = 1L;
-    let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.class_key_exists(id)).thenReturn(true)
-    when(mockDB.get_class_name(id)).thenReturn(Some("class1Name"))
-    when(mockDB.get_class_data(id)).thenReturn(Vec<Option<DataType>>(Some("class1Name"), Some(template_entity_id), Some(true)))
+    let mock_db = mock[PostgreSQLDatabase];
+    when(mock_db.class_key_exists(id)).thenReturn(true)
+    when(mock_db.get_class_name(id)).thenReturn(Some("class1Name"))
+    when(mock_db.get_class_data(id)).thenReturn(Vec<Option<DataType>>(Some("class1Name"), Some(template_entity_id), Some(true)))
 
-    let entityClass = new EntityClass(mockDB, id);
+    let entityClass = new EntityClass(mock_db, id);
     let ds = entityClass.get_display_string;
     assert(ds == "class1Name")
   }

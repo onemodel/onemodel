@@ -16,7 +16,11 @@ pub struct IdWrapper {
 }
 
 impl IdWrapper {
-    fn get_id() -> i64 {
-        id
+    pub fn new(id: i64) -> IdWrapper {
+        IdWrapper{id}
+    }
+
+    pub fn get_id(&self) -> i64 {
+        self.id
     }
 }

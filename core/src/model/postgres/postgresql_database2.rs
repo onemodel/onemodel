@@ -309,7 +309,7 @@ impl PostgreSQLDatabase {
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
                     // (Using the preference_entity.get_id for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
                     // IN setUserPreference METHOD CALL TO create_boolean_attribute!)
-                    let sql2 = format!("select id, booleanValue from booleanattribute where entity_id={} and attr_type_id={}", preference_entity_id, preference_entity_id);
+                    let sql2 = format!("select id, boolean_value from booleanattribute where entity_id={} and attr_type_id={}", preference_entity_id, preference_entity_id);
                     self.db_query(transaction, sql2.as_str(), "i64,bool")?
                 } else if preference_type == Util::PREF_TYPE_ENTITY_ID {
                     let sql2 = format!("select rel_type_id, entity_id, entity_id_2 from relationtoentity where entity_id={}", preference_entity_id);
@@ -1216,7 +1216,7 @@ impl PostgreSQLDatabase {
     //     let tables: Vec<String> = Array(Util.QUANTITY_TYPE, Util.BOOLEAN_TYPE, Util.DATE_TYPE, Util.TEXT_TYPE, Util.FILE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE,;
     //     Util.RELATION_TO_GROUP_TYPE, Util.RELATION_TO_REMOTE_ENTITY_TYPE)
     //     let columnsSelectedByTable: Vec<String> = Array("id,entity_id,attr_type_id,unit_id,quantity_number,valid_on_date,observation_date",;
-    //     "id,entity_id,attr_type_id,booleanValue,valid_on_date,observation_date",
+    //     "id,entity_id,attr_type_id,boolean_value,valid_on_date,observation_date",
     //     "id,entity_id,attr_type_id,date",
     //     "id,entity_id,attr_type_id,textvalue,valid_on_date,observation_date",
     //

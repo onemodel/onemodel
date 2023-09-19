@@ -656,14 +656,14 @@ impl Controller {
                                                                       Util.ask_for_date_attribute_value, update_date_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
                 attributeEditMenu(new DateAttribute(attributeIn.db, attributeIn.get_id))
-              case booleanAttribute: BooleanAttribute =>
+              case boolean_attribute: BooleanAttribute =>
                 def update_boolean_attribute(dhInOut: BooleanAttributeDataHolder) {
-                  booleanAttribute.update(dhInOut.attr_type_id, dhInOut.boolean, dhInOut.valid_on_date, dhInOut.observation_date)
+                  boolean_attribute.update(dhInOut.attr_type_id, dhInOut.boolean, dhInOut.valid_on_date, dhInOut.observation_date)
                 }
-                let booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.get_attr_type_id(), booleanAttribute.get_valid_on_date(),;
-                                                                                                    booleanAttribute.get_observation_date(),
-                                                                                                    booleanAttribute.get_boolean)
-                askForInfoAndUpdateAttribute[BooleanAttributeDataHolder](attributeIn.db, booleanAttributeDH, askForAttrTypeId = true, Util.BOOLEAN_TYPE,
+                let boolean_attributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(boolean_attribute.get_attr_type_id(), boolean_attribute.get_valid_on_date(),;
+                                                                                                    boolean_attribute.get_observation_date(),
+                                                                                                    boolean_attribute.get_boolean)
+                askForInfoAndUpdateAttribute[BooleanAttributeDataHolder](attributeIn.db, boolean_attributeDH, askForAttrTypeId = true, Util.BOOLEAN_TYPE,
                                                                          "CHOOSE TYPE OF TRUE/FALSE VALUE:", Util.askForBooleanAttributeValue,
                                                                          update_boolean_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
@@ -751,12 +751,12 @@ impl Controller {
             let outDH: Option[DateAttributeDataHolder] = Util.ask_for_date_attribute_value(attributeIn.db, dateAttributeDH, editing_in = true, ui);
             if outDH.is_defined) dateAttribute.update(outDH.get.attr_type_id, outDH.get.date)
             outDH.isEmpty
-          case booleanAttribute: BooleanAttribute =>
-            let booleanAttributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(booleanAttribute.get_attr_type_id(), booleanAttribute.get_valid_on_date(),;
-                                                                                                booleanAttribute.get_observation_date(),
-                                                                                                booleanAttribute.get_boolean)
-            let outDH: Option[BooleanAttributeDataHolder] = Util.askForBooleanAttributeValue(booleanAttribute.db, booleanAttributeDH, editing_in = true, ui);
-            if outDH.is_defined) booleanAttribute.update(outDH.get.attr_type_id, outDH.get.boolean, outDH.get.valid_on_date, outDH.get.observation_date)
+          case boolean_attribute: BooleanAttribute =>
+            let boolean_attributeDH: BooleanAttributeDataHolder = new BooleanAttributeDataHolder(boolean_attribute.get_attr_type_id(), boolean_attribute.get_valid_on_date(),;
+                                                                                                boolean_attribute.get_observation_date(),
+                                                                                                boolean_attribute.get_boolean)
+            let outDH: Option[BooleanAttributeDataHolder] = Util.askForBooleanAttributeValue(boolean_attribute.db, boolean_attributeDH, editing_in = true, ui);
+            if outDH.is_defined) boolean_attribute.update(outDH.get.attr_type_id, outDH.get.boolean, outDH.get.valid_on_date, outDH.get.observation_date)
             outDH.isEmpty
           case rtle: RelationToLocalEntity =>
             let editedEntity: Option<Entity> = editEntityName(new Entity(rtle.db, rtle.getRelatedId2));

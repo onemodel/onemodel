@@ -97,7 +97,7 @@ class EntityTest extends FlatSpec with MockitoSugar {
     println!("starting testAddBooleanAttribute")
     let startTime = System.currentTimeMillis();
     let id: i64 = mEntity.addBooleanAttribute(m_booleanAttrTypeId, inBoolean = true, None).get_id;
-    let t: BooleanAttribute = mEntity.get_booleanAttribute(id);
+    let t: BooleanAttribute = mEntity.get_boolean_attribute(id);
     assert(t != null)
     assert(t.get_id == id)
     assert(t.get_boolean)
@@ -151,11 +151,11 @@ class EntityTest extends FlatSpec with MockitoSugar {
     // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an entity that's gone due to a bug).
     // (But should this issue go away w/ better design involving more use of immutability or something?)
     let id = 0L;
-    let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.entity_key_exists(id)).thenReturn(true)
-    when(mockDB.get_entity_data(id)).thenThrow(new RuntimeException("some exception"))
-    when(mockDB.get_remote_address).thenReturn(None)
-    let entity = new Entity(mockDB, id);
+    let mock_db = mock[PostgreSQLDatabase];
+    when(mock_db.entity_key_exists(id)).thenReturn(true)
+    when(mock_db.get_entity_data(id)).thenThrow(new RuntimeException("some exception"))
+    when(mock_db.get_remote_address).thenReturn(None)
+    let entity = new Entity(mock_db, id);
     let se = entity.get_display_string();
     assert(se.contains("Unable to get entity description due to"))
     assert(se.toLowerCase.contains("exception"))
@@ -165,47 +165,47 @@ class EntityTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return name & class info" in {
     let id = 0L;
     let classId = 1L;
-    let mockDB = mock[PostgreSQLDatabase];
-    when(mockDB.entity_key_exists(id)).thenReturn(true)
-    when(mockDB.get_class_name(classId)).thenReturn(Some("class1Name"))
-    when(mockDB.get_entity_data(id)).thenReturn(Vec<Option<DataType>>(Some("entity1Name"), Some(classId)))
+    let mock_db = mock[PostgreSQLDatabase];
+    when(mock_db.entity_key_exists(id)).thenReturn(true)
+    when(mock_db.get_class_name(classId)).thenReturn(Some("class1Name"))
+    when(mock_db.get_entity_data(id)).thenReturn(Vec<Option<DataType>>(Some("entity1Name"), Some(classId)))
     // idea (is in tracked tasks): put next 3 lines back after color refactoring is done (& places w/ similar comment elsewhere)
-    //val entity = new Entity(mockDB, id)
+    //val entity = new Entity(mock_db, id)
     //val ds = entity.get_display_string
     //assert(ds == "entity1Name (class: class1Name)")
 
     let id2 = 2L;
     let classId2 = 4L;
     let name2 = "entity2Name";
-    let mockDB2 = mock[PostgreSQLDatabase];
-    when(mockDB2.entity_key_exists(id2)).thenReturn(true)
-    when(mockDB2.get_entity_data(id2)).thenReturn(Vec<Option<DataType>>(Some(name2), None))
-    when(mockDB2.get_class_name(classId2)).thenReturn(None)
+    let mock_db2 = mock[PostgreSQLDatabase];
+    when(mock_db2.entity_key_exists(id2)).thenReturn(true)
+    when(mock_db2.get_entity_data(id2)).thenReturn(Vec<Option<DataType>>(Some(name2), None))
+    when(mock_db2.get_class_name(classId2)).thenReturn(None)
     // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
-    //val entity2 = new Entity(mockDB2, id2, name2, Some(false), Some(classId2))
+    //val entity2 = new Entity(mock_db2, id2, name2, Some(false), Some(classId2))
     //val ds2 = entity2.get_display_string
     //assert(ds2 == name2)
 
-    when(mockDB2.get_class_name(classId2)).thenReturn(Some("class2Name"))
-    when(mockDB2.get_class_count(Some(id2))).thenReturn(1)
-    when(mockDB2.get_entity_data(id2)).thenReturn(Vec<Option<DataType>>(Some(name2), Some(classId2)))
+    when(mock_db2.get_class_name(classId2)).thenReturn(Some("class2Name"))
+    when(mock_db2.get_class_count(Some(id2))).thenReturn(1)
+    when(mock_db2.get_entity_data(id2)).thenReturn(Vec<Option<DataType>>(Some(name2), Some(classId2)))
     // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
     //assert(entity2.get_display_string == name2 + " (template entity (template) for class: " + "class2Name)")
   }
 
   "getClassTemplateEntityId" should "work right" in {
-    let mockDB = mock[PostgreSQLDatabase];
+    let mock_db = mock[PostgreSQLDatabase];
     let id = 1L;
     let classId = 2L;
     let className = "classname";
     let template_entity_id = 3L;
-    when(mockDB.entity_key_exists(id)).thenReturn(true)
-    let e = new Entity(mockDB, id, "entityname", None, 0L, Some(true), false, false);
+    when(mock_db.entity_key_exists(id)).thenReturn(true)
+    let e = new Entity(mock_db, id, "entityname", None, 0L, Some(true), false, false);
     assert(e.getClassTemplateEntityId.isEmpty)
 
-    let e2 = new Entity(mockDB, id, "entityname", Option(classId), 0L, Some(false), false, false);
-    when(mockDB.class_key_exists(classId)).thenReturn(true)
-    when(mockDB.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(template_entity_id)))
+    let e2 = new Entity(mock_db, id, "entityname", Option(classId), 0L, Some(false), false, false);
+    when(mock_db.class_key_exists(classId)).thenReturn(true)
+    when(mock_db.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(template_entity_id)))
     assert(e2.getClassTemplateEntityId.get == template_entity_id)
   }
 

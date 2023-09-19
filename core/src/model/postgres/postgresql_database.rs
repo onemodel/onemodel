@@ -1066,7 +1066,7 @@ impl PostgreSQLDatabase {
         )?;
         let boolean_form_id = self.get_attribute_form_id(Util::BOOLEAN_TYPE).unwrap();
         // See comment for the form_id column under "create table RelationToGroup", below.
-        // For the booleanValue column: allowing nulls because a template might not have \
+        // For the boolean_value column: allowing nulls because a template might not have \
         // value, and a task might not have a "done/not" setting yet (if unknown)?
         // Ex., isDone (where the task would be an entity).
         // See "create table RelationToEntity" for comments about dates' meanings.
@@ -1075,7 +1075,7 @@ impl PostgreSQLDatabase {
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('BooleanAttributeKeySequence') PRIMARY KEY, \
             entity_id bigint NOT NULL, \
-            booleanValue boolean, \
+            boolean_value boolean, \
             attr_type_id bigint not null, \
             valid_on_date bigint, \
             observation_date bigint not null, \

@@ -8,10 +8,12 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 use crate::model::attribute::Attribute;
-use crate::util::Util;
+// use crate::util::Util;
+use sqlx::{Postgres, Transaction};
 
 // (For more info see "supertraits" in The Book (or in anki notes).)
 pub trait AttributeWithValidAndObservedDates: Attribute {
+    //%%
     //was:
     // fn assign_common_vars(
     //     parent_id_in: i64,
@@ -29,24 +31,19 @@ pub trait AttributeWithValidAndObservedDates: Attribute {
     //    super.assign_common_vars(parent_id_in, attr_type_id_in, sorting_index_in)
     //  }
 
-    // just call Util directly from callers, instead?:
+    // just call Util directly from callers, instead?:  Except when called for FA??--dift.
     // fn get_dates_description(valid_on_date: Option<i64>, observation_date: i64) -> String {
     //     Util::get_dates_description(valid_on_date, observation_date)
     //   }
 
-    fn get_valid_on_date() -> Option<i64>;
-    // was:
-    // fn get_valid_on_date() -> Option<i64> {
-    //   if !already_read_data) read_data_from_db()
-    //   valid_on_date
-    // }
+    fn get_valid_on_date(&mut self,
+                         transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<Option<i64>, anyhow::Error>;
 
-    fn get_observation_date() -> i64;
-    // was:
-    // fn get_observation_date() -> i64 {
-    //   if !already_read_data) read_data_from_db()
-    //   observation_date
-    // }
+    fn get_observation_date(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error>;
 
     // For descriptions of the meanings of these variables, see the comments
     // on create_tables(...), and examples in the database testing code in PostgreSQLDatabase or Database classes.

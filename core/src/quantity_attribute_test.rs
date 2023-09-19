@@ -16,7 +16,7 @@ import org.scalatest.FlatSpec
 
 class QuantityAttributeTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct string and length" in {
-    let mockDB = mock[PostgreSQLDatabase];
+    let mock_db = mock[PostgreSQLDatabase];
     let entity_id = 0;
     let attr_type_id = 1;
     let quantityAttributeId = 2;
@@ -24,14 +24,14 @@ class QuantityAttributeTest extends FlatSpec with MockitoSugar {
     let number = 50;
     // arbitrary:
     let date = 304;
-    when(mockDB.relation_type_key_exists(quantityAttributeId)).thenReturn(true)
-    when(mockDB.entity_key_exists(entity_id)).thenReturn(true)
-    when(mockDB.get_entity_name(attr_type_id)).thenReturn(Some("length"))
-    when(mockDB.get_entity_name(unitId)).thenReturn(Some("meters"))
+    when(mock_db.relation_type_key_exists(quantityAttributeId)).thenReturn(true)
+    when(mock_db.entity_key_exists(entity_id)).thenReturn(true)
+    when(mock_db.get_entity_name(attr_type_id)).thenReturn(Some("length"))
+    when(mock_db.get_entity_name(unitId)).thenReturn(Some("meters"))
 
-    let quantityAttribute = new QuantityAttribute(mockDB, quantityAttributeId, entity_id, attr_type_id, unitId, number, None, date, 0);
-    let smallLimit = 8;
-    let display1: String = quantityAttribute.get_display_string(smallLimit, None, None);
+    let quantityAttribute = new QuantityAttribute(mock_db, quantityAttributeId, entity_id, attr_type_id, unitId, number, None, date, 0);
+    let small_limit = 8;
+    let display1: String = quantityAttribute.get_display_string(small_limit, None, None);
     //noinspection SpellCheckingInspection
     assert(display1 == "lengt...")
     let unlimited=0;

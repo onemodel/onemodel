@@ -395,7 +395,7 @@ impl Entity<'_> {
             new_dateAttribute(db, inKey)
         }
 
-        fn get_booleanAttribute(inKey: i64) -> BooleanAttribute {
+        fn get_boolean_attribute(inKey: i64) -> BooleanAttribute {
             new BooleanAttribute(db, inKey)
         }
 

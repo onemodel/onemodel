@@ -13,18 +13,19 @@ use crate::model::database::Database;
 use crate::util::Util;
 use anyhow::{anyhow, Error, Result};
 // use sqlx::{PgPool, Postgres, Row, Transaction};
-use sqlx::{Postgres, Transaction};
 use crate::model::attribute::Attribute;
 use crate::model::entity::Entity;
 use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
+use sqlx::{Postgres, Transaction};
 
 pub struct BooleanAttribute<'a> {
+    // For descriptions of the meanings of these variables, see the comments
+    // on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
+    // and/or examples in the database testing code.
     id: i64,
     db: Box<&'a dyn Database>,
-    // For descriptions of the meanings of these variables, see the comments
-    // on create_tables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.
-    m_boolean: bool,              /*%%false*/
+    boolean_value: bool, /*%%false*/
     already_read_data: bool,    /*%%= false*/
     parent_id: i64,             /*%%= 0L*/
     attr_type_id: i64,          /*%%= 0L*/
@@ -34,6 +35,34 @@ pub struct BooleanAttribute<'a> {
 }
 
 impl BooleanAttribute<'_> {
+    /// This one is perhaps only called by the database class implementation (and a test)--so it
+    /// can return arrays of objects & save more DB hits
+    /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
+    /// one that already exists.
+    fn new<'a>(
+        db: Box<&'a dyn Database>,
+        id: i64,
+        parent_id: i64,
+        attr_type_id: i64,
+        boolean_value: bool,
+        valid_on_date: Option<i64>,
+        observation_date: i64,
+        sorting_index: i64,
+    ) -> BooleanAttribute<'a> {
+        BooleanAttribute {
+            id,
+            db,
+            boolean_value,
+            already_read_data: true,
+            parent_id,
+            attr_type_id,
+            valid_on_date,
+            observation_date,
+            sorting_index,
+        }
+        // assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
+    }
+
     pub fn new2<'a>(
         db: Box<&'a dyn Database>,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -46,9 +75,9 @@ impl BooleanAttribute<'_> {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(BooleanAttribute {
-                id: id,
-                db: db,
-                m_boolean: false,
+                id,
+                db,
+                boolean_value: false,
                 already_read_data: false,
                 parent_id: 0,
                 attr_type_id: 0,
@@ -59,143 +88,21 @@ impl BooleanAttribute<'_> {
         }
     }
 
-    fn _get_boolean(
+    fn get_boolean(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
         }
-        Ok(self.m_boolean)
-    }
-
-    fn read_data_from_db(
-        &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<(), anyhow::Error> {
-        let ba_type_data: Vec<Option<DataType>> = self
-            .db
-            .get_boolean_attribute_data(transaction, self.id)?;
-        if ba_type_data.len() == 0 {
-            return Err(anyhow!(
-                "No results returned from data request for: {}",
-                self.id
-            ));
-        }
-        // DataType::Boolean(self.m_boolean) = ba_type_data[1];
-        self.m_boolean = match ba_type_data[1] {
-            Some(DataType::Boolean(b)) => b,
-            _ => {
-                return Err(anyhow!(
-                    "How did we get here for {:?}?",
-                    ba_type_data[1]
-                ))
-            }
-        };
-
-        //%%$%%%what do about making this into shared code? duplicate it or can work from the Trait/s? see in anki re : to get fns from a trait (search
-        // rustlang deck re trait, is near end of a note), or
-        // the newtype pattern?
-        //idea: surely there is some better way than what I am doing here? See other places similarly.  Maybe implement DataType.clone() ?
-
-        // super.assign_common_vars(ba_type_data(0).get.asInstanceOf[i64], ba_type_data(2).get.asInstanceOf[i64], ba_type_data(3).asInstanceOf[Option<i64>],
-        //                        ba_type_data(4).get.asInstanceOf[i64], ba_type_data(5).get.asInstanceOf[i64])
-        self.already_read_data = true;
-        // DataType::Bigint(self.parent_id) = ba_type_data[0];
-        self.parent_id = match ba_type_data[0] {
-            Some(DataType::Bigint(x)) => x,
-            _ => {
-                return Err(anyhow!(
-                    "How did we get here for {:?}?",
-                    ba_type_data[0]
-                ))
-            }
-        };
-        // DataType::Bigint(self.attr_type_id) = ba_type_data[2];
-        self.attr_type_id = match ba_type_data[2] {
-            Some(DataType::Bigint(x)) => x,
-            _ => {
-                return Err(anyhow!(
-                    "How did we get here for {:?}?",
-                    ba_type_data[2]
-                ))
-            }
-        };
-
-        //%%$%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-        // valid_on_date: Option<i64> /*%%= None*/,
-        /*DataType::Bigint(%%)*/
-        self.valid_on_date = None; //ba_type_data[3];
-                                     // self.valid_on_date = match ba_type_data[3] {
-                                     //     DataType::Bigint(x) => x,
-                                     //     _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[3])),
-                                     // };
-
-        // DataType::Bigint(self.observation_date) = ba_type_data[4];
-        self.observation_date = match ba_type_data[4] {
-            Some(DataType::Bigint(x)) => x,
-            _ => {
-                return Err(anyhow!(
-                    "How did we get here for {:?}?",
-                    ba_type_data[4]
-                ))
-            }
-        };
-        // DataType::Bigint(self.sorting_index) = ba_type_data[5];
-        self.sorting_index = match ba_type_data[4] {
-            Some(DataType::Bigint(x)) => x,
-            _ => {
-                return Err(anyhow!(
-                    "How did we get here for {:?}?",
-                    ba_type_data[5]
-                ))
-            }
-        };
-        Ok(())
-    }
-
-    pub fn get_parent_id(
-        &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<i64, anyhow::Error> {
-        if !self.already_read_data {
-            self.read_data_from_db(transaction)?;
-        }
-        Ok(self.parent_id)
-    }
-    pub fn get_id(&self) -> i64 {
-        // This datum is provided upon construction (new2(), at minimum), so can be returned
-        // regardless of already_read_data / read_data_from_db().
-        self.id
-    }
-    pub fn get_attr_type_id(
-        &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
-    ) -> Result<i64, anyhow::Error> {
-        if !self.already_read_data {
-            self.read_data_from_db(transaction)?;
-        }
-        Ok(self.attr_type_id)
+        Ok(self.boolean_value)
     }
 
     /// See TextAttribute etc for some comments.
     // impl AttributeWithValidAndObservedDates for BooleanAttribute {
-
     /*%%
+     */
 
-
-      /** This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
-        that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
-        one that already exists.
-        */
-        fn this(db: Database, id: i64, parent_id_in: i64, attr_type_id_in: i64, boolean_in: bool, valid_on_date: Option<i64>, observation_date: i64,
-               sorting_index_in: i64) {
-        this(db, id)
-        m_boolean = boolean_in
-        assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
-      }
-
-    */
     fn update(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -215,7 +122,7 @@ impl BooleanAttribute<'_> {
             valid_on_date_in,
             observation_date_in,
         )?;
-        self.m_boolean = boolean_in;
+        self.boolean_value = boolean_in;
         // (next line is already set by just-above call to get_parent_id().)
         // self.already_read_data = true;
         self.attr_type_id = attr_type_id_in;
@@ -223,68 +130,158 @@ impl BooleanAttribute<'_> {
         self.observation_date = observation_date_in;
         Ok(())
     }
-    /*
-     /** Removes this object from the system. */
-       fn delete() {
-       db.delete_boolean_attribute(id)
-       }
-
-     /** For descriptions of the meanings of these variables, see the comments
-       on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes.
-       */
-       private let mut m_boolean: bool = false;
-    */
 }
 
-impl Attribute for BooleanAttribute {
-    %%CK THE ABOVE AND SEE IF THEY ARE THERE FIRST, MOVE BEFORE REDOING!
-
+impl Attribute for BooleanAttribute<'_> {
     /// Return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
-    fn get_display_string(length_limit_in: i32, unused: Option<Entity> /*= None*/, unused2: Option<RelationType>/*=None*/, simplify: bool/* = false*/) -> String {
-        let type_name: String = db.get_entity_name(get_attr_type_id()).get;
-        let mut result: String = type_name + ": " + get_boolean + "";
-        if ! simplify) result += "; " + get_dates_description
-        Attribute.limit_attribute_description_length(result, length_limit_in)
+    fn get_display_string(
+        &mut self,
+        length_limit_in: usize,
+        unused: Option<Entity>,        /*= None*/
+        unused2: Option<RelationType>, /*=None*/
+        simplify: bool,                /* = false*/
+    ) -> Result<String, anyhow::Error> {
+        let attr_type_id = self.get_attr_type_id(&None)?;
+        let type_name: String = match self.db.get_entity_name(&None, attr_type_id)? {
+            None => "(None)".to_string(),
+            Some(x) => x,
+        };
+        let mut result: String = format!("{}: {}", type_name, self.get_boolean(&None)?);
+        if !simplify {
+            result = format!(
+                "{}; {}",
+                result,
+                Util::get_dates_description(self.valid_on_date, self.observation_date)
+            );
+        }
+        Ok(Util::limit_attribute_description_length(
+            result.as_str(),
+            length_limit_in,
+        ))
     }
 
-    fn read_data_from_db() {
-        to%%do!()
+    fn read_data_from_db(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<(), anyhow::Error> {
+        let ba_type_data: Vec<Option<DataType>> =
+            self.db.get_boolean_attribute_data(transaction, self.id)?;
+        if ba_type_data.len() == 0 {
+            return Err(anyhow!(
+                "No results returned from data request for: {}",
+                self.id
+            ));
+        }
+
+        //%%$%%%what do about making this into shared code? duplicate it or can work from the Trait/s? see in anki re : to get fns from a trait (search
+        // rustlang deck re trait, is near end of a note), or
+        // the newtype pattern?
+        //idea: surely there is some better way than what I am doing here? See other places similarly.  Maybe implement DataType.clone() ?
+
+        // super.assign_common_vars(ba_type_data(0).get.asInstanceOf[i64], ba_type_data(2).get.asInstanceOf[i64], ba_type_data(3).asInstanceOf[Option<i64>],
+        //                        ba_type_data(4).get.asInstanceOf[i64], ba_type_data(5).get.asInstanceOf[i64])
+        self.already_read_data = true;
+
+        self.parent_id = match ba_type_data[0] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[0])),
+        };
+        self.attr_type_id = match ba_type_data[2] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[2])),
+        };
+        // DataType::Bigint(self.sorting_index) = ba_type_data[5];
+        self.sorting_index = match ba_type_data[5] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[5])),
+        };
+
+        //%%$%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
+        // valid_on_date: Option<i64> /*%%= None*/,
+        /*DataType::Bigint(%%)*/
+        self.valid_on_date = None; //ba_type_data[3];
+                                   // self.valid_on_date = match ba_type_data[3] {
+                                   //     DataType::Bigint(x) => x,
+                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[3])),
+                                   // };
+
+        // DataType::Bigint(self.observation_date) = ba_type_data[4];
+        self.observation_date = match ba_type_data[4] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[4])),
+        };
+        // DataType::Boolean(self.boolean_value) = ba_type_data[1];
+        self.boolean_value = match ba_type_data[1] {
+            Some(DataType::Boolean(b)) => b,
+            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[1])),
+        };
+        Ok(())
     }
 
-    fn delete() {
-        todo%%!()
+    fn delete<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        id_in: i64,
+    ) -> Result<u64, anyhow::Error> {
+        self.db.delete_boolean_attribute(transaction, id_in)
     }
 
-    fn get_id_wrapper() -> IdWrapper {
-        todo!(%%)
+    fn get_id_wrapper(&self) -> IdWrapper {
+        IdWrapper::new(self.id)
     }
 
-    fn get_id() -> i64 {
-        todo!()%%
+    // This datum is provided upon construction (new2(), at minimum), so can be returned
+    // regardless of already_read_data / read_data_from_db().
+    fn get_id(&self) -> i64 {
+        self.id
     }
 
     fn get_form_id(&self) -> Result<i32, Error> {
-        todo!()%%
+        // self.db.get_attribute_form_id(was in scala:  this.getClass.getSimpleName)
+        //%% Since not using the reflection(?) from the line above, why not just return a constant
+        //here?  What other places call the below method and its reverse? Do they matter now?
+        self.db.get_attribute_form_id(Util::BOOLEAN_TYPE)
     }
 
-    fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64) {
-        todo!()%%
+    // fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64) {
+    //   parent_id = parent_id_in
+    //   attr_type_id = attr_type_id_in
+    //   sorting_index = sorting_index_in
+    //   already_read_data = true
+    // }
+
+    fn get_attr_type_id(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.attr_type_id)
     }
 
-    fn get_attr_type_id() -> i64 {
-        todo!()%%
+    fn get_sorting_index(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction);
+        }
+        Ok(self.sorting_index)
     }
 
-    fn get_sorting_index() -> i64 {
-        todo!()%%
-    }
-
-    fn get_parent_id() -> i64 {
-        todo!()%%
+    fn get_parent_id(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.parent_id)
     }
 }
 
-impl AttributeWithValidAndObservedDates for BooleanAttribute {
+impl AttributeWithValidAndObservedDates for BooleanAttribute<'_> {
     fn get_valid_on_date(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -303,4 +300,52 @@ impl AttributeWithValidAndObservedDates for BooleanAttribute {
         }
         Ok(self.observation_date)
     }
+}
+
+#[cfg(test)]
+mod test {
+    /*%%put this back when it is time to learn from mockall docs, since putting "#[automock]" at
+        the top of Database gets ~500 errors, and automock in docs is not supported. See:
+        https://docs.rs/mockall/latest/
+        ...and search for "mock!", click/open that/use it, and then mbe cont reading at "Static return values".
+    use super::*;
+    use mockall::{automock, mock, predicate::*};
+
+    /// BA should "return correct string and length"
+    #[test]
+    fn test_get_display_string() {
+        // let mock_db = mock[PostgreSQLDatabase];
+        let mut mock_db = MockDatabase::new();
+        let entity_id = 0;
+        let boolean_value = true;
+        let other_entity_id = 1;
+        let boolean_attribute_id = 0;
+        //arbitrary, in milliseconds:
+        let date = 304;
+        let attr_type_name = "description";
+        // when(mock_db.get_entity_name(other_entity_id)).thenReturn(Some(attr_type_name))
+        mock_db.expect_get_entity_name()
+            .with(predicate::eq(other_entity_id))
+            .times(1)
+            .returning(|| "description");
+        // when(mock_db.boolean_attribute_key_exists(boolean_attribute_id)).thenReturn(true)
+
+        // (using arbitrary numbers for the unnamed parameters):
+        let mut boolean_attribute = BooleanAttribute::new(mock_db, boolean_attribute_id,
+                                                      entity_id, other_entity_id,
+                                                      boolean_value, None,
+                                                      date, 0);
+        let small_limit = 35;
+        let display1: String = boolean_attribute.get_display_string(small_limit, None, None)?;
+        let whole_thing: String = format!("{}: true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:{} MST", attr_type_name, date);
+        // idea: put the real string here instead of dup logic?;
+        // let expected: String = whole_thing.substring(0, small_limit - 3) + "..." ;
+        let expected: String = Util::substring_from_start(whole_thing.as_str(), small_limit - 3) + "...";
+        assert!(display1 == expected);
+
+        let unlimited = 0;
+        let display2: String = boolean_attribute.get_display_string(unlimited, None, None)?;
+        assert!(display2 == whole_thing);
+    }
+    */
 }

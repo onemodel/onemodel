@@ -638,22 +638,34 @@ impl Util {
     /// @return A value equal or shorter in length.
     // This came from Attribute.rs, to be able to call it w/o errors from rustc.
     pub fn limit_attribute_description_length(input: &str, length_limit_in: usize) -> String {
-        if length_limit_in != 0 && input.length > length_limit_in {
-            //In scala this was:   input.substring(0, length_limit_in - 3) + "..."
-
-            // This is a convenience, and maybe good enough for roughly displaying text when only
-            // the last letter(s) could be in error (right?).  But instead should I
-            // be using something like the unicode-segmentation crate, then UnicodeSegmentation::graphemes() ?
-            // This per https://users.rust-lang.org/t/how-to-get-a-substring-of-a-string/1351 .
-            // (The next 2 lines are another suggestion from that same above URL:)
-            //let mut end : usize = 0;
-            //s.chars().into_iter().take(6).for_each(|x| end += x.len_utf8());
-            let limit = length_limit_in - 3;
-            let end = input.chars().map(|c| c.len_utf8()).take(limit).sum();
-            format!("{}...", &input[..end])
+        //%%does this method have any purpose now that should not be handled instead inside the
+        // fn substring* below?
+        if length_limit_in != 0 && input.len() > length_limit_in {
+            let substr = Util::substring_from_start(input, length_limit_in - 3);
+            format!("{}...", substr)
         } else {
             input.to_string()
         }
+    }
+
+    pub fn substring_from_start(s: &str, length: usize) -> String {
+        // This is a convenience, and maybe good enough for roughly displaying text when only
+        // the last letter(s) could be miscalculated anyway (right?).
+
+        // In scala this (from fn limit_attribute_description_length) was like:
+        //    input.substring(0, length_limit_in - 3) + "..."
+
+        // Instead, should I be using something like the unicode-segmentation crate, then
+        // UnicodeSegmentation::graphemes() ?  Or, could search for substring on crates.io.
+
+        // This is per https://users.rust-lang.org/t/how-to-get-a-substring-of-a-string/1351 .
+        // (The next 2 lines are another suggestion from that same above URL:)
+        //let mut end : usize = 0;
+        //s.chars().into_iter().take(6).for_each(|x| end += x.len_utf8());
+
+        //%%what if length is too long? test4that or just look up what take does...?
+        let end = s.chars().map(|c| c.len_utf8()).take(length).sum();
+        format!("{}", &s[..end])
     }
 
     //idea: make this more generic, passing in prompt strings &c, so it's more cleanly useful for DateAttribute instances. Or not: lacks shared code.

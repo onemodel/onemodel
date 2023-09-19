@@ -48,18 +48,18 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let date = 304;
     let rtle: RelationToLocalEntity = db.create_relation_to_local_entity(relation_type_id, entity1.get_id, entity2.get_id, None, date, Some(0));
 
-    let smallLimit = 15;
-    let displayed1: String = rtle.get_display_string(smallLimit, Some(entity2), Some(relationType));
+    let small_limit = 15;
+    let displayed1: String = rtle.get_display_string(small_limit, Some(entity2), Some(relationType));
     let expectedDateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST";
     let wholeExpectedThing: String = relationTypeName + ": " + entity2Name + "; valid unsp'd, obsv'd "+expectedDateOutput;
-    let expected = wholeExpectedThing.substring(0, smallLimit - 3) + "...";
+    let expected = wholeExpectedThing.substring(0, small_limit - 3) + "...";
     assert(displayed1 == expected, "unexpected contents: " + displayed1)
 
     let displayed2: String = rtle.get_display_string(0, Some(entity1), Some(relationType));
     let expected2:String = relationTypeNameInReverseDirection + ": \033[36m" + entity1Name + "\033[0m; valid unsp'd, obsv'd "+expectedDateOutput;
     assert(displayed2 == expected2)
 
-    let displayed3: String = rtle.get_display_string(smallLimit, Some(entity2), Some(relationType), simplify = true);
+    let displayed3: String = rtle.get_display_string(small_limit, Some(entity2), Some(relationType), simplify = true);
     assert(displayed3 == "is husband t...")
 
   }

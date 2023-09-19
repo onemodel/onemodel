@@ -7,79 +7,65 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use anyhow::{anyhow, Result};
+// use anyhow::{anyhow, Result};
 // use chrono::LocalResult;
 // use chrono::prelude::*;
 // use crate::util::Util;
 use crate::model::entity::Entity;
 use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
+use sqlx::{Postgres, Transaction};
 
 /// Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
 /// Originally created as a place to put common stuff between Relation/QuantityAttribute/TextAttribute.
 pub trait Attribute {
+    //%%?:
     // Idea: somehow use language features better to make it cleaner, so we don't need these extra 2 vars, because they are
     // used in 1-2 instances, and ignored in the rest.  One thing is that RelationTo[Local|Remote]Entity and RelationToGroup
     // are Attributes. Should they be?
 
     fn get_display_string(
-        in_length_limit: i32,
+        &mut self,
+        in_length_limit: usize,
         parent_entity: Option<Entity>,
         in_rt_id: Option<RelationType>,
         simplify: bool, /* = false*/
-    ) -> String;
+    ) -> Result<String, anyhow::Error>;
 
-    fn read_data_from_db();
+    fn read_data_from_db(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<(), anyhow::Error>;
 
-    fn delete();
+    fn delete<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        id_in: i64,
+    ) -> Result<u64, anyhow::Error>;
 
-    fn get_id_wrapper() -> IdWrapper;
-    // was:
-    // fn get_id_wrapper -> IdWrapper {
-    //   new IdWrapper(id)
-    // }
+    fn get_id_wrapper(&self) -> IdWrapper;
 
-    fn get_id() -> i64;
-    // was:
-    // fn get_id -> i64 {
-    //     id
-    // }
+    fn get_id(&self) -> i64;
 
     fn get_form_id(&self) -> Result<i32, anyhow::Error>;
-    // was:
-    // fn get_form_id -> Int {
-    //     Database.get_attribute_form_id(this.getClass.getSimpleName)
-    // }
 
-    fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64);
-    //was:
-    // protected fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64) {
-    //   parent_id = parent_id_in
-    //   attr_type_id = attr_type_id_in
-    //   sorting_index = sorting_index_in
-    //   already_read_data = true
-    // }
+    // fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64);
 
-    fn get_attr_type_id() -> i64;
-    // was:
-    // fn get_attr_type_id() -> i64 {
-    //   if !already_read_data) read_data_from_db()
-    //   attr_type_id
-    // }
+    fn get_attr_type_id(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error>;
 
-    fn get_sorting_index() -> i64;
-    // was:
-    //   fn get_sorting_index -> i64 {
-    //   if !already_read_data) read_data_from_db()
-    //   sorting_index
-    // }
+    fn get_sorting_index(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error>;
 
-    fn get_parent_id() -> i64;
-    // was:
-    // fn get_parent_id() -> i64 {
-    //   if !already_read_data) read_data_from_db()
-    //   parent_id
-    // }
+    fn get_parent_id(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error>;
+
 
     // For descriptions of the meanings of these variables, see the comments
     // on create_tables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.

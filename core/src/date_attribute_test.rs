@@ -16,26 +16,26 @@ import org.scalatest.FlatSpec
 
 class DateAttributeTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct string and length" in {
-    let mockDB = mock[PostgreSQLDatabase];
+    let mock_db = mock[PostgreSQLDatabase];
     let entity_id = 0;
-    let otherEntityId = 1;
+    let other_entity_id = 1;
     let dateAttributeId = 0;
     //arbitrary, in milliseconds:
     let date = 304;
-    let attrTypeName = "aDateTypeName";
-    when(mockDB.get_entity_name(otherEntityId)).thenReturn(Some(attrTypeName))
-    when(mockDB.date_attribute_key_exists(dateAttributeId)).thenReturn(true)
+    let attr_type_name = "aDateTypeName";
+    when(mock_db.get_entity_name(other_entity_id)).thenReturn(Some(attr_type_name))
+    when(mock_db.date_attribute_key_exists(dateAttributeId)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    let dateAttribute = new DateAttribute(mockDB, dateAttributeId, entity_id, otherEntityId, date, 0);
-    let smallLimit = 35;
-    let display1: String = dateAttribute.get_display_string(smallLimit);
-    let wholeThing: String = attrTypeName + ": Wed 1969-12-31 17:00:00:"+date+" MST";
-    let expected:String = wholeThing.substring(0, smallLimit - 3) + "..." // put the real string here instead of dup logic?;
+    let dateAttribute = new DateAttribute(mock_db, dateAttributeId, entity_id, other_entity_id, date, 0);
+    let small_limit = 35;
+    let display1: String = dateAttribute.get_display_string(small_limit);
+    let whole_thing: String = attr_type_name + ": Wed 1969-12-31 17:00:00:"+date+" MST";
+    let expected:String = whole_thing.substring(0, small_limit - 3) + "..." // put the real string here instead of dup logic?;
     assert(display1 == expected)
 
     let unlimited=0;
     let display2: String = dateAttribute.get_display_string(unlimited);
-    assert(display2 == wholeThing)
+    assert(display2 == whole_thing)
   }
 }

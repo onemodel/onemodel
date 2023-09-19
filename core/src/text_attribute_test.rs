@@ -16,27 +16,27 @@ import org.scalatest.FlatSpec
 
 class TextAttributeTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct string and length" in {
-    let mockDB = mock[PostgreSQLDatabase];
+    let mock_db = mock[PostgreSQLDatabase];
     let entity_id = 0;
-    let otherEntityId = 1;
+    let other_entity_id = 1;
     let text_attribute_id = 0;
     //arbitrary, in milliseconds:
     let date = 304;
-    let attrTypeName = "description";
+    let attr_type_name = "description";
     let longDescription = "this is a long description of a thing which may or may not really have a description but here's some text";
-    when(mockDB.get_entity_name(otherEntityId)).thenReturn(Some(attrTypeName))
-    when(mockDB.text_attribute_key_exists(text_attribute_id)).thenReturn(true)
+    when(mock_db.get_entity_name(other_entity_id)).thenReturn(Some(attr_type_name))
+    when(mock_db.text_attribute_key_exists(text_attribute_id)).thenReturn(true)
 
     // (using arbitrary numbers for the unnamed parameters):
-    let textAttribute = new TextAttribute(mockDB, text_attribute_id, entity_id, otherEntityId, longDescription, None, date, 0);
-    let smallLimit = 35;
-    let display1: String = textAttribute.get_display_string(smallLimit, None, None);
-    let wholeThing: String = attrTypeName + ": \"" + longDescription + "\"; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:"+date+" MST";
-    let expected:String = wholeThing.substring(0, smallLimit - 3) + "..." // put the real string here instead of dup logic?;
+    let textAttribute = new TextAttribute(mock_db, text_attribute_id, entity_id, other_entity_id, longDescription, None, date, 0);
+    let small_limit = 35;
+    let display1: String = textAttribute.get_display_string(small_limit, None, None);
+    let whole_thing: String = attr_type_name + ": \"" + longDescription + "\"; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:"+date+" MST";
+    let expected:String = whole_thing.substring(0, small_limit - 3) + "..." // put the real string here instead of dup logic?;
     assert(display1 == expected)
 
     let unlimited=0;
     let display2: String = textAttribute.get_display_string(unlimited, None, None);
-    assert(display2 == wholeThing)
+    assert(display2 == whole_thing)
   }
 }

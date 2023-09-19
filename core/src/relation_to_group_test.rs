@@ -38,7 +38,7 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
   }
 
   "get_display_string" should "return correct string and length" in {
-    let mockDB = mock[PostgreSQLDatabase];
+    let mock_db = mock[PostgreSQLDatabase];
 
     // arbitrary...:
     let rtgId: i64 = 300;
@@ -52,59 +52,59 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     // arbitrary, in milliseconds:
     let date = 304;
     let relationTypeName: String = Database.THE_HAS_RELATION_TYPE_NAME;
-    when(mockDB.group_key_exists(groupId)).thenReturn(true)
-    when(mockDB.relation_type_key_exists(rel_type_id)).thenReturn(true)
-    when(mockDB.entity_key_exists(rel_type_id)).thenReturn(true)
-    when(mockDB.relation_to_group_keys_exist_and_match(rtgId, entity_id, rel_type_id, groupId)).thenReturn(true)
-    when(mockDB.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(true), Some(false)))
-    when(mockDB.getGroupSize(groupId, 1)).thenReturn(grpEntryCount)
-    when(mockDB.get_relation_type_data(rel_type_id)).thenReturn(Vec<Option<DataType>>(Some(relationTypeName), Some(Database.THE_IS_HAD_BY_REVERSE_NAME), Some("xyz..")))
-    when(mockDB.get_remote_address).thenReturn(None)
+    when(mock_db.group_key_exists(groupId)).thenReturn(true)
+    when(mock_db.relation_type_key_exists(rel_type_id)).thenReturn(true)
+    when(mock_db.entity_key_exists(rel_type_id)).thenReturn(true)
+    when(mock_db.relation_to_group_keys_exist_and_match(rtgId, entity_id, rel_type_id, groupId)).thenReturn(true)
+    when(mock_db.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(true), Some(false)))
+    when(mock_db.getGroupSize(groupId, 1)).thenReturn(grpEntryCount)
+    when(mock_db.get_relation_type_data(rel_type_id)).thenReturn(Vec<Option<DataType>>(Some(relationTypeName), Some(Database.THE_IS_HAD_BY_REVERSE_NAME), Some("xyz..")))
+    when(mock_db.get_remote_address).thenReturn(None)
 
     // (using arbitrary numbers for the unnamed parameters):
-    let relationToGroup = new RelationToGroup(mockDB, rtgId, entity_id, rel_type_id, groupId, None, date, 0);
-    let smallLimit = 15;
+    let relationToGroup = new RelationToGroup(mock_db, rtgId, entity_id, rel_type_id, groupId, None, date, 0);
+    let small_limit = 15;
     let observed_dateOutput = "Wed 1969-12-31 17:00:00:" + date + " MST";
-    let wholeThing: String = relationTypeName + " grp " + groupId + " /" + grpEntryCount + ": " + grpName + ", class: (mixed); valid unsp'd, obsv'd " + observed_dateOutput;
+    let whole_thing: String = relationTypeName + " grp " + groupId + " /" + grpEntryCount + ": " + grpName + ", class: (mixed); valid unsp'd, obsv'd " + observed_dateOutput;
 
-    let displayed: String = relationToGroup.get_display_string(smallLimit, None);
-    let expected = wholeThing.substring(0, smallLimit - 3) + "...";
+    let displayed: String = relationToGroup.get_display_string(small_limit, None);
+    let expected = whole_thing.substring(0, small_limit - 3) + "...";
     assert(displayed == expected)
     // idea (is in tracked tasks): put next 2 lines back after color refactoring is done (& places w/ similar comment elsewhere)
     //  let all: String = relationToGroup.get_display_string(0, None);
-    //  assert(all == wholeThing)
+    //  assert(all == whole_thing)
 
-    let relationToGroup2 = new RelationToGroup(mockDB, rtgId, entity_id, rel_type_id, groupId, None, date, 0);
-    when(mockDB.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(false), Some(false)))
+    let relationToGroup2 = new RelationToGroup(mock_db, rtgId, entity_id, rel_type_id, groupId, None, date, 0);
+    when(mock_db.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(false), Some(false)))
     let all2: String = relationToGroup2.get_display_string(0, None);
     assert(!all2.contains("(mixed)"))
     assert(all2.contains(", class: (unspecified)"))
 
-    let relationToGroup3 = new RelationToGroup(mockDB, rtgId, entity_id, rel_type_id, groupId, None, date, 0);
-    when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
+    let relationToGroup3 = new RelationToGroup(mock_db, rtgId, entity_id, rel_type_id, groupId, None, date, 0);
+    when(mock_db.entity_key_exists(classTemplateEntityId)).thenReturn(true)
     let list = new Vec<Entity>(1);
-    list.add(new Entity(mockDB, classTemplateEntityId, "asdf", None, 0L, None, false, false))
-    when(mockDB.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list)
-    when(mockDB.getGroupSize(groupId, 3)).thenReturn(list.size)
+    list.add(new Entity(mock_db, classTemplateEntityId, "asdf", None, 0L, None, false, false))
+    when(mock_db.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list)
+    when(mock_db.getGroupSize(groupId, 3)).thenReturn(list.size)
     let all3: String = relationToGroup3.get_display_string(0, None);
     assert(!all3.contains("(mixed)"))
     assert(all3.contains(", class: (specified as None)"))
 
-    let relationToGroup4 = new RelationToGroup(mockDB, rtgId, entity_id, rel_type_id, groupId, None, date, 0);
+    let relationToGroup4 = new RelationToGroup(mock_db, rtgId, entity_id, rel_type_id, groupId, None, date, 0);
     let list4 = new Vec<Entity>(1);
-    list4.add(new Entity(mockDB, classTemplateEntityId, "asdf", Some(classId), 0L, Some(true), false, false))
-    when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
-    when(mockDB.class_key_exists(classId)).thenReturn(true)
-    when(mockDB.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list4)
+    list4.add(new Entity(mock_db, classTemplateEntityId, "asdf", Some(classId), 0L, Some(true), false, false))
+    when(mock_db.entity_key_exists(classTemplateEntityId)).thenReturn(true)
+    when(mock_db.class_key_exists(classId)).thenReturn(true)
+    when(mock_db.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list4)
     let className = "someClassName";
-    when(mockDB.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(classTemplateEntityId), Some(true)))
+    when(mock_db.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(classTemplateEntityId), Some(true)))
     let all4: String = relationToGroup4.get_display_string(0, None);
     assert(!all4.contains("(mixed)"))
     assert(all4.contains(", class: " + className))
   }
 
   "getTemplateEntity" should "work right" in {
-    let mockDB = mock[PostgreSQLDatabase];
+    let mock_db = mock[PostgreSQLDatabase];
     let rtgId: i64 = 300;
     let groupId: i64 = 301;
     //val parentId: i64 = 302
@@ -114,34 +114,34 @@ class RelationToGroupTest extends FlatSpec with MockitoSugar {
     let classId: i64 = 501;
     let className = "someclassname";
     let grpName: String = "somename";
-    when(mockDB.relation_type_key_exists(rel_type_id)).thenReturn(true)
-    when(mockDB.entity_key_exists(rel_type_id)).thenReturn(true)
-    when(mockDB.relation_to_group_keys_exist_and_match(rtgId, entity_id, rel_type_id, groupId)).thenReturn(true)
-    when(mockDB.group_key_exists(groupId)).thenReturn(true)
+    when(mock_db.relation_type_key_exists(rel_type_id)).thenReturn(true)
+    when(mock_db.entity_key_exists(rel_type_id)).thenReturn(true)
+    when(mock_db.relation_to_group_keys_exist_and_match(rtgId, entity_id, rel_type_id, groupId)).thenReturn(true)
+    when(mock_db.group_key_exists(groupId)).thenReturn(true)
 
-    let group = new Group(mockDB, groupId);
-    when(mockDB.group_key_exists(groupId)).thenReturn(true)
-    when(mockDB.entity_key_exists(entity_id)).thenReturn(true)
-    when(mockDB.entity_key_exists(classTemplateEntityId)).thenReturn(true)
-    when(mockDB.class_key_exists(classId)).thenReturn(true)
-    when(mockDB.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(new Vec<Entity>(0))
-    when(mockDB.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(classTemplateEntityId), Some(true)))
-    when(mockDB.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(false), Some(false)))
-    when(mockDB.get_remote_address).thenReturn(None)
+    let group = new Group(mock_db, groupId);
+    when(mock_db.group_key_exists(groupId)).thenReturn(true)
+    when(mock_db.entity_key_exists(entity_id)).thenReturn(true)
+    when(mock_db.entity_key_exists(classTemplateEntityId)).thenReturn(true)
+    when(mock_db.class_key_exists(classId)).thenReturn(true)
+    when(mock_db.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(new Vec<Entity>(0))
+    when(mock_db.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(classTemplateEntityId), Some(true)))
+    when(mock_db.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(false), Some(false)))
+    when(mock_db.get_remote_address).thenReturn(None)
     // should be None because it is not yet specified (no entities added):
     assert(group.getClassTemplateEntity.isEmpty)
 
     let list = new Vec<Entity>(1);
-    let entity = new Entity(mockDB, entity_id, "testEntityName", Some(classId), 0L, Some(false), false, false);
+    let entity = new Entity(mock_db, entity_id, "testEntityName", Some(classId), 0L, Some(false), false, false);
     list.add(entity)
-    when(mockDB.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list)
+    when(mock_db.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list)
     // should be != None because mixed classes are NOT allowed in the group and an entity was added:
     assert(group.getClassTemplateEntity.get.get_id == classTemplateEntityId)
 
-    //relationToGroup = new RelationToGroup(mockDB, entity_id, rel_type_id, groupId, None, date)
+    //relationToGroup = new RelationToGroup(mock_db, entity_id, rel_type_id, groupId, None, date)
     // should be None when mixed classes are allowed in the group:
-    when(mockDB.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(true), Some(false)))
-    let group2 = new Group(mockDB, groupId);
+    when(mock_db.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(true), Some(false)))
+    let group2 = new Group(mock_db, groupId);
     assert(group2.getClassTemplateEntity.isEmpty)
   }
 
