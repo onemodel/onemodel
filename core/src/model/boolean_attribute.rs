@@ -25,13 +25,13 @@ pub struct BooleanAttribute<'a> {
     // and/or examples in the database testing code.
     id: i64,
     db: Box<&'a dyn Database>,
-    boolean_value: bool, /*%%false*/
+    boolean_value: bool,        /*%%false*/
     already_read_data: bool,    /*%%= false*/
-    parent_id: i64,             /*%%= 0L*/
-    attr_type_id: i64,          /*%%= 0L*/
+    parent_id: i64,             /*%%= 0_i64*/
+    attr_type_id: i64,          /*%%= 0_i64*/
     valid_on_date: Option<i64>, /*%%= None*/
-    observation_date: i64,      /*%%= 0L*/
-    sorting_index: i64,         /*%%= 0L*/
+    observation_date: i64,      /*%%= 0_i64*/
+    sorting_index: i64,         /*%%= 0_i64*/
 }
 
 impl BooleanAttribute<'_> {
@@ -137,9 +137,9 @@ impl Attribute for BooleanAttribute<'_> {
     fn get_display_string(
         &mut self,
         length_limit_in: usize,
-        unused: Option<Entity>,        /*= None*/
-        unused2: Option<RelationType>, /*=None*/
-        simplify: bool,                /* = false*/
+        _unused: Option<Entity>,        /*= None*/
+        _unused2: Option<RelationType>, /*=None*/
+        simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
         let attr_type_id = self.get_attr_type_id(&None)?;
         let type_name: String = match self.db.get_entity_name(&None, attr_type_id)? {
@@ -164,9 +164,9 @@ impl Attribute for BooleanAttribute<'_> {
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<(), anyhow::Error> {
-        let ba_type_data: Vec<Option<DataType>> =
+        let data: Vec<Option<DataType>> =
             self.db.get_boolean_attribute_data(transaction, self.id)?;
-        if ba_type_data.len() == 0 {
+        if data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
                 self.id
@@ -178,43 +178,48 @@ impl Attribute for BooleanAttribute<'_> {
         // the newtype pattern?
         //idea: surely there is some better way than what I am doing here? See other places similarly.  Maybe implement DataType.clone() ?
 
-        // super.assign_common_vars(ba_type_data(0).get.asInstanceOf[i64], ba_type_data(2).get.asInstanceOf[i64], ba_type_data(3).asInstanceOf[Option<i64>],
-        //                        ba_type_data(4).get.asInstanceOf[i64], ba_type_data(5).get.asInstanceOf[i64])
+        // super.assign_common_vars(data(0).get.asInstanceOf[i64], data(2).get.asInstanceOf[i64], data(3).asInstanceOf[Option<i64>],
+        //                        data(4).get.asInstanceOf[i64], data(5).get.asInstanceOf[i64])
         self.already_read_data = true;
-
-        self.parent_id = match ba_type_data[0] {
-            Some(DataType::Bigint(x)) => x,
-            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[0])),
-        };
-        self.attr_type_id = match ba_type_data[2] {
-            Some(DataType::Bigint(x)) => x,
-            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[2])),
-        };
-        // DataType::Bigint(self.sorting_index) = ba_type_data[5];
-        self.sorting_index = match ba_type_data[5] {
-            Some(DataType::Bigint(x)) => x,
-            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[5])),
+        // DataType::Boolean(self.boolean_value) = data[1];
+        self.boolean_value = match data[1] {
+            Some(DataType::Boolean(b)) => b,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[1])),
         };
 
+        //BEGIN COPIED BLOCK descended from Attribute.assign_common_vars (unclear how to do better for now):
+        self.parent_id = match data[0] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[0])),
+        };
+        self.attr_type_id = match data[2] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
+        };
+        // DataType::Bigint(self.sorting_index) = data[5];
+        self.sorting_index = match data[3] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[5])),
+        };
+        //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
+
+        //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
         //%%$%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
         // valid_on_date: Option<i64> /*%%= None*/,
         /*DataType::Bigint(%%)*/
-        self.valid_on_date = None; //ba_type_data[3];
-                                   // self.valid_on_date = match ba_type_data[3] {
+        self.valid_on_date = None; //data[4];
+                                   // self.valid_on_date = match data[3] {
                                    //     DataType::Bigint(x) => x,
-                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[3])),
+                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[3])),
                                    // };
 
-        // DataType::Bigint(self.observation_date) = ba_type_data[4];
-        self.observation_date = match ba_type_data[4] {
+        // DataType::Bigint(self.observation_date) = data[4];
+        self.observation_date = match data[5] {
             Some(DataType::Bigint(x)) => x,
-            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[4])),
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
         };
-        // DataType::Boolean(self.boolean_value) = ba_type_data[1];
-        self.boolean_value = match ba_type_data[1] {
-            Some(DataType::Boolean(b)) => b,
-            _ => return Err(anyhow!("How did we get here for {:?}?", ba_type_data[1])),
-        };
+        //END COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars.
+
         Ok(())
     }
 

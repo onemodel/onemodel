@@ -3618,7 +3618,7 @@ impl Database for PostgreSQLDatabase {
         boolean_id_in: i64,
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let form_id = self.get_attribute_form_id(Util::BOOLEAN_TYPE)?;
-        self.db_query_wrapper_for_one_row(transaction, format!("select ba.entity_id, ba.boolean_value, ba.attr_type_id, ba.valid_on_date, ba.observation_date, asort.sorting_index \
+        self.db_query_wrapper_for_one_row(transaction, format!("select ba.entity_id, ba.boolean_value, ba.attr_type_id, asort.sorting_index, ba.valid_on_date, ba.observation_date \
                                     from BooleanAttribute ba, AttributeSorting asort where id={} and ba.entity_id=asort.entity_id and asort.attribute_form_id={} \
                                      and ba.id=asort.attribute_id",
                                                                boolean_id_in, form_id).as_str(),
