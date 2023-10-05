@@ -889,7 +889,7 @@ pub trait Database {
         id_in: i64,
         parent_id_in: i64,
         attr_type_id_in: i64,
-        text_in: String,
+        text_in: &str,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
     ) -> Result<u64, anyhow::Error>;

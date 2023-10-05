@@ -92,7 +92,7 @@ impl TextAttribute<'_> {
         }
     }
 
-    fn get_text(
+    pub fn get_text(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<&str, anyhow::Error> {
@@ -117,7 +117,7 @@ impl TextAttribute<'_> {
             self.id,
             self.get_parent_id(transaction)?,
             attr_type_id_in,
-            text_in.to_string(),
+            text_in,
             valid_on_date_in,
             observation_date_in,
         )?;
@@ -149,7 +149,7 @@ impl Attribute for TextAttribute<'_> {
         let mut result: String = if simplify && (type_name == "paragraph" || type_name == "quote") {
             self.get_text(&None)?.to_string()
         } else {
-            let mut result = format!("{}: \"{}\"", type_name, self.get_text(&None)?);
+            let result = format!("{}: \"{}\"", type_name, self.get_text(&None)?);
             format!(
                 "{}; {}",
                 result,

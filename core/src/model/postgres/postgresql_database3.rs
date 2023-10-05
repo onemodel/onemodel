@@ -529,11 +529,11 @@ impl Database for PostgreSQLDatabase {
         id_in: i64,
         parent_id_in: i64,
         attr_type_id_in: i64,
-        text_in: String,
+        text_in: &str,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        let text: String = Self::escape_quotes_etc(text_in.clone());
+        let text: String = Self::escape_quotes_etc(text_in.to_string());
         let valid_on = match valid_on_date_in {
             None => "NULL".to_string(),
             Some(d) => format!("{}", d),
@@ -3592,7 +3592,7 @@ impl Database for PostgreSQLDatabase {
         let af_id = self.get_attribute_form_id(Util::TEXT_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
                                           format!("select ta.entity_id, ta.textvalue, ta.attr_type_id, asort.sorting_index, \
-                                          ta.valid_on_date, ta.observation_date, \
+                                          ta.valid_on_date, ta.observation_date \
                              from TextAttribute ta, AttributeSorting asort where id={} and ta.entity_id=asort.entity_id \
                              and asort.attribute_form_id={} and ta.id=asort.attribute_id",
                                                   text_id_in, af_id).as_str(),

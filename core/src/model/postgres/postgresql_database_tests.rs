@@ -18,6 +18,11 @@ use crate::model::postgres::postgresql_database::*;
 // use crate::model::relation_to_local_entity::RelationToLocalEntity;
 // use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::relation_type::RelationType;
+use crate::model::boolean_attribute::BooleanAttribute;
+use crate::model::date_attribute::DateAttribute;
+use crate::model::file_attribute::FileAttribute;
+use crate::model::quantity_attribute::QuantityAttribute;
+use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 // use anyhow::anyhow;
 use chrono::Utc;
@@ -34,6 +39,8 @@ use tracing::*;
 
 #[cfg(test)]
 mod test {
+    use crate::model::attribute::Attribute;
+    use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
     use super::*;
 
     const QUANTITY_TYPE_NAME: &str = "length";
@@ -595,29 +602,33 @@ mod test {
         }
     }
 
-    //%%
-    // fn create_test_text_attribute_with_one_entity(db: PostgreSQLDatabase, in_parent_id: i64, in_valid_on_date: Option<i64> /*= None*/) -> i64 {
-    //     let attr_type_id: i64 = db.create_entity("textAttributeTypeLikeSsn");
-    //     let default_date: i64 = Utc::now().timestamp_millis();
-    //     let valid_on_date: Option<i64> = in_valid_on_date;
-    //     let observation_date: i64 = default_date;
-    //     let text = "some test text";
-    //     let text_attribute_id: i64 = db.create_text_attribute(&None, in_parent_id, attr_type_id, text, valid_on_date, observation_date).unwrap();
-    //     // and verify it:
-    //     let ta: TextAttribute = new TextAttribute(db, text_attribute_id);
-    //     assert(ta.get_parent_id() == in_parent_id)
-    //     assert(ta.get_text == text)
-    //     assert(ta.get_attr_type_id() == attr_type_id)
-    //     if in_valid_on_date.isEmpty {
-    //         assert(ta.get_valid_on_date().isEmpty)
-    //     } else {
-    //         assert(ta.get_valid_on_date().get == in_valid_on_date.get)
-    //     }
-    //     assert(ta.get_observation_date() == observation_date)
-    //
-    //     text_attribute_id
-    // }
-    //
+    fn create_test_text_attribute_with_one_entity(db: &PostgreSQLDatabase, in_parent_id: i64, in_valid_on_date: Option<i64> /*= None*/) -> i64 {
+        let attr_type_id: i64 = db.create_entity(&None, "textAttributeTypeLikeSsn", None, None).unwrap();
+        let default_date: i64 = Utc::now().timestamp_millis();
+        let valid_on_date: Option<i64> = in_valid_on_date;
+        let observation_date: i64 = default_date;
+        let text = "some test text";
+        let text_attribute_id: i64 = db.create_text_attribute(&None, in_parent_id,
+                                                              attr_type_id, text,
+                                                              valid_on_date,
+                                                              observation_date,
+                                                              false, None).unwrap();
+        // and verify it:
+        let mut ta: TextAttribute = TextAttribute::new2(Box::new(db as &dyn Database), &None, text_attribute_id).unwrap();
+        assert!(ta.get_parent_id(&None).unwrap() == in_parent_id);
+        assert!(ta.get_text(&None).unwrap() == text);
+        assert!(ta.get_attr_type_id(&None).unwrap() == attr_type_id);
+        if in_valid_on_date.is_none() {
+            assert!(ta.get_valid_on_date(&None).unwrap().is_none());
+        } else {
+            assert!(ta.get_valid_on_date(&None).unwrap() == in_valid_on_date);
+        }
+        assert!(ta.get_observation_date(&None).unwrap() == observation_date);
+
+        text_attribute_id
+    }
+
+    //%%%%
     // fn createTestDateAttributeWithOneEntity(in_parent_id: i64) -> i64 {
     //     let attr_type_id: i64 = db.create_entity("dateAttributeType--likeDueOn");
     //     let date: i64 = System.currentTimeMillis;
@@ -715,7 +726,7 @@ mod test {
         let observation_date: i64 = Utc::now().timestamp_millis();
         0_i64
 
-        //%%finish when attrs in place again:
+        //%%%%finish when attrs in place again:
         // let id = db.create_relation_to_local_entity(&None, in_rel_type_id,
         //                                             in_entity_id, related_entity_id,
         //                                             in_valid_on_date, observation_date).get_id;
@@ -746,17 +757,17 @@ mod test {
         assert_eq!(name, new_name.unwrap().unwrap().as_str());
 
         //and on an update:
-        //%%FINISH WHEN ATTRS and other above cmted fns are in place
-        // let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(db entity_id);
-        // let a_text_value = "as'dfjkl";
-        // let ta = new TextAttribute(db, text_attribute_id);
-        // let (pid1, atid1) = (ta.get_parent_id(), ta.get_attr_type_id());
-        // db.update_text_attribute(text_attribute_id, pid1, atid1, a_text_value, Some(123), 456)
-        // // have to create new instance to re-read the data:
-        // let ta2 = new TextAttribute(db, text_attribute_id);
-        // let txt2 = ta2.get_text;
-        //
-        // assert(txt2 == a_text_value)
+        let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(&db, entity_id, None);
+        let a_text_value = "as'dfjkl";
+        let mut ta = TextAttribute::new2(Box::new(&db as &dyn Database), &None, text_attribute_id).unwrap();
+        let (pid1, atid1) = (ta.get_parent_id(&None).unwrap(), ta.get_attr_type_id(&None).unwrap());
+        db.update_text_attribute(&None, text_attribute_id, pid1, atid1,
+                                 a_text_value, Some(123), 456);
+        // have to create new instance to re-read the data:
+        let mut ta2 = TextAttribute::new2(Box::new(&db as &dyn Database), &None, text_attribute_id).unwrap();
+        let txt2 = ta2.get_text(&None).unwrap();
+
+        assert!(txt2 == a_text_value);
     }
 
     #[test]

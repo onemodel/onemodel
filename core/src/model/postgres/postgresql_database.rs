@@ -46,9 +46,7 @@ impl PostgreSQLDatabase {
         format!("{}{}", Util::DB_NAME_PREFIX, db_name_without_prefix)
     }
 
-    //%%should this and other eventual callers of db_query take its advice and call the
-    //ck method?
-    //%%$%%I think this will have to return something with an option to deal with valid_on_date or observed_date things....  See callers..?
+    //%%should this and other eventual callers of db_query take its advice and call the ck method?
     pub fn db_query_wrapper_for_one_row(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,

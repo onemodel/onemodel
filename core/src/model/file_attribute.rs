@@ -24,7 +24,7 @@ use std::path::Path;
 
 // Similar/identical code found in *_attribute.rs due to Rust limitations on OO.  Maintain them all similarly.
 /// See BooleanAttribute, TextAttribute etc for some comments.
-struct FileAttribute<'a> {
+pub struct FileAttribute<'a> {
     // For descriptions of the meanings of these variables, see the comments
     // on create_file_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
@@ -151,7 +151,7 @@ impl FileAttribute<'_> {
         let mut file = std::fs::File::open(&path_in)?;
         let n = std::io::copy(&mut file, &mut hasher)?;
         let hash = hasher.finalize();
-        let mut dst = [0 as u8; 32];
+        let dst = [0 as u8; 32];
         //%%low confidence the next line is right.  Doesn't compile (no "into_bytes" &c).  Ck tests.  See those docs?  What is dst for?
         // let hex_hash = base16ct::lower::encode_str(&hash.into_bytes(), &mut dst)?;
         let hex_hash = "%%fix above line and delete this one";

@@ -130,7 +130,7 @@ impl Attribute for DateAttribute<'_> {
             None => "(None)".to_string(),
             Some(x) => x,
         };
-        let mut result: String = format!(
+        let result: String = format!(
             "{}: {}",
             type_name,
             Util::useful_date_format(self.get_date(&None)?)
