@@ -95,7 +95,7 @@ class Group(val db: Database, id: i64) {
     }
 
   // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability, or vals not vars)?
-    fn getSize(includeWhichEntities: Int = 3) -> i64 {
+    fn get_size(includeWhichEntities: Int = 3) -> i64 {
     db.get_group_size(id, includeWhichEntities)
   }
 
@@ -159,7 +159,7 @@ class Group(val db: Database, id: i64) {
       None
     else {
       let class_id: Option<i64> = getClassId;
-      if class_id.isEmpty && getSize() == 0) {
+      if class_id.isEmpty && get_size() == 0) {
         // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
         Some("(unspecified)")
       } else if class_id.isEmpty) {

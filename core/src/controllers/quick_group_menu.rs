@@ -134,7 +134,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
           forwardNotBack = true
         }
         let displayStartingRowNumber: i32 = {;
-          let possibleDisplayStartingRowNumber = placeEntryInPosition(group_in.db, group_in.get_id, group_in.getSize(4), numRowsToMove, forwardNotBack,;
+          let possibleDisplayStartingRowNumber = placeEntryInPosition(group_in.db, group_in.get_id, group_in.get_size(4), numRowsToMove, forwardNotBack,;
                                starting_display_row_index_in, highlightedObjId, highlightedIndexInObjListIn,
                                Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
           if answer != 9) {
@@ -266,7 +266,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     let obj_ids = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {;
       entity.get_id
     }
-    Util.add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.getSize(4), starting_display_row_index_in)
+    Util.add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.get_size(4), starting_display_row_index_in)
     let statusesAndNames: Vec<String> = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {;
       let numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity);
       let archivedStatus = entity.getArchivedStatusDisplayString;
@@ -352,7 +352,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
               // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
               let goingBackward: bool = highlightedIndexInObjList == 0 && group_in.getNewEntriesStickToTop;
               let forwardNotBack = !goingBackward;
-              let displayStartingRowNumber: i32 = placeEntryInPosition(group_in.db, group_in.get_id, group_in.getSize(4), 0,;
+              let displayStartingRowNumber: i32 = placeEntryInPosition(group_in.db, group_in.get_id, group_in.get_size(4), 0,;
                                                                        forward_not_back_in = forwardNotBack, starting_display_row_index_in, new_entity_id,
                                                                        highlightedIndexInObjList, Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
               controller.defaultAttributeCopying(newEntity)
@@ -429,7 +429,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
                   // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
                   let goingBackward: bool = highlightedIndexInObjList == 0 && group_in.getNewEntriesStickToTop;
                   let forward = !goingBackward;
-                  let newDisplayStartingRowNumber: i32 = placeEntryInPosition(group_in.db, group_in.get_id, group_in.getSize(4), 0, forward_not_back_in = forward,;
+                  let newDisplayStartingRowNumber: i32 = placeEntryInPosition(group_in.db, group_in.get_id, group_in.get_size(4), 0, forward_not_back_in = forward,;
                                                                               starting_display_row_index_in, entityChosenId, highlightedIndexInObjList,
                                                                               Some(highlightedObjId), objectsToDisplay.size, -1, Some(-1))
                   (Some(new Entity(group_in.db, entityChosenId)), newDisplayStartingRowNumber)
@@ -453,7 +453,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
         } else if answer == 6) {
           let (entryToHighlight: Option<Entity>, displayStartingRowNumber: Int) = {;
             let nextStartPosition = starting_display_row_index_in + objectsToDisplay.size;
-            if nextStartPosition >= group_in.getSize(4)) {
+            if nextStartPosition >= group_in.get_size(4)) {
               ui.display_text("End of attribute list found; restarting from the beginning.")
               (None, 0) // start over
             } else (highlightedEntityIn, nextStartPosition)
@@ -464,7 +464,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
           // THE OTHER MIGHT ALSO NEED MAINTENANCE!
           let choices = Vec<String>(Util.UNSELECT_MOVE_TARGET_PROMPT_TEXT);
           let leading_text: Vec<String> = Array(Util.UNSELECT_MOVE_TARGET_LEADING_TEXT);
-          Util.add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.getSize(4), starting_display_row_index_in)
+          Util.add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.get_size(4), starting_display_row_index_in)
 
           let response = ui.ask_which(Some(leading_text), choices, statusesAndNames, highlightIndexIn = Some(highlightedIndexInObjList),;
                                      secondaryHighlightIndexIn = moveTargetIndexInObjList)
@@ -496,7 +496,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
           let choices = Vec<String>("keep existing (same as ESC)");
           // says 'same screenful' because (see similar cmt elsewhere).
           let leading_text: Vec<String> = Array("CHOOSE AN ENTRY to highlight (*)");
-          Util.add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.getSize(4), starting_display_row_index_in)
+          Util.add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.get_size(4), starting_display_row_index_in)
           let response = ui.ask_which(Some(leading_text), choices, statusesAndNames, highlightIndexIn = Some(highlightedIndexInObjList),;
                                      secondaryHighlightIndexIn = moveTargetIndexInObjList)
           let (entityToHighlight, selectedTargetEntity): (Option<Entity>, Option<Entity>) =;

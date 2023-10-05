@@ -806,7 +806,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
               printWriter.println("    <li><pre>" + htmlEncode(textAttr.get_display_string(0, None, None, simplify = true)) + "</pre></li>")
             }
           case fileAttr: FileAttribute =>
-            let originalPath = fileAttr.getOriginalFilePath;
+            let originalPath = fileAttr.get_original_file_path();
             let fileName = {;
               if originalPath.indexOf("/") >= 0) originalPath.substring(originalPath.lastIndexOf("/") + 1)
               else if originalPath.indexOf("\\") >= 0) originalPath.substring(originalPath.lastIndexOf("\\") + 1)

@@ -677,8 +677,14 @@ impl TextUI {
           let oldNameInTmpDir: File = new File(System.getProperty("java.io.tmpdir"), originalNameIn);
           if oldNameInTmpDir.getParentFile.canWrite && !oldNameInTmpDir.exists()) Some(oldNameInTmpDir)
           else {
-            let (baseName, extension) = Util::get_usable_filename(originalPathIn);
-            Some(File.createTempFile(baseName + "-", extension))
+            let (base_name, extension) = Util::get_usable_filename(originalPathIn);
+            // for rust, see crate:  temp-file and its doc/refs to others, and
+            // https://docs.rs/temp-file/0.1.7/temp_file/struct.TempFile.html#method.with_prefix
+            // ...and similar methods chained like in ex at top of page, to get right result.
+            // and use the leak() method so it isn't deleted on drop.
+            // (Or: could consider just writing to a file with a random portion in its name, but that
+            // ignores all the improvements/lessons embodied in the temp-file or similar crate.)
+            Some(File.createTempFile(base_name + "-", extension))
           }
         }
         let originalFile = new File(originalPathIn);
@@ -696,7 +702,7 @@ impl TextUI {
         } else {
           let yesExportTheFile: Option<bool> = {;
             if originalFile.exists) {
-              if FileAttribute.md5Hash(originalFile) != originalMd5HashIn) Some(true)
+              if FileAttribute::md5_hash(originalFile) != originalMd5HashIn) Some(true)
               else {
                 ask_yes_no_question("The file currently at " + originalPathIn + " is identical to the one stored.  Export anyway?  (Answering " +
                                  "'y' will still allow choosing whether to overwrite it or write to a new location instead.)")

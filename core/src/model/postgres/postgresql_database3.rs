@@ -533,7 +533,7 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        let text: String = Self::escape_quotes_etc(text_in);
+        let text: String = Self::escape_quotes_etc(text_in.clone());
         let valid_on = match valid_on_date_in {
             None => "NULL".to_string(),
             Some(d) => format!("{}", d),
@@ -3470,8 +3470,8 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::QUANTITY_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
-                                          format!("select qa.entity_id, qa.unit_id, qa.quantity_number, qa.attr_type_id, qa.valid_on_date, \
-                                                 qa.observation_date, asort.sorting_index \
+                                          format!("select qa.entity_id, qa.unit_id, qa.attr_type_id, asort.sorting_index, \
+                                          qa.valid_on_date, qa.observation_date, qa.quantity_number \
                                        from QuantityAttribute qa, AttributeSorting asort where qa.id={} and qa.entity_id=asort.entity_id and \
                                        asort.attribute_form_id={} and qa.id=asort.attribute_id", quantity_id_in, af_id).as_str(),
                                           Util::GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES)
@@ -3591,8 +3591,9 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::TEXT_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
-                                          format!("select ta.entity_id, ta.textvalue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, \
-                             asort.sorting_index from TextAttribute ta, AttributeSorting asort where id={} and ta.entity_id=asort.entity_id \
+                                          format!("select ta.entity_id, ta.textvalue, ta.attr_type_id, asort.sorting_index, \
+                                          ta.valid_on_date, ta.observation_date, \
+                             from TextAttribute ta, AttributeSorting asort where id={} and ta.entity_id=asort.entity_id \
                              and asort.attribute_form_id={} and ta.id=asort.attribute_id",
                                                   text_id_in, af_id).as_str(),
                                           Util::GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES)
@@ -3632,8 +3633,8 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::FILE_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
-                                          format!("select fa.entity_id, fa.description, fa.attr_type_id, fa.original_file_date, fa.stored_date, \
-                             fa.original_file_path, fa.readable, fa.writable, fa.executable, fa.size, fa.md5hash, asort.sorting_index \
+                                          format!("select fa.entity_id, fa.description, fa.attr_type_id, asort.sorting_index, fa.original_file_date, fa.stored_date, \
+                             fa.original_file_path, fa.readable, fa.writable, fa.executable, fa.size, fa.md5hash \
                               from FileAttribute fa, AttributeSorting asort where id={} and fa.entity_id=asort.entity_id and asort.attribute_form_id={} \
                                and fa.id=asort.attribute_id",
                                                   file_id_in, af_id).as_str(),
@@ -3669,7 +3670,7 @@ impl Database for PostgreSQLDatabase {
 
     //   /// Returns whether the stored and calculated md5hashes match, and an error message when they don't.
     // fn verify_file_attribute_content_integrity(fileAttributeIdIn: i64) -> (Boolean, Option<String>) {
-    //     // Idea: combine w/ similar logic in FileAttribute.md5Hash?
+    //     // Idea: combine w/ similar logic in FileAttribute::md5_hash?
     //     // Idea: compare actual/stored file sizes also? or does the check of md5 do enough as is?
     //     // Idea (tracked in tasks): switch to some SHA algorithm since they now say md5 is weaker?
     //     let messageDigest = java.security.MessageDigest.getInstance("MD5");

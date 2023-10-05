@@ -78,11 +78,11 @@ impl Util {
     pub const GET_RELATION_TYPE_DATA__RESULT_TYPES: &'static str = "String,String,String";
     pub const GET_OM_INSTANCE_DATA__RESULT_TYPES: &'static str = "bool,String,i64,i64";
     pub const GET_QUANTITY_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
-        "i64,i64,Float,i64,i64,i64,i64";
+        "i64,i64,i64,i64,i64,i64,Float";
     pub const GET_DATE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,i64,i64,i64";
     pub const GET_BOOLEAN_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,bool,i64,i64,i64,i64";
     pub const GET_FILE_ATTRIBUTE_DATA__RESULT_TYPES: &'static str =
-        "i64,String,i64,i64,i64,String,bool,bool,bool,i64,String,i64";
+        "i64,String,i64,i64,i64,i64,String,bool,bool,bool,i64,String";
     pub const GET_TEXT_ATTRIBUTE_DATA__RESULT_TYPES: &'static str = "i64,String,i64,i64,i64,i64";
     pub const GET_RELATION_TO_GROUP_DATA_BY_ID__RESULT_TYPES: &'static str =
         "i64,i64,i64,i64,i64,i64,i64";

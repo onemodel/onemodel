@@ -548,13 +548,13 @@ impl Entity<'_> {
         if !inFile.exists()) {
           throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
         }
-        // idea: could be a little faster if the md5Hash method were merged into the database method, so that the file is only traversed once (for both
+        // idea: could be a little faster if the md5_hash method were merged into the database method, so that the file is only traversed once (for both
         // upload and md5 calculation).
         let mut inputStream: java.io.FileInputStream = null;
         try {
           inputStream = new FileInputStream(inFile)
           let id = db.create_file_attribute(id, inAttrTypeId, description_in, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,;
-                                           inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute.md5Hash(inFile), inputStream,
+                                           inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute::md5_hash(inFile), inputStream,
                                            sorting_index_in)
           new FileAttribute(db, id)
         }

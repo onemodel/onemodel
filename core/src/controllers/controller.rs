@@ -672,7 +672,7 @@ impl Controller {
                 def update_file_attribute(dhInOut: FileAttributeDataHolder) {
                   fa.update(Some(dhInOut.attr_type_id), Some(dhInOut.description))
                 }
-                let fileAttributeDH: FileAttributeDataHolder = new FileAttributeDataHolder(fa.get_attr_type_id(), fa.getDescription, fa.getOriginalFilePath);
+                let fileAttributeDH: FileAttributeDataHolder = new FileAttributeDataHolder(fa.get_attr_type_id(), fa.get_description(), fa.get_original_file_path());
                 askForInfoAndUpdateAttribute[FileAttributeDataHolder](attributeIn.db, fileAttributeDH, askForAttrTypeId = true, Util.FILE_TYPE, "CHOOSE TYPE OF FILE:",
                                                                       Util.ask_for_file_attribute_info, update_file_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
@@ -707,7 +707,7 @@ impl Controller {
             //%%see 1st instance of try {  for rust-specific idea here.
             try {
               // this file should be confirmed by the user as ok to write, even overwriting what is there.
-              let file: Option[File] = ui.getExportDestination(fa.getOriginalFilePath, fa.getMd5Hash);
+              let file: Option[File] = ui.getExportDestination(fa.get_original_file_path(), fa.get_md5hash());
               if file.is_defined) {
                 fa.retrieveContent(file.get)
                 ui.display_text("File saved at: " + file.get.getCanonicalPath)
@@ -1606,7 +1606,7 @@ impl Controller {
         fn addEntityToGroup(group_in: Group) -> Option<i64> {
         let new_entity_id: Option<i64> = {;
           if !group_in.getMixedClassesAllowed) {
-            if group_in.getSize() == 0) {
+            if group_in.get_size() == 0) {
               // adding 1st entity to this group, so:
               let leading_text = List("ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):");
               let id_wrapper: Option[(IdWrapper, _, _)] = chooseOrCreateObject(group_in.db, Some(leading_text), None, None, Util.ENTITY_TYPE,;
@@ -1759,9 +1759,9 @@ impl Controller {
                                                                                                  Some("SELECT TYPE OF FILE: "), Util.ask_for_file_attribute_info,
                                                                                                  addFileAttribute).asInstanceOf[Option[FileAttribute]]
           if result.is_defined) {
-            let ans = ui.ask_yes_no_question("Document successfully added. Do you want to DELETE the local copy (at " + result.get.getOriginalFilePath + " ?");
+            let ans = ui.ask_yes_no_question("Document successfully added. Do you want to DELETE the local copy (at " + result.get.get_original_file_path() + " ?");
             if ans.is_defined && ans.get) {
-              if !new File(result.get.getOriginalFilePath).delete()) {
+              if !new File(result.get.get_original_file_path()).delete()) {
                 ui.display_text("Unable to delete file at that location; reason unknown.  You could check the permissions.")
               }
             }

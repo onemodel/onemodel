@@ -7,98 +7,344 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-struct QuantityAttribute {
-/*%%
-package org.onemodel.core.model
+use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
+use crate::model::database::DataType;
+use crate::model::database::Database;
+use crate::util::Util;
+use anyhow::{anyhow, Error, Result};
+// use sqlx::{PgPool, Postgres, Row, Transaction};
+use crate::model::attribute::Attribute;
+use crate::model::entity::Entity;
+// use crate::model::id_wrapper::IdWrapper;
+use crate::model::relation_type::RelationType;
+use sqlx::{Postgres, Transaction};
 
-import org.onemodel.core.{OmException, Util}
+// Similar/identical code found in *_attribute.rs due to Rust limitations on OO.  Maintain them all similarly.
+/// Represents one quantity object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
+pub struct QuantityAttribute<'a> {
+    // For descriptions of the meanings of these variables, see the comments
+    // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
+    // and/or examples in the database testing code.
+    id: i64,
+    db: Box<&'a dyn Database>,
+    // **idea: make these members immutable?, by replacing them with something like:
+    //           let (unit_id: i64, number: f64) = read_data_from_db();
+    // BUT: have to figure out how to work with the
+    // assignment from the other constructor, and passing vals to the Trait(scala: was superclass?) to be...immutable.
+    // like how additional class vals are set when the other constructor (what's the term again?), is called. How to do the other constructor w/o a db hit.
+    unit_id: i64, /*= 0_i64*/
+    number: f64, /*= .0_f64*/
+    already_read_data: bool,    /*%%= false*/
+    parent_id: i64,             /*%%= 0_i64*/
+    attr_type_id: i64,          /*%%= 0_i64*/
+    valid_on_date: Option<i64>, /*%%= None*/
+    observation_date: i64,      /*%%= 0_i64*/
+    sorting_index: i64,         /*%%= 0_i64*/
+}
 
-** Represents one quantity object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
-  *
-  * This constructor instantiates an existing object from the DB. You can use Entity.addQuantityAttribute() to
-  * create a new object.
-  *
-class QuantityAttribute(db: Database, id: i64) extends AttributeWithValidAndObservedDates(db, id) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-  if !db.is_remote && !db.relation_type_key_exists(id)) {
-    throw new Exception("Key " + id + Util::DOES_NOT_EXIST)
-  }
+impl QuantityAttribute<'_> {
+   /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
+   /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
+   /// one that already exists.  It does not confirm that the id exists in the db.
+   fn new<'a>(
+       db: Box<&'a dyn Database>,
+       id: i64,
+       parent_id: i64,
+       attr_type_id: i64,
+       unit_id: i64,
+       number: f64,
+       valid_on_date: Option<i64>,
+       observation_date: i64,
+       sorting_index: i64,
+   ) -> QuantityAttribute<'a> {
+       QuantityAttribute {
+           id,
+           db,
+           unit_id,
+           number,
+           already_read_data: true,
+           parent_id,
+           attr_type_id,
+           valid_on_date,
+           observation_date,
+           sorting_index,
+       }
+   }
 
-  /**
-   * This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
-   * that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
-   * one that already exists.
-   */
-    fn this(db: Database, id: i64, parent_id_in: i64, attr_type_id_in: i64, unit_id_in: i64, number_in: Float, valid_on_date: Option<i64>,
-           observation_date: i64, sorting_index: i64) {
-    this(db, id)
-    mUnitId = unit_id_in
-    mNumber = number_in
-    assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index)
-  }
-
-  /**
-   * return something like "volume: 15.1 liters". For full length, pass in 0 for
-   * in_length_limit. The parameter inParentEntity refers to the Entity whose
-   * attribute this is. 3rd parameter really only applies in one of the subclasses of Attribute,
-   * otherwise can be None.
-   */
-    fn get_display_string(length_limit_in: Int, unused: Option<Entity>=None, unused2: Option[RelationType]=None, simplify: bool = false) -> String {
-    let type_name: String = db.get_entity_name(get_attr_type_id()).get;
-    let number: Float = getNumber;
-    let unitId: i64 = getUnitId;
-    let mut result: String = type_name + ": " + number + " " + db.get_entity_name(unitId).get;
-    if ! simplify) result += "; " + get_dates_description
-    Attribute.limit_attribute_description_length(result, length_limit_in)
-  }
-
-  private[onemodel] fn getNumber -> Float {
-    if !already_read_data) read_data_from_db()
-    mNumber
-  }
-
-  private[onemodel] fn getUnitId -> i64 {
-    if !already_read_data) read_data_from_db()
-    mUnitId
-  }
-
-  protected fn read_data_from_db() {
-    let quantityData = db.get_quantity_attribute_data(id);
-    if quantityData.length == 0) {
-      throw new OmException("No results returned from data request for: " + id)
+    /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
+    /// create a new object.
+    pub fn new2<'a>(
+        db: Box<&'a dyn Database>,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        id: i64,
+    ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
+        // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+        if !db.is_remote() && !db.quantity_attribute_key_exists(transaction, id)? {
+            Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
+        } else {
+            Ok(QuantityAttribute {
+                id,
+                db,
+                unit_id: 0,
+                number: 0.0,
+                already_read_data: false,
+                parent_id: 0,
+                attr_type_id: 0,
+                valid_on_date: None,
+                observation_date: 0,
+                sorting_index: 0,
+            })
+        }
     }
-    mUnitId = quantityData(1).get.asInstanceOf[i64]
-    mNumber = quantityData(2).get.asInstanceOf[Float]
-    assign_common_vars(quantityData(0).get.asInstanceOf[i64], quantityData(3).get.asInstanceOf[i64], quantityData(4).asInstanceOf[Option<i64>],
-                           quantityData(5).get.asInstanceOf[i64], quantityData(6).get.asInstanceOf[i64])
-  }
 
-    fn update(attr_type_id_in: i64, unit_id_in: i64, number_in: Float, valid_on_date_in: Option<i64>, observation_date_in: i64) {
-    // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
-    // it all goes with
-    db.update_quantity_attribute(id, get_parent_id(), attr_type_id_in, unit_id_in, number_in, valid_on_date_in, observation_date_in)
-    attr_type_id = attr_type_id_in
-    mUnitId = unit_id_in
-    mNumber = number_in
-    valid_on_date = valid_on_date_in
-    observation_date = observation_date_in
-  }
-
-  /** Removes this object from the system. */
-    fn delete() {
-    db.delete_quantity_attribute(id)
+    fn get_number(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<f64, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.number)
     }
 
-  // **idea: make these members into vals not vars, by replacing them with the next line.
-  //           private let (unitId: i64, number: Float) = read_data_from_db();
-  // BUT: have to figure out how to work with the
-  // assignment from the other constructor, and passing vals to the superclass to be...vals.  Need to know scala better,
-  // like how additional class vals are set when the other constructor (what's the term again?), is called. How to do the other constructor w/o a db hit.
-  /**
-   * For descriptions of the meanings of these variables, see the comments
-   * on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes
-   */
-  private let mut mUnitId: i64 = 0L;
-  private let mut mNumber: Float = .0F;
+    fn get_unit_id(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.unit_id)
+    }
+
+    fn update(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        attr_type_id_in: i64,
+        unit_id_in: i64,
+        number_in: f64,
+        valid_on_date_in: Option<i64>,
+        observation_date_in: i64,
+    ) -> Result<(), anyhow::Error> {
+        // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
+        // it all goes with
+        self.db.update_quantity_attribute(
+            transaction,
+            self.id,
+            self.get_parent_id(transaction)?,
+            attr_type_id_in,
+            unit_id_in,
+            number_in,
+            valid_on_date_in,
+            observation_date_in,
+        )?;
+        self.unit_id = unit_id_in;
+        self.number = number_in;
+        // (next line is already set by just-above call to get_parent_id().)
+        // self.already_read_data = true;
+        self.attr_type_id = attr_type_id_in;
+        self.valid_on_date = valid_on_date_in;
+        self.observation_date = observation_date_in;
+        Ok(())
+    }
+}
+
+impl Attribute for QuantityAttribute<'_> {
+    /// Return something like "volume: 15.1 liters". For full length, pass in 0 for
+    /// in_length_limit. The parameter inParentEntity refers to the Entity whose
+    /// attribute this is. 3rd parameter really only applies in one of the subclasses of Attribute,
+    /// otherwise can be None.
+    fn get_display_string(
+        &mut self,
+        length_limit_in: usize,
+        _unused: Option<Entity>,        /*= None*/
+        _unused2: Option<RelationType>, /*=None*/
+        simplify: bool,                 /* = false*/
+    ) -> Result<String, anyhow::Error> {
+        let attr_type_id = self.get_attr_type_id(&None)?;
+        let type_name: String = match self.db.get_entity_name(&None, attr_type_id)? {
+            None => "(None)".to_string(),
+            Some(x) => x,
+        };
+        let entity_name: String = match self.db.get_entity_name(&None, self.get_unit_id(&None)?)? {
+            None => "(None)".to_string(),
+            Some(s) => s,
+        };
+        let mut result: String = format!("{}: {} {}", type_name, self.get_number(&None)?,
+                                         entity_name);
+        if !simplify {
+            result = format!(
+                "{}; {}",
+                result,
+                Util::get_dates_description(self.valid_on_date, self.observation_date)
+            );
+        }
+        Ok(Util::limit_attribute_description_length(
+            result.as_str(),
+            length_limit_in,
+        ))
+    }
+
+    fn read_data_from_db(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<(), anyhow::Error> {
+        let data: Vec<Option<DataType>> =
+            self.db.get_quantity_attribute_data(transaction, self.id)?;
+        if data.len() == 0 {
+            return Err(anyhow!(
+                "No results returned from data request for: {}",
+                self.id
+            ));
+        }
+
+        self.already_read_data = true;
+        self.unit_id = match data[1] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[1])),
+        };
+        self.number = match data[6] {
+            Some(DataType::Float(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[6])),
+        };
+
+        //BEGIN COPIED BLOCK descended from Attribute.assign_common_vars (unclear how to do better for now):
+        self.parent_id = match data[0] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[0])),
+        };
+        self.attr_type_id = match data[2] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
+        };
+        self.sorting_index = match data[3] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[3])),
+        };
+        //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
+
+        //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
+        //%%$%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
+        // valid_on_date: Option<i64> /*%%= None*/,
+        /*DataType::Bigint(%%)*/
+        self.valid_on_date = None; //data[4];
+        // self.valid_on_date = match data[4] {
+        //     DataType::Bigint(x) => x,
+        //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
+        // };
+
+        self.observation_date = match data[5] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[5])),
+        };
+        //END COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars.
+
+        Ok(())
+    }
+
+    fn delete<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        id_in: i64,
+    ) -> Result<u64, anyhow::Error> {
+        self.db.delete_quantity_attribute(transaction, id_in)
+    }
+
+    // This datum is provided upon construction (new2(), at minimum), so can be returned
+    // regardless of already_read_data / read_data_from_db().
+    fn get_id(&self) -> i64 {
+        self.id
+    }
+
+    fn get_form_id(&self) -> Result<i32, Error> {
+        self.db.get_attribute_form_id(Util::QUANTITY_TYPE)
+    }
+
+    fn get_attr_type_id(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.attr_type_id)
+    }
+
+    fn get_sorting_index(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction);
+        }
+        Ok(self.sorting_index)
+    }
+
+    fn get_parent_id(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.parent_id)
+    }
+}
+
+impl AttributeWithValidAndObservedDates for QuantityAttribute<'_> {
+    fn get_valid_on_date(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<Option<i64>, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.valid_on_date)
+    }
+    fn get_observation_date(
+        &mut self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<i64, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.observation_date)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    /*%%put this back after similar place in boolean_attribute.rs is resolved and this can be similarly:
+    "get_display_string" should "return correct string and length" in {
+        let mock_db = mock[PostgreSQLDatabase];
+        let entity_id = 0;
+        let attr_type_id = 1;
+        let quantityAttributeId = 2;
+        let unitId = 3;
+        let number = 50;
+        // arbitrary:
+        let date = 304;
+        when(mock_db.relation_type_key_exists(quantityAttributeId)).thenReturn(true)
+        when(mock_db.entity_key_exists(entity_id)).thenReturn(true)
+        when(mock_db.get_entity_name(attr_type_id)).thenReturn(Some("length"))
+        when(mock_db.get_entity_name(unitId)).thenReturn(Some("meters"))
+
+        let quantityAttribute = new QuantityAttribute(mock_db, quantityAttributeId, entity_id, attr_type_id, unitId, number, None, date, 0);
+        let small_limit = 8;
+        let display1: String = quantityAttribute.get_display_string(small_limit, None, None);
+        //noinspection SpellCheckingInspection
+        assert(display1 == "lengt...")
+        let unlimited=0;
+        let display2: String = quantityAttribute.get_display_string(unlimited, None, None);
+        // probably should change this to GMT for benefit of other testers. Could share the DATEFORMAT* from Attribute class?
+        let observed_dateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST";
+        let expected2:String = "length: "+number+".0 meters" + "; valid unsp'd, obsv'd " + observed_dateOutput;
+        assert(display2 == expected2)
+
+        // and something in between: broke original implementation, so writing tests helped w/ this & other bugs caught.
+        let display3: String = quantityAttribute.get_display_string(49, None, None);
+        let expected3: String = "length: " + number + ".0 meters" + "; valid unsp'd, obsv'd " + observed_dateOutput;
+        assert(display3 == expected3.substring(0, 46) + "...")
+    }
  */
 }

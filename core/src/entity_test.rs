@@ -117,27 +117,27 @@ class EntityTest extends FlatSpec with MockitoSugar {
       fw = new java.io.FileWriter(file)
       fw.write("1234" + new String("\n"))
       fw.close()
-      assert(FileAttribute.md5Hash(file) == "e7df7cd2ca07f4f1ab415d457a6e1c13")
+      assert(FileAttribute::md5_hash(file) == "e7df7cd2ca07f4f1ab415d457a6e1c13")
       let path = file.getCanonicalPath;
       let id0: i64 = mEntity.addFileAttribute(mFileAttrTypeId, file).get_id;
       let t0: FileAttribute = mEntity.getFileAttribute(id0);
       assert(t0 != null)
       assert(t0.get_id == id0)
-      assert(t0.getDescription == file.get_name)
+      assert(t0.get_description() == file.get_name)
 
       let id: i64 = mEntity.addFileAttribute(mFileAttrTypeId, "file desc here, long or short", file).get_id;
       let t: FileAttribute = mEntity.getFileAttribute(id);
       assert(t.get_parent_id() == mEntity.get_id)
       assert(t.get_attr_type_id() == mFileAttrTypeId)
-      assert(t.getDescription == "file desc here, long or short")
-      assert(t.getOriginalFileDate > 1389461364000L)
+      assert(t.get_description() == "file desc here, long or short")
+      assert(t.get_original_file_date() > 1389461364000L)
       let now = System.currentTimeMillis();
-      assert(t.getStoredDate < now && t.getStoredDate > now - (5 * 1000 * 60))
-      assert(t.getOriginalFilePath == path)
-      assert(t.getReadable)
-      assert(t.getWritable)
-      assert(!t.getExecutable)
-      assert(t.getSize == 5)
+      assert(t.get_stored_date() < now && t.get_stored_date() > now - (5 * 1000 * 60))
+      assert(t.get_original_file_path() == path)
+      assert(t.self.get_readable())
+      assert(t.get_writeable())
+      assert(!t.get_executable())
+      assert(t.get_size == 5)
     }
     finally {
       if fw != null { fw.close() }

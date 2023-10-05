@@ -945,15 +945,15 @@ class RestDatabase(mRemoteAddress: String) extends Database {
             new BooleanAttribute(this, id, parentId, attributeTypeId, bool, valid_on_date, observation_date, sorting_index)
           case 4 =>
             let description = values(5).asInstanceOf[JsString].as[String];
-            let originalFileDate = values(6).asInstanceOf[JsNumber].as[i64];
-            let storedDate = values(7).asInstanceOf[JsNumber].as[i64];
+            let original_file_date = values(6).asInstanceOf[JsNumber].as[i64];
+            let stored_date = values(7).asInstanceOf[JsNumber].as[i64];
             let original_file_path = values(8).asInstanceOf[JsString].as[String];
             let readable: bool = values(9).asInstanceOf[JsBoolean].as[Boolean];
             let writable: bool = values(10).asInstanceOf[JsBoolean].as[Boolean];
             let executable: bool = values(11).asInstanceOf[JsBoolean].as[Boolean];
             let size = values(12).asInstanceOf[JsNumber].as[i64];
             let md5hash = values(13).asInstanceOf[JsString].as[String];
-            new FileAttribute(this, id, parentId, attributeTypeId, description, originalFileDate, storedDate, original_file_path, readable, writable,
+            new FileAttribute(this, id, parentId, attributeTypeId, description, original_file_date, stored_date, original_file_path, readable, writable,
                               executable, size, md5hash, sorting_index)
           case 5 =>
             let valid_on_date = getOptionLongFromJson(values, 5);

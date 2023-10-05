@@ -674,23 +674,23 @@ mod test {
     //         // this first part is just testing DB consistency from add to retrieval, not the actual file:
     //         assert(fa.get_parent_id() == inParentEntity.get_id)
     //         assert(fa.get_attr_type_id() == attr_type_id)
-    //         assert((fa.getStoredDate - (sleepPeriod - 1)) > fa.getOriginalFileDate)
+    //         assert((fa.get_stored_date() - (sleepPeriod - 1)) > fa.get_original_file_date())
     //         // (easily fails if the program pauses when debugging):
-    //         assert((fa.getStoredDate - 10000) < fa.getOriginalFileDate)
-    //         assert(file.lastModified() == fa.getOriginalFileDate)
-    //         assert(file.length() == fa.getSize)
-    //         assert(file.getCanonicalPath == fa.getOriginalFilePath)
-    //         assert(fa.getDescription == inDescr)
-    //         assert(fa.getSize == size)
+    //         assert((fa.get_stored_date() - 10000) < fa.get_original_file_date())
+    //         assert(file.lastModified() == fa.get_original_file_date())
+    //         assert(file.length() == fa.get_size())
+    //         assert(file.getCanonicalPath == fa.get_original_file_path())
+    //         assert(fa.get_description() == inDescr)
+    //         assert(fa.get_size() == size)
     //         // (startsWith, because the db pads with characters up to the full size)
-    //         assert(fa.getReadable && fa.getWritable && !fa.getExecutable)
+    //         assert(fa.get_readable() && fa.get_writeable() && !fa.get_executable())
     //
     //         // now ck the content itself
     //         verificationFile = File.createTempFile("om-fileattr-retrieved-content-", null)
     //         fa.retrieveContent(verificationFile)
-    //         assert(verificationFile.canRead == fa.getReadable)
-    //         assert(verificationFile.canWrite == fa.getWritable)
-    //         assert(verificationFile.canExecute == fa.getExecutable)
+    //         assert(verificationFile.canRead == fa.get_readable())
+    //         assert(verificationFile.canWrite == fa.get_writeable())
+    //         assert(verificationFile.canExecute == fa.get_executable())
     //     }
     //     fa
     // } finally {
@@ -1087,27 +1087,27 @@ mod test {
     let fa: FileAttribute = createTestFileAttributeAndOneEntity(new Entity(db, entity_id), descr, 1);
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
     let fileAttributeId = fa.get_id;
-    let (pid1, atid1, desc1) = (fa.get_parent_id(), fa.get_attr_type_id(), fa.getDescription);
+    let (pid1, atid1, desc1) = (fa.get_parent_id(), fa.get_attr_type_id(), fa.get_description());
     assert(desc1 == descr)
     let descNew = "otherdescription";
-    let originalFileDateNew = 1;
-    let storedDateNew = 2;
+    let original_file_dateNew = 1;
+    let stored_dateNew = 2;
     let pathNew = "/a/b/cd.efg";
     let sizeNew = 1234;
     let hashNew = "hashchars...";
     let b11 = false;
     let b12 = true;
     let b13 = false;
-    db.update_file_attribute(fa.get_id, pid1, atid1, descNew, originalFileDateNew, storedDateNew, pathNew, b11, b12, b13, sizeNew, hashNew)
+    db.update_file_attribute(fa.get_id, pid1, atid1, descNew, original_file_dateNew, stored_dateNew, pathNew, b11, b12, b13, sizeNew, hashNew)
     // have to create new instance to re-read the data:
     let fa2 = new FileAttribute(db, fa.get_id);
-    let (pid2, atid2, desc2, ofd2, sd2, ofp2, b21, b22, b23, size2, hash2) = (fa2.get_parent_id(), fa2.get_attr_type_id(), fa2.getDescription, fa2.getOriginalFileDate,;
-      fa2.getStoredDate, fa2.getOriginalFilePath, fa2.getReadable, fa2.getWritable, fa2.getExecutable, fa2.getSize, fa2.getMd5Hash)
+    let (pid2, atid2, desc2, ofd2, sd2, ofp2, b21, b22, b23, size2, hash2) = (fa2.get_parent_id(), fa2.get_attr_type_id(), fa2.get_description(), fa2.get_original_file_date(),;
+      fa2.get_stored_date(), fa2.get_original_file_path(), fa2.get_readable(), fa2.get_writeable(), fa2.get_executable(), fa2.get_size(), fa2.get_md5hash())
     assert(pid2 == pid1)
     assert(atid2 == atid1)
     assert(descNew == desc2)
-    assert(ofd2 == originalFileDateNew)
-    assert(sd2 == storedDateNew)
+    assert(ofd2 == original_file_dateNew)
+    assert(sd2 == stored_dateNew)
     assert(ofp2 == pathNew)
     assert((b21 == b11) && (b22 == b12) && (b23 == b13))
     assert(size2 == sizeNew)
@@ -1121,13 +1121,13 @@ mod test {
 
     // have to create new instance to re-read the data:
     let fa3 = new FileAttribute(db, fileAttributeId);
-    let (pid3, atid3, desc3, ofd3, sd3, ofp3, b31, b32, b33, size3, hash3) = (fa3.get_parent_id(), fa3.get_attr_type_id(), fa3.getDescription, fa3.getOriginalFileDate,;
-      fa3.getStoredDate, fa3.getOriginalFilePath, fa3.getReadable, fa3.getWritable, fa3.getExecutable, fa3.getSize, fa3.getMd5Hash)
+    let (pid3, atid3, desc3, ofd3, sd3, ofp3, b31, b32, b33, size3, hash3) = (fa3.get_parent_id(), fa3.get_attr_type_id(), fa3.get_description(), fa3.get_original_file_date(),;
+      fa3.get_stored_date(), fa3.get_original_file_path(), fa3.get_readable(), fa3.get_writeable(), fa3.get_executable(), fa3.get_size(), fa3.get_md5hash())
     assert(pid3 == pid1)
     assert(atid3 == someRelTypeId)
     assert(desc3 == descNewer)
-    assert(ofd3 == originalFileDateNew)
-    assert(sd3 == storedDateNew)
+    assert(ofd3 == original_file_dateNew)
+    assert(sd3 == stored_dateNew)
     assert(ofp3 == pathNew)
     assert(size3 == sizeNew)
     assert((b31 == b11) && (b32 == b12) && (b33 == b13))
@@ -1140,13 +1140,13 @@ mod test {
     // have to create new instance to re-read the data:
     let fa4 = new FileAttribute(db, fileAttributeId);
     let (atid4, d4, ofd4, sd4, ofp4, b41) =;
-      (fa4.get_attr_type_id(), fa4.getDescription, fa4.getOriginalFileDate, fa4.getStoredDate, fa4.getOriginalFilePath, fa4.getReadable)
+      (fa4.get_attr_type_id(), fa4.get_description(), fa4.get_original_file_date(), fa4.get_stored_date(), fa4.get_original_file_path(), fa4.get_readable())
     // these 2 are the key ones for this section: make sure they didn't change since we passed None to the update:
     assert(atid4 == atid3)
     assert(d4 == desc3)
     //throw in a few more
-    assert(ofd4 == originalFileDateNew)
-    assert(sd4 == storedDateNew)
+    assert(ofd4 == original_file_dateNew)
+    assert(sd4 == stored_dateNew)
     assert(ofp4 == pathNew)
     assert(b41 == b11)
 
@@ -1215,14 +1215,14 @@ mDoDamageBuffer = false
       intercept[OmFileTransferException] {
                                             db.create_file_attribute(entity_id, attr_type_id, "xyz", 0, 0, "/doesntmatter", readable_in = true,
                                                                     writable_in = true, executable_in = false, uploadSourceFile.length(),
-                                                                    FileAttribute.md5Hash(uploadSourceFile), inputStream, Some(0))
+                                                                    FileAttribute::md5_hash(uploadSourceFile), inputStream, Some(0))
                                           }
       mDoDamageBuffer = false
       //so it should work now:
       inputStream = new java.io.FileInputStream(uploadSourceFile)
       let faId: i64 = db.create_file_attribute(entity_id, attr_type_id, "xyz", 0, 0,;
                                                "/doesntmatter", readable_in = true, writable_in = true, executable_in = false,
-                                               uploadSourceFile.length(), FileAttribute.md5Hash(uploadSourceFile), inputStream, None)
+                                               uploadSourceFile.length(), FileAttribute::md5_hash(uploadSourceFile), inputStream, None)
 
       let fa: FileAttribute = new FileAttribute(db, faId);
       mDoDamageBuffer = true
@@ -1353,10 +1353,10 @@ mDoDamageBuffer = false
     assert(checkAgain(3).get.asInstanceOf[i64] == groupId)
     assert(checkAgain(4).get.asInstanceOf[i64] == valid_on_date)
 
-    assert(group.getSize() == 0)
+    assert(group.get_size() == 0)
     let entity_id2 = db.create_entity(entityName + 2);
     group.addEntity(entity_id2)
-    assert(group.getSize() == 1)
+    assert(group.get_size() == 1)
     group.deleteWithEntities()
     assert(intercept[Exception] {
                                   new RelationToGroup(db, rtg.get_id, rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.getGroupId )
@@ -1364,18 +1364,18 @@ mDoDamageBuffer = false
     assert(intercept[Exception] {
                                   new Entity(db, entity_id2)
                                 }.getMessage.contains("does not exist"))
-    assert(group.getSize() == 0)
+    assert(group.get_size() == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
 
     let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id, "somename", None);
 
     let group2: Group = new Group(db, groupId2);
-    assert(group2.getSize() == 0)
+    assert(group2.get_size() == 0)
 
     let entity_id3 = db.create_entity(entityName + 3);
     group2.addEntity(entity_id3)
-    assert(group2.getSize() == 1)
+    assert(group2.get_size() == 1)
 
     let entity_id4 = db.create_entity(entityName + 4);
     group2.addEntity(entity_id4)
@@ -1383,7 +1383,7 @@ mDoDamageBuffer = false
     group2.addEntity(entity_id5)
     // (at least make sure next method runs:)
     db.get_group_entry_sorting_index(groupId2, entity_id5)
-    assert(group2.getSize() == 3)
+    assert(group2.get_size() == 3)
     assert(db.get_group_entry_objects(group2.get_id, 0).size() == 3)
 
     group2.removeEntity(entity_id5)
@@ -1393,7 +1393,7 @@ mDoDamageBuffer = false
     assert(intercept[Exception] {
                                   new Group(db, groupId)
                                 }.getMessage.contains("does not exist"))
-    assert(group2.getSize() == 0)
+    assert(group2.get_size() == 0)
     // ensure the other entity still exists: not deleted by that delete command
     new Entity(db, entity_id3)
 

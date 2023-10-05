@@ -22,6 +22,8 @@ chrono = "0.4.23"
 randlib = "0.2.0"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
+md-5 = "0.10.6"
+base16ct = "0.2.0"
 [dependencies.anyhow]
 version = "1.0.71"
 features = ["backtrace"]
@@ -32,7 +34,6 @@ features = [
     #"fast-rng",          # Use a faster (but still sufficiently random) RNG
     #"macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
 ]
-
 [dev-dependencies]
 mockall = "0.11.4"
 

@@ -15,10 +15,11 @@ use anyhow::{anyhow, Error, Result};
 // use sqlx::{PgPool, Postgres, Row, Transaction};
 use crate::model::attribute::Attribute;
 use crate::model::entity::Entity;
-use crate::model::id_wrapper::IdWrapper;
+// use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
 
+// Similar/identical code found in *_attribute.rs due to Rust limitations on OO.  Maintain them all similarly.
 pub struct BooleanAttribute<'a> {
     // For descriptions of the meanings of these variables, see the comments
     // on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
@@ -38,7 +39,7 @@ impl BooleanAttribute<'_> {
     /// This one is perhaps only called by the database class implementation (and a test)--so it
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
-    /// one that already exists.
+    /// one that already exists.  It does not confirm that the id exists in the db.
     fn new<'a>(
         db: Box<&'a dyn Database>,
         id: i64,
@@ -49,6 +50,7 @@ impl BooleanAttribute<'_> {
         observation_date: i64,
         sorting_index: i64,
     ) -> BooleanAttribute<'a> {
+        // idea: make the parameter order uniform throughout the system
         BooleanAttribute {
             id,
             db,
@@ -63,6 +65,8 @@ impl BooleanAttribute<'_> {
         // assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
     }
 
+    /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
+    /// create a new object.
     pub fn new2<'a>(
         db: Box<&'a dyn Database>,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -97,11 +101,6 @@ impl BooleanAttribute<'_> {
         }
         Ok(self.boolean_value)
     }
-
-    /// See TextAttribute etc for some comments.
-    // impl AttributeWithValidAndObservedDates for BooleanAttribute {
-    /*%%
-     */
 
     fn update(
         &mut self,
@@ -199,7 +198,7 @@ impl Attribute for BooleanAttribute<'_> {
         // DataType::Bigint(self.sorting_index) = data[5];
         self.sorting_index = match data[3] {
             Some(DataType::Bigint(x)) => x,
-            _ => return Err(anyhow!("How did we get here for {:?}?", data[5])),
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[3])),
         };
         //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
 
@@ -208,15 +207,15 @@ impl Attribute for BooleanAttribute<'_> {
         // valid_on_date: Option<i64> /*%%= None*/,
         /*DataType::Bigint(%%)*/
         self.valid_on_date = None; //data[4];
-                                   // self.valid_on_date = match data[3] {
+                                   // self.valid_on_date = match data[4] {
                                    //     DataType::Bigint(x) => x,
-                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[3])),
+                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
                                    // };
 
         // DataType::Bigint(self.observation_date) = data[4];
         self.observation_date = match data[5] {
             Some(DataType::Bigint(x)) => x,
-            _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[5])),
         };
         //END COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars.
 
@@ -231,9 +230,13 @@ impl Attribute for BooleanAttribute<'_> {
         self.db.delete_boolean_attribute(transaction, id_in)
     }
 
-    fn get_id_wrapper(&self) -> IdWrapper {
-        IdWrapper::new(self.id)
-    }
+    // (Considered moving this to the Attribute trait with this signature:
+    // fn get_id_wrapper(&self, id: i64 /*= self.id*/) -> IdWrapper {
+    // ...but that would require external callers to be able to access the id themselves anyway.
+    //looks unused:
+    // fn get_id_wrapper(&self) -> IdWrapper {
+    //     IdWrapper::new(self.id)
+    // }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned
     // regardless of already_read_data / read_data_from_db().

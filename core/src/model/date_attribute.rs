@@ -7,18 +7,20 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
-use crate::model::database::DataType;
-use crate::model::database::Database;
-use crate::util::Util;
 use anyhow::{anyhow, Error, Result};
-// use sqlx::{PgPool, Postgres, Row, Transaction};
-use crate::model::attribute::Attribute;
-use crate::model::entity::Entity;
-use crate::model::id_wrapper::IdWrapper;
-use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
 
+// use sqlx::{PgPool, Postgres, Row, Transaction};
+use crate::model::attribute::Attribute;
+// use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
+use crate::model::database::Database;
+use crate::model::database::DataType;
+use crate::model::entity::Entity;
+// use crate::model::id_wrapper::IdWrapper;
+use crate::model::relation_type::RelationType;
+use crate::util::Util;
+
+// Similar/identical code found in *_attribute.rs due to Rust limitations on OO.  Maintain them all similarly.
 /// See TextAttribute etc code, for some comments.
 /// Also, though this doesn't formally extend Attribute, it still belongs to the same group conceptually (just doesn't have the same date variables so code
 /// not shared (idea: model that better, and in FileAttribute).
@@ -38,7 +40,7 @@ impl DateAttribute<'_> {
     /// This one is perhaps only called by the database class implementation (and a test)--so it
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
-    /// one that already exists.
+    /// one that already exists.  It does not confirm that the id exists in the db.
     fn new<'a>(
         db: Box<&'a dyn Database>,
         id: i64,
@@ -47,7 +49,6 @@ impl DateAttribute<'_> {
         date_value: i64,
         sorting_index: i64,
     ) -> DateAttribute<'a> {
-        // idea: make the parameter order uniform throughout the system
         DateAttribute {
             id,
             db,
@@ -57,9 +58,10 @@ impl DateAttribute<'_> {
             attr_type_id,
             sorting_index,
         }
-        // assign_common_vars(parent_id_in, attr_type_id_in, sorting_index_in)
     }
 
+    /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
+    /// create a new object.
     pub fn new2<'a>(
         db: Box<&'a dyn Database>,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -186,9 +188,10 @@ impl Attribute for DateAttribute<'_> {
         self.db.delete_date_attribute(transaction, id_in)
     }
 
-    fn get_id_wrapper(&self) -> IdWrapper {
-        IdWrapper::new(self.id)
-    }
+    //looks unused
+    // fn get_id_wrapper(&self) -> IdWrapper {
+    //     IdWrapper::new(self.id)
+    // }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned
     // regardless of already_read_data / read_data_from_db().

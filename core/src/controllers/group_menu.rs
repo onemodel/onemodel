@@ -66,7 +66,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
     let leading_text: Vec<String> = Array(Color.yellow("ENTITY GROUP ") + "(regular menu: more complete, so slower for some things): " + displayDescription);
     let numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leading_text.length, choices.length, Util::maxNameLength);
     let objectsToDisplay: Vec<Entity> = group_in.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems));
-    Util::add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.getSize(4), displayStartingRowNumberIn)
+    Util::add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.get_size(4), displayStartingRowNumberIn)
     let statusesAndNames: Vec<String> = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {;
       let numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity);
       let archivedStatus = entity.getArchivedStatusDisplayString;
@@ -195,7 +195,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
       } else if answer == 6) {
         let displayRowsStartingWithCounter: i32 = {;
           let currentPosition = displayStartingRowNumberIn + objectsToDisplay.size;
-          if currentPosition >= group_in.getSize(4)) {
+          if currentPosition >= group_in.get_size(4)) {
             ui.display_text("End of attribute list found; restarting from the beginning.")
             0 // start over
           } else currentPosition
@@ -235,10 +235,10 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
                                     containingEntityIn: Option<Entity>, group_in: Group, groupDescrIn: String,
                                     response: Option[Int]) -> Option<Entity> {
     require(group_in.get_id == relationToGroupIn.get.getGroupId)
-    let totalInGroup = group_in.getSize(3);
-    let numNonArchivedEntitiesInGroup: i64 = group_in.getSize(1);
+    let totalInGroup = group_in.get_size(3);
+    let numNonArchivedEntitiesInGroup: i64 = group_in.get_size(1);
     let num_archivedInGroup = totalInGroup - numNonArchivedEntitiesInGroup;
-    require(num_archivedInGroup == group_in.getSize(2))
+    require(num_archivedInGroup == group_in.get_size(2))
     let (non_archivedContainingCount, archivedContainingCount) = group_in.get_count_of_entities_containing_group;
     let mut choices: Vec<String> = Array("Delete group definition & remove from all relationships where it is found?",;
                                        "Delete group definition & remove from all relationships where it is found, AND delete all entities in it?")

@@ -12,7 +12,7 @@
 // use chrono::prelude::*;
 // use crate::util::Util;
 use crate::model::entity::Entity;
-use crate::model::id_wrapper::IdWrapper;
+// use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
 
@@ -43,7 +43,8 @@ pub trait Attribute {
         id_in: i64,
     ) -> Result<u64, anyhow::Error>;
 
-    fn get_id_wrapper(&self) -> IdWrapper;
+    //looks unused except for Entity and EntityClass
+    // fn get_id_wrapper(&self) -> IdWrapper;
 
     fn get_id(&self) -> i64;
 
