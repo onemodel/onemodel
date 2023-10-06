@@ -391,7 +391,7 @@ impl Entity<'_> {
             new TextAttribute(db, inKey)
         }
 
-        fn getDateAttribute(inKey: i64) -> DateAttribute {
+        fn get_date_Attribute(inKey: i64) -> DateAttribute {
             new_dateAttribute(db, inKey)
         }
 

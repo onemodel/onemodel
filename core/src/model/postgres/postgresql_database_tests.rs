@@ -628,88 +628,89 @@ mod test {
         text_attribute_id
     }
 
-    //%%%%
-    // fn createTestDateAttributeWithOneEntity(in_parent_id: i64) -> i64 {
-    //     let attr_type_id: i64 = db.create_entity("dateAttributeType--likeDueOn");
-    //     let date: i64 = System.currentTimeMillis;
-    //     let dateAttributeId: i64 = db.create_date_attribute(in_parent_id, attr_type_id, date);
-    //     let ba: DateAttribute = new DateAttribute(db, dateAttributeId);
-    //     assert(ba.get_parent_id() == in_parent_id)
-    //     assert(ba.getDate == date)
-    //     assert(ba.get_attr_type_id() == attr_type_id)
-    //     dateAttributeId
-    // }
-    //
-    // fn createTestBooleanAttributeWithOneEntity(in_parent_id: i64, valIn: bool, in_valid_on_date: Option<i64> = None, observation_date_in: i64) -> i64 {
-    //     let attr_type_id: i64 = db.create_entity("boolAttributeType-like-isDone");
-    //     let boolean_attribute_id: i64 = db.create_boolean_attribute(in_parent_id, attr_type_id, valIn, in_valid_on_date, observation_date_in);
-    //     let ba = new BooleanAttribute(db, boolean_attribute_id);
-    //     assert(ba.get_attr_type_id() == attr_type_id)
-    //     assert(ba.get_boolean == valIn)
-    //     assert(ba.get_valid_on_date() == in_valid_on_date)
-    //     assert(ba.get_parent_id() == in_parent_id)
-    //     assert(ba.get_observation_date() == observation_date_in)
-    //     boolean_attribute_id
-    // }
-    //
-    // fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: bool = true) -> FileAttribute {
-    //     let attr_type_id: i64 = db.create_entity("fileAttributeType");
-    //     let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
-    //     let mut writer: java.io.FileWriter = null;
-    //     let mut verificationFile: java.io.File = null;
-    //     try {
-    //         writer = new java.io.FileWriter(file)
-    //         writer.write(addedKiloBytesIn + "+ kB file from: " + file.getCanonicalPath + ", created " + new java.util.Date())
-    //         let mut nextInteger: i64 = 1;
-    //         for (i: Int <- 1 to (1000 * addedKiloBytesIn)) {
-    //             // there's a bug here: files aren't the right size (not single digits being added) but oh well it's just to make some file.
-    //             writer.write(nextInteger.toString)
-    //             if i % 1000 == 0 { nextInteger += 1 }
-    //         }
-    //         writer.close();
-    //
-    //         // sleep is so we can see a difference between the 2 dates to be saved, in later assertion.
-    //         let sleepPeriod = 5;
-    //         Thread.sleep(sleepPeriod);
-    //         let size = file.length();
-    //         let mut inputStream: java.io.FileInputStream = null;
-    //         let mut fa: FileAttribute = null;
-    //         try {
-    //             inputStream = new java.io.FileInputStream(file)
-    //             fa = inParentEntity.addFileAttribute(attr_type_id, inDescr, file)
-    //         } finally {
-    //             if inputStream != null { inputStream.close() }
-    //     }
-    //
-    //     if verifyIn {
-    //         // this first part is just testing DB consistency from add to retrieval, not the actual file:
-    //         assert(fa.get_parent_id() == inParentEntity.get_id)
-    //         assert(fa.get_attr_type_id() == attr_type_id)
-    //         assert((fa.get_stored_date() - (sleepPeriod - 1)) > fa.get_original_file_date())
-    //         // (easily fails if the program pauses when debugging):
-    //         assert((fa.get_stored_date() - 10000) < fa.get_original_file_date())
-    //         assert(file.lastModified() == fa.get_original_file_date())
-    //         assert(file.length() == fa.get_size())
-    //         assert(file.getCanonicalPath == fa.get_original_file_path())
-    //         assert(fa.get_description() == inDescr)
-    //         assert(fa.get_size() == size)
-    //         // (startsWith, because the db pads with characters up to the full size)
-    //         assert(fa.get_readable() && fa.get_writeable() && !fa.get_executable())
-    //
-    //         // now ck the content itself
-    //         verificationFile = File.createTempFile("om-fileattr-retrieved-content-", null)
-    //         fa.retrieveContent(verificationFile)
-    //         assert(verificationFile.canRead == fa.get_readable())
-    //         assert(verificationFile.canWrite == fa.get_writeable())
-    //         assert(verificationFile.canExecute == fa.get_executable())
-    //     }
-    //     fa
-    // } finally {
-    //     if verificationFile != null { verificationFile.delete() }
-    //     if writer != null { writer.close() }
-    //     if file != null { file.delete() }
-    //     }
-    // }
+    fn create_test_date_attribute_with_one_entity(db: &PostgreSQLDatabase, in_parent_id: i64) -> i64 {
+        let attr_type_id: i64 = db.create_entity(&None, "dateAttributeType--likeDueOn", None, None).unwrap();
+        let date: i64 = Utc::now().timestamp_millis();
+        let date_attribute_id: i64 = db.create_date_attribute(in_parent_id, attr_type_id, date, None).unwrap();
+        let mut ba: DateAttribute = DateAttribute::new2(Box::new(db as &dyn Database), &None, date_attribute_id).unwrap();
+        assert!(ba.get_parent_id(&None).unwrap() == in_parent_id);
+        assert!(ba.get_date(&None).unwrap() == date);
+        assert!(ba.get_attr_type_id(&None).unwrap() == attr_type_id);
+        date_attribute_id
+    }
+
+    fn create_test_boolean_attribute_with_one_entity(db: &PostgreSQLDatabase, in_parent_id: i64,
+                                                     val_in: bool, in_valid_on_date: Option<i64> /*= None*/,
+                                                     observation_date_in: i64) -> i64 {
+        let attr_type_id: i64 = db.create_entity(&None, "boolAttributeType-like-isDone", None, None).unwrap();
+        let boolean_attribute_id: i64 = db.create_boolean_attribute(in_parent_id, attr_type_id, val_in, in_valid_on_date, observation_date_in, None).unwrap();
+        let mut ba = BooleanAttribute::new2(Box::new(db as &dyn Database), &None, boolean_attribute_id).unwrap();
+        assert!(ba.get_attr_type_id(&None).unwrap() == attr_type_id);
+        assert!(ba.get_boolean(&None).unwrap() == val_in);
+        assert!(ba.get_valid_on_date(&None).unwrap() == in_valid_on_date);
+        assert!(ba.get_parent_id(&None).unwrap() == in_parent_id);
+        assert!(ba.get_observation_date(&None).unwrap() == observation_date_in);
+        boolean_attribute_id
+    }
+
+    fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: bool = true) -> FileAttribute {
+        let attr_type_id: i64 = db.create_entity("fileAttributeType");
+        let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
+        let mut writer: java.io.FileWriter = null;
+        let mut verificationFile: java.io.File = null;
+        try {
+            writer = new java.io.FileWriter(file)
+            writer.write(addedKiloBytesIn + "+ kB file from: " + file.getCanonicalPath + ", created " + new java.util.Date())
+            let mut nextInteger: i64 = 1;
+            for (i: Int <- 1 to (1000 * addedKiloBytesIn)) {
+                // there's a bug here: files aren't the right size (not single digits being added) but oh well it's just to make some file.
+                writer.write(nextInteger.toString)
+                if i % 1000 == 0 { nextInteger += 1 }
+            }
+            writer.close();
+
+            // sleep is so we can see a difference between the 2 dates to be saved, in later assertion.
+            let sleepPeriod = 5;
+            Thread.sleep(sleepPeriod);
+            let size = file.length();
+            let mut inputStream: java.io.FileInputStream = null;
+            let mut fa: FileAttribute = null;
+            try {
+                inputStream = new java.io.FileInputStream(file)
+                fa = inParentEntity.addFileAttribute(attr_type_id, inDescr, file)
+            } finally {
+                if inputStream != null { inputStream.close() }
+        }
+
+        if verifyIn {
+            // this first part is just testing DB consistency from add to retrieval, not the actual file:
+            assert(fa.get_parent_id() == inParentEntity.get_id)
+            assert(fa.get_attr_type_id() == attr_type_id)
+            assert((fa.get_stored_date() - (sleepPeriod - 1)) > fa.get_original_file_date())
+            // (easily fails if the program pauses when debugging):
+            assert((fa.get_stored_date() - 10000) < fa.get_original_file_date())
+            assert(file.lastModified() == fa.get_original_file_date())
+            assert(file.length() == fa.get_size())
+            assert(file.getCanonicalPath == fa.get_original_file_path())
+            assert(fa.get_description() == inDescr)
+            assert(fa.get_size() == size)
+            // (startsWith, because the db pads with characters up to the full size)
+            assert(fa.get_readable() && fa.get_writeable() && !fa.get_executable())
+
+            // now ck the content itself
+            verificationFile = File.createTempFile("om-fileattr-retrieved-content-", null)
+            fa.retrieveContent(verificationFile)
+            assert(verificationFile.canRead == fa.get_readable())
+            assert(verificationFile.canWrite == fa.get_writeable())
+            assert(verificationFile.canExecute == fa.get_executable())
+        }
+        fa
+    } finally {
+        if verificationFile != null { verificationFile.delete() }
+        if writer != null { writer.close() }
+        if file != null { file.delete() }
+        }
+    }
 
     fn create_test_relation_to_local_entity_with_one_entity(
         in_entity_id: i64,
@@ -762,7 +763,7 @@ mod test {
         let mut ta = TextAttribute::new2(Box::new(&db as &dyn Database), &None, text_attribute_id).unwrap();
         let (pid1, atid1) = (ta.get_parent_id(&None).unwrap(), ta.get_attr_type_id(&None).unwrap());
         db.update_text_attribute(&None, text_attribute_id, pid1, atid1,
-                                 a_text_value, Some(123), 456);
+                                 a_text_value, Some(123), 456).unwrap();
         // have to create new instance to re-read the data:
         let mut ta2 = TextAttribute::new2(Box::new(&db as &dyn Database), &None, text_attribute_id).unwrap();
         let txt2 = ta2.get_text(&None).unwrap();
@@ -998,36 +999,36 @@ mod test {
     let startingEntityCount = db.get_entity_count();
     let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testDateAttrs");
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-    let dateAttributeId: i64 = createTestDateAttributeWithOneEntity(entity_id);
+    let date_attribute_id: i64 = create_test_date_attribute_with_one_entity(entity_id);
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-    let da = new DateAttribute(db, dateAttributeId);
+    let da = new DateAttribute(db, date_attribute_id);
     let (pid1, atid1) = (da.get_parent_id(), da.get_attr_type_id());
     assert(entity_id == pid1)
     let date = System.currentTimeMillis;
-    db.update_date_attribute(dateAttributeId, pid1, date, atid1)
+    db.update_date_attribute(date_attribute_id, pid1, date, atid1)
     // Have to create new instance to re-read the data: immutability makes the program easier to debug/reason about.
-    let da2 = new DateAttribute(db, dateAttributeId);
-    let (pid2, atid2, date2) = (da2.get_parent_id(), da2.get_attr_type_id(), da2.getDate);
+    let da2 = new DateAttribute(db, date_attribute_id);
+    let (pid2, atid2, date2) = (da2.get_parent_id(), da2.get_attr_type_id(), da2.get_date);
     assert(pid2 == pid1)
     assert(atid2 == atid1)
     assert(date2 == date)
     // Also test the other constructor.
-    let da3 = new DateAttribute(db, dateAttributeId, pid1, atid1, date, 0);
-    let (pid3, atid3, date3) = (da3.get_parent_id(), da3.get_attr_type_id(), da3.getDate);
+    let da3 = new DateAttribute(db, date_attribute_id, pid1, atid1, date, 0);
+    let (pid3, atid3, date3) = (da3.get_parent_id(), da3.get_attr_type_id(), da3.get_date);
     assert(pid3 == pid1)
     assert(atid3 == atid1)
     assert(date3 == date)
     assert(db.get_date_attribute_count(entity_id) == 1)
 
     let entity_countBeforeDateDeletion: i64 = db.get_entity_count();
-    db.delete_date_attribute(dateAttributeId)
+    db.delete_date_attribute(date_attribute_id)
     assert(db.get_date_attribute_count(entity_id) == 0)
     // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
     assert(db.get_entity_count() == entity_countBeforeDateDeletion)
 
     // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below)
-    createTestDateAttributeWithOneEntity(entity_id)
+    create_test_date_attribute_with_one_entity(entity_id)
     db.delete_entity(entity_id)
     assert(db.get_date_attribute_count(entity_id) == 0)
 
@@ -1042,7 +1043,7 @@ mod test {
     let observation_date: i64 = System.currentTimeMillis;
     let valid_on_date: Option<i64> = Some(1234L);
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-    let boolean_attribute_id: i64 = createTestBooleanAttributeWithOneEntity(entity_id, val1, valid_on_date, observation_date);
+    let boolean_attribute_id: i64 = create_test_boolean_attribute_with_one_entity(entity_id, val1, valid_on_date, observation_date);
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
 
     let ba = new BooleanAttribute(db, boolean_attribute_id);
@@ -1483,8 +1484,8 @@ mDoDamageBuffer = false
     let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id);
     DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id)
-    createTestDateAttributeWithOneEntity(entity_id)
-    createTestBooleanAttributeWithOneEntity(entity_id, valIn = false, None, 0)
+    create_test_date_attribute_with_one_entity(entity_id)
+    create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
     createTestFileAttributeAndOneEntity(new Entity(db, entity_id), "desc", 2, verifyIn = false)
 
     db.update_entity_only_public_status(related_entity_id, None)
@@ -1933,8 +1934,8 @@ Unit
     assert(db.get_entities_only_count() == c2)
 
     let prevEntitiesUsedAsAttributeTypes = db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false);
-    let dateAttributeId = createTestDateAttributeWithOneEntity(entity_id);
-    let dateAttribute = new DateAttribute(db, dateAttributeId);
+    let date_attribute_id = create_test_date_attribute_with_one_entity(entity_id);
+    let dateAttribute = new DateAttribute(db, date_attribute_id);
     assert(db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false) == prevEntitiesUsedAsAttributeTypes + 1)
     assert(db.get_entities_only_count() == c2)
     let dateAttributeTypeEntities: Array[Entity] = db.get_entities_used_as_attribute_types(Util::DATE_TYPE, 0, quantity_seeks_unit_not_type_in = false);
@@ -1947,7 +1948,7 @@ Unit
     }
     assert(found)
 
-    createTestBooleanAttributeWithOneEntity(entity_id, valIn = false, None, 0)
+    create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
     assert(db.get_entities_only_count() == c2)
 
     createTestFileAttributeAndOneEntity(new Entity(db, entity_id), "desc", 2, verifyIn = false)

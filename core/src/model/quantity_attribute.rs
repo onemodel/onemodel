@@ -275,7 +275,7 @@ impl Attribute for QuantityAttribute<'_> {
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(transaction);
+            self.read_data_from_db(transaction)?;
         }
         Ok(self.sorting_index)
     }

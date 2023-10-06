@@ -651,7 +651,7 @@ impl Controller {
                 def update_date_attribute(dhInOut: DateAttributeDataHolder) {
                   dateAttribute.update(dhInOut.attr_type_id, dhInOut.date)
                 }
-                let dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.get_attr_type_id(), dateAttribute.getDate);
+                let dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.get_attr_type_id(), dateAttribute.get_date);
                 askForInfoAndUpdateAttribute[DateAttributeDataHolder](attributeIn.db, dateAttributeDH, askForAttrTypeId = true, Util.DATE_TYPE, "CHOOSE TYPE OF DATE:",
                                                                       Util.ask_for_date_attribute_value, update_date_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
@@ -747,7 +747,7 @@ impl Controller {
             if outDH.is_defined) textAttribute.update(outDH.get.attr_type_id, outDH.get.text, outDH.get.valid_on_date, outDH.get.observation_date)
             outDH.isEmpty
           case dateAttribute: DateAttribute =>
-            let dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.get_attr_type_id(), dateAttribute.getDate);
+            let dateAttributeDH: DateAttributeDataHolder = new DateAttributeDataHolder(dateAttribute.get_attr_type_id(), dateAttribute.get_date);
             let outDH: Option[DateAttributeDataHolder] = Util.ask_for_date_attribute_value(attributeIn.db, dateAttributeDH, editing_in = true, ui);
             if outDH.is_defined) dateAttribute.update(outDH.get.attr_type_id, outDH.get.date)
             outDH.isEmpty
@@ -1948,7 +1948,7 @@ impl Controller {
                                                      Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: DateAttribute =>
                   promptToEditAttributeCopy()
-                  Some(entity_in.addDateAttribute(templateAttribute.get_attr_type_id(), templateAttribute.getDate, Some(templateAttribute.get_sorting_index)))
+                  Some(entity_in.addDateAttribute(templateAttribute.get_attr_type_id(), templateAttribute.get_date, Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: BooleanAttribute =>
                   promptToEditAttributeCopy()
                   Some(entity_in.addBooleanAttribute(templateAttribute.get_attr_type_id(), templateAttribute.get_boolean, Some(templateAttribute.get_sorting_index)))

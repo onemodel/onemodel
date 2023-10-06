@@ -234,72 +234,72 @@ impl FileAttribute<'_> {
         }
     }
 
-    fn get_dates_description(&mut self) -> String {
-        format!("mod {}, stored {}", Util::useful_date_format(self.get_original_file_date()),
-                Util::useful_date_format(self.get_stored_date()))
+    fn get_dates_description(&mut self) -> Result<String, anyhow::Error> {
+        Ok(format!("mod {}, stored {}", Util::useful_date_format(self.get_original_file_date()?),
+                Util::useful_date_format(self.get_stored_date()?)))
     }
 
-    fn get_original_file_date(&mut self) -> i64 {
+    fn get_original_file_date(&mut self) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None);
+            self.read_data_from_db(&None)?;
         }
-        self.original_file_date
+        Ok(self.original_file_date)
     }
 
-    fn get_stored_date(&mut self) -> i64 {
+    fn get_stored_date(&mut self) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None);
+            self.read_data_from_db(&None)?;
         }
-        self.stored_date
+        Ok(self.stored_date)
     }
 
-    fn get_description(&mut self) -> String {
+    fn get_description(&mut self) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None);
+            self.read_data_from_db(&None)?;
         }
-        self.description.clone()
+        Ok(self.description.clone())
     }
 
-    fn get_original_file_path(&mut self) -> String {
+    fn get_original_file_path(&mut self) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None);
+            self.read_data_from_db(&None)?;
         }
-        self.original_file_path.clone()
+        Ok(self.original_file_path.clone())
     }
 
-    fn get_size(&mut self) -> i64 {
+    fn get_size(&mut self) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None);
+            self.read_data_from_db(&None)?;
         }
-        self.size
+        Ok(self.size)
     }
 
-    fn get_md5hash(&mut self) -> String {
+    fn get_md5hash(&mut self) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None);
+            self.read_data_from_db(&None)?;
         }
-        self.md5hash.clone()
+        Ok(self.md5hash.clone())
     }
 
-    fn get_readable(&mut self) -> bool {
+    fn get_readable(&mut self) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None);
+            self.read_data_from_db(&None)?;
         }
-        self.readable
+        Ok(self.readable)
     }
 
-    fn get_writeable(&mut self) -> bool {
+    fn get_writeable(&mut self) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None);
+            self.read_data_from_db(&None)?;
         }
-        self.writable
+        Ok(self.writable)
     }
 
-    fn get_executable(&mut self) -> bool {
+    fn get_executable(&mut self) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None);
+            self.read_data_from_db(&None)?;
         }
-        self.executable
+        Ok(self.executable)
     }
 
     /// just calling the File.get_usable_space function on a nonexistent file yields 0, so come up with something better. -1 if it just can't figure it out.
@@ -352,13 +352,13 @@ impl FileAttribute<'_> {
         }
     }
 */
-    fn get_permissions_description(&mut self) -> String {
+    fn get_permissions_description(&mut self) -> Result<String, anyhow::Error> {
         //ex: rwx or rw-, like "ls -l" does
-        format!("{}{}{}",
-                if self.get_readable() {"r"} else {"-"},
-                if self.get_writeable() {"w"} else {"-"},
-                if self.get_executable() {"x"} else {"-"}
-        )
+        Ok(format!("{}{}{}",
+                if self.get_readable()? {"r"} else {"-"},
+                if self.get_writeable()? {"w"} else {"-"},
+                if self.get_executable()? {"x"} else {"-"}
+        ))
     }
 
     fn get_file_size_description(&mut self) -> String {
@@ -455,15 +455,15 @@ impl Attribute for FileAttribute<'_> {
             None => "(None)".to_string(),
             Some(x) => x,
         };
-        let mut result: String = format!("{} ({}); {}", self.get_description(), type_name, self.get_file_size_description());
+        let mut result: String = format!("{} ({}); {}", self.get_description()?, type_name, self.get_file_size_description());
         if !simplify {
             result = format!(
                 "{} {} from {}, {}; md5 {}.",
                 result,
-                self.get_permissions_description(),
-                self.get_original_file_path(),
-                self.get_dates_description(),
-                self.get_md5hash()
+                self.get_permissions_description()?,
+                self.get_original_file_path()?,
+                self.get_dates_description()?,
+                self.get_md5hash()?
             );
         }
         Ok(Util::limit_attribute_description_length(
@@ -599,7 +599,7 @@ impl Attribute for FileAttribute<'_> {
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(transaction);
+            self.read_data_from_db(transaction)?;
         }
         Ok(self.sorting_index)
     }

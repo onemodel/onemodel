@@ -83,7 +83,7 @@ impl DateAttribute<'_> {
         }
     }
 
-    fn get_date(
+    pub fn get_date(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<i64, anyhow::Error> {
@@ -221,7 +221,7 @@ impl Attribute for DateAttribute<'_> {
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(transaction);
+            self.read_data_from_db(transaction)?;
         }
         Ok(self.sorting_index)
     }
@@ -244,15 +244,15 @@ mod test {
         let mock_db = mock[PostgreSQLDatabase];
         let entity_id = 0;
         let other_entity_id = 1;
-        let dateAttributeId = 0;
+        let date_attribute_id = 0;
         //arbitrary, in milliseconds:
         let date = 304;
         let attr_type_name = "aDateTypeName";
         when(mock_db.get_entity_name(other_entity_id)).thenReturn(Some(attr_type_name))
-        when(mock_db.date_attribute_key_exists(dateAttributeId)).thenReturn(true)
+        when(mock_db.date_attribute_key_exists(date_attribute_id)).thenReturn(true)
 
         // (using arbitrary numbers for the unnamed parameters):
-        let dateAttribute = new DateAttribute(mock_db, dateAttributeId, entity_id, other_entity_id, date, 0);
+        let dateAttribute = new DateAttribute(mock_db, date_attribute_id, entity_id, other_entity_id, date, 0);
         let small_limit = 35;
         let display1: String = dateAttribute.get_display_string(small_limit);
         let whole_thing: String = attr_type_name + ": Wed 1969-12-31 17:00:00:"+date+" MST";

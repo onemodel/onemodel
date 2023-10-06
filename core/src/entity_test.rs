@@ -84,11 +84,11 @@ class EntityTest extends FlatSpec with MockitoSugar {
     db.begin_trans()
     println!("starting testAddDateAttribute")
     let id: i64 = mEntity.addDateAttribute(mDateAttrTypeId, 2).get_id;
-    let t: DateAttribute = mEntity.getDateAttribute(id);
+    let t: DateAttribute = mEntity.get_date_Attribute(id);
     assert(t != null)
     assert(t.get_id == id)
     assert(t.get_attr_type_id() == mDateAttrTypeId)
-    assert(t.getDate == 2)
+    assert(t.get_date == 2)
     db.rollback_trans()
   }
 
