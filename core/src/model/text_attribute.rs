@@ -19,7 +19,9 @@ use crate::model::entity::Entity;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
 
-// Similar/identical code found in *_attribute.rs due to Rust limitations on OO.  Maintain them all similarly.
+// ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
+// due to Rust limitations on OO.  Maintain them all similarly.
+
 /// Represents one String object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
 pub struct TextAttribute<'a> {
     // For descriptions of the meanings of these variables, see the comments
@@ -27,7 +29,7 @@ pub struct TextAttribute<'a> {
     // and/or examples in the database testing code.
     id: i64,
     db: Box<&'a dyn Database>,
-    text: String,        /*%=null in scala.*/
+    text: String,               /*%=null in scala.*/
     already_read_data: bool,    /*%%= false*/
     parent_id: i64,             /*%%= 0_i64*/
     attr_type_id: i64,          /*%%= 0_i64*/
@@ -129,7 +131,6 @@ impl TextAttribute<'_> {
         self.observation_date = observation_date_in;
         Ok(())
     }
-
 }
 
 impl Attribute for TextAttribute<'_> {
@@ -157,7 +158,11 @@ impl Attribute for TextAttribute<'_> {
             )
         };
         if !simplify {
-            result = format!("{}; {}", result, Util::get_dates_description(self.valid_on_date, self.observation_date));
+            result = format!(
+                "{}; {}",
+                result,
+                Util::get_dates_description(self.valid_on_date, self.observation_date)
+            );
         }
         Ok(Util::limit_attribute_description_length(
             result.as_str(),
@@ -177,8 +182,7 @@ impl Attribute for TextAttribute<'_> {
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<(), anyhow::Error> {
-        let data: Vec<Option<DataType>> =
-            self.db.get_text_attribute_data(transaction, self.id)?;
+        let data: Vec<Option<DataType>> = self.db.get_text_attribute_data(transaction, self.id)?;
         if data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -208,14 +212,14 @@ impl Attribute for TextAttribute<'_> {
         //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
 
         //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
-        //%%$%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
+        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
         // valid_on_date: Option<i64> /*%%= None*/,
         /*DataType::Bigint(%%)*/
         self.valid_on_date = None; //data[4];
-        // self.valid_on_date = match data[4] {
-        //     DataType::Bigint(x) => x,
-        //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
-        // };
+                                   // self.valid_on_date = match data[4] {
+                                   //     DataType::Bigint(x) => x,
+                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
+                                   // };
 
         // DataType::Bigint(self.observation_date) = data[4];
         self.observation_date = match data[5] {
@@ -227,14 +231,14 @@ impl Attribute for TextAttribute<'_> {
         Ok(())
     }
 
-  /// Removes this object from the system.
-  fn delete<'a>(
-      &'a self,
-      transaction: &Option<&mut Transaction<'a, Postgres>>,
-      id_in: i64,
-  ) -> Result<u64, anyhow::Error> {
-      self.db.delete_text_attribute(transaction, id_in)
-  }
+    /// Removes this object from the system.
+    fn delete<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        id_in: i64,
+    ) -> Result<u64, anyhow::Error> {
+        self.db.delete_text_attribute(transaction, id_in)
+    }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned
     // regardless of already_read_data / read_data_from_db().

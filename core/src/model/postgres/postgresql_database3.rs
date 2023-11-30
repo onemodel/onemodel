@@ -13,8 +13,11 @@ use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
+use crate::model::entity_class::EntityClass;
+use crate::model::group::Group;
 use crate::model::postgres::postgresql_database::*;
 // use crate::model::postgres::*;
+use crate::model::relation_to_group::RelationToGroup;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::util::Util;
@@ -404,8 +407,8 @@ impl Database for PostgreSQLDatabase {
     }
     /// Saves data for a quantity attribute for a Entity (i.e., "6 inches length").<br>
     /// parent_id_in is the key of the Entity for which the info is being saved.<br>
-    /// inUnitId represents a Entity; indicates the unit for this quantity (i.e., liters or inches).<br>
-    /// inNumber represents "how many" of the given unit.<br>
+    /// in_unit_id represents a Entity; indicates the unit for this quantity (i.e., liters or inches).<br>
+    /// in_number represents "how many" of the given unit.<br>
     /// attr_type_id_in represents the attribute type and also is a Entity (i.e., "volume" or "length")<br>
     /// valid_on_date_in represents the date on which this began to be true (seems it could match the observation date if needed,
     /// or guess when it was definitely true);
@@ -416,7 +419,7 @@ impl Database for PostgreSQLDatabase {
     /// talking about java-style dates here; it is my understanding that such long's can also be negative to represent
     /// dates long before 1970, or positive for dates long after 1970. <br>
     /// <br>
-    /// In the case of inNumber, note
+    /// In the case of in_number, note
     /// that the postgresql docs give some warnings about the precision of its real and "double precision" types. Given those
     /// warnings and the fact that I haven't investigated carefully (as of 9/2002) how the data will be saved and read
     /// between the java float type and the postgresql types, I am using "double precision" as the postgresql data type,
@@ -437,7 +440,7 @@ impl Database for PostgreSQLDatabase {
         caller_manages_transactions_in: bool, /*= false*/
         sorting_index_in: Option<i64>,        /*= None*/
     ) -> Result</*id*/ i64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -710,20 +713,68 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    // //%%put back after EntityClass fleshed out w/ ::new() ?
-    //              fn update_class_and_template_entity_name(&self, class_id_in: i64,
-    //                                                       name: &str) -> Result<i64, anyhow::Error> {
-    //                let mut tx = self.begin_trans()?;
-    //                  let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-    //                  self.update_class_name(transaction, class_id_in, name)?;
-    //                  let mut entity_id: i64 = EntityClass::new(this, class_id_in).get_template_entity_id()?;
-    //                  self.update_entity_only_name(transaction, entity_id, format!("{}{}", name, Util::TEMPLATE_NAME_SUFFIX)?;
-    //                  if let Err(e) = self.commit_trans(tx) {
-    //                      // see comments in delete_objects about rollback
-    //                      return Err(anyhow!(e.to_string()));
-    //                  }
-    //                Ok(entity_id)
-    //              }
+                 fn update_class_and_template_entity_name(&self, transaction_in: &Option<&mut Transaction<Postgres>>,
+                                                          class_id_in: i64, name: &str,
+                                                          caller_manages_transactions_in: bool /*= false*/) -> Result<i64, anyhow::Error> {
+                   // let mut tx = self.begin_trans()?;
+                   //   let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+                     //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+                     // Try creating a local transaction whether we use it or not, to handle compiler errors
+                     // about variable moves. I'm not seeing a better way to get around them by just using
+                     // conditions and an Option (many errors):
+                     // (I tried putting this in a function, then a macro, but it gets compile errors.
+                     // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+                     // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+                     // I didn't try a proc macro but based on some reading I think it would have the same
+                     // problem.)
+                     let mut local_tx: Transaction<Postgres> = {
+                         if transaction_in.is_none() {
+                             if caller_manages_transactions_in {
+                                 return Err(anyhow!("In update_class_and_template_entity_name, Inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                    .to_string()));
+                             } else {
+                                 self.begin_trans()?
+                             }
+                         } else {
+                             if caller_manages_transactions_in {
+                                 // That means we have determined that the caller is to use the transaction_in .
+                                 // was just:  None
+                                 // But now instead, create it anyway, per comment above.
+                                 self.begin_trans()?
+                             } else {
+                                 return Err(anyhow!(
+                        "In update_class_and_template_entity_name, Inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    ));
+                             }
+                         }
+                     };
+                     let local_tx_option = &Some(&mut local_tx);
+                     let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+                         transaction_in
+                     } else {
+                         local_tx_option
+                     };
+                     //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
+
+                     self.update_class_name(transaction, class_id_in, name.to_string())?;
+                     let mut entity_id: i64 = EntityClass::new2(Box::new(self), transaction, class_id_in).get_template_entity_id()?;
+                     self.update_entity_only_name(transaction, entity_id, format!("{}{}", name, Util::TEMPLATE_NAME_SUFFIX).as_str())?;
+                     // if let Err(e) = self.commit_trans(tx) {
+                     //     see comments in delete_objects about rollback
+                         // return Err(anyhow!(e.to_string()));
+                     // }
+                     if !caller_manages_transactions_in {
+                         // see comments at similar location in delete_objects about local_tx
+                         if let Err(e) = self.commit_trans(local_tx) {
+                             // see comments in delete_objects about rollback
+                             return Err(anyhow!(e.to_string()));
+                         }
+                     }
+                     Ok(entity_id)
+                 }
 
     fn update_entitys_class<'a>(
         &'a self,
@@ -732,7 +783,7 @@ impl Database for PostgreSQLDatabase {
         class_id: Option<i64>,
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -881,7 +932,7 @@ impl Database for PostgreSQLDatabase {
         caller_manages_transactions_in: bool, /*%% = false*/
         sorting_index_in: Option<i64>,        /*%%= None*/
     ) -> Result<i64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1132,7 +1183,7 @@ impl Database for PostgreSQLDatabase {
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
         debug!("in create_relation_to_local_entity 0");
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1209,7 +1260,7 @@ impl Database for PostgreSQLDatabase {
             }
         }
         debug!("in create_relation_to_local_entity 5");
-        Ok(RelationToLocalEntity {}) //%%$%%really: self, rte_id, relation_type_id_in, entity_id1_in, entity_id2_in})
+        Ok(RelationToLocalEntity {}) //%%%%really: self, rte_id, relation_type_id_in, entity_id1_in, entity_id2_in})
     }
 
     /** Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
@@ -1227,7 +1278,7 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<RelationToRemoteEntity, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1304,7 +1355,7 @@ impl Database for PostgreSQLDatabase {
                 return Err(anyhow!(e.to_string()));
             }
         }
-        Ok(RelationToRemoteEntity {}) //%%$%%really: self, rte_id, relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in
+        Ok(RelationToRemoteEntity {}) //%%%%really: self, rte_id, relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in
     }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
@@ -1519,7 +1570,7 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1602,7 +1653,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<(i64, i64), anyhow::Error> {
         let name: String = Self::escape_quotes_etc(new_entity_name_in.to_string());
 
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1666,7 +1717,7 @@ impl Database for PostgreSQLDatabase {
             }
         }
         //%%FIX NEXT LINE
-        Ok((new_entity_id, 0)) //%%$%%really: , new_rte.get_id()))
+        Ok((new_entity_id, 0)) //%%%%really: , new_rte.get_id()))
     }
 
     /// I.e., make it so the entity has a group in it, which can contain entities.
@@ -1685,7 +1736,7 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1914,16 +1965,16 @@ impl Database for PostgreSQLDatabase {
         self.remove_entity_from_group(transaction, from_group_id_in, move_entity_id_in, true)?;
         self.commit_trans(tx)
     }
-    // //%%$%%
+    // //%%%%
     //          /// (See comments on moveEntityFromGroupToGroup.)
     //        fn move_local_entity_from_local_entity_to_group(&self, removing_rtle_in: RelationToLocalEntity, target_group_id_in: i64, sorting_index_in: i64)
     //              -> Result<(), anyhow::Error> {
     //            let mut tx = self.begin_trans()?;
     //              let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-    //            self.add_entity_to_group(transaction, target_group_id_in, removing_rtle_in.getRelatedId2,
+    //            self.add_entity_to_group(transaction, target_group_id_in, removing_rtle_in.get_related_id2,
     //                                     Some(sorting_index_in), true)?;
-    //            self.delete_relation_to_local_entity(transaction, removing_rtle_in.get_attr_type_id(), removing_rtle_in.getRelatedId1,
-    //                                                 removing_rtle_in.getRelatedId2)?;
+    //            self.delete_relation_to_local_entity(transaction, removing_rtle_in.get_attr_type_id(), removing_rtle_in.get_related_id1,
+    //                                                 removing_rtle_in.get_related_id2)?;
     //            self.commit_trans()
     //          }
 
@@ -1938,7 +1989,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<i64, anyhow::Error> {
         //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
         //only one iteration, ever.  (See similar comments elsewhere.)
-        // findUnusedSortingIndex_helper(group_id_in, starting_with_in.getOrElse(max_id_value - 1), 0)
+        // find_unused_sorting_index_helper(group_id_in, starting_with_in.getOrElse(max_id_value - 1), 0)
         let g_id = group_id_in;
         let mut working_index = starting_with_in.unwrap_or(self.max_id_value() - 1);
         let mut counter = 0;
@@ -2158,7 +2209,7 @@ impl Database for PostgreSQLDatabase {
             ));
         }
 
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -2260,7 +2311,7 @@ impl Database for PostgreSQLDatabase {
         // idea: (also on task list i think but) we should not delete entities until dealing with their use as attr_type_ids etc!
         // (or does the DB's integrity constraints do that for us?)
 
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -2887,7 +2938,7 @@ impl Database for PostgreSQLDatabase {
             let mut next: i64 = self.min_id_value().checked_add(increment).unwrap();
             let mut previous: i64 = self.min_id_value();
 
-            //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+            //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
             // Try creating a local transaction whether we use it or not, to handle compiler errors
             // about variable moves. I'm not seeing a better way to get around them by just using
             // conditions and an Option (many errors):
@@ -3067,7 +3118,7 @@ impl Database for PostgreSQLDatabase {
 
     /// Excludes those entities that are really relationtypes, attribute types, or quantity units.
     /// The parameter limit_by_class decides whether any limiting is done at all: if true, the query is
-    /// limited to entities having the class specified by inClassId (even if that is None).
+    /// limited to entities having the class specified by in_class_id (even if that is None).
     /// The parameter template_entity *further* limits, if limit_by_class is true, by omitting the template_entity from the results (ex., to help avoid
     /// counting that one when deciding whether it is OK to delete the class).
     fn get_entities_only_count(
@@ -3182,32 +3233,62 @@ impl Database for PostgreSQLDatabase {
     }
 
     //   // Idea: make starting_index_in and max_vals_in do something here.  How was that missed?  Is it needed?
-    // fn get_relations_to_group_containing_this_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64,
-    //                                                 starting_index_in: i64, max_vals_in: Option<u64> /*= None*/)
-    //        -> Result<Vec<RelationToGroup>, anyhow::Error>  {
-    //     let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
-    //     let sql: &str = format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
-    //              asort.sorting_index from RelationToGroup rtg, AttributeSorting asort where group_id={} \
-    //              and rtg.entity_id=asort.entity_id and asort.attribute_form_id={} \
-    //              and rtg.id=asort.attribute_id", group_id_in, af_id).as_str();
-    //     let early_results = self.db_query(transaction, sql, "i64,i64,i64,i64,i64,i64,i64")?;
-    //     let mut final_results: Vec<RelationToGroup> = Vec::new();
-    //     // idea: should the remainder of this method be moved to RelationToGroup, so the persistence layer doesn't know anything about the Model? (helps avoid
-    //     // circular dependencies? is a cleaner design, at least if RTG were in a separate library?)
-    //     for result in early_results {
-    //       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-    //       //final_results.add(result(0).get.asInstanceOf[i64], new Entity(this, result(1).get.asInstanceOf[i64]))
-    //       let rtg: RelationToGroup = new RelationToGroup(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[i64],;
-    //                                                      result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-    //                                                      if result(4).isEmpty) None else Some(result(4).get.asInstanceOf[i64]), result(5).get.asInstanceOf[i64],
-    //                                                      result(6).get.asInstanceOf[i64])
-    //       final_results.push(rtg)
-    //     }
-    //     if ! (final_results.len() == early_results.len()) {
-    //         return Err(anyhow!("In get_relations_to_group_containing_this_group, Final results ({}) do not match count of early_results ({})", final_results.len(), early_results.len()));
-    //     }
-    //     Ok(final_results)
-    //   }
+    fn get_relations_to_group_containing_this_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64,
+                                                    starting_index_in: i64, max_vals_in: Option<u64> /*= None*/)
+           -> Result<Vec<RelationToGroup>, anyhow::Error>  {
+        let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
+        let sql: &str = format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
+                 asort.sorting_index from RelationToGroup rtg, AttributeSorting asort where group_id={} \
+                 and rtg.entity_id=asort.entity_id and asort.attribute_form_id={} \
+                 and rtg.id=asort.attribute_id", group_id_in, af_id).as_str();
+        let early_results = self.db_query(transaction, sql, "i64,i64,i64,i64,i64,i64,i64")?;
+        let mut final_results: Vec<RelationToGroup> = Vec::new();
+        // idea: should the remainder of this method be moved to RelationToGroup, so the persistence layer doesn't know anything about the Model? (helps avoid
+        // circular dependencies? is a cleaner design, at least if RTG were in a separate library?)
+        for result in early_results {
+          // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
+          //final_results.add(result(0).get.asInstanceOf[i64], new Entity(this, result(1).get.asInstanceOf[i64]))
+            let id = match result[0] {
+                Some(DataType::Bigint(x)) => x,
+                _ => return Err(anyhow!("How did we get here for {:?}?", result[0])),
+            };
+            let entity_id = match result[1] {
+                Some(DataType::Bigint(x)) => x,
+                _ => return Err(anyhow!("How did we get here for {:?}?", result[1])),
+            };
+            let rel_type_id = match result[2] {
+                Some(DataType::Bigint(x)) => x,
+                _ => return Err(anyhow!("How did we get here for {:?}?", result[2])),
+            };
+            let group_id = match result[3] {
+                Some(DataType::Bigint(x)) => x,
+                _ => return Err(anyhow!("How did we get here for {:?}?", result[3])),
+            };
+            //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
+            // valid_on_date: Option<i64> /*%%= None*/,
+            /*DataType::Bigint(%%)*/
+            let valid_on_date = None; //match result[4] {
+            //     DataType::Bigint(x) => x,
+            //     _ => return Err(anyhow!("How did we get here for {:?}?", result[4])),
+            // };
+            let observation_date = match result[5] {
+                Some(DataType::Bigint(x)) => x,
+                _ => return Err(anyhow!("How did we get here for {:?}?", result[5])),
+            };
+            let sorting_index = match result[6] {
+                Some(DataType::Bigint(x)) => x,
+                _ => return Err(anyhow!("How did we get here for {:?}?", result[6])),
+            };
+            let rtg: RelationToGroup = RelationToGroup::new(Box::new(self), id, entity_id,
+                                                         rel_type_id, group_id, valid_on_date, observation_date,
+                                                         sorting_index);
+            final_results.push(rtg)
+        }
+        if ! (final_results.len() == early_results.len()) {
+            return Err(anyhow!("In get_relations_to_group_containing_this_group, Final results ({}) do not match count of early_results ({})", final_results.len(), early_results.len()));
+        }
+        Ok(final_results)
+      }
 
     fn get_group_count(
         &self,
@@ -3222,6 +3303,7 @@ impl Database for PostgreSQLDatabase {
     ///                                This param might be made more clear, but it is not yet clear how is best to do that.
     ///                                  Because the caller provides this switch specifically to the situation, the logic is not necessarily overridden
     ///                                internally based on the value of this.include_archived_entities.
+    /// Idea: maybe it should be turned into an enum.  Probably.
     fn get_group_size(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -3245,7 +3327,7 @@ impl Database for PostgreSQLDatabase {
             }
             _ => {
                 return Err(anyhow!(
-                    "How did we get here? includeWhichEntities={}",
+                    "How did we get here? include_which_entities={}",
                     include_which_entities_in
                 ))
             }
@@ -4018,7 +4100,7 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Excludes those entities that are really relationtypes, attribute types, or quantity units. Otherwise similar to get_entities.
-    /// *****NOTE*****: The limit_by_class:Boolean parameter is not redundant with the inClassId: inClassId could be None and we could still want
+    /// *****NOTE*****: The limit_by_class:Boolean parameter is not redundant with the in_class_id: in_class_id could be None and we could still want
     /// to select only those entities whose class_id is NULL, such as when enforcing group uniformity (see method has_mixed_classes and its
     /// uses, for more info).
     ///
@@ -4100,7 +4182,7 @@ impl Database for PostgreSQLDatabase {
         let final_results: Vec<Entity> = Vec::new();
         // idea: (see get_entities_generic for an idea, see if it applies here)
         for _result in early_results {
-            //%%$%% add_new_entity_to_results(final_results, result)
+            //%%%% add_new_entity_to_results(final_results, result)
         }
         if !(final_results.len() == early_results_len) {
             return Err(anyhow!(
@@ -4112,31 +4194,31 @@ impl Database for PostgreSQLDatabase {
         Ok(final_results)
     }
 
-    // fn get_matching_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64,
-    //                        max_vals_in: Option<i64> /*= None*/, omit_group_id_in: Option<i64>,
-    //                         name_regex_in: String) -> Result<Vec<Group>, anyhow::Error> {
-    //     let name_regex = self.escape_quotes_etc(name_regex_in);
-    //     let omission_expression = match omit_group_id_in {
-    //         None => "true",
-    //         Some(ogi) => format!("(not id={})", ogi).as_str(),
-    //     };
-    //     let sql = format!("select id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where name ~* '{}' and {} \
-    //                   order by id limit {} offset {}",
-    //                     name_regex, omission_expression, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in).as_str();
-    //     let early_results = self.db_query(transaction, sql, "i64,String,i64,bool,bool")?;
-    //     let final_results: Vec<Group> = Vec::new();
-    //     // idea: (see get_entities_generic for idea, see if applies here)
-    //     for result in early_results {
-    //       // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-    //         //%%$%%
-    //       // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
-    //       //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
-    //     }
-    //     if (final_results.len() != early_results.len()) {
-    //         return Err(anyhow!("In get_matching_groups, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
-    //     }
-    //     Ok(final_results)
-    //   }
+    fn get_matching_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64,
+                           max_vals_in: Option<i64> /*= None*/, omit_group_id_in: Option<i64>,
+                            name_regex_in: String) -> Result<Vec<Group>, anyhow::Error> {
+        let name_regex = self.escape_quotes_etc(name_regex_in);
+        let omission_expression = match omit_group_id_in {
+            None => "true",
+            Some(ogi) => format!("(not id={})", ogi).as_str(),
+        };
+        let sql = format!("select id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where name ~* '{}' and {} \
+                      order by id limit {} offset {}",
+                        name_regex, omission_expression, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in).as_str();
+        let early_results = self.db_query(transaction, sql, "i64,String,i64,bool,bool")?;
+        let final_results: Vec<Group> = Vec::new();
+        // idea: (see get_entities_generic for idea, see if applies here)
+        for result in early_results {
+          // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
+            //%%%%
+          // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
+          //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
+        }
+        if (final_results.len() != early_results.len()) {
+            return Err(anyhow!("In get_matching_groups, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
+        }
+        Ok(final_results)
+      }
 
     fn get_local_entities_containing_local_entity(
         &self,
@@ -4210,63 +4292,63 @@ impl Database for PostgreSQLDatabase {
         Ok((non_archived, archived))
     }
 
-    // fn get_containing_relations_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, starting_index_in: i64,
-    //                                      max_vals_in: Option<i64> /*= None*/)  -> Result<Vec<RelationToGroup>, anyhow::Error>  {
-    //     // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
-    //     // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
-    //     // So, could: see the expectation of the place(s) calling this method, if uniform, make these 2 methods more uniform in what they do in meeting that,
-    //     // OR, could consider whether we really should have an enforcement between the 2 tables...?
-    //     // THIS BUg currently prevents searching for then deleting the entity w/ this in name: "OTHER ENTITY NOTED IN A DELETION BUG" (see also other issue
-    //     // in Controller.java where that same name is mentioned. Related, be cause in that case on the line:
-    //     //    "descriptions = descriptions.substring(0, descriptions.length - delimiter.length) + ".  ""
-    //     // ...one gets the below exception throw, probably for the same or related reason:
-    //         /*
-    //         ==============================================
-    //         **CURRENT ENTITY:while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)
-    //         No attributes have been assigned to this object, yet.
-    //         1-Add attribute (quantity, true/false, date, text, external file, relation to entity or group: i.e., ownership of or "has" another entity, family ties, etc)...
-    //         2-Import/Export...
-    //         3-Edit name
-    //         4-Delete or Archive...
-    //         5-Go to...
-    //         6-List next items
-    //         7-Set current entity (while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)) as default (first to come up when launching this program.)
-    //         8-Edit public/nonpublic status
-    //         0/ESC - back/previous menu
-    //         4
-    //
-    //
-    //         ==============================================
-    //         Choose a deletion or archiving option:
-    //         1-Delete this entity
-    //                  2-Archive this entity (remove from visibility but not permanent/total deletion)
-    //         0/ESC - back/previous menu
-    //         1
-    //         An error occurred: "java.lang.StringIndexOutOfBoundsException: String index out of range: -2".  If you can provide simple instructions to reproduce it consistently, maybe it can be fixed.  Do you want to see the detailed output? (y/n):
-    //           y
-    //
-    //
-    //         ==============================================
-    //         java.lang.StringIndexOutOfBoundsException: String index out of range: -2
-    //         at java.lang.String.substring(String.java:1911)
-    //         at org.onemodel.Controller.Controller.deleteOrArchiveEntity(Controller.scala:644)
-    //         at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:232)
-    //         at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:388)
-    //         at org.onemodel.Controller.Controller.showInEntityMenuThenMainMenu(Controller.scala:277)
-    //         at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:80)
-    //         at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
-    //         at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
-    //         at org.onemodel.Controller.Controller.menuLoop$1(Controller.scala:140)
-    //         at org.onemodel.Controller.Controller.start(Controller.scala:143)
-    //         at org.onemodel.TextUI.launchUI(TextUI.scala:220)
-    //         at org.onemodel.TextUI$.main(TextUI.scala:34)
-    //         at org.onemodel.TextUI.main(TextUI.scala:1)
-    //         */
-    //
-    //     let sql = format!("select group_id from entitiesinagroup where entity_id={} order by group_id limit {} offset {}",
-    //                      entity_id_in, Self::check_if_should_be_all_results(max_vals_in), starting_index_in).as_str();
-    //     get_containing_relation_to_groups_helper(transaction, sql)?;
-    //   }
+    fn get_containing_relations_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, starting_index_in: i64,
+                                         max_vals_in: Option<i64> /*= None*/)  -> Result<Vec<RelationToGroup>, anyhow::Error>  {
+        // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
+        // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
+        // So, could: see the expectation of the place(s) calling this method, if uniform, make these 2 methods more uniform in what they do in meeting that,
+        // OR, could consider whether we really should have an enforcement between the 2 tables...?
+        // THIS BUg currently prevents searching for then deleting the entity w/ this in name: "OTHER ENTITY NOTED IN A DELETION BUG" (see also other issue
+        // in Controller.java where that same name is mentioned. Related, be cause in that case on the line:
+        //    "descriptions = descriptions.substring(0, descriptions.length - delimiter.length) + ".  ""
+        // ...one gets the below exception throw, probably for the same or related reason:
+            /*
+            ==============================================
+            **CURRENT ENTITY:while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)
+            No attributes have been assigned to this object, yet.
+            1-Add attribute (quantity, true/false, date, text, external file, relation to entity or group: i.e., ownership of or "has" another entity, family ties, etc)...
+            2-Import/Export...
+            3-Edit name
+            4-Delete or Archive...
+            5-Go to...
+            6-List next items
+            7-Set current entity (while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)) as default (first to come up when launching this program.)
+            8-Edit public/nonpublic status
+            0/ESC - back/previous menu
+            4
+
+
+            ==============================================
+            Choose a deletion or archiving option:
+            1-Delete this entity
+                     2-Archive this entity (remove from visibility but not permanent/total deletion)
+            0/ESC - back/previous menu
+            1
+            An error occurred: "java.lang.StringIndexOutOfBoundsException: String index out of range: -2".  If you can provide simple instructions to reproduce it consistently, maybe it can be fixed.  Do you want to see the detailed output? (y/n):
+              y
+
+
+            ==============================================
+            java.lang.StringIndexOutOfBoundsException: String index out of range: -2
+            at java.lang.String.substring(String.java:1911)
+            at org.onemodel.Controller.Controller.deleteOrArchiveEntity(Controller.scala:644)
+            at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:232)
+            at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:388)
+            at org.onemodel.Controller.Controller.showInEntityMenuThenMainMenu(Controller.scala:277)
+            at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:80)
+            at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
+            at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
+            at org.onemodel.Controller.Controller.menuLoop$1(Controller.scala:140)
+            at org.onemodel.Controller.Controller.start(Controller.scala:143)
+            at org.onemodel.TextUI.launchUI(TextUI.scala:220)
+            at org.onemodel.TextUI$.main(TextUI.scala:34)
+            at org.onemodel.TextUI.main(TextUI.scala:1)
+            */
+
+        let sql = format!("select group_id from entitiesinagroup where entity_id={} order by group_id limit {} offset {}",
+                         entity_id_in, Self::check_if_should_be_all_results(max_vals_in), starting_index_in).as_str();
+        self.get_containing_relation_to_groups_helper(transaction, sql)
+      }
 
     fn get_count_of_entities_used_as_attribute_types(
         &self,
@@ -4316,7 +4398,7 @@ impl Database for PostgreSQLDatabase {
     //     // dependencies; is a cleaner design?)
     //     for result in early_results {
     //       // None of these values should be of "None" type. If they are it's a bug:
-    //         //%%$%%%
+    //         //%%%%%
     //       // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
     //       //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
     //     }
@@ -4335,7 +4417,7 @@ impl Database for PostgreSQLDatabase {
     //     // dependencies; is a cleaner design?; see similar comment in get_entities_generic.)
     //     for result in early_results {
     //       // Only one of these values should be of "None" type.  If they are it's a bug:
-    //         //%%$%%%
+    //         //%%%%%
     //       // final_results.push(new EntityClass(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
     //       //                                  if result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Boolean])))
     //     }
@@ -4777,7 +4859,7 @@ impl Database for PostgreSQLDatabase {
 
     /*%%
                 fn get_or_create_class_and_template_entity(class_name_in: String, caller_manages_transactions_in: bool) -> (i64, i64) {
-                    //(see note above re 'bad smell' in method addUriEntityWithUriAttribute.)
+                    //(see note above re 'bad smell' in method add_uri_entity_with_uri_attribute.)
                           //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                     // if !caller_manages_transactions_in { self.begin_trans() }
                     try {
@@ -4886,15 +4968,14 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    /*%%$%%
-                  lazy let id: String = {;
-                    get_local_om_instance_data.get_id
+                  fn id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> String {
+                    self.get_local_om_instance_data(transaction).get_id
                   }
-    */
+
     fn om_instance_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-        id_in: String,
+        id_in: &str,
     ) -> Result<bool, anyhow::Error> {
         self.does_this_exist(
             transaction,
@@ -4903,7 +4984,7 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    //%%$%%
+    //%%%%
     /*
                 fn get_om_instances(localIn: Option<bool> = None) -> java.util.ArrayList[OmInstance] {
                 let sql = "select id, local, address, insertion_date, entity_id from omInstance" +;
@@ -4936,7 +5017,7 @@ impl Database for PostgreSQLDatabase {
       "get_local_om_instance_data and friends" should "work" in {
         let oi: OmInstance = db.get_local_om_instance_data;
         let uuid: String = oi.get_id;
-        assert(oi.getLocal)
+        assert(oi.get_local)
         assert(db.om_instance_key_exists(uuid))
         let startingOmiCount = db.get_om_instance_count();
         assert(startingOmiCount > 0)
@@ -4951,24 +5032,24 @@ impl Database for PostgreSQLDatabase {
         //    let sizeNowFalse = db.get_om_instances(Some(false)).size;
         //assert(sizeNowFalse < sizeNowTrue)
         assert(! db.om_instance_key_exists(java.util.UUID.randomUUID().toString))
-        assert(new OmInstance(db, uuid).getAddress == Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION)
+        assert(new OmInstance(db, uuid).get_address == Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION)
 
         let uuid2 = java.util.UUID.randomUUID().toString;
         db.create_om_instance(uuid2, is_local_in = false, "om.example.com", Some(db.get_system_entity_id))
         // should have the local one created at db creation, and now the one for this test:
         assert(db.get_om_instance_count() == startingOmiCount + 1)
         let mut i2: OmInstance = new OmInstance(db, uuid2);
-        assert(i2.getAddress == "om.example.com")
+        assert(i2.get_address == "om.example.com")
         db.update_om_instance(uuid2, "address", None)
         i2  = new OmInstance(db,uuid2)
-        assert(i2.getAddress == "address")
-        assert(!i2.getLocal)
-        assert(i2.getEntityId.isEmpty)
-        assert(i2.getCreationDate > 0)
-        assert(i2.getCreationDateFormatted.length > 0)
+        assert(i2.get_address == "address")
+        assert(!i2.get_local)
+        assert(i2.get_entity_id.isEmpty)
+        assert(i2.get_creation_date > 0)
+        assert(i2.get_creation_date_formatted.length > 0)
         db.update_om_instance(uuid2, "address", Some(db.get_system_entity_id))
         i2  = new OmInstance(db,uuid2)
-        assert(i2.getEntityId.get == db.get_system_entity_id)
+        assert(i2.get_entity_id.get == db.get_system_entity_id)
         assert(db.is_duplicate_om_instance_address("address"))
         assert(db.is_duplicate_om_instance_address(Util.LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION))
         assert(!db.is_duplicate_om_instance_address("address", Some(uuid2)))
@@ -4987,23 +5068,25 @@ impl Database for PostgreSQLDatabase {
       }
     */
 
-    /*
-        fn update_om_instance(id_in: String, address_in: String, entity_id_in: Option<i64>) {
+    fn update_om_instance(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                          id_in: String, address_in: String, entity_id_in: Option<i64>)
+        -> Result<u64, anyhow::Error> {
         let address: String = self.escape_quotes_etc(address_in);
-        let sql = format!("UPDATE omInstance SET (address, entity_id)" +;
-                  " = ('" + address + "', " +
-                  (if entity_id_in.is_some()) {
-                    entity_id_in.get
-                  } else {
-                    "NULL"
-                  }) +
-                  ") where id='" + id_in + "'");
-        self.db_action(sql.as_str(), false, false);
+        let eid_or_null = match entity_id_in {
+            Some(eid) => eid.to_string(),
+            _ => "NULL",
+        };
+        let sql = format!("UPDATE omInstance SET (address, entity_id) = ('{}', {}) where id='{}'",
+            address, eid_or_null, id_in);
+        self.db_action(transaction, sql.as_str(), false, false)
       }
 
-        fn delete_om_instance(id_in: String) /* -> Unit%%*/ {
-        delete_object_by_id2("omInstance", id_in)
-      }
+    fn delete_om_instance<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        id_in: &str,
+    ) -> Result<u64, anyhow::Error> {
+            self.delete_object_by_id2(transaction, "omInstance", id_in, false)
+        }
 
-    */
 }

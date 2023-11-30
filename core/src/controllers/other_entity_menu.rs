@@ -51,7 +51,7 @@ struct OtherEntityMenu {
           if response.is_defined) {
             let answer = response.get;
             if answer == 1) {
-              let valueBeforeEntry: Option<bool> = entity_in.getPublic;
+              let valueBeforeEntry: Option<bool> = entity_in.get_public;
               let valueAfterEntry: Option<bool> = controller.askForPublicNonpublicStatus(valueBeforeEntry);
               let rteCount: i64 = entity_in.get_relation_to_local_entity_count(include_archived_entities_in = false);
               let rtgCount: i64 = entity_in.get_relation_to_group_count;
@@ -104,10 +104,10 @@ struct OtherEntityMenu {
                               attributeTuplesIn)
             } else if answer == 3) {
               let template_entity: Option<Entity> =;
-                if entity_in.getClassTemplateEntityId.isEmpty) {
+                if entity_in.get_class_template_entity_id.isEmpty) {
                   None
                 } else {
-                  Some(new Entity(entity_in.db, entity_in.getClassTemplateEntityId.get))
+                  Some(new Entity(entity_in.db, entity_in.get_class_template_entity_id.get))
                 }
               let templateAttributesToCopy: ArrayBuffer[Attribute] = controller.getMissingAttributes(template_entity, attributeTuplesIn);
               let editAnswer = ui.ask_which(Some(Vec<String>{Util.entity_menu_leading_text(entity_in)}),;
@@ -115,7 +115,7 @@ struct OtherEntityMenu {
                                                  "Change its class",
                                                  if templateAttributesToCopy.nonEmpty) "Add/edit missing class-defined fields (in other words, to make this " +
                                                                                         "entity more resemble its class' template)" else "(stub)",
-                                                 if entity_in.getNewEntriesStickToTop) {
+                                                 if entity_in.get_new_entries_stick_to_top) {
                                                    "Set entity so new items added from the top highlight become the *2nd* entry (CURRENTLY: they stay at the top)."
                                                  } else {
                                                    "Set entity so new items added from the top highlight become the *top* entry (CURRENTLY: they will be 2nd)."
@@ -139,7 +139,7 @@ struct OtherEntityMenu {
                 } else if editAnswer.get == 3 && templateAttributesToCopy.nonEmpty) {
                   controller.copyAndEditAttributes(entity_in, templateAttributesToCopy)
                 } else if editAnswer.get == 4) {
-                  entity_in.updateNewEntriesStickToTop(!entity_in.getNewEntriesStickToTop)
+                  entity_in.updateNewEntriesStickToTop(!entity_in.get_new_entries_stick_to_top)
                 }
               }
             } else if answer == 4) {
@@ -165,7 +165,7 @@ struct OtherEntityMenu {
                     ui.display_text("Did not delete relation.", false);
                   }
                 } else if delAnswer == delFromContainingGroup_choiceNumber && containingGroupIn.is_defined && delAnswer <= choices.length) {
-                  removeEntityReferenceFromGroup_Menu(entity_in, containingGroupIn)
+                  remove_entityReferenceFromGroup_Menu(entity_in, containingGroupIn)
                 } else if delAnswer == showAllArchivedEntities_choiceNumber) {
                   // ** IF THIS OPERATION IS EVER MOVED, UPDATE THE USER MESSAGE ABOUT THE MENU OPTIONS LOCATIONS**, in Controller.get_default_entity. **
                   entity_in.db.set_include_archived_entities(! entity_in.db.include_archived_entities)
@@ -176,7 +176,7 @@ struct OtherEntityMenu {
                 }
               }
             } else if answer == 5) {
-              let template_entity_id: Option<i64> = entity_in.getClassTemplateEntityId;
+              let template_entity_id: Option<i64> = entity_in.get_class_template_entity_id;
               goToRelatedPlaces(entity_in, relationSourceEntityIn, containingRelationToEntityIn, template_entity_id)
               //ck 1st if entity exists, if not return None. It could have been deleted while navigating around.
               if entity_in.db.entity_key_exists(entity_in.get_id, include_archived = false)) {
@@ -203,15 +203,15 @@ struct OtherEntityMenu {
         }
       }
 
-        fn removeEntityReferenceFromGroup_Menu(entity_in: Entity, containingGroupIn: Option[Group]) -> bool {
-        let groupCount: i64 = entity_in.getCountOfContainingGroups;
-        let (entity_countNonArchived, entity_countArchived) = entity_in.getCountOfContainingLocalEntities;
+        fn remove_entityReferenceFromGroup_Menu(entity_in: Entity, containingGroupIn: Option[Group]) -> bool {
+        let groupCount: i64 = entity_in.get_count_of_containing_groups;
+        let (entity_countNonArchived, entity_countArchived) = entity_in.get_count_of_containing_local_entities;
         let ans = ui.ask_yes_no_question("REMOVE this entity from that group: ARE YOU SURE? (This isn't a deletion: the entity can still be found by searching, and " +;
                                       "is " + Util.get_containing_entities_description(entity_countNonArchived, entity_countArchived) +
                                       (if groupCount > 1) ", and will still be in " + (groupCount - 1) + " group(s).)" else ""),
                                       Some(""))
         if ans.is_defined && ans.get) {
-          containingGroupIn.get.removeEntity(entity_in.get_id)
+          containingGroupIn.get.remove_entity(entity_in.get_id)
           true
 
           //is it ever desirable to keep the next line instead of the 'None'? not in most typical usage it seems, but?:
@@ -231,7 +231,7 @@ struct OtherEntityMenu {
         //IDEA: could combine this method with the following two. The only differences as of now are 3 strings and a method call, easily parameterized. Not
         //doing it immediately in case they diverge again soon.
         let name = entity_in.get_name;
-        let groupCount: i64 = entity_in.getCountOfContainingGroups;
+        let groupCount: i64 = entity_in.get_count_of_containing_groups;
         let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entity_in);
         let effectMsg =  "This will ALSO remove it from " + groupCount + " groups, including for example these relations" +;
                          " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + affectedExamples
@@ -253,7 +253,7 @@ struct OtherEntityMenu {
         *
         fn archive_entity(entity_in: Entity) -> bool {
         let name = entity_in.get_name;
-        let groupCount: i64 = entity_in.getCountOfContainingGroups;
+        let groupCount: i64 = entity_in.get_count_of_containing_groups;
         let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entity_in);
         let effectMsg = "This will affect affect its visibility in " + groupCount + " groups, including for example these relations" +;
                         " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + affectedExamples
@@ -275,7 +275,7 @@ struct OtherEntityMenu {
         *
         fn unarchive_entity(entity_in: Entity) -> bool {
         let name = entity_in.get_name;
-        let groupCount: i64 = entity_in.getCountOfContainingGroups;
+        let groupCount: i64 = entity_in.get_count_of_containing_groups;
         let affectedExamples = getExampleAffectedGroupsDescriptions(groupCount, entity_in);
         let effectMsg = "This will affect affect its visibility in " + groupCount + " groups, including for example these relations" +;
                         " that refer to this entity (showing entities & their relations to groups, as \"entity -> group\"): " + affectedExamples
@@ -411,12 +411,12 @@ struct OtherEntityMenu {
         let mut goToTemplateEntity_choiceNumber: i32 = 3;
         let mut goToClass_choiceNumber: i32 = 4;
         let numContainingEntities: i64 = {;
-          let (non_archived, archived) = entity_in.getCountOfContainingLocalEntities;
+          let (non_archived, archived) = entity_in.get_count_of_containing_local_entities;
           if entity_in.db.include_archived_entities)  non_archived + archived
           else non_archived
         }
         // (idea: make this next call efficient: now it builds them all when we just want a count; but is infrequent & likely small numbers)
-        let numContainingGroups = entity_in.getCountOfContainingGroups;
+        let numContainingGroups = entity_in.get_count_of_containing_groups;
         let mut containingGroup: Option[Group] = None;
         let mut containingRtg: Option[RelationToGroup] = None;
         if numContainingGroups == 1) {
@@ -465,11 +465,11 @@ struct OtherEntityMenu {
             // can specify dif't values on each call, for the starting_index_in parm of getRelatingEntities.  I.e., could make it look more like
             // searchForExistingObject or such ? IF needed.  But to be needed means the user is putting the same object related by multiple
             // entities: enough to fill > 1 screen when listed.
-            let containingEntities: util.ArrayList[(i64, Entity)] = entity_in.getLocalEntitiesContainingEntity(0, Some(numDisplayableItems));
+            let containingEntities: util.ArrayList[(i64, Entity)] = entity_in.get_local_entities_containing_entity(0, Some(numDisplayableItems));
             let containingEntitiesStatusAndNames: Vec<String> = containingEntities.toArray.map {;
                                                                                           case rel_type_idAndEntity: (i64, Entity) =>
                                                                                             let entity: Entity = rel_type_idAndEntity._2;
-                                                                                            entity.getArchivedStatusDisplayString + entity.get_name
+                                                                                            entity.get_archived_status_display_string + entity.get_name
                                                                                           case _ => throw new OmException("??")
                                                                                         }
             let ans = ui.ask_which(Some(leading_text.toArray), choices, containingEntitiesStatusAndNames);
@@ -514,9 +514,9 @@ struct OtherEntityMenu {
               // This "if" exists only to get things to compile while limiting visibility of "RelationToEntity" (per comments on that class).
               //noinspection TypeCheckCanBeMatch
               if relationIn.get.isInstanceOf[RelationToLocalEntity]) {
-                relationIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2
+                relationIn.get.asInstanceOf[RelationToLocalEntity].get_related_id2
               } else if relationIn.get.isInstanceOf[RelationToRemoteEntity]) {
-                relationIn.get.asInstanceOf[RelationToRemoteEntity].getRelatedId2
+                relationIn.get.asInstanceOf[RelationToRemoteEntity].get_related_id2
               } else {
                 throw new OmException("unexpected type: " + relationIn.getClass.getCanonicalName)
               }
@@ -529,14 +529,14 @@ struct OtherEntityMenu {
                                                                                 "CHOOSE TYPE OF Relation to Entity:", dummyMethod, updateRelationToEntity)
             // Force a reread from the DB so it shows the right info SO THIS IS NOT FORGOTTEN, IN CASE we add later a call a menu which
             // needs it as a parameter.  But if ever used, specify local vs. remote.
-            //relationToEntity = Some(new RelationToEntity(db, relationIn.get.get_id, relationIn.get.get_attr_type_id(), relationIn.get.getRelatedId1,
-            //                                             relationIn.get.getRelatedId2))
+            //relationToEntity = Some(new RelationToEntity(db, relationIn.get.get_id, relationIn.get.get_attr_type_id(), relationIn.get.get_related_id1,
+            //                                             relationIn.get.get_related_id2))
           } else if goWhereAnswer == goToRelationType_choiceNumber && relationIn.is_defined && goWhereAnswer <= choices.length) {
             new EntityMenu(ui, controller).entityMenu(new Entity(relationIn.get.db, relationIn.get.get_attr_type_id()))
           } else if goWhereAnswer == goToTemplateEntity_choiceNumber && template_entity_id.is_defined && goWhereAnswer <= choices.length) {
             new EntityMenu(ui, controller).entityMenu(new Entity(entity_in.db, template_entity_id.get))
           } else if goWhereAnswer == goToClass_choiceNumber && template_entity_id.is_defined && goWhereAnswer <= choices.length) {
-            let classId: Option<i64> = entity_in.getClassId;
+            let classId: Option<i64> = entity_in.get_class_id;
             if classId.isEmpty) {
               throw new OmException("Unexpectedly, this entity doesn't seem to have a class id.  That is probably a bug.")
             } else {
@@ -579,12 +579,12 @@ struct OtherEntityMenu {
             // This displays (or allows to choose) the entity that contains the group, rather than the chosen group itself.  Probably did it that way originally
             // because I thought it made more sense to show a group in context than by itself.
             let containingRelationToGroup = containingRelationToGroups.get(index);
-            let containingEntities = containingRelationToGroup.db.get_entities_containing_group(containingRelationToGroup.getGroupId, 0);
+            let containingEntities = containingRelationToGroup.db.get_entities_containing_group(containingRelationToGroup.get_group_id, 0);
             let numContainingEntities = containingEntities.size;
             if numContainingEntities == 1) {
               let containingEntity: Entity = containingEntities.get(0)._2;
               new EntityMenu(ui, controller).entityMenu(containingEntity, containingGroupIn = Some(new Group(containingRelationToGroup.db,
-                                                                                                             containingRelationToGroup.getGroupId)))
+                                                                                                             containingRelationToGroup.get_group_id)))
             } else {
               controller.chooseAmongEntities(containingEntities)
             }
@@ -592,7 +592,7 @@ struct OtherEntityMenu {
             // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
             let id: i64 = containingRelationToGroups.get(index).get_id;
             let entity_id: i64 = containingRelationToGroups.get(index).get_parent_id();
-            let groupId: i64 = containingRelationToGroups.get(index).getGroupId;
+            let groupId: i64 = containingRelationToGroups.get(index).get_group_id;
             let rel_type_id: i64 = containingRelationToGroups.get(index).get_attr_type_id();
             new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(entity_in.db, groupId), 0,
                                                               Some(new RelationToGroup(entity_in.db, id, entity_id, rel_type_id, groupId)),
@@ -615,8 +615,8 @@ struct OtherEntityMenu {
                                        containingGroupIn: Option[Group]) -> (Option[Int], Int, Int, Int) {
         require(relationIn.isEmpty || relationIn.get.isInstanceOf[RelationToLocalEntity] || relationIn.get.isInstanceOf[RelationToRemoteEntity])
 
-        let groupCount: i64 = entity_in.getCountOfContainingGroups;
-        let (entity_countNonArchived, entity_countArchived) = entity_in.getCountOfContainingLocalEntities;
+        let groupCount: i64 = entity_in.get_count_of_containing_groups;
+        let (entity_countNonArchived, entity_countArchived) = entity_in.get_count_of_containing_local_entities;
         let relToGroupCnt = entity_in.get_relation_to_group_count;
         let relToLocalEntityCnt = entity_in.get_relation_to_local_entity_count(true);
         let relToLocalEntityCntNotArchived = entity_in.get_relation_to_local_entity_count(false);

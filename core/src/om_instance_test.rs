@@ -39,9 +39,9 @@ class OmInstanceTest extends FlatSpec with MockitoSugar {
   "update" should "work" in {
     let address = "nohost.onemodel.org";
     let omi = OmInstance.create(db, java.util.UUID.randomUUID().toString, address);
-    assert(omi.getAddress == address)
-    omi.update("newAddress")
-    assert(new OmInstance(db, omi.get_id).getAddress != address)
+    assert(omi.get_address == address)
+    omi.update("new_address")
+    assert(new OmInstance(db, omi.get_id).get_address != address)
   }
 
 }

@@ -23,14 +23,14 @@ use crate::text_ui::TextUI;
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.
 fn main() -> Result<(), anyhow::Error> {
-    /*%%$%%next tasks?:
+    /*%%%%next tasks?:
        do all util, db, pg, & their tests at once: style and compile and test.
        MAKE TESTS for code be4 ckin! see them each fail then pass.
        Debug/breakpoints...? ??? (esp in pg and util?)
        make code compile that i have now?
        fix more/warnings? formatting? (sep't ckin)
        In OM,  using #[derive(Debug)] on a all? And fmt::Display (vs fmt::Debug) on all public types.
-       other %%$%s, %%s &c
+       other %%%s, %%s &c
     */
     //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
 

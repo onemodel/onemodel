@@ -301,7 +301,7 @@ impl Util {
 
     /*
        fn entity_menu_leading_text(entity_in: Entity) {
-       "**CURRENT ENTITY " + entity_in.get_id() + ": " + entity_in.get_display_string(/*%%withColor = */true)
+       "**CURRENT ENTITY " + entity_in.get_id() + ": " + entity_in.get_display_string(/*%%with_color = */true)
      }
     */
 

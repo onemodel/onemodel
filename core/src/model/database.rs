@@ -32,6 +32,7 @@ pub enum DataType {
 // #[automock]
 pub trait Database {
     fn is_remote(&self) -> bool;
+    fn id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> String;
     // fn setup_db(&self) -> Result<(), String>;
 
     fn get_remote_address(&self) -> Option<String> {
@@ -46,8 +47,8 @@ pub trait Database {
     // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
     // is needed, maybe it should be put in a TextAttribute and make those more convenient to use, instead.
     // (See usages. The DNS hostname max size seems to be 255 plus 1 null, but the ":<port>" part could add 6 more chars (they seem to go up to :65535).
-    // Idea: Maybe someday we will have to move to a larger size in case it changes or uses unicode or I don't know what.)
-    fn om_instance_address_length(&self) -> i32 {
+    // Idea: Maybe someday we will have to move to a larger or flexible size in case it changes or uses unicode or I don't know what.)
+    fn om_instance_address_length(/*&self*/) -> i32 {
         262
     }
 
@@ -336,10 +337,10 @@ pub trait Database {
     //                                     valid_on_date_in: Option<i64>, observation_date_in: i64,
     //                            sorting_index_in: Option<i64> /*= None*/) -> RelationToLocalEntity;
     // fn get_or_create_class_and_template_entity(class_name_in: String, caller_manages_transactions_in: bool) -> Result<(i64, i64), anyhow::Error>;
-    // fn addUriEntityWithUriAttribute(&self, transaction: &Option<&mut Transaction<Postgres>>,
-    //                                 containingEntityIn: Entity, new_entity_name_in: String, uriIn: String, observation_date_in: i64,
-    //                                  makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool,
-    //                                  quoteIn: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity);
+    // fn add_uri_entity_with_uri_attribute(&self, transaction: &Option<&mut Transaction<Postgres>>,
+    //                                 containingEntityIn: Entity, new_entity_name_in: String, uri_in: String, observation_date_in: i64,
+    //                                  makeThem_public_in: Option<bool>, caller_manages_transactions_in: bool,
+    //                                  quote_in: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity);
 
     fn attribute_key_exists(
         &self,
@@ -398,7 +399,7 @@ pub trait Database {
     fn om_instance_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-        id_in: String,
+        id_in: &str,
     ) -> Result<bool, anyhow::Error>;
     fn is_duplicate_entity_name(
         &self,
@@ -579,7 +580,7 @@ pub trait Database {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         address_in: &str,
-        self_id_to_ignore_in: Option<String>, /*= None*/
+        _self_id_to_ignore_in: Option<String>, /*= None*/
     ) -> Result<bool, anyhow::Error>;
     fn get_groups_containing_entitys_groups_ids(
         &self,
@@ -680,8 +681,8 @@ pub trait Database {
         transaction: &Option<&mut Transaction<Postgres>>,
         entity_id_in: i64,
     ) -> Result<Vec<i64>, anyhow::Error>;
-    // fn get_containing_relations_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, starting_index_in: i64,
-    //                                                    max_vals_in: Option<i64> /*= None*/) -> Result<Vec<RelationToGroup>, anyhow::Error>;
+    fn get_containing_relations_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, starting_index_in: i64,
+                                                       max_vals_in: Option<i64> /*= None*/) -> Result<Vec<RelationToGroup>, anyhow::Error>;
     // fn get_should_create_default_attributes(&self, transaction: &Option<&mut Transaction<Postgres>>, class_id_in: i64) -> Result<Option<bool>, anyhow::Error>;
     fn update_class_create_default_attributes(
         &self,
@@ -722,10 +723,10 @@ pub trait Database {
         omit_entity_id_in: Option<i64>,
         name_regex_in: String,
     ) -> Result<Vec<Entity>, anyhow::Error>;
-    // fn get_matching_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/, omit_group_id_in: Option<i64>,
-    //                       name_regex_in: String) -> Result<Vec<Group>, anyhow::Error>;
-    // fn get_relations_to_group_containing_this_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64, starting_index_in: i64,
-    //                                                             max_vals_in: Option<i64> /*= None*/) -> Result<Vec<RelationToGroup>, anyhow::Error>;
+    fn get_matching_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/, omit_group_id_in: Option<i64>,
+                          name_regex_in: String) -> Result<Vec<Group>, anyhow::Error>;
+    fn get_relations_to_group_containing_this_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64, starting_index_in: i64,
+                                                                max_vals_in: Option<i64> /*= None*/) -> Result<Vec<RelationToGroup>, anyhow::Error>;
     fn get_entities(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -1002,8 +1003,11 @@ pub trait Database {
         name_in_reverse_direction_in: String,
         directionality_in: String,
     ) -> Result<(), anyhow::Error>;
-    // fn update_class_and_template_entity_name(&self, transaction: &Option<&mut Transaction<Postgres>>, class_id_in: i64, name: String) -> Result<i64, anyhow::Error>;
-    // fn update_om_instance(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: String, address_in: String, entity_id_in: Option<i64>) -> Result<(), anyhow::Error>;
+    fn update_class_and_template_entity_name(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                    class_id_in: i64, name: String, caller_manages_transactions_in: bool /*= false*/)
+        -> Result<i64, anyhow::Error>;
+    fn update_om_instance(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: String,
+                          address_in: String, entity_id_in: Option<i64>) -> Result<(), anyhow::Error>;
     fn delete_entity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
@@ -1068,7 +1072,8 @@ pub trait Database {
         &self,
         group_id_in: i64,
     ) -> Result<(), anyhow::Error>;
-    // fn delete_om_instance(&self, transaction: &Option<&mut Transaction<Postgres>>, id_in: String) -> Result<(), anyhow::Error>;
+    fn delete_om_instance(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                          id_in: String) -> Result<(), anyhow::Error>;
     fn remove_entity_from_group<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,

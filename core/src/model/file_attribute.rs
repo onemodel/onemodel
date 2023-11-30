@@ -22,7 +22,9 @@ use sqlx::{Postgres, Transaction};
 use std::ffi::OsStr;
 use std::path::Path;
 
-// Similar/identical code found in *_attribute.rs due to Rust limitations on OO.  Maintain them all similarly.
+// ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
+// due to Rust limitations on OO.  Maintain them all similarly.
+
 /// See BooleanAttribute, TextAttribute etc for some comments.
 pub struct FileAttribute<'a> {
     // For descriptions of the meanings of these variables, see the comments
@@ -428,8 +430,8 @@ impl FileAttribute<'_> {
     // stored date!) are untouched if unchanged if
     //  // not passed in!! And probably need to add the 3 boolean fields to it & test.
     //  db.update_file_attribute(id, parent_id,
-    //                          if attr_type_id_in == None) get_attr_type_id() else inAttrTypeId.get,
-    //                          if description_in == None) get_description() else inDescription.get,
+    //                          if attr_type_id_in == None) get_attr_type_id() else in_attr_type_id.get,
+    //                          if description_in == None) get_description() else in_description.get,
     //                          if original_file_date_in == None) get_original_file_date() else original_file_date_in.get,
     //                          if stored_date_in == None) get_stored_date() else stored_date_in.get,
     //                          if original_file_path_in == None) get_original_file_path() else original_file_path_in.get,

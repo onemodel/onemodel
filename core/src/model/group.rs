@@ -7,278 +7,514 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-struct Group {
-/*%%
-package org.onemodel.core.model
+use anyhow::{anyhow, Error, Result};
+use crate::color::Color;
+use crate::model::database::{DataType, Database};
+use crate::model::entity::Entity;
+use crate::model::entity_class::EntityClass;
+use crate::model::relation_to_group::RelationToGroup;
+use crate::util::Util;
+use sqlx::{Postgres, Transaction};
 
-import org.onemodel.core.{Util, Color, OmException}
-
-object Group {
-    fn create_group(db_in: Database, inName: String, allow_mixed_classes_in_group_in: bool = false) -> Group {
-    let id: i64 = db_in.create_group(inName, allow_mixed_classes_in_group_in);
-    new Group(db_in, id)
-  }
-
-  /** This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
-    */
-    fn getGroup(db_in: Database, id: i64) -> Option[Group] {
-    try Some(new Group(db_in, id))
-    catch {
-      case e: java.lang.Exception =>
-        //idea: see comment here in Entity.scala.
-        if e.toString.indexOf(Util::DOES_NOT_EXIST) >= 0) {
-          None
-        }
-        else throw e
-    }
-  }
+pub struct Group<'a> {
+  id: i64,
+  db: Box<&'a dyn Database>,
+  already_read_data: bool /*= false*/,
+  name: String /*= null*/,
+  insertion_date: i64 /*= 0L*/,
+  mixed_classes_allowed: bool /*= false*/,
+  new_entries_stick_to_top: bool /*= false*/,
 }
 
-/** See comments on similar methods in RelationToEntity (or maybe its subclasses).
-  *
-  * Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
-  * */
-class Group(val db: Database, id: i64) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-  if !db.is_remote && !db.group_key_exists(id: i64)) {
-    throw new Exception("Key " + id + Util::DOES_NOT_EXIST)
+impl Group<'_> {
+  /// Creates a new group in the database.
+  fn create_group(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
+                  in_name: &str, allow_mixed_classes_in_group_in: bool /*= false*/) -> Result<Group, Error> {
+    let id: i64 = db_in.create_group(transaction, in_name, allow_mixed_classes_in_group_in)?;
+    // Might be obvious but: Calling fn new2, not new, here, because we don't have enough data to
+    // call new and so it will load from the db the other values when needed, as saved by the above.
+    Group::new2(db_in, transaction, id)
   }
 
-  /** See comment about these 2 dates in Database.create_tables() */
-    fn this(db: Database, id_in: i64, name_in: String, insertion_dateIn: i64, mixed_classes_allowedIn: bool, new_entries_stick_to_top_in: bool) {
-    this(db, id_in)
-    m_name = name_in
-    m_insertion_date = insertion_dateIn
-    mMixedClassesAllowed = mixed_classes_allowedIn
-    m_new_entries_stick_to_top = new_entries_stick_to_top_in
-    already_read_data = true
-  }
-
-    fn read_data_from_db() {
-    let relationData: Vec<Option<DataType>> = db.get_group_data(id);
-    if relationData.length == 0) {
-      throw new OmException("No results returned from data request for: " + id)
+  /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
+  fn get_group(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
+               id: i64) -> Result<Option<Group>, Error> {
+    let result: Result<Group, Error> = Group::new2(db_in, transaction, id);
+    match result {
+      Err(e) => if e.to_string().contains(Util::DOES_NOT_EXIST) {
+          //idea: see comment here in Entity.rc.
+          Ok(None)
+        } else {
+          Err(e)
+        },
+      Ok(group) => Ok(Some(group)),
     }
-    m_name = relationData(0).get.asInstanceOf[String]
-    m_insertion_date = relationData(1).get.asInstanceOf[i64]
-    mMixedClassesAllowed = relationData(2).get.asInstanceOf[Boolean]
-    m_new_entries_stick_to_top = relationData(3).get.asInstanceOf[Boolean]
-    already_read_data = true
   }
 
-    fn update(attr_type_id_inIGNOREDFORSOMEREASON: Option<i64> = None, name_in: Option<String> = None, allow_mixed_classes_in_group_in: Option<bool> = None,
-             new_entries_stick_to_top_in: Option<bool> = None,
-             valid_on_date_inIGNORED4NOW: Option<i64>, observation_date_inIGNORED4NOW: Option<i64>) {
-
-    db.update_group(id,
-                    if name_in.isEmpty) get_name else name_in.get,
-                    if allow_mixed_classes_in_group_in.isEmpty) getMixedClassesAllowed else allow_mixed_classes_in_group_in.get,
-                    if new_entries_stick_to_top_in.isEmpty) getNewEntriesStickToTop else new_entries_stick_to_top_in.get)
-
-    if name_in.is_some()) m_name = name_in.get
-    if allow_mixed_classes_in_group_in.is_some()) mMixedClassesAllowed = allow_mixed_classes_in_group_in.get
-    if new_entries_stick_to_top_in.is_some()) m_new_entries_stick_to_top = new_entries_stick_to_top_in.get
-  }
-
-  /** Removes this object from the system. */
-    fn delete() {
-    db.delete_group_and_relations_to_it(id)
+  /// See comment about these 2(?) dates in Database.create_tables() (?)
+  /// [%%Confirm?:] This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
+  /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
+  /// one that already exists.  It does not confirm that the id exists in the db.
+  fn new<'a>(
+    db: Box<&'a dyn Database>,
+    id: i64,
+    name_in: &str,
+    insertion_date: i64,
+    mixed_classes_allowed: bool,
+    new_entries_stick_to_top: bool)
+  -> Group<'a> {
+    Group {
+      db,
+      id,
+      name: name_in.to_string(),
+      insertion_date,
+      mixed_classes_allowed,
+      new_entries_stick_to_top,
+      already_read_data: true,
     }
+  }
 
-  /** Removes an entity from this group. */
-    fn removeEntity(entity_id: i64) {
-    db.remove_entity_from_group(id, entity_id)
+  /// See comments on similar methods in RelationToEntity (or maybe its subclasses%%).
+  /// Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
+  pub fn new2<'a>(&db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<Group<'a>, Error> {
+    // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+    if !db.is_remote && !db.group_key_exists(transaction, id: i64)? {
+      Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
+    } else {
+      Ok(Group {
+        id,
+        db,
+        already_read_data: false,
+        name: "".to_string(),
+        insertion_date: 0,
+        mixed_classes_allowed: false,
+        new_entries_stick_to_top: false,
+      })
     }
-
-    fn deleteWithEntities() {
-    db.delete_group_relations_to_it_and_its_entries(id)
-    }
-
-  // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability, or vals not vars)?
-    fn get_size(includeWhichEntities: Int = 3) -> i64 {
-    db.get_group_size(id, includeWhichEntities)
   }
 
-    fn get_display_string(length_limit_in: Int = 0, simplifyIn: bool = false) -> String {
-    let numEntries = db.get_group_size(get_id, 1);
-    let mut result: String =  "";
-    result += {
-      if simplifyIn) get_name
-      else "grp " + id + " /" + numEntries + ": " + Color.blue(get_name)
-    }
-    if !simplifyIn) {
-      result += ", class: "
-      let class_name =;
-        if getMixedClassesAllowed)
-          "(mixed)"
-        else {
-          let class_nameOption = get_class_name;
-          if class_nameOption.isEmpty) "None"
-          else class_nameOption.get
-        }
-      result += class_name
-    }
-    if simplifyIn) result
-    else Attribute.limit_attribute_description_length(result, length_limit_in)
+  //%%eliminate the _ parameters? who calls it w/ them & why?
+  fn update(
+    &mut self,
+    transaction: &Option<&mut Transaction<Postgres>>,
+    _attr_type_id_in: Option<i64> /*= None*/, name_in: Option<String> /*= None*/, allow_mixed_classes_in_group_in: Option<bool> /*= None*/,
+    new_entries_stick_to_top_in: Option<bool> /*= None*/,
+    _valid_on_date_in: Option<i64>, _observation_date_in: Option<i64>,
+  ) -> Result<(), Error> {
+    // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
+    // it all goes with
+    self.db.update_group(
+      transaction,
+      self.id,
+      match name_in {
+        None => self.get_name(transaction)?,
+        Some(s) => {
+          self.name = s;
+          s.clone()
+        },
+      },
+      match allow_mixed_classes_in_group_in {
+        None => self.get_allow_mixed_classes_in_group(transaction)?,
+        Some(b) => {
+          self.mixed_classes_allowed = b;
+          b
+        },
+      },
+      match new_entries_stick_to_top_in {
+        None => self.get_new_entries_stick_to_top(transaction)?,
+        Some(b) => {
+          self.new_entries_stick_to_top = b;
+          b
+        },
+      }
+    )?;
+    Ok(())
   }
 
-    fn getGroupEntries(starting_index_in: i64, max_vals_in: Option<i64> = None) -> Vec<Entity> {
-    db.get_group_entry_objects(id, starting_index_in, max_vals_in)
-  }
-
-    fn addEntity(in_entity_id: i64, sorting_index_in: Option<i64> = None, caller_manages_transactions_in: bool = false) {
-    db.add_entity_to_group(get_id, in_entity_id, sorting_index_in, caller_manages_transactions_in)
-  }
-
-    fn get_id() -> i64 {
-    id
-    }
-
-    fn get_name -> String {
-    if !already_read_data) read_data_from_db()
-    m_name
-  }
-
-    fn getMixedClassesAllowed -> bool {
-    if !already_read_data) read_data_from_db()
-    mMixedClassesAllowed
-  }
-
-    fn getNewEntriesStickToTop -> bool {
-    if !already_read_data) read_data_from_db()
-    m_new_entries_stick_to_top
-  }
-
-    fn getInsertionDate -> i64 {
-    if !already_read_data) read_data_from_db()
-    m_insertion_date
-  }
-
-    fn get_class_name -> Option<String> {
-    if getMixedClassesAllowed)
-      None
-    else {
-      let class_id: Option<i64> = getClassId;
-      if class_id.isEmpty && get_size() == 0) {
-        // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
-        Some("(unspecified)")
-      } else if class_id.isEmpty) {
-        // means the group requires uniform classes, but the enforced uniform class is None, i.e., to not have a class:
-        Some("(specified as None)")
+  fn get_display_string(
+    &mut self,
+    length_limit_in: usize /*= 0*/,
+    simplify_in: bool,                 /* = false*/
+  ) -> Result<String, Error> {
+    let num_entries = db.get_group_size(get_id, 1);
+    let mut result: String =  "".to_string();
+    result.push_str(
+      if simplify_in {
+        self.get_name(&None)?.as_str()
       } else {
-        let exampleEntitysClass = new EntityClass(db, class_id.get);
-        Some(exampleEntitysClass.get_name)
+        format!("grp {} /{}: {}", self.id, num_entries, Color::blue(get_name)).as_str()
       }
-    }
-  }
-
-    fn getClassId -> Option<i64> {
-    if getMixedClassesAllowed)
-      None
-    else {
-      let entries = db.get_group_entry_objects(get_id, 0, Some(1));
-      let specified: bool = entries.size() > 0;
-      if !specified)
-        None
-      else {
-        // idea: eliminate/simplify most of this part, since groups can't have subgroups only entities in them now?
-        fn findAnEntity(nextIndex: Int) -> Option<Entity> {
-          // We will have to change this (and probably other things) to traverse "subgroups" (groups in the entities in this group) also,
-          // if we decide that disallowing mixed classes also means class uniformity across all subgroups.
-          if nextIndex == entries.size)
-            None
-          else entries.get(nextIndex) match {
-            case entity: Entity =>
-              Some(entity)
-            case _ =>
-              let class_name = entries.get(nextIndex).getClass.get_name;
-              throw new OmException(s"a group contained an entry that's not an entity?  Thought had eliminated use of 'subgroups' except via entities. It's " +
-                                    s"of type: $class_name")
+    );
+    if !simplify_in {
+      result.push_str(", class: ");
+      let class_name = {
+          if get_mixed_classes_allowed {
+            "(mixed)"
+          } else {
+            let class_name_option = self.get_class_name(&None);
+            match class_name_option {
+              None => "None",
+              Some(cn) => cn,
+            }
           }
+      };
+      result.push_str(class_name);
+    }
+    if simplify_in {
+      Ok(result)
+    } else {
+      Util::limit_attribute_description_length(result.as_str(), length_limit_in)
+    }
+  }
+
+  fn read_data_from_db(
+      &mut self,
+      transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<(), Error> {
+      let data: Vec<Option<DataType>> =
+          self.db.get_group_data(transaction, self.id)?;
+      if data.len() == 0 {
+        return Err(anyhow!(
+                "No results returned from data request for: {}",
+                self.id
+            ));
+      }
+
+      self.already_read_data = true;
+
+      self.name = match data[0].clone() {
+        Some(DataType::String(x)) => x,
+        _ => return Err(anyhow!("How did we get here for {:?}?", data[0])),
+      };
+      self.insertion_date = match data[1] {
+        Some(DataType::Bigint(x)) => x,
+        _ => return Err(anyhow!("How did we get here for {:?}?", data[1])),
+      };
+      self.mixed_classes_allowed = match data[2] {
+        Some(DataType::Boolean(b)) => b,
+        _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
+      };
+      self.new_entries_stick_to_top = match data[3] {
+        Some(DataType::Boolean(b)) => b,
+        _ => return Err(anyhow!("How did we get here for {:?}?", data[3])),
+      };
+    Ok(())
+  }
+
+  //%%why not using the transaction? AND ID_IN PARM?? should??? what do other/attr fn delete do? What about callers? What did scala version do?
+  /// Removes this object from the system.
+  fn delete<'a>(
+    &'a self,
+    transaction: &Option<&mut Transaction<'a, Postgres>>,
+    id_in: i64,
+  ) -> Result<(), Error> {
+    self.db.delete_group_and_relations_to_it(self.id)
+  }
+
+  /// Removes an entity from this group.
+    fn remove_entity(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id: i64) -> Result<u64, Error> {
+      self.db.remove_entity_from_group(transaction, self.id, entity_id)
+    }
+
+    fn delete_with_entities(&self) -> Result<(), Error> {
+      self.db.delete_group_relations_to_it_and_its_entries(self.id)
+    }
+
+  // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability)?
+    fn get_size(&self, include_which_entities: i32 /*= 3*/) -> Result<u64, Error> {
+      self.db.get_group_size(&None, self.id, include_which_entities)
+  }
+
+    fn get_group_entries(&self, starting_index_in: i64, max_vals_in: Option<i64> /*= None*/) -> Result<Vec<Entity>, Error> {
+      self.db.get_group_entry_objects(&None, self.id, starting_index_in, max_vals_in)
+  }
+
+    fn add_entity(&self, in_entity_id: i64, sorting_index_in: Option<i64> /*= None*/, caller_manages_transactions_in: bool /*= false*/) -> Result<(), Error> {
+      self.db.add_entity_to_group(&None, get_id, in_entity_id, sorting_index_in, caller_manages_transactions_in)
+  }
+
+    fn get_id(&self) -> i64 {
+      self.id
+    }
+
+    fn get_name(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<String, Error> {
+    if !already_read_data {
+      self.read_data_from_db(transaction)?
+    }
+    Ok(self.name.clone())
+  }
+
+    fn get_mixed_classes_allowed(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<bool, Error> {
+    if !already_read_data {
+      self.read_data_from_db(transaction)?
+    }
+    Ok(self.mixed_classes_allowed)
+  }
+
+    fn get_new_entries_stick_to_top(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<bool, Error> {
+    if !already_read_data {
+      self.read_data_from_db(transaction)?
+    }
+    Ok(self.new_entries_stick_to_top)
+  }
+
+    fn get_insertion_date(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, Error> {
+    if !already_read_data {
+      self.read_data_from_db(transaction)?
+    }
+    Ok(insertion_date)
+  }
+
+    fn get_class_name(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Option<String>, Error> {
+    if self.get_mixed_classes_allowed(transaction)? {
+      Ok(None)
+    } else {
+      let class_id: Option<i64> = self.get_class_id(transaction)?;
+      match class_id {
+        None => {
+          if self.get_size(3) == 0 {
+            // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
+            Some("(unspecified)")
+          } else {
+            // means the group requires uniform classes, but the enforced uniform class is None, i.e., to not have a class:
+            Some("(specified as None)")
+          }
+        },
+        Some(cid) => {
+          let example_entitys_class = EntityClass::new2(db, transaction, cid);
+          Ok(Some(example_entitys_class.get_name()))
         }
-        let entity: Option<Entity> = findAnEntity(0);
-        if entity.is_some())
-          entity.get.getClassId
-        else
-          None
       }
     }
   }
 
-    fn getClassTemplateEntity -> (Option<Entity>) {
-    let class_id: Option<i64> = getClassId;
-    if getMixedClassesAllowed || class_id.isEmpty)
-      None
-    else {
-      let template_entity_id = new EntityClass(db, class_id.get).get_template_entity_id;
-      Some(new Entity(db, template_entity_id))
+  // idea: eliminate/simplify most of this part, since groups can't have subgroups only entities in them now?
+  // fn find_an_entity(next_index: usize, entries: Vec<Entity>) -> Result<Option<Entity>, Error> {
+    // We will have to change this (and probably other things) to traverse "subgroups" (groups in the entities in this group) also,
+    // if we decide that disallowing mixed classes also means class uniformity across all subgroups.
+    // if next_index >= entries.size {
+    //   None
+    // } else {
+
+      // match entries.get(next_index) {
+      //   case entity: Entity =>
+      //     Some(entity)
+      //   case _ =>
+      //   let class_name = entries.get(next_index).getClass.get_name;
+      //   throw new OmException(s"a group contained an entry that's not an entity?  Thought had eliminated use of 'subgroups' except via entities. It's " +
+      //       s"of type: $class_name")
+      // }
+    // }
+    // -or-
+    //   match entries.get(next_index) {
+    //     None => Ok(None),
+    //     Some(e: Entity) => Ok(Some(e)),
+    //     _ => return Err(anyhow!("unexpected result?: {:?}", entries.get(next_index)))
+    //   }
+  // }
+  fn get_class_id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Option<i64>, Error> {
+    if get_mixed_classes_allowed {
+      Ok(None)
+    } else {
+      let entries: Vec<Entity> = self.db.get_group_entry_objects(transaction, self.get_id(), 0, Some(1))?;
+      let specified: bool = entries.size() > 0;
+      if !specified {
+        None
+      } else {
+        // let entity: Option<Entity> = find_an_entity(0);
+        let next_index = 0;
+        let next = entries.get(next_index);
+        /*let entity: Option<Entity> = */match next {
+          Some(&e) => Ok(Some(e)),
+          None => Ok(None),
+          _ => return Err(anyhow!("unexpected result?: {:?}", entries.get(next_index)))
+        }
+        // match entity {
+        //   Some(e) => e.get_class_id(transaction),
+        //   _ => None,
+        // }
+      }
     }
   }
 
-    fn getHighestSortingIndex -> i64 {
-    db.get_highest_sorting_index_for_group(get_id)
+    fn get_class_template_entity(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Option<Entity>, Error> {
+      let class_id: Option<i64> = self.get_class_id(transaction)?;
+      match class_id {
+        None if self.get_mixed_classes_allowed(transaction)? => Ok(None),
+        Some(id) => {
+          let mut ec = EntityClass::new2(db, transaction, id)?;
+          let template_entity_id = ec.get_template_entity_id(transaction)?;
+          Ok(Some(Entity::new2(db, transaction, template_entity_id)?))
+        }
+        _ => Err(anyhow!("Unexpected value for {:?}", class_id))
+      }
   }
 
-    fn get_containing_relations_to_group(starting_index_in: i64, max_vals_in: Option<i64> = None) -> java.util.ArrayList[RelationToGroup] {
-    db.get_relations_to_group_containing_this_group(get_id, starting_index_in, max_vals_in)
+    fn get_highest_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, Error> {
+      self.db.get_highest_sorting_index_for_group(transaction, get_id)
   }
 
-    fn get_count_of_entities_containing_group -> (i64, i64) {
-    db.get_count_of_entities_containing_group(get_id)
+    fn get_containing_relations_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                         starting_index_in: i64, max_vals_in: Option<i64> /*= None*/) -> Result<Vec<RelationToGroup>, Error> {
+    self.db.get_relations_to_group_containing_this_group(transaction, self.get_id(), starting_index_in, max_vals_in)
   }
 
-    fn get_entities_containing_group(starting_index_in: i64, max_vals_in: Option<i64> = None) -> java.util.ArrayList[(i64, Entity)] {
-    db.get_entities_containing_group(get_id, starting_index_in, max_vals_in)
+    fn get_count_of_entities_containing_group(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<(u64, u64), Error> {
+    self.db.get_count_of_entities_containing_group(transaction, self.get_id())
   }
 
-    fn findUnusedSortingIndex(starting_with_in: Option<i64> = None) -> i64 {
-    db.find_unused_group_sorting_index(get_id, starting_with_in)
+    fn get_entities_containing_group(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                     starting_index_in: i64, max_vals_in: Option<i64> /*= None*/) -> Result<Vec<(i64, Entity)>, Error> {
+    self.db.get_entities_containing_group(transaction, self.get_id(), starting_index_in, max_vals_in)
   }
 
-    fn get_groups_containing_entitys_groups_ids(limit_in: Option<i64> = Some(5)) -> Vec<Vec<Option<DataType>>> {
-    db.get_groups_containing_entitys_groups_ids(get_id, limit_in)
+    fn find_unused_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                              starting_with_in: Option<i64> /*= None*/) -> Result<i64, Error> {
+    self.db.find_unused_group_sorting_index(transaction, self.get_id(), starting_with_in)
+  }
+
+    fn get_groups_containing_entitys_groups_ids(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                                limit_in: Option<i64> /*= Some(5)*/) -> Result<Vec<Vec<Option<DataType>>>, Error> {
+    self.db.get_groups_containing_entitys_groups_ids(transaction, self.get_id(), limit_in)
   }
 
     fn is_entity_in_group(entity_id_in: i64) -> bool {
     db.is_entity_in_group(get_id, entity_id_in)
   }
 
-    fn get_adjacent_group_entries_sorting_indexes(sorting_index_in: i64, limit_in: Option<i64> = None, forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>> {
-    db.get_adjacent_group_entries_sorting_indexes(get_id, sorting_index_in, limit_in, forward_not_back_in)
+    fn get_adjacent_group_entries_sorting_indexes(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                                  sorting_index_in: i64, limit_in: Option<i64> /*= None*/,
+                                                  forward_not_back_in: bool) -> Result<Vec<Vec<Option<DataType>>>, Error> {
+    self.db.get_adjacent_group_entries_sorting_indexes(transaction, get_id, sorting_index_in, limit_in, forward_not_back_in)
   }
 
-    fn get_nearest_group_entrys_sorting_index(starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
-    db.get_nearest_group_entrys_sorting_index(get_id, starting_point_sorting_index_in, forward_not_back_in)
+    fn get_nearest_group_entrys_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                              starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Result<Option<i64>, Error> {
+    self.db.get_nearest_group_entrys_sorting_index(transaction, self.get_id(),
+                                                   starting_point_sorting_index_in, forward_not_back_in)
   }
 
-    fn getEntrySortingIndex(entity_id_in: i64) -> i64 {
-    db.get_group_entry_sorting_index(get_id, entity_id_in)
+    fn get_entry_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64) -> Result<i64, Error> {
+    self.db.get_group_entry_sorting_index(transaction, self.get_id(), entity_id_in)
   }
 
-    fn is_group_entry_sorting_index_in_use(sorting_index_in: i64) -> bool {
-    db.is_group_entry_sorting_index_in_use(get_id, sorting_index_in)
+    fn is_group_entry_sorting_index_in_use(&self, transaction: &Option<&mut Transaction<Postgres>>, sorting_index_in: i64) -> Result<bool, Error> {
+    self.db.is_group_entry_sorting_index_in_use(transaction, get_id, sorting_index_in)
   }
 
-    fn updateSortingIndex(entity_id_in: i64, sorting_index_in: i64) /*-> Unit%%*/ {
-    db.update_sorting_index_in_a_group(get_id, entity_id_in, sorting_index_in)
+    fn update_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                          entity_id_in: i64, sorting_index_in: i64) -> Result<u64, Error> {
+    self.db.update_sorting_index_in_a_group(transaction, get_id, entity_id_in, sorting_index_in)
   }
 
-    fn renumber_sorting_indexes(caller_manages_transactions_in: bool = false) /*%%-> Unit*/ {
-    db.renumber_sorting_indexes(get_id, caller_manages_transactions_in, is_entity_attrs_not_group_entries = false)
+    fn renumber_sorting_indexes(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                caller_manages_transactions_in: bool /*= false*/) -> Result<(), Error> {
+    self.db.renumber_sorting_indexes(transaction, self.get_id(), caller_manages_transactions_in,
+                                     is_entity_attrs_not_group_entries /*= false*/)
   }
 
-    fn move_entity_from_group_to_local_entity(to_entity_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64) /*%%-> Unit*/ {
-    db.move_entity_from_group_to_local_entity(get_id, to_entity_id_in, move_entity_id_in, sorting_index_in)
+    fn move_entity_from_group_to_local_entity(&self, to_entity_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64) -> Result<(), Error> {
+    self.db.move_entity_from_group_to_local_entity(get_id, to_entity_id_in, move_entity_id_in, sorting_index_in)
   }
 
-    fn moveEntityToDifferentGroup(to_group_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64) /*%%-> Unit*/ {
-    db.move_local_entity_from_group_to_group(get_id, to_group_id_in, move_entity_id_in, sorting_index_in)
+    fn move_entity_to_different_group(&self, to_group_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64) -> Result<(), Error> {
+    self.db.move_local_entity_from_group_to_group(seslf.get_id(), to_group_id_in, move_entity_id_in, sorting_index_in)
   }
 
-  private let mut already_read_data: bool = false;
-  private let mut m_name: String = null;
-  private let mut m_insertion_date: i64 = 0L;
-  private let mut mMixedClassesAllowed: bool = false;
-  private let mut m_new_entries_stick_to_top: bool = false;
+
+}
+
+#[cfg(test)]
+mod test {
+/*
+  let mut db: PostgreSQLDatabase = null;
+
+  // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks. (?)
+  override fn runTests(testName: Option<String>, args: Args) -> Status {
+    setUp()
+    let result:Status = super.runTests(testName,args);
+    // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
+    result
+  }
+
+  protected fn setUp() {
+    //start fresh
+    PostgreSQLDatabaseTest.tearDownTestDB()
+
+    // instantiation does DB setup (creates tables, default data, etc):
+    db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+  }
+
+  protected fn tearDown() {
+    PostgreSQLDatabaseTest.tearDownTestDB()
+  }
+
+  "move_entity_to_different_group etc" should "work" in {
+    let group1 = new Group(db, db.create_group("group_name1"));
+    let group2 = new Group(db, db.create_group("group_name2"));
+    let e1 = new Entity(db, db.create_entity("e1"));
+    group1.add_entity(e1.get_id)
+    assert(group1.is_entity_in_group(e1.get_id))
+    assert(! group2.is_entity_in_group(e1.get_id))
+    group1.move_entity_to_different_group(group2.get_id, e1.get_id, -1)
+    assert(! group1.is_entity_in_group(e1.get_id))
+    assert(group2.is_entity_in_group(e1.get_id))
+
+    let index1 = group2.get_entry_sorting_index(e1.get_id);
+    assert(index1 == -1)
+    group2.update_sorting_index(e1.get_id, -2)
+    assert(group2.get_entry_sorting_index(e1.get_id) == -2)
+    group2.renumber_sorting_indexes()
+    assert(group2.get_entry_sorting_index(e1.get_id) != -1)
+    assert(group2.get_entry_sorting_index(e1.get_id) != -2)
+    assert(! group2.isGroupEntrySortingIndexInUse(-1))
+    assert(! group2.isGroupEntrySortingIndexInUse(-2))
+
+    let index2: i64 = group2.get_entry_sorting_index(e1.get_id);
+    assert(group2.find_unused_sorting_index(None) != index2)
+    let e3: Entity = new Entity(db, db.create_entity("e3"));
+    group2.add_entity(e3.get_id)
+    group2.update_sorting_index(e3.get_id, Database.min_id_value)
+    // next lines not much of a test but is something:
+    let index3: Option<i64> = group2.get_nearest_group_entrys_sorting_index(Database.min_id_value, forward_not_back_in = true);
+    assert(index3.get > Database.min_id_value)
+    /*val index4: i64 = */group2.get_entry_sorting_index(e1.get_id)
+    let indexes = group2.get_adjacent_group_entries_sorting_indexes(Database.min_id_value, Some(0), forward_not_back_in = true);
+    assert(indexes.nonEmpty)
+
+    let e2 = new Entity(db, db.create_entity("e2"));
+    let results_in_out1: mutable.TreeSet[i64] = e2.find_contained_local_entity_ids(new mutable.TreeSet[i64], "e2");
+    assert(results_in_out1.isEmpty)
+    group2.move_entity_from_group_to_local_entity(e2.get_id, e1.get_id, 0)
+    assert(! group2.is_entity_in_group(e1.get_id))
+    let results_in_out2: mutable.TreeSet[i64] = e2.find_contained_local_entity_ids(new mutable.TreeSet[i64], "e1");
+    assert(results_in_out2.size == 1)
+    assert(results_in_out2.contains(e1.get_id))
+  }
+
+  "get_groups_containing_entitys_groups_ids etc" should "work" in {
+    let group1 = new Group(db, db.create_group("g1"));
+    let group2 = new Group(db, db.create_group("g2"));
+    let group3 = new Group(db, db.create_group("g3"));
+    let entity1 = new Entity(db, db.create_entity("e1"));
+    let entity2 = new Entity(db, db.create_entity("e2"));
+    group1.add_entity(entity1.get_id)
+    group2.add_entity(entity2.get_id)
+    let rt = new RelationType(db, db.createRelationType("rt", "rtReversed", "BI"));
+    entity1.addRelationToGroup(rt.get_id, group3.get_id, None)
+    entity2.addRelationToGroup(rt.get_id, group3.get_id, None)
+    let results = group3.get_groups_containing_entitys_groups_ids();
+    assert(results.size == 2)
+
+    let entities = group3.get_entities_containing_group(0);
+    assert(entities.size == 2)
+    assert(group3.get_count_of_entities_containing_group._1 == 2)
+    assert(group3.get_containing_relations_to_group(0).size == 2)
+
+    assert(Group.get_group(db, group3.get_id).is_defined)
+  }
+
 */
 }
+
+// %%%%%

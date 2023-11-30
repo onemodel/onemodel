@@ -42,7 +42,7 @@ class RelationToEntityDataHolder(rel_type_id_in: i64,
 
 class GroupDataHolder(var id:i64,
                       let mut name: String,;
-                      let mut insertion_dateIn: Option<i64>,;
+                      let mut insertion_date_in: Option<i64>,;
                       let mut mixed_classes_allowed: bool);
 
 class RelationToGroupDataHolder(var entity_id:i64,

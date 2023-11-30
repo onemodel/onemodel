@@ -70,13 +70,13 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let entity3 = new Entity(db, db.create_entity("entity3"));
     let relType = new RelationType(db, db.createRelationType("reltype1", "", "UNI"));
     let rtle: RelationToLocalEntity = db.create_relation_to_local_entity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
-    let firstParent = rtle.getRelatedId1;
+    let firstParent = rtle.get_related_id1;
     assert(firstParent == entity1.get_id)
-    let newRtle: RelationToLocalEntity = rtle.move(entity3.get_id, 0);
+    let newRtle: RelationToLocalEntity = rtle.move_it(entity3.get_id, 0);
     // reread to get new data
     assert(newRtle.get_parent_id() == entity3.get_id)
     assert(newRtle.get_attr_type_id() == relType.get_id)
-    assert(newRtle.getRelatedId2 == entity2.get_id)
+    assert(newRtle.get_related_id2 == entity2.get_id)
 
     newRtle.get_valid_on_date()
     newRtle.get_observation_date()
@@ -85,7 +85,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let newVod = 345L;
     let newOd = 456L;
     newRtle.update(Some(newVod), Some(newOd), Some(newAttrTypeId))
-    let updatedRtle = new RelationToLocalEntity(db, newRtle.get_id, newAttrTypeId, newRtle.getRelatedId1, newRtle.getRelatedId2);
+    let updatedRtle = new RelationToLocalEntity(db, newRtle.get_id, newAttrTypeId, newRtle.get_related_id1, newRtle.get_related_id2);
     assert(updatedRtle.get_valid_on_date().get == newVod)
     assert(updatedRtle.get_observation_date() == newOd)
 

@@ -30,15 +30,15 @@ import org.onemodel.core.{OmException, Util}
 
    *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:
  *
-class RelationToRemoteEntity(db: Database, id: i64, mRelTypeId: i64, mEntityId1: i64, mRemoteInstanceId: String,
-                       mEntityId2: i64) extends RelationToEntity(db, id, mRelTypeId, mEntityId1, mEntityId2) {
+class RelationToRemoteEntity(db: Database, id: i64, rel_type_id: i64, mEntityId1: i64, mRemoteInstanceId: String,
+                       mEntityId2: i64) extends RelationToEntity(db, id, rel_type_id, mEntityId1, mEntityId2) {
   // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
   // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-  if db.is_remote || db.relation_to_remote_entity_keys_exist_and_match(id, mRelTypeId, mEntityId1, mRemoteInstanceId, mEntityId2)) {
+  if db.is_remote || db.relation_to_remote_entity_keys_exist_and_match(id, rel_type_id, mEntityId1, mRemoteInstanceId, mEntityId2)) {
     // something else might be cleaner, but these are the same thing and we need to make sure an eventual superclass' var doesn't overwrite this w/ 0:;
-    attr_type_id = mRelTypeId
+    attr_type_id = rel_type_id
   } else {
-    throw new scala.Exception("Key id=" + id + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
+    throw new scala.Exception("Key id=" + id + ", rel_type_id=" + rel_type_id + " and entity_id=" + mEntityId1 +
                               " and entity_id_2=" + mEntityId2 + " and remote_instance_id='" + mRemoteInstanceId + Util::DOES_NOT_EXIST)
   }
 
@@ -61,24 +61,24 @@ class RelationToRemoteEntity(db: Database, id: i64, mRelTypeId: i64, mEntityId1:
     }
 
   protected override fn read_data_from_db() {
-    let relationData: Vec<Option<DataType>> = db.get_relation_to_remote_entity_data(attr_type_id, mEntityId1, mRemoteInstanceId, mEntityId2);
+    let relation_data: Vec<Option<DataType>> = db.get_relation_to_remote_entity_data(attr_type_id, mEntityId1, mRemoteInstanceId, mEntityId2);
     // No other local variables to assign.  All are either in the superclass or the primary key.
     // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
     // the class hierarchy which wants it. Improve...?)
-    if relationData.length == 0) {
+    if relation_data.length == 0) {
       throw new OmException("No results returned from data request for: " + attr_type_id + ", " + mEntityId1 + ", " + mRemoteInstanceId + ", " + mEntityId2)
     }
-    assign_common_vars(mEntityId1, attr_type_id, relationData(1).asInstanceOf[Option<i64>],
-                     relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
+    assign_common_vars(mEntityId1, attr_type_id, relation_data(1).asInstanceOf[Option<i64>],
+                     relation_data(2).get.asInstanceOf[i64], relation_data(3).get.asInstanceOf[i64])
   }
 
-    fn move(to_containing_entity_id_in: i64, sorting_index_in: i64) -> RelationToRemoteEntity {
+    fn move_it(to_containing_entity_id_in: i64, sorting_index_in: i64) -> RelationToRemoteEntity {
     db.move_relation_to_remote_entity_to_local_entity(getRemoteInstanceId, get_id, to_containing_entity_id_in, sorting_index_in)
   }
 
   override fn getRemoteDescription() {
     let remoteOmInstance = new OmInstance(db, this.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId);
-    " (at " + remoteOmInstance.getAddress + ")"
+    " (at " + remoteOmInstance.get_address + ")"
   }
 
     fn getEntityForEntityId2() -> Entity {
@@ -104,10 +104,10 @@ class RelationToRemoteEntity(db: Database, id: i64, mRelTypeId: i64, mEntityId1:
 
   /** Removes this object from the system. */
     fn delete() {
-    db.delete_relation_to_remote_entity(get_attr_type_id(), getRelatedId1, mRemoteInstanceId, getRelatedId2)
+    db.delete_relation_to_remote_entity(get_attr_type_id(), get_related_id1, mRemoteInstanceId, get_related_id2)
     }
 
-  lazy private let mRemoteAddress = new OmInstance(db, getRemoteInstanceId).getAddress;
+  lazy private let mRemoteAddress = new OmInstance(db, getRemoteInstanceId).get_address;
 
 */
 }

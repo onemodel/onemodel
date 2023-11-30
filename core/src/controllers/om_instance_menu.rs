@@ -26,7 +26,7 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
       let choices = Vec<String>("(stub)", /*"Add" would typically be here if needed, but that is provided off the MainMenu. */;
                                   "(stub)" /*"sort" if needed*/ ,
                                   "Edit...",
-                                  if !omInstanceIn.getLocal) "Delete" else "(Can't delete a local instance)")
+                                  if !omInstanceIn.get_local) "Delete" else "(Can't delete a local instance)")
       let response = ui.ask_which(Some(leading_text), choices);
       if response.isEmpty) None
       else {
@@ -39,7 +39,7 @@ class OmInstanceMenu(val ui: TextUI, controller: Controller) {
           } else {
             omInstanceMenu(omInstanceIn)
           }
-        } else if answer == 4 && !omInstanceIn.getLocal) {
+        } else if answer == 4 && !omInstanceIn.get_local) {
           let deleteAnswer = ui.ask_yes_no_question("Delete this link to a separate OneModel instance: are you sure?", allow_blank_answer = true);
           if deleteAnswer.is_defined && deleteAnswer.get) {
             omInstanceIn.delete()

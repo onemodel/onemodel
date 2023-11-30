@@ -36,7 +36,7 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
       else {
         let answer = response.get;
         if answer == 3) {
-          let currentCreateDefaultAttrValue: Option<bool> = classIn.getCreateDefaultAttributes;
+          let currentCreateDefaultAttrValue: Option<bool> = classIn.get_create_default_attributes;
           let asDisplayed = {;
             if currentCreateDefaultAttrValue.isEmpty) "unset"
             else if currentCreateDefaultAttrValue.get) "true" else "false"
@@ -51,7 +51,7 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
             let prompt = "Do you want the program to create all the attributes by default, when creating a new entity in this class, using " +;
                          "the class defining entity's attributes as a template?  Enter a yes/no value (or a space for 'unknown/unspecified', i.e., to " +
                          "ask every time)"
-            let valueBefore: Option<bool> = classIn.getCreateDefaultAttributes;
+            let valueBefore: Option<bool> = classIn.get_create_default_attributes;
             let default_value: String = valueBefore match {;
               case Some(true) => "y"
               case Some(false) => "n"
@@ -59,7 +59,7 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
             }
             let valueEntered: Option<bool> = ui.ask_yes_no_question(prompt, Some(default_value), allow_blank_answer = true);
             if valueBefore != valueEntered) {
-              classIn.updateCreateDefaultAttributes(valueEntered)
+              classIn.update_create_default_attributes(valueEntered)
             }
             classMenu(new EntityClass(classIn.db, classIn.get_id))
           } else {
@@ -76,8 +76,8 @@ class ClassMenu(val ui: TextUI, controller: Controller) {
             let name = classIn.get_name;
             let template_entity = new Entity(classIn.db, classIn.get_template_entity_id);
             let template_entityName: String = template_entity.get_name;
-            let groupCount: i64 = template_entity.getCountOfContainingGroups;
-            let (entity_countNonArchived, entity_countArchived) = template_entity.getCountOfContainingLocalEntities;
+            let groupCount: i64 = template_entity.get_count_of_containing_groups;
+            let (entity_countNonArchived, entity_countArchived) = template_entity.get_count_of_containing_local_entities;
             let ans = ui.ask_yes_no_question("DELETE CLASS \"" + name + "\" AND its template ENTITY \"" + template_entityName + "\" with " +;
                                           Util.ENTITY_PARTS_THAT_CAN_BE_AFFECTED + ".  \n**ARE YOU REALLY SURE?**  (The template entity is " +
                                           Util.get_containing_entities_description(entity_countNonArchived, entity_countArchived) + ", and " +

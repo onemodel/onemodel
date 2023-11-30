@@ -10,7 +10,7 @@
 /// Represents the unique ID (key) for an Entity or Attribute object in the system. Benefit is that we can return
 /// one of these from a method and the signature of the method does not have to specify whether it is
 /// the ID of a QuantityAttribute, Relation, etc (relation ID has 3 parts, Attribute and Entity ID's for example have one).
-/// (But: why not just return a i64 or Option<i64>?)
+/// (But: why not just return a i64 or Option<i64>? or a trait?)
 pub struct IdWrapper {
     id: i64,
 }

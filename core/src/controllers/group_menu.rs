@@ -48,7 +48,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
                        callingMenusRtgIn: Option[RelationToGroup] = None, containingEntityIn: Option<Entity>) -> Option<Entity> {
     require(relationToGroupIn != null)
 
-    let template_entity = group_in.getClassTemplateEntity;
+    let template_entity = group_in.get_class_template_entity;
     let choices = Vec<String>("Add entity to group (if you add an existing entity with a relationship to one group, that is effectively adding that group " +;
                                 "as a subgroup to this one)",
 
@@ -65,12 +65,12 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
     // cue to aid my transition to using entities more & groups less. Same thing is done in QuickGroupMenu.)
     let leading_text: Vec<String> = Array(Color.yellow("ENTITY GROUP ") + "(regular menu: more complete, so slower for some things): " + displayDescription);
     let numDisplayableItems = ui.maxColumnarChoicesToDisplayAfter(leading_text.length, choices.length, Util::maxNameLength);
-    let objectsToDisplay: Vec<Entity> = group_in.getGroupEntries(displayStartingRowNumberIn, Some(numDisplayableItems));
+    let objectsToDisplay: Vec<Entity> = group_in.get_group_entries(displayStartingRowNumberIn, Some(numDisplayableItems));
     Util::add_remaining_count_to_prompt(choices, objectsToDisplay.size, group_in.get_size(4), displayStartingRowNumberIn)
     let statusesAndNames: Vec<String> = for (entity: Entity <- objectsToDisplay.toArray(Array[Entity]())) yield {;
       let numSubgroupsPrefix: String = controller.getEntityContentSizePrefix(entity);
-      let archivedStatus = entity.getArchivedStatusDisplayString;
-      numSubgroupsPrefix + archivedStatus + entity.get_name + " " + controller.getPublicStatusDisplayString(entity)
+      let archivedStatus = entity.get_archived_status_display_string;
+      numSubgroupsPrefix + archivedStatus + entity.get_name + " " + controller.get_public_status_display_string(entity)
     }
 
 
@@ -79,7 +79,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
     else {
       let answer = response.get;
       if answer == 1) {
-        controller.addEntityToGroup(group_in)
+        controller.add_entityToGroup(group_in)
         groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
       } else if answer == 2) {
         let importOrExport = ui.ask_which(None, Array("Import", "Export"), Vec<String>());
@@ -95,7 +95,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
         let editAnswer = ui.ask_which(Some(Vec<String>{Util::group_menu_leading_text(group_in)}),;
                                      Array("Edit group name",
 
-                                           if group_in.getNewEntriesStickToTop) {
+                                           if group_in.get_new_entries_stick_to_top) {
                                              "Set group so new items added from the top highlight become the *2nd* entry (CURRENTLY: they stay at the top)."
                                            } else {
                                              "Set group so new items added from the top highlight become the *top* entry (CURRENTLY: they will be 2nd)."
@@ -108,13 +108,13 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
               groupMenu(group_in, displayStartingRowNumberIn,
                         if relationToGroupIn.is_defined) {
                           Some(new RelationToGroup(relationToGroupIn.get.db, relationToGroupIn.get.get_id, relationToGroupIn.get.get_parent_id(),
-                                                   relationToGroupIn.get.get_attr_type_id(), relationToGroupIn.get.getGroupId))
+                                                   relationToGroupIn.get.get_attr_type_id(), relationToGroupIn.get.get_group_id))
                         } else None,
                         callingMenusRtgIn,
                         containingEntityIn)
             }
           } else if editAnswer.get == 2) {
-            group_in.update(None, None, None, Some(!group_in.getNewEntriesStickToTop), None, None)
+            group_in.update(None, None, None, Some(!group_in.get_new_entries_stick_to_top), None, None)
           }
         }
         groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
@@ -129,7 +129,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
                             else "(stub)",
                             if numContainingEntities == 1) {
                               let entity = containingEntities.get(0)._2;
-                              let entityStatusAndName = entity.getArchivedStatusDisplayString + entity.get_name;
+                              let entityStatusAndName = entity.get_archived_status_display_string + entity.get_name;
                               "Go to entity containing this group: " + entityStatusAndName
                             } else {
                               "See entities that contain this group ( " + numContainingEntities + ")"
@@ -151,7 +151,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
             }
             let relationToGroupDH: RelationToGroupDataHolder = new RelationToGroupDataHolder(relationToGroupIn.get.get_parent_id(),;
                                                                                              relationToGroupIn.get.get_attr_type_id(),
-                                                                                             relationToGroupIn.get.getGroupId,
+                                                                                             relationToGroupIn.get.get_group_id,
                                                                                              relationToGroupIn.get.get_valid_on_date(),
                                                                                              relationToGroupIn.get.get_observation_date())
             let (newRelationToGroup: Option[RelationToGroup], newGroup: Group) = {;
@@ -234,11 +234,11 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
     fn confirmAndDoDeletionOrRemoval(displayStartingRowNumberIn: Int, relationToGroupIn: Option[RelationToGroup], callingMenusRtgIn: Option[RelationToGroup],
                                     containingEntityIn: Option<Entity>, group_in: Group, groupDescrIn: String,
                                     response: Option[Int]) -> Option<Entity> {
-    require(group_in.get_id == relationToGroupIn.get.getGroupId)
+    require(group_in.get_id == relationToGroupIn.get.get_group_id)
     let totalInGroup = group_in.get_size(3);
     let numNonArchivedEntitiesInGroup: i64 = group_in.get_size(1);
-    let num_archivedInGroup = totalInGroup - numNonArchivedEntitiesInGroup;
-    require(num_archivedInGroup == group_in.get_size(2))
+    let num_archived_inGroup = totalInGroup - numNonArchivedEntitiesInGroup;
+    require(num_archived_inGroup == group_in.get_size(2))
     let (non_archivedContainingCount, archivedContainingCount) = group_in.get_count_of_entities_containing_group;
     let mut choices: Vec<String> = Array("Delete group definition & remove from all relationships where it is found?",;
                                        "Delete group definition & remove from all relationships where it is found, AND delete all entities in it?")
@@ -248,7 +248,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
                            "  ...to this Group?:" + Util::NEWLN +
                            "    \"" + groupDescrIn + "\""
     }
-    let response = ui.ask_which(Some(Array("DELETION:  (This group contains " + totalInGroup + " entities, including " + num_archivedInGroup + " archived, and is " +;
+    let response = ui.ask_which(Some(Array("DELETION:  (This group contains " + totalInGroup + " entities, including " + num_archived_inGroup + " archived, and is " +;
                                           Util::get_containing_entities_description(non_archivedContainingCount, archivedContainingCount) + ")")),
                                choices, Vec<String>())
     if response.isEmpty) groupMenu(group_in, displayStartingRowNumberIn, relationToGroupIn, callingMenusRtgIn, containingEntityIn)
@@ -286,7 +286,7 @@ class GroupMenu(val ui: TextUI, let controller: Controller) {;
           if ans.is_defined && ans.get) {
             //idea: could put a ck here to see if entities are members of some other group also, and give user a helpful message instead of just
             //hitting the constraint & throwing exception when the deletion is attempted.
-            group_in.deleteWithEntities()
+            group_in.delete_with_entities()
             ui.display_text("Deleted relation to group\"" + groupDescrIn + "\", along with the " + totalInGroup + " entities: " + ".")
             None
           } else None

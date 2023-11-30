@@ -398,7 +398,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn is_duplicate_class_name(name_in: String, self_id_to_ignore_in: Option<i64>) -> bool {
     let name = UriEncoding.encodePathSegment(name_in, "UTF-8");
-    get_boolean("/classes/isDuplicate/" + name + "/" + self_id_to_ignore_in.getOrElse(""))
+    get_boolean("/classes/is_duplicate/" + name + "/" + self_id_to_ignore_in.getOrElse(""))
   }
 
   override fn relation_to_group_key_exists(id_in: i64) -> bool {
@@ -481,11 +481,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
   override fn is_duplicate_entity_name(name_in: String, self_id_to_ignore_in: Option<i64>) -> bool {
     //If we need to change the 2nd parameter from UTF-8 to something else below, see javadocs for a class about encode/encoding, IIRC.
     let name = UriEncoding.encodePathSegment(name_in, "UTF-8");
-    get_boolean("/entities/isDuplicate/" + name + "/" + self_id_to_ignore_in.getOrElse(""))
+    get_boolean("/entities/is_duplicate/" + name + "/" + self_id_to_ignore_in.getOrElse(""))
   }
 
   override fn is_duplicate_om_instance_address(address_in: String, self_id_to_ignore_in: Option<String>) -> bool {
-    get_boolean("/omInstances/isDuplicate/" + UriEncoding.encodePathSegment(address_in, "UTF-8") + "/" +
+    get_boolean("/omInstances/is_duplicate/" + UriEncoding.encodePathSegment(address_in, "UTF-8") + "/" +
                UriEncoding.encodePathSegment(self_id_to_ignore_in.getOrElse(""), "UTF-8"))
   }
 
@@ -877,7 +877,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn find_relation_to_and_group_on_entity(entity_id_in: i64,
                                                group_name_in: Option<String>): (Option<i64>, Option<i64>, Option<i64>, Option<String>, Boolean) {
-    getOptionLongsStringBoolean("/entities/" + entity_id_in + "/findRelationToAndGroup" +
+    getOptionLongsStringBoolean("/entities/" + entity_id_in + "/find_relation_to_and_group" +
                                 (if group_name_in.isEmpty) "" else "?group_name=" + java.net.URLEncoder.encode(group_name_in.get, "UTF-8")))
     // Note: using a different kind of encoder/encoding for a query part of a URI (vs. the path, as elsewhere), per info at:
     //   https://www.playframework.com/documentation/2.5.x/api/scala/index.html#play.utils.UriEncoding$
@@ -1127,9 +1127,9 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn  get_or_create_class_and_template_entity(class_name_in: String, caller_manages_transactions_in: bool): (i64, i64) = ???
 
-  override fn  addUriEntityWithUriAttribute(containingEntityIn: Entity, new_entity_name_in: String, uriIn: String, observation_date_in: i64,
-                                            makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool,
-                                            quoteIn: Option<String> = None): (Entity, RelationToLocalEntity) = ???
+  override fn  add_uri_entity_with_uri_attribute(containingEntityIn: Entity, new_entity_name_in: String, uri_in: String, observation_date_in: i64,
+                                            makeThem_public_in: Option<bool>, caller_manages_transactions_in: bool,
+                                            quote_in: Option<String> = None): (Entity, RelationToLocalEntity) = ???
 
   override fn  update_entity_only_public_status(id_in: i64, value: Option<bool>): Unit = ???
 

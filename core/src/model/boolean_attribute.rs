@@ -19,7 +19,9 @@ use crate::model::entity::Entity;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
 
-// Similar/identical code found in *_attribute.rs due to Rust limitations on OO.  Maintain them all similarly.
+// ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
+// due to Rust limitations on OO.  Maintain them all similarly.
+
 pub struct BooleanAttribute<'a> {
     // For descriptions of the meanings of these variables, see the comments
     // on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
@@ -172,7 +174,7 @@ impl Attribute for BooleanAttribute<'_> {
             ));
         }
 
-        //%%$%%%what do about making this into shared code? duplicate it or can work from the Trait/s? see in anki re : to get fns from a trait (search
+        //%%%%%what do about making this into shared code? duplicate it or can work from the Trait/s? see in anki re : to get fns from a trait (search
         // rustlang deck re trait, is near end of a note), or
         // the newtype pattern?
         //idea: surely there is some better way than what I am doing here? See other places similarly.  Maybe implement DataType.clone() ?
@@ -203,7 +205,7 @@ impl Attribute for BooleanAttribute<'_> {
         //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
 
         //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
-        //%%$%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
+        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
         // valid_on_date: Option<i64> /*%%= None*/,
         /*DataType::Bigint(%%)*/
         self.valid_on_date = None; //data[4];

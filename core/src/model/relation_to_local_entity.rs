@@ -38,17 +38,17 @@ pub struct RelationToLocalEntity {
       * This 1st constructor instantiates an existing object from the DB and is rarely needed. You can use Entity.addRelationTo[Local|Remote]Entity() to
       * create a new persistent record.
       */
-    class RelationToLocalEntity(db: Database, id: i64, mRelTypeId: i64, mEntityId1: i64,
-                                 mEntityId2: i64) extends RelationToEntity(db, id, mRelTypeId, mEntityId1, mEntityId2) {
+    class RelationToLocalEntity(db: Database, id: i64, rel_type_id: i64, mEntityId1: i64,
+                                 mEntityId2: i64) extends RelationToEntity(db, id, rel_type_id, mEntityId1, mEntityId2) {
       // This is using inheritance as a way to share code, but they do not "inherit" inside the PostgreSQLDatabase:
       // Even a RelationToRemoteEntity can have db.is_remote == true, if it is viewing data *in* a remote OM instance
       // looking at RTLEs that are remote to that remote instance.
       // See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.
-      if db.is_remote || db.relation_to_local_entity_keys_exist_and_match(id, mRelTypeId, mEntityId1, mEntityId2)) {
+      if db.is_remote || db.relation_to_local_entity_keys_exist_and_match(id, rel_type_id, mEntityId1, mEntityId2)) {
         // something else might be cleaner, but these are the same thing and we need to make sure the superclass' var doesn't overwrite this w/ 0:;
-        attr_type_id = mRelTypeId
+        attr_type_id = rel_type_id
       } else {
-        throw new OmException("Key id=" + id + ", rel_type_id=" + mRelTypeId + " and entity_id=" + mEntityId1 +
+        throw new OmException("Key id=" + id + ", rel_type_id=" + rel_type_id + " and entity_id=" + mEntityId1 +
                               " and entity_id_2=" + mEntityId2 + Util::DOES_NOT_EXIST)
       }
 
@@ -80,19 +80,19 @@ pub struct RelationToLocalEntity {
       }
 
       protected fn read_data_from_db() {
-        let relationData: Vec<Option<DataType>> = db.get_relation_to_local_entity_data(attr_type_id, mEntityId1, mEntityId2);
-        if relationData.length == 0) {
+        let relation_data: Vec<Option<DataType>> = db.get_relation_to_local_entity_data(attr_type_id, mEntityId1, mEntityId2);
+        if relation_data.length == 0) {
           throw new OmException("No results returned from data request for: " + attr_type_id + ", " + mEntityId1 + ", " + mEntityId2)
         }
         // No other local variables to assign.  All are either in the superclass or the primary key.
         // (The in_entity_id1 really doesn't fit here, because it's part of the class' primary key. But passing it here for the convenience of using
         // the class hierarchy which wants it. Improve...?)
         assign_common_vars(mEntityId1, attr_type_id,
-                         relationData(1).asInstanceOf[Option<i64>],
-                         relationData(2).get.asInstanceOf[i64], relationData(3).get.asInstanceOf[i64])
+                         relation_data(1).asInstanceOf[Option<i64>],
+                         relation_data(2).get.asInstanceOf[i64], relation_data(3).get.asInstanceOf[i64])
       }
 
-        fn move(toLocalContainingEntityIdIn: i64, sorting_index_in: i64) -> RelationToLocalEntity {
+        fn move_it(toLocalContainingEntityIdIn: i64, sorting_index_in: i64) -> RelationToLocalEntity {
         db.move_relation_to_local_entity_to_local_entity(get_id, toLocalContainingEntityIdIn, sorting_index_in)
       }
 

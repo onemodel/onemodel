@@ -45,10 +45,10 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         //noinspection TypeCheckCanBeMatch
         if containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity]) {
           let rtre = containingRelationToEntityIn.get.asInstanceOf[RelationToRemoteEntity];
-          (Some(rtre.getRelatedId1), Some(rtre.getRelatedId2))
+          (Some(rtre.get_related_id1), Some(rtre.get_related_id2))
         } else {
           let rtle = containingRelationToEntityIn.get.asInstanceOf[RelationToLocalEntity];
-          (Some(rtle.getRelatedId1), Some(rtle.getRelatedId2))
+          (Some(rtle.get_related_id1), Some(rtle.get_related_id2))
         }
       } else {
         (None, None)
@@ -155,7 +155,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             let newAttribute: Attribute = entity_in.add_has_relation_to_local_entity(newEntity.get.get_id, None, System.currentTimeMillis());
             // The next 2 lines are so if adding a new entry on the 1st entry, and if the user so prefers, the new one becomes the
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
-            let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.getNewEntriesStickToTop;
+            let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.get_new_entries_stick_to_top;
             let forward = !goingBackward;
             let displayStartingRowNumber: i32 = placeEntryInPosition(entity_in.db, entity_in.get_id, entity_in.get_attribute_count(), 0, forward_not_back_in = forward,;
                                                                      attributeRowsStartingIndexIn, newAttribute.get_id,
@@ -193,7 +193,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         let newAttribute: Option[Attribute] = addAttribute(entity_in, attributeRowsStartingIndexIn, highlightedEntry, targetForMoves, containingGroupIn);
         if newAttribute.is_defined && highlightedEntry.is_defined) {
           // (See comment at similar place in EntityMenu, just before that call to placeEntryInPosition.)
-          let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.getNewEntriesStickToTop;
+          let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.get_new_entries_stick_to_top;
           let forward = !goingBackward;
           placeEntryInPosition(entity_in.db, entity_in.get_id, entity_in.get_attribute_count(), 0, forward_not_back_in = forward, attributeRowsStartingIndexIn,
                                newAttribute.get.get_id, highlightedIndexInObjList.getOrElse(0),
@@ -353,21 +353,21 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           case ta: TextAttribute => controller.attributeEditMenu(ta)
           case relToEntity: RelationToLocalEntity =>
             let db = relToEntity.db;
-            entityMenu(new Entity(db, relToEntity.getRelatedId2), 0, None, None, Some(relToEntity))
-            let stillThere: bool = db.entity_key_exists(relToEntity.getRelatedId2, include_archived = false) &&;
+            entityMenu(new Entity(db, relToEntity.get_related_id2), 0, None, None, Some(relToEntity))
+            let stillThere: bool = db.entity_key_exists(relToEntity.get_related_id2, include_archived = false) &&;
                                       db.attribute_key_exists(relToEntity.get_form_id, relToEntity.get_id)
             !stillThere
           case relToRemoteEntity: RelationToRemoteEntity =>
             // (An entity can be remote, but referred to by a local RelationToLocalEntity:)
             let remoteDb: Database = relToRemoteEntity.getRemoteDatabase;
-            entityMenu(new Entity(remoteDb, relToRemoteEntity.getRelatedId2), 0, None, None, Some(relToRemoteEntity))
-            let stillThere: bool = remoteDb.entity_key_exists(relToRemoteEntity.getRelatedId2, include_archived = false) &&;
+            entityMenu(new Entity(remoteDb, relToRemoteEntity.get_related_id2), 0, None, None, Some(relToRemoteEntity))
+            let stillThere: bool = remoteDb.entity_key_exists(relToRemoteEntity.get_related_id2, include_archived = false) &&;
                                       remoteDb.attribute_key_exists(relToRemoteEntity.get_form_id, relToRemoteEntity.get_id)
             !stillThere
           case relToGroup: RelationToGroup =>
-            new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(relToGroup.db, relToGroup.getGroupId),
+            new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(relToGroup.db, relToGroup.get_group_id),
                                                               0, Some(relToGroup), containingEntityIn = Some(entity_in))
-            if !relToGroup.db.group_key_exists(relToGroup.getGroupId)) true
+            if !relToGroup.db.group_key_exists(relToGroup.get_group_id)) true
             else false
           case _ => throw new Exception("Unexpected choice has class " + o.getClass.get_name + "--what should we do here?")
         }
@@ -448,7 +448,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           let entityStatusesAndNames: Vec<String> = entity_idsTruncated.map {;
                                                                                id: i64 =>
                                                                                  let entity = new Entity(entity_in.db, id);
-                                                                                 entity.getArchivedStatusDisplayString + entity.get_name
+                                                                                 entity.get_archived_status_display_string + entity.get_name
                                                                              }
           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method!
           @tailrec fn showSearchResults() {
@@ -583,28 +583,28 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           //noinspection TypeCheckCanBeMatch
           if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             let movingRtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
-            let targetEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2;
+            let target_entity_id = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].get_related_id2;
             require(movingRtle.get_parent_id() == entity_in.get_id)
-            movingRtle.move(targetEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
+            movingRtle.move_it(target_entity_id, get_sorting_index(entity_in.db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             let movingRtre: RelationToRemoteEntity = highlightedAttributeIn.asInstanceOf[RelationToRemoteEntity];
-            let targetEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2;
+            let target_entity_id = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].get_related_id2;
             require(movingRtre.get_parent_id() == entity_in.get_id)
-            movingRtre.move(targetEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
+            movingRtre.move_it(target_entity_id, get_sorting_index(entity_in.db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             require(targetForMovesIn.get.get_form_id == Database.get_attribute_form_id(Util.RELATION_TO_GROUP_TYPE))
-            let targetGroupId = RelationToGroup.create_relation_to_group(targetForMovesIn.get.db, targetForMovesIn.get.get_id).getGroupId;
+            let target_group_id = RelationToGroup.create_relation_to_group(targetForMovesIn.get.db, targetForMovesIn.get.get_id).get_group_id;
             let rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
             // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-            rtle.moveEntityFromEntityToGroup(targetGroupId, get_sorting_index(entity_in.db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
+            rtle.moveEntityFromEntityToGroup(target_group_id, get_sorting_index(entity_in.db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             let movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup];
-            let newContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId2;
+            let newContainingEntityId = targetForMovesIn.get.asInstanceOf[RelationToLocalEntity].get_related_id2;
             require(movingRtg.get_parent_id() == entity_in.get_id)
-            movingRtg.move(newContainingEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
+            movingRtg.move_it(newContainingEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToGroup]) {
             ui.display_text("Unsupported: groups can't directly contain groups.  But groups can contain entities, and entities can contain groups and" +
@@ -628,33 +628,33 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             let newContainingEntityId = {;
               //noinspection TypeCheckCanBeMatch  // as in some (not all) other places, just a guess as to what is more readable for non-scala-experts.
               if containingRelationToEntityIn.get.isInstanceOf[RelationToLocalEntity]) {
-                containingRelationToEntityIn.get.asInstanceOf[RelationToLocalEntity].getRelatedId1
+                containingRelationToEntityIn.get.asInstanceOf[RelationToLocalEntity].get_related_id1
               } else if containingRelationToEntityIn.get.isInstanceOf[RelationToRemoteEntity]) {
-                containingRelationToEntityIn.get.asInstanceOf[RelationToRemoteEntity].getRelatedId1
+                containingRelationToEntityIn.get.asInstanceOf[RelationToRemoteEntity].get_related_id1
               } else throw new OmException("unexpected type: " + containingRelationToEntityIn.getClass.getCanonicalName)
             }
             //noinspection TypeCheckCanBeMatch
             if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity]) {
               let movingRtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
-              movingRtle.move(newContainingEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
+              movingRtle.move_it(newContainingEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtle.get_form_id, movingRtle.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
               let movingRtre = highlightedAttributeIn.asInstanceOf[RelationToRemoteEntity];
-              movingRtre.move(newContainingEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
+              movingRtre.move_it(newContainingEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtre.get_form_id, movingRtre.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToGroup]) {
               let movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup];
-              movingRtg.move(newContainingEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
+              movingRtg.move_it(newContainingEntityId, get_sorting_index(entity_in.db, entity_in.get_id, movingRtg.get_form_id, movingRtg.get_id))
               (starting_display_row_index_in, true)
             } else throw new OmException("Should be impossible to get here: I thought I checked for ok values, above. [1]")
           } else if containingGroupIn.is_defined) {
             require(containingRelationToEntityIn.isEmpty)
             //noinspection TypeCheckCanBeMatch
             if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity]) {
-              let targetGroupId = containingGroupIn.get.get_id;
+              let target_group_id = containingGroupIn.get.get_id;
               let rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
               // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-              rtle.moveEntityFromEntityToGroup(targetGroupId, get_sorting_index(entity_in.db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
+              rtle.moveEntityFromEntityToGroup(target_group_id, get_sorting_index(entity_in.db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
               ui.display_text("Unsupported: groups cannot directly contain remote entities.  Only local entities can contain relations" +
@@ -682,8 +682,8 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     if containingGroupIn.is_defined) {
       leading_text_in(0) += ": found via group: " + containingGroupIn.get.get_name
     }
-    //%%$%%%
-    leading_text_in(0) += ": created " + entity_in.getCreationDateFormatted
+    //%%%%
+    leading_text_in(0) += ": created " + entity_in.get_creation_date_formatted
     leading_text_in(1) = if numAttributes == 0) "No attributes have been assigned to this object, yet."
     else "Attribute list menu: (or choose attribute by letter)"
     leading_text_in
@@ -697,26 +697,26 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
         attributes.add(attribute)
         attribute match {
           case relation: RelationToLocalEntity =>
-            let toEntity: Entity = new Entity(relation.db, relation.getRelatedId2);
+            let toEntity: Entity = new Entity(relation.db, relation.get_related_id2);
 
             let relationType = new RelationType(relation.db, relation.get_attr_type_id());
             let desc = attribute.get_display_string(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true);
             let prefix = controller.getEntityContentSizePrefix(toEntity);
-            let archivedStatus: String = toEntity.getArchivedStatusDisplayString;
-            prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
+            let archivedStatus: String = toEntity.get_archived_status_display_string;
+            prefix + archivedStatus + desc + controller.get_public_status_display_string(toEntity)
           case relation: RelationToRemoteEntity =>
             let remoteDb = relation.getRemoteDatabase;
-            let toEntity: Entity = new Entity(remoteDb, relation.getRelatedId2);
+            let toEntity: Entity = new Entity(remoteDb, relation.get_related_id2);
 
             let relationType = new RelationType(relation.db, relation.get_attr_type_id());
             let desc = attribute.get_display_string(Util.maxNameLength, Some(toEntity), Some(relationType), simplify = true);
             let prefix = controller.getEntityContentSizePrefix(toEntity);
-            let archivedStatus: String = toEntity.getArchivedStatusDisplayString;
-            prefix + archivedStatus + desc + controller.getPublicStatusDisplayString(toEntity)
+            let archivedStatus: String = toEntity.get_archived_status_display_string;
+            prefix + archivedStatus + desc + controller.get_public_status_display_string(toEntity)
           case relation: RelationToGroup =>
             let relationType = new RelationType(relation.db, relation.get_attr_type_id());
             let desc = attribute.get_display_string(Util.maxNameLength, None, Some(relationType), simplify = true);
-            let prefix = controller.getGroupContentSizePrefix(relation.db, relation.getGroupId);
+            let prefix = controller.getGroupContentSizePrefix(relation.db, relation.get_group_id);
             prefix + "group: " + desc
           case _ =>
             attribute.get_display_string(Util.maxNameLength, None, None)
@@ -783,39 +783,39 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     startingIndex
   }
 
-  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, entity_idIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
+  protected fn getAdjacentEntriesSortingIndexes(db_in: Database, entity_idIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
                                                  forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>> {
-    let entity = new Entity(dbIn, entity_idIn);
+    let entity = new Entity(db_in, entity_idIn);
     entity.get_adjacent_attributes_sorting_indexes(movingFromPosition_sortingIndexIn, queryLimitIn, forward_not_back_in)
   }
 
-  protected fn get_sorting_indexOfNearestEntry(dbIn: Database, entity_idIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
-    let entity = new Entity(dbIn, entity_idIn);
+  protected fn get_sorting_indexOfNearestEntry(db_in: Database, entity_idIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64> {
+    let entity = new Entity(db_in, entity_idIn);
     entity.get_nearest_attribute_entrys_sorting_index(starting_point_sorting_index_in, forward_not_back_in = forward_not_back_in)
   }
 
-  protected fn renumber_sorting_indexes(dbIn: Database, entity_idIn: i64) -> /*Unit%%*/ {
-    let entity = new Entity(dbIn, entity_idIn);
+  protected fn renumber_sorting_indexes(db_in: Database, entity_idIn: i64) -> /*Unit%%*/ {
+    let entity = new Entity(db_in, entity_idIn);
     entity.renumber_sorting_indexes()
   }
 
-  protected fn updateSortedEntry(dbIn: Database, entity_idIn: i64, movingAttributeFormIdIn: Int, movingAttributeIdIn: i64, sortingIndexIn: i64) /*-> Unit%%*/ {
-    let entity = new Entity(dbIn, entity_idIn);
+  protected fn updateSortedEntry(db_in: Database, entity_idIn: i64, movingAttributeFormIdIn: Int, movingAttributeIdIn: i64, sortingIndexIn: i64) /*-> Unit%%*/ {
+    let entity = new Entity(db_in, entity_idIn);
     entity.update_attribute_sorting_index(movingAttributeFormIdIn, movingAttributeIdIn, sortingIndexIn)
   }
 
-  protected fn get_sorting_index(dbIn: Database, entity_idIn: i64, attribute_form_id_in: Int, attribute_id_in: i64) -> i64 {
-    let entity = new Entity(dbIn, entity_idIn);
-    entity.getAttributeSortingIndex(attribute_form_id_in, attribute_id_in)
+  protected fn get_sorting_index(db_in: Database, entity_idIn: i64, attribute_form_id_in: Int, attribute_id_in: i64) -> i64 {
+    let entity = new Entity(db_in, entity_idIn);
+    entity.get_attribute_sorting_index(attribute_form_id_in, attribute_id_in)
   }
 
-  protected fn indexIsInUse(dbIn: Database, entity_idIn: i64, sortingIndexIn: i64) -> bool {
-    let entity = new Entity(dbIn, entity_idIn);
+  protected fn indexIsInUse(db_in: Database, entity_idIn: i64, sortingIndexIn: i64) -> bool {
+    let entity = new Entity(db_in, entity_idIn);
     entity.is_attribute_sorting_index_in_use(sortingIndexIn)
   }
 
-  protected fn findUnusedSortingIndex(dbIn: Database, entity_idIn: i64, startingWithIn: i64) -> i64 {
-    let entity = new Entity(dbIn, entity_idIn);
+  protected fn find_unused_sorting_index(db_in: Database, entity_idIn: i64, startingWithIn: i64) -> i64 {
+    let entity = new Entity(db_in, entity_idIn);
     entity.find_unused_attribute_sorting_index(Some(startingWithIn))
   }
 

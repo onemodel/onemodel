@@ -7,36 +7,70 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-struct RelationToEntity {
-/*%%
-package org.onemodel.core.model
+// use std::os::unix::process::parent_id;
+use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
+use crate::model::database::{DataType, Database};
+use crate::util::Util;
+use anyhow::{anyhow, Error, Result};
+// use sqlx::{PgPool, Postgres, Row, Transaction};
+use crate::model::attribute::Attribute;
+use crate::model::entity::Entity;
+// use crate::model::id_wrapper::IdWrapper;
+use crate::model::relation_type::RelationType;
+use sqlx::{Postgres, Transaction};
+use tracing_subscriber::registry::Data;
 
-import org.onemodel.core.{OmException, Color}
+// ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
+// due to Rust limitations on OO.  Maintain them all similarly.
 
-*
- * Represents one RelationToEntity object in the system (usually [always, as of 9/2003] used as an attribute on a Entity).
- *
- * The intent of this being "abstract protected..." is to help make it so the class is only visible to (or at least only used by) its subclasses, so
- * that everywhere else has to specify whether the usage is a RelationToLocalEntity or RelationToRemoteEntity.  Only got partway there with the compiler
- * though; still had to search & fix others.
- *
- * You can use Entity.addRelationTo[Local|Remote]Entity() to create a new object.
- *
- *
-abstract protected[this] class RelationToEntity(db: Database, id: i64, mRelTypeId: i64, mEntityId1: i64,
-                                                            mEntityId2: i64) extends AttributeWithValidAndObservedDates(db, id) {
-  // (the next line used to be coded so instead of working it would return an exception, like this:
-  //     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
-  // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
-  // to have it be like this instead, for convenience:
-  override fn get_parent_id() -> i64 {
-  getRelatedId1
-  }
-    fn getRelatedId1 -> i64 {
-    mEntityId1
+/// Represents one RelationToEntity object in the system (usually [always, as of 9/2003] used as an attribute on a Entity).
+/// You can use Entity.addRelationTo[Local|Remote]Entity() to create a new object.
+///
+/// The intent of this being "abstract protected..." in scala at least,
+/// was to help make it so the class is only visible to (or at least only used by) its subclasses, so
+/// that everywhere else has to specify whether the usage is a RelationToLocalEntity or RelationToRemoteEntity.
+pub struct RelationToEntity<'a> {
+    // For descriptions of the meanings of these variables, see the comments
+    // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
+    // and/or examples in the database testing code.
+    db: Box<&'a dyn Database>,
+    id: i64,
+    // Unlike most other things that implement Attribute, rel_type_id takes the place of attr_type_id in this, since
+    // unlike in the scala code self does not extend Attribute and inherit attr_type_id.
+    rel_type_id: i64,
+    entity_id1: i64,
+    entity_id2: i64,
+    already_read_data: bool, /*%%= false*/
+    valid_on_date: Option<i64>, /*%%= None*/
+    observation_date: i64, /*%%= 0_i64*/
+    sorting_index: i64, /*%%= 0_i64*/
+}
+
+impl RelationToEntity<'_> {
+    fn new<'a>(db: Box<&'a dyn Database>,
+               id: i64,
+               rel_type_id: i64,
+               entity_id1: i64,
+               entity_id2: i64,
+    ) -> RelationToEntity<'a> {
+        RelationToEntity{db,
+            id,
+            rel_type_id,
+            entity_id1,
+            entity_id2,
+            already_read_data: false,
+            valid_on_date: None,
+            observation_date: 0,
+            sorting_index: 0,
+        }
     }
-    fn getRelatedId2 -> i64 {
-    mEntityId2
+
+}
+    fn get_related_id1(&self) -> i64 {
+        self.entity_id1
+    }
+    fn get_related_id2(&self) -> i64 {
+        self.entity_id2
     }
 
   /**
@@ -65,7 +99,7 @@ abstract protected[this] class RelationToEntity(db: Database, id: i64, mRelTypeI
     let relatedEntity: Entity = {;
       relatedEntityIn.getOrElse(getEntityForEntityId2)
     }
-    let rtName: String = {;
+    let rt_name: String = {;
       if relatedEntity.get_id == mEntityId2) {
         relType.get_name
       } else if relatedEntity.get_id == mEntityId1) {
@@ -78,10 +112,10 @@ abstract protected[this] class RelationToEntity(db: Database, id: i64, mRelTypeI
     // (See method comment about the relatedEntityIn param.)
     let result: String =;
       if simplify) {
-        if rtName == Database.THE_HAS_RELATION_TYPE_NAME) relatedEntity.get_name
-        else rtName + getRemoteDescription + ": " + relatedEntity.get_name
+        if rt_name == Database.THE_HAS_RELATION_TYPE_NAME) relatedEntity.get_name
+        else rt_name + getRemoteDescription + ": " + relatedEntity.get_name
       } else {
-        rtName + getRemoteDescription + ": " + Color.blue(relatedEntity.get_name) + "; " + get_dates_description
+        rt_name + getRemoteDescription + ": " + Color.blue(relatedEntity.get_name) + "; " + get_dates_description
       }
 
 //    if this.isInstanceOf[RelationToRemoteEntity]) {
@@ -94,6 +128,12 @@ abstract protected[this] class RelationToEntity(db: Database, id: i64, mRelTypeI
 
   // If relatedEntityIn is an RTRE, could be a different db so build accordingly:
     //%%?: fn getEntityForEntityId2 -> Entity
-*/
 
+// (the next line used to be coded so instead of working it would return an exception, like this:
+//     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
+// ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
+// to have it be like this instead, for convenience:
+override fn get_parent_id() -> i64 {
+    get_related_id1
+}
 }

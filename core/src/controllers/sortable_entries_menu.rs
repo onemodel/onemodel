@@ -18,7 +18,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
 
   * Returns the starting row number (in case the view window was adjusted to show other entries around the moved entity).
     *
-    * The dbIn should represent the *same* database as where containingObjectIdIn is stored!  (See details in comments at similar location
+    * The db_in should represent the *same* database as where containingObjectIdIn is stored!  (See details in comments at similar location
     * about containingObjectIdIn.)
     *
     * Note that if the goal
@@ -31,7 +31,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     * feature such that) the user inserts a new attribute after an existing one (ie specifying its position immediately instead of just moving it later) and
     * therefore the attribute already in that position, and the  one added at that position are different.
     *
-  protected fn placeEntryInPosition(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64,
+  protected fn placeEntryInPosition(db_in: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64,
                                      numRowsToMoveIfThereAreThatManyIn: Int, forward_not_back_in: bool,
                                      starting_display_row_index_in: Int, movingObjIdIn: i64, moveFromIndexInObjListIn: Int, objectAtThatIndexIdIn: Option<i64>,
                                      numDisplayLinesIn: Int, movingObjsAttributeFormIdIn: Int, objectAtThatIndexFormIdIn: Option[Int]) -> Int {
@@ -42,7 +42,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
 
     let movingFromPosition_sortingIndex: i64 = {;
       if objectAtThatIndexIdIn.is_defined) {
-        get_sorting_index(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
+        get_sorting_index(db_in, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
       } else {
         // could happen if it's the first entry (first attribute) in an entity, or if the caller (due to whatever reason including possibly a bug) did not
         // know what objectAtThatIndexIdIn value to use, so passed None: attempting to be resilient to that here.
@@ -51,7 +51,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     }
 
     let (byHowManyEntriesActuallyMoving: Int, nearNewNeighborSortingIndex: Option<i64>, farNewNeighborSortingIndex: Option<i64>) =;
-      findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forward_not_back_in, movingFromPosition_sortingIndex)
+      findNewNeighbors(db_in, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forward_not_back_in, movingFromPosition_sortingIndex)
 
     let mut displayStartingRowNumber = starting_display_row_index_in;
 
@@ -60,28 +60,28 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     } else {
       let (newSortingIndex: i64, trouble: bool) = {;
         let mut (newSortingIndex: i64, trouble: bool, newStartingRowNum: Int) = {;
-          getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In, starting_display_row_index_in,
+          getNewSortingIndex(db_in, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In, starting_display_row_index_in,
                              nearNewNeighborSortingIndex, farNewNeighborSortingIndex, forward_not_back_in,
                              byHowManyEntriesActuallyMoving, movingFromPosition_sortingIndex, moveFromIndexInObjListIn, numDisplayLinesIn)
         }
         displayStartingRowNumber = newStartingRowNum
         if trouble) {
-          renumber_sorting_indexes(dbIn, containingObjectIdIn)
+          renumber_sorting_indexes(db_in, containingObjectIdIn)
 
           // Get the sortingIndex of the entry right before the one being placed, increment (since just renumbered; or not?), then use that as the "old
           // position" moving from.  (Getting a new value because the old movingFromPosition_sortingIndex value is now invalid, since we just renumbered above.)
           let movingFromPosition_sortingIndex2: i64 = {;
             if objectAtThatIndexIdIn.is_defined) {
-              get_sorting_index(dbIn, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
+              get_sorting_index(db_in, containingObjectIdIn, objectAtThatIndexFormIdIn.get, objectAtThatIndexIdIn.get)
             } else {
               // (reason for next line is in related comments above at "val movingFromPosition_sortingIndex: i64 =".)
               Database.min_id_value + 990
             }
           }
           let (byHowManyEntriesMoving2: Int, nearNewNeighborSortingIndex2: Option<i64>, farNewNeighborSortingIndex2: Option<i64>) =;
-            findNewNeighbors(dbIn, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forward_not_back_in, movingFromPosition_sortingIndex2)
+            findNewNeighbors(db_in, containingObjectIdIn, numRowsToMoveIfThereAreThatManyIn, forward_not_back_in, movingFromPosition_sortingIndex2)
           // (for some reason, can't reassign the results directly to the vars like this "(newSortingIndex, trouble, newStartingRowNum) = ..."?
-          let (a: i64, b: bool, c: Int) = getNewSortingIndex(dbIn, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,;
+          let (a: i64, b: bool, c: Int) = getNewSortingIndex(db_in, containingObjectIdIn, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In,;
                                                                  starting_display_row_index_in, nearNewNeighborSortingIndex2,
                                                                  farNewNeighborSortingIndex2, forward_not_back_in,
                                                                  byHowManyEntriesMoving2, movingFromPosition_sortingIndex2, moveFromIndexInObjListIn,
@@ -99,19 +99,19 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
                               "still conflicts with something.")
       }
       else {
-        updateSortedEntry(dbIn, containingObjectIdIn, movingObjsAttributeFormIdIn, movingObjIdIn, newSortingIndex)
+        updateSortedEntry(db_in, containingObjectIdIn, movingObjsAttributeFormIdIn, movingObjIdIn, newSortingIndex)
       }
     }
     displayStartingRowNumber
   }
 
-  protected fn get_sorting_index(dbIn: Database, containingObjectIdIn: i64, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: i64) -> i64
+  protected fn get_sorting_index(db_in: Database, containingObjectIdIn: i64, objectAtThatIndexFormIdIn: Int, objectAtThatIndexIdIn: i64) -> i64
 
-  /** The dbIn should represent the *same* database as where containingObjectIdIn is stored!  (Idea: enforce that by passing in a containingObject instead
+  /** The db_in should represent the *same* database as where containingObjectIdIn is stored!  (Idea: enforce that by passing in a containingObject instead
     * of a containingObjectIdIn (ie an Entity or Group, using scala's type system), or a boolean saying which it is, then get the db from it instead of
     * passing it as a parm?  Same in location(s) w/ similar comment about containingObjectIdIn.)
     */
-  protected fn getNewSortingIndex(dbIn: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64, starting_display_row_index_in: Int,
+  protected fn getNewSortingIndex(db_in: Database, containingObjectIdIn: i64, groupSizeOrNumAttributes_ToCalcNewDisplayStartingIndex_In: i64, starting_display_row_index_in: Int,
                                    nearNewNeighborSortingIndex: Option<i64>, farNewNeighborSortingIndex: Option<i64>, forwardNotBack: bool,
                                    byHowManyEntriesMoving: Int, movingFromPosition_sortingIndex: i64, moveFromRelativeIndexInObjListIn: Int,
                                    numDisplayLines: Int) -> (i64, Boolean, Int) {
@@ -123,9 +123,9 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       // At this point we might have as newIndexIn, the dup of an archived entity's sorting index, since archived entities are ignored the in
       // logic that calculated our *NewNeighborSortingIndex variable
       // values.  If so, find another candidate (feels like a kludge and knowledge scattered across code, but not sure of a better algorithm right now).
-      if indexIsInUse(dbIn, groupOrEntityIdIn, newIndexIn)) {
+      if indexIsInUse(db_in, groupOrEntityIdIn, newIndexIn)) {
         try {
-            Some(findUnusedSortingIndex(dbIn, containingObjectIdIn, newIndexIn))
+            Some(find_unused_sorting_index(db_in, containingObjectIdIn, newIndexIn))
         } catch {
           case e: Exception =>
             if e.getMessage == Database.UNUSED_GROUP_ERR1 || e.getMessage == Database.UNUSED_GROUP_ERR2) None
@@ -205,10 +205,10 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     (newIndex, trouble, newDisplayRowsStartingWithCounter)
   }
 
-  /** The dbIn should represent the *same* database as where groupOrEntityIdIn is stored!  (See details in comments at similar location
+  /** The db_in should represent the *same* database as where groupOrEntityIdIn is stored!  (See details in comments at similar location
     * about containingObjectIdIn.)
     */
-  protected fn findNewNeighbors(dbIn: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forward_not_back_in: bool,
+  protected fn findNewNeighbors(db_in: Database, groupOrEntityIdIn: i64, movingDistanceIn: Int, forward_not_back_in: bool,
                                  movingFromPosition_sortingIndex: i64) -> (Int, Option<i64>, Option<i64>) {
 
     // (idea: this could probably be made more efficient by combining the 2nd part of the (fixed) algorithm (the call to db.getNearestEntry)
@@ -218,7 +218,7 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
     // get enough data to represent the new location in the sort order: movingDistanceIn entries away, and one beyond, and place this entity between them:
     let queryLimit = movingDistanceIn + 1;
 
-    let results: Array[Vec<Option<DataType>>] = getAdjacentEntriesSortingIndexes(dbIn, groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),;
+    let results: Array[Vec<Option<DataType>>] = getAdjacentEntriesSortingIndexes(db_in, groupOrEntityIdIn, movingFromPosition_sortingIndex, Some(queryLimit),;
                                                                      forward_not_back_in = forward_not_back_in).toArray
     require(results.length <= queryLimit)
     // (get the last result's sortingIndex, if possible; 0-based of course; i.e., that of the first entry beyond where we're moving to):
@@ -259,24 +259,24 @@ abstract class SortableEntriesMenu(val ui: TextUI) {
       if nearNewNeighborSortingIndex.isEmpty || farNewNeighborSortingIndex.isEmpty)
         None
       else
-        get_sorting_indexOfNearestEntry(dbIn, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forward_not_back_in = forward_not_back_in)
+        get_sorting_indexOfNearestEntry(db_in, groupOrEntityIdIn, nearNewNeighborSortingIndex.get, forward_not_back_in = forward_not_back_in)
     }
 
     (byHowManyEntriesMoving, nearNewNeighborSortingIndex, adjustedFarNewNeighborSortingIndex)
   }
 
-  protected fn getAdjacentEntriesSortingIndexes(dbIn: Database, groupOrEntityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
+  protected fn getAdjacentEntriesSortingIndexes(db_in: Database, groupOrEntityIdIn: i64, movingFromPosition_sortingIndexIn: i64, queryLimitIn: Option<i64>,
                                                  forward_not_back_in: bool) -> Vec<Vec<Option<DataType>>>
 
-  protected fn get_sorting_indexOfNearestEntry(dbIn: Database, containingIdIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64>
+  protected fn get_sorting_indexOfNearestEntry(db_in: Database, containingIdIn: i64, starting_point_sorting_index_in: i64, forward_not_back_in: bool) -> Option<i64>
 
-  protected fn renumber_sorting_indexes(dbIn: Database, containingObjectIdIn: i64)
+  protected fn renumber_sorting_indexes(db_in: Database, containingObjectIdIn: i64)
 
-  protected fn updateSortedEntry(dbIn: Database, containingObjectIdIn: i64, movingObjsAttributeFormIdIn: Int, movingObjIdIn: i64, sortingIndexIn: i64)
+  protected fn updateSortedEntry(db_in: Database, containingObjectIdIn: i64, movingObjsAttributeFormIdIn: Int, movingObjIdIn: i64, sortingIndexIn: i64)
 
-  protected fn indexIsInUse(dbIn: Database, groupOrEntityIdIn: i64, sortingIndexIn: i64) -> bool
+  protected fn indexIsInUse(db_in: Database, groupOrEntityIdIn: i64, sortingIndexIn: i64) -> bool
 
-  protected fn findUnusedSortingIndex(dbIn: Database, groupOrEntityIdIn: i64, startingWithIn: i64) -> i64
+  protected fn find_unused_sorting_index(db_in: Database, groupOrEntityIdIn: i64, startingWithIn: i64) -> i64
 
 */
 }

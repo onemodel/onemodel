@@ -56,11 +56,11 @@ class RelationType(db: Database, id: i64) extends Entity(db, id) {
     that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     one that already exists.
     */
-  private[onemodel] fn this(dbIn: Database, entity_id_in: i64, name_in: String, name_in_reverse_direction_in: String,
+  private[onemodel] fn this(db_in: Database, entity_id_in: i64, name_in: String, name_in_reverse_direction_in: String,
                              inDirectionality: String) {
-    this(dbIn, entity_id_in)
-    m_name = name_in
-    m_nameInReverseDirection = name_in_reverse_direction_in
+    this(db_in, entity_id_in)
+    name = name_in
+    nameInReverseDirection = name_in_reverse_direction_in
     mDirectionality = inDirectionality
     already_read_data = true
   }
@@ -69,7 +69,7 @@ class RelationType(db: Database, id: i64) extends Entity(db, id) {
     if !already_read_data) {
       read_data_from_db()
     }
-    m_nameInReverseDirection
+    nameInReverseDirection
   }
 
   private[onemodel] fn getDirectionality() -> String {
@@ -83,11 +83,11 @@ class RelationType(db: Database, id: i64) extends Entity(db, id) {
     if !already_read_data) {
       read_data_from_db()
     }
-    m_name
+    name
   }
 
-  override fn get_display_string_helper(withColorIGNOREDFORNOW: bool)() -> String {
-    getArchivedStatusDisplayString + get_name + " (a relation type with: " + getDirectionality + "/'" + get_name_in_reverse_direction + "')"
+  override fn get_display_string_helper(with_colorIGNOREDFORNOW: bool)() -> String {
+    get_archived_status_display_string + get_name + " (a relation type with: " + getDirectionality + "/'" + get_name_in_reverse_direction + "')"
   }
 
   protected override fn read_data_from_db() {
@@ -95,18 +95,18 @@ class RelationType(db: Database, id: i64) extends Entity(db, id) {
     if relationTypeData.length == 0) {
       throw new OmException("No results returned from data request for: " + id)
     }
-    m_name = relationTypeData(0).get.asInstanceOf[String]
-    m_nameInReverseDirection = relationTypeData(1).get.asInstanceOf[String]
+    name = relationTypeData(0).get.asInstanceOf[String]
+    nameInReverseDirection = relationTypeData(1).get.asInstanceOf[String]
     mDirectionality = relationTypeData(2).get.asInstanceOf[String].trim
     already_read_data = true
   }
 
     fn update(name_in: String, name_in_reverse_direction_in: String, directionality_in: String) -> /*%% -> Unit*/ {
     if !already_read_data) read_data_from_db()
-    if name_in != m_name || name_in_reverse_direction_in != m_nameInReverseDirection || directionality_in != mDirectionality) {
+    if name_in != name || name_in_reverse_direction_in != nameInReverseDirection || directionality_in != mDirectionality) {
       db.update_relation_type(get_id, name_in, name_in_reverse_direction_in, directionality_in)
-      m_name = name_in
-      m_nameInReverseDirection = name_in_reverse_direction_in
+      name = name_in
+      nameInReverseDirection = name_in_reverse_direction_in
       mDirectionality = directionality_in
     }
   }
@@ -120,7 +120,7 @@ class RelationType(db: Database, id: i64) extends Entity(db, id) {
   /** For descriptions of the meanings of these variables, see the comments
     on PostgreSQLDatabase.create_tables(...), and examples in the database testing code.
     */
-  private let mut m_nameInReverseDirection: String = null;
+  private let mut nameInReverseDirection: String = null;
   private let mut mDirectionality: String = null;
  */
  */

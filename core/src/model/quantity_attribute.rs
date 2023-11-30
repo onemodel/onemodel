@@ -8,8 +8,7 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
-use crate::model::database::DataType;
-use crate::model::database::Database;
+use crate::model::database::{DataType, Database};
 use crate::util::Util;
 use anyhow::{anyhow, Error, Result};
 // use sqlx::{PgPool, Postgres, Row, Transaction};
@@ -19,7 +18,9 @@ use crate::model::entity::Entity;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
 
-// Similar/identical code found in *_attribute.rs due to Rust limitations on OO.  Maintain them all similarly.
+// ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
+// due to Rust limitations on OO.  Maintain them all similarly.
+
 /// Represents one quantity object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
 pub struct QuantityAttribute<'a> {
     // For descriptions of the meanings of these variables, see the comments
@@ -151,7 +152,7 @@ impl QuantityAttribute<'_> {
 
 impl Attribute for QuantityAttribute<'_> {
     /// Return something like "volume: 15.1 liters". For full length, pass in 0 for
-    /// in_length_limit. The parameter inParentEntity refers to the Entity whose
+    /// in_length_limit. The parameter in_parent_entity refers to the Entity whose
     /// attribute this is. 3rd parameter really only applies in one of the subclasses of Attribute,
     /// otherwise can be None.
     fn get_display_string(
@@ -224,7 +225,7 @@ impl Attribute for QuantityAttribute<'_> {
         //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
 
         //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
-        //%%$%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
+        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
         // valid_on_date: Option<i64> /*%%= None*/,
         /*DataType::Bigint(%%)*/
         self.valid_on_date = None; //data[4];
@@ -242,6 +243,7 @@ impl Attribute for QuantityAttribute<'_> {
         Ok(())
     }
 
+    //%%why is an id passed as a parm, vs. using the one in the struct??  ck scala original, callers.
     fn delete<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,

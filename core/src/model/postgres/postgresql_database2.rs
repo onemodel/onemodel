@@ -13,7 +13,9 @@
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
+use crate::model::om_instance::OmInstance;
 use crate::model::postgres::postgresql_database::*;
+use crate::model::relation_to_group::RelationToGroup;
 // use crate::model::postgres::*;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 // use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
@@ -134,7 +136,7 @@ impl PostgreSQLDatabase {
         Ok(ids[0])
     }
 
-    //%%$%%remove now? Or, can I find a way to do it in a fn again somehow? w/ online help?
+    //%%%%remove now? Or, can I find a way to do it in a fn again somehow? w/ online help?
     // fn confirm_which_transaction(
     //     &self,
     //     transaction_in: &Option<&mut Transaction<Postgres>>,
@@ -185,7 +187,7 @@ impl PostgreSQLDatabase {
         // the caller only to manage that.
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<u64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -635,7 +637,7 @@ impl PostgreSQLDatabase {
         Ok(new_rte)
     }
 
-    fn update_class_name(
+    pub fn update_class_name(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
@@ -917,29 +919,31 @@ impl PostgreSQLDatabase {
         }
         Ok(final_results)
     }
-    //%%
-    // fn get_containing_relation_to_groups_helper(&self, transaction: &Option<&mut Transaction<Postgres>>, sql_in: &str)  -> Result<Vec<RelationToGroup>, anyhow::Error>  {
-    //     let early_results = self.db_query(transaction, sql_in, "i64")?;
-    //     let mut group_id_results: Vec<i64> = Vec::new();
-    //     // idea: should the remainder of this method be moved to Group, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-    //     // dependencies? is a cleaner design?)
-    //     for result in early_results {
-    //         //val group:Group = new Group(this, result(0).asInstanceOf[i64])
-    //         let DataType::Bigint(id) = result.get(0)?;
-    //         group_id_results.push(id.clone());
-    //     }
-    //     if group_id_results.len() != early_results.len() {
-    //         return Err(anyhow!("In get_containing_relation_to_groups_helper, group_id_results.len() ({}) != early_results.len() ({})", group_id_results.len(), early_results.len()));
-    //     }
-    //     let mut containing_relations_to_group: Vec<RelationToGroup> = Vec::new();
-    //     for gid in group_id_results {
-    //         let rtgs: Vec<RelationToGroup> = self.get_relations_to_group_containing_this_group(transaction, gid, 0)?;
-    //         for rtg in rtgs {
-    //             containing_relations_to_group.push(rtg);
-    //         }
-    //     }
-    //     Ok(containing_relations_to_group)
-    // }
+
+    pub fn get_containing_relation_to_groups_helper(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                                sql_in: &str)  -> Result<Vec<RelationToGroup>, anyhow::Error>  {
+        let early_results = self.db_query(transaction, sql_in, "i64")?;
+        let mut group_id_results: Vec<i64> = Vec::new();
+        // idea: should the remainder of this method be moved to Group, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+        // dependencies? is a cleaner design?)
+        for result in early_results {
+            //val group:Group = new Group(this, result(0).asInstanceOf[i64])
+            let DataType::Bigint(id) = result.get(0)?;
+            group_id_results.push(id.clone());
+        }
+        if group_id_results.len() != early_results.len() {
+            return Err(anyhow!("In get_containing_relation_to_groups_helper, group_id_results.len() ({}) != early_results.len() ({})", group_id_results.len(), early_results.len()));
+        }
+        let mut containing_relations_to_group: Vec<RelationToGroup> = Vec::new();
+        for gid in group_id_results {
+            let rtgs: Vec<RelationToGroup> = self.get_relations_to_group_containing_this_group(transaction, gid, 0)?;
+            for rtg in rtgs {
+                containing_relations_to_group.push(rtg);
+            }
+        }
+        Ok(containing_relations_to_group)
+    }
+
     pub fn get_entities_used_as_attribute_types_sql(
         &self,
         attribute_type_in: String,
@@ -1068,11 +1072,11 @@ impl PostgreSQLDatabase {
         for _result in early_results {
             // None of these values should be of "None" type. If they are it's a bug:
             if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
-                //%%$%%%
+                //%%%%%
                 // final_results.push(RelationType::new(&self, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(6).get.asInstanceOf[String],
                 //                                    result(7).get.asInstanceOf[String]))
             } else {
-                //%%$%%%
+                //%%%%%
                 // add_new_entity_to_results(final_results, result)
             }
         }
@@ -1394,7 +1398,7 @@ impl PostgreSQLDatabase {
     //     (allResultsArray.slice(from, until), allResultsArray.length)
     // }
 
-    /// The inSelfIdToIgnore parameter is to avoid saying a class is a duplicate of itself: checks for all others only.
+    /// The in_self_id_to_ignore parameter is to avoid saying a class is a duplicate of itself: checks for all others only.
     pub fn is_duplicate_row(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -1444,7 +1448,7 @@ impl PostgreSQLDatabase {
     ) -> Result<u64, anyhow::Error> {
         //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
 
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1551,7 +1555,7 @@ impl PostgreSQLDatabase {
         )
     }
     // (idea: find out: why doesn't compiler (ide or cli) complain when the 'override' is removed from next line?)
-    // idea: see comment on findUnusedSortingIndex
+    // idea: see comment on find_unused_sorting_index
     pub fn find_id_which_is_not_key_of_any_entity<'a>(
         &'a self,
         transaction_in: &Option<&mut Transaction<'a, Postgres>>,
@@ -1587,10 +1591,10 @@ impl PostgreSQLDatabase {
 
     /*%%
                   // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
-                    fn addUriEntityWithUriAttribute(containingEntityIn: Entity, new_entity_name_in: String, uriIn: String, observation_date_in: i64,
-                                                   makeThem_publicIn: Option<bool>, caller_manages_transactions_in: bool,
-                                                   quoteIn: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity) {
-                    if quoteIn.is_some()) require(!quoteIn.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
+                    fn add_uri_entity_with_uri_attribute(containingEntityIn: Entity, new_entity_name_in: String, uri_in: String, observation_date_in: i64,
+                                                   makeThem_public_in: Option<bool>, caller_manages_transactions_in: bool,
+                                                   quote_in: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity) {
+                    if quote_in.is_some()) require(!quote_in.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
                           //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                     // if !caller_manages_transactions_in { self.begin_trans() }
                     try {
@@ -1601,11 +1605,11 @@ impl PostgreSQLDatabase {
                       let (uriClassId: i64, uriClassTemplateId: i64) = get_or_create_class_and_template_entity("URI", caller_manages_transactions_in);
                       let (_, quotationClassTemplateId: i64) = get_or_create_class_and_template_entity("quote", caller_manages_transactions_in);
                       let (newEntity: Entity, newRTLE: RelationToLocalEntity) = containingEntityIn.create_entityAndAddHASLocalRelationToIt(new_entity_name_in, observation_date_in,;
-                                                                                                                               makeThem_publicIn, caller_manages_transactions_in)
+                                                                                                                               makeThem_public_in, caller_manages_transactions_in)
                       update_entitys_class(newEntity.get_id, Some(uriClassId), caller_manages_transactions_in)
-                      newEntity.addTextAttribute(uriClassTemplateId, uriIn, None, None, observation_date_in, caller_manages_transactions_in)
-                      if quoteIn.is_some()) {
-                        newEntity.addTextAttribute(quotationClassTemplateId, quoteIn.get, None, None, observation_date_in, caller_manages_transactions_in)
+                      newEntity.addTextAttribute(uriClassTemplateId, uri_in, None, None, observation_date_in, caller_manages_transactions_in)
+                      if quote_in.is_some()) {
+                        newEntity.addTextAttribute(quotationClassTemplateId, quote_in.get, None, None, observation_date_in, caller_manages_transactions_in)
                       }
                           //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
                       // if !caller_manages_transactions_in {self.commit_trans() }
@@ -1617,19 +1621,27 @@ impl PostgreSQLDatabase {
                         throw e
                     }
                   }
-
+*/
               /// @return the OmInstance object that stands for *this*: the OmInstance to which this PostgreSQLDatabase class instance reads/writes directly.
-            fn get_local_om_instance_data() -> OmInstance {
+            pub fn get_local_om_instance_data(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<OmInstance, anyhow::Error> {
                 let sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE";
-                let results = db_query(sql, "String,String,i64,i64");
-                if results.size != 1) throw new OmDatabaseException("Got " + results.size + " instead of 1 result from sql " + sql +
+                let results = self.db_query(transaction, sql, "String,String,i64,i64")?;
+                if results.len() != 1 {
+                    anyhow!("Got {}", results.len() + " instead of 1 result from sql " + sql +
                                                                      ".  Does the usage now warrant removing this check (ie, multiple locals stored)?")
-                let result = results.head;
-                new OmInstance(this, result(0).get.asInstanceOf[String], is_local_in = true,
-                               result(1).get.asInstanceOf[String],
-                               result(2).get.asInstanceOf[i64], if result(3).isEmpty) None else Some(result(3).get.asInstanceOf[i64]))
+                }
+                let result = results.get(0).unwrap();
+                  let DataType::String(id) = result[0].unwrap();
+                  let DataType::String(address) = result[1].unwrap();
+                  let DataType::Bigint(insertion_date) = result[2].unwrap();
+                  let entity_id = match result[3] {
+                      None => None,
+                      Some(DataType::Bigint(x)) => x,
+                      _ => return Err(anyhow!("Unexpected value {:?} from sql \"{}\".", result[3], sql)),
+                  };
+                Ok(OmInstance::new(this, id, true, address,
+                               insertion_date, entity_id))
               }
 
-    */
-    //%%$%% moved methods that are not part of the Database trait go here
+    //%% moved methods that are not part of the Database trait go here
 }

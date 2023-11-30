@@ -20,7 +20,9 @@ use crate::model::entity::Entity;
 use crate::model::relation_type::RelationType;
 use crate::util::Util;
 
-// Similar/identical code found in *_attribute.rs due to Rust limitations on OO.  Maintain them all similarly.
+// ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
+// due to Rust limitations on OO.  Maintain them all similarly.
+
 /// See TextAttribute etc code, for some comments.
 /// Also, though this doesn't formally extend Attribute, it still belongs to the same group conceptually (just doesn't have the same date variables so code
 /// not shared (idea: model that better, and in FileAttribute).

@@ -90,7 +90,7 @@ impl PostgreSQLDatabase {
     /// Strings should have been passed through escape_quotes_etc FIRST, and ONLY THE RESULT SENT HERE.
     /// Returns the results (a collection of rows, each row being its own collection).
     //%%should do that escape_quotes_etc here instead, so guaranteed? or comment why not?
-    //%%$%%should the things in "types" parm be an enum or something like that? Or doc it here?
+    //%%%%should the things in "types" parm be an enum or something like that? Or doc it here?
     pub fn db_query(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -141,7 +141,7 @@ impl PostgreSQLDatabase {
                             let y = DataType::Float(x);
                             row.push(Some(y));
                         } else if type_name == &"String" {
-                            //%%$%
+                            //%%%
                             //     was: row(column_counter) = Some(PostgreSQLDatabase.unescape_quotes_etc(rs.getString(column_counter)))
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
                             let x: String = decode_mbe.unwrap(); //%%???
@@ -588,9 +588,9 @@ impl PostgreSQLDatabase {
         //     Ok(t) => t,
         // };
         // if !new_db.model_tables_exist(&Some(&mut tx))? {
-        //     // //%%$% try to see what happens if pg down be4 & during this--does the err propagate ok?
+        //     // //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
         //     new_db.create_tables(&Some(&mut tx))?;
-        //     //%%$% try to see what happens if pg down be4 & during this--does the err propagate ok?
+        //     //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
         //     new_db.create_base_data(&Some(&mut tx))?;
         // }
         // //%% do_database_upgrades_if_needed()
@@ -616,9 +616,9 @@ impl PostgreSQLDatabase {
         // let x = new_db.begin_trans_test();
         let mut tx = self.begin_trans()?;
         if !self.model_tables_exist(&Some(&mut tx))? {
-            // //%%$% try to see what happens if pg down be4 & during this--does the err propagate ok?
+            // //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
             self.create_tables(&Some(&mut tx))?;
-            //%%$% try to see what happens if pg down be4 & during this--does the err propagate ok?
+            //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
             self.create_base_data(&Some(&mut tx))?;
         }
         self.do_database_upgrades_if_needed(&Some(&mut tx))?;
@@ -740,7 +740,7 @@ impl PostgreSQLDatabase {
         let pool = rt.block_on(future)?;
         // pool.options().
         // let pool = future;
-        //%%$%just some testing, can delete after next commit, or use for a while for reference.
+        //%%%just some testing, can delete after next commit, or use for a while for reference.
         // // let future = sqlx::query_as("SELECT $1")
         // let future = sqlx::query_as("SELECT count(1) from entity")
         //     .bind(150_i64)
@@ -962,7 +962,7 @@ impl PostgreSQLDatabase {
         )?;
 
         // The entity_id is the key for the entity on which this quantity info is recorded; for other meanings see comments on
-        // Entity.addQuantityAttribute(...).
+        // Entity.add_quantity_attribute(...).
         // The id must be "unique not null" in ANY database used, because it is the primary key.
         // FOR COLUMN MEANINGS, SEE ALSO THE COMMENTS IN CREATEQUANTITYATTRIBUTE.
         // For form_id, see comment for this column under "create table RelationToGroup", below.
@@ -1178,7 +1178,7 @@ impl PostgreSQLDatabase {
             false,
         )?;
         // the entity_id is the key for the entity on which this text info is recorded; for other meanings see comments on
-        // Entity.addQuantityAttribute(...).
+        // Entity.add_quantity_attribute(...).
         // id must be "unique not null" in ANY database used, because it is the primary key.
         let text_form_id = self.get_attribute_form_id(Util::TEXT_TYPE).unwrap();
         // See comment for column "form_id" under "create table RelationToGroup", below.
@@ -1763,7 +1763,7 @@ impl PostgreSQLDatabase {
         // (See fn delete_objects for more about this parameter, and transaction above.)
         caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):

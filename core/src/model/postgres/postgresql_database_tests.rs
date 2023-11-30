@@ -150,12 +150,12 @@ mod test {
         //     .create_entity(Some(&mut tx), name.as_str(), None, None)
         //     .expect(format!("Failed to create entity with name: {name}").as_str());
 
-        // %%$%% Uncommenting these 2 lines gets one kind of transaction error (something about the
+        // %%%% Uncommenting these 2 lines gets one kind of transaction error (something about the
         // transaction being moved in the first line, and so not available to the second line).
         // db_query_for_test1(&rt, &pool, Some(&mut transaction), "select count(*) from pg_aggregate");
         // db_query_for_test1(&rt, &pool, None, "select count(*) from pg_views");
 
-        // %%$%%Commenting out the 2 lines just above, and un-commenting these, gets these errors. But I
+        // %%%%Commenting out the 2 lines just above, and un-commenting these, gets these errors. But I
         // can't use .as_ref() or .as_mut() because that violates trait constraints or something.
         // Unless one of those (or Copy?) is added to the struct Transaction later?
         /*
@@ -463,7 +463,7 @@ mod test {
             Util::TEST_PASS,
             "om_t1"
         );
-        //%%$% why does the insert sql get "PoolTimedOut" if .max_connections is 1 instead of 10??
+        //%%% why does the insert sql get "PoolTimedOut" if .max_connections is 1 instead of 10??
         //(Is similar to similar problem w/ .max_connections noted elsewhere?)
         let future = PgPoolOptions::new()
             .max_connections(10)
@@ -522,8 +522,8 @@ mod test {
         count = sqlx_get_int(&pool, &rt, count_sql.as_str());
         debug!("in test_rollback_and_commit_with_less_helper_code: count after rollback should be 0: {}", count);
 
-        //%%$%this fails, so try?: xnew version of sqlx w what changes, xmore web searches, reddit?, file an issue (filed 20230406)?
-        //%%$%why doesnt the rollback, implied OR explicit, do anything? due to xactn isolation or...??
+        //%%%this fails, so try?: xnew version of sqlx w what changes, xmore web searches, reddit?, file an issue (filed 20230406)?
+        //%%%why doesnt the rollback, implied OR explicit, do anything? due to xactn isolation or...??
         //AFTER FIXING, see all the places with "rollbacketc%%" (2) and address them.
         //could: Search for related cmts w/ "isolation".
         assert_eq!(count, 0);
@@ -653,16 +653,16 @@ mod test {
         boolean_attribute_id
     }
 
-    fn createTestFileAttributeAndOneEntity(inParentEntity: Entity, inDescr: String, addedKiloBytesIn: Int, verifyIn: bool = true) -> FileAttribute {
+    fn create_test_file_attribute_and_one_entity(in_parent_entity: Entity, in_descr: String, added_kilobytes_in: i32, verify_in: bool /*= true*/) -> FileAttribute {
         let attr_type_id: i64 = db.create_entity("fileAttributeType");
         let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
         let mut writer: java.io.FileWriter = null;
         let mut verificationFile: java.io.File = null;
         try {
             writer = new java.io.FileWriter(file)
-            writer.write(addedKiloBytesIn + "+ kB file from: " + file.getCanonicalPath + ", created " + new java.util.Date())
+            writer.write(added_kilobytes_in + "+ kB file from: " + file.getCanonicalPath + ", created " + new java.util.Date())
             let mut nextInteger: i64 = 1;
-            for (i: Int <- 1 to (1000 * addedKiloBytesIn)) {
+            for (i: Int <- 1 to (1000 * added_kilobytes_in)) {
                 // there's a bug here: files aren't the right size (not single digits being added) but oh well it's just to make some file.
                 writer.write(nextInteger.toString)
                 if i % 1000 == 0 { nextInteger += 1 }
@@ -677,14 +677,14 @@ mod test {
             let mut fa: FileAttribute = null;
             try {
                 inputStream = new java.io.FileInputStream(file)
-                fa = inParentEntity.addFileAttribute(attr_type_id, inDescr, file)
+                fa = in_parent_entity.addFileAttribute(attr_type_id, in_descr, file)
             } finally {
                 if inputStream != null { inputStream.close() }
         }
 
-        if verifyIn {
+        if verify_in {
             // this first part is just testing DB consistency from add to retrieval, not the actual file:
-            assert(fa.get_parent_id() == inParentEntity.get_id)
+            assert(fa.get_parent_id() == in_parent_entity.get_id)
             assert(fa.get_attr_type_id() == attr_type_id)
             assert((fa.get_stored_date() - (sleepPeriod - 1)) > fa.get_original_file_date())
             // (easily fails if the program pauses when debugging):
@@ -692,7 +692,7 @@ mod test {
             assert(file.lastModified() == fa.get_original_file_date())
             assert(file.length() == fa.get_size())
             assert(file.getCanonicalPath == fa.get_original_file_path())
-            assert(fa.get_description() == inDescr)
+            assert(fa.get_description() == in_descr)
             assert(fa.get_size() == size)
             // (startsWith, because the db pads with characters up to the full size)
             assert(fa.get_readable() && fa.get_writeable() && !fa.get_executable())
@@ -1096,7 +1096,7 @@ mod test {
     let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testFileAttrs");
     let descr = "somedescr";
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-    let fa: FileAttribute = createTestFileAttributeAndOneEntity(new Entity(db, entity_id), descr, 1);
+    let fa: FileAttribute = create_test_file_attribute_and_one_entity(new Entity(db, entity_id), descr, 1);
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
     let fileAttributeId = fa.get_id;
     let (pid1, atid1, desc1) = (fa.get_parent_id(), fa.get_attr_type_id(), fa.get_description());
@@ -1175,11 +1175,11 @@ mod test {
 
 
     // and check larger content:
-    createTestFileAttributeAndOneEntity(new Entity(db, entity_id), "somedesc", 1200)
+    create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "somedesc", 1200)
 
     // then recreate the file attribute (to verify its auto-deletion when Entity is deleted, below)
     // (w/ dif't file size for testing)
-    createTestFileAttributeAndOneEntity(new Entity(db, entity_id), "somedesc", 0)
+    create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "somedesc", 0)
     db.delete_entity(entity_id)
     assert(db.get_file_attribute_count(entity_id) == 0)
 
@@ -1315,7 +1315,7 @@ mDoDamageBuffer = false
     let (groupId1, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id1, rel_type_id, "test-get_containing_groups_ids-group1");
     let group1 = new Group(db,groupId1);
     let entity_id2 = db.create_entity("test-get_containing_groups_ids-entity2");
-    group1.addEntity(entity_id2)
+    group1.add_entity(entity_id2)
     let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id2, rel_type_id, "test-get_containing_groups_ids-group1");
     let group2 = new Group(db, groupId2);
 
@@ -1326,7 +1326,7 @@ mDoDamageBuffer = false
     let entity_id3 = db.create_entity("test-get_containing_groups_ids-entity3");
     let (groupId3, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id3, rel_type_id, "test-get_containing_groups_ids-group1");
     let group3 = new Group(db, groupId3);
-    group3.addEntity(entity_id2)
+    group3.add_entity(entity_id2)
 
     let containingGroups2:Vec<Vec<Option<DataType>>> = db.get_groups_containing_entitys_groups_ids(group2.get_id);
     assert(containingGroups2.size == 2)
@@ -1345,12 +1345,12 @@ mDoDamageBuffer = false
                                                                                                                 Some(valid_on_date), allowMixedClassesIn = true)
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
 
-    let rtg: RelationToGroup = new RelationToGroup(db, createdRtg.get_id, createdRtg.get_parent_id(), createdRtg.get_attr_type_id(), createdRtg.getGroupId);
+    let rtg: RelationToGroup = new RelationToGroup(db, createdRtg.get_id, createdRtg.get_parent_id(), createdRtg.get_attr_type_id(), createdRtg.get_group_id);
     let group: Group = new Group(db, groupId);
-    assert(group.getMixedClassesAllowed)
+    assert(group.get_mixed_classes_allowed)
     assert(group.get_name == relToGroupName)
 
-    let checkRelation = db.get_relation_to_group_data_by_keys(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.getGroupId);
+    let checkRelation = db.get_relation_to_group_data_by_keys(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.get_group_id);
     assert(checkRelation(0).get.asInstanceOf[i64] == rtg.get_id)
     assert(checkRelation(0).get.asInstanceOf[i64] == createdRtg.get_id)
     assert(checkRelation(1).get.asInstanceOf[i64] == entity_id)
@@ -1367,11 +1367,11 @@ mDoDamageBuffer = false
 
     assert(group.get_size() == 0)
     let entity_id2 = db.create_entity(entityName + 2);
-    group.addEntity(entity_id2)
+    group.add_entity(entity_id2)
     assert(group.get_size() == 1)
-    group.deleteWithEntities()
+    group.delete_with_entities()
     assert(intercept[Exception] {
-                                  new RelationToGroup(db, rtg.get_id, rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.getGroupId )
+                                  new RelationToGroup(db, rtg.get_id, rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.get_group_id )
                                 }.getMessage.contains("does not exist"))
     assert(intercept[Exception] {
                                   new Entity(db, entity_id2)
@@ -1386,19 +1386,19 @@ mDoDamageBuffer = false
     assert(group2.get_size() == 0)
 
     let entity_id3 = db.create_entity(entityName + 3);
-    group2.addEntity(entity_id3)
+    group2.add_entity(entity_id3)
     assert(group2.get_size() == 1)
 
     let entity_id4 = db.create_entity(entityName + 4);
-    group2.addEntity(entity_id4)
+    group2.add_entity(entity_id4)
     let entity_id5 = db.create_entity(entityName + 5);
-    group2.addEntity(entity_id5)
+    group2.add_entity(entity_id5)
     // (at least make sure next method runs:)
     db.get_group_entry_sorting_index(groupId2, entity_id5)
     assert(group2.get_size() == 3)
     assert(db.get_group_entry_objects(group2.get_id, 0).size() == 3)
 
-    group2.removeEntity(entity_id5)
+    group2.remove_entity(entity_id5)
     assert(db.get_group_entry_objects(group2.get_id, 0).size() == 2)
 
     group2.delete()
@@ -1441,15 +1441,15 @@ mDoDamageBuffer = false
     let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id, relToGroupName, Some(valid_on_date))._1;
     //val rtg: RelationToGroup = new RelationToGroup
     let group:Group = new Group(db, groupId);
-    group.addEntity(db.create_entity(entityName + 1))
+    group.add_entity(db.create_entity(entityName + 1))
     assert(db.get_entities_only_count() == startingEntityCount + 2)
-    assert(db.getGroupSize(groupId) == 1)
+    assert(db.get_group_size(groupId) == 1)
 
     let entity_id2 = db.create_entity(entityName + 2);
     assert(db.get_entities_only_count() == startingEntityCount + 3)
     assert(db.get_count_of_groups_containing_entity(entity_id2) == 0)
-    group.addEntity(entity_id2)
-    assert(db.getGroupSize(groupId) == 2)
+    group.add_entity(entity_id2)
+    assert(db.get_group_size(groupId) == 2)
     assert(db.get_count_of_groups_containing_entity(entity_id2) == 1)
     let descriptions = db.get_containing_relation_to_group_descriptions(entity_id2, Some(9999));
     assert(descriptions.size == 1)
@@ -1466,7 +1466,7 @@ mDoDamageBuffer = false
                                   new Entity(db, entity_id2)
                                 }.getMessage.contains("does not exist"))
 
-    assert(db.getGroupSize(groupId) == 1)
+    assert(db.get_group_size(groupId) == 1)
 
     let list = db.get_group_entry_objects(groupId, 0);
     assert(list.size == 1)
@@ -1486,7 +1486,7 @@ mDoDamageBuffer = false
     DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id)
     create_test_date_attribute_with_one_entity(entity_id)
     create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
-    createTestFileAttributeAndOneEntity(new Entity(db, entity_id), "desc", 2, verifyIn = false)
+    create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "desc", 2, verify_in = false)
 
     db.update_entity_only_public_status(related_entity_id, None)
     let onlyPublicTotalAttrsAvailable1 = db.get_sorted_attributes(entity_id, 0, 999, only_public_entities_in = true)._2;
@@ -1659,13 +1659,13 @@ Unit
   "createBaseData, findEntityOnlyIdsByName, createClassTemplateEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
   "have worked right in earlier db setup and now" in {
     let PERSON_TEMPLATE: String = "person" + Database.TEMPLATE_NAME_SUFFIX;
-    let systemEntityId = db.getSystemEntityId;
-    let groupIdOfClassTemplates = db.findRelationToAndGroup_OnEntity(systemEntityId, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
+    let system_entity_id = db.getSystemEntityId;
+    let groupIdOfClassTemplates = db.find_relation_to_and_group_OnEntity(system_entity_id, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
 
     // (Should be some value, but the activity on the test DB wouldn't have ids incremented to 0 yet,so that one would be invalid. Could use the
     // other method to find an unused id, instead of 0.)
     assert(groupIdOfClassTemplates.is_defined && groupIdOfClassTemplates.get != 0)
-    assert(new Group(db, groupIdOfClassTemplates.get).getMixedClassesAllowed)
+    assert(new Group(db, groupIdOfClassTemplates.get).get_mixed_classes_allowed)
 
     let personTemplateEntityId: i64 = db.findEntityOnlyIdsByName(PERSON_TEMPLATE).get.head;
     // idea: make this next part more scala-like (but only if still very simple to read for programmers who are used to other languages):
@@ -1684,10 +1684,10 @@ Unit
     let te2 = create_test_relation_to_local_entity_with_one_entity(te1, rel_type_id);
     let te3 = create_test_relation_to_local_entity_with_one_entity(te2, rel_type_id);
     let te4 = create_test_relation_to_local_entity_with_one_entity(te3, rel_type_id);
-    let foundIds: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), systemEntityId, PERSON_TEMPLATE, 4,;
+    let foundIds: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, PERSON_TEMPLATE, 4,;
                                                                      stop_after_any_found = false)
     assert(foundIds.contains(personTemplateEntityId), "Value not found in query: " + personTemplateEntityId)
-    let allContainedWithName: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), systemEntityId, RELATED_ENTITY_NAME, 4,;
+    let allContainedWithName: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
                                                                                  stop_after_any_found = false)
     // (see idea above about making more scala-like)
     let mut allContainedIds = "";
@@ -1697,18 +1697,18 @@ Unit
     assert(allContainedWithName.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     let te4Entity: Entity = new Entity(db, te4);
     te4Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, None, 0)
-    let allContainedWithName2: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), systemEntityId, RELATED_ENTITY_NAME, 4,;
+    let allContainedWithName2: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
                                                                                   stop_after_any_found = false)
     // should be no change yet (added it outside the # of levels to check):
     assert(allContainedWithName2.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     let te2Entity: Entity = new Entity(db, te2);
     te2Entity.addTextAttribute(te1/*not really but whatever*/, RELATED_ENTITY_NAME, None, None, 0)
-    let allContainedWithName3: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), systemEntityId, RELATED_ENTITY_NAME, 4,;
+    let allContainedWithName3: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
                                                                                   stop_after_any_found = false)
     // should be no change yet (the entity was already in the return set, so the TA addition didn't add anything)
     assert(allContainedWithName3.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     te2Entity.addTextAttribute(te1/*not really but whatever*/, "otherText", None, None, 0)
-    let allContainedWithName4: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), systemEntityId, "otherText", 4,;
+    let allContainedWithName4: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, "otherText", 4,;
                                                                                   stop_after_any_found = false)
     // now there should be a change:
     assert(allContainedWithName4.size == 1, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
@@ -1719,8 +1719,8 @@ Unit
     assert(editorCmd == "vi") }
   }
 
-  "isDuplicateEntity" should "work" in {
-    let name: String = "testing isDuplicateEntity";
+  "is_duplicateEntity" should "work" in {
+    let name: String = "testing is_duplicateEntity";
     let entity_id: i64 = db.create_entity(name);
     assert(db.is_duplicate_entity_name(name))
     assert(!db.is_duplicate_entity_name(name, Some(entity_id)))
@@ -1752,32 +1752,32 @@ Unit
     db.rollback_trans()
   }
 
-  "isDuplicateEntityClass and class update/deletion" should "work" in {
-    let name: String = "testing isDuplicateEntityClass";
+  "is_duplicateEntityClass and class update/deletion" should "work" in {
+    let name: String = "testing is_duplicateEntityClass";
     let (classId, entity_id) = db.createClassAndItsTemplateEntity(name, name);
-    assert(EntityClass.isDuplicate(db, name))
-    assert(!EntityClass.isDuplicate(db, name, Some(classId)))
+    assert(EntityClass.is_duplicate(db, name))
+    assert(!EntityClass.is_duplicate(db, name, Some(classId)))
 
     db.update_class_name(classId, name.toLowerCase)
-    assert(!EntityClass.isDuplicate(db, name, Some(classId)))
-    assert(EntityClass.isDuplicate(db, name.toLowerCase))
-    assert(!EntityClass.isDuplicate(db, name.toLowerCase, Some(classId)))
+    assert(!EntityClass.is_duplicate(db, name, Some(classId)))
+    assert(EntityClass.is_duplicate(db, name.toLowerCase))
+    assert(!EntityClass.is_duplicate(db, name.toLowerCase, Some(classId)))
     db.update_class_name(classId, name)
 
     db.update_class_create_default_attributes(classId, Some(false))
-    let should1: Option<bool> = new EntityClass(db, classId).getCreateDefaultAttributes;
+    let should1: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
     assert(!should1.get)
     db.update_class_create_default_attributes(classId, None)
-    let should2: Option<bool> = new EntityClass(db, classId).getCreateDefaultAttributes;
+    let should2: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
     assert(should2.isEmpty)
     db.update_class_create_default_attributes(classId, Some(true))
-    let should3: Option<bool> = new EntityClass(db, classId).getCreateDefaultAttributes;
+    let should3: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
     assert(should3.get)
 
     db.update_entitys_class(entity_id, None)
     db.delete_class_and_its_template_entity(classId)
-    assert(!EntityClass.isDuplicate(db, name, Some(classId)))
-    assert(!EntityClass.isDuplicate(db, name))
+    assert(!EntityClass.is_duplicate(db, name, Some(classId)))
+    assert(!EntityClass.is_duplicate(db, name))
 
   }
 
@@ -1802,17 +1802,17 @@ Unit
     let group: Group = new Group(db, groupId);
     assert(! db.is_entity_in_group(groupId, entity_id))
     assert(! db.is_entity_in_group(groupId, entity_id))
-    group.addEntity(entity_id)
+    group.add_entity(entity_id)
     assert(db.is_entity_in_group(groupId, entity_id))
     assert(! db.is_entity_in_group(groupId, entity_id2))
 
     //should fail due to mismatched classId (a long):
     assert(intercept[Exception] {
-                                  group.addEntity(entity_id2)
+                                  group.add_entity(entity_id2)
                                 }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
     // should succeed (same class now):
     db.update_entitys_class(entity_id2, Some(classId))
-    group.addEntity(entity_id2)
+    group.add_entity(entity_id2)
     // ...and for convenience while here, make sure we can't make mixed classes with changing the *entity* either:
     assert(intercept[Exception] {
                                   db.update_entitys_class(entity_id2, Some(classId2))
@@ -1824,34 +1824,34 @@ Unit
     //should fail due to mismatched classId (NULL):
     let entity_id3 = db.create_entity(entityName + 3);
     assert(intercept[Exception] {
-                                  group.addEntity(entity_id3)
+                                  group.add_entity(entity_id3)
                                 }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
 
     assert(!db.areMixedClassesAllowed(groupId))
 
 
-    let systemEntityId = db.getSystemEntityId;
+    let system_entity_id = db.getSystemEntityId;
     // idea: (noted at other use of this method)
-    let classGroupId = db.findRelationToAndGroup_OnEntity(systemEntityId, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
+    let classGroupId = db.find_relation_to_and_group_OnEntity(system_entity_id, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
     assert(db.areMixedClassesAllowed(classGroupId.get))
 
-    let groupSizeBeforeRemoval = db.getGroupSize(groupId);
+    let groupSizeBeforeRemoval = db.get_group_size(groupId);
 
-    assert(db.getGroupSize(groupId, 2) == 0)
-    assert(db.getGroupSize(groupId, 1) == groupSizeBeforeRemoval)
-    assert(db.getGroupSize(groupId) == groupSizeBeforeRemoval)
+    assert(db.get_group_size(groupId, 2) == 0)
+    assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval)
+    assert(db.get_group_size(groupId) == groupSizeBeforeRemoval)
     db.archive_entity(entity_id2)
-    assert(db.getGroupSize(groupId, 2) == 1)
-    assert(db.getGroupSize(groupId, 1) == groupSizeBeforeRemoval - 1)
-    assert(db.getGroupSize(groupId) == groupSizeBeforeRemoval)
+    assert(db.get_group_size(groupId, 2) == 1)
+    assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval - 1)
+    assert(db.get_group_size(groupId) == groupSizeBeforeRemoval)
 
     db.remove_entity_from_group(groupId, entity_id2)
-    let groupSizeAfterRemoval = db.getGroupSize(groupId);
+    let groupSizeAfterRemoval = db.get_group_size(groupId);
     assert(groupSizeAfterRemoval < groupSizeBeforeRemoval)
 
-    assert(db.getGroupSize(groupId, 2) == 0)
-    assert(db.getGroupSize(groupId, 1) == groupSizeBeforeRemoval - 1)
-    assert(db.getGroupSize(groupId) == groupSizeBeforeRemoval - 1)
+    assert(db.get_group_size(groupId, 2) == 0)
+    assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval - 1)
+    assert(db.get_group_size(groupId) == groupSizeBeforeRemoval - 1)
   }
 
   "get_entities_only and ...Count" should "allow limiting results by classId and/or group containment" in {
@@ -1871,7 +1871,7 @@ Unit
     assert(allEntitiesInClass.size < db.get_entities_only(0, None, Some(someClassId), limit_by_class = false).size)
     assert(allEntitiesInClass.size == numEntitiesInClass)
     let e: Entity = allEntitiesInClass.get(0);
-    assert(e.getClassId.get == someClassId)
+    assert(e.get_class_id.get == someClassId)
 
     // part 2:
     // some setup, confirm good
@@ -1880,10 +1880,10 @@ Unit
     let id1: i64 = db.create_entity("name1");
     let (group, rtg) = new Entity(db, id1).addGroupAndRelationToGroup(rel_type_id, "someRelToGroupName", allowMixedClassesInGroupIn = false, None, 1234L,;
                                                                        None, caller_manages_transactions_in = false)
-    assert(db.relation_to_group_keys_exist(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.getGroupId))
+    assert(db.relation_to_group_keys_exist(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.get_group_id))
     assert(db.attribute_key_exists(rtg.get_form_id, rtg.get_id))
     let id2: i64 = db.create_entity("name2");
-    group.addEntity(id2)
+    group.add_entity(id2)
     let entity_countAfterCreating = db.get_entities_only_count();
     assert(entity_countAfterCreating == startingEntityCount2 + 2)
     let resultSize = db.get_entities_only(0).size();
@@ -1907,14 +1907,14 @@ Unit
     let group: Group = new Group(db, groupId);
     // 1st one has a NULL class_id
     let entity_id3 = db.create_entity(entityName + 3);
-    group.addEntity(entity_id3)
+    group.add_entity(entity_id3)
     // ...so it works to add another one that's NULL
     let entity_id4 = db.create_entity(entityName + 4);
-    group.addEntity(entity_id4)
+    group.add_entity(entity_id4)
     // but adding one with a class_id fails w/ mismatch:
     let entity_id5 = db.create_entity(entityName + 5, Some(classId));
     assert(intercept[Exception] {
-                                  group.addEntity(entity_id5)
+                                  group.add_entity(entity_id5)
                                 }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
   }
 
@@ -1951,7 +1951,7 @@ Unit
     create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
     assert(db.get_entities_only_count() == c2)
 
-    createTestFileAttributeAndOneEntity(new Entity(db, entity_id), "desc", 2, verifyIn = false)
+    create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "desc", 2, verify_in = false)
     assert(db.get_entities_only_count() == c2)
 
   }
@@ -1999,8 +1999,8 @@ Unit
 
   "get_textAttributeByNameForEntity" should "fail when no rows found" in {
     intercept[org.onemodel.core.OmDatabaseException] {
-                                     let systemEntityId = db.getSystemEntityId;
-                                     db.get_text_attribute_by_type_id(systemEntityId, 1L, Some(1))
+                                     let system_entity_id = db.getSystemEntityId;
+                                     db.get_text_attribute_by_type_id(system_entity_id, 1L, Some(1))
                                    }
   }
 
@@ -2011,7 +2011,7 @@ Unit
     let (groupId, rtg) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id,;
                                                                                     "some group name in get_relations_to_group_containing_this_group")
     let group = new Group(db, groupId);
-    group.addEntity(entity_id2)
+    group.add_entity(entity_id2)
     let rtgs = db.get_relations_to_group_containing_this_group(groupId, 0);
     assert(rtgs.size == 1)
     assert(rtgs.get(0).get_id == rtg.get_id)
