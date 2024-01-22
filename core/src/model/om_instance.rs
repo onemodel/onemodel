@@ -23,7 +23,7 @@ pub struct OmInstance<'a> {
     entity_id: Option<i64> /*= None*/,
 }
 
-impl OmInstance {
+impl OmInstance<'_>{
     fn address_length() -> i32 {
         Database::om_instance_address_length()
     }
@@ -33,8 +33,8 @@ impl OmInstance {
         db_in.is_duplicate_om_instance_address(transaction, address_in, _self_id_to_ignore_in)
       }
 
-    fn create(db_in: Box<&dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-              id_in: &str, address_in: &str, entity_id_in: Option<i64> /*= None*/) -> Result<OmInstance, anyhow::Error> {
+    fn create<'a>(db_in: Box<&'a dyn Database>, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+              id_in: &'a str, address_in: &'a str, entity_id_in: Option<i64> /*= None*/) -> Result<OmInstance<'a>, anyhow::Error> {
         // Passing false for is_local_in because the only time that should be true is when it is created at db creation, for this site, and that is done
         // in the db class more directly.
         let insertion_date: i64 = db_in.create_om_instance(transaction, id_in.to_string(), false,
@@ -167,7 +167,13 @@ impl OmInstance {
     }
 
     fn get_display_string() -> String {
-        format!("{}:{}, {}, created on {}", id, (if is_local " (local)" else ""), get_address, get_creation_date_formatted)
+        format!("{}:{}, {}, created on {}", id, 
+                (if is_local {
+                    " (local)" 
+                } else {
+                    ""
+                }), 
+                get_address, get_creation_date_formatted)
     }
 
     fn update(new_address: String) /*%%-> Unit*/ {

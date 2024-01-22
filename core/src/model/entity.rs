@@ -43,14 +43,14 @@ import org.onemodel.core._
 import scala.collection.mutable
 */
 impl Entity<'_> {
-    fn create_entity(db: &dyn Database, transaction: &Option<&mut Transaction<Postgres>>,
-                     in_name: &str, in_class_id: Option<i64> /*= None*/,
-                     is_public_in: Option<bool> /*= None*/) -> Result<Entity, anyhow::Error> {
+    fn create_entity<'a>(db: &'a dyn Database, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                     in_name: &'a str, in_class_id: Option<i64> /*= None*/,
+                     is_public_in: Option<bool> /*= None*/) -> Result<Entity<'a>, anyhow::Error> {
         let id: i64 = db.create_entity(transaction, in_name, in_class_id, is_public_in)?;
         Entity::new2(Box::new(&db as &dyn Database), transaction, id)
     }
 
-    fn name_length() -> Int {
+    fn name_length() -> u32 {
         Util::entity_name_length()
     }
 
@@ -61,8 +61,8 @@ impl Entity<'_> {
 
     /// This is for times when you want None if it doesn't exist, instead of the Error returned by
     /// the Entity constructor.  Or for convenience in tests.
-    fn get_entity(db_in: Box<dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-                  id: i64) -> Result<Option<Entity>, String> {
+    fn get_entity<'a>(db_in: Box<dyn Database>, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                  id: i64) -> Result<Option<Entity<'a>>, String> {
         let e = Entity::new2(db_in, transaction, id);
         match e {
             Ok(entity) => Ok(Some(entity)),
@@ -249,9 +249,9 @@ impl Entity<'_> {
         // idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
         let s = self.get_public_status_display_string(transaction, blank_if_unset);
         if s == Entity::PRIVACY_PUBLIC {
-          Color.green(s)
+          Color::green(s)
         } else if s == Entity::PRIVACY_NON_PUBLIC {
-          Color.yellow(s)
+          Color::yellow(s)
         } else {
           s
         }
@@ -408,7 +408,7 @@ impl Entity<'_> {
      fn get_readable_identifier(&self) -> String {
         let remote_prefix = match self.db.get_remote_address() {
             None => "",
-            Some(s) => format!({}"_", s),
+            Some(s) => format!("{}_", s),
           };
         format!("{}{}", remote_prefix, self.get_id().to_string())
       }
@@ -489,10 +489,10 @@ impl Entity<'_> {
       /// for explanation of the parameters. It might also be nice to add the recorder's ID (person or app), but we'd have to do some kind
       /// of authentication/login 1st? And a GUID for users (as Entities?)?
       /// See PostgreSQLDatabase.create_quantity_attribute(...) for details.
-        fn add_quantity_attribute2(self, transaction: &Option<&mut Transaction<Postgres>>,
+        fn add_quantity_attribute2<'a>(self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
                                    in_attr_type_id: i64, in_unit_id: i64, in_number: Float, sorting_index_in: Option<i64> /*= None*/,
                                in_valid_on_date: Option<i64>, observation_date_in: i64)
-          -> Result<QuantityAttribute, anyhow::Error> {
+          -> Result<QuantityAttribute<'a>, anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
         let id = self.db.create_quantity_attribute(transaction, self.id,
@@ -503,28 +503,28 @@ impl Entity<'_> {
         QuantityAttribute::new2(self.db, transaction, id)
       }
 
-        fn get_quantity_attribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                                  in_key: i64) -> Result<QuantityAttribute, anyhow::Error> {
+        fn get_quantity_attribute<'a>(self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                                  in_key: i64) -> Result<QuantityAttribute<'a>, anyhow::Error> {
             QuantityAttribute::new2(self.db, transaction, in_key)
         }
 
-        fn get_textAttribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                             in_key: i64) -> Result<TextAttribute, anyhow::Error> {
+        fn get_textAttribute<'a>(self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                             in_key: i64) -> Result<TextAttribute<'a>, anyhow::Error> {
             TextAttribute::new2(self.db, transaction, in_key)
         }
 
-        fn get_date_Attribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                              in_key: i64) -> Result<DateAttribute, anyhow::Error> {
+        fn get_date_Attribute<'a>(self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                              in_key: i64) -> Result<DateAttribute<'a>, anyhow::Error> {
             DateAttribute::new2(self.db, transaction, in_key)
         }
 
-        fn get_boolean_attribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                                 in_key: i64) -> Result<BooleanAttribute, anyhow::Error> {
+        fn get_boolean_attribute<'a>(self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                                 in_key: i64) -> Result<BooleanAttribute<'a>, anyhow::Error> {
             BooleanAttribute::new2(self.db, transaction, in_key)
         }
 
-        fn get_file_attribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                              in_key: i64) -> Result<FileAttribute, anyhow::Error> {
+        fn get_file_attribute<'a>(self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                              in_key: i64) -> Result<FileAttribute<'a>, anyhow::Error> {
             FileAttribute::new2(self.db, transaction, in_key)
         }
 
@@ -632,9 +632,10 @@ impl Entity<'_> {
         db.add_uri_entity_with_uri_attribute(this, new_entity_name_in, uri_in, observation_date_in, makeThem_public_in, caller_manages_transactions_in, quote_in)
       }
 
-        fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> = None,
-                              observation_date_in: i64 = System.currentTimeMillis(), caller_manages_transactions_in: bool = false,
-                              sorting_index_in: Option<i64> = None) -> /*id*/ i64 {
+        /*%%%%%
+        fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> /*= None*/,
+                              observation_date_in: i64 = System.currentTimeMillis(), caller_manages_transactions_in: bool /*= false*/,
+                              sorting_index_in: Option<i64> /*= None*/) -> /*id*/ i64 {
         db.create_text_attribute(get_id, attr_type_id_in, text_in, valid_on_date_in, observation_date_in, caller_manages_transactions_in, sorting_index_in)
       }
 
@@ -696,7 +697,7 @@ impl Entity<'_> {
       }
 
         fn addFileAttribute(in_attr_type_id: i64, description_in: String, inFile: java.io.File, sorting_index_in: Option<i64> = None) -> FileAttribute {
-        if !inFile.exists()) {
+        if !inFile.exists() {
           throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
         }
         // idea: could be a little faster if the md5_hash method were merged into the database method, so that the file is only traversed once (for both
@@ -846,7 +847,9 @@ impl Entity<'_> {
           db.delete_entity(id)
       }
 
+*/
 }
+
 #[cfg(test)]
 mod test {
 /*
@@ -1107,4 +1110,4 @@ mod test {
   }
 */
 }
-%%%%%%
+//%%%%%%

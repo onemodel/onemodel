@@ -65,7 +65,7 @@ impl RelationToEntity<'_> {
         }
     }
 
-}
+/*%%%%%%
     fn get_related_id1(&self) -> i64 {
         self.entity_id1
     }
@@ -83,7 +83,7 @@ impl RelationToEntity<'_> {
    * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If in_length_limit is 0 you get the whole thing.
    */
     fn get_display_string(length_limit_in: Int, relatedEntityIn: Option<Entity>, relationTypeIn: Option[RelationType], simplify: bool = false) -> String {
-    let relType: RelationType = {;
+    let relType: RelationType = {
       if relationTypeIn.is_some()) {
         if relationTypeIn.get.get_id != get_attr_type_id()) {
           // It can be ignored, but in cases called generically (the same as other Attribute types) it should have the right value or that indicates a
@@ -99,7 +99,7 @@ impl RelationToEntity<'_> {
     let relatedEntity: Entity = {;
       relatedEntityIn.getOrElse(getEntityForEntityId2)
     }
-    let rt_name: String = {;
+    let rt_name: String = {
       if relatedEntity.get_id == mEntityId2) {
         relType.get_name
       } else if relatedEntity.get_id == mEntityId1) {
@@ -136,4 +136,5 @@ impl RelationToEntity<'_> {
 override fn get_parent_id() -> i64 {
     get_related_id1
 }
+%%%%%%*/
 }

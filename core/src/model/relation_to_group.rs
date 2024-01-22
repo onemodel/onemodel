@@ -73,7 +73,7 @@ impl RelationToGroup<'_> {
     }
 
   fn new2<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64,
-              entity_id:i64, rel_type_id: i64, group_id: i64) -> Result<RelationToGroup, anyhow::Error> {
+              entity_id:i64, rel_type_id: i64, group_id: i64) -> Result<RelationToGroup<'a>, anyhow::Error> {
     // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
     // if db.is_remote || db.relation_to_group_keys_exist_and_match(transaction, id, entity_id, rel_type_id, group_id) {
         // something else might be cleaner, but these are the same thing and we need to make sure that (what was
@@ -102,7 +102,7 @@ impl RelationToGroup<'_> {
 // new constructors just wasn't working out (in scala code when I originally wrote this comment, anyway?).
 ///See comments on fn new, here.
     fn create_relation_to_group<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-                                id_in: i64) -> Result<RelationToGroup, anyhow::Error> {
+                                id_in: i64) -> Result<RelationToGroup<'a>, anyhow::Error> {
     let relation_data: Vec<Option<DataType>> = db.get_relation_to_group_data(transaction, id_in)?;
     if relation_data.length == 0 {
         return Err(anyhow!("No results returned from data request for: {}" + id_in));
@@ -131,7 +131,7 @@ impl RelationToGroup<'_> {
         Ok(self.group_id)
     }
 
-    fn get_group(mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Group, anyhow::Error> {
+    fn get_group<'a>(mut self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>) -> Result<Group<'a>, anyhow::Error> {
         Group::new2(self.db, transaction, self.get_group_id(transaction)?)
       }
 

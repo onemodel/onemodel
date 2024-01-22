@@ -653,6 +653,7 @@ mod test {
         boolean_attribute_id
     }
 
+    /*%%%%%%
     fn create_test_file_attribute_and_one_entity(in_parent_entity: Entity, in_descr: String, added_kilobytes_in: i32, verify_in: bool /*= true*/) -> FileAttribute {
         let attr_type_id: i64 = db.create_entity("fileAttributeType");
         let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
@@ -711,6 +712,7 @@ mod test {
         if file != null { file.delete() }
         }
     }
+    %%%%%%*/
 
     fn create_test_relation_to_local_entity_with_one_entity(
         in_entity_id: i64,

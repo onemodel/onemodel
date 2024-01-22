@@ -25,12 +25,12 @@ pub struct EntityClass<'a> {
     create_default_attributes: Option<bool> /*= None*/,
 }
 
-impl EntityClass {
+impl EntityClass<'_> {
     fn name_length() -> u32 {
          Util::class_name_length()
      }
 
-    fn is_duplicate(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
+    fn is_duplicate<'a>(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
                     in_name: &str, in_self_id_to_ignore: Option<i64> /*= None*/) -> Result<bool, Error> {
         db_in.is_duplicate_class_name(transaction, in_name, in_self_id_to_ignore)
     }
@@ -59,7 +59,7 @@ impl EntityClass {
     /// See comments on similar methods in group.rs.
         pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<EntityClass<'a>, anyhow::Error> {
             // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-            if !db.is_remote && !db.class_key_exists(transaction, id: i64)? {
+            if !db.is_remote && !db.class_key_exists(transaction, id)? {
                 Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
             } else {
                 Ok(EntityClass {

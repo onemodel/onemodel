@@ -28,8 +28,8 @@ pub struct Group<'a> {
 
 impl Group<'_> {
   /// Creates a new group in the database.
-  fn create_group(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-                  in_name: &str, allow_mixed_classes_in_group_in: bool /*= false*/) -> Result<Group, Error> {
+  fn create_group<'a>(db_in: Box<&'a dyn Database>, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                  in_name: &'a str, allow_mixed_classes_in_group_in: bool /*= false*/) -> Result<Group<'a>, Error> {
     let id: i64 = db_in.create_group(transaction, in_name, allow_mixed_classes_in_group_in)?;
     // Might be obvious but: Calling fn new2, not new, here, because we don't have enough data to
     // call new and so it will load from the db the other values when needed, as saved by the above.
@@ -37,8 +37,8 @@ impl Group<'_> {
   }
 
   /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
-  fn get_group(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-               id: i64) -> Result<Option<Group>, Error> {
+  fn get_group<'a>(db_in: Box<&'a dyn Database>, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+               id: i64) -> Result<Option<Group<'a>>, Error> {
     let result: Result<Group, Error> = Group::new2(db_in, transaction, id);
     match result {
       Err(e) => if e.to_string().contains(Util::DOES_NOT_EXIST) {
@@ -78,7 +78,7 @@ impl Group<'_> {
   /// Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
   pub fn new2<'a>(&db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<Group<'a>, Error> {
     // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-    if !db.is_remote && !db.group_key_exists(transaction, id: i64)? {
+    if !db.is_remote && !db.group_key_exists(transaction, id)? {
       Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
     } else {
       Ok(Group {

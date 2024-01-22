@@ -42,7 +42,7 @@ impl Color {
         if Util::is_windows() {
             s.clone()
         } else {
-            format!("{}{}{}", ANSI_RED, s, ANSI_RESET)
+            format!("{}{}{}", Self::ANSI_RED, s, Self::ANSI_RESET)
         }
     }
 
@@ -50,7 +50,7 @@ impl Color {
         if Util::is_windows() {
             s.clone()
         } else {
-            format!("{}{}{}", ANSI_CYAN, s, ANSI_RESET)
+            format!("{}{}{}", Self::ANSI_CYAN, s, Self::ANSI_RESET)
         }
     }
 
@@ -62,7 +62,7 @@ impl Color {
         if Util::is_windows() {
             s.clone()
         } else {
-            format!("{}{}{}", ANSI_GREEN, s, ANSI_RESET)
+            format!("{}{}{}", Self::ANSI_GREEN, s, Self::ANSI_RESET)
         }
     }
 
@@ -70,7 +70,7 @@ impl Color {
         if Util::is_windows() {
             s.clone()
         } else {
-            format!("{}{}{}", ANSI_YELLOW, s, ANSI_RESET)
+            format!("{}{}{}", Self::ANSI_YELLOW, s, Self::ANSI_RESET)
         }
     }
 }

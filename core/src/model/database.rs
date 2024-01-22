@@ -8,8 +8,10 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 use crate::model::entity::Entity;
+use crate::model::group::Group;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
+use crate::model::relation_to_group::RelationToGroup;
 use crate::util::Util;
 use anyhow::anyhow;
 // use mockall::{automock, mock, predicate::*};
