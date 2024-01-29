@@ -75,7 +75,7 @@ impl QuantityAttribute<'_> {
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         transaction: &Option<&mut Transaction<Postgres>>,
         id: i64,
     ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
@@ -85,7 +85,7 @@ impl QuantityAttribute<'_> {
         } else {
             Ok(QuantityAttribute {
                 id,
-                db,
+                db: Box::new(db),
                 unit_id: 0,
                 number: 0.0,
                 already_read_data: false,

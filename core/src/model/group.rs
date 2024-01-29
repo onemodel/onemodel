@@ -28,18 +28,18 @@ pub struct Group<'a> {
 
 impl Group<'_> {
   /// Creates a new group in the database.
-  fn create_group(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-                  in_name: &str, allow_mixed_classes_in_group_in: bool /*= false*/) -> Result<Group, Error> {
+  fn create_group<'a>(db_in: Box<&'a dyn Database>, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                  in_name: &'a str, allow_mixed_classes_in_group_in: bool /*= false*/) -> Result<Group<'a>, Error> {
     let id: i64 = db_in.create_group(transaction, in_name, allow_mixed_classes_in_group_in)?;
     // Might be obvious but: Calling fn new2, not new, here, because we don't have enough data to
     // call new and so it will load from the db the other values when needed, as saved by the above.
-    Group::new2(db_in, transaction, id)
+    Group::new2(*db_in, transaction, id)
   }
 
   /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
-  fn get_group(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-               id: i64) -> Result<Option<Group>, Error> {
-    let result: Result<Group, Error> = Group::new2(db_in, transaction, id);
+  fn get_group<'a>(db_in: Box<&'a dyn Database>, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+               id: i64) -> Result<Option<Group<'a>>, Error> {
+    let result: Result<Group, Error> = Group::new2(*db_in, transaction, id);
     match result {
       Err(e) => if e.to_string().contains(Util::DOES_NOT_EXIST) {
           //idea: see comment here in Entity.rc.
@@ -76,14 +76,14 @@ impl Group<'_> {
 
   /// See comments on similar methods in RelationToEntity (or maybe its subclasses%%).
   /// Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
-  pub fn new2<'a>(&db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<Group<'a>, Error> {
+  pub fn new2<'a>(db: &'a dyn Database, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<Group<'a>, Error> {
     // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-    if !db.is_remote && !db.group_key_exists(transaction, id: i64)? {
+    if !db.is_remote() && !db.group_key_exists(transaction, id)? {
       Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
     } else {
       Ok(Group {
         id,
-        db,
+        db: Box::new(db),
         already_read_data: false,
         name: "".to_string(),
         insertion_date: 0,
@@ -94,9 +94,9 @@ impl Group<'_> {
   }
 
   //%%eliminate the _ parameters? who calls it w/ them & why?
-  fn update(
-    &mut self,
-    transaction: &Option<&mut Transaction<Postgres>>,
+  fn update<'a>(
+    &'a mut self,
+    transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
     _attr_type_id_in: Option<i64> /*= None*/, name_in: Option<String> /*= None*/, allow_mixed_classes_in_group_in: Option<bool> /*= None*/,
     new_entries_stick_to_top_in: Option<bool> /*= None*/,
     _valid_on_date_in: Option<i64>, _observation_date_in: Option<i64>,
@@ -108,13 +108,13 @@ impl Group<'_> {
       self.id,
       match name_in {
         None => self.get_name(transaction)?,
-        Some(s) => {
-          self.name = s;
+        Some(ref s) => {
+          self.name = s.clone();
           s.clone()
         },
       },
       match allow_mixed_classes_in_group_in {
-        None => self.get_allow_mixed_classes_in_group(transaction)?,
+        None => self.get_mixed_classes_allowed(transaction)?,
         Some(b) => {
           self.mixed_classes_allowed = b;
           b
@@ -131,39 +131,45 @@ impl Group<'_> {
     Ok(())
   }
 
-  fn get_display_string(
+  pub fn get_display_string(
     &mut self,
+    transaction: &Option<&mut Transaction<Postgres>>,
     length_limit_in: usize /*= 0*/,
     simplify_in: bool,                 /* = false*/
   ) -> Result<String, Error> {
-    let num_entries = db.get_group_size(get_id, 1);
+    let num_entries = self.db.get_group_size(transaction, self.get_id(), 1)?;
     let mut result: String =  "".to_string();
+    let name = &self.get_name(&None)?;
+    let formatted_name = format!("grp {} /{}: {}", self.id, num_entries, Color::blue(name));
     result.push_str(
       if simplify_in {
-        self.get_name(&None)?.as_str()
+        name.as_str()
       } else {
-        format!("grp {} /{}: {}", self.id, num_entries, Color::blue(get_name)).as_str()
+        formatted_name.as_str()
       }
     );
     if !simplify_in {
       result.push_str(", class: ");
       let class_name = {
-          if get_mixed_classes_allowed {
-            "(mixed)"
+          if self.get_mixed_classes_allowed(transaction)? {
+            "(mixed)".to_string()
           } else {
-            let class_name_option = self.get_class_name(&None);
+            let class_name_option = self.get_class_name(&None)?;
             match class_name_option {
-              None => "None",
-              Some(cn) => cn,
+              None => "None".to_string(),
+              Some(cn) => {
+                  let n = cn.clone();
+                  n
+              },
             }
           }
       };
-      result.push_str(class_name);
+      result.push_str(class_name.as_str());
     }
     if simplify_in {
       Ok(result)
     } else {
-      Util::limit_attribute_description_length(result.as_str(), length_limit_in)
+      Ok(Util::limit_attribute_description_length(result.as_str(), length_limit_in))
     }
   }
 
@@ -212,8 +218,8 @@ impl Group<'_> {
   }
 
   /// Removes an entity from this group.
-    fn remove_entity(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id: i64) -> Result<u64, Error> {
-      self.db.remove_entity_from_group(transaction, self.id, entity_id)
+    fn remove_entity<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>, entity_id: i64) -> Result<u64, Error> {
+      self.db.remove_entity_from_group(transaction, self.id, entity_id, false)
     }
 
     fn delete_with_entities(&self) -> Result<(), Error> {
@@ -230,7 +236,7 @@ impl Group<'_> {
   }
 
     fn add_entity(&self, in_entity_id: i64, sorting_index_in: Option<i64> /*= None*/, caller_manages_transactions_in: bool /*= false*/) -> Result<(), Error> {
-      self.db.add_entity_to_group(&None, get_id, in_entity_id, sorting_index_in, caller_manages_transactions_in)
+      self.db.add_entity_to_group(&None, self.get_id(), in_entity_id, sorting_index_in, caller_manages_transactions_in)
   }
 
     fn get_id(&self) -> i64 {
@@ -238,31 +244,31 @@ impl Group<'_> {
     }
 
     fn get_name(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<String, Error> {
-    if !already_read_data {
+    if !self.already_read_data {
       self.read_data_from_db(transaction)?
     }
     Ok(self.name.clone())
   }
 
     fn get_mixed_classes_allowed(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<bool, Error> {
-    if !already_read_data {
+    if !self.already_read_data {
       self.read_data_from_db(transaction)?
     }
     Ok(self.mixed_classes_allowed)
   }
 
     fn get_new_entries_stick_to_top(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<bool, Error> {
-    if !already_read_data {
+    if !self.already_read_data {
       self.read_data_from_db(transaction)?
     }
     Ok(self.new_entries_stick_to_top)
   }
 
     fn get_insertion_date(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, Error> {
-    if !already_read_data {
+    if !self.already_read_data {
       self.read_data_from_db(transaction)?
     }
-    Ok(insertion_date)
+    Ok(self.insertion_date)
   }
 
     fn get_class_name(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Option<String>, Error> {
@@ -272,17 +278,17 @@ impl Group<'_> {
       let class_id: Option<i64> = self.get_class_id(transaction)?;
       match class_id {
         None => {
-          if self.get_size(3) == 0 {
+          if self.get_size(3)? == 0 {
             // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
-            Some("(unspecified)")
+            Ok(Some("(unspecified)".to_string()))
           } else {
             // means the group requires uniform classes, but the enforced uniform class is None, i.e., to not have a class:
-            Some("(specified as None)")
+            Ok(Some("(specified as None)".to_string()))
           }
         },
         Some(cid) => {
-          let example_entitys_class = EntityClass::new2(db, transaction, cid);
-          Ok(Some(example_entitys_class.get_name()))
+          let mut example_entitys_class = EntityClass::new2(&self.db, transaction, cid)?;
+          Ok(Some(example_entitys_class.get_name(transaction)?))
         }
       }
     }
@@ -313,22 +319,34 @@ impl Group<'_> {
     //   }
   // }
   fn get_class_id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Option<i64>, Error> {
-    if get_mixed_classes_allowed {
+    if self.mixed_classes_allowed {
       Ok(None)
     } else {
-      let entries: Vec<Entity> = self.db.get_group_entry_objects(transaction, self.get_id(), 0, Some(1))?;
-      let specified: bool = entries.size() > 0;
+      let mut entries: Vec<Entity> = self.db.get_group_entry_objects(transaction, self.get_id(), 0, Some(1))?;
+      let specified: bool = entries.len() > 0;
       if !specified {
-        None
+        Ok(None)
       } else {
-        // let entity: Option<Entity> = find_an_entity(0);
         let next_index = 0;
-        let next = entries.get(next_index);
-        /*let entity: Option<Entity> = */match next {
-          Some(&e) => Ok(Some(e)),
-          None => Ok(None),
-          _ => return Err(anyhow!("unexpected result?: {:?}", entries.get(next_index)))
+        let next: Option<&mut Entity> = entries.get_mut(next_index);
+        if next.is_none() {
+            return Ok(None);
+        } else {
+            //let e: &mut Entity = next.unwrap();
+            let e: &mut Entity = next.unwrap();
+
+            let id: Option<i64> = e.get_class_id(transaction)?;
+            return Ok(id);
         }
+        // /*let entity: Option<Entity> = */match next {
+        //  Some(e) => match e.get_class_id(transaction)? {
+        //      Some(id) => Ok(Some(id)),
+        //      None => Ok(None),
+        //  },
+        //  None => Ok(None),
+        //  //_ => return Err(anyhow!("unexpected result?: entity with id {}", entries.get(next_index).get_id()))
+        // }
+        //
         // match entity {
         //   Some(e) => e.get_class_id(transaction),
         //   _ => None,
@@ -342,20 +360,31 @@ impl Group<'_> {
       match class_id {
         None if self.get_mixed_classes_allowed(transaction)? => Ok(None),
         Some(id) => {
-          let mut ec = EntityClass::new2(db, transaction, id)?;
+          let mut ec = EntityClass::new2(&self.db, transaction, id)?;
           let template_entity_id = ec.get_template_entity_id(transaction)?;
-          Ok(Some(Entity::new2(db, transaction, template_entity_id)?))
+          //Ok(Some(Entity::new2(self.db, transaction, template_entity_id)?))
+          //if let Ok(db) = self.db.downcast::<&dyn Database>() {
+          //if let db = *self.db {
+          //    Ok(Some(Entity::new2(Box::new(db), transaction, template_entity_id)?))
+          //} else {
+          //    Err(anyhow!("Unexpected result from dereference, in group.get_class_template_entity?"))
+          // }
+          
+          // Idea: if this deref (*) leads to problems, use Rc here (and where the db 
+          // is stored in various structs) instead of a Box (self.db).
+          let db: &dyn Database = *self.db;
+          Ok(Some(Entity::new2(Box::new(db), transaction, template_entity_id)?))
         }
         _ => Err(anyhow!("Unexpected value for {:?}", class_id))
       }
   }
 
     fn get_highest_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, Error> {
-      self.db.get_highest_sorting_index_for_group(transaction, get_id)
+      self.db.get_highest_sorting_index_for_group(transaction, self.get_id())
   }
 
     fn get_containing_relations_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>,
-                                         starting_index_in: i64, max_vals_in: Option<i64> /*= None*/) -> Result<Vec<RelationToGroup>, Error> {
+                                         starting_index_in: i64, max_vals_in: Option<u64> /*= None*/) -> Result<Vec<RelationToGroup>, Error> {
     self.db.get_relations_to_group_containing_this_group(transaction, self.get_id(), starting_index_in, max_vals_in)
   }
 
@@ -378,14 +407,14 @@ impl Group<'_> {
     self.db.get_groups_containing_entitys_groups_ids(transaction, self.get_id(), limit_in)
   }
 
-    fn is_entity_in_group(entity_id_in: i64) -> bool {
-    db.is_entity_in_group(get_id, entity_id_in)
+    fn is_entity_in_group(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64) -> Result<bool, Error> {
+    self.db.is_entity_in_group(transaction, self.get_id(), entity_id_in)
   }
 
     fn get_adjacent_group_entries_sorting_indexes(&self, transaction: &Option<&mut Transaction<Postgres>>,
                                                   sorting_index_in: i64, limit_in: Option<i64> /*= None*/,
                                                   forward_not_back_in: bool) -> Result<Vec<Vec<Option<DataType>>>, Error> {
-    self.db.get_adjacent_group_entries_sorting_indexes(transaction, get_id, sorting_index_in, limit_in, forward_not_back_in)
+    self.db.get_adjacent_group_entries_sorting_indexes(transaction, self.get_id(), sorting_index_in, limit_in, forward_not_back_in)
   }
 
     fn get_nearest_group_entrys_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
@@ -399,26 +428,26 @@ impl Group<'_> {
   }
 
     fn is_group_entry_sorting_index_in_use(&self, transaction: &Option<&mut Transaction<Postgres>>, sorting_index_in: i64) -> Result<bool, Error> {
-    self.db.is_group_entry_sorting_index_in_use(transaction, get_id, sorting_index_in)
+    self.db.is_group_entry_sorting_index_in_use(transaction, self.get_id(), sorting_index_in)
   }
 
     fn update_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
                           entity_id_in: i64, sorting_index_in: i64) -> Result<u64, Error> {
-    self.db.update_sorting_index_in_a_group(transaction, get_id, entity_id_in, sorting_index_in)
+    self.db.update_sorting_index_in_a_group(transaction, self.get_id(), entity_id_in, sorting_index_in)
   }
 
-    fn renumber_sorting_indexes(&self, transaction: &Option<&mut Transaction<Postgres>>,
+    fn renumber_sorting_indexes<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
                                 caller_manages_transactions_in: bool /*= false*/) -> Result<(), Error> {
     self.db.renumber_sorting_indexes(transaction, self.get_id(), caller_manages_transactions_in,
-                                     is_entity_attrs_not_group_entries /*= false*/)
+                                     false)
   }
 
     fn move_entity_from_group_to_local_entity(&self, to_entity_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64) -> Result<(), Error> {
-    self.db.move_entity_from_group_to_local_entity(get_id, to_entity_id_in, move_entity_id_in, sorting_index_in)
+    self.db.move_entity_from_group_to_local_entity(self.get_id(), to_entity_id_in, move_entity_id_in, sorting_index_in)
   }
 
     fn move_entity_to_different_group(&self, to_group_id_in: i64, move_entity_id_in: i64, sorting_index_in: i64) -> Result<(), Error> {
-    self.db.move_local_entity_from_group_to_group(seslf.get_id(), to_group_id_in, move_entity_id_in, sorting_index_in)
+    self.db.move_local_entity_from_group_to_group(self.get_id(), to_group_id_in, move_entity_id_in, sorting_index_in)
   }
 
 

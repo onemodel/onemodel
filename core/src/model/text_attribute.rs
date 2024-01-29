@@ -43,7 +43,7 @@ impl TextAttribute<'_> {
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new<'a>(
+    pub fn new<'a>(
         db: Box<&'a dyn Database>,
         id: i64,
         parent_id: i64,
@@ -72,7 +72,7 @@ impl TextAttribute<'_> {
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         transaction: &Option<&mut Transaction<Postgres>>,
         id: i64,
     ) -> Result<TextAttribute<'a>, anyhow::Error> {
@@ -82,7 +82,7 @@ impl TextAttribute<'_> {
         } else {
             Ok(TextAttribute {
                 id,
-                db,
+                db: Box::new(db),
                 text: "".to_string(),
                 already_read_data: false,
                 parent_id: 0,

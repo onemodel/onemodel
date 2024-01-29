@@ -9,28 +9,28 @@
 */
 // import java.io.{PrintWriter, StringWriter}
 use anyhow::{anyhow, Error, Result};
-use crate::color::Color;
+//use crate::color::Color;
 use crate::model::database::{DataType, Database};
-use crate::model::entity::Entity;
+//use crate::model::entity::Entity;
 use crate::model::id_wrapper::{IdWrapper};
 use crate::util::Util;
 use sqlx::{Postgres, Transaction};
 
 pub struct EntityClass<'a> {
     id: i64,
-    db: Box<&'a dyn Database>,
+    db: &'a Box<&'a dyn Database>,
     already_read_data: bool /*= false*/,
     name: String /*= null*/,
     template_entity_id: i64 /*= 0*/,
     create_default_attributes: Option<bool> /*= None*/,
 }
 
-impl EntityClass {
+impl EntityClass<'_> {
     fn name_length() -> u32 {
          Util::class_name_length()
      }
 
-    fn is_duplicate(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
+    fn is_duplicate<'a>(db_in: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
                     in_name: &str, in_self_id_to_ignore: Option<i64> /*= None*/) -> Result<bool, Error> {
         db_in.is_duplicate_class_name(transaction, in_name, in_self_id_to_ignore)
     }
@@ -40,7 +40,7 @@ impl EntityClass {
   ///  that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
   pub fn new<'a>(
-      db: Box<&'a dyn Database>,
+      db: &'a Box<&'a dyn Database>,
       id: i64,
       name_in: &str,
       template_entity_id: i64,
@@ -57,9 +57,9 @@ impl EntityClass {
   }
 
     /// See comments on similar methods in group.rs.
-        pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<EntityClass<'a>, anyhow::Error> {
+        pub fn new2<'a>(db: &'a Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64) -> Result<EntityClass<'a>, anyhow::Error> {
             // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-            if !db.is_remote && !db.class_key_exists(transaction, id: i64)? {
+            if !db.is_remote() && !db.class_key_exists(transaction, id)? {
                 Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
             } else {
                 Ok(EntityClass {
@@ -73,15 +73,15 @@ impl EntityClass {
             }
     }
 
-    fn get_name(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<String, anyhow::Error> {
-        if !already_read_data {
+    pub fn get_name(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<String, anyhow::Error> {
+        if !self.already_read_data {
             self.read_data_from_db(transaction)?
         }
         Ok(self.name.clone())
     }
 
     pub fn get_template_entity_id(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<i64, anyhow::Error> {
-        if !already_read_data {
+        if !self.already_read_data {
             self.read_data_from_db(transaction)?
         }
         Ok(self.template_entity_id)
@@ -89,7 +89,7 @@ impl EntityClass {
 
 
     fn get_create_default_attributes(&mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Option<bool>, Error> {
-    if !already_read_data {
+    if !self.already_read_data {
         self.read_data_from_db(transaction)?
     }
     Ok(self.create_default_attributes)
@@ -128,11 +128,11 @@ impl EntityClass {
         self.create_default_attributes = None;
 
     // create_default_attributes = classData(2).asInstanceOf[Option<bool>]
-        already_read_data = true;
+        self.already_read_data = true;
         Ok(())
   }
 
-    fn get_id_wrapper(&self) -> IdWrapper() {
+    fn get_id_wrapper(&self) -> IdWrapper {
         IdWrapper::new(self.id)
     }
 
@@ -160,18 +160,19 @@ impl EntityClass {
     // result
   // }
 
-    fn update_class_and_template_entity_name(&mut self, transaction: &Option<&mut Transaction<Postgres>>, name_in: &str) -> Result<i64, anyhow::Error> {
-        let template_entity_id: i64 = self.db.update_class_and_template_entity_name(transaction, this.get_id, name_in.to_string())?;
+    fn update_class_and_template_entity_name<'a>(&'a mut self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>, name_in: &str) -> Result<i64, anyhow::Error> {
+        let template_entity_id: i64 = self.db.update_class_and_template_entity_name(transaction, self.get_id(), 
+                                                                                    name_in, false)?;
         self.name = name_in.to_string();
         let read_template_entity_id = self.get_template_entity_id(transaction)?;
         if self.template_entity_id != read_template_entity_id {
-            Err(anyhow!("Template entity IDs do not match: {}, {}", self.template_entity_id, read_template_entity_id));
+            return Err(anyhow!("Template entity IDs do not match: {}, {}", self.template_entity_id, read_template_entity_id));
         }
         Ok(template_entity_id)
       }
 
     fn update_create_default_attributes(&mut self, transaction: &Option<&mut Transaction<Postgres>>, value_in: Option<bool>) -> Result<(), Error> {
-        self.db.update_class_create_default_attributes(transaction, get_id, value_in)?;
+        self.db.update_class_create_default_attributes(transaction, self.get_id(), value_in)?;
         self.create_default_attributes = value_in;
         Ok(())
   }

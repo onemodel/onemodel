@@ -13,14 +13,14 @@ use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::date_attribute::DateAttribute;
 use crate::model::file_attribute::FileAttribute;
 use crate::model::relation_to_group::RelationToGroup;
-use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
+//use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
 use crate::model::quantity_attribute::QuantityAttribute;
 use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 use crate::color::Color;
 use anyhow::{anyhow, Result};
 use chrono::Utc;
-use sqlx::{Error, Postgres, Transaction};
+use sqlx::{/*Error, */Postgres, Transaction};
 use std::collections::HashSet;
 
 pub struct Entity<'a> {
@@ -43,14 +43,14 @@ import org.onemodel.core._
 import scala.collection.mutable
 */
 impl Entity<'_> {
-    fn create_entity(db: &dyn Database, transaction: &Option<&mut Transaction<Postgres>>,
-                     in_name: &str, in_class_id: Option<i64> /*= None*/,
-                     is_public_in: Option<bool> /*= None*/) -> Result<Entity, anyhow::Error> {
+    fn create_entity<'a>(db: &'a dyn Database, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                     in_name: &'a str, in_class_id: Option<i64> /*= None*/,
+                     is_public_in: Option<bool> /*= None*/) -> Result<Entity<'a>, anyhow::Error> {
         let id: i64 = db.create_entity(transaction, in_name, in_class_id, is_public_in)?;
-        Entity::new2(Box::new(&db as &dyn Database), transaction, id)
+        Entity::new2(Box::new(db as &dyn Database), transaction, id)
     }
 
-    fn name_length() -> Int {
+    fn name_length() -> u32 {
         Util::entity_name_length()
     }
 
@@ -61,14 +61,14 @@ impl Entity<'_> {
 
     /// This is for times when you want None if it doesn't exist, instead of the Error returned by
     /// the Entity constructor.  Or for convenience in tests.
-    fn get_entity(db_in: Box<dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-                  id: i64) -> Result<Option<Entity>, String> {
+    fn get_entity<'a>(db_in: Box<&'a dyn Database>, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                  id: i64) -> Result<Option<Entity<'a>>, String> {
         let e = Entity::new2(db_in, transaction, id);
         match e {
             Ok(entity) => Ok(Some(entity)),
             Err(error) => {
                 if error.to_string().contains(Util::DOES_NOT_EXIST) {
-                    None
+                    Ok(None)
                 } else {
                     Err(error.to_string())
                 }
@@ -110,8 +110,8 @@ impl Entity<'_> {
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
-    pub fn new8(db: Box<&dyn Database>, id: i64, name: String, class_id: Option<i64> /*= None*/, insertion_date: i64, public: Option<bool>,
-           archived: bool, new_entries_stick_to_top: bool) -> Entity {
+    pub fn new8<'a>(db: Box<&'a dyn Database>, id: i64, name: String, class_id: Option<i64> /*= None*/, insertion_date: i64, public: Option<bool>,
+           archived: bool, new_entries_stick_to_top: bool) -> Entity<'a> {
         Entity {
             id,
             db, //: Box::new(db as &dyn Database),
@@ -170,15 +170,15 @@ impl Entity<'_> {
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<Option<i64>, anyhow::Error> {
-        let class_id: Option<i64> = get_class_id()?;
+        let class_id: Option<i64> = self.get_class_id(transaction)?;
         match class_id {
             None => Ok(None),
             Some(id) => {
                 // let template_entity_id: Option<i64> = self.db.get_class_data(transaction, class_id.unwrap()).get(1).asInstanceOf[Option<i64>];
                 let row = self.db.get_class_data(transaction, id)?;
-                let template_entity_id = match row.get(1) {
+                let template_entity_id: Result<Option<i64>> = match row.get(1) {
                     None => Err(anyhow!("In get_class_template_entity_id: How got not enough values in the row for id {} ?", id)),
-                    Some(Some(DataType::Bigint(i))) => Ok(Some(i)),
+                    Some(Some(DataType::Bigint(i))) => Ok(Some(*i)),
                     _ => Err(anyhow!("In get_class_template_entity_id: How got a blank id or something odd in the row.get(1) for id {} ?", id)),
                 };
                 template_entity_id
@@ -247,13 +247,13 @@ impl Entity<'_> {
         blank_if_unset: bool /*= true*/)
     -> Result<String, anyhow::Error> {
         // idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
-        let s = self.get_public_status_display_string(transaction, blank_if_unset);
+        let s = self.get_public_status_display_string(transaction, blank_if_unset)?;
         if s == Entity::PRIVACY_PUBLIC {
-          Color.green(s)
+          Ok(Color::green(&s))
         } else if s == Entity::PRIVACY_NON_PUBLIC {
-          Color.yellow(s)
+          Ok(Color::yellow(&s))
         } else {
-          s
+          Ok(s)
         }
       }
 
@@ -304,7 +304,7 @@ impl Entity<'_> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
         }
-        let result = if !self.is_archived {
+        let result = if !self.is_archived(transaction)? {
           ""
         } else {
           if self.db.include_archived_entities() {
@@ -312,10 +312,10 @@ impl Entity<'_> {
           } else {
             return Err(anyhow!("FYI in case this can be better understood and fixed:  due to an error, the program \
                       got an archived entity to display, but this is probably a bug, \
-                      because the db setting to show archived entities is turned off. The entity is {} : {}", self.get_id(), self.get_name))
+                      because the db setting to show archived entities is turned off. The entity is {} : {}", self.get_id(), self.get_name(transaction)?))
           }
         };
-        Ok(result.to_string());
+        Ok(result.to_string())
       }
 
     fn read_data_from_db(
@@ -347,13 +347,13 @@ impl Entity<'_> {
         // that eventually call postgresql_databaseN.db_query and see how they all handle a NULL coming back from pg, therefore
         // how to handle that when it gets here.  AND SIMILARLY/SAME do for the fixme just below!
         // DataType::Bigint(self.m_class_id) = None;
-        self.m_class_id = None;
+        self.class_id = None;
         // self.m_class_id = match entity_data[1] {
         //     DataType::Bigint(x) => x,
         //     _ => return Err(anyhow!(("How did we get here for {:?}?", entity_data[1])),
         // };
 
-        self.m_public = None; //%%%7FIXME TO USE:entity_data[3].asInstanceOf[Option<bool>]
+        self.public = None; //%%%7FIXME TO USE:entity_data[3].asInstanceOf[Option<bool>]
                               // self.m_public = match entity_data[3] {
                               //     DataType::Boolean(x) => x,
                               //     _ => return Err(anyhow!("How did we get here for {:?}?", entity_data[3])),
@@ -370,7 +370,7 @@ impl Entity<'_> {
             }
         };
         // DataType::Boolean(self.m_archived) = entity_data[4];
-        self.m_archived = match entity_data[4] {
+        self.archived = match entity_data[4] {
             Some(DataType::Boolean(x)) => x,
             _ => {
                 return Err(anyhow!(
@@ -393,7 +393,7 @@ impl Entity<'_> {
         Ok(())
     }
 
-    fn get_id_wrapper(&self) -> IdWrapper() {
+    fn get_id_wrapper(&self) -> IdWrapper {
         IdWrapper::new(self.id)
     }
 
@@ -407,8 +407,8 @@ impl Entity<'_> {
       /// for that.  This one is like that other in a way, but more for human consumption (eg data export for human reading, not for re-import -- ?).
      fn get_readable_identifier(&self) -> String {
         let remote_prefix = match self.db.get_remote_address() {
-            None => "",
-            Some(s) => format!({}"_", s),
+            None => "".to_string(),
+            Some(s) => format!("{}_", s),
           };
         format!("{}{}", remote_prefix, self.get_id().to_string())
       }
@@ -416,8 +416,8 @@ impl Entity<'_> {
       /// Intended as a unique string to distinguish an entity, even across OM Instances.  Compare to getHumanIdentifier (get_readable_identifier?)
       /// Idea: would any (future?) use cases be better served by including *both* the human-readable address (as in
       /// getHumanIdentifier) and the instance id? Or, just combine the methods into one?
-      fn get_unique_identifier(&self) -> String {
-        format!("{}_{}", PostgreSQLDatabase::id(), self.get_id())
+      fn get_unique_identifier(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<String, anyhow::Error> {
+        Ok(format!("{}_{}", self.db.id(transaction)?, self.get_id()))
       }
 
         fn get_attribute_count(&self, transaction: &Option<&mut Transaction<Postgres>>,
@@ -440,14 +440,14 @@ impl Entity<'_> {
               self.get_archived_status_display_string(transaction)?, self.get_name(transaction)?)
           }
         };
-        let count = db.get_class_count(Some(self.get_id()));
+        let count = self.db.get_class_count(transaction, Some(self.get_id()))?;
         let definer_info = if count > 0 {
              "template (defining entity) for "
         } else {
             ""
         };
-        let class_name: Option<String> = match self.get_class_id(transaction) {
-            Some(class_id) => self.db.get_class_name(class_id)?,
+        let class_name: Option<String> = match self.get_class_id(transaction)? {
+            Some(class_id) => self.db.get_class_name(transaction, class_id)?,
             None => None,
         };
         let sometext = match class_name {
@@ -462,7 +462,7 @@ impl Entity<'_> {
                           with_color: bool /*= false*/) -> Result<String, anyhow::Error> {
         // let mut result = "".to_string();
         // try {
-          let result = get_display_string_helper(with_color);
+          let result = self.get_display_string_helper(transaction, with_color);
         // } catch {
         // This was the old way in scala.  Delete comments and this fn, and just use _helper()? Or,
         // why was this needed, or was it really?:
@@ -478,10 +478,11 @@ impl Entity<'_> {
       }
 
     /// Also for convenience
-    fn add_quantity_attribute(&self, transaction: &Option<&mut Transaction<Postgres>>,
-                              in_attr_type_id: i64, in_unit_id: i64, in_number: Float, sorting_index_in: Option<i64>)
-        -> Result<QuantityAttribute, anyhow::Error> {
-        add_quantity_attribute2(in_attr_type_id, in_unit_id, in_number, sorting_index_in, None, Utc::now().timestamp_millis())
+    fn add_quantity_attribute<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                              in_attr_type_id: i64, in_unit_id: i64, in_number: f64, sorting_index_in: Option<i64>)
+        -> Result<QuantityAttribute<'a>, anyhow::Error> {
+        self.add_quantity_attribute2(transaction, in_attr_type_id, in_unit_id, in_number, 
+                                     sorting_index_in, None, Utc::now().timestamp_millis())
       }
 
       /// Creates a quantity attribute on this Entity (i.e., "6 inches length"), with default values of "now" for the dates. See "add_quantity_attribute" comment
@@ -489,10 +490,10 @@ impl Entity<'_> {
       /// for explanation of the parameters. It might also be nice to add the recorder's ID (person or app), but we'd have to do some kind
       /// of authentication/login 1st? And a GUID for users (as Entities?)?
       /// See PostgreSQLDatabase.create_quantity_attribute(...) for details.
-        fn add_quantity_attribute2(self, transaction: &Option<&mut Transaction<Postgres>>,
-                                   in_attr_type_id: i64, in_unit_id: i64, in_number: Float, sorting_index_in: Option<i64> /*= None*/,
+        fn add_quantity_attribute2<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                                   in_attr_type_id: i64, in_unit_id: i64, in_number: f64, sorting_index_in: Option<i64> /*= None*/,
                                in_valid_on_date: Option<i64>, observation_date_in: i64)
-          -> Result<QuantityAttribute, anyhow::Error> {
+          -> Result<QuantityAttribute<'a>, anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
         let id = self.db.create_quantity_attribute(transaction, self.id,
@@ -500,48 +501,48 @@ impl Entity<'_> {
                                                    in_number, in_valid_on_date,
                                                    observation_date_in, false,
                                                    sorting_index_in)?;
-        QuantityAttribute::new2(self.db, transaction, id)
+        QuantityAttribute::new2(*self.db, transaction, id)
       }
 
-        fn get_quantity_attribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                                  in_key: i64) -> Result<QuantityAttribute, anyhow::Error> {
-            QuantityAttribute::new2(self.db, transaction, in_key)
+        fn get_quantity_attribute<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                                  in_key: i64) -> Result<QuantityAttribute<'a>, anyhow::Error> {
+            QuantityAttribute::new2(*self.db, transaction, in_key)
         }
 
-        fn get_textAttribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                             in_key: i64) -> Result<TextAttribute, anyhow::Error> {
-            TextAttribute::new2(self.db, transaction, in_key)
+        fn get_textAttribute<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                             in_key: i64) -> Result<TextAttribute<'a>, anyhow::Error> {
+            TextAttribute::new2(*self.db, transaction, in_key)
         }
 
-        fn get_date_Attribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                              in_key: i64) -> Result<DateAttribute, anyhow::Error> {
-            DateAttribute::new2(self.db, transaction, in_key)
+        fn get_date_Attribute<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                              in_key: i64) -> Result<DateAttribute<'a>, anyhow::Error> {
+            DateAttribute::new2(*self.db, transaction, in_key)
         }
 
-        fn get_boolean_attribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                                 in_key: i64) -> Result<BooleanAttribute, anyhow::Error> {
-            BooleanAttribute::new2(self.db, transaction, in_key)
+        fn get_boolean_attribute<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                                 in_key: i64) -> Result<BooleanAttribute<'a>, anyhow::Error> {
+            BooleanAttribute::new2(*self.db, transaction, in_key)
         }
 
-        fn get_file_attribute(self, transaction: &Option<&mut Transaction<Postgres>>,
-                              in_key: i64) -> Result<FileAttribute, anyhow::Error> {
-            FileAttribute::new2(self.db, transaction, in_key)
+        fn get_file_attribute<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+                              in_key: i64) -> Result<FileAttribute<'a>, anyhow::Error> {
+            FileAttribute::new2(*self.db, transaction, in_key)
         }
 
       fn get_count_of_containing_groups(&self, transaction: &Option<&mut Transaction<Postgres>>)
           -> Result<u64, anyhow::Error> {
-        self.db.get_count_of_groups_containing_entity(transaction, get_id)
+        self.db.get_count_of_groups_containing_entity(transaction, self.get_id())
       }
 
       fn get_containing_groups_ids(&self, transaction: &Option<&mut Transaction<Postgres>>)
           -> Result<Vec<i64>, anyhow::Error> {
-        self.db.get_containing_groups_ids(transaction, get_id)
+        self.db.get_containing_groups_ids(transaction, self.get_id())
       }
 
       fn get_containing_relations_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>,
                                            starting_index_in: i64 /*= 0*/, max_vals_in: Option<i64> /*= None*/)
           -> Result<Vec<RelationToGroup>, anyhow::Error> {
-        self.db.get_containing_relations_to_group(transaction, get_id, starting_index_in, max_vals_in)
+        self.db.get_containing_relations_to_group(transaction, self.get_id(), starting_index_in, max_vals_in)
       }
 
         fn get_containing_relation_to_group_descriptions(&self, transaction: &Option<&mut Transaction<Postgres>>,
@@ -551,14 +552,14 @@ impl Entity<'_> {
 
         fn find_relation_to_and_group(&self, transaction: &Option<&mut Transaction<Postgres>>)
             -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<String>, bool), anyhow::Error> {
-        self.db.find_relation_to_and_group_on_entity(transaction, self.get_id())
+        self.db.find_relation_to_and_group_on_entity(transaction, self.get_id(), None)
       }
 
-        fn find_contained_local_entity_ids(&self, transaction: &Option<&mut Transaction<Postgres>>,
-                                           results_in_out: &mut HashSet<i64>, search_string_in: &str, levels_remainingIn: Int /*= 20*/,
+        fn find_contained_local_entity_ids<'a>(&'a self, transaction: &Option<&mut Transaction<Postgres>>,
+                                           results_in_out: &'a mut HashSet<i64>, search_string_in: &str, levels_remaining_in: i32 /*= 20*/,
                                  stop_after_any_foundIn: bool /*= true*/) -> Result<&mut HashSet<i64>, anyhow::Error> {
-        self.db.find_contained_local_entity_ids(transaction, results_in_out, get_id,
-                                                search_string_in, levels_remainingIn,
+        self.db.find_contained_local_entity_ids(transaction, results_in_out, self.get_id(),
+                                                search_string_in, levels_remaining_in,
                                                 stop_after_any_foundIn)
       }
 
@@ -583,14 +584,14 @@ impl Entity<'_> {
         fn get_nearest_attribute_entrys_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
                                                       starting_point_sorting_index_in: i64,
                                                       forward_not_back_in: bool /*= true*/) -> Result<Option<i64>, anyhow::Error> {
-        self.db.get_nearest_attribute_entrys_sorting_index(transaction, get_id,
+        self.db.get_nearest_attribute_entrys_sorting_index(transaction, self.get_id(),
                                                            starting_point_sorting_index_in, forward_not_back_in)
       }
 
-        fn renumber_sorting_indexes(&self, transaction: &Option<&mut Transaction<Postgres>>,
+        fn renumber_sorting_indexes<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
                                     caller_manages_transactions_in: bool /*= false*/) -> Result<(), anyhow::Error> {
         self.db.renumber_sorting_indexes(transaction, self.get_id(), caller_manages_transactions_in,
-                                         is_entity_attrs_not_group_entries /*= true*/)
+                                         true)
       }
 
         fn update_attribute_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
@@ -599,12 +600,14 @@ impl Entity<'_> {
                                                attribute_id_in, sorting_index_in)
       }
 
-        fn get_attribute_sorting_index(&self, attribute_form_id_in: i64, attribute_id_in: i64) -> Result<i64, anyhow::Error> {
-        self.db.get_entity_attribute_sorting_index(get_id, attribute_form_id_in, attribute_id_in)
+        fn get_attribute_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>, attribute_form_id_in: i64, 
+                                       attribute_id_in: i64) -> Result<i64, anyhow::Error> {
+        self.db.get_entity_attribute_sorting_index(transaction, self.get_id(), attribute_form_id_in, attribute_id_in)
       }
 
-        fn is_attribute_sorting_index_in_use(&self, sorting_index_in: i64) -> Result<bool, anyhow::Error> {
-        self.db.is_attribute_sorting_index_in_use(self.get_id(), sorting_index_in)
+        fn is_attribute_sorting_index_in_use(&self, transaction: &Option<&mut Transaction<Postgres>>,
+                                             sorting_index_in: i64) -> Result<bool, anyhow::Error> {
+        self.db.is_attribute_sorting_index_in_use(transaction, self.get_id(), sorting_index_in)
       }
 
         fn find_unused_attribute_sorting_index(&self, transaction: &Option<&mut Transaction<Postgres>>,
@@ -622,19 +625,20 @@ impl Entity<'_> {
         self.db.get_relation_to_remote_entity_count(transaction, self.get_id())
       }
 
-        fn get_text_attribute_by_type_id(&self, type_id_in: i64, expected_rowsIn: Option<u64> /*= None*/) -> Result<Vec<TextAttribute>, anyhow::Error> {
-        self.db.get_text_attribute_by_type_id(get_id, type_id_in, expected_rowsIn)
+        fn get_text_attribute_by_type_id(&self, transaction: &Option<&mut Transaction<Postgres>>, type_id_in: i64, expected_rowsIn: Option<usize> /*= None*/) -> Result<Vec<TextAttribute>, anyhow::Error> {
+        self.db.get_text_attribute_by_type_id(transaction, self.get_id(), type_id_in, expected_rowsIn)
       }
 
+        /*%%%%%
         fn add_uri_entity_with_uri_attribute(&self, transaction: &Option<&mut Transaction<Postgres>>,
                                              new_entity_name_in: &str, uri_in: String, observation_date_in: i64, makeThem_public_in: Option<bool>,
                                        caller_manages_transactions_in: bool, quote_in: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity) {
         db.add_uri_entity_with_uri_attribute(this, new_entity_name_in, uri_in, observation_date_in, makeThem_public_in, caller_manages_transactions_in, quote_in)
       }
 
-        fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> = None,
-                              observation_date_in: i64 = System.currentTimeMillis(), caller_manages_transactions_in: bool = false,
-                              sorting_index_in: Option<i64> = None) -> /*id*/ i64 {
+        fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> /*= None*/,
+                              observation_date_in: i64 = System.currentTimeMillis(), caller_manages_transactions_in: bool /*= false*/,
+                              sorting_index_in: Option<i64> /*= None*/) -> /*id*/ i64 {
         db.create_text_attribute(get_id, attr_type_id_in, text_in, valid_on_date_in, observation_date_in, caller_manages_transactions_in, sorting_index_in)
       }
 
@@ -696,7 +700,7 @@ impl Entity<'_> {
       }
 
         fn addFileAttribute(in_attr_type_id: i64, description_in: String, inFile: java.io.File, sorting_index_in: Option<i64> = None) -> FileAttribute {
-        if !inFile.exists()) {
+        if !inFile.exists() {
           throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
         }
         // idea: could be a little faster if the md5_hash method were merged into the database method, so that the file is only traversed once (for both
@@ -846,7 +850,9 @@ impl Entity<'_> {
           db.delete_entity(id)
       }
 
+*/
 }
+
 #[cfg(test)]
 mod test {
 /*
@@ -1107,4 +1113,4 @@ mod test {
   }
 */
 }
-%%%%%%
+//%%%%%%

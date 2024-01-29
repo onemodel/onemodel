@@ -20,8 +20,8 @@ use crate::model::postgres::postgresql_database::*;
 use crate::model::relation_type::RelationType;
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::date_attribute::DateAttribute;
-use crate::model::file_attribute::FileAttribute;
-use crate::model::quantity_attribute::QuantityAttribute;
+//use crate::model::file_attribute::FileAttribute;
+//use crate::model::quantity_attribute::QuantityAttribute;
 use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 // use anyhow::anyhow;
@@ -614,7 +614,7 @@ mod test {
                                                               observation_date,
                                                               false, None).unwrap();
         // and verify it:
-        let mut ta: TextAttribute = TextAttribute::new2(Box::new(db as &dyn Database), &None, text_attribute_id).unwrap();
+        let mut ta: TextAttribute = TextAttribute::new2(db as &dyn Database, &None, text_attribute_id).unwrap();
         assert!(ta.get_parent_id(&None).unwrap() == in_parent_id);
         assert!(ta.get_text(&None).unwrap() == text);
         assert!(ta.get_attr_type_id(&None).unwrap() == attr_type_id);
@@ -632,7 +632,7 @@ mod test {
         let attr_type_id: i64 = db.create_entity(&None, "dateAttributeType--likeDueOn", None, None).unwrap();
         let date: i64 = Utc::now().timestamp_millis();
         let date_attribute_id: i64 = db.create_date_attribute(in_parent_id, attr_type_id, date, None).unwrap();
-        let mut ba: DateAttribute = DateAttribute::new2(Box::new(db as &dyn Database), &None, date_attribute_id).unwrap();
+        let mut ba: DateAttribute = DateAttribute::new2(db as &dyn Database, &None, date_attribute_id).unwrap();
         assert!(ba.get_parent_id(&None).unwrap() == in_parent_id);
         assert!(ba.get_date(&None).unwrap() == date);
         assert!(ba.get_attr_type_id(&None).unwrap() == attr_type_id);
@@ -644,7 +644,7 @@ mod test {
                                                      observation_date_in: i64) -> i64 {
         let attr_type_id: i64 = db.create_entity(&None, "boolAttributeType-like-isDone", None, None).unwrap();
         let boolean_attribute_id: i64 = db.create_boolean_attribute(in_parent_id, attr_type_id, val_in, in_valid_on_date, observation_date_in, None).unwrap();
-        let mut ba = BooleanAttribute::new2(Box::new(db as &dyn Database), &None, boolean_attribute_id).unwrap();
+        let mut ba = BooleanAttribute::new2(db as &dyn Database, &None, boolean_attribute_id).unwrap();
         assert!(ba.get_attr_type_id(&None).unwrap() == attr_type_id);
         assert!(ba.get_boolean(&None).unwrap() == val_in);
         assert!(ba.get_valid_on_date(&None).unwrap() == in_valid_on_date);
@@ -653,6 +653,7 @@ mod test {
         boolean_attribute_id
     }
 
+    /*%%%%%%
     fn create_test_file_attribute_and_one_entity(in_parent_entity: Entity, in_descr: String, added_kilobytes_in: i32, verify_in: bool /*= true*/) -> FileAttribute {
         let attr_type_id: i64 = db.create_entity("fileAttributeType");
         let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
@@ -711,6 +712,7 @@ mod test {
         if file != null { file.delete() }
         }
     }
+    %%%%%%*/
 
     fn create_test_relation_to_local_entity_with_one_entity(
         in_entity_id: i64,
@@ -760,12 +762,12 @@ mod test {
         //and on an update:
         let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(&db, entity_id, None);
         let a_text_value = "as'dfjkl";
-        let mut ta = TextAttribute::new2(Box::new(&db as &dyn Database), &None, text_attribute_id).unwrap();
+        let mut ta = TextAttribute::new2(&db as &dyn Database, &None, text_attribute_id).unwrap();
         let (pid1, atid1) = (ta.get_parent_id(&None).unwrap(), ta.get_attr_type_id(&None).unwrap());
         db.update_text_attribute(&None, text_attribute_id, pid1, atid1,
                                  a_text_value, Some(123), 456).unwrap();
         // have to create new instance to re-read the data:
-        let mut ta2 = TextAttribute::new2(Box::new(&db as &dyn Database), &None, text_attribute_id).unwrap();
+        let mut ta2 = TextAttribute::new2(&db as &dyn Database, &None, text_attribute_id).unwrap();
         let txt2 = ta2.get_text(&None).unwrap();
 
         assert!(txt2 == a_text_value);

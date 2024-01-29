@@ -23,9 +23,9 @@ pub struct OmInstance<'a> {
     entity_id: Option<i64> /*= None*/,
 }
 
-impl OmInstance {
-    fn address_length() -> i32 {
-        Database::om_instance_address_length()
+impl OmInstance<'_>{
+    fn address_length(&self) -> i32 {
+        self.db.om_instance_address_length()
     }
 
     fn is_duplicate(db_in: &dyn Database, transaction: &Option<&mut Transaction<Postgres>>,
@@ -33,37 +33,15 @@ impl OmInstance {
         db_in.is_duplicate_om_instance_address(transaction, address_in, _self_id_to_ignore_in)
       }
 
-    fn create(db_in: Box<&dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-              id_in: &str, address_in: &str, entity_id_in: Option<i64> /*= None*/) -> Result<OmInstance, anyhow::Error> {
+    fn create<'a>(db_in: Box<&'a dyn Database>, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+              id_in: &'a str, address_in: &'a str, entity_id_in: Option<i64> /*= None*/) -> Result<OmInstance<'a>, anyhow::Error> {
         // Passing false for is_local_in because the only time that should be true is when it is created at db creation, for this site, and that is done
         // in the db class more directly.
         let insertion_date: i64 = db_in.create_om_instance(transaction, id_in.to_string(), false,
-                                                           address_in.to_string(), entity_id_in)?;
-        OmInstance::new(db_in, id_in.to_string(), /*is_local_in =*/ false,
-                        address_in.to_string(), insertion_date, entity_id_in)?
+                                                           address_in.to_string(), entity_id_in, false)?;
+        Ok(OmInstance::new(db_in, id_in.to_string(), /*is_local_in =*/ false,
+                        address_in.to_string(), insertion_date, entity_id_in))
       }
-
-
-    /// See table definition in the database class for details.
-    /// This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
-    /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
-    pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: String)
-    -> Result<OmInstance<'a>, anyhow::Error> {
-      // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-      if !db.is_remote && !db.om_instance_key_exists(transaction, id.as_str())? {
-          Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
-      } else {
-          Ok(OmInstance {
-              id: id.clone(),
-              db,
-              already_read_data: false,
-              is_local: false,
-              address: "".to_string(),
-              insertion_date: 0,
-              entity_id: None,
-          })
-      }
-    }
 
 
   /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
@@ -83,8 +61,30 @@ impl OmInstance {
       }
   }
 
+    /// See table definition in the database class for details.
+    /// This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
+    /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
+    pub fn new2<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: String)
+    -> Result<OmInstance<'a>, anyhow::Error> {
+      // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+      if !db.is_remote() && !db.om_instance_key_exists(transaction, id.as_str())? {
+          Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
+      } else {
+          Ok(OmInstance {
+              id: id.clone(),
+              db,
+              already_read_data: false,
+              is_local: false,
+              address: "".to_string(),
+              insertion_date: 0,
+              entity_id: None,
+          })
+      }
+    }
+
+
   /// When using, consider if get_archived_status_display_string should be called with it in the display (see usage examples of get_archived_status_display_string).
-    fn get_id(&self) -> Result<String, anyhow::Error> {
+    pub fn get_id(&self) -> Result<String, anyhow::Error> {
       // all creation methods ensure id exists, so no need to call read_data_from_db().
       Ok(self.id.clone())
     }
@@ -166,16 +166,24 @@ impl OmInstance {
         Ok(())
     }
 
-    fn get_display_string() -> String {
-        format!("{}:{}, {}, created on {}", id, (if is_local " (local)" else ""), get_address, get_creation_date_formatted)
+    fn get_display_string(&mut self) -> Result<String, anyhow::Error> {
+        let addr = self.get_address()?;
+        let date = self.get_creation_date_formatted(&None)?;
+        Ok(format!("{}:{}, {}, created on {}", self.id, 
+                (if self.is_local {
+                    " (local)" 
+                } else {
+                    ""
+                }), 
+                addr, date))
     }
 
-    fn update(new_address: String) /*%%-> Unit*/ {
-        db.update_om_instance(get_id, new_address, get_entity_id)
+    fn update(&mut self, transaction: &Option<&mut Transaction<Postgres>>, new_address: String) -> Result<u64, Error> {
+        self.db.update_om_instance(transaction, self.get_id()?, new_address, self.get_entity_id(transaction)?)
       }
 
-    fn delete(&self, transaction: &Option<&mut Transaction<Postgres>>) {
-        db.delete_om_instance(transaction, self.get_id())
+    fn delete<'a>(&'a self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>) -> Result<u64, Error> {
+        self.db.delete_om_instance(transaction, self.get_id()?.as_str())
     }
 
 }

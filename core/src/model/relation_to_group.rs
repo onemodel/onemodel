@@ -22,7 +22,7 @@ use crate::model::group::Group;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
-use tracing_subscriber::registry::Data;
+//use tracing_subscriber::registry::Data;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
@@ -73,14 +73,14 @@ impl RelationToGroup<'_> {
     }
 
   fn new2<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>, id: i64,
-              entity_id:i64, rel_type_id: i64, group_id: i64) -> Result<RelationToGroup, anyhow::Error> {
+              entity_id:i64, rel_type_id: i64, group_id: i64) -> Result<RelationToGroup<'a>, anyhow::Error> {
     // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
     // if db.is_remote || db.relation_to_group_keys_exist_and_match(transaction, id, entity_id, rel_type_id, group_id) {
         // something else might be cleaner, but these are the same thing and we need to make sure that (what was
         // in the scala code) the superclass' let mut doesn't overwrite this w/ 0:
     // } else {
-      if !db.is_remote && !db.relation_to_group_keys_exist_and_match(transaction, id, entity_id, rel_type_id, group_id) {
-          Err(anyhow!("Key id=" + id + ", " + entity_id + "/" + rel_type_id + "/" + group_id + Util::DOES_NOT_EXIST))
+      if !db.is_remote() && !db.relation_to_group_keys_exist_and_match(transaction, id, entity_id, rel_type_id, group_id)? {
+          Err(anyhow!("Key id={}, {}/{}/{}{}", id, entity_id, rel_type_id, group_id, Util::DOES_NOT_EXIST))
       } else {
           Ok(RelationToGroup {
               db,
@@ -102,21 +102,31 @@ impl RelationToGroup<'_> {
 // new constructors just wasn't working out (in scala code when I originally wrote this comment, anyway?).
 ///See comments on fn new, here.
     fn create_relation_to_group<'a>(db: Box<&'a dyn Database>, transaction: &Option<&mut Transaction<Postgres>>,
-                                id_in: i64) -> Result<RelationToGroup, anyhow::Error> {
+                                id_in: i64) -> Result<RelationToGroup<'a>, anyhow::Error> {
     let relation_data: Vec<Option<DataType>> = db.get_relation_to_group_data(transaction, id_in)?;
-    if relation_data.length == 0 {
-        return Err(anyhow!("No results returned from data request for: {}" + id_in));
-    }
-    let DataType::Bigint(entity_id) = relation_data[1].unwrap();
-    let DataType::Bigint(rel_type_id) = relation_data[2].unwrap();
-    let DataType::Bigint(group_id) = relation_data[3].unwrap();
+    if relation_data.len() == 0 {
+        return Err(anyhow!("No results returned from data request for: {}", id_in));
+    };
+    let DataType::Bigint(entity_id) = relation_data[1].clone().unwrap() else {
+        return Err(anyhow!("Unexpected entity_id: {:?}", relation_data[1]));
+    };
+    let DataType::Bigint(rel_type_id) = relation_data[2].clone().unwrap() else {
+        return Err(anyhow!("Unexpected rel_type_id: {:?}", relation_data[2]));
+    };
+    let DataType::Bigint(group_id) = relation_data[3].clone().unwrap() else {
+        return Err(anyhow!("Unexpected group_id: {:?}", relation_data[3]));
+    };
     let valid_on_date: Option<i64> = match relation_data[4] {
         None => None,
         Some(DataType::Bigint(vod)) => Some(vod),
         _ => return Err(anyhow!("Unexpected valid_on_date: {:?}", relation_data[4])),
     };
-    let DataType::Bigint(observation_date) = relation_data[5].unwrap();
-    let DataType::Bigint(sorting_index) = relation_data[6].unwrap();
+    let DataType::Bigint(observation_date) = relation_data[5].clone().unwrap() else {
+        return Err(anyhow!("Unexpected observation_date: {:?}", relation_data[5]));
+    };
+    let DataType::Bigint(sorting_index) = relation_data[6].clone().unwrap() else {
+        return Err(anyhow!("Unexpected sorting_index: {:?}", relation_data[6]));
+    };
     Ok(RelationToGroup::new(db, id_in, entity_id, rel_type_id, group_id,
                          valid_on_date, observation_date, sorting_index))
     }
@@ -131,12 +141,12 @@ impl RelationToGroup<'_> {
         Ok(self.group_id)
     }
 
-    fn get_group(mut self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<Group, anyhow::Error> {
-        Group::new2(self.db, transaction, self.get_group_id(transaction)?)
+    fn get_group<'a>(&'a mut self, transaction: &'a Option<&'a mut Transaction<'a, Postgres>>) -> Result<Group<'a>, anyhow::Error> {
+        Group::new2(*self.db, transaction, self.get_group_id(transaction)?)
       }
 
-    fn move_it(&self, new_containing_entity_id_in: i64, sorting_index_in: i64) -> i64 {
-        self.db.move_relation_to_group(get_id, new_containing_entity_id_in, sorting_index_in)?
+    fn move_it(&self, new_containing_entity_id_in: i64, sorting_index_in: i64) -> Result<i64, anyhow::Error> {
+        self.db.move_relation_to_group(self.get_id(), new_containing_entity_id_in, sorting_index_in)
     }
 
     fn update(&mut self, transaction: &Option<&mut Transaction<Postgres>>,
@@ -145,24 +155,24 @@ impl RelationToGroup<'_> {
         //Idea/possible bug: see comment on similar method in RelationToEntity (or maybe in its subclasses).
         let new_relation_type_id: i64 = match new_relation_type_id_in {
             Some(x) => x,
-            None => self.get_attr_type_id(transaction),
+            None => self.get_attr_type_id(transaction)?,
         };
         let new_group_id: i64 = match new_group_id_in {
             Some(x) => x,
-            None => self.get_group_id(transaction),
+            None => self.get_group_id(transaction)?,
         };
         let vod = match valid_on_date_in {
             //Use valid_on_date_in rather than valid_on_date_in.get because self.valid_on_date allows None, unlike others.
             Some(x) => valid_on_date_in,
-            None => self.get_valid_on_date(transaction),
+            None => self.get_valid_on_date(transaction)?,
         };
         let od = match observation_date_in {
             Some(x) => x,
-            None => self.get_observation_date(transaction),
+            None => self.get_observation_date(transaction)?,
         };
-        let rows_affected = self.db.update_relation_to_group(transaction, entity_id, rel_type_id,
+        let rows_affected = self.db.update_relation_to_group(transaction, self.entity_id, self.rel_type_id,
                                          new_relation_type_id,
-                                         group_id, new_group_id,
+                                         self.group_id, new_group_id,
                                          vod, od)?;
         //%%why weren't next 2 lines found in the scala version of this?
         self.rel_type_id = new_relation_type_id;
@@ -174,7 +184,7 @@ impl RelationToGroup<'_> {
 
     /// Removes this object from the system.
     fn delete_group_and_relations_to_it(&self) -> Result<(), anyhow::Error> {
-        self.db.delete_group_and_relations_to_it(group_id)
+        self.db.delete_group_and_relations_to_it(self.group_id)
     }
 }
 
@@ -186,16 +196,18 @@ impl Attribute for RelationToGroup<'_> {
       _unused2: Option<RelationType>, /*=None*/
       simplify: bool,                 /* = false*/
       ) -> Result<String, anyhow::Error> {
-    let group = Group::new2(db, &None, group_id);
-    let rt_name = RelationType::new(db, self.get_attr_type_id(&None)).get_name();
+    let mut group = Group::new2(*self.db, &None, self.group_id)?;
+    //%%put back after new is implemented!: 
+    //let rt_name = RelationType::new(self.db, self.get_attr_type_id(&None)).get_name();
+    let rt_name = "a relation type name stub"; 
     let mut result: String = if simplify && rt_name == Util::THE_HAS_RELATION_TYPE_NAME {
           "".to_string()
       } else {
           format!("{} ", rt_name )
       };
-    result = format!("{}{}", result, group.get_display_string(0, simplify));
+    result = format!("{}{}", result, group.get_display_string(&None, 0, simplify)?);
     if ! simplify {
-        result = format!("{}; {}", result, get_dates_description);
+        result = format!("{}; {}", result, Util::get_dates_description(self.valid_on_date, self.observation_date));
     }
       Ok(Util::limit_attribute_description_length(
           result.as_str(),
@@ -207,7 +219,7 @@ impl Attribute for RelationToGroup<'_> {
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<(), anyhow::Error> {
-        let data: Vec<Option<DataType>> = self.db.get_relation_to_group_data_by_keys(transaction, entity_id, rel_type_id, group_id)?;
+        let data: Vec<Option<DataType>> = self.db.get_relation_to_group_data_by_keys(transaction, self.entity_id, self.rel_type_id, self.group_id)?;
       if data.len() == 0 {
           return Err(anyhow!(
                 "No results returned from data request for: {}, {}, {}",
@@ -262,7 +274,7 @@ impl Attribute for RelationToGroup<'_> {
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        self.db.delete_relation_to_group(transaction, entity_id, rel_type_id, group_id)
+        self.db.delete_relation_to_group(transaction, self.entity_id, self.rel_type_id, self.group_id)
     }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned

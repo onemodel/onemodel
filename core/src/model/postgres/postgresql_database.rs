@@ -39,6 +39,10 @@ pub struct PostgreSQLDatabase {
 }
 
 impl PostgreSQLDatabase {
+    // Moved methods that are not part of the Database trait go here
+    // or in postgresql_database2.rs (split up to make smaller files,
+    // for parsing speed during intellij editing).
+
     pub const SCHEMA_VERSION: i32 = 7;
     pub const ENTITY_ONLY_SELECT_PART: &'static str = "SELECT e.id";
 

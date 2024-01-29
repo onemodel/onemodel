@@ -19,6 +19,7 @@ use crate::model::relation_to_group::RelationToGroup;
 // use crate::model::postgres::*;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 // use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
+//use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 use anyhow::anyhow;
 use chrono::Utc;
@@ -33,6 +34,10 @@ use std::collections::HashSet;
 // use tracing::*;
 
 impl PostgreSQLDatabase {
+    // Moved methods that are not part of the Database trait go here
+    // or in postgresql_database.rs (split up to make smaller files,
+    // for parsing speed during intellij editing).
+
     pub fn limit_to_entities_only(select_column_names: &str) -> String {
         // IN MAINTENANCE: compare to logic in method get_entities_used_as_attribute_types_sql, and related/similar logic near the top of
         // Controller.chooseOrCreateObject (if it is still there; as of
@@ -99,23 +104,6 @@ impl PostgreSQLDatabase {
             values ({},{},{},{})", entity_id_in, attribute_form_id_in, attribute_id_in, sorting_index).as_str(),
                        false, false)?;
         Ok(sorting_index)
-    }
-
-    pub fn is_attribute_sorting_index_in_use(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
-        entity_id_in: i64,
-        sorting_index_in: i64,
-    ) -> Result<bool, anyhow::Error> {
-        self.does_this_exist(
-            transaction,
-            format!(
-                "SELECT count(1) from AttributeSorting where entity_id={} and sorting_index={}",
-                entity_id_in, sorting_index_in
-            )
-            .as_str(),
-            true,
-        )
     }
 
     pub fn get_system_entity_id(
@@ -306,7 +294,7 @@ impl PostgreSQLDatabase {
                 // there is exactly one, as checked above
                 preference_entity_id = *x;
             }
-            let preference_entity = Entity::new2(Box::new(self), transaction, preference_entity_id);
+            let preference_entity = Entity::new2(Box::new(self as &dyn Database), transaction, preference_entity_id);
             let relevant_attribute_rows: Vec<Vec<Option<DataType>>> = {
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
                     // (Using the preference_entity.get_id for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
@@ -910,7 +898,7 @@ impl PostgreSQLDatabase {
             // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
             let rel_type_id = get_i64_from_row(&result, 0)?;
             let id = get_i64_from_row(&result, 1)?;
-            let entity: Entity = Entity::new2(Box::new(self), transaction, id.clone()).unwrap();
+            let entity: Entity = Entity::new2(Box::new(self as &dyn Database), transaction, id.clone()).unwrap();
             final_results.push((rel_type_id.clone(), entity))
         }
 
@@ -924,19 +912,26 @@ impl PostgreSQLDatabase {
                                                 sql_in: &str)  -> Result<Vec<RelationToGroup>, anyhow::Error>  {
         let early_results = self.db_query(transaction, sql_in, "i64")?;
         let mut group_id_results: Vec<i64> = Vec::new();
+        let early_results_len = early_results.len();
         // idea: should the remainder of this method be moved to Group, so the persistence layer doesn't know anything about the Model? (helps avoid circular
         // dependencies? is a cleaner design?)
         for result in early_results {
             //val group:Group = new Group(this, result(0).asInstanceOf[i64])
-            let DataType::Bigint(id) = result.get(0)?;
+            let DataType::Bigint(id) = (match result.get(0) {
+                Some(Some(dt)) => dt,
+                None => return Err(anyhow!("In processing query, got an unexpected None!: {}", sql_in)),
+                _ => return Err(anyhow!("In pg2.get_containing_relation_to_groups_helper processing query:\n  {}\n..., got an unexpected value!: {:?}", sql_in, result.get(0))),
+            }) else {
+                return Err(anyhow!("In pgdb2.get_containing_relation_to_groups_helper, unexpected value: {:?}", result.get(0)));
+            };
             group_id_results.push(id.clone());
         }
-        if group_id_results.len() != early_results.len() {
-            return Err(anyhow!("In get_containing_relation_to_groups_helper, group_id_results.len() ({}) != early_results.len() ({})", group_id_results.len(), early_results.len()));
+        if group_id_results.len() != early_results_len {
+            return Err(anyhow!("In get_containing_relation_to_groups_helper, group_id_results.len() ({}) != early_results.len() ({})", group_id_results.len(), early_results_len));
         }
         let mut containing_relations_to_group: Vec<RelationToGroup> = Vec::new();
         for gid in group_id_results {
-            let rtgs: Vec<RelationToGroup> = self.get_relations_to_group_containing_this_group(transaction, gid, 0)?;
+            let rtgs: Vec<RelationToGroup> = self.get_relations_to_group_containing_this_group(transaction, gid, 0, None)?;
             for rtg in rtgs {
                 containing_relations_to_group.push(rtg);
             }
@@ -1156,7 +1151,7 @@ impl PostgreSQLDatabase {
                 return Err(anyhow!("In get_entities_from_relations_to_local_entity, in get_entities_from_relations_to_local_entity, did not expect returned row to have 0 elements!: {:?}", r));
             }
             if let Some(DataType::Bigint(id)) = r[0] {
-                final_result.push(Entity::new2(Box::new(self), transaction, id)?);
+                final_result.push(Entity::new2(Box::new(self as &dyn Database), transaction, id)?);
                 // index += 1
             } else {
                 return Err(anyhow!("In get_entities_from_relations_to_local_entity, in get_entities_from_relations_to_local_entity, did not expect this: {:?}", r[0]));
@@ -1164,41 +1159,7 @@ impl PostgreSQLDatabase {
         }
         Ok(final_result)
     }
-    // //%%
-    //     fn get_text_attribute_by_type_id(&self, transaction: &Option<&mut Transaction<Postgres>>,
-    //                                      parent_entity_id_in: i64, type_id_in: i64,
-    //                                      expected_rows: Option<usize> /*= None*/) -> Result<Vec<TextAttribute>, anyhow::Error> {
-    //         let form_id: i32 = self.get_attribute_form_id(Util::TEXT_TYPE).unwrap();
-    //         let sql = format!("select ta.id, ta.textvalue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, asort.sorting_index from \
-    //         textattribute ta, AttributeSorting asort where ta.entity_id={} and ta.attr_type_id={} and ta.entity_id=asort.entity_id and \
-    //         asort.attribute_form_id={} and ta.id=asort.attribute_id",
-    //             parent_entity_id_in, type_id_in, form_id).as_str();
-    //         let query_results: Vec<Vec<Option<DataType>>> = self.db_query(transaction, sql, "i64,String,i64,i64,i64,i64")?;
-    //         if let Some(expected_rows_len) = expected_rows {
-    //             if query_results.len() != expected_rows_len {
-    //                 return Err(anyhow!("In get_text_attribute_by_type_id, found {} rows instead of expected {}", query_results.len(), expected_rows_len));
-    //             }
-    //         }
-    //         let final_result: Vec<TextAttribute> = Vec::with_capacity(query_results.len());
-    //         for r in query_results {
-    //             if r.len() < 6 {
-    //                 return Err(anyhow!("In get_text_attribute_by_type_id, expected 6 elements in row returned, but found {}: {:?}", r.len(), r));
-    //             }
-    //             let Some(DataType::Bigint(text_attribute_id)) = r.get(0)?;
-    //             let Some(DataType::String(textvalue)) = r.get(1)?;
-    //             let Some(DataType::Bigint(attr_type_id)) = r.get(2)?;
-    //             let valid_on_date = match r.get(3) {
-    //                 None => None,
-    //                 Some(DataType::Bigint(vod)) => Some(vod),
-    //                 _ => return Err(anyhow!("In get_text_attribute_by_type_id, unexpected value in {:?}", r.get(3))),
-    //             };
-    //             let Some(DataType::Bigint(observation_date)) = r.get(4)?;
-    //             let Some(DataType::Bigint(sorting_index)) = r.get(5)?;
-    //             final_result.add(TextAttribute::new(Box::new(self), text_attribute_id, parent_entity_id_in, attr_type_id, textvalue, valid_on_date, observation_date, sorting_index));
-    //         }
-    //         Ok(final_result)
-    //     }
-
+     
     // %%
     // /// Returns an array of tuples, each of which is of (sorting_index, Attribute), and a i64 indicating the total # that could be returned with
     // /// infinite display space (total existing).
@@ -1627,21 +1588,25 @@ impl PostgreSQLDatabase {
                 let sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE";
                 let results = self.db_query(transaction, sql, "String,String,i64,i64")?;
                 if results.len() != 1 {
-                    anyhow!("Got {}", results.len() + " instead of 1 result from sql " + sql +
-                                                                     ".  Does the usage now warrant removing this check (ie, multiple locals stored)?")
+                    return Err(anyhow!("Got {} instead of 1 result from sql {}.  Does the usage now \
+                            warrant removing this check (ie, multiple locals stored)?", results.len(), sql));
                 }
                 let result = results.get(0).unwrap();
-                  let DataType::String(id) = result[0].unwrap();
-                  let DataType::String(address) = result[1].unwrap();
-                  let DataType::Bigint(insertion_date) = result[2].unwrap();
+                  let DataType::String(id) = result[0].clone().unwrap() else {
+                      return Err(anyhow!("In pgdb2.get_local_om_instance_data, unexpected value: {:?}", result[0]));
+                  };
+                  let DataType::String(address) = result[1].clone().unwrap() else {
+                      return Err(anyhow!("In pgdb2.get_local_om_instance_data, unexpected value: {:?}", result[1]));
+                  };
+                  let DataType::Bigint(insertion_date) = result[2].clone().unwrap() else {
+                      return Err(anyhow!("In pgdb2.get_local_om_instance_data, unexpected value: {:?}", result[2]));
+                  };
                   let entity_id = match result[3] {
                       None => None,
-                      Some(DataType::Bigint(x)) => x,
+                      Some(DataType::Bigint(x)) => Some(x),
                       _ => return Err(anyhow!("Unexpected value {:?} from sql \"{}\".", result[3], sql)),
                   };
-                Ok(OmInstance::new(this, id, true, address,
+                Ok(OmInstance::new(Box::new(self), id, true, address,
                                insertion_date, entity_id))
               }
-
-    //%% moved methods that are not part of the Database trait go here
 }

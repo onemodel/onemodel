@@ -91,7 +91,7 @@ impl FileAttribute<'_> {
   /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
   /// create a new object.
   pub fn new2<'a>(
-      db: Box<&'a dyn Database>,
+      db: &'a dyn Database,
       transaction: &Option<&mut Transaction<Postgres>>,
       id: i64,
   ) -> Result<FileAttribute<'a>, anyhow::Error> {
@@ -101,7 +101,7 @@ impl FileAttribute<'_> {
       } else {
           Ok(FileAttribute {
               id,
-              db,
+              db: Box::new(db),
               already_read_data: false,
               parent_id: 0,
               attr_type_id: 0,

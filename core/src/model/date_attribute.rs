@@ -65,7 +65,7 @@ impl DateAttribute<'_> {
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         transaction: &Option<&mut Transaction<Postgres>>,
         id: i64,
     ) -> Result<DateAttribute<'a>, anyhow::Error> {
@@ -75,7 +75,7 @@ impl DateAttribute<'_> {
         } else {
             Ok(DateAttribute {
                 id,
-                db,
+                db: Box::new(db),
                 date_value: 0_i64,
                 already_read_data: false,
                 parent_id: 0,

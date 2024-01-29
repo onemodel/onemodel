@@ -70,7 +70,7 @@ impl BooleanAttribute<'_> {
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         transaction: &Option<&mut Transaction<Postgres>>,
         id: i64,
     ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
@@ -82,7 +82,7 @@ impl BooleanAttribute<'_> {
         } else {
             Ok(BooleanAttribute {
                 id,
-                db,
+                db: Box::new(db),
                 boolean_value: false,
                 already_read_data: false,
                 parent_id: 0,

@@ -8,17 +8,17 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 // use std::os::unix::process::parent_id;
-use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
-use crate::model::database::{DataType, Database};
-use crate::util::Util;
-use anyhow::{anyhow, Error, Result};
+//use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
+use crate::model::database::{/*DataType, */Database};
+//use crate::util::Util;
+//use anyhow::{anyhow, Error, Result};
 // use sqlx::{PgPool, Postgres, Row, Transaction};
-use crate::model::attribute::Attribute;
-use crate::model::entity::Entity;
+//use crate::model::attribute::Attribute;
+//use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
-use crate::model::relation_type::RelationType;
-use sqlx::{Postgres, Transaction};
-use tracing_subscriber::registry::Data;
+//use crate::model::relation_type::RelationType;
+//use sqlx::{Postgres, Transaction};
+//use tracing_subscriber::registry::Data;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
@@ -65,7 +65,7 @@ impl RelationToEntity<'_> {
         }
     }
 
-}
+/*%%%%%%
     fn get_related_id1(&self) -> i64 {
         self.entity_id1
     }
@@ -83,7 +83,7 @@ impl RelationToEntity<'_> {
    * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If in_length_limit is 0 you get the whole thing.
    */
     fn get_display_string(length_limit_in: Int, relatedEntityIn: Option<Entity>, relationTypeIn: Option[RelationType], simplify: bool = false) -> String {
-    let relType: RelationType = {;
+    let relType: RelationType = {
       if relationTypeIn.is_some()) {
         if relationTypeIn.get.get_id != get_attr_type_id()) {
           // It can be ignored, but in cases called generically (the same as other Attribute types) it should have the right value or that indicates a
@@ -99,7 +99,7 @@ impl RelationToEntity<'_> {
     let relatedEntity: Entity = {;
       relatedEntityIn.getOrElse(getEntityForEntityId2)
     }
-    let rt_name: String = {;
+    let rt_name: String = {
       if relatedEntity.get_id == mEntityId2) {
         relType.get_name
       } else if relatedEntity.get_id == mEntityId1) {
@@ -136,4 +136,5 @@ impl RelationToEntity<'_> {
 override fn get_parent_id() -> i64 {
     get_related_id1
 }
+%%%%%%*/
 }
