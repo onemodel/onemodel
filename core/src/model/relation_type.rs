@@ -16,9 +16,7 @@ enum RelationDirectionality {
     NON,
 }
 
-pub struct RelationType {
-
-}
+pub struct RelationType {}
 
 impl RelationType {
     // idea: should use these more, elsewhere (replacing hard-coded values! )
@@ -26,102 +24,101 @@ impl RelationType {
     pub const UNIDIRECTIONAL: &'static str = "UNI";
     pub const NONDIRECTIONAL: &'static str = "NON";
 
+    /*%%
+    package org.onemodel.core.model
 
-/*%%
-package org.onemodel.core.model
+    import org.onemodel.core.{OmException, Util}
 
-import org.onemodel.core.{OmException, Util}
+    /* Represents one RelationType object in the system.
+      *
+    object RelationType {
+        fn get_name_length() -> Int {
+        Util::relation_type_name_length()
+      }
 
-/* Represents one RelationType object in the system.
-  *
-object RelationType {
-    fn get_name_length() -> Int {
-    Util::relation_type_name_length()
-  }
-
-}
-
-/** This constructor instantiates an existing object from the DB. You can use Entity.addRelationTypeAttribute() to
-    create a new object. Assumes caller just read it from the DB and the info is accurate (i.e., this may only ever need to be called by
-    a Database instance?).
-  */
-class RelationType(db: Database, id: i64) extends Entity(db, id) {
-  // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-  if !db.is_remote && !db.relation_type_key_exists(id)) {
-    throw new Exception("Key " + id + Util::DOES_NOT_EXIST)
-  }
-
-
-  /** This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
-    that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
-    one that already exists.
-    */
-  private[onemodel] fn this(db_in: Database, entity_id_in: i64, name_in: String, name_in_reverse_direction_in: String,
-                             inDirectionality: String) {
-    this(db_in, entity_id_in)
-    name = name_in
-    nameInReverseDirection = name_in_reverse_direction_in
-    mDirectionality = inDirectionality
-    already_read_data = true
-  }
-
-  private[onemodel] fn get_name_in_reverse_direction() -> String {
-    if !already_read_data) {
-      read_data_from_db()
     }
-    nameInReverseDirection
-  }
 
-  private[onemodel] fn getDirectionality() -> String {
-    if !already_read_data) {
-      read_data_from_db()
-    }
-    mDirectionality
-  }
+    /** This constructor instantiates an existing object from the DB. You can use Entity.addRelationTypeAttribute() to
+        create a new object. Assumes caller just read it from the DB and the info is accurate (i.e., this may only ever need to be called by
+        a Database instance?).
+      */
+    class RelationType(db: Database, id: i64) extends Entity(db, id) {
+      // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+      if !db.is_remote && !db.relation_type_key_exists(id)) {
+        throw new Exception("Key " + id + Util::DOES_NOT_EXIST)
+      }
 
-  override fn get_name() -> String {
-    if !already_read_data) {
-      read_data_from_db()
-    }
-    name
-  }
 
-  override fn get_display_string_helper(with_colorIGNOREDFORNOW: bool)() -> String {
-    get_archived_status_display_string + get_name + " (a relation type with: " + getDirectionality + "/'" + get_name_in_reverse_direction + "')"
-  }
+      /** This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
+        that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
+        one that already exists.
+        */
+      private[onemodel] fn this(db_in: Database, entity_id_in: i64, name_in: String, name_in_reverse_direction_in: String,
+                                 inDirectionality: String) {
+        this(db_in, entity_id_in)
+        name = name_in
+        nameInReverseDirection = name_in_reverse_direction_in
+        mDirectionality = inDirectionality
+        already_read_data = true
+      }
 
-  protected override fn read_data_from_db() {
-    let relationTypeData: Vec<Option<DataType>> = db.get_relation_type_data(id);
-    if relationTypeData.length == 0) {
-      throw new OmException("No results returned from data request for: " + id)
-    }
-    name = relationTypeData(0).get.asInstanceOf[String]
-    nameInReverseDirection = relationTypeData(1).get.asInstanceOf[String]
-    mDirectionality = relationTypeData(2).get.asInstanceOf[String].trim
-    already_read_data = true
-  }
+      private[onemodel] fn get_name_in_reverse_direction() -> String {
+        if !already_read_data) {
+          read_data_from_db()
+        }
+        nameInReverseDirection
+      }
 
-    fn update(name_in: String, name_in_reverse_direction_in: String, directionality_in: String) -> /*%% -> Unit*/ {
-    if !already_read_data) read_data_from_db()
-    if name_in != name || name_in_reverse_direction_in != nameInReverseDirection || directionality_in != mDirectionality) {
-      db.update_relation_type(get_id, name_in, name_in_reverse_direction_in, directionality_in)
-      name = name_in
-      nameInReverseDirection = name_in_reverse_direction_in
-      mDirectionality = directionality_in
-    }
-  }
+      private[onemodel] fn getDirectionality() -> String {
+        if !already_read_data) {
+          read_data_from_db()
+        }
+        mDirectionality
+      }
 
-  /** Removes this object from the system.
-    */
-  override fn delete() {
-    db.delete_relation_type(id)
-  }
+      override fn get_name() -> String {
+        if !already_read_data) {
+          read_data_from_db()
+        }
+        name
+      }
 
-  /** For descriptions of the meanings of these variables, see the comments
-    on PostgreSQLDatabase.create_tables(...), and examples in the database testing code.
-    */
-  private let mut nameInReverseDirection: String = null;
-  private let mut mDirectionality: String = null;
- */
- */
+      override fn get_display_string_helper(with_colorIGNOREDFORNOW: bool)() -> String {
+        get_archived_status_display_string + get_name + " (a relation type with: " + getDirectionality + "/'" + get_name_in_reverse_direction + "')"
+      }
+
+      protected override fn read_data_from_db() {
+        let relationTypeData: Vec<Option<DataType>> = db.get_relation_type_data(id);
+        if relationTypeData.length == 0) {
+          throw new OmException("No results returned from data request for: " + id)
+        }
+        name = relationTypeData(0).get.asInstanceOf[String]
+        nameInReverseDirection = relationTypeData(1).get.asInstanceOf[String]
+        mDirectionality = relationTypeData(2).get.asInstanceOf[String].trim
+        already_read_data = true
+      }
+
+        fn update(name_in: String, name_in_reverse_direction_in: String, directionality_in: String) -> /*%% -> Unit*/ {
+        if !already_read_data) read_data_from_db()
+        if name_in != name || name_in_reverse_direction_in != nameInReverseDirection || directionality_in != mDirectionality) {
+          db.update_relation_type(get_id, name_in, name_in_reverse_direction_in, directionality_in)
+          name = name_in
+          nameInReverseDirection = name_in_reverse_direction_in
+          mDirectionality = directionality_in
+        }
+      }
+
+      /** Removes this object from the system.
+        */
+      override fn delete() {
+        db.delete_relation_type(id)
+      }
+
+      /** For descriptions of the meanings of these variables, see the comments
+        on PostgreSQLDatabase.create_tables(...), and examples in the database testing code.
+        */
+      private let mut nameInReverseDirection: String = null;
+      private let mut mDirectionality: String = null;
+     */
+     */
 }

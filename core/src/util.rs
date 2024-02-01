@@ -29,7 +29,7 @@ use std::string::ToString;
 //ordered by decreasing verbosity:
 // use tracing::{trace, debug, info, warn, error, Level};
 // for actual use now:
-use tracing::{debug};
+use tracing::debug;
 // use tracing_subscriber::FmtSubscriber;
 
 /// This is just a place to put shared code ("Utility") until a grouping for some, or a better idea emerges.  Using it also
@@ -562,10 +562,7 @@ impl Util {
                         }
                         Some(od) => {
                             let dates_descr: String =
-                                Util::get_dates_description(
-                                    valid_on_date,
-                                    od,
-                                );
+                                Util::get_dates_description(valid_on_date, od);
                             let prompt = format!("Dates are: {}: right?", dates_descr);
                             let answer = ui.ask_yes_no_question(prompt, "y", false);
                             match answer {

@@ -9,7 +9,7 @@
 */
 // use std::os::unix::process::parent_id;
 //use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
-use crate::model::database::{/*DataType, */Database};
+use crate::model::database::Database;
 //use crate::util::Util;
 //use anyhow::{anyhow, Error, Result};
 // use sqlx::{PgPool, Postgres, Row, Transaction};
@@ -40,20 +40,22 @@ pub struct RelationToEntity<'a> {
     rel_type_id: i64,
     entity_id1: i64,
     entity_id2: i64,
-    already_read_data: bool, /*%%= false*/
+    already_read_data: bool,    /*%%= false*/
     valid_on_date: Option<i64>, /*%%= None*/
-    observation_date: i64, /*%%= 0_i64*/
-    sorting_index: i64, /*%%= 0_i64*/
+    observation_date: i64,      /*%%= 0_i64*/
+    sorting_index: i64,         /*%%= 0_i64*/
 }
 
 impl RelationToEntity<'_> {
-    fn new<'a>(db: Box<&'a dyn Database>,
-               id: i64,
-               rel_type_id: i64,
-               entity_id1: i64,
-               entity_id2: i64,
+    fn new<'a>(
+        db: Box<&'a dyn Database>,
+        id: i64,
+        rel_type_id: i64,
+        entity_id1: i64,
+        entity_id2: i64,
     ) -> RelationToEntity<'a> {
-        RelationToEntity{db,
+        RelationToEntity {
+            db,
             id,
             rel_type_id,
             entity_id1,
@@ -65,76 +67,76 @@ impl RelationToEntity<'_> {
         }
     }
 
-/*%%%%%%
-    fn get_related_id1(&self) -> i64 {
-        self.entity_id1
-    }
-    fn get_related_id2(&self) -> i64 {
-        self.entity_id2
-    }
-
-  /**
-   * @param relatedEntityIn, could be either mEntityId2 or 1: it is always *not* the entity from whose perspective the result will be returned, ex.,
-   * 'x contains y' OR 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
-   * If left None here, the code will make a guess but might output confusing (backwards) info.
-   *
-   * @param relationTypeIn can be left None, but will run faster if not.
-   *
-   * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If in_length_limit is 0 you get the whole thing.
-   */
-    fn get_display_string(length_limit_in: Int, relatedEntityIn: Option<Entity>, relationTypeIn: Option[RelationType], simplify: bool = false) -> String {
-    let relType: RelationType = {
-      if relationTypeIn.is_some()) {
-        if relationTypeIn.get.get_id != get_attr_type_id()) {
-          // It can be ignored, but in cases called generically (the same as other Attribute types) it should have the right value or that indicates a
-          // misunderstanding in the caller's code. Also, if passed in and this were changed to use it again, it can save processing time re-instantiating one.
-          throw new OmException("inRT parameter should be the same as the relationType on this relation.")
+    /*%%%%%%
+        fn get_related_id1(&self) -> i64 {
+            self.entity_id1
         }
-        relationTypeIn.get
-      } else {
-        new RelationType(db, get_attr_type_id())
+        fn get_related_id2(&self) -> i64 {
+            self.entity_id2
+        }
+
+      /**
+       * @param relatedEntityIn, could be either mEntityId2 or 1: it is always *not* the entity from whose perspective the result will be returned, ex.,
+       * 'x contains y' OR 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
+       * If left None here, the code will make a guess but might output confusing (backwards) info.
+       *
+       * @param relationTypeIn can be left None, but will run faster if not.
+       *
+       * @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If in_length_limit is 0 you get the whole thing.
+       */
+        fn get_display_string(length_limit_in: Int, relatedEntityIn: Option<Entity>, relationTypeIn: Option[RelationType], simplify: bool = false) -> String {
+        let relType: RelationType = {
+          if relationTypeIn.is_some()) {
+            if relationTypeIn.get.get_id != get_attr_type_id()) {
+              // It can be ignored, but in cases called generically (the same as other Attribute types) it should have the right value or that indicates a
+              // misunderstanding in the caller's code. Also, if passed in and this were changed to use it again, it can save processing time re-instantiating one.
+              throw new OmException("inRT parameter should be the same as the relationType on this relation.")
+            }
+            relationTypeIn.get
+          } else {
+            new RelationType(db, get_attr_type_id())
+          }
+        }
+        //   *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:
+        let relatedEntity: Entity = {;
+          relatedEntityIn.getOrElse(getEntityForEntityId2)
+        }
+        let rt_name: String = {
+          if relatedEntity.get_id == mEntityId2) {
+            relType.get_name
+          } else if relatedEntity.get_id == mEntityId1) {
+            relType.get_name_in_reverse_direction
+          } else {
+            throw new OmException("Unrelated parent entity parameter?: '" + relatedEntity.get_id + "', '" + relatedEntity.get_name + "'")
+          }
+        }
+
+        // (See method comment about the relatedEntityIn param.)
+        let result: String =;
+          if simplify) {
+            if rt_name == Database.THE_HAS_RELATION_TYPE_NAME) relatedEntity.get_name
+            else rt_name + getRemoteDescription + ": " + relatedEntity.get_name
+          } else {
+            rt_name + getRemoteDescription + ": " + Color.blue(relatedEntity.get_name) + "; " + get_dates_description
+          }
+
+    //    if this.isInstanceOf[RelationToRemoteEntity]) {
+    //      result = "[remote]" + result
+    //    }
+        Attribute.limit_attribute_description_length(result, length_limit_in)
       }
+
+        //%%?: fn getRemoteDescription -> String
+
+      // If relatedEntityIn is an RTRE, could be a different db so build accordingly:
+        //%%?: fn getEntityForEntityId2 -> Entity
+
+    // (the next line used to be coded so instead of working it would return an exception, like this:
+    //     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
+    // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
+    // to have it be like this instead, for convenience:
+    override fn get_parent_id() -> i64 {
+        get_related_id1
     }
-    //   *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to mEntityId2 is using the right (remote) db!:
-    let relatedEntity: Entity = {;
-      relatedEntityIn.getOrElse(getEntityForEntityId2)
-    }
-    let rt_name: String = {
-      if relatedEntity.get_id == mEntityId2) {
-        relType.get_name
-      } else if relatedEntity.get_id == mEntityId1) {
-        relType.get_name_in_reverse_direction
-      } else {
-        throw new OmException("Unrelated parent entity parameter?: '" + relatedEntity.get_id + "', '" + relatedEntity.get_name + "'")
-      }
-    }
-
-    // (See method comment about the relatedEntityIn param.)
-    let result: String =;
-      if simplify) {
-        if rt_name == Database.THE_HAS_RELATION_TYPE_NAME) relatedEntity.get_name
-        else rt_name + getRemoteDescription + ": " + relatedEntity.get_name
-      } else {
-        rt_name + getRemoteDescription + ": " + Color.blue(relatedEntity.get_name) + "; " + get_dates_description
-      }
-
-//    if this.isInstanceOf[RelationToRemoteEntity]) {
-//      result = "[remote]" + result
-//    }
-    Attribute.limit_attribute_description_length(result, length_limit_in)
-  }
-
-    //%%?: fn getRemoteDescription -> String
-
-  // If relatedEntityIn is an RTRE, could be a different db so build accordingly:
-    //%%?: fn getEntityForEntityId2 -> Entity
-
-// (the next line used to be coded so instead of working it would return an exception, like this:
-//     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
-// ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
-// to have it be like this instead, for convenience:
-override fn get_parent_id() -> i64 {
-    get_related_id1
-}
-%%%%%%*/
+    %%%%%%*/
 }

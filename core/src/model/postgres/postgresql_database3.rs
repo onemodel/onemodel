@@ -32,55 +32,107 @@ use chrono::Utc;
 use sqlx::{Postgres, Transaction};
 use std::collections::HashSet;
 // use std::fmt::format;
-use tracing::*;
 use crate::model::attribute::Attribute;
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
+use tracing::*;
 
 impl Database for PostgreSQLDatabase {
-         fn get_text_attribute_by_type_id(&self, transaction: &Option<&mut Transaction<Postgres>>,
-                                          parent_entity_id_in: i64, type_id_in: i64,
-                                          expected_rows: Option<usize> /*= None*/) -> Result<Vec<TextAttribute>, anyhow::Error> {
-             let form_id: i32 = self.get_attribute_form_id(Util::TEXT_TYPE).unwrap();
-             let sql: String = format!("select ta.id, ta.textvalue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, asort.sorting_index from \
+    fn get_text_attribute_by_type_id(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        parent_entity_id_in: i64,
+        type_id_in: i64,
+        expected_rows: Option<usize>, /*= None*/
+    ) -> Result<Vec<TextAttribute>, anyhow::Error> {
+        let form_id: i32 = self.get_attribute_form_id(Util::TEXT_TYPE).unwrap();
+        let sql: String = format!("select ta.id, ta.textvalue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, asort.sorting_index from \
              textattribute ta, AttributeSorting asort where ta.entity_id={} and ta.attr_type_id={} and ta.entity_id=asort.entity_id and \
              asort.attribute_form_id={} and ta.id=asort.attribute_id",
                  parent_entity_id_in, type_id_in, form_id);
-             let query_results: Vec<Vec<Option<DataType>>> = self.db_query(transaction, sql.as_str(), "i64,String,i64,i64,i64,i64")?;
-             if let Some(expected_rows_len) = expected_rows {
-                 if query_results.len() != expected_rows_len {
-                     return Err(anyhow!("In get_text_attribute_by_type_id, found {} rows instead of expected {}", query_results.len(), expected_rows_len));
-                 }
-             }
-             let mut final_result: Vec<TextAttribute> = Vec::with_capacity(query_results.len());
-             for r in query_results {
-                 if r.len() < 6 {
-                     return Err(anyhow!("In get_text_attribute_by_type_id, expected 6 elements in row returned, but found {}: {:?}", r.len(), r));
-                 }
-                 let err_msg = format!("Unexpected None from get_text_attribute_by_type_id from sql: \"{}\", at resulting vec element ", sql);
-                 let Some(DataType::Bigint(text_attribute_id)) = r.get(0).ok_or(anyhow!("{}{}", err_msg, 0))? else {
-                     return Err(anyhow!("Unexpected &None from sql/0: {}: {:?}", sql.as_str(), r.get(0)));
-                 };
-                 let Some(DataType::String(textvalue)) = r.get(1).ok_or(anyhow!("{}{}", err_msg, 1))? else {
-                     return Err(anyhow!("Unexpected &None from sql/1: {}: {:?}", sql.as_str(), r.get(1)));
-                 };
-                 let Some(DataType::Bigint(attr_type_id)) = r.get(2).ok_or(anyhow!("{}{}", err_msg, 2))? else {
-                     return Err(anyhow!("Unexpected &None from sql/2: {}: {:?}", sql.as_str(), r.get(2)));
-                 };
-                 let valid_on_date = match r.get(3) {
-                     None => None,
-                     Some(Some(DataType::Bigint(vod))) => Some(*vod),
-                     _ => return Err(anyhow!("In get_text_attribute_by_type_id, unexpected value in {:?}", r.get(3))),
-                 };
-                 let Some(DataType::Bigint(observation_date)) = r.get(4).ok_or(anyhow!("{}{}", err_msg, 4))? else {
-                     return Err(anyhow!("Unexpected &None from sql/4: {}: {:?}", sql, r.get(4)));
-                 };
-                 let Some(DataType::Bigint(sorting_index)) = r.get(5).ok_or(anyhow!("{}{}", err_msg, 5))? else {
-                     return Err(anyhow!("Unexpected &None from sql/5: {}: {:?}", sql, r.get(5)));
-                 };
-                 final_result.push(TextAttribute::new(Box::new(self as &dyn Database), *text_attribute_id, parent_entity_id_in, *attr_type_id, textvalue, valid_on_date, *observation_date, *sorting_index));
-             }
-             Ok(final_result)
-         }
+        let query_results: Vec<Vec<Option<DataType>>> =
+            self.db_query(transaction, sql.as_str(), "i64,String,i64,i64,i64,i64")?;
+        if let Some(expected_rows_len) = expected_rows {
+            if query_results.len() != expected_rows_len {
+                return Err(anyhow!(
+                    "In get_text_attribute_by_type_id, found {} rows instead of expected {}",
+                    query_results.len(),
+                    expected_rows_len
+                ));
+            }
+        }
+        let mut final_result: Vec<TextAttribute> = Vec::with_capacity(query_results.len());
+        for r in query_results {
+            if r.len() < 6 {
+                return Err(anyhow!("In get_text_attribute_by_type_id, expected 6 elements in row returned, but found {}: {:?}", r.len(), r));
+            }
+            let err_msg = format!("Unexpected None from get_text_attribute_by_type_id from sql: \"{}\", at resulting vec element ", sql);
+            let Some(DataType::Bigint(text_attribute_id)) =
+                r.get(0).ok_or(anyhow!("{}{}", err_msg, 0))?
+            else {
+                return Err(anyhow!(
+                    "Unexpected &None from sql/0: {}: {:?}",
+                    sql.as_str(),
+                    r.get(0)
+                ));
+            };
+            let Some(DataType::String(textvalue)) = r.get(1).ok_or(anyhow!("{}{}", err_msg, 1))?
+            else {
+                return Err(anyhow!(
+                    "Unexpected &None from sql/1: {}: {:?}",
+                    sql.as_str(),
+                    r.get(1)
+                ));
+            };
+            let Some(DataType::Bigint(attr_type_id)) =
+                r.get(2).ok_or(anyhow!("{}{}", err_msg, 2))?
+            else {
+                return Err(anyhow!(
+                    "Unexpected &None from sql/2: {}: {:?}",
+                    sql.as_str(),
+                    r.get(2)
+                ));
+            };
+            let valid_on_date = match r.get(3) {
+                None => None,
+                Some(Some(DataType::Bigint(vod))) => Some(*vod),
+                _ => {
+                    return Err(anyhow!(
+                        "In get_text_attribute_by_type_id, unexpected value in {:?}",
+                        r.get(3)
+                    ))
+                }
+            };
+            let Some(DataType::Bigint(observation_date)) =
+                r.get(4).ok_or(anyhow!("{}{}", err_msg, 4))?
+            else {
+                return Err(anyhow!(
+                    "Unexpected &None from sql/4: {}: {:?}",
+                    sql,
+                    r.get(4)
+                ));
+            };
+            let Some(DataType::Bigint(sorting_index)) =
+                r.get(5).ok_or(anyhow!("{}{}", err_msg, 5))?
+            else {
+                return Err(anyhow!(
+                    "Unexpected &None from sql/5: {}: {:?}",
+                    sql,
+                    r.get(5)
+                ));
+            };
+            final_result.push(TextAttribute::new(
+                Box::new(self as &dyn Database),
+                *text_attribute_id,
+                parent_entity_id_in,
+                *attr_type_id,
+                textvalue,
+                valid_on_date,
+                *observation_date,
+                *sorting_index,
+            ));
+        }
+        Ok(final_result)
+    }
 
     fn is_attribute_sorting_index_in_use(
         &self,
@@ -776,68 +828,78 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-                 fn update_class_and_template_entity_name<'a>(&'a self, transaction_in: &'a Option<&'a mut Transaction<'a, Postgres>>,
-                                                          class_id_in: i64, name: &str,
-                                                          caller_manages_transactions_in: bool /*= false*/) -> Result<i64, anyhow::Error> {
-                   // let mut tx = self.begin_trans()?;
-                   //   let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-                     //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
-                     // Try creating a local transaction whether we use it or not, to handle compiler errors
-                     // about variable moves. I'm not seeing a better way to get around them by just using
-                     // conditions and an Option (many errors):
-                     // (I tried putting this in a function, then a macro, but it gets compile errors.
-                     // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-                     // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-                     // I didn't try a proc macro but based on some reading I think it would have the same
-                     // problem.)
-                     let mut local_tx: Transaction<Postgres> = {
-                         if transaction_in.is_none() {
-                             if caller_manages_transactions_in {
-                                 return Err(anyhow!("In update_class_and_template_entity_name, Inconsistent values for caller_manages_transactions_in \
+    fn update_class_and_template_entity_name<'a>(
+        &'a self,
+        transaction_in: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        class_id_in: i64,
+        name: &str,
+        caller_manages_transactions_in: bool, /*= false*/
+    ) -> Result<i64, anyhow::Error> {
+        // let mut tx = self.begin_trans()?;
+        //   let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let mut local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err(anyhow!("In update_class_and_template_entity_name, Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                     .to_string()));
-                             } else {
-                                 self.begin_trans()?
-                             }
-                         } else {
-                             if caller_manages_transactions_in {
-                                 // That means we have determined that the caller is to use the transaction_in .
-                                 // was just:  None
-                                 // But now instead, create it anyway, per comment above.
-                                 self.begin_trans()?
-                             } else {
-                                 return Err(anyhow!(
+                } else {
+                    self.begin_trans()?
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    self.begin_trans()?
+                } else {
+                    return Err(anyhow!(
                         "In update_class_and_template_entity_name, Inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ));
-                             }
-                         }
-                     };
-                     let local_tx_option = &Some(&mut local_tx);
-                     let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
-                         transaction_in
-                     } else {
-                         local_tx_option
-                     };
-                     //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
+                }
+            }
+        };
+        let local_tx_option = &Some(&mut local_tx);
+        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-                     self.update_class_name(transaction, class_id_in, name.to_string())?;
-                     let entity_id: i64 = EntityClass::new2(&Box::new(self as &dyn Database), transaction, class_id_in)?.get_template_entity_id(transaction)?;
-                     self.update_entity_only_name(transaction, entity_id, format!("{}{}", name, Util::TEMPLATE_NAME_SUFFIX).as_str())?;
-                     // if let Err(e) = self.commit_trans(tx) {
-                     //     see comments in delete_objects about rollback
-                         // return Err(anyhow!(e.to_string()));
-                     // }
-                     if !caller_manages_transactions_in {
-                         // see comments at similar location in delete_objects about local_tx
-                         if let Err(e) = self.commit_trans(local_tx) {
-                             // see comments in delete_objects about rollback
-                             return Err(anyhow!(e.to_string()));
-                         }
-                     }
-                     Ok(entity_id)
-                 }
+        self.update_class_name(transaction, class_id_in, name.to_string())?;
+        let entity_id: i64 =
+            EntityClass::new2(&Box::new(self as &dyn Database), transaction, class_id_in)?
+                .get_template_entity_id(transaction)?;
+        self.update_entity_only_name(
+            transaction,
+            entity_id,
+            format!("{}{}", name, Util::TEMPLATE_NAME_SUFFIX).as_str(),
+        )?;
+        // if let Err(e) = self.commit_trans(tx) {
+        //     see comments in delete_objects about rollback
+        // return Err(anyhow!(e.to_string()));
+        // }
+        if !caller_manages_transactions_in {
+            // see comments at similar location in delete_objects about local_tx
+            if let Err(e) = self.commit_trans(local_tx) {
+                // see comments in delete_objects about rollback
+                return Err(anyhow!(e.to_string()));
+            }
+        }
+        Ok(entity_id)
+    }
 
     fn update_entitys_class<'a>(
         &'a self,
@@ -2690,8 +2752,11 @@ impl Database for PostgreSQLDatabase {
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[0])),
             };
 
-            let mut attribute =
-                BooleanAttribute::new2(self as &dyn Database, transaction, preference_attribute_id)?;
+            let mut attribute = BooleanAttribute::new2(
+                self as &dyn Database,
+                transaction,
+                preference_attribute_id,
+            )?;
             // Now we have found a boolean attribute which already existed, and just need to
             // update its boolean value. The other values we read from the db inside the first call
             // to something like "get_parent_id()", and just write them back with the new boolean value,
@@ -3296,22 +3361,27 @@ impl Database for PostgreSQLDatabase {
     }
 
     //   // Idea: make starting_index_in and max_vals_in do something here.  How was that missed?  Is it needed?
-    fn get_relations_to_group_containing_this_group(&self, transaction: &Option<&mut Transaction<Postgres>>, group_id_in: i64,
-                                                    starting_index_in: i64, max_vals_in: Option<u64> /*= None*/)
-           -> Result<Vec<RelationToGroup>, anyhow::Error>  {
+    fn get_relations_to_group_containing_this_group(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        group_id_in: i64,
+        starting_index_in: i64,
+        max_vals_in: Option<u64>, /*= None*/
+    ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
         let sql = format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
                  asort.sorting_index from RelationToGroup rtg, AttributeSorting asort where group_id={} \
                  and rtg.entity_id=asort.entity_id and asort.attribute_form_id={} \
                  and rtg.id=asort.attribute_id", group_id_in, af_id);
-        let early_results = self.db_query(transaction, sql.as_str(), "i64,i64,i64,i64,i64,i64,i64")?;
+        let early_results =
+            self.db_query(transaction, sql.as_str(), "i64,i64,i64,i64,i64,i64,i64")?;
         let mut final_results: Vec<RelationToGroup> = Vec::new();
         // idea: should the remainder of this method be moved to RelationToGroup, so the persistence layer doesn't know anything about the Model? (helps avoid
         // circular dependencies? is a cleaner design, at least if RTG were in a separate library?)
         let early_results_len = early_results.len();
         for result in early_results {
-          // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-          //final_results.add(result(0).get.asInstanceOf[i64], new Entity(this, result(1).get.asInstanceOf[i64]))
+            // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
+            //final_results.add(result(0).get.asInstanceOf[i64], new Entity(this, result(1).get.asInstanceOf[i64]))
             let id = match result[0] {
                 Some(DataType::Bigint(x)) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[0])),
@@ -3332,9 +3402,9 @@ impl Database for PostgreSQLDatabase {
             // valid_on_date: Option<i64> /*%%= None*/,
             /*DataType::Bigint(%%)*/
             let valid_on_date = None; //match result[4] {
-            //     DataType::Bigint(x) => x,
-            //     _ => return Err(anyhow!("How did we get here for {:?}?", result[4])),
-            // };
+                                      //     DataType::Bigint(x) => x,
+                                      //     _ => return Err(anyhow!("How did we get here for {:?}?", result[4])),
+                                      // };
             let observation_date = match result[5] {
                 Some(DataType::Bigint(x)) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[5])),
@@ -3343,16 +3413,23 @@ impl Database for PostgreSQLDatabase {
                 Some(DataType::Bigint(x)) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[6])),
             };
-            let rtg: RelationToGroup = RelationToGroup::new(Box::new(self), id, entity_id,
-                                                         rel_type_id, group_id, valid_on_date, observation_date,
-                                                         sorting_index);
+            let rtg: RelationToGroup = RelationToGroup::new(
+                Box::new(self),
+                id,
+                entity_id,
+                rel_type_id,
+                group_id,
+                valid_on_date,
+                observation_date,
+                sorting_index,
+            );
             final_results.push(rtg)
         }
-        if ! (final_results.len() == early_results_len) {
+        if !(final_results.len() == early_results_len) {
             return Err(anyhow!("In get_relations_to_group_containing_this_group, Final results ({}) do not match count of early_results ({})", final_results.len(), early_results_len));
         }
         Ok(final_results)
-      }
+    }
 
     fn get_group_count(
         &self,
@@ -4258,9 +4335,14 @@ impl Database for PostgreSQLDatabase {
         Ok(final_results)
     }
 
-    fn get_matching_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64,
-                           max_vals_in: Option<i64> /*= None*/, omit_group_id_in: Option<i64>,
-                            name_regex_in: String) -> Result<Vec<Group>, anyhow::Error> {
+    fn get_matching_groups(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        starting_object_index_in: i64,
+        max_vals_in: Option<i64>, /*= None*/
+        omit_group_id_in: Option<i64>,
+        name_regex_in: String,
+    ) -> Result<Vec<Group>, anyhow::Error> {
         let name_regex = Self::escape_quotes_etc(name_regex_in);
         let omission_expression = match omit_group_id_in {
             None => "true".to_string(),
@@ -4274,16 +4356,16 @@ impl Database for PostgreSQLDatabase {
         let final_results: Vec<Group> = Vec::new();
         // idea: (see get_entities_generic for idea, see if applies here)
         for result in early_results {
-          // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
+            // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
             //%%%%
-          // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
-          //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
+            // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
+            //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
         }
         if final_results.len() != early_results_len {
             return Err(anyhow!("In get_matching_groups, final_results.len() ({}) != early_results.len() ({}), with sql: {}", final_results.len(), early_results_len, sql));
         }
         Ok(final_results)
-      }
+    }
 
     fn get_local_entities_containing_local_entity(
         &self,
@@ -4357,8 +4439,13 @@ impl Database for PostgreSQLDatabase {
         Ok((non_archived, archived))
     }
 
-    fn get_containing_relations_to_group(&self, transaction: &Option<&mut Transaction<Postgres>>, entity_id_in: i64, starting_index_in: i64,
-                                         max_vals_in: Option<i64> /*= None*/)  -> Result<Vec<RelationToGroup>, anyhow::Error>  {
+    fn get_containing_relations_to_group(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        entity_id_in: i64,
+        starting_index_in: i64,
+        max_vals_in: Option<i64>, /*= None*/
+    ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
         // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
         // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
         // So, could: see the expectation of the place(s) calling this method, if uniform, make these 2 methods more uniform in what they do in meeting that,
@@ -4367,53 +4454,53 @@ impl Database for PostgreSQLDatabase {
         // in Controller.java where that same name is mentioned. Related, be cause in that case on the line:
         //    "descriptions = descriptions.substring(0, descriptions.length - delimiter.length) + ".  ""
         // ...one gets the below exception throw, probably for the same or related reason:
-            /*
-            ==============================================
-            **CURRENT ENTITY:while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)
-            No attributes have been assigned to this object, yet.
-            1-Add attribute (quantity, true/false, date, text, external file, relation to entity or group: i.e., ownership of or "has" another entity, family ties, etc)...
-            2-Import/Export...
-            3-Edit name
-            4-Delete or Archive...
-            5-Go to...
-            6-List next items
-            7-Set current entity (while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)) as default (first to come up when launching this program.)
-            8-Edit public/nonpublic status
-            0/ESC - back/previous menu
-            4
+        /*
+        ==============================================
+        **CURRENT ENTITY:while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)
+        No attributes have been assigned to this object, yet.
+        1-Add attribute (quantity, true/false, date, text, external file, relation to entity or group: i.e., ownership of or "has" another entity, family ties, etc)...
+        2-Import/Export...
+        3-Edit name
+        4-Delete or Archive...
+        5-Go to...
+        6-List next items
+        7-Set current entity (while at it, order a valentine's card on amazon asap (or did w/ cmas shopping?)) as default (first to come up when launching this program.)
+        8-Edit public/nonpublic status
+        0/ESC - back/previous menu
+        4
 
 
-            ==============================================
-            Choose a deletion or archiving option:
-            1-Delete this entity
-                     2-Archive this entity (remove from visibility but not permanent/total deletion)
-            0/ESC - back/previous menu
-            1
-            An error occurred: "java.lang.StringIndexOutOfBoundsException: String index out of range: -2".  If you can provide simple instructions to reproduce it consistently, maybe it can be fixed.  Do you want to see the detailed output? (y/n):
-              y
+        ==============================================
+        Choose a deletion or archiving option:
+        1-Delete this entity
+                 2-Archive this entity (remove from visibility but not permanent/total deletion)
+        0/ESC - back/previous menu
+        1
+        An error occurred: "java.lang.StringIndexOutOfBoundsException: String index out of range: -2".  If you can provide simple instructions to reproduce it consistently, maybe it can be fixed.  Do you want to see the detailed output? (y/n):
+          y
 
 
-            ==============================================
-            java.lang.StringIndexOutOfBoundsException: String index out of range: -2
-            at java.lang.String.substring(String.java:1911)
-            at org.onemodel.Controller.Controller.deleteOrArchiveEntity(Controller.scala:644)
-            at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:232)
-            at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:388)
-            at org.onemodel.Controller.Controller.showInEntityMenuThenMainMenu(Controller.scala:277)
-            at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:80)
-            at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
-            at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
-            at org.onemodel.Controller.Controller.menuLoop$1(Controller.scala:140)
-            at org.onemodel.Controller.Controller.start(Controller.scala:143)
-            at org.onemodel.TextUI.launchUI(TextUI.scala:220)
-            at org.onemodel.TextUI$.main(TextUI.scala:34)
-            at org.onemodel.TextUI.main(TextUI.scala:1)
-            */
+        ==============================================
+        java.lang.StringIndexOutOfBoundsException: String index out of range: -2
+        at java.lang.String.substring(String.java:1911)
+        at org.onemodel.Controller.Controller.deleteOrArchiveEntity(Controller.scala:644)
+        at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:232)
+        at org.onemodel.Controller.EntityMenu.entityMenu(EntityMenu.scala:388)
+        at org.onemodel.Controller.Controller.showInEntityMenuThenMainMenu(Controller.scala:277)
+        at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:80)
+        at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
+        at org.onemodel.Controller.MainMenu.mainMenu(MainMenu.scala:98)
+        at org.onemodel.Controller.Controller.menuLoop$1(Controller.scala:140)
+        at org.onemodel.Controller.Controller.start(Controller.scala:143)
+        at org.onemodel.TextUI.launchUI(TextUI.scala:220)
+        at org.onemodel.TextUI$.main(TextUI.scala:34)
+        at org.onemodel.TextUI.main(TextUI.scala:1)
+        */
 
         let sql = format!("select group_id from entitiesinagroup where entity_id={} order by group_id limit {} offset {}",
                          entity_id_in, Self::check_if_should_be_all_results(max_vals_in), starting_index_in);
         self.get_containing_relation_to_groups_helper(transaction, sql.as_str())
-      }
+    }
 
     fn get_count_of_entities_used_as_attribute_types(
         &self,
@@ -4568,9 +4655,9 @@ impl Database for PostgreSQLDatabase {
         */
         // ...vs. this (but I did not easily, interactively, observe a performance difference:
         /*
-            select sorting_index from AttributeSorting asort where attribute_form_id = 6 and asort.entity_id=-9223372036854567954 and asort.sorting_index>-7142999829835153408
-            and asort.attribute_id not in (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived))
-         */
+           select sorting_index from AttributeSorting asort where attribute_form_id = 6 and asort.entity_id=-9223372036854567954 and asort.sorting_index>-7142999829835153408
+           and asort.attribute_id not in (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived))
+        */
         let not_archived = if !self.include_archived_entities {
             "and asort.attribute_id not in \
                 (select id from relationtoentity rte where entity_id_2 in (select id from entity where archived)) "
@@ -4725,9 +4812,11 @@ impl Database for PostgreSQLDatabase {
                         result[0]
                     ))
                 }
-                Some(DataType::Bigint(i)) => {
-                    final_results.push(Entity::new2(Box::new(self as &dyn Database), transaction, i)?)
-                }
+                Some(DataType::Bigint(i)) => final_results.push(Entity::new2(
+                    Box::new(self as &dyn Database),
+                    transaction,
+                    i,
+                )?),
                 _ => {
                     return Err(anyhow!(
                         "In get_group_entry_objects, Unexpected value in result[0] {:?}",
@@ -5033,9 +5122,12 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-                  fn id(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<String, anyhow::Error> {
-                    self.get_local_om_instance_data(transaction)?.get_id()
-                  }
+    fn id(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<String, anyhow::Error> {
+        self.get_local_om_instance_data(transaction)?.get_id()
+    }
 
     fn om_instance_key_exists(
         &self,
@@ -5133,25 +5225,30 @@ impl Database for PostgreSQLDatabase {
       }
     */
 
-    fn update_om_instance(&self, transaction: &Option<&mut Transaction<Postgres>>,
-                          id_in: String, address_in: String, entity_id_in: Option<i64>)
-        -> Result<u64, anyhow::Error> {
+    fn update_om_instance(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        id_in: String,
+        address_in: String,
+        entity_id_in: Option<i64>,
+    ) -> Result<u64, anyhow::Error> {
         let address: String = Self::escape_quotes_etc(address_in);
         let eid_or_null = match entity_id_in {
             Some(eid) => eid.to_string(),
             _ => "NULL".to_string(),
         };
-        let sql = format!("UPDATE omInstance SET (address, entity_id) = ('{}', {}) where id='{}'",
-            address, eid_or_null, id_in);
+        let sql = format!(
+            "UPDATE omInstance SET (address, entity_id) = ('{}', {}) where id='{}'",
+            address, eid_or_null, id_in
+        );
         self.db_action(transaction, sql.as_str(), false, false)
-      }
+    }
 
     fn delete_om_instance<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         id_in: &str,
     ) -> Result<u64, anyhow::Error> {
-            self.delete_object_by_id2(transaction, "omInstance", id_in, false)
-        }
-
+        self.delete_object_by_id2(transaction, "omInstance", id_in, false)
+    }
 }

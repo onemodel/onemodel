@@ -33,8 +33,8 @@ pub struct QuantityAttribute<'a> {
     // BUT: have to figure out how to work with the
     // assignment from the other constructor, and passing vals to the Trait(scala: was superclass?) to be...immutable.
     // like how additional class vals are set when the other constructor (what's the term again?), is called. How to do the other constructor w/o a db hit.
-    unit_id: i64, /*= 0_i64*/
-    number: f64, /*= .0_f64*/
+    unit_id: i64,               /*= 0_i64*/
+    number: f64,                /*= .0_f64*/
     already_read_data: bool,    /*%%= false*/
     parent_id: i64,             /*%%= 0_i64*/
     attr_type_id: i64,          /*%%= 0_i64*/
@@ -44,33 +44,33 @@ pub struct QuantityAttribute<'a> {
 }
 
 impl QuantityAttribute<'_> {
-   /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
-   /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
-   /// one that already exists.  It does not confirm that the id exists in the db.
-   fn new<'a>(
-       db: Box<&'a dyn Database>,
-       id: i64,
-       parent_id: i64,
-       attr_type_id: i64,
-       unit_id: i64,
-       number: f64,
-       valid_on_date: Option<i64>,
-       observation_date: i64,
-       sorting_index: i64,
-   ) -> QuantityAttribute<'a> {
-       QuantityAttribute {
-           id,
-           db,
-           unit_id,
-           number,
-           already_read_data: true,
-           parent_id,
-           attr_type_id,
-           valid_on_date,
-           observation_date,
-           sorting_index,
-       }
-   }
+    /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
+    /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
+    /// one that already exists.  It does not confirm that the id exists in the db.
+    fn new<'a>(
+        db: Box<&'a dyn Database>,
+        id: i64,
+        parent_id: i64,
+        attr_type_id: i64,
+        unit_id: i64,
+        number: f64,
+        valid_on_date: Option<i64>,
+        observation_date: i64,
+        sorting_index: i64,
+    ) -> QuantityAttribute<'a> {
+        QuantityAttribute {
+            id,
+            db,
+            unit_id,
+            number,
+            already_read_data: true,
+            parent_id,
+            attr_type_id,
+            valid_on_date,
+            observation_date,
+            sorting_index,
+        }
+    }
 
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
@@ -171,8 +171,8 @@ impl Attribute for QuantityAttribute<'_> {
             None => "(None)".to_string(),
             Some(s) => s,
         };
-        let mut result: String = format!("{}: {} {}", type_name, self.get_number(&None)?,
-                                         entity_name);
+        let mut result: String =
+            format!("{}: {} {}", type_name, self.get_number(&None)?, entity_name);
         if !simplify {
             result = format!(
                 "{}; {}",
@@ -229,10 +229,10 @@ impl Attribute for QuantityAttribute<'_> {
         // valid_on_date: Option<i64> /*%%= None*/,
         /*DataType::Bigint(%%)*/
         self.valid_on_date = None; //data[4];
-        // self.valid_on_date = match data[4] {
-        //     DataType::Bigint(x) => x,
-        //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
-        // };
+                                   // self.valid_on_date = match data[4] {
+                                   //     DataType::Bigint(x) => x,
+                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
+                                   // };
 
         self.observation_date = match data[5] {
             Some(DataType::Bigint(x)) => x,
@@ -317,36 +317,36 @@ impl AttributeWithValidAndObservedDates for QuantityAttribute<'_> {
 #[cfg(test)]
 mod test {
     /*%%put this back after similar place in boolean_attribute.rs is resolved and this can be similarly:
-    "get_display_string" should "return correct string and length" in {
-        let mock_db = mock[PostgreSQLDatabase];
-        let entity_id = 0;
-        let attr_type_id = 1;
-        let quantityAttributeId = 2;
-        let unitId = 3;
-        let number = 50;
-        // arbitrary:
-        let date = 304;
-        when(mock_db.relation_type_key_exists(quantityAttributeId)).thenReturn(true)
-        when(mock_db.entity_key_exists(entity_id)).thenReturn(true)
-        when(mock_db.get_entity_name(attr_type_id)).thenReturn(Some("length"))
-        when(mock_db.get_entity_name(unitId)).thenReturn(Some("meters"))
+       "get_display_string" should "return correct string and length" in {
+           let mock_db = mock[PostgreSQLDatabase];
+           let entity_id = 0;
+           let attr_type_id = 1;
+           let quantityAttributeId = 2;
+           let unitId = 3;
+           let number = 50;
+           // arbitrary:
+           let date = 304;
+           when(mock_db.relation_type_key_exists(quantityAttributeId)).thenReturn(true)
+           when(mock_db.entity_key_exists(entity_id)).thenReturn(true)
+           when(mock_db.get_entity_name(attr_type_id)).thenReturn(Some("length"))
+           when(mock_db.get_entity_name(unitId)).thenReturn(Some("meters"))
 
-        let quantityAttribute = new QuantityAttribute(mock_db, quantityAttributeId, entity_id, attr_type_id, unitId, number, None, date, 0);
-        let small_limit = 8;
-        let display1: String = quantityAttribute.get_display_string(small_limit, None, None);
-        //noinspection SpellCheckingInspection
-        assert(display1 == "lengt...")
-        let unlimited=0;
-        let display2: String = quantityAttribute.get_display_string(unlimited, None, None);
-        // probably should change this to GMT for benefit of other testers. Could share the DATEFORMAT* from Attribute class?
-        let observed_dateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST";
-        let expected2:String = "length: "+number+".0 meters" + "; valid unsp'd, obsv'd " + observed_dateOutput;
-        assert(display2 == expected2)
+           let quantityAttribute = new QuantityAttribute(mock_db, quantityAttributeId, entity_id, attr_type_id, unitId, number, None, date, 0);
+           let small_limit = 8;
+           let display1: String = quantityAttribute.get_display_string(small_limit, None, None);
+           //noinspection SpellCheckingInspection
+           assert(display1 == "lengt...")
+           let unlimited=0;
+           let display2: String = quantityAttribute.get_display_string(unlimited, None, None);
+           // probably should change this to GMT for benefit of other testers. Could share the DATEFORMAT* from Attribute class?
+           let observed_dateOutput = "Wed 1969-12-31 17:00:00:"+date+" MST";
+           let expected2:String = "length: "+number+".0 meters" + "; valid unsp'd, obsv'd " + observed_dateOutput;
+           assert(display2 == expected2)
 
-        // and something in between: broke original implementation, so writing tests helped w/ this & other bugs caught.
-        let display3: String = quantityAttribute.get_display_string(49, None, None);
-        let expected3: String = "length: " + number + ".0 meters" + "; valid unsp'd, obsv'd " + observed_dateOutput;
-        assert(display3 == expected3.substring(0, 46) + "...")
-    }
- */
+           // and something in between: broke original implementation, so writing tests helped w/ this & other bugs caught.
+           let display3: String = quantityAttribute.get_display_string(49, None, None);
+           let expected3: String = "length: " + number + ".0 meters" + "; valid unsp'd, obsv'd " + observed_dateOutput;
+           assert(display3 == expected3.substring(0, 46) + "...")
+       }
+    */
 }

@@ -264,7 +264,8 @@ impl PostgreSQLDatabase {
             } else if row_count > 1 {
                 Err(anyhow!(
                     "Should there be > 1 entries for sql: {}?? ({} were found.)",
-                    sql_in, row_count
+                    sql_in,
+                    row_count
                 ))
             } else {
                 assert!(row_count < 1);
@@ -471,7 +472,8 @@ impl PostgreSQLDatabase {
         if !caller_checks_row_count_etc && !is_create_drop_or_alter && rows_affected != 1 {
             return Err(anyhow!(
                 "Affected {} rows instead of 1?? SQL was: {}",
-                rows_affected, sql_in
+                rows_affected,
+                sql_in
             ));
         }
         Ok(rows_affected)

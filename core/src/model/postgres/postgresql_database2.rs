@@ -238,7 +238,9 @@ impl PostgreSQLDatabase {
             return Err(anyhow!(
                 "Delete command  have removed {} rows, but {} were expected! \
                 Did not perform delete.  SQL is: \"{}\"",
-                rows_deleted, rows_expected, sql
+                rows_deleted,
+                rows_expected,
+                sql
             ));
         } else {
             //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
@@ -294,7 +296,11 @@ impl PostgreSQLDatabase {
                 // there is exactly one, as checked above
                 preference_entity_id = *x;
             }
-            let preference_entity = Entity::new2(Box::new(self as &dyn Database), transaction, preference_entity_id);
+            let preference_entity = Entity::new2(
+                Box::new(self as &dyn Database),
+                transaction,
+                preference_entity_id,
+            );
             let relevant_attribute_rows: Vec<Vec<Option<DataType>>> = {
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
                     // (Using the preference_entity.get_id for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
@@ -305,10 +311,7 @@ impl PostgreSQLDatabase {
                     let sql2 = format!("select rel_type_id, entity_id, entity_id_2 from relationtoentity where entity_id={}", preference_entity_id);
                     self.db_query(transaction, sql2.as_str(), "i64,i64,i64")?
                 } else {
-                    return Err(anyhow!(
-                        "Unexpected preference_type: {}",
-                        preference_type
-                    ));
+                    return Err(anyhow!("Unexpected preference_type: {}", preference_type));
                 }
             };
             if relevant_attribute_rows.len() == 0 {
@@ -329,10 +332,7 @@ impl PostgreSQLDatabase {
                 } else if preference_type == Util::PREF_TYPE_ENTITY_ID {
                     " RelationToEntity values ".to_string()
                 } else {
-                    return Err(anyhow!(
-                        "Unexpected preference_type: {}",
-                        preference_type
-                    ));
+                    return Err(anyhow!("Unexpected preference_type: {}", preference_type));
                 };
 
                 if relevant_attribute_rows.len() != 1 {
@@ -898,7 +898,8 @@ impl PostgreSQLDatabase {
             // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
             let rel_type_id = get_i64_from_row(&result, 0)?;
             let id = get_i64_from_row(&result, 1)?;
-            let entity: Entity = Entity::new2(Box::new(self as &dyn Database), transaction, id.clone()).unwrap();
+            let entity: Entity =
+                Entity::new2(Box::new(self as &dyn Database), transaction, id.clone()).unwrap();
             final_results.push((rel_type_id.clone(), entity))
         }
 
@@ -908,8 +909,11 @@ impl PostgreSQLDatabase {
         Ok(final_results)
     }
 
-    pub fn get_containing_relation_to_groups_helper(&self, transaction: &Option<&mut Transaction<Postgres>>,
-                                                sql_in: &str)  -> Result<Vec<RelationToGroup>, anyhow::Error>  {
+    pub fn get_containing_relation_to_groups_helper(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        sql_in: &str,
+    ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
         let early_results = self.db_query(transaction, sql_in, "i64")?;
         let mut group_id_results: Vec<i64> = Vec::new();
         let early_results_len = early_results.len();
@@ -931,7 +935,8 @@ impl PostgreSQLDatabase {
         }
         let mut containing_relations_to_group: Vec<RelationToGroup> = Vec::new();
         for gid in group_id_results {
-            let rtgs: Vec<RelationToGroup> = self.get_relations_to_group_containing_this_group(transaction, gid, 0, None)?;
+            let rtgs: Vec<RelationToGroup> =
+                self.get_relations_to_group_containing_this_group(transaction, gid, 0, None)?;
             for rtg in rtgs {
                 containing_relations_to_group.push(rtg);
             }
@@ -1151,7 +1156,11 @@ impl PostgreSQLDatabase {
                 return Err(anyhow!("In get_entities_from_relations_to_local_entity, in get_entities_from_relations_to_local_entity, did not expect returned row to have 0 elements!: {:?}", r));
             }
             if let Some(DataType::Bigint(id)) = r[0] {
-                final_result.push(Entity::new2(Box::new(self as &dyn Database), transaction, id)?);
+                final_result.push(Entity::new2(
+                    Box::new(self as &dyn Database),
+                    transaction,
+                    id,
+                )?);
                 // index += 1
             } else {
                 return Err(anyhow!("In get_entities_from_relations_to_local_entity, in get_entities_from_relations_to_local_entity, did not expect this: {:?}", r[0]));
@@ -1159,7 +1168,7 @@ impl PostgreSQLDatabase {
         }
         Ok(final_result)
     }
-     
+
     // %%
     // /// Returns an array of tuples, each of which is of (sorting_index, Attribute), and a i64 indicating the total # that could be returned with
     // /// infinite display space (total existing).
@@ -1551,62 +1560,90 @@ impl PostgreSQLDatabase {
     }
 
     /*%%
-                  // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
-                    fn add_uri_entity_with_uri_attribute(containingEntityIn: Entity, new_entity_name_in: String, uri_in: String, observation_date_in: i64,
-                                                   makeThem_public_in: Option<bool>, caller_manages_transactions_in: bool,
-                                                   quote_in: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity) {
-                    if quote_in.is_some()) require(!quote_in.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
-                          //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                    // if !caller_manages_transactions_in { self.begin_trans() }
-                    try {
-                      // **idea: BAD SMELL: should this method be moved out of the db class, since it depends on higher-layer components, like EntityClass and
-                      // those in the same package? It was in Controller, but moved here
-                      // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
+                      // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
+                        fn add_uri_entity_with_uri_attribute(containingEntityIn: Entity, new_entity_name_in: String, uri_in: String, observation_date_in: i64,
+                                                       makeThem_public_in: Option<bool>, caller_manages_transactions_in: bool,
+                                                       quote_in: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity) {
+                        if quote_in.is_some()) require(!quote_in.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
+                              //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                        // if !caller_manages_transactions_in { self.begin_trans() }
+                        try {
+                          // **idea: BAD SMELL: should this method be moved out of the db class, since it depends on higher-layer components, like EntityClass and
+                          // those in the same package? It was in Controller, but moved here
+                          // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
 
-                      let (uriClassId: i64, uriClassTemplateId: i64) = get_or_create_class_and_template_entity("URI", caller_manages_transactions_in);
-                      let (_, quotationClassTemplateId: i64) = get_or_create_class_and_template_entity("quote", caller_manages_transactions_in);
-                      let (newEntity: Entity, newRTLE: RelationToLocalEntity) = containingEntityIn.create_entityAndAddHASLocalRelationToIt(new_entity_name_in, observation_date_in,;
-                                                                                                                               makeThem_public_in, caller_manages_transactions_in)
-                      update_entitys_class(newEntity.get_id, Some(uriClassId), caller_manages_transactions_in)
-                      newEntity.addTextAttribute(uriClassTemplateId, uri_in, None, None, observation_date_in, caller_manages_transactions_in)
-                      if quote_in.is_some()) {
-                        newEntity.addTextAttribute(quotationClassTemplateId, quote_in.get, None, None, observation_date_in, caller_manages_transactions_in)
+                          let (uriClassId: i64, uriClassTemplateId: i64) = get_or_create_class_and_template_entity("URI", caller_manages_transactions_in);
+                          let (_, quotationClassTemplateId: i64) = get_or_create_class_and_template_entity("quote", caller_manages_transactions_in);
+                          let (newEntity: Entity, newRTLE: RelationToLocalEntity) = containingEntityIn.create_entityAndAddHASLocalRelationToIt(new_entity_name_in, observation_date_in,;
+                                                                                                                                   makeThem_public_in, caller_manages_transactions_in)
+                          update_entitys_class(newEntity.get_id, Some(uriClassId), caller_manages_transactions_in)
+                          newEntity.addTextAttribute(uriClassTemplateId, uri_in, None, None, observation_date_in, caller_manages_transactions_in)
+                          if quote_in.is_some()) {
+                            newEntity.addTextAttribute(quotationClassTemplateId, quote_in.get, None, None, observation_date_in, caller_manages_transactions_in)
+                          }
+                              //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                          // if !caller_manages_transactions_in {self.commit_trans() }
+                          (newEntity, newRTLE)
+                        } catch {
+                          case e: Exception =>
+                              //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+                            // if !caller_manages_transactions_in) rollback_trans()
+                            throw e
+                        }
                       }
-                          //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                      // if !caller_manages_transactions_in {self.commit_trans() }
-                      (newEntity, newRTLE)
-                    } catch {
-                      case e: Exception =>
-                          //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                        // if !caller_manages_transactions_in) rollback_trans()
-                        throw e
-                    }
-                  }
-*/
-              /// @return the OmInstance object that stands for *this*: the OmInstance to which this PostgreSQLDatabase class instance reads/writes directly.
-            pub fn get_local_om_instance_data(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<OmInstance, anyhow::Error> {
-                let sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE";
-                let results = self.db_query(transaction, sql, "String,String,i64,i64")?;
-                if results.len() != 1 {
-                    return Err(anyhow!("Got {} instead of 1 result from sql {}.  Does the usage now \
-                            warrant removing this check (ie, multiple locals stored)?", results.len(), sql));
-                }
-                let result = results.get(0).unwrap();
-                  let DataType::String(id) = result[0].clone().unwrap() else {
-                      return Err(anyhow!("In pgdb2.get_local_om_instance_data, unexpected value: {:?}", result[0]));
-                  };
-                  let DataType::String(address) = result[1].clone().unwrap() else {
-                      return Err(anyhow!("In pgdb2.get_local_om_instance_data, unexpected value: {:?}", result[1]));
-                  };
-                  let DataType::Bigint(insertion_date) = result[2].clone().unwrap() else {
-                      return Err(anyhow!("In pgdb2.get_local_om_instance_data, unexpected value: {:?}", result[2]));
-                  };
-                  let entity_id = match result[3] {
-                      None => None,
-                      Some(DataType::Bigint(x)) => Some(x),
-                      _ => return Err(anyhow!("Unexpected value {:?} from sql \"{}\".", result[3], sql)),
-                  };
-                Ok(OmInstance::new(Box::new(self), id, true, address,
-                               insertion_date, entity_id))
-              }
+    */
+    /// @return the OmInstance object that stands for *this*: the OmInstance to which this PostgreSQLDatabase class instance reads/writes directly.
+    pub fn get_local_om_instance_data(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+    ) -> Result<OmInstance, anyhow::Error> {
+        let sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE";
+        let results = self.db_query(transaction, sql, "String,String,i64,i64")?;
+        if results.len() != 1 {
+            return Err(anyhow!(
+                "Got {} instead of 1 result from sql {}.  Does the usage now \
+                            warrant removing this check (ie, multiple locals stored)?",
+                results.len(),
+                sql
+            ));
+        }
+        let result = results.get(0).unwrap();
+        let DataType::String(id) = result[0].clone().unwrap() else {
+            return Err(anyhow!(
+                "In pgdb2.get_local_om_instance_data, unexpected value: {:?}",
+                result[0]
+            ));
+        };
+        let DataType::String(address) = result[1].clone().unwrap() else {
+            return Err(anyhow!(
+                "In pgdb2.get_local_om_instance_data, unexpected value: {:?}",
+                result[1]
+            ));
+        };
+        let DataType::Bigint(insertion_date) = result[2].clone().unwrap() else {
+            return Err(anyhow!(
+                "In pgdb2.get_local_om_instance_data, unexpected value: {:?}",
+                result[2]
+            ));
+        };
+        let entity_id = match result[3] {
+            None => None,
+            Some(DataType::Bigint(x)) => Some(x),
+            _ => {
+                return Err(anyhow!(
+                    "Unexpected value {:?} from sql \"{}\".",
+                    result[3],
+                    sql
+                ))
+            }
+        };
+        Ok(OmInstance::new(
+            Box::new(self),
+            id,
+            true,
+            address,
+            insertion_date,
+            entity_id,
+        ))
+    }
 }

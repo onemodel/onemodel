@@ -17,7 +17,7 @@ use crate::model::attribute::Attribute;
 use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
-use md5::{Md5, Digest};
+use md5::{Digest, Md5};
 use sqlx::{Postgres, Transaction};
 use std::ffi::OsStr;
 use std::path::Path;
@@ -36,15 +36,15 @@ pub struct FileAttribute<'a> {
     parent_id: i64,             /*%%= 0_i64*/
     attr_type_id: i64,          /*%%= 0_i64*/
     sorting_index: i64,         /*%%= 0_i64*/
-    description: String, /*= null;*/
-    original_file_date: i64, /*= 0;*/
-    stored_date: i64, /*= 0;*/
+    description: String,        /*= null;*/
+    original_file_date: i64,    /*= 0;*/
+    stored_date: i64,           /*= 0;*/
     original_file_path: String, /*= null;*/
-    readable: bool, /*= false;*/
-    writable: bool, /*= false;*/
-    executable: bool, /*= false;*/
-    size: i64, /*= 0;*/
-    md5hash: String, /*= null;*/
+    readable: bool,             /*= false;*/
+    writable: bool,             /*= false;*/
+    executable: bool,           /*= false;*/
+    size: i64,                  /*= 0;*/
+    md5hash: String,            /*= null;*/
 }
 
 impl FileAttribute<'_> {
@@ -88,36 +88,36 @@ impl FileAttribute<'_> {
         }
     }
 
-  /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
-  /// create a new object.
-  pub fn new2<'a>(
-      db: &'a dyn Database,
-      transaction: &Option<&mut Transaction<Postgres>>,
-      id: i64,
-  ) -> Result<FileAttribute<'a>, anyhow::Error> {
-      // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-      if !db.is_remote() && !db.file_attribute_key_exists(transaction, id)? {
-          Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
-      } else {
-          Ok(FileAttribute {
-              id,
-              db: Box::new(db),
-              already_read_data: false,
-              parent_id: 0,
-              attr_type_id: 0,
-              sorting_index: 0,
-              description: "".to_string(),
-              original_file_date: 0,
-              stored_date: 0,
-              original_file_path: "".to_string(),
-              readable: false,
-              writable: false,
-              executable: false,
-              size: 0,
-              md5hash: "".to_string(),
-          })
-      }
-  }
+    /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
+    /// create a new object.
+    pub fn new2<'a>(
+        db: &'a dyn Database,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        id: i64,
+    ) -> Result<FileAttribute<'a>, anyhow::Error> {
+        // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+        if !db.is_remote() && !db.file_attribute_key_exists(transaction, id)? {
+            Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
+        } else {
+            Ok(FileAttribute {
+                id,
+                db: Box::new(db),
+                already_read_data: false,
+                parent_id: 0,
+                attr_type_id: 0,
+                sorting_index: 0,
+                description: "".to_string(),
+                original_file_date: 0,
+                stored_date: 0,
+                original_file_path: "".to_string(),
+                readable: false,
+                writable: false,
+                executable: false,
+                size: 0,
+                md5hash: "".to_string(),
+            })
+        }
+    }
 
     //Tested with Entity code.  Search for usages to see.
     fn md5_hash(path_in: &std::path::Path) -> Result<String, anyhow::Error> {
@@ -193,7 +193,6 @@ impl FileAttribute<'_> {
          */
     }
 
-
     fn get_filename_filler() -> String {
         "aaa".to_string()
     }
@@ -201,18 +200,26 @@ impl FileAttribute<'_> {
     /// Returns a prefix and suffix (like, "filename" and ".ext").
     /// I.e., for use with java.nio.file.Files.createTempFile (which makes sure it will not collide with existing names).
     /// Calling this likely presumes that the caller has already decided not to use the old path, or at least the old filename in the temp directory.
-    fn get_usable_filename(/*%%noSelf*/ original_file_path_in: &str) -> Result<(String, String), anyhow::Error> {
+    fn get_usable_filename(
+        /*%%noSelf*/ original_file_path_in: &str,
+    ) -> Result<(String, String), anyhow::Error> {
         let file_name: &OsStr = match Path::new(original_file_path_in).file_name() {
             Some(s) => s,
             None => return Err(anyhow!("No file name in {} ?", original_file_path_in)),
         };
         let file_stem: String = match Path::new(file_name).file_stem() {
             Some(s) => s.to_string_lossy().into_owned(),
-            None => return Err(anyhow!("No file stem in the filename part of {} ?", original_file_path_in)),
+            None => {
+                return Err(anyhow!(
+                    "No file stem in the filename part of {} ?",
+                    original_file_path_in
+                ))
+            }
         };
 
         // base_name (in scala anyway) had to be at least 3 chars, for createTempFile:
-        let base_name_padded: String = format!("{}{}", file_stem, FileAttribute::get_filename_filler());
+        let base_name_padded: String =
+            format!("{}{}", file_stem, FileAttribute::get_filename_filler());
         let length_to_take = std::cmp::max(file_stem.len(), 3);
         let base_name = Util::substring_from_start(base_name_padded.as_str(), length_to_take);
 
@@ -223,8 +230,7 @@ impl FileAttribute<'_> {
             };
             if dotless_extension.len() > 0 {
                 format!(".{}", dotless_extension)
-            }
-            else {
+            } else {
                 "".to_string()
             }
         };
@@ -237,8 +243,11 @@ impl FileAttribute<'_> {
     }
 
     fn get_dates_description(&mut self) -> Result<String, anyhow::Error> {
-        Ok(format!("mod {}, stored {}", Util::useful_date_format(self.get_original_file_date()?),
-                Util::useful_date_format(self.get_stored_date()?)))
+        Ok(format!(
+            "mod {}, stored {}",
+            Util::useful_date_format(self.get_original_file_date()?),
+            Util::useful_date_format(self.get_stored_date()?)
+        ))
     }
 
     fn get_original_file_date(&mut self) -> Result<i64, anyhow::Error> {
@@ -322,60 +331,61 @@ impl FileAttribute<'_> {
 
     /* %%impl these after more basics are done
 
-    // Idea: how make the 2nd parameter an option with None as default, instead of null as default?
-    fn retrieveContent(file_in: File, damageFileForTesting: (File) => Unit = null) {
-        let mut outputStream: FileOutputStream = null;
-        try {
-            if (!file_in.exists()) || file_in.length() < this.get_size()) {
-                let space = get_usable_space(file_in);
-                if space > -1 && space < this.get_size()) throw new OmException("Not enough space on disk to retrieve file of size " + this.get_file_size_description + ".")
+        // Idea: how make the 2nd parameter an option with None as default, instead of null as default?
+        fn retrieveContent(file_in: File, damageFileForTesting: (File) => Unit = null) {
+            let mut outputStream: FileOutputStream = null;
+            try {
+                if (!file_in.exists()) || file_in.length() < this.get_size()) {
+                    let space = get_usable_space(file_in);
+                    if space > -1 && space < this.get_size()) throw new OmException("Not enough space on disk to retrieve file of size " + this.get_file_size_description + ".")
+                }
+                outputStream = new FileOutputStream(file_in)
+                //idea: if the file exists, copy out to a temp name, then after retrieval delete it & rename the new one to it? (uses more space)
+                let (sizeStoredInDb, hashStoredInDb) = db.get_file_attribute_content(get_id, outputStream);
+                // idea: this could be made more efficient if we checked the hash during streaming it to the local disk (in db.get_file_attribute_content)
+                // (as does db.verifyFileAttributeContent).
+
+                // this is a hook so tests can verify that we do fail if the file isn't intact
+                // (Idea:  huh?? This next line does nothing. Noted in tasks to see what is meant & make it do that. or at least more clear.)
+                //noinspection ScalaUselessExpression  //left intentionally for reading clarify
+                if damageFileForTesting != null) damageFileForTesting
+
+                let downloadedFilesHash = FileAttribute::md5_hash(file_in);
+                if file_in.length != sizeStoredInDb) throw new OmFileTransferException("File sizes differ!: stored/downloaded: " + sizeStoredInDb + " / " + file_in
+                    .length())
+                if downloadedFilesHash != hashStoredInDb) throw new OmFileTransferException("The md5sum hashes differ!: stored/downloaded: " + hashStoredInDb + " / "
+                    + downloadedFilesHash)
+                file_in.setReadable(self.get_readable())
+                file_in.setWritable(self.get_writeable())
+                file_in.setExecutable(self.get_executable())
+            } finally {
+                if outputStream != null) outputStream.close()
             }
-            outputStream = new FileOutputStream(file_in)
-            //idea: if the file exists, copy out to a temp name, then after retrieval delete it & rename the new one to it? (uses more space)
-            let (sizeStoredInDb, hashStoredInDb) = db.get_file_attribute_content(get_id, outputStream);
-            // idea: this could be made more efficient if we checked the hash during streaming it to the local disk (in db.get_file_attribute_content)
-            // (as does db.verifyFileAttributeContent).
-
-            // this is a hook so tests can verify that we do fail if the file isn't intact
-            // (Idea:  huh?? This next line does nothing. Noted in tasks to see what is meant & make it do that. or at least more clear.)
-            //noinspection ScalaUselessExpression  //left intentionally for reading clarify
-            if damageFileForTesting != null) damageFileForTesting
-
-            let downloadedFilesHash = FileAttribute::md5_hash(file_in);
-            if file_in.length != sizeStoredInDb) throw new OmFileTransferException("File sizes differ!: stored/downloaded: " + sizeStoredInDb + " / " + file_in
-                .length())
-            if downloadedFilesHash != hashStoredInDb) throw new OmFileTransferException("The md5sum hashes differ!: stored/downloaded: " + hashStoredInDb + " / "
-                + downloadedFilesHash)
-            file_in.setReadable(self.get_readable())
-            file_in.setWritable(self.get_writeable())
-            file_in.setExecutable(self.get_executable())
-        } finally {
-            if outputStream != null) outputStream.close()
         }
-    }
-*/
+    */
     fn get_permissions_description(&mut self) -> Result<String, anyhow::Error> {
         //ex: rwx or rw-, like "ls -l" does
-        Ok(format!("{}{}{}",
-                if self.get_readable()? {"r"} else {"-"},
-                if self.get_writeable()? {"w"} else {"-"},
-                if self.get_executable()? {"x"} else {"-"}
+        Ok(format!(
+            "{}{}{}",
+            if self.get_readable()? { "r" } else { "-" },
+            if self.get_writeable()? { "w" } else { "-" },
+            if self.get_executable()? { "x" } else { "-" }
         ))
     }
 
     fn get_file_size_description(&mut self) -> String {
-    /*%%
-        // note: it seems that (as per SI? IEC?), 1024 bytes is now 1 "binary kilobyte" aka kibibyte or KiB, etc.
-        let decimalFormat = new java.text.DecimalFormat("0");
-        if get_size() < math.pow(10, 3)) "" + get_size() + " bytes"
-        else if get_size() < math.pow(10, 6)) "" + decimalFormat.format(get_size() / math.pow(10, 3)) + "kB (" + get_size() + ")"
-        else if get_size() < math.pow(10, 9)) "" + decimalFormat.format(get_size() / math.pow(10, 6)) + "MB (" + get_size() + ")"
-        else "" + decimalFormat.format(get_size() / math.pow(10, 9)) + "GB (" + get_size() + ")"
-     */
+        /*%%
+           // note: it seems that (as per SI? IEC?), 1024 bytes is now 1 "binary kilobyte" aka kibibyte or KiB, etc.
+           let decimalFormat = new java.text.DecimalFormat("0");
+           if get_size() < math.pow(10, 3)) "" + get_size() + " bytes"
+           else if get_size() < math.pow(10, 6)) "" + decimalFormat.format(get_size() / math.pow(10, 3)) + "kB (" + get_size() + ")"
+           else if get_size() < math.pow(10, 9)) "" + decimalFormat.format(get_size() / math.pow(10, 6)) + "MB (" + get_size() + ")"
+           else "" + decimalFormat.format(get_size() / math.pow(10, 9)) + "GB (" + get_size() + ")"
+        */
         "[%%fill in fn get_file_size_description]".to_string()
     }
 
-/*
+    /*
     fn update(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -440,7 +450,6 @@ impl FileAttribute<'_> {
     //}
 
     */
-
 }
 
 impl Attribute for FileAttribute<'_> {
@@ -457,7 +466,12 @@ impl Attribute for FileAttribute<'_> {
             None => "(None)".to_string(),
             Some(x) => x,
         };
-        let mut result: String = format!("{} ({}); {}", self.get_description()?, type_name, self.get_file_size_description());
+        let mut result: String = format!(
+            "{} ({}); {}",
+            self.get_description()?,
+            type_name,
+            self.get_file_size_description()
+        );
         if !simplify {
             result = format!(
                 "{} {} from {}, {}; md5 {}.",
@@ -486,8 +500,7 @@ impl Attribute for FileAttribute<'_> {
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<(), anyhow::Error> {
-        let data: Vec<Option<DataType>> =
-            self.db.get_file_attribute_data(transaction, self.id)?;
+        let data: Vec<Option<DataType>> = self.db.get_file_attribute_data(transaction, self.id)?;
         if data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -551,27 +564,27 @@ impl Attribute for FileAttribute<'_> {
 
         Ok(())
     }
-  // protected fn read_data_from_db() {
-  //   description = faTypeData(1).get.asInstanceOf[String]
-  //   original_file_date = faTypeData(4).get.asInstanceOf[i64]
-  //   stored_date = faTypeData(5).get.asInstanceOf[i64]
-  //   original_file_path = faTypeData(6).get.asInstanceOf[String]
-  //   mReadable = faTypeData(7).get.asInstanceOf[bool]
-  //   mWritable = faTypeData(8).get.asInstanceOf[bool]
-  //   mExecutable = faTypeData(9).get.asInstanceOf[bool]
-  //   mSize = faTypeData(10).get.asInstanceOf[i64]
-  //   mMd5hash = faTypeData(11).get.asInstanceOf[String]
+    // protected fn read_data_from_db() {
+    //   description = faTypeData(1).get.asInstanceOf[String]
+    //   original_file_date = faTypeData(4).get.asInstanceOf[i64]
+    //   stored_date = faTypeData(5).get.asInstanceOf[i64]
+    //   original_file_path = faTypeData(6).get.asInstanceOf[String]
+    //   mReadable = faTypeData(7).get.asInstanceOf[bool]
+    //   mWritable = faTypeData(8).get.asInstanceOf[bool]
+    //   mExecutable = faTypeData(9).get.asInstanceOf[bool]
+    //   mSize = faTypeData(10).get.asInstanceOf[i64]
+    //   mMd5hash = faTypeData(11).get.asInstanceOf[String]
     // assign_common_vars(faTypeData(0).get.asInstanceOf[i64], faTypeData(2).get.asInstanceOf[i64], faTypeData(3).get.asInstanceOf[i64])
-  // }
+    // }
 
-  /** Removes this object from the system. */
-  fn delete<'a>(
-      &'a self,
-      transaction: &Option<&mut Transaction<'a, Postgres>>,
-      id_in: i64,
-  ) -> Result<u64, anyhow::Error> {
-      self.db.delete_file_attribute(transaction, id_in)
-  }
+    /** Removes this object from the system. */
+    fn delete<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        id_in: i64,
+    ) -> Result<u64, anyhow::Error> {
+        self.db.delete_file_attribute(transaction, id_in)
+    }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned
     // regardless of already_read_data / read_data_from_db().
@@ -619,72 +632,72 @@ impl Attribute for FileAttribute<'_> {
 
 #[cfg(test)]
 mod test {
-/*%%put this back after similar place in boolean_attribute.rs is resolved and this can be similarly:
-  "get_display_string" should "return correct string and length" in {
-    let mock_db = mock[PostgreSQLDatabase];
-    let entity_id: i64 = 0;
-    let other_entity_id: i64 = 1;
-    let fileAttributeId: i64 = 0;
-    //arbitrary, in milliseconds:
-    let modifiedDate: i64 = 304;
-    let stored_date: i64 = modifiedDate + 1;
-    let attr_type_name = "txt format";
-    let longDescription = "this is a longish description of a file";
-    let filePath = "/tmp/w.jpeg";
-    let size = 12345678;
-    //noinspection SpellCheckingInspection
-    let hash = "e156b9a37060ccbcbffe5ec0fc967016";
-    when(mock_db.get_entity_name(other_entity_id)).thenReturn(Some(attr_type_name))
-    when(mock_db.file_attribute_key_exists(fileAttributeId)).thenReturn(true)
+    /*%%put this back after similar place in boolean_attribute.rs is resolved and this can be similarly:
+     "get_display_string" should "return correct string and length" in {
+       let mock_db = mock[PostgreSQLDatabase];
+       let entity_id: i64 = 0;
+       let other_entity_id: i64 = 1;
+       let fileAttributeId: i64 = 0;
+       //arbitrary, in milliseconds:
+       let modifiedDate: i64 = 304;
+       let stored_date: i64 = modifiedDate + 1;
+       let attr_type_name = "txt format";
+       let longDescription = "this is a longish description of a file";
+       let filePath = "/tmp/w.jpeg";
+       let size = 12345678;
+       //noinspection SpellCheckingInspection
+       let hash = "e156b9a37060ccbcbffe5ec0fc967016";
+       when(mock_db.get_entity_name(other_entity_id)).thenReturn(Some(attr_type_name))
+       when(mock_db.file_attribute_key_exists(fileAttributeId)).thenReturn(true)
 
-    // (using arbitrary numbers for the unnamed parameters):
-    let fileAttribute = new FileAttribute(mock_db, fileAttributeId, entity_id, other_entity_id, longDescription, modifiedDate, stored_date, filePath, true, true,;
-                                          false, size, hash, 0)
-    let small_limit = 35;
-    let display1: String = fileAttribute.get_display_string(small_limit);
-    let whole_thing: String = longDescription + " (" + attr_type_name + "); 12MB (12345678) rw- from " + filePath + ", " +;
-                             "mod Wed 1969-12-31 17:00:00:" + modifiedDate + " MST, " +
-                             "stored Wed 1969-12-31 17:00:00:" + stored_date + " MST; md5 " +
-                             hash + "."
-    let expected: String = whole_thing.substring(0, small_limit - 3) + "..." // put the real string here instead of dup logic?;
-    assert(display1 == expected)
+       // (using arbitrary numbers for the unnamed parameters):
+       let fileAttribute = new FileAttribute(mock_db, fileAttributeId, entity_id, other_entity_id, longDescription, modifiedDate, stored_date, filePath, true, true,;
+                                             false, size, hash, 0)
+       let small_limit = 35;
+       let display1: String = fileAttribute.get_display_string(small_limit);
+       let whole_thing: String = longDescription + " (" + attr_type_name + "); 12MB (12345678) rw- from " + filePath + ", " +;
+                                "mod Wed 1969-12-31 17:00:00:" + modifiedDate + " MST, " +
+                                "stored Wed 1969-12-31 17:00:00:" + stored_date + " MST; md5 " +
+                                hash + "."
+       let expected: String = whole_thing.substring(0, small_limit - 3) + "..." // put the real string here instead of dup logic?;
+       assert(display1 == expected)
 
-    let unlimited = 0;
-    let display2: String = fileAttribute.get_display_string(unlimited);
-    assert(display2 == whole_thing)
-  }
+       let unlimited = 0;
+       let display2: String = fileAttribute.get_display_string(unlimited);
+       assert(display2 == whole_thing)
+     }
 
-  "getReplacementFilename" should "work" in {
-    // This all is intended to make the file names made by File.createTempFile come out in a nice (readable/memorable/similar such as for hidden) way when it
-    // is used.
-    let fileAttributeId = 0L;
-    let mock_db = mock[PostgreSQLDatabase];
-    when(mock_db.file_attribute_key_exists(fileAttributeId)).thenReturn(true)
+     "getReplacementFilename" should "work" in {
+       // This all is intended to make the file names made by File.createTempFile come out in a nice (readable/memorable/similar such as for hidden) way when it
+       // is used.
+       let fileAttributeId = 0L;
+       let mock_db = mock[PostgreSQLDatabase];
+       when(mock_db.file_attribute_key_exists(fileAttributeId)).thenReturn(true)
 
-    let mut originalName = "";
-    let fa: FileAttribute = new FileAttribute(mock_db, fileAttributeId) {override fn get_original_file_path() -> String { originalName}};
-    let (basename, extension) = FileAttribute.get_usable_filename(fa.get_original_file_path());
-    assert(basename == FileAttribute::get_filename_filler() && extension == "")
+       let mut originalName = "";
+       let fa: FileAttribute = new FileAttribute(mock_db, fileAttributeId) {override fn get_original_file_path() -> String { originalName}};
+       let (basename, extension) = FileAttribute.get_usable_filename(fa.get_original_file_path());
+       assert(basename == FileAttribute::get_filename_filler() && extension == "")
 
-    originalName = "something.txt"
-    let (basename2, extension2) = FileAttribute.get_usable_filename(fa.get_original_file_path());
-    assert(basename2 == "something" && extension2 == ".txt")
+       originalName = "something.txt"
+       let (basename2, extension2) = FileAttribute.get_usable_filename(fa.get_original_file_path());
+       assert(basename2 == "something" && extension2 == ".txt")
 
-    originalName = "someFilename"
-    let (basename3, extension3) = FileAttribute.get_usable_filename(fa.get_original_file_path());
-    assert(basename3 == "someFilename" && extension3 == "")
+       originalName = "someFilename"
+       let (basename3, extension3) = FileAttribute.get_usable_filename(fa.get_original_file_path());
+       assert(basename3 == "someFilename" && extension3 == "")
 
-    originalName = ".hidden"
-    let (basename4, extension4) = FileAttribute.get_usable_filename(fa.get_original_file_path());
-    assert(basename4 == ".hidden" && extension4 == "")
+       originalName = ".hidden"
+       let (basename4, extension4) = FileAttribute.get_usable_filename(fa.get_original_file_path());
+       assert(basename4 == ".hidden" && extension4 == "")
 
-    originalName = "1.txt"
-    let (basename5, extension5) = FileAttribute.get_usable_filename(fa.get_original_file_path());
-    assert(basename5 == "1aa" && extension5 == ".txt")
+       originalName = "1.txt"
+       let (basename5, extension5) = FileAttribute.get_usable_filename(fa.get_original_file_path());
+       assert(basename5 == "1aa" && extension5 == ".txt")
 
-    originalName = "some.long.thing"
-    let (basename6, extension6) = FileAttribute.get_usable_filename(fa.get_original_file_path());
-    assert(basename6 == "some.long" && extension6 == ".thing")
-  }
- */
+       originalName = "some.long.thing"
+       let (basename6, extension6) = FileAttribute.get_usable_filename(fa.get_original_file_path());
+       assert(basename6 == "some.long" && extension6 == ".thing")
+     }
+    */
 }
