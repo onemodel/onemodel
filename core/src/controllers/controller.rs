@@ -1737,27 +1737,27 @@ impl Controller {
                                                                  askForAttrTypeId, Util.QUANTITY_TYPE,
                                                                  Some(Util.QUANTITY_TYPE_PROMPT), ask_for_quantity_attribute_numberAndUnit, add_quantity_attribute)
         } else if attrFormIn == Database.get_attribute_form_id(Util.DATE_TYPE)) {
-          def addDateAttribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
-            Some(entity_in.addDateAttribute(dhIn.attr_type_id, dhIn.date))
+          def add_date_attribute(dhIn: DateAttributeDataHolder): Option[DateAttribute] = {
+            Some(entity_in.add_date_attribute(dhIn.attr_type_id, dhIn.date))
           }
           askForInfoAndAddAttribute[DateAttributeDataHolder](entity_in.db, new DateAttributeDataHolder(attr_type_id, 0), askForAttrTypeId, Util.DATE_TYPE,
-                                                             Some("SELECT TYPE OF DATE: "), Util.ask_for_date_attribute_value, addDateAttribute)
+                                                             Some("SELECT TYPE OF DATE: "), Util.ask_for_date_attribute_value, add_date_attribute)
         } else if attrFormIn == Database.get_attribute_form_id(Util.BOOLEAN_TYPE)) {
-          def addBooleanAttribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
-            Some(entity_in.addBooleanAttribute(dhIn.attr_type_id, dhIn.boolean, None))
+          def add_boolean_attribute(dhIn: BooleanAttributeDataHolder): Option[BooleanAttribute] = {
+            Some(entity_in.add_boolean_attribute(dhIn.attr_type_id, dhIn.boolean, None))
           }
           askForInfoAndAddAttribute[BooleanAttributeDataHolder](entity_in.db, new BooleanAttributeDataHolder(attr_type_id, None, System.currentTimeMillis(), false),
                                                                 askForAttrTypeId,
                                                                 Util.BOOLEAN_TYPE, Some("SELECT TYPE OF TRUE/FALSE VALUE: "),  Util.askForBooleanAttributeValue,
-                                                                addBooleanAttribute)
+                                                                add_boolean_attribute)
         } else if attrFormIn == Database.get_attribute_form_id(Util.FILE_TYPE)) {
-          def addFileAttribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
-            Some(entity_in.addFileAttribute(dhIn.attr_type_id, dhIn.description, new File(dhIn.original_file_path)))
+          def add_file_attribute(dhIn: FileAttributeDataHolder): Option[FileAttribute] = {
+            Some(entity_in.add_file_attribute(dhIn.attr_type_id, dhIn.description, new File(dhIn.original_file_path)))
           }
           let result: Option[FileAttribute] = askForInfoAndAddAttribute[FileAttributeDataHolder](entity_in.db, new FileAttributeDataHolder(attr_type_id, "", ""),;
                                                                                                  askForAttrTypeId, Util.FILE_TYPE,
                                                                                                  Some("SELECT TYPE OF FILE: "), Util.ask_for_file_attribute_info,
-                                                                                                 addFileAttribute).asInstanceOf[Option[FileAttribute]]
+                                                                                                 add_file_attribute).asInstanceOf[Option[FileAttribute]]
           if result.is_defined) {
             let ans = ui.ask_yes_no_question("Document successfully added. Do you want to DELETE the local copy (at " + result.get.get_original_file_path() + " ?");
             if ans.is_defined && ans.get) {
@@ -1768,12 +1768,12 @@ impl Controller {
           }
           result
         } else if attrFormIn == Database.get_attribute_form_id(Util.TEXT_TYPE)) {
-          def addTextAttribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
-            Some(entity_in.addTextAttribute(dhIn.attr_type_id, dhIn.text, None, dhIn.valid_on_date, dhIn.observation_date))
+          def add_text_attribute(dhIn: TextAttributeDataHolder): Option[TextAttribute] = {
+            Some(entity_in.add_text_attribute(dhIn.attr_type_id, dhIn.text, None, dhIn.valid_on_date, dhIn.observation_date))
           }
           askForInfoAndAddAttribute[TextAttributeDataHolder](entity_in.db, new TextAttributeDataHolder(attr_type_id, None, System.currentTimeMillis(), ""),
                                                              askForAttrTypeId, Util.TEXT_TYPE,
-                                                             Some("SELECT TYPE OF " + Util.TEXT_DESCRIPTION + ": "), Util.ask_for_text_attribute_text, addTextAttribute)
+                                                             Some("SELECT TYPE OF " + Util.TEXT_DESCRIPTION + ": "), Util.ask_for_text_attribute_text, add_text_attribute)
         } else if attrFormIn == Database.get_attribute_form_id(Util.RELATION_TO_LOCAL_ENTITY_TYPE)) {
           //(This is in a condition that says "...LOCAL..." but is also for RELATION_TO_REMOTE_ENTITY_TYPE.  See caller for details if interested.)
           def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[AttributeWithValidAndObservedDates] = {
@@ -1795,7 +1795,7 @@ impl Controller {
           // re "100": see javadoc comments above re attrFormIn
           let eId: Option[IdWrapper] = askForNameAndSearchForEntity(entity_in.db);
           if eId.is_defined) {
-            Some(entity_in.add_has_relation_to_local_entity(eId.get.get_id, None, System.currentTimeMillis))
+            Some(entity_in.add_has_RelationToLocalEntity(eId.get.get_id, None, System.currentTimeMillis))
           } else {
             None
           }
@@ -1948,17 +1948,17 @@ impl Controller {
                                                      Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: DateAttribute =>
                   promptToEditAttributeCopy()
-                  Some(entity_in.addDateAttribute(templateAttribute.get_attr_type_id(), templateAttribute.get_date, Some(templateAttribute.get_sorting_index)))
+                  Some(entity_in.add_date_attribute(templateAttribute.get_attr_type_id(), templateAttribute.get_date, Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: BooleanAttribute =>
                   promptToEditAttributeCopy()
-                  Some(entity_in.addBooleanAttribute(templateAttribute.get_attr_type_id(), templateAttribute.get_boolean, Some(templateAttribute.get_sorting_index)))
+                  Some(entity_in.add_boolean_attribute(templateAttribute.get_attr_type_id(), templateAttribute.get_boolean, Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: FileAttribute =>
                   ui.display_text("You can add a FileAttribute manually afterwards for this attribute.  Maybe it can be automated " +
                                  "more, when use cases for this part are more clear.")
                   None
                 case templateAttribute: TextAttribute =>
                   promptToEditAttributeCopy()
-                  Some(entity_in.addTextAttribute(templateAttribute.get_attr_type_id(), templateAttribute.get_text, Some(templateAttribute.get_sorting_index)))
+                  Some(entity_in.add_text_attribute(templateAttribute.get_attr_type_id(), templateAttribute.get_text, Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: RelationToLocalEntity =>
                   let (new_rte, askEveryTime) = copyAndEditRelationToEntity(entity_in, templateAttribute, askAboutRteEveryTime);
                   askAboutRteEveryTime = askEveryTime

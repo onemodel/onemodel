@@ -1179,6 +1179,8 @@ impl Util {
             //mbe not needed?: just return the db?
             // for why this is safe, see explanation & examples in above link to doc.rust-lang.org .
             // unsafe {
+            //     //%% NOTE!!!: If I uncomment & use this, sch for "static mutable singleton rust"
+            //     to find a safe pattern for that.
             //     TEST_DB = Some(db);
             // }
 

@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2023 inclusive, Luke A. Call.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2024 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -35,7 +35,7 @@ use std::collections::HashSet;
 
 impl PostgreSQLDatabase {
     // Moved methods that are not part of the Database trait go here
-    // or in postgresql_database.rs (split up to make smaller files,
+    // or in postgresql_database.rs (they are split to make smaller files,
     // for parsing speed during intellij editing).
 
     pub fn limit_to_entities_only(select_column_names: &str) -> String {
@@ -568,10 +568,10 @@ impl PostgreSQLDatabase {
 
     // See comment in ImportExport.processUriContent method which uses it, about where the
     // code should really go. Not sure if that idea includes this method or not.
-    fn find_first_class_id_by_name(
+    pub fn find_first_class_id_by_name(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
-        name_in: String,
+        name_in: &str,
         case_sensitive: bool, /*= false*/
     ) -> Result<Option<i64>, anyhow::Error> {
         // idea: see if queries like this are using the expected db index (run & ck the query
@@ -601,7 +601,7 @@ impl PostgreSQLDatabase {
         }
     }
     /// @return the id of the new RTE
-    pub fn add_has_relation_to_local_entity<'a>(
+    pub fn add_has_RelationToLocalEntity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         from_entity_id_in: i64,
@@ -612,7 +612,7 @@ impl PostgreSQLDatabase {
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
         let relation_type_id: i64 =
             self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
-        let new_rte = self.create_relation_to_local_entity(
+        let new_rte = self.create_RelationToLocalEntity(
             transaction,
             relation_type_id,
             from_entity_id_in,
@@ -771,7 +771,7 @@ impl PostgreSQLDatabase {
         )
     }
 
-    pub fn get_all_relation_to_local_entity_data_by_id(
+    pub fn get_all_RelationToLocalEntity_data_by_id(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
@@ -846,7 +846,7 @@ impl PostgreSQLDatabase {
         )
     }
 
-    fn relation_to_local_entity_exists(
+    fn RelationToLocalEntity_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         rel_type_id_in: i64,
@@ -1559,39 +1559,6 @@ impl PostgreSQLDatabase {
         }
     }
 
-    /*%%
-                      // (see note in ImportExport's call to this, on this being better in the class and action *tables*, but here for now until those features are ready)
-                        fn add_uri_entity_with_uri_attribute(containingEntityIn: Entity, new_entity_name_in: String, uri_in: String, observation_date_in: i64,
-                                                       makeThem_public_in: Option<bool>, caller_manages_transactions_in: bool,
-                                                       quote_in: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity) {
-                        if quote_in.is_some()) require(!quote_in.get.isEmpty, "It doesn't make sense to store a blank quotation; there was probably a program error.")
-                              //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                        // if !caller_manages_transactions_in { self.begin_trans() }
-                        try {
-                          // **idea: BAD SMELL: should this method be moved out of the db class, since it depends on higher-layer components, like EntityClass and
-                          // those in the same package? It was in Controller, but moved here
-                          // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
-
-                          let (uriClassId: i64, uriClassTemplateId: i64) = get_or_create_class_and_template_entity("URI", caller_manages_transactions_in);
-                          let (_, quotationClassTemplateId: i64) = get_or_create_class_and_template_entity("quote", caller_manages_transactions_in);
-                          let (newEntity: Entity, newRTLE: RelationToLocalEntity) = containingEntityIn.create_entityAndAddHASLocalRelationToIt(new_entity_name_in, observation_date_in,;
-                                                                                                                                   makeThem_public_in, caller_manages_transactions_in)
-                          update_entitys_class(newEntity.get_id, Some(uriClassId), caller_manages_transactions_in)
-                          newEntity.addTextAttribute(uriClassTemplateId, uri_in, None, None, observation_date_in, caller_manages_transactions_in)
-                          if quote_in.is_some()) {
-                            newEntity.addTextAttribute(quotationClassTemplateId, quote_in.get, None, None, observation_date_in, caller_manages_transactions_in)
-                          }
-                              //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                          // if !caller_manages_transactions_in {self.commit_trans() }
-                          (newEntity, newRTLE)
-                        } catch {
-                          case e: Exception =>
-                              //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                            // if !caller_manages_transactions_in) rollback_trans()
-                            throw e
-                        }
-                      }
-    */
     /// @return the OmInstance object that stands for *this*: the OmInstance to which this PostgreSQLDatabase class instance reads/writes directly.
     pub fn get_local_om_instance_data(
         &self,

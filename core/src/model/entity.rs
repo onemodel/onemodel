@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010-2017 inclusive, 2020, and 2023, Luke A. Call.
+    Copyright in each year of 2003, 2004, 2010-2017 inclusive, 2020, and 2023-2024 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -13,6 +13,7 @@ use crate::model::date_attribute::DateAttribute;
 use crate::model::file_attribute::FileAttribute;
 use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_to_group::RelationToGroup;
+use crate::model::relation_to_local_entity::RelationToLocalEntity;
 //use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
 use crate::color::Color;
 use crate::model::quantity_attribute::QuantityAttribute;
@@ -43,6 +44,82 @@ import org.onemodel.core._
 import scala.collection.mutable
 */
 impl Entity<'_> {
+    const PRIVACY_PUBLIC: &'static str = "[PUBLIC]";
+    const PRIVACY_NON_PUBLIC: &'static str = "[NON-PUBLIC]";
+    const PRIVACY_UNSET: &'static str = "[UNSET]";
+
+    /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
+    /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
+    /// one that already exists.
+    pub fn new<'a>(
+        db: Box<&'a dyn Database>,
+        id: i64,
+        name: String,
+        class_id: Option<i64>, /*= None*/
+        insertion_date: i64,
+        public: Option<bool>,
+        archived: bool,
+        new_entries_stick_to_top: bool,
+    ) -> Entity<'a> {
+        Entity {
+            id,
+            db, //: Box::new(db as &dyn Database),
+            name,
+            class_id,
+            insertion_date,
+            public,
+            archived,
+            new_entries_stick_to_top,
+            already_read_data: true,
+        }
+    }
+    /*
+         /// Allows create_entity to return an instance without duplicating the database check that it Entity(long, Database) does.
+         /// (The 3rd parameter "ignore_me" is so it will have a different signature and avoid compile errors.)
+         // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and EntityTest etc could be with mocks
+         // instead of real db use.)  Does this really skip that other check though?
+       pub fn new3(db: Box<&dyn Database>, id: i64, _ignore_me: bool) -> Entity {
+             Entity {
+                 id,
+                 db,
+                 already_read_data: false,
+                 name: "".to_string(),
+                 class_id: None,
+                 insertion_date: -1,
+                 public: None,
+                 archived: false,
+                 new_entries_stick_to_top: false,
+             }
+       }
+    */
+
+    /// Represents one object in the system.
+    /// This constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
+    /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
+    /// (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
+    /// set... method to fix it.)
+    pub fn new2<'a>(
+        db: Box<&'a dyn Database>,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        id: i64,
+    ) -> Result<Entity<'a>, anyhow::Error> {
+        // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+        if !db.is_remote() && !db.entity_key_exists(transaction, id, true)? {
+            return Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST));
+        }
+        Ok(Entity {
+            id,
+            db,
+            already_read_data: false,
+            name: "".to_string(),
+            class_id: None,
+            insertion_date: -1,
+            public: None,
+            archived: false,
+            new_entries_stick_to_top: false,
+        })
+    }
+
     fn create_entity<'a>(
         db: &'a dyn Database,
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
@@ -86,82 +163,6 @@ impl Entity<'_> {
             }
         }
     }
-
-    const PRIVACY_PUBLIC: &'static str = "[PUBLIC]";
-    const PRIVACY_NON_PUBLIC: &'static str = "[NON-PUBLIC]";
-    const PRIVACY_UNSET: &'static str = "[UNSET]";
-
-    /// Represents one object in the system.
-    /// This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
-    /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
-    /// (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
-    /// set... method to fix it.)
-    pub fn new2<'a>(
-        db: Box<&'a dyn Database>,
-        transaction: &Option<&mut Transaction<Postgres>>,
-        id: i64,
-    ) -> Result<Entity<'a>, anyhow::Error> {
-        // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-        if !db.is_remote() && !db.entity_key_exists(transaction, id, true)? {
-            return Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST));
-        }
-        Ok(Entity {
-            id,
-            db,
-            already_read_data: false,
-            name: "".to_string(),
-            class_id: None,
-            insertion_date: -1,
-            public: None,
-            archived: false,
-            new_entries_stick_to_top: false,
-        })
-    }
-
-    /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
-    /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
-    /// one that already exists.
-    pub fn new8<'a>(
-        db: Box<&'a dyn Database>,
-        id: i64,
-        name: String,
-        class_id: Option<i64>, /*= None*/
-        insertion_date: i64,
-        public: Option<bool>,
-        archived: bool,
-        new_entries_stick_to_top: bool,
-    ) -> Entity<'a> {
-        Entity {
-            id,
-            db, //: Box::new(db as &dyn Database),
-            name,
-            class_id,
-            insertion_date,
-            public,
-            archived,
-            new_entries_stick_to_top,
-            already_read_data: true,
-        }
-    }
-    /*
-         /// Allows create_entity to return an instance without duplicating the database check that it Entity(long, Database) does.
-         /// (The 3rd parameter "ignore_me" is so it will have a different signature and avoid compile errors.)
-         // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and EntityTest etc could be with mocks
-         // instead of real db use.)  Does this really skip that other check though?
-       pub fn new3(db: Box<&dyn Database>, id: i64, _ignore_me: bool) -> Entity {
-             Entity {
-                 id,
-                 db,
-                 already_read_data: false,
-                 name: "".to_string(),
-                 class_id: None,
-                 insertion_date: -1,
-                 public: None,
-                 archived: false,
-                 new_entries_stick_to_top: false,
-             }
-       }
-    */
 
     /// When using, consider if get_archived_status_display_string should be called with it in the
     /// display (see usage examples of get_archived_status_display_string).
@@ -562,7 +563,7 @@ impl Entity<'_> {
         QuantityAttribute::new2(*self.db, transaction, in_key)
     }
 
-    fn get_textAttribute<'a>(
+    fn get_text_attribute<'a>(
         &'a self,
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         in_key: i64,
@@ -570,7 +571,7 @@ impl Entity<'_> {
         TextAttribute::new2(*self.db, transaction, in_key)
     }
 
-    fn get_date_Attribute<'a>(
+    fn get_date_attribute<'a>(
         &'a self,
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         in_key: i64,
@@ -646,8 +647,8 @@ impl Entity<'_> {
         transaction: &Option<&mut Transaction<Postgres>>,
         results_in_out: &'a mut HashSet<i64>,
         search_string_in: &str,
-        levels_remaining_in: i32,     /*= 20*/
-        stop_after_any_foundIn: bool, /*= true*/
+        levels_remaining_in: i32,      /*= 20*/
+        stop_after_any_found_in: bool, /*= true*/
     ) -> Result<&mut HashSet<i64>, anyhow::Error> {
         self.db.find_contained_local_entity_ids(
             transaction,
@@ -655,7 +656,7 @@ impl Entity<'_> {
             self.get_id(),
             search_string_in,
             levels_remaining_in,
-            stop_after_any_foundIn,
+            stop_after_any_found_in,
         )
     }
 
@@ -796,177 +797,301 @@ impl Entity<'_> {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         type_id_in: i64,
-        expected_rowsIn: Option<usize>, /*= None*/
+        expected_rows_in: Option<usize>, /*= None*/
     ) -> Result<Vec<TextAttribute>, anyhow::Error> {
         self.db.get_text_attribute_by_type_id(
             transaction,
             self.get_id(),
             type_id_in,
-            expected_rowsIn,
+            expected_rows_in,
+        )
+    }
+
+    fn add_uri_entity_with_uri_attribute(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        new_entity_name_in: &str,
+        uri_in: &str,
+        observation_date_in: i64,
+        make_them_public_in: Option<bool>,
+        caller_manages_transactions_in: bool,
+        quote_in: Option<&str>, /*= None*/
+    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
+        self.db.add_uri_entity_with_uri_attribute(
+            transaction,
+            self,
+            new_entity_name_in,
+            uri_in,
+            observation_date_in,
+            make_them_public_in,
+            caller_manages_transactions_in,
+            quote_in,
         )
     }
 
     /*%%%%%
-            fn add_uri_entity_with_uri_attribute(&self, transaction: &Option<&mut Transaction<Postgres>>,
-                                                 new_entity_name_in: &str, uri_in: String, observation_date_in: i64, makeThem_public_in: Option<bool>,
-                                           caller_manages_transactions_in: bool, quote_in: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity) {
-            db.add_uri_entity_with_uri_attribute(this, new_entity_name_in, uri_in, observation_date_in, makeThem_public_in, caller_manages_transactions_in, quote_in)
-          }
+      fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> /*= None*/,
+                            observation_date_in: i64 = Utc::now().timestamp_millis(), caller_manages_transactions_in: bool /*= false*/,
+                            sorting_index_in: Option<i64> /*= None*/) -> /*id*/ i64 {
+      db.create_text_attribute(get_id, attr_type_id_in, text_in, valid_on_date_in, observation_date_in, caller_manages_transactions_in, sorting_index_in)
+    }
 
-            fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> /*= None*/,
-                                  observation_date_in: i64 = System.currentTimeMillis(), caller_manages_transactions_in: bool /*= false*/,
-                                  sorting_index_in: Option<i64> /*= None*/) -> /*id*/ i64 {
-            db.create_text_attribute(get_id, attr_type_id_in, text_in, valid_on_date_in, observation_date_in, caller_manages_transactions_in, sorting_index_in)
-          }
+      fn updateContainedEntitiesPublicStatus(newValueIn: Option<bool>) -> Int {
+      let (attrTuples: Array[(i64, Attribute)], _) = get_sorted_attributes(0, 0, only_public_entities_in = false);
+      let mut count = 0;
+      for (attr <- attrTuples) {
+        attr._2 match {
+          case attribute: RelationToEntity =>
+            // Using RelationToEntity here because it actually makes sense. But usually it is best to make sure to use either RelationToLocalEntity
+            // or RelationToRemoteEntity, to be clearer about the logic.
+            require(attribute.get_related_id1 == get_id, "Unexpected value: " + attribute.get_related_id1)
+            let e: Entity = new Entity(Database.currentOrRemoteDb(attribute, db), attribute.get_related_id2);
+            e.updatePublicStatus(newValueIn)
+            count += 1
+          case attribute: RelationToGroup =>
+            let group_id: i64 = attribute.get_group_id;
+            let entries: Vec<Vec<Option<DataType>>> = db.get_group_entries_data(group_id, None, include_archived_entities_in = false);
+            for (entry <- entries) {
+              let entity_id = entry(0).get.asInstanceOf[i64];
+              db.update_entity_only_public_status(entity_id, newValueIn)
+              count += 1
+            }
+          case _ =>
+          // do nothing
+        }
+      }
+      count
+    }
+      */
 
-            fn updateContainedEntitiesPublicStatus(newValueIn: Option<bool>) -> Int {
-            let (attrTuples: Array[(i64, Attribute)], _) = get_sorted_attributes(0, 0, only_public_entities_in = false);
-            let mut count = 0;
-            for (attr <- attrTuples) {
-              attr._2 match {
-                case attribute: RelationToEntity =>
-                  // Using RelationToEntity here because it actually makes sense. But usually it is best to make sure to use either RelationToLocalEntity
-                  // or RelationToRemoteEntity, to be clearer about the logic.
-                  require(attribute.get_related_id1 == get_id, "Unexpected value: " + attribute.get_related_id1)
-                  let e: Entity = new Entity(Database.currentOrRemoteDb(attribute, db), attribute.get_related_id2);
-                  e.updatePublicStatus(newValueIn)
-                  count += 1
-                case attribute: RelationToGroup =>
-                  let group_id: i64 = attribute.get_group_id;
-                  let entries: Vec<Vec<Option<DataType>>> = db.get_group_entries_data(group_id, None, include_archived_entities_in = false);
-                  for (entry <- entries) {
-                    let entity_id = entry(0).get.asInstanceOf[i64];
-                    db.update_entity_only_public_status(entity_id, newValueIn)
-                    count += 1
+    /// See add_quantity_attribute(...) methods for comments.
+    fn add_text_attribute<'a>(
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        in_attr_type_id: i64,
+        in_text: &str,
+        sorting_index_in: Option<i64>,
+    ) -> Result<TextAttribute<'a>, anyhow::Error> {
+        self.add_text_attribute2(
+            transaction,
+            in_attr_type_id,
+            in_text,
+            sorting_index_in,
+            None,
+            Utc::now().timestamp_millis(),
+            false,
+        )
+    }
+
+    pub fn add_text_attribute2<'a>(
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        in_attr_type_id: i64,
+        in_text: &str,
+        sorting_index_in: Option<i64>,
+        in_valid_on_date: Option<i64>,
+        observation_date_in: i64,
+        caller_manages_transactions_in: bool, /*= false*/
+    ) -> Result<TextAttribute<'a>, anyhow::Error> {
+        let id = self.db.create_text_attribute(
+            transaction,
+            self.id,
+            in_attr_type_id,
+            in_text,
+            in_valid_on_date,
+            observation_date_in,
+            caller_manages_transactions_in,
+            sorting_index_in,
+        )?;
+        TextAttribute::new2(*self.db, transaction, id)
+    }
+
+    fn add_date_attribute<'a>(
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        in_attr_type_id: i64,
+        inDate: i64,
+        sorting_index_in: Option<i64>, /*= None*/
+    ) -> Result<DateAttribute<'a>, anyhow::Error> {
+        let id =
+            self.db
+                .create_date_attribute(self.id, in_attr_type_id, inDate, sorting_index_in)?;
+        DateAttribute::new2(*self.db, transaction, id)
+    }
+
+    fn add_boolean_attribute<'a>(
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        in_attr_type_id: i64,
+        inBoolean: bool,
+        sorting_index_in: Option<i64>,
+    ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
+        self.add_boolean_attribute2(
+            transaction,
+            in_attr_type_id,
+            inBoolean,
+            sorting_index_in,
+            None,
+            Utc::now().timestamp_millis(),
+        )
+    }
+
+    fn add_boolean_attribute2<'a>(
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        in_attr_type_id: i64,
+        inBoolean: bool,
+        sorting_index_in: Option<i64>, /*= None*/
+        in_valid_on_date: Option<i64>,
+        observation_date_in: i64,
+    ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
+        let id = self.db.create_boolean_attribute(
+            self.id,
+            in_attr_type_id,
+            inBoolean,
+            in_valid_on_date,
+            observation_date_in,
+            sorting_index_in,
+        )?;
+        BooleanAttribute::new2(*self.db, transaction, id)
+    }
+
+    /*
+                fn add_file_attribute(in_attr_type_id: i64, inFile: java.io.File) -> FileAttribute {
+                add_file_attribute(in_attr_type_id, inFile.get_name, inFile)
+              }
+
+                fn add_file_attribute(in_attr_type_id: i64, description_in: String, inFile: java.io.File, sorting_index_in: Option<i64> = None) -> FileAttribute {
+                if !inFile.exists() {
+                  throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
+                }
+                // idea: could be a little faster if the md5_hash method were merged into the database method, so that the file is only traversed once (for both
+                // upload and md5 calculation).
+                let mut inputStream: java.io.FileInputStream = null;
+                try {
+                  inputStream = new FileInputStream(inFile)
+                  let id = db.create_file_attribute(id, in_attr_type_id, description_in, inFile.lastModified, Utc::now().timestamp_millis(), inFile.getCanonicalPath,;
+                                                   inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute::md5_hash(inFile), inputStream,
+                                                   sorting_index_in)
+                  FileAttribute::new(db, id)
+                }
+                finally {
+                  if inputStream != null) {
+                    inputStream.close()
                   }
-                case _ =>
-                // do nothing
+                }
               }
-            }
-            count
-          }
 
-          /** See add_quantity_attribute(...) methods for comments. */
-            fn addTextAttribute(in_attr_type_id: i64, inText: String, sorting_index_in: Option<i64>) -> TextAttribute {
-            addTextAttribute(in_attr_type_id, inText, sorting_index_in, None, System.currentTimeMillis)
-          }
-
-            fn addTextAttribute(in_attr_type_id: i64, inText: String, sorting_index_in: Option<i64>, in_valid_on_date: Option<i64>, observation_date_in: i64,
-                               caller_manages_transactions_in: bool = false) -> TextAttribute {
-            let id = db.create_text_attribute(id, in_attr_type_id, inText, in_valid_on_date, observation_date_in, caller_manages_transactions_in, sorting_index_in);
-            new TextAttribute(db, id)
-          }
-
-            fn addDateAttribute(in_attr_type_id: i64, inDate: i64, sorting_index_in: Option<i64> = None) -> DateAttribute {
-            let id = db.create_date_attribute(id, in_attr_type_id, inDate, sorting_index_in);
-            new DateAttribute(db, id)
-          }
-
-            fn addBooleanAttribute(in_attr_type_id: i64, inBoolean: bool, sorting_index_in: Option<i64>) -> BooleanAttribute {
-            addBooleanAttribute(in_attr_type_id, inBoolean, sorting_index_in, None, System.currentTimeMillis)
-          }
-
-            fn addBooleanAttribute(in_attr_type_id: i64, inBoolean: bool, sorting_index_in: Option<i64> = None,
-                                  in_valid_on_date: Option<i64>, observation_date_in: i64) -> BooleanAttribute {
-            let id = db.create_boolean_attribute(id, in_attr_type_id, inBoolean, in_valid_on_date, observation_date_in, sorting_index_in);
-            new BooleanAttribute(db, id)
-          }
-
-            fn addFileAttribute(in_attr_type_id: i64, inFile: java.io.File) -> FileAttribute {
-            addFileAttribute(in_attr_type_id, inFile.get_name, inFile)
-          }
-
-            fn addFileAttribute(in_attr_type_id: i64, description_in: String, inFile: java.io.File, sorting_index_in: Option<i64> = None) -> FileAttribute {
-            if !inFile.exists() {
-              throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
-            }
-            // idea: could be a little faster if the md5_hash method were merged into the database method, so that the file is only traversed once (for both
-            // upload and md5 calculation).
-            let mut inputStream: java.io.FileInputStream = null;
-            try {
-              inputStream = new FileInputStream(inFile)
-              let id = db.create_file_attribute(id, in_attr_type_id, description_in, inFile.lastModified, System.currentTimeMillis, inFile.getCanonicalPath,;
-                                               inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute::md5_hash(inFile), inputStream,
-                                               sorting_index_in)
-              new FileAttribute(db, id)
-            }
-            finally {
-              if inputStream != null) {
-                inputStream.close()
+                fn addRelationToLocalEntity(in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
+                                      in_valid_on_date: Option<i64> = None, observation_date_in: i64 = Utc::now().timestamp_millis()) -> RelationToLocalEntity {
+                let rte_id = db.create_RelationToLocalEntity(in_attr_type_id, get_id, in_entity_id2, in_valid_on_date, observation_date_in, sorting_index_in).get_id;
+                new RelationToLocalEntity(db, rte_id, in_attr_type_id, get_id, in_entity_id2)
               }
-            }
-          }
 
-            fn addRelationToLocalEntity(in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
-                                  in_valid_on_date: Option<i64> = None, observation_date_in: i64 = System.currentTimeMillis) -> RelationToLocalEntity {
-            let rte_id = db.create_relation_to_local_entity(in_attr_type_id, get_id, in_entity_id2, in_valid_on_date, observation_date_in, sorting_index_in).get_id;
-            new RelationToLocalEntity(db, rte_id, in_attr_type_id, get_id, in_entity_id2)
-          }
+                fn addRelationToRemoteEntity(in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
+                                      in_valid_on_date: Option<i64> = None, observation_date_in: i64 = Utc::now().timestamp_millis(),
+                                      remote_instance_id_in: String) -> RelationToRemoteEntity {
+                let rte_id = db.create_relation_to_remote_entity(in_attr_type_id, get_id, in_entity_id2, in_valid_on_date, observation_date_in,;
+                                                             remote_instance_id_in, sorting_index_in).get_id
+                new RelationToRemoteEntity(db, rte_id, in_attr_type_id, get_id, remote_instance_id_in, in_entity_id2)
+              }
 
-            fn addRelationToRemoteEntity(in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
-                                  in_valid_on_date: Option<i64> = None, observation_date_in: i64 = System.currentTimeMillis,
-                                  remote_instance_id_in: String) -> RelationToRemoteEntity {
-            let rte_id = db.create_relation_to_remote_entity(in_attr_type_id, get_id, in_entity_id2, in_valid_on_date, observation_date_in,;
-                                                         remote_instance_id_in, sorting_index_in).get_id
-            new RelationToRemoteEntity(db, rte_id, in_attr_type_id, get_id, remote_instance_id_in, in_entity_id2)
-          }
+              /** Creates then adds a particular kind of rtg to this entity.
+                * Returns new group's id, and the new RelationToGroup object
+                * */
+                fn create_groupAndAddHASRelationToIt(new_group_name_in: String, mixed_classes_allowedIn: bool, observation_date_in: i64,
+                                                   caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
+                // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
+                // anyway:
+                let relation_type_id = db.find_relation_type(Database::THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
+                let (group, rtg) = addGroupAndRelationToGroup(relation_type_id, new_group_name_in, mixed_classes_allowedIn, None, observation_date_in,;
+                                                              None, caller_manages_transactions_in)
+                (group, rtg)
+              }
 
-          /** Creates then adds a particular kind of rtg to this entity.
-            * Returns new group's id, and the new RelationToGroup object
-            * */
-            fn create_groupAndAddHASRelationToIt(new_group_name_in: String, mixed_classes_allowedIn: bool, observation_date_in: i64,
-                                               caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
-            // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
-            // anyway:
-            let relation_type_id = db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-            let (group, rtg) = addGroupAndRelationToGroup(relation_type_id, new_group_name_in, mixed_classes_allowedIn, None, observation_date_in,;
-                                                          None, caller_manages_transactions_in)
-            (group, rtg)
-          }
+              /** Like others, returns the new things' IDs. */
+                fn addGroupAndRelationToGroup(rel_type_id_in: i64, new_group_name_in: String, allow_mixed_classes_in_group_in: bool = false, valid_on_date_in: Option<i64>,
+                                             observation_date_in: i64, sorting_index_in: Option<i64>, caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
+                let (group_id: i64, rtg_id: i64) = db.create_group_and_relation_to_group(get_id, rel_type_id_in, new_group_name_in, allow_mixed_classes_in_group_in, valid_on_date_in,;
+                                                                                     observation_date_in, sorting_index_in, caller_manages_transactions_in)
+                let group = new Group(db, group_id);
+                let rtg = new RelationToGroup(db, rtg_id, get_id, rel_type_id_in, group_id);
+                (group, rtg)
+              }
 
-          /** Like others, returns the new things' IDs. */
-            fn addGroupAndRelationToGroup(rel_type_id_in: i64, new_group_name_in: String, allow_mixed_classes_in_group_in: bool = false, valid_on_date_in: Option<i64>,
-                                         observation_date_in: i64, sorting_index_in: Option<i64>, caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
-            let (group_id: i64, rtg_id: i64) = db.create_group_and_relation_to_group(get_id, rel_type_id_in, new_group_name_in, allow_mixed_classes_in_group_in, valid_on_date_in,;
-                                                                                 observation_date_in, sorting_index_in, caller_manages_transactions_in)
-            let group = new Group(db, group_id);
-            let rtg = new RelationToGroup(db, rtg_id, get_id, rel_type_id_in, group_id);
-            (group, rtg)
-          }
+              /**
+               * @return the id of the new RTE
+               */
+                fn add_has_RelationToLocalEntity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
+                db.add_has_RelationToLocalEntity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
+              }
+    */
 
-          /**
-           * @return the id of the new RTE
-           */
-            fn add_has_relation_to_local_entity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
-            db.add_has_relation_to_local_entity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
-          }
+    /// Creates new entity then adds it a particular kind of rte to this entity.
+    pub fn create_entity_and_add_has_local_relation_to_it(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        new_entity_name_in: &str,
+        observation_date_in: i64,
+        is_public_in: Option<bool>,
+        caller_manages_transactions_in: bool, /*= false*/
+    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
+        // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
+        // anyway:
+        let relation_type_id = self
+            .db
+            .find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?; //, Some(1))
+                                                                                 //.get(0);
+        let (entity, rte) = self.add_entity_and_relation_to_local_entity(
+            transaction,
+            relation_type_id,
+            new_entity_name_in,
+            None,
+            observation_date_in,
+            is_public_in,
+            caller_manages_transactions_in,
+        )?;
+        Ok((entity, rte))
+    }
 
-          /** Creates new entity then adds it a particular kind of rte to this entity.
-            * */
-            fn create_entityAndAddHASLocalRelationToIt(new_entity_name_in: String, observation_date_in: i64, is_public_in: Option<bool>,
-                                                caller_manages_transactions_in: bool = false) -> (Entity, RelationToLocalEntity) {
-            // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
-            // anyway:
-            let relation_type_id = db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-            let (entity: Entity, rte: RelationToLocalEntity) = add_entityAndRelationToLocalEntity(relation_type_id, new_entity_name_in, None, observation_date_in,;
-                                                                                                 is_public_in, caller_manages_transactions_in)
-            (entity, rte)
-          }
+    fn add_entity_and_relation_to_local_entity<'a>(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        rel_type_id_in: i64,
+        new_entity_name_in: &str,
+        valid_on_date_in: Option<i64>,
+        observation_date_in: i64,
+        is_public_in: Option<bool>,
+        caller_manages_transactions_in: bool, /*= false*/
+    ) -> Result<(Entity<'a>, RelationToLocalEntity), anyhow::Error> {
+        let (entity_id, rte_id) = self.db.create_entity_and_RelationToLocalEntity(
+            transaction,
+            self.get_id(),
+            rel_type_id_in,
+            new_entity_name_in,
+            is_public_in,
+            valid_on_date_in,
+            observation_date_in,
+            caller_manages_transactions_in,
+        )?;
+        let entity = Entity::new2(self.db, transaction, entity_id)?;
+        let rte = RelationToLocalEntity::new2(
+            self.db,
+            transaction,
+            rte_id,
+            rel_type_id_in,
+            self.get_id(),
+            entity_id,
+        )?;
+        Ok((entity, rte))
+    }
 
-            fn add_entityAndRelationToLocalEntity(rel_type_id_in: i64, new_entity_name_in: String, valid_on_date_in: Option<i64>, observation_date_in: i64,
-                                           is_public_in: Option<bool>, caller_manages_transactions_in: bool = false) -> (Entity, RelationToLocalEntity) {
-            let (entity_id, rte_id) = db.create_entity_and_relation_to_local_entity(get_id, rel_type_id_in, new_entity_name_in, is_public_in, valid_on_date_in, observation_date_in,;
-                                                                        caller_manages_transactions_in)
-            let entity = new Entity(db, entity_id);
-            let rte = new RelationToLocalEntity(db, rte_id, rel_type_id_in, id, entity_id);
-            (entity, rte)
-          }
-
+    /*
           /**
             * @return the new group's id.
             */
             fn addRelationToGroup(rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>) -> RelationToGroup {
-            addRelationToGroup(rel_type_id_in, group_id_in, sorting_index_in, None, System.currentTimeMillis)
+            addRelationToGroup(rel_type_id_in, group_id_in, sorting_index_in, None, Utc::now().timestamp_millis())
           }
 
             fn addRelationToGroup(rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>,
@@ -1055,7 +1180,7 @@ mod test {
         PostgreSQLDatabaseTest.tearDownTestDB()
 
         // instantiation does DB setup (creates tables, default data, etc):
-        db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+        db = new PostgreSQLDatabase(Database::TEST_USER, Database::TEST_PASS)
 
         mUnitId = db.create_entity("centimeters")
         mQuantityAttrTypeId = db.create_entity("length")
@@ -1087,10 +1212,10 @@ mod test {
       "testAddTextAttribute" should "also work" in {
         db.begin_trans()
         println!("starting testAddTextAttribute")
-        let id: i64 = mEntity.addTextAttribute(mTextAttrTypeId, "This is someName given to an object", None).get_id;
+        let id: i64 = mEntity.add_text_attribute(mTextAttrTypeId, "This is someName given to an object", None).get_id;
         let t: TextAttribute = mEntity.get_textAttribute(id);
         if t == null {
-          fail("addTextAttribute then get_textAttribute returned null")
+          fail("add_text_attribute then get_textAttribute returned null")
         }
         assert(t.get_id == id)
         db.rollback_trans()
@@ -1099,7 +1224,7 @@ mod test {
       "testAddDateAttribute" should "also work" in {
         db.begin_trans()
         println!("starting testAddDateAttribute")
-        let id: i64 = mEntity.addDateAttribute(mDateAttrTypeId, 2).get_id;
+        let id: i64 = mEntity.add_date_attribute(mDateAttrTypeId, 2).get_id;
         let t: DateAttribute = mEntity.get_date_Attribute(id);
         assert(t != null)
         assert(t.get_id == id)
@@ -1111,15 +1236,15 @@ mod test {
       "testAddBooleanAttribute" should "also work" in {
         db.begin_trans()
         println!("starting testAddBooleanAttribute")
-        let startTime = System.currentTimeMillis();
-        let id: i64 = mEntity.addBooleanAttribute(m_booleanAttrTypeId, inBoolean = true, None).get_id;
+        let startTime = Utc::now().timestamp_millis();
+        let id: i64 = mEntity.add_boolean_attribute(m_booleanAttrTypeId, inBoolean = true, None).get_id;
         let t: BooleanAttribute = mEntity.get_boolean_attribute(id);
         assert(t != null)
         assert(t.get_id == id)
         assert(t.get_boolean)
         assert(t.get_parent_id() == mEntity.get_id)
         assert(t.get_valid_on_date().isEmpty)
-        assert(t.get_observation_date() > (startTime - 1) && t.get_observation_date() < (System.currentTimeMillis() + 1))
+        assert(t.get_observation_date() > (startTime - 1) && t.get_observation_date() < (Utc::now().timestamp_millis() + 1))
         db.rollback_trans()
       }
 
@@ -1135,19 +1260,19 @@ mod test {
           fw.close()
           assert(FileAttribute::md5_hash(file) == "e7df7cd2ca07f4f1ab415d457a6e1c13")
           let path = file.getCanonicalPath;
-          let id0: i64 = mEntity.addFileAttribute(mFileAttrTypeId, file).get_id;
+          let id0: i64 = mEntity.add_file_attribute(mFileAttrTypeId, file).get_id;
           let t0: FileAttribute = mEntity.get_file_attribute(id0);
           assert(t0 != null)
           assert(t0.get_id == id0)
           assert(t0.get_description() == file.get_name)
 
-          let id: i64 = mEntity.addFileAttribute(mFileAttrTypeId, "file desc here, long or short", file).get_id;
+          let id: i64 = mEntity.add_file_attribute(mFileAttrTypeId, "file desc here, long or short", file).get_id;
           let t: FileAttribute = mEntity.get_file_attribute(id);
           assert(t.get_parent_id() == mEntity.get_id)
           assert(t.get_attr_type_id() == mFileAttrTypeId)
           assert(t.get_description() == "file desc here, long or short")
           assert(t.get_original_file_date() > 1389461364000L)
-          let now = System.currentTimeMillis();
+          let now = Utc::now().timestamp_millis();
           assert(t.get_stored_date() < now && t.get_stored_date() > now - (5 * 1000 * 60))
           assert(t.get_original_file_path() == path)
           assert(t.self.get_readable())
@@ -1228,7 +1353,7 @@ mod test {
       "updateContainedEntitiesPublicStatus" should "work" in {
         let e1Id: i64 = db.create_entity("test object1");
         let e1 = new Entity(db, e1Id);
-        mEntity.add_has_relation_to_local_entity(e1.get_id, Some(0), 0)
+        mEntity.add_has_RelationToLocalEntity(e1.get_id, Some(0), 0)
         let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.addGroupAndRelationToGroup(mRelationTypeId, "grpName",;
                                                                                         allowMixedClassesInGroupIn = true, Some(0), 0, None)
         let e2Id: i64 = db.create_entity("test object2");
@@ -1251,25 +1376,25 @@ mod test {
         assert(e2.get.get_count_of_containing_local_entities._1 == 1)
         assert(e2.get.get_local_entities_containing_entity().size == 1)
         /*val (e3id: i64, rte2id: i64) = */db.create_entityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e3", None, None, 0L)
-        assert(e1.get_adjacent_attributes_sorting_indexes(Database.min_id_value).nonEmpty)
-        let nearestSortingIndex = e1.get_nearest_attribute_entrys_sorting_index(Database.min_id_value).get;
-        assert(nearestSortingIndex > Database.min_id_value)
+        assert(e1.get_adjacent_attributes_sorting_indexes(Database::min_id_value).nonEmpty)
+        let nearestSortingIndex = e1.get_nearest_attribute_entrys_sorting_index(Database::min_id_value).get;
+        assert(nearestSortingIndex > Database::min_id_value)
         e1.renumber_sorting_indexes()
-        let nearestSortingIndex2 = e1.get_nearest_attribute_entrys_sorting_index(Database.min_id_value).get;
+        let nearestSortingIndex2 = e1.get_nearest_attribute_entrys_sorting_index(Database::min_id_value).get;
         assert(nearestSortingIndex2 > nearestSortingIndex)
 
-        let rte = RelationToLocalEntity.getRelationToLocalEntity(db, rteId).get;
-        assert(! e1.is_attribute_sorting_index_in_use(Database.max_id_value))
-        e1.update_attribute_sorting_index(rte.get_form_id, rte.get_id, Database.max_id_value)
-        assert(e1.get_attribute_sorting_index(rte.get_form_id, rte.get_id) == Database.max_id_value)
-        assert(e1.is_attribute_sorting_index_in_use(Database.max_id_value))
-        assert(e1.find_unused_attribute_sorting_index() != Database.max_id_value)
+        let rte = RelationToLocalEntity.get_relation_to_local_entity(db, rteId).get;
+        assert(! e1.is_attribute_sorting_index_in_use(Database::max_id_value))
+        e1.update_attribute_sorting_index(rte.get_form_id, rte.get_id, Database::max_id_value)
+        assert(e1.get_attribute_sorting_index(rte.get_form_id, rte.get_id) == Database::max_id_value)
+        assert(e1.is_attribute_sorting_index_in_use(Database::max_id_value))
+        assert(e1.find_unused_attribute_sorting_index() != Database::max_id_value)
         assert(e1.get_relation_to_local_entity_count() == 2)
         e2.get.archive()
         assert(e1.get_relation_to_local_entity_count(include_archived_entities_in = false) == 1)
         assert(e1.get_relation_to_local_entity_count(include_archived_entities_in = true) == 2)
         assert(e1.get_text_attribute_by_type_id(mRelationTypeId).size == 0)
-        e1.addTextAttribute(mRelationTypeId, "abc", None)
+        e1.add_text_attribute(mRelationTypeId, "abc", None)
         assert(e1.get_text_attribute_by_type_id(mRelationTypeId).size == 1)
 
         assert(Entity.getEntity(db, e1.get_id).get.get_name != "updated")

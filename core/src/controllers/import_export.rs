@@ -231,7 +231,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             let newEntity: Entity = {;
               containerList.head match {
                 case entity: Entity =>
-                  entity.create_entityAndAddHASLocalRelationToIt(line, observation_dateIn, makeThem_public_in, caller_manages_transactions_in = true)._1
+                  entity.create_entity_and_add_has_local_relation_to_it(line, observation_dateIn, makeThem_public_in, caller_manages_transactions_in = true)._1
                 case group: Group =>
                   createAndAddEntityToGroup(line, containerList.head.asInstanceOf[Group], newSortingIndex, makeThem_public_in)
                 case _ => throw new OmException("??")
@@ -251,7 +251,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             let newEntity: Entity = {;
               newContainerList.head match {
                 case entity: Entity =>
-                  entity.create_entityAndAddHASLocalRelationToIt(line, observation_dateIn, makeThem_public_in, caller_manages_transactions_in = true)._1
+                  entity.create_entity_and_add_has_local_relation_to_it(line, observation_dateIn, makeThem_public_in, caller_manages_transactions_in = true)._1
                 case group: Group =>
                   createAndAddEntityToGroup(line, group, newSortingIndex, makeThem_public_in)
                 case _ => throw new OmException("??")
@@ -884,19 +884,19 @@ class ImportExport(val ui: TextUI, controller: Controller) {
     printHtmlListItemWithLink(printWriter, "", uriAttribute.get.get_text, uriEntity.get_name, None, quoteText)
   }
 
-    fn printListItemForEntity(printWriterIn: PrintWriter, relationTypeIn: RelationType, entity_in: Entity) -> /*Unit%%*/ {
+    fn printListItemForEntity(printWriterIn: PrintWriter, relation_type_in: RelationType, entity_in: Entity) -> /*Unit%%*/ {
     let numSubEntries = getNumSubEntries(entity_in);
     if numSubEntries > 0) {
       let relatedEntitysFileNamePrefix: String = getExportFileNamePrefix(entity_in, ImportExport.HTML_EXPORT_TYPE);
       printHtmlListItemWithLink(printWriterIn,
-                                if relationTypeIn.get_name == Database.THE_HAS_RELATION_TYPE_NAME) "" else relationTypeIn.get_name + ": ",
+                                if relation_type_in.get_name == Database.THE_HAS_RELATION_TYPE_NAME) "" else relation_type_in.get_name + ": ",
                                 relatedEntitysFileNamePrefix + ".html",
                                 entity_in.get_name)
                                 //removing next line until it matches better with what user can actually see: currently includes non-public stuff, so the #
                                 //might confuse a reader, or at least doesn't set fulfillable expectations on how much content there is.
 //                                Some("(" + numSubEntries + ")"))
     } else {
-      let line = (if relationTypeIn.get_name == Database.THE_HAS_RELATION_TYPE_NAME) "" else relationTypeIn.get_name + ": ") +;
+      let line = (if relation_type_in.get_name == Database.THE_HAS_RELATION_TYPE_NAME) "" else relation_type_in.get_name + ": ") +;
                  entity_in.get_name
       printWriterIn.println("<li>" + htmlEncode(line) + "</li>")
     }

@@ -19,22 +19,22 @@ use crate::model::entity::Entity;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
 
-// ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
+// ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_*entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
 
 pub struct BooleanAttribute<'a> {
     // For descriptions of the meanings of these variables, see the comments
     // on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
-    id: i64,
     db: Box<&'a dyn Database>,
-    boolean_value: bool,        /*%%false*/
-    already_read_data: bool,    /*%%= false*/
+    id: i64,
     parent_id: i64,             /*%%= 0_i64*/
     attr_type_id: i64,          /*%%= 0_i64*/
+    boolean_value: bool,        /*%%false*/
     valid_on_date: Option<i64>, /*%%= None*/
     observation_date: i64,      /*%%= 0_i64*/
     sorting_index: i64,         /*%%= 0_i64*/
+    already_read_data: bool,    /*%%= false*/
 }
 
 impl BooleanAttribute<'_> {
@@ -52,17 +52,16 @@ impl BooleanAttribute<'_> {
         observation_date: i64,
         sorting_index: i64,
     ) -> BooleanAttribute<'a> {
-        // idea: make the parameter order uniform throughout the system
         BooleanAttribute {
-            id,
             db,
-            boolean_value,
-            already_read_data: true,
+            id,
             parent_id,
             attr_type_id,
+            boolean_value,
             valid_on_date,
             observation_date,
             sorting_index,
+            already_read_data: true,
         }
         // assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
     }

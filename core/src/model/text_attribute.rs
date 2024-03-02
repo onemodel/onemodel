@@ -67,7 +67,7 @@ impl TextAttribute<'_> {
         }
     }
 
-    /// This constructor instantiates an existing object from the DB. You can use Entity.addTextAttribute() to
+    /// This constructor instantiates an existing object from the DB. You can use Entity.add_text_attribute() to
     /// create a new object.
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.

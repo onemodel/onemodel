@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2016-2017 inclusive, 2020, and 2023, Luke A. Call.
+    Copyright in each year of 2016-2017 inclusive, 2020, and 2023-2024 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -138,7 +138,7 @@ pub trait Database {
         caller_manages_transactions_in: bool, /*%%= false*/
         sorting_index_in: Option<i64>,        /*%%= None*/
     ) -> Result<i64, anyhow::Error>;
-    fn create_relation_to_local_entity<'a>(
+    fn create_RelationToLocalEntity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         relation_type_id_in: i64,
@@ -181,7 +181,7 @@ pub trait Database {
         class_id_in: Option<i64>,   /*%%= None*/
         is_public_in: Option<bool>, /*%% = None*/
     ) -> Result<i64, anyhow::Error>;
-    fn create_entity_and_relation_to_local_entity<'a>(
+    fn create_entity_and_RelationToLocalEntity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         entity_id_in: i64,
@@ -231,7 +231,7 @@ pub trait Database {
     fn create_class_and_its_template_entity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        class_name_in: String,
+        class_name_in: &str,
     ) -> Result<(i64, i64), anyhow::Error>;
     fn find_contained_local_entity_ids<'a>(
         &'a self,
@@ -336,15 +336,27 @@ pub trait Database {
     //                          inputStreamIn: java.io.FileInputStream,
     //                          sorting_index_in: Option<i64> /*= None*/) -> /*id*/ Result<i64, anyhow::Error>;
     //%%
-    // fn add_has_relation_to_local_entity(&self, transaction: &Option<&mut Transaction<Postgres>>,
+    // fn add_has_RelationToLocalEntity(&self, transaction: &Option<&mut Transaction<Postgres>>,
     //                                     from_entity_id_in: i64, to_entity_id_in: i64,
     //                                     valid_on_date_in: Option<i64>, observation_date_in: i64,
     //                            sorting_index_in: Option<i64> /*= None*/) -> RelationToLocalEntity;
-    // fn get_or_create_class_and_template_entity(class_name_in: String, caller_manages_transactions_in: bool) -> Result<(i64, i64), anyhow::Error>;
-    // fn add_uri_entity_with_uri_attribute(&self, transaction: &Option<&mut Transaction<Postgres>>,
-    //                                 containingEntityIn: Entity, new_entity_name_in: String, uri_in: String, observation_date_in: i64,
-    //                                  makeThem_public_in: Option<bool>, caller_manages_transactions_in: bool,
-    //                                  quote_in: Option<String> /*= None*/) -> (Entity, RelationToLocalEntity);
+    fn get_or_create_class_and_template_entity(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        class_name_in: &str,
+        caller_manages_transactions_in: bool,
+    ) -> Result<(i64, i64), anyhow::Error>;
+    fn add_uri_entity_with_uri_attribute(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        containingEntityIn: &Entity,
+        new_entity_name_in: &str,
+        uri_in: &str,
+        observation_date_in: i64,
+        makeThem_public_in: Option<bool>,
+        caller_manages_transactions_in: bool,
+        quote_in: Option<&str>, /*= None*/
+    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error>;
 
     fn attribute_key_exists(
         &self,
@@ -377,7 +389,7 @@ pub trait Database {
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
     ) -> Result<bool, anyhow::Error>;
-    fn relation_to_local_entity_key_exists(
+    fn RelationToLocalEntity_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
@@ -964,7 +976,7 @@ pub trait Database {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
     ) -> Result<u64, anyhow::Error>;
-    fn move_relation_to_local_entity_to_local_entity(
+    fn move_relation_to_local_entity_into_local_entity(
         &self,
         rtle_id_in: i64,
         new_containing_entity_id_in: i64,
@@ -977,7 +989,12 @@ pub trait Database {
         to_containing_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<RelationToRemoteEntity, anyhow::Error>;
-    // fn move_local_entity_from_local_entity_to_group(&self, removing_rtle_in: RelationToLocalEntity, target_group_id_in: i64, sorting_index_in: i64) -> Result<(), anyhow::Error>;
+    fn move_local_entity_from_local_entity_to_group(
+        &self,
+        removing_rtle_in: &RelationToLocalEntity,
+        target_group_id_in: i64,
+        sorting_index_in: i64,
+    ) -> Result<(), anyhow::Error>;
     fn move_relation_to_group(
         &self,
         relation_to_group_id_in: i64,

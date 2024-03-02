@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2023 inclusive, Luke A. Call.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2024 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -15,7 +15,7 @@ use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::*;
 // use crate::model::postgres::*;
-// use crate::model::relation_to_local_entity::RelationToLocalEntity;
+// use crate::model::RelationToLocalEntity::RelationToLocalEntity;
 // use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::date_attribute::DateAttribute;
@@ -716,7 +716,7 @@ mod test {
             let mut fa: FileAttribute = null;
             try {
                 inputStream = new java.io.FileInputStream(file)
-                fa = in_parent_entity.addFileAttribute(attr_type_id, in_descr, file)
+                fa = in_parent_entity.add_file_attribute(attr_type_id, in_descr, file)
             } finally {
                 if inputStream != null { inputStream.close() }
         }
@@ -752,7 +752,7 @@ mod test {
     }
     %%%%%%*/
 
-    fn create_test_relation_to_local_entity_with_one_entity(
+    fn create_test_RelationToLocalEntity_with_one_entity(
         in_entity_id: i64,
         in_rel_type_id: i64,
         in_valid_on_date: Option<i64>, /*= None*/
@@ -768,7 +768,7 @@ mod test {
         0_i64
 
         //%%%%finish when attrs in place again:
-        // let id = db.create_relation_to_local_entity(&None, in_rel_type_id,
+        // let id = db.create_RelationToLocalEntity(&None, in_rel_type_id,
         //                                             in_entity_id, related_entity_id,
         //                                             in_valid_on_date, observation_date).get_id;
         //
@@ -880,7 +880,7 @@ mod test {
     }
 
     #[test]
-    fn entity_only_key_exists_should_not_find_relation_to_local_entity_record() {
+    fn entity_only_key_exists_should_not_find_RelationToLocalEntity_record() {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         // let mut tx1 = db.begin_trans().unwrap();
@@ -921,7 +921,7 @@ mod test {
 
         //whatever, just need some relation type to go with:
         let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-        create_test_relation_to_local_entity_with_one_entity(id, rel_type_id)
+        create_test_RelationToLocalEntity_with_one_entity(id, rel_type_id)
         assert(db.get_attribute_count(id) == 4)
         assert(db.get_attribute_sorting_rows_count(Some(id)) == 4)
 
@@ -1318,7 +1318,7 @@ mod test {
         assert(db.get_entities_only_count() == startingEntityOnlyCount + 1)
 
         assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id);
+        let related_entity_id: i64 = create_test_RelationToLocalEntity_with_one_entity(entity_id, rel_type_id);
         assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
         let checkRelation = db.get_relation_to_local_entity_data(rel_type_id, entity_id, related_entity_id);
         let checkValidOnDate = checkRelation(1);
@@ -1525,7 +1525,7 @@ mod test {
     create_test_text_attribute_with_one_entity(entity_id)
     createTestQuantityAttributeWithTwoEntities(entity_id)
     let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id);
+    let related_entity_id: i64 = create_test_RelationToLocalEntity_with_one_entity(entity_id, rel_type_id);
     DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id)
     create_test_date_attribute_with_one_entity(entity_id)
     create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
@@ -1581,7 +1581,7 @@ mod test {
     let rel_type_id: i64 = db.createRelationType("is sitting next to", "", RelationType.UNIDIRECTIONAL);
     let startingLocalCount = db.get_relation_to_local_entity_count(entity_id);
     let startingRemoteCount = db.get_relation_to_remote_entity_count(entity_id);
-    let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id);
+    let related_entity_id: i64 = create_test_RelationToLocalEntity_with_one_entity(entity_id, rel_type_id);
     assert(db.get_relation_to_local_entity_count(entity_id) == startingLocalCount + 1)
 
     let oi: OmInstance = db.get_local_om_instance_data;
@@ -1611,8 +1611,8 @@ mod test {
     let rel_type_id = db.createRelationType(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);
     // create attributes & read back / other values (None alr done above) as entered (confirms read back correctly)
     // (these methods do the checks, internally)
-    create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id, Some(0L))
-    create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id, Some(System.currentTimeMillis()))
+    create_test_RelationToLocalEntity_with_one_entity(entity_id, rel_type_id, Some(0L))
+    create_test_RelationToLocalEntity_with_one_entity(entity_id, rel_type_id, Some(System.currentTimeMillis()))
     createTestQuantityAttributeWithTwoEntities(entity_id)
     createTestQuantityAttributeWithTwoEntities(entity_id, Some(0))
     create_test_text_attribute_with_one_entity(entity_id)
@@ -1713,10 +1713,10 @@ Unit
     }
     assert(found) // make sure the other approach also works, even with deeply nested data:
     let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let te1 = create_test_relation_to_local_entity_with_one_entity(personTemplateEntityId, rel_type_id);
-    let te2 = create_test_relation_to_local_entity_with_one_entity(te1, rel_type_id);
-    let te3 = create_test_relation_to_local_entity_with_one_entity(te2, rel_type_id);
-    let te4 = create_test_relation_to_local_entity_with_one_entity(te3, rel_type_id);
+    let te1 = create_test_RelationToLocalEntity_with_one_entity(personTemplateEntityId, rel_type_id);
+    let te2 = create_test_RelationToLocalEntity_with_one_entity(te1, rel_type_id);
+    let te3 = create_test_RelationToLocalEntity_with_one_entity(te2, rel_type_id);
+    let te4 = create_test_RelationToLocalEntity_with_one_entity(te3, rel_type_id);
     let foundIds: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, PERSON_TEMPLATE, 4,;
                                                                      stop_after_any_found = false)
     assert(foundIds.contains(personTemplateEntityId), "Value not found in query: " + personTemplateEntityId)
@@ -1729,20 +1729,20 @@ Unit
     }
     assert(allContainedWithName.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     let te4Entity: Entity = new Entity(db, te4);
-    te4Entity.addTextAttribute(te1 /*not really but whatever*/
+    te4Entity.add_text_attribute(te1 /*not really but whatever*/
     , RELATED_ENTITY_NAME, None, None, 0)
     let allContainedWithName2: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
                                                                                   stop_after_any_found = false)
     // should be no change yet (added it outside the # of levels to check):
     assert(allContainedWithName2.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
     let te2Entity: Entity = new Entity(db, te2);
-    te2Entity.addTextAttribute(te1 /*not really but whatever*/
+    te2Entity.add_text_attribute(te1 /*not really but whatever*/
     , RELATED_ENTITY_NAME, None, None, 0)
     let allContainedWithName3: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
                                                                                   stop_after_any_found = false)
     // should be no change yet (the entity was already in the return set, so the TA addition didn't add anything)
     assert(allContainedWithName3.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
-    te2Entity.addTextAttribute(te1 /*not really but whatever*/
+    te2Entity.add_text_attribute(te1 /*not really but whatever*/
     , "otherText", None, None, 0)
     let allContainedWithName4: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, "otherText", 4,;
                                                                                   stop_after_any_found = false)
@@ -1941,7 +1941,7 @@ Unit
     assert(db.get_entities_only_count() == c1)
     let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
     assert(db.get_entities_only_count() == c1)
-    create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id)
+    create_test_RelationToLocalEntity_with_one_entity(entity_id, rel_type_id)
     let c2 = c1 + 1;
     assert(db.get_entities_only_count() == c2) // this kind shouldn't matter--confirming:
     let rel_type_id2: i64 = db.createRelationType("contains2", "", RelationType.UNIDIRECTIONAL);

@@ -1040,7 +1040,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn  delete_class_and_its_template_entity(class_id_in: i64): Unit = ???
 
-  override fn  create_relation_to_local_entity(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+  override fn  create_RelationToLocalEntity(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
                                            sorting_index_in: Option<i64>, caller_manages_transactions_in: bool): RelationToLocalEntity = ???
 
   override fn delete_relation_to_group(entity_id_in: i64, relation_type_id_in: i64, group_id_in: i64): Unit = ???
@@ -1082,7 +1082,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                              valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: Option<i64>,
                                              caller_manages_transactions_in: bool): (i64, i64) = ???
 
-  override fn  add_has_relation_to_local_entity(from_entity_id_in: i64, to_entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+  override fn  add_has_RelationToLocalEntity(from_entity_id_in: i64, to_entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
                                            sorting_index_in: Option<i64>): RelationToLocalEntity = ???
 
   override fn  update_relation_to_local_entity(old_relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, new_relation_type_id_in: i64,
@@ -1102,11 +1102,11 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn  delete_entity(id_in: i64, caller_manages_transactions_in: bool): Unit = ???
 
-  override fn  move_relation_to_local_entity_to_local_entity(rtle_id_in: i64, new_containing_entity_id_in: i64,
+  override fn  move_relation_to_local_entity_into_local_entity(rtle_id_in: i64, new_containing_entity_id_in: i64,
                                                       sorting_index_in: i64): RelationToLocalEntity = ???
 
   //NOTE: when implementing the below method (ie, so there is more supporting code then), also create a test (locally though...?) for RTRE.move.
-  // (And while at it, also for RTRE.getEntityForEntityId2 and RTLE.getEntityForEntityId2 ?  Do they get called?)
+  // (And while at it, also for RTRE.get_entity_for_entity_id2 and RTLE.get_entity_for_entity_id2 ?  Do they get called?)
   override fn  move_relation_to_remote_entity_to_local_entity(remote_instance_id_in: String, relation_to_remote_entity_id_in: i64, to_containing_entity_id_in: i64,
                                                        sorting_index_in: i64): RelationToRemoteEntity = ???
 
@@ -1116,7 +1116,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn delete_text_attribute(id_in: i64): Unit = ???
 
-  override fn create_entity_and_relation_to_local_entity(entity_id_in: i64, relation_type_id_in: i64, new_entity_name_in: String, is_public_in: Option<bool>,
+  override fn create_entity_and_RelationToLocalEntity(entity_id_in: i64, relation_type_id_in: i64, new_entity_name_in: String, is_public_in: Option<bool>,
                                                     valid_on_date_in: Option<i64>, observation_date_in: i64,
                                                     caller_manages_transactions_in: bool): (i64, i64) = ???
 

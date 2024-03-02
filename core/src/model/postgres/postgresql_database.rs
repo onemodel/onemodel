@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2023 inclusive, Luke A. Call.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2024 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -7,13 +7,14 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+
 // use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 // use crate::model::entity::Entity;
 // use crate::model::postgres::postgresql_database2::*;
 // use crate::model::postgres::*;
-// use crate::model::relation_to_local_entity::RelationToLocalEntity;
+// use crate::model::RelationToLocalEntity::RelationToLocalEntity;
 // use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::util::Util;
 use anyhow::anyhow;
@@ -664,9 +665,9 @@ impl PostgreSQLDatabase {
                 None => {
                     // Since necessary, also create the entity that contains all the preferences:
                     let now = Utc::now().timestamp_millis();
-                    debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, before create_entity_and_relation_to_local_entity");
+                    debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, before create_entity_and_RelationToLocalEntity");
                     let new_entity_id: i64 = self
-                        .create_entity_and_relation_to_local_entity(
+                        .create_entity_and_RelationToLocalEntity(
                             transaction,
                             system_entity_id,
                             type_id_of_the_has_relation,
@@ -677,7 +678,7 @@ impl PostgreSQLDatabase {
                             true,
                         )?
                         .0;
-                    debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, after create_entity_and_relation_to_local_entity");
+                    debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, after create_entity_and_RelationToLocalEntity");
                     new_entity_id
                 }
             }
@@ -1252,7 +1253,7 @@ impl PostgreSQLDatabase {
         // The valid on date can be null (means no info), or 0 (means 'for all time', not 1970 or whatever that was. At least make it a 1 in that case),
         // or the date it first became valid/true. (The java/scala version of it put in System.currentTimeMillis() for "now"%%--ck if it
         // behaves correctly now when saving/reading/displaying, in milliseconds...? like the call in create_base_data()
-        // to create_relation_to_local_entity ?)
+        // to create_RelationToLocalEntity ?)
         // The observation_date is: whenever first observed (in milliseconds?).
         self.db_action(transaction, format!("create table RelationToEntity (\
             form_id smallint DEFAULT {} \
@@ -1595,7 +1596,7 @@ impl PostgreSQLDatabase {
         //%%does this save/retrieve (comparing new data w/ this change, and old data from scala) accurately w/ what we want?:
         let current_time_millis = Utc::now().timestamp_millis();
         debug!("in create_base_data: after creating relType 'has'. 2");
-        self.create_relation_to_local_entity(
+        self.create_RelationToLocalEntity(
             transaction,
             has_rel_type_id,
             system_entity_id,
@@ -1614,7 +1615,7 @@ impl PostgreSQLDatabase {
             Some(false),
         )?;
         debug!("in create_base_data: after creating entity 'editorinfo'.");
-        self.create_relation_to_local_entity(
+        self.create_RelationToLocalEntity(
             transaction,
             has_rel_type_id,
             system_entity_id,
@@ -1630,7 +1631,7 @@ impl PostgreSQLDatabase {
             None,
             Some(false),
         )?;
-        self.create_relation_to_local_entity(
+        self.create_RelationToLocalEntity(
             transaction,
             has_rel_type_id,
             editor_info_entity_id,
@@ -1646,7 +1647,7 @@ impl PostgreSQLDatabase {
             None,
             Some(false),
         )?;
-        self.create_relation_to_local_entity(
+        self.create_RelationToLocalEntity(
             transaction,
             has_rel_type_id,
             text_editor_info_entity_id,
@@ -1692,7 +1693,7 @@ impl PostgreSQLDatabase {
 
         // NOTICE: code should not rely on this name, but on data in the tables.
         /*val (class_id, entity_id) = */
-        self.create_class_and_its_template_entity(transaction, "person".to_string())?;
+        self.create_class_and_its_template_entity(transaction, "person")?;
         // (should be same as the line in upgradeDbFrom3to4(), or when combined with later such methods, .)
         let uuid = uuid::Uuid::new_v4();
         debug!("in create_base_data: bytes: {:?}", uuid.as_bytes());

@@ -152,7 +152,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
           // ask for less info when here, to add entity quickly w/ no fuss, like brainstorming. Like in QuickGroupMenu.  User can always use option 2.
           let newEntity: Option<Entity> = controller.askForNameAndWriteEntity(entity_in.db, Util.ENTITY_TYPE, leading_text_in = Some("NAME THE ENTITY:"));
           if newEntity.is_defined) {
-            let newAttribute: Attribute = entity_in.add_has_relation_to_local_entity(newEntity.get.get_id, None, System.currentTimeMillis());
+            let newAttribute: Attribute = entity_in.add_has_RelationToLocalEntity(newEntity.get.get_id, None, System.currentTimeMillis());
             // The next 2 lines are so if adding a new entry on the 1st entry, and if the user so prefers, the new one becomes the
             // first entry (common for logs/jnl w/ latest first), otherwise the new entry is placed after the current entry.
             let goingBackward: bool = highlightedIndexInObjList.getOrElse(0) == 0 && entity_in.get_new_entries_stick_to_top;
@@ -597,8 +597,8 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             require(targetForMovesIn.get.get_form_id == Database.get_attribute_form_id(Util.RELATION_TO_GROUP_TYPE))
             let target_group_id = RelationToGroup.create_relation_to_group(targetForMovesIn.get.db, targetForMovesIn.get.get_id).get_group_id;
             let rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
-            // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-            rtle.moveEntityFromEntityToGroup(target_group_id, get_sorting_index(entity_in.db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
+            // about the sortingIndex:  see comment on db.move_entity_from_entity_to_group.
+            rtle.move_entity_from_entity_to_group(target_group_id, get_sorting_index(entity_in.db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
             (starting_display_row_index_in, true)
           } else if highlightedAttributeIn.isInstanceOf[RelationToGroup] && targetForMovesIn.get.isInstanceOf[RelationToLocalEntity]) {
             let movingRtg = highlightedAttributeIn.asInstanceOf[RelationToGroup];
@@ -653,8 +653,8 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
             if highlightedAttributeIn.isInstanceOf[RelationToLocalEntity]) {
               let target_group_id = containingGroupIn.get.get_id;
               let rtle = highlightedAttributeIn.asInstanceOf[RelationToLocalEntity];
-              // about the sortingIndex:  see comment on db.moveEntityFromEntityToGroup.
-              rtle.moveEntityFromEntityToGroup(target_group_id, get_sorting_index(entity_in.db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
+              // about the sortingIndex:  see comment on db.move_entity_from_entity_to_group.
+              rtle.move_entity_from_entity_to_group(target_group_id, get_sorting_index(entity_in.db, entity_in.get_id, rtle.get_form_id, rtle.get_id))
               (starting_display_row_index_in, true)
             } else if highlightedAttributeIn.isInstanceOf[RelationToRemoteEntity]) {
               ui.display_text("Unsupported: groups cannot directly contain remote entities.  Only local entities can contain relations" +

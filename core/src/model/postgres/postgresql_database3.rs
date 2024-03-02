@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2023 inclusive, Luke A. Call.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2024 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -18,9 +18,9 @@ use crate::model::group::Group;
 use crate::model::postgres::postgresql_database::*;
 // use crate::model::postgres::*;
 use crate::model::relation_to_group::RelationToGroup;
-use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::text_attribute::TextAttribute;
+use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::util::Util;
 use anyhow::anyhow;
 use chrono::Utc;
@@ -37,6 +37,82 @@ use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAnd
 use tracing::*;
 
 impl Database for PostgreSQLDatabase {
+    fn add_uri_entity_with_uri_attribute<'a>(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        containing_entity_in: &'a Entity<'a>,
+        new_entity_name_in: &str,
+        uri_in: &str,
+        observation_date_in: i64,
+        make_them_public_in: Option<bool>,
+        caller_manages_transactions_in: bool,
+        quote_in: Option<&str>, /*= None*/
+    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
+        if quote_in.is_some() {
+            if quote_in.unwrap().is_empty() {
+                return Err(anyhow!("It doesn't make sense to store a blank quotation; there was probably a program error."));
+            }
+        }
+        //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        // if !caller_manages_transactions_in { self.begin_trans() }
+        // try {
+        // **idea: BAD SMELL: should this method be moved out of the db class, since it depends on higher-layer components, like EntityClass and
+        // those in the same package? It was in Controller, but moved here
+        // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
+
+        let (uri_class_id, uriClassTemplateId) = self.get_or_create_class_and_template_entity(
+            transaction,
+            "URI",
+            caller_manages_transactions_in,
+        )?;
+        let (_, quotationClassTemplateId) = self.get_or_create_class_and_template_entity(
+            transaction,
+            "quote",
+            caller_manages_transactions_in,
+        )?;
+        let (new_entity, newRTLE) = containing_entity_in
+            .create_entity_and_add_has_local_relation_to_it(
+                transaction,
+                new_entity_name_in,
+                observation_date_in,
+                make_them_public_in,
+                caller_manages_transactions_in,
+            )?;
+        self.update_entitys_class(
+            transaction,
+            new_entity.get_id(),
+            Some(uri_class_id),
+            caller_manages_transactions_in,
+        )?;
+        new_entity.add_text_attribute2(
+            transaction,
+            uriClassTemplateId,
+            uri_in,
+            None,
+            None,
+            observation_date_in,
+            caller_manages_transactions_in,
+        )?;
+        if quote_in.is_some() {
+            new_entity.add_text_attribute2(
+                transaction,
+                quotationClassTemplateId,
+                quote_in.unwrap(),
+                None,
+                None,
+                observation_date_in,
+                caller_manages_transactions_in,
+            )?;
+        };
+        //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        // if !caller_manages_transactions_in {self.commit_trans() }
+        Ok((new_entity, newRTLE))
+        //  } catch {
+        //    case e: Exception =>
+        //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        // if !caller_manages_transactions_in) rollback_trans()
+    }
+
     fn get_text_attribute_by_type_id(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
@@ -361,11 +437,11 @@ impl Database for PostgreSQLDatabase {
     fn create_class_and_its_template_entity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        class_name_in: String,
+        class_name_in: &str,
     ) -> Result<(i64, i64), anyhow::Error> {
         self.create_class_and_its_template_entity2(
             transaction,
-            class_name_in.clone(),
+            class_name_in.to_string(),
             format!("{}{}", class_name_in.clone(), Util::TEMPLATE_NAME_SUFFIX),
             transaction.is_some(),
         )
@@ -1294,7 +1370,7 @@ impl Database for PostgreSQLDatabase {
     // }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
-    fn create_relation_to_local_entity<'a>(
+    fn create_RelationToLocalEntity<'a>(
         &'a self,
         // purpose: see comment in delete_objects
         transaction_in: &Option<&mut Transaction<'a, Postgres>>,
@@ -1307,7 +1383,7 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
-        debug!("in create_relation_to_local_entity 0");
+        debug!("in create_RelationToLocalEntity 0");
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -1320,7 +1396,7 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_relation_to_local_entity, Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_RelationToLocalEntity, Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
@@ -1349,7 +1425,7 @@ impl Database for PostgreSQLDatabase {
         };
         //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        debug!("in create_relation_to_local_entity 1");
+        debug!("in create_RelationToLocalEntity 1");
         let rte_id: i64 = self.get_new_key(&transaction, "RelationToEntityKeySequence")?;
         let result: Result<i64, anyhow::Error> = self.add_attribute_sorting_row(
             &transaction,
@@ -1367,16 +1443,16 @@ impl Database for PostgreSQLDatabase {
             Some(date) => date.to_string(),
             None => "NULL".to_string(),
         };
-        debug!("in create_relation_to_local_entity 2");
+        debug!("in create_RelationToLocalEntity 2");
         let result = self.db_action(&transaction, format!("INSERT INTO RelationToEntity (id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date) \
                        VALUES ({},{},{},{}, {},{})", rte_id, relation_type_id_in, entity_id1_in, entity_id2_in,
                                                           valid_on_date_sql_str, observation_date_in).as_str(), false, false);
-        debug!("in create_relation_to_local_entity 3");
+        debug!("in create_RelationToLocalEntity 3");
         if let Err(e) = result {
             // see comments in delete_objects about rollback
             return Err(anyhow!(e));
         }
-        debug!("in create_relation_to_local_entity 4");
+        debug!("in create_RelationToLocalEntity 4");
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
@@ -1384,7 +1460,7 @@ impl Database for PostgreSQLDatabase {
                 return Err(anyhow!(e.to_string()));
             }
         }
-        debug!("in create_relation_to_local_entity 5");
+        debug!("in create_RelationToLocalEntity 5");
         Ok(RelationToLocalEntity {}) //%%%%really: self, rte_id, relation_type_id_in, entity_id1_in, entity_id2_in})
     }
 
@@ -1431,7 +1507,7 @@ impl Database for PostgreSQLDatabase {
                     self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "In create_relation_to_local_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_RelationToLocalEntity, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ));
@@ -1545,7 +1621,7 @@ impl Database for PostgreSQLDatabase {
     /// Takes an RTLE and unlinks it from one local entity, and links it under another instead.
     /// @param sorting_index_in Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
     /// @return the new RelationToLocalEntity
-    fn move_relation_to_local_entity_to_local_entity(
+    fn move_relation_to_local_entity_into_local_entity(
         &self,
         rtle_id_in: i64,
         to_containing_entity_id_in: i64,
@@ -1554,7 +1630,7 @@ impl Database for PostgreSQLDatabase {
         let mut tx = self.begin_trans()?;
         let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
         let rte_data: Vec<Option<DataType>> =
-            self.get_all_relation_to_local_entity_data_by_id(transaction, rtle_id_in)?;
+            self.get_all_RelationToLocalEntity_data_by_id(transaction, rtle_id_in)?;
         // next lines are the same as in move_relation_to_remote_entity_to_local_entity and move_relation_to_group; could maintain them similarly.
         let old_rte_rel_type = get_i64_from_row(&rte_data, 2)?;
         let old_rte_entity_1 = get_i64_from_row(&rte_data, 3)?;
@@ -1565,7 +1641,7 @@ impl Database for PostgreSQLDatabase {
             Some(Some(DataType::Bigint(i))) => Some(i.clone()),
             _ => {
                 return Err(anyhow!(
-                "In move_relation_to_local_entity_to_local_entity, Unexpected valid_on_date: {:?}",
+                "In move_relation_to_local_entity_into_local_entity, Unexpected valid_on_date: {:?}",
                 rte_data.get(5)
             ))
             }
@@ -1577,7 +1653,7 @@ impl Database for PostgreSQLDatabase {
             old_rte_entity_1,
             old_rte_entity_2,
         )?;
-        let new_rte: RelationToLocalEntity = self.create_relation_to_local_entity(
+        let new_rte: RelationToLocalEntity = self.create_RelationToLocalEntity(
             transaction,
             old_rte_rel_type,
             to_containing_entity_id_in,
@@ -1596,7 +1672,7 @@ impl Database for PostgreSQLDatabase {
         Ok(new_rte)
     }
 
-    /// See comments on & in method move_relation_to_local_entity_to_local_entity.  Only this one takes an RTRE (stored locally), and instead of linking it inside one local
+    /// See comments on & in method move_relation_to_local_entity_into_local_entity.  Only this one takes an RTRE (stored locally), and instead of linking it inside one local
     /// entity, links it inside another local entity.
     fn move_relation_to_remote_entity_to_local_entity(
         &self,
@@ -1611,7 +1687,7 @@ impl Database for PostgreSQLDatabase {
             transaction,
             relation_to_remote_entity_id_in,
         )?;
-        // next lines are the same as in move_relation_to_local_entity_to_local_entity; could maintain them similarly.
+        // next lines are the same as in move_relation_to_local_entity_into_local_entity; could maintain them similarly.
         let old_rte_rel_type = get_i64_from_row(&rte_data, 2)?;
         let old_rte_entity_1 = get_i64_from_row(&rte_data, 3)?;
         let old_rte_entity_2 = get_i64_from_row(&rte_data, 4)?;
@@ -1621,7 +1697,7 @@ impl Database for PostgreSQLDatabase {
             Some(Some(DataType::Bigint(i))) => Some(i.clone()),
             _ => {
                 return Err(anyhow!(
-                "In move_relation_to_local_entity_to_local_entity, Unexpected valid_on_date: {:?}",
+                "In move_relation_to_local_entity_into_local_entity, Unexpected valid_on_date: {:?}",
                 rte_data.get(5)
             ))
             }
@@ -1763,7 +1839,7 @@ impl Database for PostgreSQLDatabase {
 
     /// I.e., make it so the entity has a relation to a new entity in it.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_entity_and_relation_to_local_entity<'a>(
+    fn create_entity_and_RelationToLocalEntity<'a>(
         &'a self,
         // purpose: see comment in delete_objects
         transaction_in: &Option<&mut Transaction<'a, Postgres>>,
@@ -1790,7 +1866,7 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_entity_and_relation_to_local_entity, inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_entity_and_RelationToLocalEntity, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
@@ -1804,7 +1880,7 @@ impl Database for PostgreSQLDatabase {
                     self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "In create_entity_and_relation_to_local_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_entity_and_RelationToLocalEntity, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ));
@@ -1821,7 +1897,7 @@ impl Database for PostgreSQLDatabase {
 
         let new_entity_id: i64 =
             self.create_entity(&transaction, name.as_str(), None, is_public_in)?;
-        let _new_rte: RelationToLocalEntity = self.create_relation_to_local_entity(
+        let _new_rte: RelationToLocalEntity = self.create_RelationToLocalEntity(
             transaction_in,
             relation_type_id_in,
             entity_id_in,
@@ -1836,7 +1912,7 @@ impl Database for PostgreSQLDatabase {
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(anyhow!(
-                    "In create_entity_and_relation_to_local_entity, {}: ",
+                    "In create_entity_and_RelationToLocalEntity, {}: ",
                     e.to_string()
                 ));
             }
@@ -2000,7 +2076,7 @@ impl Database for PostgreSQLDatabase {
         let rtg_data: Vec<Option<DataType>> =
             self.get_all_relation_to_group_data_by_id(transaction, relation_to_group_id_in)?;
 
-        // next lines are the same as in move_relation_to_local_entity_to_local_entity and its sibling; could maintain them similarly.
+        // next lines are the same as in move_relation_to_local_entity_into_local_entity and its sibling; could maintain them similarly.
         let old_rtg_entity_id = get_i64_from_row(&rtg_data, 2)?;
         let old_rtg_rel_type = get_i64_from_row(&rtg_data, 3)?;
         let old_rtg_group_id = get_i64_from_row(&rtg_data, 4)?;
@@ -2034,7 +2110,7 @@ impl Database for PostgreSQLDatabase {
             true,
         )?;
 
-        // (see comment at similar commented line in move_relation_to_local_entity_to_local_entity)
+        // (see comment at similar commented line in move_relation_to_local_entity_into_local_entity)
         //db_action("UPDATE RelationToGroup SET (entity_id) = ROW(" + new_containing_entity_id_in + ")" + " where id=" + relation_to_group_id_in)
 
         self.commit_trans(tx)?;
@@ -2079,7 +2155,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<(), anyhow::Error> {
         let mut tx = self.begin_trans()?;
         let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-        self.add_has_relation_to_local_entity(
+        self.add_has_RelationToLocalEntity(
             transaction,
             to_entity_id_in,
             move_entity_id_in,
@@ -2090,18 +2166,30 @@ impl Database for PostgreSQLDatabase {
         self.remove_entity_from_group(transaction, from_group_id_in, move_entity_id_in, true)?;
         self.commit_trans(tx)
     }
-    // //%%%%
-    //          /// (See comments on moveEntityFromGroupToGroup.)
-    //        fn move_local_entity_from_local_entity_to_group(&self, removing_rtle_in: RelationToLocalEntity, target_group_id_in: i64, sorting_index_in: i64)
-    //              -> Result<(), anyhow::Error> {
-    //            let mut tx = self.begin_trans()?;
-    //              let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-    //            self.add_entity_to_group(transaction, target_group_id_in, removing_rtle_in.get_related_id2,
-    //                                     Some(sorting_index_in), true)?;
-    //            self.delete_relation_to_local_entity(transaction, removing_rtle_in.get_attr_type_id(), removing_rtle_in.get_related_id1,
-    //                                                 removing_rtle_in.get_related_id2)?;
-    //            self.commit_trans()
-    //          }
+    /// (See comments on moveEntityFromGroupToGroup.)
+    fn move_local_entity_from_local_entity_to_group(
+        &self,
+        removing_rtle_in: &RelationToLocalEntity,
+        target_group_id_in: i64,
+        sorting_index_in: i64,
+    ) -> Result<(), anyhow::Error> {
+        let mut tx = self.begin_trans()?;
+        let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+        self.add_entity_to_group(
+            transaction,
+            target_group_id_in,
+            removing_rtle_in.get_related_id2,
+            Some(sorting_index_in),
+            true,
+        )?;
+        self.delete_relation_to_local_entity(
+            transaction,
+            removing_rtle_in.get_attr_type_id(),
+            removing_rtle_in.get_related_id1,
+            removing_rtle_in.get_related_id2,
+        )?;
+        self.commit_trans()
+    }
 
     // SEE ALSO METHOD find_unused_attribute_sorting_index **AND DO MAINTENANCE IN BOTH PLACES**
     // idea: this needs a test, and/or combining with findIdWhichIsNotKeyOfAnyEntity.
@@ -2774,7 +2862,7 @@ impl Database for PostgreSQLDatabase {
             let type_id_of_the_has_relation =
                 self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
             let preference_entity_id: i64 = self
-                .create_entity_and_relation_to_local_entity(
+                .create_entity_and_RelationToLocalEntity(
                     transaction,
                     preferences_container_id,
                     type_id_of_the_has_relation,
@@ -2852,7 +2940,7 @@ impl Database for PostgreSQLDatabase {
             )?;
             // (Using entity_id1 instead of (the likely identical) preferences_container_id, in case this RTE was originally found down among some
             // nested preferences (organized for user convenience) under here, in order to keep that organization.)
-            self.create_relation_to_local_entity(
+            self.create_RelationToLocalEntity(
                 transaction,
                 relation_type_id,
                 entity_id1,
@@ -2867,7 +2955,7 @@ impl Database for PostgreSQLDatabase {
             let type_id_of_the_has_relation: i64 =
                 self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
             let preference_entity_id: i64 = self
-                .create_entity_and_relation_to_local_entity(
+                .create_entity_and_RelationToLocalEntity(
                     transaction,
                     preferences_container_id,
                     type_id_of_the_has_relation,
@@ -2878,7 +2966,7 @@ impl Database for PostgreSQLDatabase {
                     true,
                 )?
                 .0;
-            self.create_relation_to_local_entity(
+            self.create_RelationToLocalEntity(
                 transaction,
                 type_id_of_the_has_relation,
                 preference_entity_id,
@@ -4031,7 +4119,7 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn relation_to_local_entity_key_exists(
+    fn RelationToLocalEntity_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
@@ -4084,7 +4172,7 @@ impl Database for PostgreSQLDatabase {
             3 => self.boolean_attribute_key_exists(transaction, id_in),
             4 => self.file_attribute_key_exists(transaction, id_in),
             5 => self.text_attribute_key_exists(transaction, id_in),
-            6 => self.relation_to_local_entity_key_exists(transaction, id_in),
+            6 => self.RelationToLocalEntity_key_exists(transaction, id_in),
             7 => self.relation_to_group_key_exists(transaction, id_in),
             8 => self.relation_to_remote_entity_key_exists(transaction, id_in),
             _ => Err(anyhow!("unexpected")),
@@ -5011,34 +5099,45 @@ impl Database for PostgreSQLDatabase {
     //     self.pool.%%?
     // }
 
-    /*%%
-                fn get_or_create_class_and_template_entity(class_name_in: String, caller_manages_transactions_in: bool) -> (i64, i64) {
-                    //(see note above re 'bad smell' in method add_uri_entity_with_uri_attribute.)
-                          //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                    // if !caller_manages_transactions_in { self.begin_trans() }
-                    try {
-                      let (class_id, entity_id) = {
-                        let foundId = find_first_class_id_by_name(class_name_in, case_sensitive = true);
-                        if foundId.is_some()) {
-                          let entity_id: i64 = new EntityClass(this, foundId.get).get_template_entity_id;
-                          (foundId.get, entity_id)
-                        } else {
-                          let (class_id: i64, entity_id: i64) = create_class_and_its_template_entity(class_name_in);
-                          (class_id, entity_id)
-                        }
-                      }
-                          //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                      // if !caller_manages_transactions_in {self.commit_trans() }
-                      (class_id, entity_id)
-                    }
-                    catch {
-                      case e: Exception =>
-                          //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-                        // if !caller_manages_transactions_in) rollback_trans()
-                        throw e
-                    }
-                  }
-    */
+    fn get_or_create_class_and_template_entity(
+        &self,
+        transaction: &Option<&mut Transaction<Postgres>>,
+        class_name_in: &str,
+        caller_manages_transactions_in: bool,
+    ) -> Result<(i64, i64), anyhow::Error> {
+        //(see note above re 'bad smell' in method add_uri_entity_with_uri_attribute.)
+        //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        // if !caller_manages_transactions_in { self.begin_trans() }
+        //                    try {
+        let (class_id, entity_id) = {
+            let foundId: Option<i64> =
+                self.find_first_class_id_by_name(transaction, class_name_in, true)?;
+            if foundId.is_some() {
+                let entity_id: i64 = EntityClass::new2(
+                    &Box::new(self as &dyn Database),
+                    transaction,
+                    foundId.unwrap(),
+                )?
+                //.get_template_entity_id(foundId.get, entity_id)?;
+                .get_template_entity_id(transaction)?;
+                (foundId.unwrap(), entity_id)
+            } else {
+                let (class_id, entity_id) =
+                    self.create_class_and_its_template_entity(transaction, class_name_in)?;
+                (class_id, entity_id)
+            }
+        };
+        //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        // if !caller_manages_transactions_in {self.commit_trans() }
+        Ok((class_id, entity_id))
+        //                  }
+        //                catch {
+        //                case e: Exception =>
+        //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
+        // if !caller_manages_transactions_in) rollback_trans()
+        //                throw e
+        //          }
+    }
 
     fn set_include_archived_entities(&mut self, iae_in: bool) {
         self.include_archived_entities = iae_in;

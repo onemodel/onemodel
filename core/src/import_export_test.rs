@@ -154,7 +154,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     let relation_type_id = db.find_relation_type(Database.THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
     for (entity_id: i64 <- ids) {
       // (could have used db.getContainingEntities1 here perhaps)
-      if db.relation_to_local_entity_exists(relation_type_id, mEntity.get_id, entity_id) {
+      if db.RelationToLocalEntity_exists(relation_type_id, mEntity.get_id, entity_id) {
         foundIt = true
       }
     }
