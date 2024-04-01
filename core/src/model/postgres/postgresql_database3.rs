@@ -17,13 +17,15 @@ use crate::model::entity_class::EntityClass;
 use crate::model::group::Group;
 use crate::model::postgres::postgresql_database::*;
 // use crate::model::postgres::*;
+use crate::model::relation_to_entity::RelationToEntity;
 use crate::model::relation_to_group::RelationToGroup;
+use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::text_attribute::TextAttribute;
-use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::util::Util;
 use anyhow::anyhow;
 use chrono::Utc;
+use std::rc::Rc;
 // use futures::executor::block_on;
 // use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
@@ -38,8 +40,8 @@ use tracing::*;
 
 impl Database for PostgreSQLDatabase {
     fn add_uri_entity_with_uri_attribute<'a>(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         containing_entity_in: &'a Entity<'a>,
         new_entity_name_in: &str,
         uri_in: &str,
@@ -47,7 +49,7 @@ impl Database for PostgreSQLDatabase {
         make_them_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
+    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         if quote_in.is_some() {
             if quote_in.unwrap().is_empty() {
                 return Err(anyhow!("It doesn't make sense to store a blank quotation; there was probably a program error."));
@@ -78,12 +80,14 @@ impl Database for PostgreSQLDatabase {
                 make_them_public_in,
                 caller_manages_transactions_in,
             )?;
+        //let new_entity2: &'a Entity = &new_entity;
         self.update_entitys_class(
             transaction,
             new_entity.get_id(),
             Some(uri_class_id),
             caller_manages_transactions_in,
         )?;
+        //let ne_pointer = Rc::new(new_entity);
         new_entity.add_text_attribute2(
             transaction,
             uriClassTemplateId,
@@ -92,7 +96,7 @@ impl Database for PostgreSQLDatabase {
             None,
             observation_date_in,
             caller_manages_transactions_in,
-        )?;
+        );
         if quote_in.is_some() {
             new_entity.add_text_attribute2(
                 transaction,
@@ -106,7 +110,7 @@ impl Database for PostgreSQLDatabase {
         };
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in {self.commit_trans() }
-        Ok((new_entity, newRTLE))
+        Ok((new_entity.clone(), newRTLE))
         //  } catch {
         //    case e: Exception =>
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
@@ -1370,7 +1374,7 @@ impl Database for PostgreSQLDatabase {
     // }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
-    fn create_RelationToLocalEntity<'a>(
+    fn create_relation_to_local_entity<'a>(
         &'a self,
         // purpose: see comment in delete_objects
         transaction_in: &Option<&mut Transaction<'a, Postgres>>,
@@ -1383,7 +1387,7 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
-        debug!("in create_RelationToLocalEntity 0");
+        debug!("in create_relation_to_local_entity 0");
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -1396,7 +1400,7 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_RelationToLocalEntity, Inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_relation_to_local_entity, Inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
@@ -1425,7 +1429,7 @@ impl Database for PostgreSQLDatabase {
         };
         //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        debug!("in create_RelationToLocalEntity 1");
+        debug!("in create_relation_to_local_entity 1");
         let rte_id: i64 = self.get_new_key(&transaction, "RelationToEntityKeySequence")?;
         let result: Result<i64, anyhow::Error> = self.add_attribute_sorting_row(
             &transaction,
@@ -1443,16 +1447,24 @@ impl Database for PostgreSQLDatabase {
             Some(date) => date.to_string(),
             None => "NULL".to_string(),
         };
-        debug!("in create_RelationToLocalEntity 2");
+        debug!("in create_relation_to_local_entity 2");
         let result = self.db_action(&transaction, format!("INSERT INTO RelationToEntity (id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date) \
                        VALUES ({},{},{},{}, {},{})", rte_id, relation_type_id_in, entity_id1_in, entity_id2_in,
                                                           valid_on_date_sql_str, observation_date_in).as_str(), false, false);
-        debug!("in create_RelationToLocalEntity 3");
+        debug!("in create_relation_to_local_entity 3");
         if let Err(e) = result {
             // see comments in delete_objects about rollback
             return Err(anyhow!(e));
         }
-        debug!("in create_RelationToLocalEntity 4");
+        debug!("in create_relation_to_local_entity 4");
+        let rtle = RelationToLocalEntity::new2(
+            self,
+            transaction,
+            rte_id,
+            relation_type_id_in,
+            entity_id1_in,
+            entity_id2_in,
+        )?;
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
             if let Err(e) = self.commit_trans(local_tx) {
@@ -1460,8 +1472,8 @@ impl Database for PostgreSQLDatabase {
                 return Err(anyhow!(e.to_string()));
             }
         }
-        debug!("in create_RelationToLocalEntity 5");
-        Ok(RelationToLocalEntity {}) //%%%%really: self, rte_id, relation_type_id_in, entity_id1_in, entity_id2_in})
+        debug!("in create_relation_to_local_entity 5");
+        Ok(rtle)
     }
 
     /** Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
@@ -1507,7 +1519,7 @@ impl Database for PostgreSQLDatabase {
                     self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "In create_RelationToLocalEntity, inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_relation_to_local_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ));
@@ -1653,7 +1665,7 @@ impl Database for PostgreSQLDatabase {
             old_rte_entity_1,
             old_rte_entity_2,
         )?;
-        let new_rte: RelationToLocalEntity = self.create_RelationToLocalEntity(
+        let new_rte: RelationToLocalEntity = self.create_relation_to_local_entity(
             transaction,
             old_rte_rel_type,
             to_containing_entity_id_in,
@@ -1897,7 +1909,7 @@ impl Database for PostgreSQLDatabase {
 
         let new_entity_id: i64 =
             self.create_entity(&transaction, name.as_str(), None, is_public_in)?;
-        let _new_rte: RelationToLocalEntity = self.create_RelationToLocalEntity(
+        let _new_rte: RelationToLocalEntity = self.create_relation_to_local_entity(
             transaction_in,
             relation_type_id_in,
             entity_id_in,
@@ -2169,26 +2181,38 @@ impl Database for PostgreSQLDatabase {
     /// (See comments on moveEntityFromGroupToGroup.)
     fn move_local_entity_from_local_entity_to_group(
         &self,
-        removing_rtle_in: &RelationToLocalEntity,
+        removing_rtle_in: &mut RelationToLocalEntity,
         target_group_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(), anyhow::Error> {
-        let mut tx = self.begin_trans()?;
-        let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+        //%%why dont the lines below w/ %% compile as expected? (the commit_trans unwrap call
+        //moves transaction.):
+        //%%let mut tx = self.begin_trans()?;
+        //%%let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
+        ////%%let trans: &mut Transaction<Postgres> = &mut tx;
         self.add_entity_to_group(
-            transaction,
+            //%%transaction,
+            ////%%&Some(trans),
+            &None,
             target_group_id_in,
-            removing_rtle_in.get_related_id2,
+            removing_rtle_in.get_related_id2(),
             Some(sorting_index_in),
             true,
         )?;
         self.delete_relation_to_local_entity(
-            transaction,
-            removing_rtle_in.get_attr_type_id(),
-            removing_rtle_in.get_related_id1,
-            removing_rtle_in.get_related_id2,
+            //%%transaction,
+            ////%%&Some(trans),
+            &None,
+            //%%removing_rtle_in.get_attr_type_id(transaction)?,
+            ////%%removing_rtle_in.get_attr_type_id(&Some(trans))?,
+            removing_rtle_in.get_attr_type_id(&None)?,
+            removing_rtle_in.get_related_id1(),
+            removing_rtle_in.get_related_id2(),
         )?;
-        self.commit_trans()
+        //%%self.commit_trans(*(transaction.unwrap()))
+        ////%%self.commit_trans(*trans)
+        //%%:
+        Ok(())
     }
 
     // SEE ALSO METHOD find_unused_attribute_sorting_index **AND DO MAINTENANCE IN BOTH PLACES**
@@ -2940,7 +2964,7 @@ impl Database for PostgreSQLDatabase {
             )?;
             // (Using entity_id1 instead of (the likely identical) preferences_container_id, in case this RTE was originally found down among some
             // nested preferences (organized for user convenience) under here, in order to keep that organization.)
-            self.create_RelationToLocalEntity(
+            self.create_relation_to_local_entity(
                 transaction,
                 relation_type_id,
                 entity_id1,
@@ -2966,7 +2990,7 @@ impl Database for PostgreSQLDatabase {
                     true,
                 )?
                 .0;
-            self.create_RelationToLocalEntity(
+            self.create_relation_to_local_entity(
                 transaction,
                 type_id_of_the_has_relation,
                 preference_entity_id,
@@ -3453,8 +3477,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         group_id_in: i64,
-        starting_index_in: i64,
-        max_vals_in: Option<u64>, /*= None*/
+        _starting_index_in: i64,
+        _max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
         let sql = format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
@@ -4443,7 +4467,7 @@ impl Database for PostgreSQLDatabase {
         let early_results_len = early_results.len();
         let final_results: Vec<Group> = Vec::new();
         // idea: (see get_entities_generic for idea, see if applies here)
-        for result in early_results {
+        for _result in early_results {
             // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
             //%%%%
             // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
@@ -5099,11 +5123,11 @@ impl Database for PostgreSQLDatabase {
     //     self.pool.%%?
     // }
 
-    fn get_or_create_class_and_template_entity(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn get_or_create_class_and_template_entity<'a>(
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         class_name_in: &str,
-        caller_manages_transactions_in: bool,
+        _caller_manages_transactions_in: bool,
     ) -> Result<(i64, i64), anyhow::Error> {
         //(see note above re 'bad smell' in method add_uri_entity_with_uri_attribute.)
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!

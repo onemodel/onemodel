@@ -217,7 +217,7 @@ impl RelationToGroup<'_> {
         };
         let vod = match valid_on_date_in {
             //Use valid_on_date_in rather than valid_on_date_in.get because self.valid_on_date allows None, unlike others.
-            Some(x) => valid_on_date_in,
+            Some(_x) => valid_on_date_in,
             None => self.get_valid_on_date(transaction)?,
         };
         let od = match observation_date_in {
@@ -347,7 +347,7 @@ impl Attribute for RelationToGroup<'_> {
     fn delete<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        id_in: i64,
+        //_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_to_group(
             transaction,

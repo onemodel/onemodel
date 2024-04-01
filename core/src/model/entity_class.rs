@@ -212,7 +212,7 @@ impl EntityClass<'_> {
     }
 
     /** Removes this object etc from the system. */
-    fn delete(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<(), Error> {
+    fn delete(&self, _transaction: &Option<&mut Transaction<Postgres>>) -> Result<(), Error> {
         self.db.delete_class_and_its_template_entity(self.id)
     }
 }

@@ -223,12 +223,11 @@ impl Group<'_> {
         Ok(())
     }
 
-    //%%why not using the transaction? AND ID_IN PARM?? should??? what do other/attr fn delete do? What about callers? What did scala version do?
     /// Removes this object from the system.
     fn delete<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
-        id_in: i64,
+        //_transaction: &Option<&mut Transaction<'a, Postgres>>,
+        //_id_in: i64,
     ) -> Result<(), Error> {
         self.db.delete_group_and_relations_to_it(self.id)
     }

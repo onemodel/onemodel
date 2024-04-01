@@ -1040,7 +1040,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn  delete_class_and_its_template_entity(class_id_in: i64): Unit = ???
 
-  override fn  create_RelationToLocalEntity(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+  override fn  create_relation_to_local_entity(relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
                                            sorting_index_in: Option<i64>, caller_manages_transactions_in: bool): RelationToLocalEntity = ???
 
   override fn delete_relation_to_group(entity_id_in: i64, relation_type_id_in: i64, group_id_in: i64): Unit = ???

@@ -1253,7 +1253,7 @@ impl PostgreSQLDatabase {
         // The valid on date can be null (means no info), or 0 (means 'for all time', not 1970 or whatever that was. At least make it a 1 in that case),
         // or the date it first became valid/true. (The java/scala version of it put in System.currentTimeMillis() for "now"%%--ck if it
         // behaves correctly now when saving/reading/displaying, in milliseconds...? like the call in create_base_data()
-        // to create_RelationToLocalEntity ?)
+        // to create_relation_to_local_entity ?)
         // The observation_date is: whenever first observed (in milliseconds?).
         self.db_action(transaction, format!("create table RelationToEntity (\
             form_id smallint DEFAULT {} \
@@ -1596,7 +1596,7 @@ impl PostgreSQLDatabase {
         //%%does this save/retrieve (comparing new data w/ this change, and old data from scala) accurately w/ what we want?:
         let current_time_millis = Utc::now().timestamp_millis();
         debug!("in create_base_data: after creating relType 'has'. 2");
-        self.create_RelationToLocalEntity(
+        self.create_relation_to_local_entity(
             transaction,
             has_rel_type_id,
             system_entity_id,
@@ -1615,7 +1615,7 @@ impl PostgreSQLDatabase {
             Some(false),
         )?;
         debug!("in create_base_data: after creating entity 'editorinfo'.");
-        self.create_RelationToLocalEntity(
+        self.create_relation_to_local_entity(
             transaction,
             has_rel_type_id,
             system_entity_id,
@@ -1631,7 +1631,7 @@ impl PostgreSQLDatabase {
             None,
             Some(false),
         )?;
-        self.create_RelationToLocalEntity(
+        self.create_relation_to_local_entity(
             transaction,
             has_rel_type_id,
             editor_info_entity_id,
@@ -1647,7 +1647,7 @@ impl PostgreSQLDatabase {
             None,
             Some(false),
         )?;
-        self.create_RelationToLocalEntity(
+        self.create_relation_to_local_entity(
             transaction,
             has_rel_type_id,
             text_editor_info_entity_id,

@@ -185,9 +185,9 @@ impl Attribute for DateAttribute<'_> {
     fn delete<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        id_in: i64,
+        //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        self.db.delete_date_attribute(transaction, id_in)
+        self.db.delete_date_attribute(transaction, self.id)
     }
 
     //looks unused

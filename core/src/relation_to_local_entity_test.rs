@@ -38,15 +38,15 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
 
   "get_display_string" should "return correct strings and length" in {
     let relationTypeName: String = "is husband to";
-    let relationTypeNameInReverseDirection: String = "is wife to";
-    let relation_type_id: i64 = db.createRelationType(relationTypeName, relationTypeNameInReverseDirection, "BI");
+    let relation_type_name_in_reverse_direction: String = "is wife to";
+    let relation_type_id: i64 = db.createRelationType(relationTypeName, relation_type_name_in_reverse_direction, "BI");
     let relationType = new RelationType(db, relation_type_id);
     let entity1Name = "husbandName";
     let entity2Name = "wifeName";
     let entity1 = new Entity(db, db.create_entity(entity1Name));
     let entity2 = new Entity(db, db.create_entity(entity2Name));
     let date = 304;
-    let rtle: RelationToLocalEntity = db.create_RelationToLocalEntity(relation_type_id, entity1.get_id, entity2.get_id, None, date, Some(0));
+    let rtle: RelationToLocalEntity = db.create_relation_to_local_entity(relation_type_id, entity1.get_id, entity2.get_id, None, date, Some(0));
 
     let small_limit = 15;
     let displayed1: String = rtle.get_display_string(small_limit, Some(entity2), Some(relationType));
@@ -56,7 +56,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     assert(displayed1 == expected, "unexpected contents: " + displayed1)
 
     let displayed2: String = rtle.get_display_string(0, Some(entity1), Some(relationType));
-    let expected2:String = relationTypeNameInReverseDirection + ": \033[36m" + entity1Name + "\033[0m; valid unsp'd, obsv'd "+expectedDateOutput;
+    let expected2:String = relation_type_name_in_reverse_direction + ": \033[36m" + entity1Name + "\033[0m; valid unsp'd, obsv'd "+expectedDateOutput;
     assert(displayed2 == expected2)
 
     let displayed3: String = rtle.get_display_string(small_limit, Some(entity2), Some(relationType), simplify = true);
@@ -69,7 +69,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let entity2 = new Entity(db, db.create_entity("entity2"));
     let entity3 = new Entity(db, db.create_entity("entity3"));
     let relType = new RelationType(db, db.createRelationType("reltype1", "", "UNI"));
-    let rtle: RelationToLocalEntity = db.create_RelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
+    let rtle: RelationToLocalEntity = db.create_relation_to_local_entity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
     let firstParent = rtle.get_related_id1;
     assert(firstParent == entity1.get_id)
     let newRtle: RelationToLocalEntity = rtle.move_it(entity3.get_id, 0);
@@ -101,7 +101,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let entity1 = new Entity(db, db.create_entity("entity1"));
     let entity2 = new Entity(db, db.create_entity("entity2"));
     let relType = new RelationType(db, db.createRelationType("reltype1", "", "UNI"));
-    let rtle: RelationToLocalEntity = db.create_RelationToLocalEntity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
+    let rtle: RelationToLocalEntity = db.create_relation_to_local_entity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
     assert(db.RelationToLocalEntity_exists(relType.get_id, entity1.get_id, entity2.get_id))
     rtle.delete()
     assert(!db.RelationToLocalEntity_exists(relType.get_id, entity1.get_id, entity2.get_id))
@@ -113,6 +113,6 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let updatedRelationType = new RelationType(db, relType.get_id);
     assert(updatedRelationType.get_name == new_name)
     assert(updatedRelationType.get_name_in_reverse_direction == newInReverseName)
-    assert(updatedRelationType.getDirectionality == "NON")
+    assert(updatedRelationType.get_directionality == "NON")
   }
 }

@@ -40,7 +40,7 @@ pub trait Attribute {
     fn delete<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        id_in: i64,
+        //id_in: i64,
     ) -> Result<u64, anyhow::Error>;
 
     //looks unused except for Entity and EntityClass

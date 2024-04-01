@@ -795,7 +795,7 @@ impl Controller {
         let editedEntity: Option<Entity> = entity_in match {;
           case relTypeIn: RelationType =>
             let previousNameInReverse: String = relTypeIn.get_name_in_reverse_direction //idea: check: this edits name w/ prefill also?:;
-            askForNameAndWriteEntity(entity_in.db, Util.RELATION_TYPE_TYPE, Some(relTypeIn), Some(relTypeIn.get_name), Some(relTypeIn.getDirectionality),
+            askForNameAndWriteEntity(entity_in.db, Util.RELATION_TYPE_TYPE, Some(relTypeIn), Some(relTypeIn.get_name), Some(relTypeIn.get_directionality),
                                      if previousNameInReverse == null || previousNameInReverse.trim().isEmpty) None else Some(previousNameInReverse),
                                      None)
           case entity: Entity =>

@@ -612,7 +612,7 @@ impl PostgreSQLDatabase {
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
         let relation_type_id: i64 =
             self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
-        let new_rte = self.create_RelationToLocalEntity(
+        let new_rte = self.create_relation_to_local_entity(
             transaction,
             relation_type_id,
             from_entity_id_in,

@@ -19,13 +19,15 @@ use crate::model::entity::Entity;
 use crate::model::relation_type::RelationType;
 //use sqlx::{Postgres, Transaction};
 //use tracing_subscriber::registry::Data;
+use crate::model::attribute::Attribute;
+use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
 
 /// Represents one RelationToEntity object in the system (usually [always, as of 9/2003] used as an attribute on a Entity).
 /// You can use Entity.addRelationTo[Local|Remote]Entity() to create a new object.
-pub trait RelationToEntity {
+pub trait RelationToEntity: Attribute + AttributeWithValidAndObservedDates {
     //    //%%not needed right? would be called directly on the subclass rtle or rtre.
     //    fn new<'a>(
     //        db: Box<&'a dyn Database>,
@@ -56,12 +58,12 @@ pub trait RelationToEntity {
     /// @param relation_type_in can be left None, but will run faster if not.
     /// @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If in_length_limit is 0 you get the whole thing.
     fn get_display_string(
-        &self,
+        &mut self,
         length_limit_in: usize,
         related_entity_in: Option<Entity>,
         relation_type_in: Option<RelationType>,
         simplify: bool, /*= false*/
-    ) -> String;
+    ) -> Result<String, anyhow::Error>;
 
     //%%?: fn get_remote_description -> String
 

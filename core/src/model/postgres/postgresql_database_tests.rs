@@ -753,22 +753,22 @@ mod test {
     %%%%%%*/
 
     fn create_test_RelationToLocalEntity_with_one_entity(
-        in_entity_id: i64,
-        in_rel_type_id: i64,
-        in_valid_on_date: Option<i64>, /*= None*/
+        _in_entity_id: i64,
+        _in_rel_type_id: i64,
+        _in_valid_on_date: Option<i64>, /*= None*/
     ) -> i64 {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         // idea: could use here instead: db.create_entityAndRelationToLocalEntity
-        let related_entity_id: i64 = db
+        let _related_entity_id: i64 = db
             .create_entity(&None, RELATED_ENTITY_NAME, None, None)
             .unwrap();
         // let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty { None } else { in_valid_on_date };
-        let observation_date: i64 = Utc::now().timestamp_millis();
+        let _observation_date: i64 = Utc::now().timestamp_millis();
         0_i64
 
         //%%%%finish when attrs in place again:
-        // let id = db.create_RelationToLocalEntity(&None, in_rel_type_id,
+        // let id = db.create_relation_to_local_entity(&None, in_rel_type_id,
         //                                             in_entity_id, related_entity_id,
         //                                             in_valid_on_date, observation_date).get_id;
         //
@@ -1332,7 +1332,7 @@ mod test {
         let updatedRelationType = new RelationType(db, rel_type_id);
         assert(updatedRelationType.get_name == new_name)
         assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
-        assert(updatedRelationType.getDirectionality == RelationType.BIDIRECTIONAL)
+        assert(updatedRelationType.get_directionality == RelationType.BIDIRECTIONAL)
 
         db.delete_relation_to_local_entity(rel_type_id, entity_id, related_entity_id)
         assert(db.get_relation_to_local_entity_count(entity_id) == 0)
@@ -1463,7 +1463,7 @@ mod test {
                                //val updatedRelationType = new RelationType(db, rel_type_id)
                                //assert(updatedRelationType.get_name == new_name)
                                //assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
-                               //assert(updatedRelationType.getDirectionality == RelationType.BIDIRECTIONAL)
+                               //assert(updatedRelationType.get_directionality == RelationType.BIDIRECTIONAL)
 
     //db.delete_relation_to_group(relToGroupId)
     //assert(db.get_relation_to_group_count(entity_id) == 0)

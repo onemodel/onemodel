@@ -138,7 +138,7 @@ pub trait Database {
         caller_manages_transactions_in: bool, /*%%= false*/
         sorting_index_in: Option<i64>,        /*%%= None*/
     ) -> Result<i64, anyhow::Error>;
-    fn create_RelationToLocalEntity<'a>(
+    fn create_relation_to_local_entity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         relation_type_id_in: i64,
@@ -340,23 +340,23 @@ pub trait Database {
     //                                     from_entity_id_in: i64, to_entity_id_in: i64,
     //                                     valid_on_date_in: Option<i64>, observation_date_in: i64,
     //                            sorting_index_in: Option<i64> /*= None*/) -> RelationToLocalEntity;
-    fn get_or_create_class_and_template_entity(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn get_or_create_class_and_template_entity<'a>(
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         class_name_in: &str,
         caller_manages_transactions_in: bool,
     ) -> Result<(i64, i64), anyhow::Error>;
-    fn add_uri_entity_with_uri_attribute(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
-        containingEntityIn: &Entity,
+    fn add_uri_entity_with_uri_attribute<'a>(
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        containingEntityIn: &'a Entity<'a>,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
         makeThem_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error>;
+    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error>;
 
     fn attribute_key_exists(
         &self,
@@ -991,7 +991,7 @@ pub trait Database {
     ) -> Result<RelationToRemoteEntity, anyhow::Error>;
     fn move_local_entity_from_local_entity_to_group(
         &self,
-        removing_rtle_in: &RelationToLocalEntity,
+        removing_rtle_in: &mut RelationToLocalEntity,
         target_group_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(), anyhow::Error>;

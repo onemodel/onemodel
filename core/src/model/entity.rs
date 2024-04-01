@@ -24,6 +24,7 @@ use chrono::Utc;
 use sqlx::{/*Error, */ Postgres, Transaction};
 use std::collections::HashSet;
 
+#[derive(Clone)]
 pub struct Entity<'a> {
     db: Box<&'a dyn Database>,
     id: i64,
@@ -35,14 +36,7 @@ pub struct Entity<'a> {
     archived: bool,                 /*= false*/
     new_entries_stick_to_top: bool, /*= false*/
 }
-/*
-package org.onemodel.core.model
-import java.io.{FileInputStream, PrintWriter, StringWriter}
-import java.util
-import java.util.ArrayList
-import org.onemodel.core._
-import scala.collection.mutable
-*/
+
 impl Entity<'_> {
     const PRIVACY_PUBLIC: &'static str = "[PUBLIC]";
     const PRIVACY_NON_PUBLIC: &'static str = "[NON-PUBLIC]";
@@ -75,10 +69,9 @@ impl Entity<'_> {
     }
     /*
          /// Allows create_entity to return an instance without duplicating the database check that it Entity(long, Database) does.
-         /// (The 3rd parameter "ignore_me" is so it will have a different signature and avoid compile errors.)
-         // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and EntityTest etc could be with mocks
-         // instead of real db use.)  Does this really skip that other check though?
-       pub fn new3(db: Box<&dyn Database>, id: i64, _ignore_me: bool) -> Entity {
+         // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and
+         // EntityTest etc could be with mocks instead of real db use.)  Does this really skip that other check though?
+       pub fn new2(db: Box<&dyn Database>, id: i64) -> Entity {
              Entity {
                  id,
                  db,
@@ -91,7 +84,7 @@ impl Entity<'_> {
                  new_entries_stick_to_top: false,
              }
        }
-    */
+    %%*/
 
     /// Represents one object in the system.
     /// This constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
@@ -319,7 +312,7 @@ impl Entity<'_> {
         Ok(self.insertion_date)
     }
 
-    fn get_archived_status_display_string(
+    pub fn get_archived_status_display_string(
         &mut self,
         transaction: &Option<&mut Transaction<Postgres>>,
     ) -> Result<String, anyhow::Error> {
@@ -807,16 +800,16 @@ impl Entity<'_> {
         )
     }
 
-    fn add_uri_entity_with_uri_attribute(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    fn add_uri_entity_with_uri_attribute<'a>(
+        &'a self,
+        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
+    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         self.db.add_uri_entity_with_uri_attribute(
             transaction,
             self,
@@ -862,7 +855,7 @@ impl Entity<'_> {
       }
       count
     }
-      */
+    %%  */
 
     /// See add_quantity_attribute(...) methods for comments.
     fn add_text_attribute<'a>(
@@ -956,7 +949,7 @@ impl Entity<'_> {
         BooleanAttribute::new2(*self.db, transaction, id)
     }
 
-    /*
+    /*%%
                 fn add_file_attribute(in_attr_type_id: i64, inFile: java.io.File) -> FileAttribute {
                 add_file_attribute(in_attr_type_id, inFile.get_name, inFile)
               }
@@ -984,7 +977,7 @@ impl Entity<'_> {
 
                 fn addRelationToLocalEntity(in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
                                       in_valid_on_date: Option<i64> = None, observation_date_in: i64 = Utc::now().timestamp_millis()) -> RelationToLocalEntity {
-                let rte_id = db.create_RelationToLocalEntity(in_attr_type_id, get_id, in_entity_id2, in_valid_on_date, observation_date_in, sorting_index_in).get_id;
+                let rte_id = db.create_relation_to_local_entity(in_attr_type_id, get_id, in_entity_id2, in_valid_on_date, observation_date_in, sorting_index_in).get_id;
                 new RelationToLocalEntity(db, rte_id, in_attr_type_id, get_id, in_entity_id2)
               }
 
@@ -1028,14 +1021,14 @@ impl Entity<'_> {
     */
 
     /// Creates new entity then adds it a particular kind of rte to this entity.
-    pub fn create_entity_and_add_has_local_relation_to_it(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+    pub fn create_entity_and_add_has_local_relation_to_it<'a>(
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         new_entity_name_in: &str,
         observation_date_in: i64,
         is_public_in: Option<bool>,
         caller_manages_transactions_in: bool, /*= false*/
-    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
+    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
         // anyway:
         let relation_type_id = self
@@ -1055,15 +1048,15 @@ impl Entity<'_> {
     }
 
     fn add_entity_and_relation_to_local_entity<'a>(
-        &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        &'a self,
+        transaction: &Option<&mut Transaction<'a, Postgres>>,
         rel_type_id_in: i64,
         new_entity_name_in: &str,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         is_public_in: Option<bool>,
         caller_manages_transactions_in: bool, /*= false*/
-    ) -> Result<(Entity<'a>, RelationToLocalEntity), anyhow::Error> {
+    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         let (entity_id, rte_id) = self.db.create_entity_and_RelationToLocalEntity(
             transaction,
             self.get_id(),
@@ -1074,9 +1067,9 @@ impl Entity<'_> {
             observation_date_in,
             caller_manages_transactions_in,
         )?;
-        let entity = Entity::new2(self.db, transaction, entity_id)?;
+        let entity = Entity::new2(Box::new(*self.db), transaction, entity_id)?;
         let rte = RelationToLocalEntity::new2(
-            self.db,
+            *self.db,
             transaction,
             rte_id,
             rel_type_id_in,
@@ -1152,7 +1145,7 @@ impl Entity<'_> {
               db.delete_entity(id)
           }
 
-    */
+    %%*/
 }
 
 #[cfg(test)]

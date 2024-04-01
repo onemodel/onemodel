@@ -151,9 +151,9 @@ impl FileAttribute<'_> {
         // }
 
         let mut file = std::fs::File::open(&path_in)?;
-        let n = std::io::copy(&mut file, &mut hasher)?;
-        let hash = hasher.finalize();
-        let dst = [0 as u8; 32];
+        let _n = std::io::copy(&mut file, &mut hasher)?;
+        let _hash = hasher.finalize();
+        let _dst = [0 as u8; 32];
         //%%low confidence the next line is right.  Doesn't compile (no "into_bytes" &c).  Ck tests.  See those docs?  What is dst for?
         // let hex_hash = base16ct::lower::encode_str(&hash.into_bytes(), &mut dst)?;
         let hex_hash = "%%fix above line and delete this one";
@@ -314,7 +314,7 @@ impl FileAttribute<'_> {
     }
 
     /// just calling the File.get_usable_space function on a nonexistent file yields 0, so come up with something better. -1 if it just can't figure it out.
-    fn get_usable_space(file_in: &Path) -> i64 {
+    fn get_usable_space(_file_in: &Path) -> i64 {
         //%%to impl this, see the comparisons in
         //  https://github.com/heim-rs/heim/blob/master/COMPARISON.md
         // ...and also possibly the crates: sys_metrics, sysinfo-report, sc-sysinfo,
@@ -581,9 +581,9 @@ impl Attribute for FileAttribute<'_> {
     fn delete<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
-        id_in: i64,
+        //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        self.db.delete_file_attribute(transaction, id_in)
+        self.db.delete_file_attribute(transaction, self.id)
     }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned
