@@ -809,7 +809,9 @@ impl Entity<'_> {
         make_them_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
+    //%%%%%%%%%
+    //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
+    ) -> Result<(), anyhow::Error> {
         self.db.add_uri_entity_with_uri_attribute(
             transaction,
             self,
@@ -820,6 +822,11 @@ impl Entity<'_> {
             caller_manages_transactions_in,
             quote_in,
         )
+            //%%%%%%%%%
+            ;
+            //remove next line when fixing above sig change after figuring out lifetimes/smart
+            //pointers issues.... see other %%x9
+            Ok(())
     }
 
     /*%%%%%

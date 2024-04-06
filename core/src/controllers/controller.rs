@@ -2093,9 +2093,9 @@ impl Controller {
                   (None, askEveryTime)
                 } else {
                   newEntity.get.updateNewEntriesStickToTop(templatesRelatedEntity.get_new_entries_stick_to_top)
-                  let newRTLE = Some(entity_in.addRelationToLocalEntity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), newEntity.get.get_id,;
+                  let new_rtle = Some(entity_in.addRelationToLocalEntity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), newEntity.get.get_id,;
                                                          Some(relationToEntityAttributeFromTemplateIn.get_sorting_index)))
-                  (newRTLE, askEveryTime)
+                  (new_rtle, askEveryTime)
                 }
               } else if allCreateOrSearch || (howCopyRteResponse.is_defined && howCopyRteResponse.get == createOrSearchForEntityChoiceNum)) {
                 let rteDh = new RelationToEntityDataHolder(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), None, System.currentTimeMillis(), 0, false, "");

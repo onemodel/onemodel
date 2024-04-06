@@ -72,28 +72,28 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let rtle: RelationToLocalEntity = db.create_relation_to_local_entity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
     let firstParent = rtle.get_related_id1;
     assert(firstParent == entity1.get_id)
-    let newRtle: RelationToLocalEntity = rtle.move_it(entity3.get_id, 0);
+    let new_rtle: RelationToLocalEntity = rtle.move_it(entity3.get_id, 0);
     // reread to get new data
-    assert(newRtle.get_parent_id() == entity3.get_id)
-    assert(newRtle.get_attr_type_id() == relType.get_id)
-    assert(newRtle.get_related_id2 == entity2.get_id)
+    assert(new_rtle.get_parent_id() == entity3.get_id)
+    assert(new_rtle.get_attr_type_id() == relType.get_id)
+    assert(new_rtle.get_related_id2 == entity2.get_id)
 
-    newRtle.get_valid_on_date()
-    newRtle.get_observation_date()
-    newRtle.get_attr_type_id()
+    new_rtle.get_valid_on_date()
+    new_rtle.get_observation_date()
+    new_rtle.get_attr_type_id()
     let newAttrTypeId = db.createRelationType("newAttrType", "reversed", "NON");
     let newVod = 345L;
     let newOd = 456L;
-    newRtle.update(Some(newVod), Some(newOd), Some(newAttrTypeId))
-    let updatedRtle = new RelationToLocalEntity(db, newRtle.get_id, newAttrTypeId, newRtle.get_related_id1, newRtle.get_related_id2);
+    new_rtle.update(Some(newVod), Some(newOd), Some(newAttrTypeId))
+    let updatedRtle = new RelationToLocalEntity(db, new_rtle.get_id, newAttrTypeId, new_rtle.get_related_id1, new_rtle.get_related_id2);
     assert(updatedRtle.get_valid_on_date().get == newVod)
     assert(updatedRtle.get_observation_date() == newOd)
 
     let groupId = db.create_group("group");
     let group = new Group(db, groupId);
     assert(! group.is_entity_in_group(entity2.get_id))
-    newRtle.move_entity_from_entity_to_group(groupId, 0)
-    assert(! db.relationToLocalentity_key_exists(newRtle.get_id))
+    new_rtle.move_entity_from_entity_to_group(groupId, 0)
+    assert(! db.relationToLocalentity_key_exists(new_rtle.get_id))
     assert(group.is_entity_in_group(entity2.get_id))
   }
 

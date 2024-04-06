@@ -25,7 +25,6 @@ use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 use anyhow::anyhow;
 use chrono::Utc;
-use std::rc::Rc;
 // use futures::executor::block_on;
 // use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
@@ -44,12 +43,16 @@ impl Database for PostgreSQLDatabase {
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         containing_entity_in: &'a Entity<'a>,
         new_entity_name_in: &str,
-        uri_in: &str,
+        _uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
+    ) -> Result<(), anyhow::Error> {
+    //%%%%%%%%% temporary change while I figure out how to use Rc instead of lifetimes, in the
+    //pg.._tests code? See also the 8 %%s just below, to put back when I know how to elim from
+    //this fn sig?
+    //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         if quote_in.is_some() {
             if quote_in.unwrap().is_empty() {
                 return Err(anyhow!("It doesn't make sense to store a blank quotation; there was probably a program error."));
@@ -62,17 +65,17 @@ impl Database for PostgreSQLDatabase {
         // those in the same package? It was in Controller, but moved here
         // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
 
-        let (uri_class_id, uriClassTemplateId) = self.get_or_create_class_and_template_entity(
+        let (uri_class_id, _uri_class_template_id) = self.get_or_create_class_and_template_entity(
             transaction,
             "URI",
             caller_manages_transactions_in,
         )?;
-        let (_, quotationClassTemplateId) = self.get_or_create_class_and_template_entity(
+        let (_, _quotation_class_template_id) = self.get_or_create_class_and_template_entity(
             transaction,
             "quote",
             caller_manages_transactions_in,
         )?;
-        let (new_entity, newRTLE) = containing_entity_in
+        let (new_entity, _new_rtle) = containing_entity_in
             .create_entity_and_add_has_local_relation_to_it(
                 transaction,
                 new_entity_name_in,
@@ -87,10 +90,11 @@ impl Database for PostgreSQLDatabase {
             Some(uri_class_id),
             caller_manages_transactions_in,
         )?;
+        /*%%%%%%%%%
         //let ne_pointer = Rc::new(new_entity);
         new_entity.add_text_attribute2(
             transaction,
-            uriClassTemplateId,
+            uri_class_template_id,
             uri_in,
             None,
             None,
@@ -100,7 +104,7 @@ impl Database for PostgreSQLDatabase {
         if quote_in.is_some() {
             new_entity.add_text_attribute2(
                 transaction,
-                quotationClassTemplateId,
+                quotation_class_template_id,
                 quote_in.unwrap(),
                 None,
                 None,
@@ -110,7 +114,9 @@ impl Database for PostgreSQLDatabase {
         };
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in {self.commit_trans() }
-        Ok((new_entity.clone(), newRTLE))
+        Ok((new_entity.clone(), new_rtle))
+        %%%%%%%%%*/
+        Ok(())
         //  } catch {
         //    case e: Exception =>
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
@@ -1457,7 +1463,7 @@ impl Database for PostgreSQLDatabase {
             return Err(anyhow!(e));
         }
         debug!("in create_relation_to_local_entity 4");
-        let rtle = RelationToLocalEntity::new2(
+        let rtle =  RelationToLocalEntity::new2(
             self,
             transaction,
             rte_id,

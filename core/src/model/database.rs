@@ -345,7 +345,7 @@ pub trait Database {
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         class_name_in: &str,
         caller_manages_transactions_in: bool,
-    ) -> Result<(i64, i64), anyhow::Error>;
+        ) -> Result<(i64, i64), anyhow::Error>;
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
@@ -356,7 +356,9 @@ pub trait Database {
         makeThem_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error>;
+    ) -> Result<(), anyhow::Error>;
+    //%%%%%%%%%
+    //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error>;
 
     fn attribute_key_exists(
         &self,

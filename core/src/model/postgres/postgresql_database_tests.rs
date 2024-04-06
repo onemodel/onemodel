@@ -34,6 +34,8 @@ use sqlx::postgres::*;
 use sqlx::{Postgres, Row, Transaction};
 // use std::collections::HashSet;
 // use std::fmt::format;
+use std::cell::{RefCell, RefMut};
+use std::rc::Rc;
 use tracing::*;
 // use tracing_subscriber::FmtSubscriber;
 
@@ -48,78 +50,30 @@ mod test {
     const RELATED_ENTITY_NAME: &str = "someRelatedEntityName";
 
     /// This fn is used in important (informative) commented lines elsewhere.
-    fn db_query_for_test1<'a>(
+    fn db_query_for_test1(
         rt: &tokio::runtime::Runtime,
         pool: &sqlx::Pool<Postgres>,
-        transaction: Option<&'a mut Transaction<'a, Postgres>>,
-        sql: &str, // ) -> Result<(Vec<Vec<DataType>>, Option<&mut Transaction<Postgres>>), String> {
+        shared_tx: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        sql: &str, 
     ) -> Result<(), String> {
-        // let mut results: Vec<Vec<DataType>> = Vec::new();
-        // let types_vec: Vec<&str> = types.split_terminator(",").collect();
-        // let mut row_counter = 0;
-        // let future = sqlx::query(format!(sql).as_str()).execute(&pool);
-        // let future = sqlx::query(sql).execute(&pool);
-        // let result = rt.block_on(future)?;
-        // debug!("Query result:  {:?}", result);
         let query = sqlx::query(sql);
-
         let map = query.map(|_sqlx_row: PgRow| {
             //do stuff to capture results
         });
-        if transaction.is_some() {
-            let tx = transaction.unwrap();
-            let future = map.fetch_all(tx);
-            /*self.*/
-            rt.block_on(future).unwrap();
-        } else {
-            let future = map.fetch_all(/*&self.*/ pool);
-            /*self.*/
-            rt.block_on(future).unwrap();
+        match shared_tx {
+            Some(tx) => {
+                let mut tx_mut: RefMut<'_, _> = tx.borrow_mut();
+                let future = map.fetch_all(&mut *tx_mut);
+                rt.block_on(future).unwrap();
+            }
+            None => {
+                let future = map.fetch_all(/*&self.*/ pool);
+                rt.block_on(future).unwrap();
+            }
         }
-
-        // Ok((results, transaction))
         // Ok(results)
         Ok(())
     }
-
-    // THOUGH COMMENTED, THIS IS KEPT HERE because it would be used when uncommenting lines in
-    // the following method (test_compile_problem_with_non_reference_transaction_parameters)
-    // per its comments, to demonstrate some compilation errors.
-    // fn db_query_for_test2<'a>(
-    //     // &'a self,
-    //     rt: &tokio::runtime::Runtime,
-    //     pool: &sqlx::Pool<Postgres>,
-    //     transaction: Option<&'a mut sqlx::Transaction<'a, sqlx::Postgres>>,
-    //     // transaction: &Option<&Transaction<Postgres>>,
-    //     sql: &str
-    //     // ) -> Result<(Vec<Vec<DataType>>, Option<&mut Transaction<Postgres>>), String> {
-    // ) -> Result<Option<&'a mut sqlx::Transaction<'a, sqlx::Postgres>>, String> {
-    //     // let mut results: Vec<Vec<DataType>> = Vec::new();
-    //     // let types_vec: Vec<&str> = types.split_terminator(",").collect();
-    //     // let mut row_counter = 0;
-    //     // let future = sqlx::query(format!(sql).as_str()).execute(&pool);
-    //     // let future = sqlx::query(sql).execute(&pool);
-    //     // let result = rt.block_on(future)?;
-    //     // debug!("Query result:  {:?}", result);
-    //     let query = sqlx::query(sql);
-    //
-    //     let map = query
-    //         .map(|sqlx_row: PgRow| {
-    //             //do stuff to capture results
-    //         });
-    //     if transaction.is_some() {
-    //         let mut tx = transaction.unwrap();
-    //         let future = map.fetch_all(tx);
-    //         /*self.*/rt.block_on(future).unwrap();
-    //     } else {
-    //         let future = map.fetch_all(/*&self.*/pool);
-    //         /*self.*/rt.block_on(future).unwrap();
-    //     }
-    //
-    //     // Ok((results, transaction))
-    //     // Ok(results)
-    //     Ok(transaction)
-    // }
 
     #[test]
     /// Some lines have to be uncommented, to see the compile errors that this is meant to
@@ -141,56 +95,13 @@ mod test {
             .max_connections(10)
             .connect(connect_str.as_str());
         let pool = rt.block_on(future).unwrap();
-        // let name: String =
-        //     format!("test_rollback_temporary_entity").to_string(); //_{}", rand_num.to_string()).to_string();
-        // db.drop(None, "table", name.as_str()).unwrap();
-        // (Using the _ in _transaction only to get rid of compiler warning. Remove it as needed.)
-        let _transaction = rt.block_on(pool.begin()).unwrap();
-        // let mut id = db
-        //     .create_entity(Some(&mut tx), name.as_str(), None, None)
-        //     .expect(format!("Failed to create entity with name: {name}").as_str());
-
-        // %%%% Uncommenting these 2 lines gets one kind of transaction error (something about the
-        // transaction being moved in the first line, and so not available to the second line).
-        // db_query_for_test1(&rt, &pool, Some(&mut transaction), "select count(*) from pg_aggregate");
-        // db_query_for_test1(&rt, &pool, None, "select count(*) from pg_views");
-
-        // %%%%Commenting out the 2 lines just above, and un-commenting these, gets these errors. But I
-        // can't use .as_ref() or .as_mut() because that violates trait constraints or something.
-        // Unless one of those (or Copy?) is added to the struct Transaction later?
-        /*
-            error[E0382]: use of moved value: `transaction`
-            --> src/model/postgresql_database.rs:6243:12
-                |
-                6214 |         transaction: Option<&'a mut sqlx::Transaction<'a, sqlx::Postgres>>,
-            |         ----------- move occurs because `transaction` has type `Option<&mut sqlx::Transaction<'_, sqlx::Postgres>>`, which doe
-                ...
-                6233 |             let mut tx = transaction.unwrap();
-            |                          ----------- -------- `transaction` moved due to this method call
-                |                          |
-            |                          help: consider calling `.as_ref()` or `.as_mut()` to borrow the type's contents
-                ...
-                6243 |         Ok((transaction))
-                    |            ^^^^^^^^^^^^^ value used here after move
-            |
-            note: `Option::<T>::unwrap` takes ownership of the receiver `self`, which moves `transaction`
-            --> /usr/obj/ports/rust-1.68.0/rustc-1.68.0-src/library/core/src/option.rs:820:25
-
-            error[E0597]: `transaction` does not live long enough
-                --> src/model/postgresql_database.rs:6275:49
-                |
-                6275 |             db_query_for_test2(&rt, &pool, Some(&mut transaction), "select count(*) from pg_aggregate").unwrap();
-            |                                                 ^^^^^^^^^^^^^^^^ borrowed value does not live long enough
-            6276 |         db_query_for_test2(&rt, &pool, None, "select count(*) from pg_views");
-            6277 |     }
-        |     -
-        |     |
-        |     `transaction` dropped here while still borrowed
-        |     borrow might be used here, when `transaction` is dropped and runs the `Drop` code for type `sqlx::Transaction`
-             */
-        // let transaction: Option<&mut sqlx::Transaction<sqlx::Postgres>> =
-        //     db_query_for_test2(&rt, &pool, Some(&mut transaction), "select count(*) from pg_aggregate").unwrap();
-        // db_query_for_test2(&rt, &pool, None, "select count(*) from pg_views");
+        let tx = rt.block_on(pool.begin()).unwrap();
+        let shared_tx = Rc::new(RefCell::new(tx));
+        db_query_for_test1(&rt, &pool, Some(shared_tx.clone()), "select count(*) from pg_aggregate");
+        // confirm this can be done twice
+        db_query_for_test1(&rt, &pool, Some(shared_tx.clone()), "select count(*) from pg_aggregate");
+        // confirm this can be done w/o a transaction
+        db_query_for_test1(&rt, &pool, None, "select count(*) from pg_views");
     }
 
     #[test]
@@ -880,7 +791,7 @@ mod test {
     }
 
     #[test]
-    fn entity_only_key_exists_should_not_find_RelationToLocalEntity_record() {
+    fn entity_only_key_exists_should_not_find_relation_to_local_entity_record() {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         // let mut tx1 = db.begin_trans().unwrap();
