@@ -1082,7 +1082,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                                              valid_on_date_in: Option<i64>, observation_date_in: i64, sorting_index_in: Option<i64>,
                                              caller_manages_transactions_in: bool): (i64, i64) = ???
 
-  override fn  add_has_RelationToLocalEntity(from_entity_id_in: i64, to_entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
+  override fn  add_has_relation_to_local_entity(from_entity_id_in: i64, to_entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64,
                                            sorting_index_in: Option<i64>): RelationToLocalEntity = ???
 
   override fn  update_relation_to_local_entity(old_relation_type_id_in: i64, entity_id1_in: i64, entity_id2_in: i64, new_relation_type_id_in: i64,
@@ -1116,7 +1116,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn delete_text_attribute(id_in: i64): Unit = ???
 
-  override fn create_entity_and_RelationToLocalEntity(entity_id_in: i64, relation_type_id_in: i64, new_entity_name_in: String, is_public_in: Option<bool>,
+  override fn create_entity_and_relation_to_local_entity(entity_id_in: i64, relation_type_id_in: i64, new_entity_name_in: String, is_public_in: Option<bool>,
                                                     valid_on_date_in: Option<i64>, observation_date_in: i64,
                                                     caller_manages_transactions_in: bool): (i64, i64) = ???
 
@@ -1127,8 +1127,8 @@ class RestDatabase(mRemoteAddress: String) extends Database {
 
   override fn  get_or_create_class_and_template_entity(class_name_in: String, caller_manages_transactions_in: bool): (i64, i64) = ???
 
-  override fn  add_uri_entity_with_uri_attribute(containingEntityIn: Entity, new_entity_name_in: String, uri_in: String, observation_date_in: i64,
-                                            makeThem_public_in: Option<bool>, caller_manages_transactions_in: bool,
+  override fn  add_uri_entity_with_uri_attribute(containing_entity_in: Entity, new_entity_name_in: String, uri_in: String, observation_date_in: i64,
+                                            make_them_public_in: Option<bool>, caller_manages_transactions_in: bool,
                                             quote_in: Option<String> = None): (Entity, RelationToLocalEntity) = ???
 
   override fn  update_entity_only_public_status(id_in: i64, value: Option<bool>): Unit = ???

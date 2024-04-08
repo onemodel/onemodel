@@ -290,7 +290,7 @@ impl RelationToLocalEntity<'_> {
             new_attr_type_id,
             vod,
             od,
-        );
+        )?;
         self.valid_on_date = vod;
         self.observation_date = od;
         self.rel_type_id = new_attr_type_id;

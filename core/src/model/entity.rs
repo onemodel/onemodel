@@ -823,6 +823,7 @@ impl Entity<'_> {
             quote_in,
         )
             //%%%%%%%%%
+            ?
             ;
             //remove next line when fixing above sig change after figuring out lifetimes/smart
             //pointers issues.... see other %%x9
@@ -910,12 +911,12 @@ impl Entity<'_> {
         &'a self,
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         in_attr_type_id: i64,
-        inDate: i64,
+        in_date: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<DateAttribute<'a>, anyhow::Error> {
         let id =
             self.db
-                .create_date_attribute(self.id, in_attr_type_id, inDate, sorting_index_in)?;
+                .create_date_attribute(self.id, in_attr_type_id, in_date, sorting_index_in)?;
         DateAttribute::new2(*self.db, transaction, id)
     }
 
@@ -923,13 +924,13 @@ impl Entity<'_> {
         &'a self,
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         in_attr_type_id: i64,
-        inBoolean: bool,
+        in_boolean: bool,
         sorting_index_in: Option<i64>,
     ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
         self.add_boolean_attribute2(
             transaction,
             in_attr_type_id,
-            inBoolean,
+            in_boolean,
             sorting_index_in,
             None,
             Utc::now().timestamp_millis(),
@@ -940,7 +941,7 @@ impl Entity<'_> {
         &'a self,
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         in_attr_type_id: i64,
-        inBoolean: bool,
+        in_boolean: bool,
         sorting_index_in: Option<i64>, /*= None*/
         in_valid_on_date: Option<i64>,
         observation_date_in: i64,
@@ -948,7 +949,7 @@ impl Entity<'_> {
         let id = self.db.create_boolean_attribute(
             self.id,
             in_attr_type_id,
-            inBoolean,
+            in_boolean,
             in_valid_on_date,
             observation_date_in,
             sorting_index_in,
@@ -1022,8 +1023,8 @@ impl Entity<'_> {
               /**
                * @return the id of the new RTE
                */
-                fn add_has_RelationToLocalEntity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
-                db.add_has_RelationToLocalEntity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
+                fn add_has_relation_to_local_entity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
+                db.add_has_relation_to_local_entity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
               }
     */
 
@@ -1064,7 +1065,7 @@ impl Entity<'_> {
         is_public_in: Option<bool>,
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
-        let (entity_id, rte_id) = self.db.create_entity_and_RelationToLocalEntity(
+        let (entity_id, rte_id) = self.db.create_entity_and_relation_to_local_entity(
             transaction,
             self.get_id(),
             rel_type_id_in,
@@ -1237,7 +1238,7 @@ mod test {
         db.begin_trans()
         println!("starting testAddBooleanAttribute")
         let startTime = Utc::now().timestamp_millis();
-        let id: i64 = mEntity.add_boolean_attribute(m_booleanAttrTypeId, inBoolean = true, None).get_id;
+        let id: i64 = mEntity.add_boolean_attribute(m_booleanAttrTypeId, in_boolean = true, None).get_id;
         let t: BooleanAttribute = mEntity.get_boolean_attribute(id);
         assert(t != null)
         assert(t.get_id == id)
@@ -1353,7 +1354,7 @@ mod test {
       "updateContainedEntitiesPublicStatus" should "work" in {
         let e1Id: i64 = db.create_entity("test object1");
         let e1 = new Entity(db, e1Id);
-        mEntity.add_has_RelationToLocalEntity(e1.get_id, Some(0), 0)
+        mEntity.add_has_relation_to_local_entity(e1.get_id, Some(0), 0)
         let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.addGroupAndRelationToGroup(mRelationTypeId, "grpName",;
                                                                                         allowMixedClassesInGroupIn = true, Some(0), 0, None)
         let e2Id: i64 = db.create_entity("test object2");

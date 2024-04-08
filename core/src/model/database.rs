@@ -181,7 +181,7 @@ pub trait Database {
         class_id_in: Option<i64>,   /*%%= None*/
         is_public_in: Option<bool>, /*%% = None*/
     ) -> Result<i64, anyhow::Error>;
-    fn create_entity_and_RelationToLocalEntity<'a>(
+    fn create_entity_and_relation_to_local_entity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         entity_id_in: i64,
@@ -336,7 +336,7 @@ pub trait Database {
     //                          inputStreamIn: java.io.FileInputStream,
     //                          sorting_index_in: Option<i64> /*= None*/) -> /*id*/ Result<i64, anyhow::Error>;
     //%%
-    // fn add_has_RelationToLocalEntity(&self, transaction: &Option<&mut Transaction<Postgres>>,
+    // fn add_has_relation_to_local_entity(&self, transaction: &Option<&mut Transaction<Postgres>>,
     //                                     from_entity_id_in: i64, to_entity_id_in: i64,
     //                                     valid_on_date_in: Option<i64>, observation_date_in: i64,
     //                            sorting_index_in: Option<i64> /*= None*/) -> RelationToLocalEntity;
@@ -349,11 +349,11 @@ pub trait Database {
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
         transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        containingEntityIn: &'a Entity<'a>,
+        containing_entity_in: &'a Entity<'a>,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
-        makeThem_public_in: Option<bool>,
+        make_them_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
     ) -> Result<(), anyhow::Error>;
@@ -391,7 +391,7 @@ pub trait Database {
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
     ) -> Result<bool, anyhow::Error>;
-    fn RelationToLocalEntity_key_exists(
+    fn relation_to_local_entity_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,

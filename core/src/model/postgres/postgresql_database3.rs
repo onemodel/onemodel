@@ -250,7 +250,6 @@ impl Database for PostgreSQLDatabase {
     /// sql statement, but if you call begin/rollback/commit, it will let you manage
     /// explicitly and will automatically turn autocommit on/off as needed to allow that. (???)
     fn begin_trans(&self) -> Result<Transaction<Postgres>, anyhow::Error> {
-        // let mut tx = self.rt.block_on(self.pool.begin())?;
         let tx: Transaction<Postgres> = match self.rt.block_on(self.pool.begin()) {
             Err(e) => return Err(anyhow!(e.to_string())),
             Ok(t) => t,
@@ -1648,7 +1647,7 @@ impl Database for PostgreSQLDatabase {
         let mut tx = self.begin_trans()?;
         let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
         let rte_data: Vec<Option<DataType>> =
-            self.get_all_RelationToLocalEntity_data_by_id(transaction, rtle_id_in)?;
+            self.get_all_relation_to_local_entity_data_by_id(transaction, rtle_id_in)?;
         // next lines are the same as in move_relation_to_remote_entity_to_local_entity and move_relation_to_group; could maintain them similarly.
         let old_rte_rel_type = get_i64_from_row(&rte_data, 2)?;
         let old_rte_entity_1 = get_i64_from_row(&rte_data, 3)?;
@@ -1857,7 +1856,7 @@ impl Database for PostgreSQLDatabase {
 
     /// I.e., make it so the entity has a relation to a new entity in it.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_entity_and_RelationToLocalEntity<'a>(
+    fn create_entity_and_relation_to_local_entity<'a>(
         &'a self,
         // purpose: see comment in delete_objects
         transaction_in: &Option<&mut Transaction<'a, Postgres>>,
@@ -1884,7 +1883,7 @@ impl Database for PostgreSQLDatabase {
         let mut local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_entity_and_RelationToLocalEntity, inconsistent values for caller_manages_transactions_in \
+                    return Err(anyhow!("In create_entity_and_relation_to_local_entity, inconsistent values for caller_manages_transactions_in \
                                 and transaction_in: true and None??"
                         .to_string()));
                 } else {
@@ -1898,7 +1897,7 @@ impl Database for PostgreSQLDatabase {
                     self.begin_trans()?
                 } else {
                     return Err(anyhow!(
-                        "In create_entity_and_RelationToLocalEntity, inconsistent values for caller_manages_transactions_in & transaction_in: \
+                        "In create_entity_and_relation_to_local_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
                                 false and Some??"
                             .to_string(),
                     ));
@@ -1930,7 +1929,7 @@ impl Database for PostgreSQLDatabase {
             if let Err(e) = self.commit_trans(local_tx) {
                 // see comments in delete_objects about rollback
                 return Err(anyhow!(
-                    "In create_entity_and_RelationToLocalEntity, {}: ",
+                    "In create_entity_and_relation_to_local_entity, {}: ",
                     e.to_string()
                 ));
             }
@@ -2173,7 +2172,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<(), anyhow::Error> {
         let mut tx = self.begin_trans()?;
         let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-        self.add_has_RelationToLocalEntity(
+        self.add_has_relation_to_local_entity(
             transaction,
             to_entity_id_in,
             move_entity_id_in,
@@ -2892,7 +2891,7 @@ impl Database for PostgreSQLDatabase {
             let type_id_of_the_has_relation =
                 self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
             let preference_entity_id: i64 = self
-                .create_entity_and_RelationToLocalEntity(
+                .create_entity_and_relation_to_local_entity(
                     transaction,
                     preferences_container_id,
                     type_id_of_the_has_relation,
@@ -2985,7 +2984,7 @@ impl Database for PostgreSQLDatabase {
             let type_id_of_the_has_relation: i64 =
                 self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
             let preference_entity_id: i64 = self
-                .create_entity_and_RelationToLocalEntity(
+                .create_entity_and_relation_to_local_entity(
                     transaction,
                     preferences_container_id,
                     type_id_of_the_has_relation,
@@ -4149,7 +4148,7 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn RelationToLocalEntity_key_exists(
+    fn relation_to_local_entity_key_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
@@ -4202,7 +4201,7 @@ impl Database for PostgreSQLDatabase {
             3 => self.boolean_attribute_key_exists(transaction, id_in),
             4 => self.file_attribute_key_exists(transaction, id_in),
             5 => self.text_attribute_key_exists(transaction, id_in),
-            6 => self.RelationToLocalEntity_key_exists(transaction, id_in),
+            6 => self.relation_to_local_entity_key_exists(transaction, id_in),
             7 => self.relation_to_group_key_exists(transaction, id_in),
             8 => self.relation_to_remote_entity_key_exists(transaction, id_in),
             _ => Err(anyhow!("unexpected")),
@@ -5140,17 +5139,17 @@ impl Database for PostgreSQLDatabase {
         // if !caller_manages_transactions_in { self.begin_trans() }
         //                    try {
         let (class_id, entity_id) = {
-            let foundId: Option<i64> =
+            let found_id: Option<i64> =
                 self.find_first_class_id_by_name(transaction, class_name_in, true)?;
-            if foundId.is_some() {
+            if found_id.is_some() {
                 let entity_id: i64 = EntityClass::new2(
                     &Box::new(self as &dyn Database),
                     transaction,
-                    foundId.unwrap(),
+                    found_id.unwrap(),
                 )?
-                //.get_template_entity_id(foundId.get, entity_id)?;
+                //.get_template_entity_id(found_id.get, entity_id)?;
                 .get_template_entity_id(transaction)?;
-                (foundId.unwrap(), entity_id)
+                (found_id.unwrap(), entity_id)
             } else {
                 let (class_id, entity_id) =
                     self.create_class_and_its_template_entity(transaction, class_name_in)?;

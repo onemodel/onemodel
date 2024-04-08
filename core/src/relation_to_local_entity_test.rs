@@ -102,9 +102,9 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let entity2 = new Entity(db, db.create_entity("entity2"));
     let relType = new RelationType(db, db.createRelationType("reltype1", "", "UNI"));
     let rtle: RelationToLocalEntity = db.create_relation_to_local_entity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
-    assert(db.RelationToLocalEntity_exists(relType.get_id, entity1.get_id, entity2.get_id))
+    assert(db.relation_to_local_entity_exists(relType.get_id, entity1.get_id, entity2.get_id))
     rtle.delete()
-    assert(!db.RelationToLocalEntity_exists(relType.get_id, entity1.get_id, entity2.get_id))
+    assert(!db.relation_to_local_entity_exists(relType.get_id, entity1.get_id, entity2.get_id))
 
     // throwing in this test for ease & faster running: otherwise should be in RelationTypeTest:
     let new_name = "new-reltype-name";

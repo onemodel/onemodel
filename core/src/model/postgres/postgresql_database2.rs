@@ -601,7 +601,7 @@ impl PostgreSQLDatabase {
         }
     }
     /// @return the id of the new RTE
-    pub fn add_has_RelationToLocalEntity<'a>(
+    pub fn add_has_relation_to_local_entity<'a>(
         &'a self,
         transaction: &Option<&mut Transaction<'a, Postgres>>,
         from_entity_id_in: i64,
@@ -771,7 +771,7 @@ impl PostgreSQLDatabase {
         )
     }
 
-    pub fn get_all_RelationToLocalEntity_data_by_id(
+    pub fn get_all_relation_to_local_entity_data_by_id(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         id_in: i64,
@@ -846,7 +846,7 @@ impl PostgreSQLDatabase {
         )
     }
 
-    fn RelationToLocalEntity_exists(
+    fn relation_to_local_entity_exists(
         &self,
         transaction: &Option<&mut Transaction<Postgres>>,
         rel_type_id_in: i64,

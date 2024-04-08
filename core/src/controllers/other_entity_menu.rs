@@ -491,7 +491,7 @@ struct OtherEntityMenu {
           } else if goWhereAnswer == seeContainingGroups_choiceNumber && goWhereAnswer <= choices.length) {
             if numContainingGroups == 1) {
               require(containingGroup.is_defined)
-              new QuickGroupMenu(ui, controller).quickGroupMenu(containingGroup.get, 0, containingRtg, containingEntityIn = None)
+              new QuickGroupMenu(ui, controller).quickGroupMenu(containingGroup.get, 0, containingRtg, containing_entity_in = None)
             } else {
               viewContainingGroups(entity_in)
             }
@@ -596,7 +596,7 @@ struct OtherEntityMenu {
             let rel_type_id: i64 = containingRelationToGroups.get(index).get_attr_type_id();
             new QuickGroupMenu(ui, controller).quickGroupMenu(new Group(entity_in.db, groupId), 0,
                                                               Some(new RelationToGroup(entity_in.db, id, entity_id, rel_type_id, groupId)),
-                                                              Some(entity_in), containingEntityIn = None)
+                                                              Some(entity_in), containing_entity_in = None)
           } else {
             ui.display_text("unknown response")
             None

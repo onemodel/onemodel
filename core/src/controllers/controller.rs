@@ -959,9 +959,9 @@ impl Controller {
                     let someRelationToGroups: java.util.ArrayList[RelationToGroup] = o.asInstanceOf[Group].get_containing_relations_to_group(0, Some(1));
                     if someRelationToGroups.size < 1) {
                       ui.display_text(Util.ORPHANED_GROUP_MESSAGE)
-                      new GroupMenu(ui, this).groupMenu(o.asInstanceOf[Group], 0, None, containingEntityIn = None)
+                      new GroupMenu(ui, this).groupMenu(o.asInstanceOf[Group], 0, None, containing_entity_in = None)
                     } else {
-                      new GroupMenu(ui, this).groupMenu(o.asInstanceOf[Group], 0, Some(someRelationToGroups.get(0)), containingEntityIn = None)
+                      new GroupMenu(ui, this).groupMenu(o.asInstanceOf[Group], 0, Some(someRelationToGroups.get(0)), containing_entity_in = None)
                     }
                   case _ =>
                     throw new OmException("??")
@@ -1512,7 +1512,7 @@ impl Controller {
               // (see also the other locations w/ similar comment!)
               let someRelationToGroups: java.util.ArrayList[RelationToGroup] = o.asInstanceOf[Group].get_containing_relations_to_group(0, Some(1));
               new GroupMenu(ui, this).groupMenu(new Group(db_in, someRelationToGroups.get(0).get_group_id), 0, Some(someRelationToGroups.get(0)),
-                                                    containingEntityIn = None)
+                                                    containing_entity_in = None)
               chooseOrCreateGroup(db_in, leading_text_in, starting_display_row_index_in, containingGroupIn)
             } else {
               // user typed a letter to select.. (now 0-based); selected a new object and so we return to the previous menu w/ that one displayed & current
@@ -1548,7 +1548,7 @@ impl Controller {
         }
       }
 
-        fn goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relationToGroupIn: Option[RelationToGroup] = None,
+        fn goToEntityOrItsSoleGroupsMenu(userSelection: Entity, relation_to_group_in: Option[RelationToGroup] = None,
                                         containingGroupIn: Option[Group] = None) -> (Option<Entity>, Option<i64>, Boolean) {
         let (rtgId, rtId, groupId, _, moreThanOneAvailable) = userSelection.find_relation_to_and_group;
         let subEntitySelected: Option<Entity> = None;
@@ -1559,10 +1559,10 @@ impl Controller {
           new QuickGroupMenu(ui, this).quickGroupMenu(new Group(userSelection.db, groupId.get),
                                                           0,
                                                           Some(new RelationToGroup(userSelection.db, rtgId.get, userSelection.get_id, rtId.get, groupId.get)),
-                                                          callingMenusRtgIn = relationToGroupIn,
+                                                          calling_menus_rtg_in = relation_to_group_in,
                                                           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s)
                                                           // w/in this method!
-                                                          containingEntityIn = Some(userSelection))
+                                                          containing_entity_in = Some(userSelection))
         } else {
           new EntityMenu(ui, this).entityMenu(userSelection, containingGroupIn = containingGroupIn)
         }
@@ -1795,7 +1795,7 @@ impl Controller {
           // re "100": see javadoc comments above re attrFormIn
           let eId: Option[IdWrapper] = askForNameAndSearchForEntity(entity_in.db);
           if eId.is_defined) {
-            Some(entity_in.add_has_RelationToLocalEntity(eId.get.get_id, None, System.currentTimeMillis))
+            Some(entity_in.add_has_relation_to_local_entity(eId.get.get_id, None, System.currentTimeMillis))
           } else {
             None
           }
@@ -1818,7 +1818,7 @@ impl Controller {
             None
           } else {
             let newRtg = result.get.asInstanceOf[RelationToGroup];
-            new QuickGroupMenu(ui, this).quickGroupMenu(new Group(entity_in.db, newRtg.get_group_id), 0, Some(newRtg), None, containingEntityIn = Some(entity_in))
+            new QuickGroupMenu(ui, this).quickGroupMenu(new Group(entity_in.db, newRtg.get_group_id), 0, Some(newRtg), None, containing_entity_in = Some(entity_in))
             // user could have deleted the new result: check that before returning it as something to act upon:
             if entity_in.db.relation_to_group_key_exists(newRtg.get_id)) {
               result

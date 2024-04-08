@@ -665,9 +665,9 @@ impl PostgreSQLDatabase {
                 None => {
                     // Since necessary, also create the entity that contains all the preferences:
                     let now = Utc::now().timestamp_millis();
-                    debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, before create_entity_and_RelationToLocalEntity");
+                    debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, before create_entity_and_relation_to_local_entity");
                     let new_entity_id: i64 = self
-                        .create_entity_and_RelationToLocalEntity(
+                        .create_entity_and_relation_to_local_entity(
                             transaction,
                             system_entity_id,
                             type_id_of_the_has_relation,
@@ -678,7 +678,7 @@ impl PostgreSQLDatabase {
                             true,
                         )?
                         .0;
-                    debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, after create_entity_and_RelationToLocalEntity");
+                    debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, after create_entity_and_relation_to_local_entity");
                     new_entity_id
                 }
             }
