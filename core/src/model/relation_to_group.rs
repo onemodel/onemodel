@@ -22,6 +22,8 @@ use crate::model::group::Group;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
+use std::cell::{RefCell};
+use std::rc::Rc;
 //use tracing_subscriber::registry::Data;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
@@ -76,7 +78,7 @@ impl RelationToGroup<'_> {
 
     fn new2<'a>(
         db: Box<&'a dyn Database>,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
         entity_id: i64,
         rel_type_id: i64,
@@ -126,7 +128,7 @@ impl RelationToGroup<'_> {
     ///See comments on fn new, here.
     fn create_relation_to_group<'a>(
         db: Box<&'a dyn Database>,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<RelationToGroup<'a>, anyhow::Error> {
         let relation_data: Vec<Option<DataType>> =
@@ -174,7 +176,7 @@ impl RelationToGroup<'_> {
 
     fn get_group_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -184,9 +186,10 @@ impl RelationToGroup<'_> {
 
     fn get_group<'a>(
         &'a mut self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Group<'a>, anyhow::Error> {
-        Group::new2(*self.db, transaction, self.get_group_id(transaction)?)
+        Group::new2(*self.db, transaction.clone(), self.get_group_id(transaction.clone())?)
     }
 
     fn move_it(
@@ -200,7 +203,7 @@ impl RelationToGroup<'_> {
 
     fn update(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         new_relation_type_id_in: Option<i64>,
         new_group_id_in: Option<i64>,
         valid_on_date_in: Option<i64>,
@@ -209,20 +212,20 @@ impl RelationToGroup<'_> {
         //Idea/possible bug: see comment on similar method in RelationToEntity (or maybe in its subclasses).
         let new_relation_type_id: i64 = match new_relation_type_id_in {
             Some(x) => x,
-            None => self.get_attr_type_id(transaction)?,
+            None => self.get_attr_type_id(transaction.clone())?,
         };
         let new_group_id: i64 = match new_group_id_in {
             Some(x) => x,
-            None => self.get_group_id(transaction)?,
+            None => self.get_group_id(transaction.clone())?,
         };
         let vod = match valid_on_date_in {
             //Use valid_on_date_in rather than valid_on_date_in.get because self.valid_on_date allows None, unlike others.
             Some(_x) => valid_on_date_in,
-            None => self.get_valid_on_date(transaction)?,
+            None => self.get_valid_on_date(transaction.clone())?,
         };
         let od = match observation_date_in {
             Some(x) => x,
-            None => self.get_observation_date(transaction)?,
+            None => self.get_observation_date(transaction.clone())?,
         };
         let rows_affected = self.db.update_relation_to_group(
             transaction,
@@ -256,9 +259,9 @@ impl Attribute for RelationToGroup<'_> {
         _unused2: Option<RelationType>, /*=None*/
         simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
-        let mut group = Group::new2(*self.db, &None, self.group_id)?;
+        let mut group = Group::new2(*self.db, None, self.group_id)?;
         //%%put back after new is implemented!:
-        //let rt_name = RelationType::new(self.db, self.get_attr_type_id(&None)).get_name();
+        //let rt_name = RelationType::new(self.db, self.get_attr_type_id(None)).get_name();
         let rt_name = "a relation type name stub";
         let mut result: String = if simplify && rt_name == Util::THE_HAS_RELATION_TYPE_NAME {
             "".to_string()
@@ -268,7 +271,7 @@ impl Attribute for RelationToGroup<'_> {
         result = format!(
             "{}{}",
             result,
-            group.get_display_string(&None, 0, simplify)?
+            group.get_display_string(None, 0, simplify)?
         );
         if !simplify {
             result = format!(
@@ -285,7 +288,7 @@ impl Attribute for RelationToGroup<'_> {
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> = self.db.get_relation_to_group_data_by_keys(
             transaction,
@@ -346,7 +349,8 @@ impl Attribute for RelationToGroup<'_> {
     /// Removes this object from the system.
     fn delete<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        //transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_to_group(
@@ -369,7 +373,7 @@ impl Attribute for RelationToGroup<'_> {
 
     fn get_attr_type_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -379,7 +383,7 @@ impl Attribute for RelationToGroup<'_> {
 
     fn get_sorting_index(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -389,7 +393,7 @@ impl Attribute for RelationToGroup<'_> {
 
     fn get_parent_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -401,7 +405,7 @@ impl Attribute for RelationToGroup<'_> {
 impl AttributeWithValidAndObservedDates for RelationToGroup<'_> {
     fn get_valid_on_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -410,7 +414,7 @@ impl AttributeWithValidAndObservedDates for RelationToGroup<'_> {
     }
     fn get_observation_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;

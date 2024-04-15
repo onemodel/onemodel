@@ -19,6 +19,8 @@ use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use crate::util::Util;
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
@@ -66,7 +68,7 @@ impl DateAttribute<'_> {
     /// create a new object.
     pub fn new2<'a>(
         db: &'a dyn Database,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<DateAttribute<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
@@ -87,7 +89,7 @@ impl DateAttribute<'_> {
 
     pub fn get_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -97,16 +99,16 @@ impl DateAttribute<'_> {
 
     fn update(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         attr_type_id_in: i64,
         date_in: i64,
     ) -> Result<(), anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
         self.db.update_date_attribute(
-            transaction,
+            transaction.clone(),
             self.id,
-            self.get_parent_id(transaction)?,
+            self.get_parent_id(transaction.clone())?,
             date_in,
             attr_type_id_in,
         )?;
@@ -127,15 +129,15 @@ impl Attribute for DateAttribute<'_> {
         _in_rt_id: Option<RelationType>, /*=None*/
         _simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
-        let attr_type_id = self.get_attr_type_id(&None)?;
-        let type_name: String = match self.db.get_entity_name(&None, attr_type_id)? {
+        let attr_type_id = self.get_attr_type_id(None)?;
+        let type_name: String = match self.db.get_entity_name(None, attr_type_id)? {
             None => "(None)".to_string(),
             Some(x) => x,
         };
         let result: String = format!(
             "{}: {}",
             type_name,
-            Util::useful_date_format(self.get_date(&None)?)
+            Util::useful_date_format(self.get_date(None)?)
         );
         Ok(Util::limit_attribute_description_length(
             result.as_str(),
@@ -145,7 +147,7 @@ impl Attribute for DateAttribute<'_> {
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> = self.db.get_date_attribute_data(transaction, self.id)?;
         if data.len() == 0 {
@@ -184,7 +186,7 @@ impl Attribute for DateAttribute<'_> {
 
     fn delete<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_date_attribute(transaction, self.id)
@@ -210,7 +212,7 @@ impl Attribute for DateAttribute<'_> {
 
     fn get_attr_type_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -220,7 +222,7 @@ impl Attribute for DateAttribute<'_> {
 
     fn get_sorting_index(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -230,7 +232,7 @@ impl Attribute for DateAttribute<'_> {
 
     fn get_parent_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;

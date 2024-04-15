@@ -24,6 +24,8 @@ use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
 // in use, in the code.
 use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
+use std::cell::{RefCell, RefMut};
+use std::rc::Rc;
 // use std::collections::HashSet;
 // use std::fmt::format;
 use tracing::*;
@@ -54,7 +56,8 @@ impl PostgreSQLDatabase {
     //%%should this and other eventual callers of db_query take its advice and call the ck method?
     pub fn db_query_wrapper_for_one_row(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        //transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql: &str,
         types: &str,
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
@@ -98,7 +101,7 @@ impl PostgreSQLDatabase {
     //%%%%should the things in "types" parm be an enum or something like that? Or doc it here?
     pub fn db_query(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql: &str,
         types: &str,
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
@@ -211,13 +214,9 @@ impl PostgreSQLDatabase {
         //     self.rt.block_on(future).unwrap();
         // };
 
-        if let Some(_tx) = transaction {
-            // if transaction.is_some() {
-            //     let mut trans = transaction.unwrap();
-            //%%WHEN FIXING, PUT NEXT LINE BACK AND REMOVE THE ONE AFTER:
-            //     let future = map.fetch_all(tx);
-            let future = map.fetch_all(&self.pool);
-            // let future = map.fetch_all(trans);
+        if let Some(tx) = transaction {
+            let mut tx_mut: RefMut<'_, _> = tx.borrow_mut();
+            let future = map.fetch_all(&mut *tx_mut);
             self.rt.block_on(future).unwrap();
         } else {
             let future = map.fetch_all(&self.pool);
@@ -254,7 +253,7 @@ impl PostgreSQLDatabase {
     /// to make it more ergonomic, and code less likely to be able to call it wrong?
     pub fn does_this_exist(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_in: &str,
         fail_if_more_than_one_found: bool, /*%% = true*/
     ) -> Result<bool, anyhow::Error> {
@@ -279,7 +278,7 @@ impl PostgreSQLDatabase {
 
     pub fn extract_row_count_from_count_query(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_in: &str,
     ) -> Result<u64, anyhow::Error> {
         let results: Vec<Option<DataType>> =
@@ -307,17 +306,17 @@ impl PostgreSQLDatabase {
         // Doing these individually so that if one fails (not previously existing, such as
         // testing or a new installation), the others can proceed (drop method ignores that
         // exception).
-        self.drop(&None, "table", "odb_version")?;
-        self.drop(&None, "table", Util::QUANTITY_TYPE)?;
-        self.drop(&None, "table", Util::DATE_TYPE)?;
-        self.drop(&None, "table", Util::BOOLEAN_TYPE)?;
+        self.drop(None, "table", "odb_version")?;
+        self.drop(None, "table", Util::QUANTITY_TYPE)?;
+        self.drop(None, "table", Util::DATE_TYPE)?;
+        self.drop(None, "table", Util::BOOLEAN_TYPE)?;
         // The next line is to invoke the trigger that will clean out Large Objects
         // (FileAttributeContent...) from the table pg_largeobject.
         // The LO cleanup doesn't happen (trigger not invoked) w/ just a drop (or truncate),
         // but does on delete.  For more info see the wiki reference
         // link among those down in this file below "create table FileAttribute".
         let result: Result<u64, anyhow::Error> = self.db_action(
-            &None,
+            None,
             "delete from FileAttributeContent",
             /*%%caller_checks_row_count_etc =*/ true,
             false,
@@ -327,40 +326,40 @@ impl PostgreSQLDatabase {
                 return Err(anyhow!(msg.to_string().clone()));
             }
         }
-        self.drop(&None, "table", "FileAttributeContent")?;
-        self.drop(&None, "table", Util::FILE_TYPE)?;
-        self.drop(&None, "table", Util::TEXT_TYPE)?;
-        self.drop(&None, "table", Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
-        self.drop(&None, "table", Util::RELATION_TO_REMOTE_ENTITY_TYPE)?;
-        self.drop(&None, "table", "EntitiesInAGroup")?;
-        self.drop(&None, "table", Util::RELATION_TO_GROUP_TYPE)?;
-        self.drop(&None, "table", "action")?;
-        self.drop(&None, "table", "grupo")?;
-        self.drop(&None, "table", Util::RELATION_TYPE_TYPE)?;
-        self.drop(&None, "table", "AttributeSorting")?;
-        self.drop(&None, "table", "omInstance")?;
-        self.drop(&None, "table", Util::ENTITY_TYPE)?;
-        self.drop(&None, "table", "class")?;
-        self.drop(&None, "sequence", "EntityKeySequence")?;
-        self.drop(&None, "sequence", "ClassKeySequence")?;
-        self.drop(&None, "sequence", "TextAttributeKeySequence")?;
-        self.drop(&None, "sequence", "QuantityAttributeKeySequence")?;
-        self.drop(&None, "sequence", "RelationTypeKeySequence")?;
-        self.drop(&None, "sequence", "ActionKeySequence")?;
-        self.drop(&None, "sequence", "RelationToEntityKeySequence")?;
-        self.drop(&None, "sequence", "RelationToRemoteEntityKeySequence")?;
-        self.drop(&None, "sequence", "RelationToGroupKeySequence")?;
-        self.drop(&None, "sequence", "RelationToGroupKeySequence2")?;
-        self.drop(&None, "sequence", "DateAttributeKeySequence")?;
-        self.drop(&None, "sequence", "BooleanAttributeKeySequence")?;
-        self.drop(&None, "sequence", "FileAttributeKeySequence")
+        self.drop(None, "table", "FileAttributeContent")?;
+        self.drop(None, "table", Util::FILE_TYPE)?;
+        self.drop(None, "table", Util::TEXT_TYPE)?;
+        self.drop(None, "table", Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
+        self.drop(None, "table", Util::RELATION_TO_REMOTE_ENTITY_TYPE)?;
+        self.drop(None, "table", "EntitiesInAGroup")?;
+        self.drop(None, "table", Util::RELATION_TO_GROUP_TYPE)?;
+        self.drop(None, "table", "action")?;
+        self.drop(None, "table", "grupo")?;
+        self.drop(None, "table", Util::RELATION_TYPE_TYPE)?;
+        self.drop(None, "table", "AttributeSorting")?;
+        self.drop(None, "table", "omInstance")?;
+        self.drop(None, "table", Util::ENTITY_TYPE)?;
+        self.drop(None, "table", "class")?;
+        self.drop(None, "sequence", "EntityKeySequence")?;
+        self.drop(None, "sequence", "ClassKeySequence")?;
+        self.drop(None, "sequence", "TextAttributeKeySequence")?;
+        self.drop(None, "sequence", "QuantityAttributeKeySequence")?;
+        self.drop(None, "sequence", "RelationTypeKeySequence")?;
+        self.drop(None, "sequence", "ActionKeySequence")?;
+        self.drop(None, "sequence", "RelationToEntityKeySequence")?;
+        self.drop(None, "sequence", "RelationToRemoteEntityKeySequence")?;
+        self.drop(None, "sequence", "RelationToGroupKeySequence")?;
+        self.drop(None, "sequence", "RelationToGroupKeySequence2")?;
+        self.drop(None, "sequence", "DateAttributeKeySequence")?;
+        self.drop(None, "sequence", "BooleanAttributeKeySequence")?;
+        self.drop(None, "sequence", "FileAttributeKeySequence")
     }
 
     //idea: change sql_type to take an enum, not a string.
     // fn drop<'a, E>(&self, executor: Option<E>, sql_type: &str, name: &str) -> Result<(), String>
     pub fn drop(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_type: &str,
         name: &str,
     ) -> Result<(), anyhow::Error> {
@@ -424,7 +423,7 @@ impl PostgreSQLDatabase {
     ///                              still just one) PLACE USING IT NOW (in method create_attribute_sorting_deletion_trigger) AND PROBABLY LIMIT USE TO THAT!
     pub fn db_action(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_in: &str,
         caller_checks_row_count_etc: bool, /*%% = false*/
         skip_check_for_bad_sql_in: bool,   /*%% = false*/
@@ -436,12 +435,13 @@ impl PostgreSQLDatabase {
         if !skip_check_for_bad_sql_in {
             Self::check_for_bad_sql(sql_in)?;
         }
-        let x: Result<PgQueryResult, sqlx::Error> = if let Some(_tx) = transaction {
-            //%%WHEN FIXING, PUT NEXT LINE BACK AND REMOVE THE ONE AFTER, and remove comment
-            //re this, in failing test, if also fixed in fn db_query.
-            // let future = sqlx::query(sql_in).execute(tx); //a try
-            // let future = sqlx::query(sql_in).execute(transaction.as_ref().unwrap()); //another try
-            let future = sqlx::query(sql_in).execute(&self.pool); //the fallback, but loses transaction features
+        let x: Result<PgQueryResult, sqlx::Error> = if let Some(tx) = transaction {
+            //%% let future = sqlx::query(sql_in).execute(tx); //a try
+            //%% let future = sqlx::query(sql_in).execute(transaction.as_ref().unwrap()); //another try
+            let mut tx_mut: RefMut<'_, _> = tx.borrow_mut();
+            //let future = sqlx::map.fetch_all(&mut *tx_mut);
+            //let future = sqlx::query(sql_in).execute(&self.pool); //the fallback, but loses transaction features
+            let future = sqlx::query(sql_in).execute(&mut *tx_mut);
             self.rt.block_on(future)
         } else {
             let future = sqlx::query(sql_in).execute(&self.pool);
@@ -620,29 +620,41 @@ impl PostgreSQLDatabase {
     //(removed next line to remove noise from debug output in test log)
     // #[tracing::instrument]
     pub fn setup_db(&self) -> Result<(), anyhow::Error> {
-        // let x = new_db.begin_trans_test();
-        let mut tx = self.begin_trans()?;
-        if !self.model_tables_exist(&Some(&mut tx))? {
+        let tx = self.begin_trans()?;
+        let transaction = Rc::new(RefCell::new(tx));
+        if !self.model_tables_exist(Some(transaction.clone()))? {
             // //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
-            self.create_tables(&Some(&mut tx))?;
+            self.create_tables(Some(transaction.clone()))?;
             //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
-            self.create_base_data(&Some(&mut tx))?;
+            self.create_base_data(Some(transaction.clone()))?;
         }
-        self.do_database_upgrades_if_needed(&Some(&mut tx))?;
-        self.create_and_check_expected_data(&Some(&mut tx))?;
-        self.commit_trans(tx)
+        self.do_database_upgrades_if_needed(Some(transaction.clone()))?;
+        self.create_and_check_expected_data(Some(transaction.clone()))?;
+        let t0 = Rc::into_inner(transaction);
+        match t0 {
+            Some(t1) => {
+                let t2: Transaction<Postgres> = t1.into_inner();
+                self.commit_trans(t2)
+            }
+            //%%is this rolling back automatically, per other places I noted to ck/confirm?:
+            None => {
+                return Err(anyhow!(
+                    "setup_db's call to Rc::into_inner(...) could not get a transaction to commit!"
+                ))
+            }
+        }
     }
 
     /// For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
     /// after an OM release was done.  This puts it into existing databases if needed.
     fn create_and_check_expected_data<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         debug!("starting fn create_and_check_expected_data");
         //Idea: should this really be in the Controller then?  It wouldn't differ by which database type we are using.  Hmm, no, if there were multiple
         // database types, there would probably a parent class over them (of some kind) to hold this.
-        let system_entity_id: i64 = self.get_system_entity_id(transaction)?;
+        let system_entity_id: i64 = self.get_system_entity_id(transaction.clone())?;
         // Idea: surely there is some better way to manage ownership of these transactions?  It
         // boils down to what happens with them, inside db_query and db_action, and everything that
         // has to pass parameters around.  Unless we ignore the need to roll back (search for
@@ -651,12 +663,12 @@ impl PostgreSQLDatabase {
         // also comments in delete_objects.
         //%%del above cmt? "transaction2".
         let type_id_of_the_has_relation: i64 =
-            self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
+            self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?;
 
         let preferences_container_id: i64 = {
             let preferences_entity_id: Option<i64> = self.get_relation_to_local_entity_by_name(
-                transaction,
-                self.get_system_entity_id(transaction)?,
+                transaction.clone(),
+                self.get_system_entity_id(transaction.clone())?,
                 Util::USER_PREFERENCES,
             )?;
             debug!("in create_and_check_expected_data: before 'match preferences_entity_id' for USER_PREFERENCES");
@@ -668,7 +680,7 @@ impl PostgreSQLDatabase {
                     debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, before create_entity_and_relation_to_local_entity");
                     let new_entity_id: i64 = self
                         .create_entity_and_relation_to_local_entity(
-                            transaction,
+                            transaction.clone(),
                             system_entity_id,
                             type_id_of_the_has_relation,
                             Util::USER_PREFERENCES,
@@ -687,7 +699,7 @@ impl PostgreSQLDatabase {
         // (Not doing the default entity preference here also, because it might not be set by now and is not assumed to be.)
         if self
             .get_user_preference2(
-                transaction,
+                transaction.clone(),
                 preferences_container_id,
                 Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE,
                 Util::PREF_TYPE_BOOLEAN,
@@ -778,7 +790,7 @@ impl PostgreSQLDatabase {
     /// Indicates whether the database setup has been done.
     fn model_tables_exist(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, anyhow::Error> {
         self.does_this_exist(
             transaction,
@@ -789,11 +801,11 @@ impl PostgreSQLDatabase {
 
     pub fn create_version_table(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
         // table has 1 row and 1 column, to say what db version we are on.
         self.db_action(
-            transaction,
+            transaction.clone(),
             // default 1 due to lack of a better idea.  See comment just below.
             "create table odb_version (version integer DEFAULT 1) ",
             false,
@@ -816,12 +828,12 @@ impl PostgreSQLDatabase {
     /// the top of fn do_database_upgrades_if_needed.
     pub fn create_tables(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
-        self.create_version_table(transaction)?;
+        self.create_version_table(transaction.clone())?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence EntityKeySequence minvalue {}",
                 self.min_id_value()
@@ -845,7 +857,7 @@ impl PostgreSQLDatabase {
         // (ie, grows from the top: convenient sometimes like for logs, but most of the time it is more convenient
         // for creating the 2nd entry after
         // the 1st one, such as when creating new lists).
-        self.db_action(transaction, format!("create table Entity (\
+        self.db_action(transaction.clone(), format!("create table Entity (\
             id bigint DEFAULT nextval('EntityKeySequence') PRIMARY KEY, \
             name varchar({}) NOT NULL, \
             class_id bigint, \
@@ -858,14 +870,14 @@ impl PostgreSQLDatabase {
 
         // not unique, but for convenience/speed:
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index entity_lower_name on Entity (lower(NAME))",
             false,
             false,
         )?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence ClassKeySequence minvalue {}",
                 self.min_id_value()
@@ -888,12 +900,12 @@ impl PostgreSQLDatabase {
             create_default_attributes boolean, \
             CONSTRAINT valid_related_to_entity_id FOREIGN KEY (defining_entity_id) REFERENCES entity (id) \
             )", Util::class_name_length());
-        self.db_action(transaction, sql.as_str(), false, false)?;
+        self.db_action(transaction.clone(), sql.as_str(), false, false)?;
 
-        self.db_action(transaction, "alter table entity add CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES class (id)", false, false)?;
+        self.db_action(transaction.clone(), "alter table entity add CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES class (id)", false, false)?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence RelationTypeKeySequence minvalue {}",
                 self.min_id_value()
@@ -918,7 +930,7 @@ impl PostgreSQLDatabase {
         // Valid values for directionality are "BI ","UNI","NON"-directional for this relationship. example: parent/child is unidirectional. sibling is bidirectional,
         // and for nondirectional
         // see Controller's mention of "nondir" and/or elsewhere for comments
-        self.db_action(transaction, format!("create table RelationType (\
+        self.db_action(transaction.clone(), format!("create table RelationType (\
             entity_id bigint PRIMARY KEY, \
             name_in_reverse_direction varchar({}), \
             directionality char(3) CHECK (directionality in ('BI','UNI','NON')), \
@@ -936,7 +948,7 @@ impl PostgreSQLDatabase {
         // The attribute_form_id  is for which table the attribute is in.  Method getAttributeForm has details.
         // The constraint noDupSortingIndexes2 is to make it so the sorting_index must also be unique for each entity (otherwise we have sorting problems).
         // The constraint noDupSortingIndexes3 was required by the constraint valid_*_sorting on the tables that have a form_id column.
-        self.db_action(transaction, "create table AttributeSorting (\
+        self.db_action(transaction.clone(), "create table AttributeSorting (\
             entity_id bigint NOT NULL\
             , attribute_form_id smallint NOT NULL\
             , attribute_id bigint NOT NULL\
@@ -949,16 +961,16 @@ impl PostgreSQLDatabase {
             ) ", false, false)?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index AttributeSorting_sorted on AttributeSorting (entity_id, sorting_index)",
             false,
             false,
         )?;
 
-        self.create_attribute_sorting_deletion_trigger(transaction)?;
+        self.create_attribute_sorting_deletion_trigger(transaction.clone())?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence QuantityAttributeKeySequence minvalue {}",
                 self.min_id_value()
@@ -990,7 +1002,7 @@ impl PostgreSQLDatabase {
         // fail on this constraint before the trigger files to delete the row from
         // attributesorting.)
         let quantity_form_id: i32 = self.get_attribute_form_id(Util::QUANTITY_TYPE).unwrap();
-        self.db_action(transaction, format!("create table QuantityAttribute (\
+        self.db_action(transaction.clone(), format!("create table QuantityAttribute (\
             form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('QuantityAttributeKeySequence') PRIMARY KEY, \
@@ -1007,13 +1019,13 @@ impl PostgreSQLDatabase {
               DEFERRABLE INITIALLY DEFERRED \
             )", quantity_form_id, quantity_form_id).as_str(), false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index quantity_parent_id on QuantityAttribute (entity_id)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "CREATE TRIGGER qa_attribute_sorting_cleanup BEFORE DELETE ON QuantityAttribute \
             FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
             false,
@@ -1021,7 +1033,7 @@ impl PostgreSQLDatabase {
         )?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence DateAttributeKeySequence minvalue {}",
                 self.min_id_value()
@@ -1033,7 +1045,7 @@ impl PostgreSQLDatabase {
         // see comment for the form_id column under "create table RelationToGroup", below:
         let date_form_id = self.get_attribute_form_id(Util::DATE_TYPE).unwrap();
         // About the attr_type_id: e.g., due on, done on, should start on, started on on... (which would be an entity).
-        self.db_action(transaction, format!("create table DateAttribute (\
+        self.db_action(transaction.clone(), format!("create table DateAttribute (\
             form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('DateAttributeKeySequence') PRIMARY KEY, \
@@ -1046,13 +1058,13 @@ impl PostgreSQLDatabase {
               DEFERRABLE INITIALLY DEFERRED \
             ) ", date_form_id, date_form_id).as_str(), false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index date_parent_id on DateAttribute (entity_id)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "CREATE TRIGGER da_attribute_sorting_cleanup BEFORE DELETE ON DateAttribute \
             FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
             false,
@@ -1060,7 +1072,7 @@ impl PostgreSQLDatabase {
         )?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence BooleanAttributeKeySequence minvalue {}",
                 self.min_id_value()
@@ -1075,7 +1087,7 @@ impl PostgreSQLDatabase {
         // value, and a task might not have a "done/not" setting yet (if unknown)?
         // Ex., isDone (where the task would be an entity).
         // See "create table RelationToEntity" for comments about dates' meanings.
-        self.db_action(transaction, format!("create table BooleanAttribute (\
+        self.db_action(transaction.clone(), format!("create table BooleanAttribute (\
             form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('BooleanAttributeKeySequence') PRIMARY KEY, \
@@ -1090,13 +1102,13 @@ impl PostgreSQLDatabase {
               DEFERRABLE INITIALLY DEFERRED \
             ) ", boolean_form_id, boolean_form_id).as_str(), false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index boolean_parent_id on BooleanAttribute (entity_id)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "CREATE TRIGGER ba_attribute_sorting_cleanup BEFORE DELETE ON BooleanAttribute \
             FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
             false,
@@ -1104,7 +1116,7 @@ impl PostgreSQLDatabase {
         )?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence FileAttributeKeySequence minvalue {}",
                 self.min_id_value()
@@ -1119,7 +1131,7 @@ impl PostgreSQLDatabase {
         // Now that i already wrote this, maybe storing 'readable' is overkill since the system has to read it to store its content. Maybe there's a use.
         // Moved to other table:   contents bit varying NOT NULL,
         // The md5hash is the md5 hash in hex (just to see if doc has become corrupted; not intended for security/encryption)
-        self.db_action(transaction, format!("create table FileAttribute (\
+        self.db_action(transaction.clone(), format!("create table FileAttribute (\
             form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('FileAttributeKeySequence') PRIMARY KEY, \
@@ -1140,13 +1152,13 @@ impl PostgreSQLDatabase {
               DEFERRABLE INITIALLY DEFERRED \
             ) ", file_form_id, file_form_id).as_str(), false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index file_parent_id on FileAttribute (entity_id)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "CREATE TRIGGER fa_attribute_sorting_cleanup BEFORE DELETE ON FileAttribute \
             FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
             false,
@@ -1160,7 +1172,7 @@ impl PostgreSQLDatabase {
         //  http://artofsystems.blogspot.com/2008/07/mysql-postgresql-and-blob-streaming.html
         //  http://stackoverflow.com/questions/2069541/postgresql-jdbc-and-streaming-blobs
         //  http://giswiki.hsr.ch/PostgreSQL_-_Binary_Large_Objects
-        self.db_action(transaction, "CREATE TABLE FileAttributeContent (\
+        self.db_action(transaction.clone(), "CREATE TABLE FileAttributeContent (\
             file_attribute_id bigint PRIMARY KEY, \
             contents_oid lo NOT NULL, \
             CONSTRAINT valid_fileattr_id FOREIGN KEY (file_attribute_id) REFERENCES fileattribute (id) ON DELETE CASCADE \
@@ -1171,11 +1183,11 @@ impl PostgreSQLDatabase {
         //    http://www.postgresql.org/docs/current/static/lo.html
         // ...said to do it.
         //Idea: but we still might want more tests around it? and to use "vacuumlo" module, per that same url?
-        self.db_action(transaction, "CREATE TRIGGER om_contents_oid_cleanup BEFORE UPDATE OR DELETE ON fileattributecontent \
+        self.db_action(transaction.clone(), "CREATE TRIGGER om_contents_oid_cleanup BEFORE UPDATE OR DELETE ON fileattributecontent \
             FOR EACH ROW EXECUTE PROCEDURE lo_manage(contents_oid)", false, false)?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence TextAttributeKeySequence minvalue {}",
                 self.min_id_value()
@@ -1191,7 +1203,7 @@ impl PostgreSQLDatabase {
         // See comment for column "form_id" under "create table RelationToGroup", below.
         // For attr_type_id:  eg, serial number (which would be an entity).
         // For valid_on_date, see "create table RelationToEntity" for comments about dates' meanings.
-        self.db_action(transaction, format!("create table TextAttribute (\
+        self.db_action(transaction.clone(), format!("create table TextAttribute (\
             form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('TextAttributeKeySequence') PRIMARY KEY, \
@@ -1206,13 +1218,13 @@ impl PostgreSQLDatabase {
               DEFERRABLE INITIALLY DEFERRED \
             ) ", text_form_id, text_form_id).as_str(), false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index text_parent_id on TextAttribute (entity_id)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "CREATE TRIGGER ta_attribute_sorting_cleanup BEFORE DELETE ON TextAttribute \
             FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
             false,
@@ -1220,7 +1232,7 @@ impl PostgreSQLDatabase {
         )?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence RelationToEntityKeySequence minvalue {}",
                 self.min_id_value()
@@ -1255,7 +1267,7 @@ impl PostgreSQLDatabase {
         // behaves correctly now when saving/reading/displaying, in milliseconds...? like the call in create_base_data()
         // to create_relation_to_local_entity ?)
         // The observation_date is: whenever first observed (in milliseconds?).
-        self.db_action(transaction, format!("create table RelationToEntity (\
+        self.db_action(transaction.clone(), format!("create table RelationToEntity (\
             form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('RelationToEntityKeySequence') UNIQUE NOT NULL, \
@@ -1272,19 +1284,19 @@ impl PostgreSQLDatabase {
               DEFERRABLE INITIALLY DEFERRED \
             ) ", rle_form_id, rle_form_id).as_str(), false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index entity_id_1 on RelationToEntity (entity_id)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index entity_id_2 on RelationToEntity (entity_id_2)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "CREATE TRIGGER rte_attribute_sorting_cleanup BEFORE DELETE ON RelationToEntity \
             FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
             false,
@@ -1295,7 +1307,7 @@ impl PostgreSQLDatabase {
         // doesn't rename the name inside the sequence, and keeping the old name is easier for now than deciding whether to do something about that (more info
         // if you search the WWW for "postgresql bug 3619".
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence RelationToGroupKeySequence minvalue {}",
                 self.min_id_value()
@@ -1312,7 +1324,7 @@ impl PostgreSQLDatabase {
         // in the db).
         // For new_entries... see comment at same field in Entity table.
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create table grupo (\
             id bigint DEFAULT nextval('RelationToGroupKeySequence') PRIMARY KEY, \
@@ -1329,7 +1341,7 @@ impl PostgreSQLDatabase {
         )?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence RelationToGroupKeySequence2 minvalue {}",
                 self.min_id_value()
@@ -1349,7 +1361,7 @@ impl PostgreSQLDatabase {
         let rtg_form_id = self
             .get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)
             .unwrap();
-        self.db_action(transaction, format!("create table RelationToGroup (\
+        self.db_action(transaction.clone(), format!("create table RelationToGroup (\
             form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('RelationToGroupKeySequence2') UNIQUE NOT NULL, \
@@ -1366,19 +1378,19 @@ impl PostgreSQLDatabase {
               DEFERRABLE INITIALLY DEFERRED \
             ) ", rtg_form_id, rtg_form_id).as_str(), false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index RTG_entity_id on RelationToGroup (entity_id)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index RTG_group_id on RelationToGroup (group_id)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "CREATE TRIGGER rtg_attribute_sorting_cleanup BEFORE DELETE ON RelationToGroup \
             FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()",
             false,
@@ -1400,7 +1412,7 @@ impl PostgreSQLDatabase {
         // When sorting_index was part of the key there were ongoing various problems because the rest of the system (like reordering results, but
         // probably also other issues) wasn't ready to handle two of the same entity in a group.
         // The onstraint noDupSortingIndexes is to make it so the sorting_index must also be unique for each group (otherwise we have sorting problems).
-        self.db_action(transaction, "create table EntitiesInAGroup (\
+        self.db_action(transaction.clone(), "create table EntitiesInAGroup (\
             group_id bigint NOT NULL\
             , entity_id bigint NOT NULL\
             , sorting_index bigint not null\
@@ -1410,15 +1422,15 @@ impl PostgreSQLDatabase {
             , constraint noDupSortingIndexes unique (group_id, sorting_index)\
             ) ", false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index EntitiesInAGroup_id on EntitiesInAGroup (entity_id)",
             false,
             false,
         )?;
-        self.db_action(transaction, "create index EntitiesInAGroup_sorted on EntitiesInAGroup (group_id, entity_id, sorting_index)", false, false)?;
+        self.db_action(transaction.clone(), "create index EntitiesInAGroup_sorted on EntitiesInAGroup (group_id, entity_id, sorting_index)", false, false)?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence ActionKeySequence minvalue {}",
                 self.min_id_value()
@@ -1427,7 +1439,7 @@ impl PostgreSQLDatabase {
             false,
             false,
         )?;
-        self.db_action(transaction, format!("create table Action (\
+        self.db_action(transaction.clone(), format!("create table Action (\
             id bigint DEFAULT nextval('ActionKeySequence') PRIMARY KEY, \
             class_id bigint NOT NULL, \
             name varchar({}) NOT NULL, \
@@ -1435,7 +1447,7 @@ impl PostgreSQLDatabase {
             CONSTRAINT valid_related_to_class_id FOREIGN KEY (class_id) REFERENCES Class (id) ON DELETE CASCADE \
             ) ", Util::entity_name_length(), Util::entity_name_length()).as_str(), false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index action_class_id on Action (class_id)",
             false,
             false,
@@ -1465,7 +1477,7 @@ impl PostgreSQLDatabase {
         // intentionally allowed, in case user doesn't need to specify any extra info about an omInstance.
         // Idea: require a certain class for this entity, created at startup/db initialization? or a shared one? Waiting until use cases become clearer.
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create table OmInstance (\
             id uuid PRIMARY KEY\
@@ -1482,7 +1494,7 @@ impl PostgreSQLDatabase {
         )?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "create sequence RelationToRemoteEntityKeySequence minvalue {}",
                 self.min_id_value()
@@ -1502,7 +1514,7 @@ impl PostgreSQLDatabase {
         let rtre_form_id = self
             .get_attribute_form_id(Util::RELATION_TO_REMOTE_ENTITY_TYPE)
             .unwrap();
-        self.db_action(transaction, format! ("create table RelationToRemoteEntity (\
+        self.db_action(transaction.clone(), format! ("create table RelationToRemoteEntity (\
             form_id smallint DEFAULT {} \
                 NOT NULL CHECK (form_id={}), \
             id bigint DEFAULT nextval('RelationToRemoteEntityKeySequence') UNIQUE NOT NULL, \
@@ -1520,22 +1532,22 @@ impl PostgreSQLDatabase {
               DEFERRABLE INITIALLY DEFERRED \
             ) ", rtre_form_id, rtre_form_id).as_str(), false, false)?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index rtre_entity_id_1 on RelationToRemoteEntity (entity_id)",
             false,
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             "create index rtre_entity_id_2 on RelationToRemoteEntity (entity_id_2)",
             false,
             false,
         )?;
-        self.db_action(transaction, "CREATE TRIGGER rtre_attribute_sorting_cleanup BEFORE DELETE ON RelationToRemoteEntity \
+        self.db_action(transaction.clone(), "CREATE TRIGGER rtre_attribute_sorting_cleanup BEFORE DELETE ON RelationToRemoteEntity \
             FOR EACH ROW EXECUTE PROCEDURE attribute_sorting_cleanup()", false, false)?;
 
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "UPDATE odb_version SET (version) = ROW({})",
                 PostgreSQLDatabase::SCHEMA_VERSION
@@ -1550,7 +1562,7 @@ impl PostgreSQLDatabase {
 
     fn create_attribute_sorting_deletion_trigger(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
         // Each time an attribute (or rte/rtg) is deleted, the AttributeSorting row should be deleted too, in an enforced way (or it had sorting problems, for one).
         // I.e., an attempt to enforce (with triggers that call this procedure) that the AttributeSorting table's attribute_id value is found
@@ -1562,32 +1574,38 @@ impl PostgreSQLDatabase {
                 RETURN OLD; \
               END;\
             $attribute_sorting_cleanup$ LANGUAGE plpgsql;";
-        self.db_action(transaction, sql, false, true)
+        self.db_action(transaction.clone(), sql, false, true)
     }
 
     /// Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.
     fn create_base_data<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?
-        let ids: Vec<i64> =
-            self.find_entity_only_ids_by_name(transaction, Util::SYSTEM_ENTITY_NAME.to_string())?;
+        let ids: Vec<i64> = self.find_entity_only_ids_by_name(
+            transaction.clone(),
+            Util::SYSTEM_ENTITY_NAME.to_string(),
+        )?;
         // will probably have to change the next line when things grow/change, and, maybe, we're doing upgrades not always a new system:
         assert!(ids.is_empty());
 
         // public=false, guessing at best value, since the world wants your modeled info, not
         // details about your system internals (which might be...unique & personal somehow)?:
-        let system_entity_id =
-            self.create_entity(transaction, Util::SYSTEM_ENTITY_NAME, None, Some(false))?;
+        let system_entity_id = self.create_entity(
+            transaction.clone(),
+            Util::SYSTEM_ENTITY_NAME,
+            None,
+            Some(false),
+        )?;
 
         let existence_entity_id =
-            self.create_entity(transaction, "existence", None, Some(false))?;
+            self.create_entity(transaction.clone(), "existence", None, Some(false))?;
         //idea: as probably mentioned elsewhere, this "BI" (and other strings?) should be replaced with a constant somewhere (or enum?)!
         debug!("in create_base_data: after creating entity 'existence'.");
         let has_rel_type_id = self.create_relation_type(
             true,
-            transaction,
+            transaction.clone(),
             Util::THE_HAS_RELATION_TYPE_NAME,
             Util::THE_IS_HAD_BY_REVERSE_NAME,
             "BI",
@@ -1597,7 +1615,7 @@ impl PostgreSQLDatabase {
         let current_time_millis = Utc::now().timestamp_millis();
         debug!("in create_base_data: after creating relType 'has'. 2");
         self.create_relation_to_local_entity(
-            transaction,
+            transaction.clone(),
             has_rel_type_id,
             system_entity_id,
             existence_entity_id,
@@ -1609,14 +1627,14 @@ impl PostgreSQLDatabase {
         debug!("in create_base_data: after creating rte.");
 
         let editor_info_entity_id = self.create_entity(
-            transaction,
+            transaction.clone(),
             Util::EDITOR_INFO_ENTITY_NAME,
             None,
             Some(false),
         )?;
         debug!("in create_base_data: after creating entity 'editorinfo'.");
         self.create_relation_to_local_entity(
-            transaction,
+            transaction.clone(),
             has_rel_type_id,
             system_entity_id,
             editor_info_entity_id,
@@ -1626,13 +1644,13 @@ impl PostgreSQLDatabase {
             true,
         )?;
         let text_editor_info_entity_id = self.create_entity(
-            transaction,
+            transaction.clone(),
             Util::TEXT_EDITOR_INFO_ENTITY_NAME,
             None,
             Some(false),
         )?;
         self.create_relation_to_local_entity(
-            transaction,
+            transaction.clone(),
             has_rel_type_id,
             editor_info_entity_id,
             text_editor_info_entity_id,
@@ -1642,13 +1660,13 @@ impl PostgreSQLDatabase {
             true,
         )?;
         let text_editor_command_attribute_type_id = self.create_entity(
-            transaction,
+            transaction.clone(),
             Util::TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME,
             None,
             Some(false),
         )?;
         self.create_relation_to_local_entity(
-            transaction,
+            transaction.clone(),
             has_rel_type_id,
             text_editor_info_entity_id,
             text_editor_command_attribute_type_id,
@@ -1665,7 +1683,7 @@ impl PostgreSQLDatabase {
             }
         };
         self.create_text_attribute(
-            transaction,
+            transaction.clone(),
             text_editor_info_entity_id,
             text_editor_command_attribute_type_id,
             editor_command,
@@ -1680,7 +1698,7 @@ impl PostgreSQLDatabase {
         // features, put them all there instead.
         // It is set to allowMixedClassesInGroup just because no current known reason not to; will be interesting to see what comes of it.
         self.create_group_and_relation_to_group(
-            transaction,
+            transaction.clone(),
             system_entity_id,
             has_rel_type_id,
             Util::CLASS_TEMPLATE_ENTITY_GROUP_NAME,
@@ -1693,7 +1711,7 @@ impl PostgreSQLDatabase {
 
         // NOTICE: code should not rely on this name, but on data in the tables.
         /*val (class_id, entity_id) = */
-        self.create_class_and_its_template_entity(transaction, "person")?;
+        self.create_class_and_its_template_entity(transaction.clone(), "person")?;
         // (should be same as the line in upgradeDbFrom3to4(), or when combined with later such methods, .)
         let uuid = uuid::Uuid::new_v4();
         debug!("in create_base_data: bytes: {:?}", uuid.as_bytes());
@@ -1702,7 +1720,7 @@ impl PostgreSQLDatabase {
         debug!("in create_base_data: urn: {}", uuid.urn());
         debug!("in create_base_data: tostring: {}", uuid.to_string());
         self.create_om_instance(
-            transaction,
+            transaction.clone(),
             /*%%which from above!?*?*/ uuid.to_string(),
             true,
             Util::LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION.to_string(),
@@ -1715,7 +1733,7 @@ impl PostgreSQLDatabase {
     /// Case-insensitive.
     pub fn find_entity_only_ids_by_name(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: String,
     ) -> Result<Vec<i64>, anyhow::Error> {
         // idea: see if queries like this are using the expected index (run & ck the query plan). Tests around that, for benefit of future dbs? Or, just wait for
@@ -1764,7 +1782,7 @@ impl PostgreSQLDatabase {
     /** Returns the class_id and entity_id, in a tuple. */
     pub fn create_class_and_its_template_entity2<'a>(
         &'a self,
-        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_name_in: String,
         entity_name_in: String,
         // (See fn delete_objects for more about this parameter, and transaction above.)
@@ -1779,7 +1797,7 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let mut local_tx: Transaction<Postgres> = {
+        let local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
                     return Err(anyhow!("In create_class_and_its_template_entity2, inconsistent values for caller_manages_transactions_in \
@@ -1803,8 +1821,9 @@ impl PostgreSQLDatabase {
                 }
             }
         };
-        let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let transaction = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -1826,13 +1845,13 @@ impl PostgreSQLDatabase {
                     .to_string()
             ));
         }
-        let class_id: i64 = self.get_new_key(transaction, "ClassKeySequence")?;
-        let entity_id: i64 = self.get_new_key(transaction, "EntityKeySequence")?;
+        let class_id: i64 = self.get_new_key(transaction.clone(), "ClassKeySequence")?;
+        let entity_id: i64 = self.get_new_key(transaction.clone(), "EntityKeySequence")?;
         // Start the entity w/ a NULL class_id so that it can be inserted w/o the class present, then update it afterward; constraints complain otherwise.
         // Idea: instead of doing in 3 steps, could specify 'deferred' on the 'not null'
         // constraint?: (see file:///usr/share/doc/postgresql-doc-9.1/html/sql-createtable.html).
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "INSERT INTO Entity (id, insertion_date, name, class_id) VALUES ({},{},'{}', NULL)",
                 entity_id,
@@ -1844,7 +1863,7 @@ impl PostgreSQLDatabase {
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "INSERT INTO Class (id, name, defining_entity_id) VALUES ({},'{}', {})",
                 class_id, class_name, entity_id
@@ -1854,7 +1873,7 @@ impl PostgreSQLDatabase {
             false,
         )?;
         self.db_action(
-            transaction,
+            transaction.clone(),
             format!(
                 "update Entity set (class_id) = ROW({}) where id={}",
                 class_id, entity_id
@@ -1863,10 +1882,11 @@ impl PostgreSQLDatabase {
             false,
             false,
         )?;
-        let class_group_id: Option<i64> = self.get_system_entitys_class_group_id(transaction)?;
+        let class_group_id: Option<i64> =
+            self.get_system_entitys_class_group_id(transaction.clone())?;
         if class_group_id.is_some() {
             self.add_entity_to_group(
-                transaction,
+                transaction.clone(),
                 class_group_id.unwrap(),
                 entity_id,
                 None,
@@ -1879,9 +1899,19 @@ impl PostgreSQLDatabase {
             // Using local_tx to make the compiler happy and because it is the one we need,
             // if !caller_manages_transactions_in. Ie, there is no transaction provided by
             // the caller.
-            if let Err(e) = self.commit_trans(local_tx) {
-                return Err(anyhow!(e.to_string()));
-            }
+            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+                Rc::into_inner(transaction.unwrap());
+            match local_tx_cell {
+                Some(t) => {
+                    let unwrapped_local_tx = t.into_inner();
+                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                        return Err(anyhow!(e.to_string()));
+                    }
+                },
+                None => {
+                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
+                },
+            };
         }
 
         Ok((class_id, entity_id))
@@ -1890,9 +1920,9 @@ impl PostgreSQLDatabase {
     /// Returns the id of a specific group under the system entity.  This group is the one that contains class-defining (template) entities.
     pub fn get_system_entitys_class_group_id(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error> {
-        let system_entity_id: i64 = self.get_system_entity_id(transaction)?;
+        let system_entity_id: i64 = self.get_system_entity_id(transaction.clone())?;
 
         // idea: maybe this stuff would be less breakable by the user if we put this kind of info in some system table
         // instead of in this group. (See also method create_base_data).  Or maybe it doesn't matter, since it's just a user convenience. Hmm.
@@ -1925,7 +1955,7 @@ impl PostgreSQLDatabase {
     /// so we know what sequence value to return, and what the unique key is of the row we just created!
     pub fn get_new_key(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sequence_name_in: &str,
     ) -> Result<i64, anyhow::Error> {
         let row: Vec<Option<DataType>> = self.db_query_wrapper_for_one_row(
@@ -1953,7 +1983,7 @@ impl PostgreSQLDatabase {
 
     pub fn are_mixed_classes_allowed(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id: &i64,
     ) -> Result<bool, anyhow::Error> {
         let rows: Vec<Vec<Option<DataType>>> = self.db_query(
@@ -1991,7 +2021,7 @@ impl PostgreSQLDatabase {
     */
     pub fn has_mixed_classes(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: &i64,
     ) -> Result<bool, anyhow::Error> {
         // Enforce that all entities in so-marked groups have the same class (or they all have no class; too bad).
@@ -2004,7 +2034,7 @@ impl PostgreSQLDatabase {
         // (Had to ask for them all and expect 1, instead of doing a count, because for some reason "select count(class_id) ... group by class_id" doesn't
         // group, and you get > 1 when I wanted just 1. This way it seems to work if I just check the # of rows returned.)
         let rows: Vec<Vec<Option<DataType>>> = self.db_query(
-            transaction,
+            transaction.clone(),
             format!(
                 "select class_id from EntitiesInAGroup eiag, entity e \
             where eiag.entity_id=e.id and group_id={} and class_id is not null group by class_id",

@@ -22,6 +22,8 @@ use crate::model::entity::Entity;
 use crate::model::relation_to_entity::RelationToEntity;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_*entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
@@ -81,7 +83,7 @@ impl RelationToLocalEntity<'_> {
     /// You can use Entity.addRelationTo[Local|Remote]Entity() to create a new persistent record.
     pub fn new2<'a>(
         db: &'a dyn Database,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
         rel_type_id: i64,
         entity_id1: i64,
@@ -127,11 +129,12 @@ impl RelationToLocalEntity<'_> {
     /// by the Entity constructor.  Or for convenience in tests.
     pub fn get_relation_to_local_entity<'a>(
         db: &'a dyn Database,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<RelationToLocalEntity<'a>>, anyhow::Error> {
         let result: Vec<Option<DataType>> =
-            db.get_relation_to_local_entity_data_by_id(transaction, id)?;
+            db.get_relation_to_local_entity_data_by_id(transaction.clone(), id)?;
         let Some(DataType::Bigint(rel_type_id)) = result[0] else {
             return Err(anyhow!("Unexpected result: {:?}", result));
         };
@@ -161,7 +164,8 @@ impl RelationToLocalEntity<'_> {
 
     fn get_entity_for_entity_id2<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Entity<'a>, anyhow::Error> {
         Entity::new2(Box::new(*self.db), transaction, self.entity_id2)
     }
@@ -170,7 +174,7 @@ impl RelationToLocalEntity<'_> {
     /// of them, like per note at get_display_string.
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> = self.db.get_relation_to_local_entity_data(
             transaction,
@@ -261,12 +265,12 @@ impl RelationToLocalEntity<'_> {
 
     fn update(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         valid_on_date_in: Option<i64>,
         observation_date_in: Option<i64>,
         new_attr_type_id_in: Option<i64>, /*= None*/
     ) -> Result<(), anyhow::Error> {
-        let new_attr_type_id = new_attr_type_id_in.unwrap_or(self.get_attr_type_id(&None)?);
+        let new_attr_type_id = new_attr_type_id_in.unwrap_or(self.get_attr_type_id(None)?);
         //Using valid_on_date_in rather than valid_on_date_in.unwrap(), just below,
         //because valid_on_date allows None, unlike others (od).
         //(Idea/possible bug: the way this is written might mean one can never change vod to None
@@ -275,12 +279,12 @@ impl RelationToLocalEntity<'_> {
         let vod = if valid_on_date_in.is_some() {
             valid_on_date_in
         } else {
-            self.get_valid_on_date(transaction)?
+            self.get_valid_on_date(transaction.clone())?
         };
         let od = if observation_date_in.is_some() {
             observation_date_in.unwrap()
         } else {
-            self.get_observation_date(transaction)?
+            self.get_observation_date(transaction.clone())?
         };
         self.db.update_relation_to_local_entity(
             transaction,
@@ -302,7 +306,8 @@ impl RelationToLocalEntity<'_> {
     /// of them, like per note at get_display_string.
     fn delete<'a>(
         &'a mut self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         _id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_to_local_entity(
@@ -341,7 +346,7 @@ impl RelationToEntity for RelationToLocalEntity<'_> {
         let mut rel_type: RelationType = {
             match relation_type_in {
                 Some(rt) => {
-                    if rt.get_id() != self.get_attr_type_id(&None)? {
+                    if rt.get_id() != self.get_attr_type_id(None)? {
                         // It can be ignored, but in cases called generically (the same as other Attribute types)
                         // it should have the right value or that indicates a
                         // misunderstanding in the caller's code. Also, if passed in and this were changed to use
@@ -350,40 +355,40 @@ impl RelationToEntity for RelationToLocalEntity<'_> {
                     }
                     rt
                 }
-                _ => RelationType::new2(*self.db, &None, self.get_attr_type_id(&None)?)?,
+                _ => RelationType::new2(*self.db, None, self.get_attr_type_id(None)?)?,
             }
         };
         //   *****MAKE SURE***** that during maintenance, anything that gets data relating to entity_id2
         //   is using the right (local or remote) db!:
         let mut related_entity: Entity = match related_entity_in {
             Some(e) => e,
-            None => self.get_entity_for_entity_id2(&None)?,
+            None => self.get_entity_for_entity_id2(None)?,
         };
         //let related_entity: Entity =
-        //    { related_entity_in.unwrap_or_else(|| self.get_entity_for_entity_id2(&None)?) };
+        //    { related_entity_in.unwrap_or_else(|| self.get_entity_for_entity_id2(None)?) };
         let rt_name: String = {
             if related_entity.get_id() == self.entity_id2 {
-                rel_type.get_name(&None)?
+                rel_type.get_name(None)?
             } else if related_entity.get_id() == self.entity_id1 {
-                rel_type.get_name_in_reverse_direction(&None)?
+                rel_type.get_name_in_reverse_direction(None)?
             } else {
                 return Err(anyhow!(
                     "Unrelated parent entity parameter?: '{}', '{}'",
                     related_entity.get_id(),
-                    related_entity.get_name(&None)?
+                    related_entity.get_name(None)?
                 ));
             }
         };
         // (See method comment about the related_entity_in param.)
         let result: String = if simplify {
             if rt_name == Util::THE_HAS_RELATION_TYPE_NAME {
-                related_entity.get_name(&None)?.clone()
+                related_entity.get_name(None)?.clone()
             } else {
                 format!(
                     "{}{}: {}",
                     rt_name,
                     Self::get_remote_description(),
-                    related_entity.get_name(&None)?
+                    related_entity.get_name(None)?
                 )
             }
         } else {
@@ -391,7 +396,7 @@ impl RelationToEntity for RelationToLocalEntity<'_> {
                 "{}{}: {}; {}",
                 rt_name,
                 Self::get_remote_description(),
-                Color::blue(related_entity.get_name(&None)?),
+                Color::blue(related_entity.get_name(None)?),
                 Util::get_dates_description(self.valid_on_date, self.observation_date)
             )
         };
@@ -431,7 +436,7 @@ impl Attribute for RelationToLocalEntity<'_> {
     /// of them, like per note at get_display_string.
     fn get_parent_id(
         &mut self,
-        _transaction: &Option<&mut Transaction<Postgres>>,
+        _transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         //) -> i64 {
         Ok(self.get_related_id1())
@@ -442,7 +447,8 @@ impl Attribute for RelationToLocalEntity<'_> {
     /// of them, like per note at get_display_string.
     fn delete<'a>(
         &'a self,
-        transaction: & Option<& mut Transaction<'a, Postgres>>,
+        //transaction: & Option<& mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_to_local_entity(
@@ -457,7 +463,7 @@ impl Attribute for RelationToLocalEntity<'_> {
     /// of them, like per note at get_display_string.
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> = self.db.get_relation_to_local_entity_data(
             transaction,
@@ -535,7 +541,7 @@ impl Attribute for RelationToLocalEntity<'_> {
         let mut rel_type: RelationType = {
             match relation_type_in {
                 Some(rt) => {
-                    if rt.get_id() != self.get_attr_type_id(&None)? {
+                    if rt.get_id() != self.get_attr_type_id(None)? {
                         // It can be ignored, but in cases called generically (the same as other Attribute types)
                         // it should have the right value or that indicates a
                         // misunderstanding in the caller's code. Also, if passed in and this were changed to use
@@ -544,40 +550,40 @@ impl Attribute for RelationToLocalEntity<'_> {
                     }
                     rt
                 }
-                _ => RelationType::new2(*self.db, &None, self.get_attr_type_id(&None)?)?,
+                _ => RelationType::new2(*self.db, None, self.get_attr_type_id(None)?)?,
             }
         };
         //   *****MAKE SURE***** that during maintenance, anything that gets data relating to entity_id2
         //   is using the right (local or remote) db!:
         let mut related_entity: Entity = match related_entity_in {
             Some(e) => e,
-            None => self.get_entity_for_entity_id2(&None)?,
+            None => self.get_entity_for_entity_id2(None)?,
         };
         //let related_entity: Entity =
-        //    { related_entity_in.unwrap_or_else(|| self.get_entity_for_entity_id2(&None)?) };
+        //    { related_entity_in.unwrap_or_else(|| self.get_entity_for_entity_id2(None)?) };
         let rt_name: String = {
             if related_entity.get_id() == self.entity_id2 {
-                rel_type.get_name(&None)?
+                rel_type.get_name(None)?
             } else if related_entity.get_id() == self.entity_id1 {
-                rel_type.get_name_in_reverse_direction(&None)?
+                rel_type.get_name_in_reverse_direction(None)?
             } else {
                 return Err(anyhow!(
                     "Unrelated parent entity parameter?: '{}', '{}'",
                     related_entity.get_id(),
-                    related_entity.get_name(&None)?
+                    related_entity.get_name(None)?
                 ));
             }
         };
         // (See method comment about the related_entity_in param.)
         let result: String = if simplify {
             if rt_name == Util::THE_HAS_RELATION_TYPE_NAME {
-                related_entity.get_name(&None)?.clone()
+                related_entity.get_name(None)?.clone()
             } else {
                 format!(
                     "{}{}: {}",
                     rt_name,
                     Self::get_remote_description(),
-                    related_entity.get_name(&None)?
+                    related_entity.get_name(None)?
                 )
             }
         } else {
@@ -585,7 +591,7 @@ impl Attribute for RelationToLocalEntity<'_> {
                 "{}{}: {}; {}",
                 rt_name,
                 Self::get_remote_description(),
-                Color::blue(related_entity.get_name(&None)?),
+                Color::blue(related_entity.get_name(None)?),
                 Util::get_dates_description(self.valid_on_date, self.observation_date)
             )
         };
@@ -614,14 +620,14 @@ impl Attribute for RelationToLocalEntity<'_> {
 
     fn get_attr_type_id(
         &mut self,
-        _transaction: &Option<&mut Transaction<Postgres>>,
+        _transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         Ok(self.rel_type_id)
     }
 
     fn get_sorting_index(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -631,7 +637,7 @@ impl Attribute for RelationToLocalEntity<'_> {
     //%%%%%%
     //    fn get_parent_id(
     //        &mut self,
-    //        transaction: &Option<&mut Transaction<Postgres>>,
+        //transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     //    ) -> Result<i64, anyhow::Error> {
     //        if !self.already_read_data {
     //            self.read_data_from_db(transaction)?;
@@ -644,7 +650,7 @@ impl AttributeWithValidAndObservedDates for RelationToLocalEntity<'_> {
     //%%%%%%Can these be impl in the trait only, instead of here/all children?
     fn get_valid_on_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -653,7 +659,7 @@ impl AttributeWithValidAndObservedDates for RelationToLocalEntity<'_> {
     }
     fn get_observation_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;

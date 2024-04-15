@@ -21,6 +21,8 @@ use md5::{Digest, Md5};
 use sqlx::{Postgres, Transaction};
 use std::ffi::OsStr;
 use std::path::Path;
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
@@ -92,7 +94,7 @@ impl FileAttribute<'_> {
     /// create a new object.
     pub fn new2<'a>(
         db: &'a dyn Database,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<FileAttribute<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
@@ -252,63 +254,63 @@ impl FileAttribute<'_> {
 
     fn get_original_file_date(&mut self) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.original_file_date)
     }
 
     fn get_stored_date(&mut self) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.stored_date)
     }
 
     fn get_description(&mut self) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.description.clone())
     }
 
     fn get_original_file_path(&mut self) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.original_file_path.clone())
     }
 
     fn get_size(&mut self) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.size)
     }
 
     fn get_md5hash(&mut self) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.md5hash.clone())
     }
 
     fn get_readable(&mut self) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.readable)
     }
 
     fn get_writeable(&mut self) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.writable)
     }
 
     fn get_executable(&mut self) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.executable)
     }
@@ -388,7 +390,7 @@ impl FileAttribute<'_> {
     /*
     fn update(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         attr_type_id_in: i64,
         boolean_in: bool,
         valid_on_date_in: Option<i64>,
@@ -461,8 +463,8 @@ impl Attribute for FileAttribute<'_> {
         _unused2: Option<RelationType>, /*=None*/
         simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
-        let attr_type_id = self.get_attr_type_id(&None)?;
-        let type_name: String = match self.db.get_entity_name(&None, attr_type_id)? {
+        let attr_type_id = self.get_attr_type_id(None)?;
+        let type_name: String = match self.db.get_entity_name(None, attr_type_id)? {
             None => "(None)".to_string(),
             Some(x) => x,
         };
@@ -498,7 +500,7 @@ impl Attribute for FileAttribute<'_> {
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> = self.db.get_file_attribute_data(transaction, self.id)?;
         if data.len() == 0 {
@@ -580,7 +582,7 @@ impl Attribute for FileAttribute<'_> {
     /** Removes this object from the system. */
     fn delete<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_file_attribute(transaction, self.id)
@@ -601,7 +603,7 @@ impl Attribute for FileAttribute<'_> {
 
     fn get_attr_type_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -611,7 +613,7 @@ impl Attribute for FileAttribute<'_> {
 
     fn get_sorting_index(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -621,7 +623,7 @@ impl Attribute for FileAttribute<'_> {
 
     fn get_parent_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;

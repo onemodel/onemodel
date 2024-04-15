@@ -61,13 +61,21 @@ mod test {
             //do stuff to capture results
         });
         match shared_tx {
-            Some(tx) => {
-                let mut tx_mut: RefMut<'_, _> = tx.borrow_mut();
-                let future = map.fetch_all(&mut *tx_mut);
+            Some(transaction) => {
+                // next 2 lines compile.  Trying to do it in more lines just below, to compare to other code that
+                // is not compiling successfully.
+                //let mut tx_mut: RefMut<'_, _> = transaction.borrow_mut();
+                //let future = map.fetch_all(&mut *tx_mut);
+
+                let mut trans: RefMut<'_, Transaction<'_, Postgres>> = transaction.borrow_mut();
+                //let mut trans2: Transaction<'_, Postgres>  = *trans;
+                //let mut trans2  = *trans;
+                let future = map.fetch_all(&mut *trans);
+                
                 rt.block_on(future).unwrap();
             }
             None => {
-                let future = map.fetch_all(/*&self.*/ pool);
+                let future = map.fetch_all(pool);
                 rt.block_on(future).unwrap();
             }
         }
@@ -195,41 +203,41 @@ mod test {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
 
-        let mut tx = db.begin_trans().unwrap();
-        let tx = &Some(&mut tx);
+        let tx = db.begin_trans().unwrap();
+        let tx = Some(Rc::new(RefCell::new(tx)));
         let pref_name = "xyznevercreatemeinreallife";
         assert!(db
-            .get_user_preference_boolean(tx, pref_name, None)
+            .get_user_preference_boolean(tx.clone(), pref_name, None)
             .unwrap()
             .is_none());
 
         assert_eq!(
-            db.get_user_preference_boolean(tx, pref_name, Some(true))
+            db.get_user_preference_boolean(tx.clone(), pref_name, Some(true))
                 .unwrap(),
             Some(true)
         );
-        db.set_user_preference_boolean(tx, pref_name, false)
+        db.set_user_preference_boolean(tx.clone(), pref_name, false)
             .unwrap();
         assert_eq!(
-            db.get_user_preference_boolean(tx, pref_name, Some(true))
+            db.get_user_preference_boolean(tx.clone(), pref_name, Some(true))
                 .unwrap(),
             Some(false)
         );
 
         let pref_name2 = "xyz2";
         assert!(db
-            .get_user_preference_entity_id(tx, pref_name2, None)
+            .get_user_preference_entity_id(tx.clone(), pref_name2, None)
             .unwrap()
             .is_none());
         assert_eq!(
-            db.get_user_preference_entity_id(tx, pref_name2, Some(0))
+            db.get_user_preference_entity_id(tx.clone(), pref_name2, Some(0))
                 .unwrap(),
             Some(0)
         );
-        db.set_user_preference_entity_id(tx, pref_name2, db.get_system_entity_id(tx).unwrap())
+        db.set_user_preference_entity_id(tx.clone(), pref_name2, db.get_system_entity_id(tx.clone()).unwrap())
             .unwrap();
         assert_eq!(
-            db.get_user_preference_entity_id(tx, pref_name2, Some(0))
+            db.get_user_preference_entity_id(tx.clone(), pref_name2, Some(0))
                 .unwrap(),
             Some(db.get_system_entity_id(tx).unwrap())
         );
@@ -251,42 +259,62 @@ mod test {
         let name: String =
             format!("test_rollback_temporary_entity_{}", rand_num.to_string()).to_string();
         // (make sure to avoid confusion with another test or earlier run somehow using the same table name?)
-        db.drop(&None, "table", name.as_str()).unwrap();
-        let mut tx = db.begin_trans().unwrap();
+        db.drop(None, "table", name.as_str()).unwrap();
+        let tx = db.begin_trans().unwrap();
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         let mut id = db
-            .create_entity(&Some(&mut tx), name.as_str(), None, None)
+            .create_entity(transaction.clone(), name.as_str(), None, None)
             .expect(format!("Failed to create entity with name: {}", name).as_str());
         assert!(db
-            .entity_key_exists(&Some(&mut tx), id, true)
+            .entity_key_exists(transaction.clone(), id, true)
             .expect(format!("Found: {}", id).as_str()));
-        db.rollback_trans(tx).unwrap();
+        
+        //%%can make every place like this call common fns instead of dup code? Note that this one
+        //does *rollback*, most do commit.  It also differs because self is not db.
+        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+            Rc::into_inner(transaction.unwrap());
+        //match local_tx_cell {
+          //  Some(t) => {
+        let unwrapped_local_tx = local_tx_cell.unwrap().into_inner();
+        db.rollback_trans(unwrapped_local_tx).unwrap();
+            //},
+            //None => {
+            //    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
+            //},
+        //}
         assert!(!db
-            .entity_key_exists(&None, id, true)
+            .entity_key_exists(None, id, true)
             .expect(format!("Found: {}", id).as_str()));
 
         // this time with an implied rollback, as sqlx docs say when a transaction goes out of scope
         // without a commit, it is implicitly rolled back.
         {
-            let mut tx = db.begin_trans().unwrap();
+            let tx = db.begin_trans().unwrap();
+            let transaction = Some(Rc::new(RefCell::new(tx)));
             id = db
-                .create_entity(&Some(&mut tx), name.as_str(), None, None)
+                .create_entity(transaction.clone(), name.as_str(), None, None)
                 .expect(format!("Failed to create: {}", name).as_str());
         }
         assert!(!db
-            .entity_key_exists(&None, id, true)
+            .entity_key_exists(None, id, true)
             .expect(format!("Found: {}", id).as_str()));
 
         // this time with a commit, not a rollback
-        let mut tx = db.begin_trans().unwrap();
+        let tx = db.begin_trans().unwrap();
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         id = db
-            .create_entity(&Some(&mut tx), name.as_str(), None, None)
+            .create_entity(transaction.clone(), name.as_str(), None, None)
             .expect(format!("Failed to create entity w name: {}", name).as_str());
         assert!(db
-            .entity_key_exists(&Some(&mut tx), id, true)
+            .entity_key_exists(transaction.clone(), id, true)
             .expect(format!("Failed to find: {}", id).as_str()));
-        db.commit_trans(tx).unwrap();
+
+        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+            Rc::into_inner(transaction.unwrap());
+        let unwrapped_local_tx = local_tx_cell.unwrap().into_inner();
+        db.commit_trans(unwrapped_local_tx).unwrap();
         assert!(db
-            .entity_key_exists(&None, id, true)
+            .entity_key_exists(None, id, true)
             .expect(format!("Failed to find: {}", id).as_str()));
     }
 
@@ -488,14 +516,14 @@ mod test {
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         let version_table_exists: bool = db
             .does_this_exist(
-                &None,
+                None,
                 "select count(1) from pg_class where relname='odb_version'",
                 true,
             )
             .unwrap();
         assert!(version_table_exists);
         let results = db
-            .db_query_wrapper_for_one_row(&None, "select version from odb_version", "Int")
+            .db_query_wrapper_for_one_row(None, "select version from odb_version", "Int")
             .unwrap();
         assert_eq!(results.len(), 1);
         if let Some(DataType::Smallint(db_ver)) = results.get(0).unwrap() {
@@ -517,7 +545,7 @@ mod test {
         in_valid_on_date: Option<i64>, /*= None*/
     ) -> i64 {
         let attr_type_id: i64 = db
-            .create_entity(&None, "textAttributeTypeLikeSsn", None, None)
+            .create_entity(None, "textAttributeTypeLikeSsn", None, None)
             .unwrap();
         let default_date: i64 = Utc::now().timestamp_millis();
         let valid_on_date: Option<i64> = in_valid_on_date;
@@ -525,7 +553,7 @@ mod test {
         let text = "some test text";
         let text_attribute_id: i64 = db
             .create_text_attribute(
-                &None,
+                None,
                 in_parent_id,
                 attr_type_id,
                 text,
@@ -537,16 +565,16 @@ mod test {
             .unwrap();
         // and verify it:
         let mut ta: TextAttribute =
-            TextAttribute::new2(db as &dyn Database, &None, text_attribute_id).unwrap();
-        assert!(ta.get_parent_id(&None).unwrap() == in_parent_id);
-        assert!(ta.get_text(&None).unwrap() == text);
-        assert!(ta.get_attr_type_id(&None).unwrap() == attr_type_id);
+            TextAttribute::new2(db as &dyn Database, None, text_attribute_id).unwrap();
+        assert!(ta.get_parent_id(None).unwrap() == in_parent_id);
+        assert!(ta.get_text(None).unwrap() == text);
+        assert!(ta.get_attr_type_id(None).unwrap() == attr_type_id);
         if in_valid_on_date.is_none() {
-            assert!(ta.get_valid_on_date(&None).unwrap().is_none());
+            assert!(ta.get_valid_on_date(None).unwrap().is_none());
         } else {
-            assert!(ta.get_valid_on_date(&None).unwrap() == in_valid_on_date);
+            assert!(ta.get_valid_on_date(None).unwrap() == in_valid_on_date);
         }
-        assert!(ta.get_observation_date(&None).unwrap() == observation_date);
+        assert!(ta.get_observation_date(None).unwrap() == observation_date);
 
         text_attribute_id
     }
@@ -556,17 +584,17 @@ mod test {
         in_parent_id: i64,
     ) -> i64 {
         let attr_type_id: i64 = db
-            .create_entity(&None, "dateAttributeType--likeDueOn", None, None)
+            .create_entity(None, "dateAttributeType--likeDueOn", None, None)
             .unwrap();
         let date: i64 = Utc::now().timestamp_millis();
         let date_attribute_id: i64 = db
             .create_date_attribute(in_parent_id, attr_type_id, date, None)
             .unwrap();
         let mut ba: DateAttribute =
-            DateAttribute::new2(db as &dyn Database, &None, date_attribute_id).unwrap();
-        assert!(ba.get_parent_id(&None).unwrap() == in_parent_id);
-        assert!(ba.get_date(&None).unwrap() == date);
-        assert!(ba.get_attr_type_id(&None).unwrap() == attr_type_id);
+            DateAttribute::new2(db as &dyn Database, None, date_attribute_id).unwrap();
+        assert!(ba.get_parent_id(None).unwrap() == in_parent_id);
+        assert!(ba.get_date(None).unwrap() == date);
+        assert!(ba.get_attr_type_id(None).unwrap() == attr_type_id);
         date_attribute_id
     }
 
@@ -578,7 +606,7 @@ mod test {
         observation_date_in: i64,
     ) -> i64 {
         let attr_type_id: i64 = db
-            .create_entity(&None, "boolAttributeType-like-isDone", None, None)
+            .create_entity(None, "boolAttributeType-like-isDone", None, None)
             .unwrap();
         let boolean_attribute_id: i64 = db
             .create_boolean_attribute(
@@ -591,12 +619,12 @@ mod test {
             )
             .unwrap();
         let mut ba =
-            BooleanAttribute::new2(db as &dyn Database, &None, boolean_attribute_id).unwrap();
-        assert!(ba.get_attr_type_id(&None).unwrap() == attr_type_id);
-        assert!(ba.get_boolean(&None).unwrap() == val_in);
-        assert!(ba.get_valid_on_date(&None).unwrap() == in_valid_on_date);
-        assert!(ba.get_parent_id(&None).unwrap() == in_parent_id);
-        assert!(ba.get_observation_date(&None).unwrap() == observation_date_in);
+            BooleanAttribute::new2(db as &dyn Database, None, boolean_attribute_id).unwrap();
+        assert!(ba.get_attr_type_id(None).unwrap() == attr_type_id);
+        assert!(ba.get_boolean(None).unwrap() == val_in);
+        assert!(ba.get_valid_on_date(None).unwrap() == in_valid_on_date);
+        assert!(ba.get_parent_id(None).unwrap() == in_parent_id);
+        assert!(ba.get_observation_date(None).unwrap() == observation_date_in);
         boolean_attribute_id
     }
 
@@ -670,14 +698,14 @@ mod test {
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         // idea: could use here instead: db.create_entityAndRelationToLocalEntity
         let _related_entity_id: i64 = db
-            .create_entity(&None, RELATED_ENTITY_NAME, None, None)
+            .create_entity(None, RELATED_ENTITY_NAME, None, None)
             .unwrap();
         // let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty { None } else { in_valid_on_date };
         let _observation_date: i64 = Utc::now().timestamp_millis();
         0_i64
 
         //%%%%finish when attrs in place again:
-        // let id = db.create_relation_to_local_entity(&None, in_rel_type_id,
+        // let id = db.create_relation_to_local_entity(None, in_rel_type_id,
         //                                             in_entity_id, related_entity_id,
         //                                             in_valid_on_date, observation_date).get_id;
         //
@@ -699,24 +727,24 @@ mod test {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         let name = "This ' name contains a single-quote.";
-        let mut tx = db.begin_trans().unwrap();
-        let tx = &Some(&mut tx);
+        let tx = db.begin_trans().unwrap();
+        let tx = Some(Rc::new(RefCell::new(tx)));
         //on a create:
-        let entity_id: i64 = db.create_entity(tx, name, None, None).unwrap();
-        let new_name = db.get_entity_name(tx, entity_id);
+        let entity_id: i64 = db.create_entity(tx.clone(), name, None, None).unwrap();
+        let new_name = db.get_entity_name(tx.clone(), entity_id);
         assert_eq!(name, new_name.unwrap().unwrap().as_str());
 
         //and on an update:
         let text_attribute_id: i64 =
             create_test_text_attribute_with_one_entity(&db, entity_id, None);
         let a_text_value = "as'dfjkl";
-        let mut ta = TextAttribute::new2(&db as &dyn Database, &None, text_attribute_id).unwrap();
+        let mut ta = TextAttribute::new2(&db as &dyn Database, None, text_attribute_id).unwrap();
         let (pid1, atid1) = (
-            ta.get_parent_id(&None).unwrap(),
-            ta.get_attr_type_id(&None).unwrap(),
+            ta.get_parent_id(None).unwrap(),
+            ta.get_attr_type_id(None).unwrap(),
         );
         db.update_text_attribute(
-            &None,
+            None,
             text_attribute_id,
             pid1,
             atid1,
@@ -726,8 +754,8 @@ mod test {
         )
         .unwrap();
         // have to create new instance to re-read the data:
-        let mut ta2 = TextAttribute::new2(&db as &dyn Database, &None, text_attribute_id).unwrap();
-        let txt2 = ta2.get_text(&None).unwrap();
+        let mut ta2 = TextAttribute::new2(&db as &dyn Database, None, text_attribute_id).unwrap();
+        let txt2 = ta2.get_text(None).unwrap();
 
         assert!(txt2 == a_text_value);
     }
@@ -738,40 +766,43 @@ mod test {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         let name = "test: org.onemodel.PSQLDbTest.entitycreation...";
-        let mut tx1 = db.begin_trans().unwrap();
-        let tx = &Some(&mut tx1);
+        let tx1 = db.begin_trans().unwrap();
+        let tx = Some(Rc::new(RefCell::new(tx1)));
 
-        let entity_count_before_creating: u64 = db.get_entity_count(tx).unwrap();
+        let entity_count_before_creating: u64 = db.get_entity_count(tx.clone()).unwrap();
         let entities_only_first_count: u64 =
-            db.get_entities_only_count(tx, false, None, None).unwrap();
+            db.get_entities_only_count(tx.clone(), false, None, None).unwrap();
 
-        let id: i64 = db.create_entity(tx, name, None, None).unwrap();
-        let new_name = db.get_entity_name(tx, id);
+        let id: i64 = db.create_entity(tx.clone(), name, None, None).unwrap();
+        let new_name = db.get_entity_name(tx.clone(), id);
         assert_eq!(name, new_name.unwrap().unwrap().as_str());
-        let entity_count_after_1st_create = db.get_entity_count(tx).unwrap();
-        let entities_only_new_count = db.get_entities_only_count(tx, false, None, None).unwrap();
+        let entity_count_after_1st_create = db.get_entity_count(tx.clone()).unwrap();
+        let entities_only_new_count = db.get_entities_only_count(tx.clone(), false, None, None).unwrap();
         if entity_count_before_creating + 1 != entity_count_after_1st_create
             || entities_only_first_count + 1 != entities_only_new_count
         {
             panic!("get_entity_count() after adding doesn't match prior count+1! Before: {} and {}, after: {} and {}.",
                    entity_count_before_creating,  entities_only_new_count, entity_count_after_1st_create, entities_only_new_count);
         }
-        assert!(db.entity_key_exists(tx, id, true).unwrap());
+        assert!(db.entity_key_exists(tx.clone(), id, true).unwrap());
 
         let new_name = "test: ' org.onemodel.PSQLDbTest.entityupdate...";
-        db.update_entity_only_name(tx, id, new_name).unwrap();
+        db.update_entity_only_name(tx.clone(), id, new_name).unwrap();
         // have to create new instance to re-read the data:
-        let mut updated_entity = Entity::new2(Box::new(&db as &dyn Database), tx, id).unwrap();
-        let name3 = updated_entity.get_name(tx).unwrap().as_str();
+        let mut updated_entity = Entity::new2(Box::new(&db as &dyn Database), tx.clone(), id).unwrap();
+        let name3 = updated_entity.get_name(tx.clone()).unwrap().as_str();
         assert_eq!(name3, new_name);
 
-        assert!(db.entity_only_key_exists(tx, id).unwrap());
-        db.rollback_trans(tx1).unwrap();
+        assert!(db.entity_only_key_exists(tx.clone(), id).unwrap());
+        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+            Rc::into_inner(tx.unwrap());
+        let unwrapped_local_tx = local_tx_cell.unwrap().into_inner();
+        db.rollback_trans(unwrapped_local_tx).unwrap();
 
         // now should not exist
-        let entity_count_after_rollback = db.get_entity_count(&None).unwrap();
+        let entity_count_after_rollback = db.get_entity_count(None).unwrap();
         assert_eq!(entity_count_after_rollback, entity_count_before_creating);
-        assert!(!db.entity_key_exists(&None, id, true).unwrap());
+        assert!(!db.entity_key_exists(None, id, true).unwrap());
     }
 
     #[test]
@@ -781,8 +812,8 @@ mod test {
 
         assert!(!db
             .entity_key_exists(
-                &None,
-                db.find_id_which_is_not_key_of_any_entity(&None).unwrap(),
+                None,
+                db.find_id_which_is_not_key_of_any_entity(None).unwrap(),
                 true
             )
             .unwrap());
@@ -797,16 +828,16 @@ mod test {
         let temp_rel_type_id: i64 = db
             .create_relation_type(
                 false,
-                &None,
+                None,
                 RELATION_TYPE_NAME,
                 "",
                 RelationType::UNIDIRECTIONAL,
             )
             .unwrap();
         // assert!(!db.entity_only_key_exists(tx, temp_rel_type_id).unwrap());
-        assert!(!db.entity_only_key_exists(&None, temp_rel_type_id).unwrap());
+        assert!(!db.entity_only_key_exists(None, temp_rel_type_id).unwrap());
         // db.delete_relation_type(tx, temp_rel_type_id).unwrap();
-        db.delete_relation_type(&None, temp_rel_type_id).unwrap();
+        db.delete_relation_type(None, temp_rel_type_id).unwrap();
         // db.rollback_trans(tx1).unwrap();
     }
 

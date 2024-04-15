@@ -15,6 +15,8 @@ use crate::model::database::{DataType, Database};
 use crate::model::id_wrapper::IdWrapper;
 use crate::util::Util;
 use sqlx::{Postgres, Transaction};
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 pub struct EntityClass<'a> {
     id: i64,
@@ -32,7 +34,7 @@ impl EntityClass<'_> {
 
     fn is_duplicate<'a>(
         db_in: Box<&'a dyn Database>,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         in_self_id_to_ignore: Option<i64>, /*= None*/
     ) -> Result<bool, Error> {
@@ -62,7 +64,7 @@ impl EntityClass<'_> {
     /// See comments on similar methods in group.rs.
     pub fn new2<'a>(
         db: &'a Box<&'a dyn Database>,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<EntityClass<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
@@ -82,7 +84,7 @@ impl EntityClass<'_> {
 
     pub fn get_name(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -92,7 +94,7 @@ impl EntityClass<'_> {
 
     pub fn get_template_entity_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -102,7 +104,7 @@ impl EntityClass<'_> {
 
     fn get_create_default_attributes(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<bool>, Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -112,7 +114,7 @@ impl EntityClass<'_> {
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> = self.db.get_class_data(transaction, self.id)?;
         if data.len() == 0 {
@@ -156,7 +158,7 @@ impl EntityClass<'_> {
 
     fn get_display_string(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, Error> {
         self.get_name(transaction)
     }
@@ -179,11 +181,12 @@ impl EntityClass<'_> {
 
     fn update_class_and_template_entity_name<'a>(
         &'a mut self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,
     ) -> Result<i64, anyhow::Error> {
         let template_entity_id: i64 = self.db.update_class_and_template_entity_name(
-            transaction,
+            transaction.clone(),
             self.get_id(),
             name_in,
             false,
@@ -202,7 +205,7 @@ impl EntityClass<'_> {
 
     fn update_create_default_attributes(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         value_in: Option<bool>,
     ) -> Result<(), Error> {
         self.db

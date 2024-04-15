@@ -20,6 +20,8 @@ use crate::model::entity::Entity;
 //use crate::model::relation_to_entity::RelationToEntity;
 //use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 //move this to some *relation* struct like RelationType?
 /// See comments on/in (Util or RelationType).ask_for_name_in_reverse_direction() and .ask_for_relation_directionality().
@@ -71,7 +73,7 @@ impl RelationType<'_> {
     /// ever need to be called by a Database instance?).
     pub fn new2<'a>(
         db: &'a dyn Database,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<RelationType<'a>, anyhow::Error> {
         // (see comments at similar location in boolean_attribute.rs.)
@@ -108,7 +110,7 @@ impl RelationType<'_> {
 
     pub fn get_name_in_reverse_direction(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -118,7 +120,7 @@ impl RelationType<'_> {
 
     fn get_directionality(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -128,7 +130,7 @@ impl RelationType<'_> {
 
     pub fn get_name(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -138,22 +140,22 @@ impl RelationType<'_> {
 
     fn get_display_string_helper(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         _with_color /*IGNOREDFORNOW*/: bool,
     ) -> Result<String, anyhow::Error> {
-        let mut entity: Entity = Entity::new2(Box::new(*self.db), &None, self.entity_id)?;
+        let mut entity: Entity = Entity::new2(Box::new(*self.db), None, self.entity_id)?;
         Ok(format!(
             "{}{} (a relation type with: {}/'{}')",
-            entity.get_archived_status_display_string(transaction)?.clone(),
-            self.get_name(transaction)?.clone(),
-            self.get_directionality(transaction)?.clone(),
+            entity.get_archived_status_display_string(transaction.clone())?.clone(),
+            self.get_name(transaction.clone())?.clone(),
+            self.get_directionality(transaction.clone())?.clone(),
             self.get_name_in_reverse_direction(transaction)?.clone()
         ))
     }
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> = self
             .db
@@ -183,7 +185,7 @@ impl RelationType<'_> {
 
     fn update(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: String,
         name_in_reverse_direction_in: String,
         directionality_in: String,
@@ -211,7 +213,8 @@ impl RelationType<'_> {
     /// Removes this object from the system.
     pub fn delete<'a>(
         &'a mut self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        //transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_type(transaction, self.entity_id)
     }

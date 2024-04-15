@@ -15,6 +15,8 @@ use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 /// Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
 /// Originally created as a place to put common stuff between Relation/QuantityAttribute/TextAttribute.
@@ -34,12 +36,12 @@ pub trait Attribute {
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error>;
 
     fn delete<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error>;
 
@@ -54,17 +56,17 @@ pub trait Attribute {
 
     fn get_attr_type_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error>;
 
     fn get_sorting_index(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error>;
 
     fn get_parent_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error>;
 
 

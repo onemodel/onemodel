@@ -23,6 +23,8 @@ use anyhow::{anyhow, Result};
 use chrono::Utc;
 use sqlx::{/*Error, */ Postgres, Transaction};
 use std::collections::HashSet;
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Entity<'a> {
@@ -93,7 +95,7 @@ impl Entity<'_> {
     /// set... method to fix it.)
     pub fn new2<'a>(
         db: Box<&'a dyn Database>,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Entity<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
@@ -115,13 +117,14 @@ impl Entity<'_> {
 
     fn create_entity<'a>(
         db: &'a dyn Database,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &'a str,
         in_class_id: Option<i64>,   /*= None*/
         is_public_in: Option<bool>, /*= None*/
     ) -> Result<Entity<'a>, anyhow::Error> {
-        let id: i64 = db.create_entity(transaction, in_name, in_class_id, is_public_in)?;
-        Entity::new2(Box::new(db as &dyn Database), transaction, id)
+        let id: i64 = db.create_entity(transaction.clone(), in_name, in_class_id, is_public_in)?;
+        Entity::new2(Box::new(db as &dyn Database), transaction.clone(), id)
     }
 
     fn name_length() -> u32 {
@@ -130,7 +133,7 @@ impl Entity<'_> {
 
     fn is_duplicate(
         db_in: &dyn Database,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         in_self_id_to_ignore: Option<i64>, /*= None*/
     ) -> Result<bool, anyhow::Error> {
@@ -141,7 +144,8 @@ impl Entity<'_> {
     /// the Entity constructor.  Or for convenience in tests.
     fn get_entity<'a>(
         db_in: Box<&'a dyn Database>,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<Entity<'a>>, String> {
         let e = Entity::new2(db_in, transaction, id);
@@ -161,7 +165,7 @@ impl Entity<'_> {
     /// display (see usage examples of get_archived_status_display_string).
     pub fn get_name(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<&String, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -171,7 +175,7 @@ impl Entity<'_> {
 
     pub fn get_class_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -181,14 +185,14 @@ impl Entity<'_> {
 
     fn get_class_template_entity_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error> {
-        let class_id: Option<i64> = self.get_class_id(transaction)?;
+        let class_id: Option<i64> = self.get_class_id(transaction.clone())?;
         match class_id {
             None => Ok(None),
             Some(id) => {
                 // let template_entity_id: Option<i64> = self.db.get_class_data(transaction, class_id.unwrap()).get(1).asInstanceOf[Option<i64>];
-                let row = self.db.get_class_data(transaction, id)?;
+                let row = self.db.get_class_data(transaction.clone(), id)?;
                 let template_entity_id: Result<Option<i64>> = match row.get(1) {
                     None => Err(anyhow!("In get_class_template_entity_id: How got not enough values in the row for id {} ?", id)),
                     Some(Some(DataType::Bigint(i))) => Ok(Some(*i)),
@@ -201,7 +205,7 @@ impl Entity<'_> {
 
     fn get_creation_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -211,7 +215,7 @@ impl Entity<'_> {
 
     fn get_creation_date_formatted(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         // Util::DATEFORMAT.format(new java.util.Date(get_creation_date))
         Ok(Util::useful_date_format(
@@ -221,7 +225,7 @@ impl Entity<'_> {
 
     fn get_public(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<bool>, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -231,7 +235,7 @@ impl Entity<'_> {
 
     fn get_public_status_display_string(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         blank_if_unset: bool, /*= true*/
     ) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
@@ -258,7 +262,7 @@ impl Entity<'_> {
 
     fn get_public_status_display_string_with_color(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         blank_if_unset: bool, /*= true*/
     ) -> Result<String, anyhow::Error> {
         // idea: maybe this (logic) knowledge really belongs in the TextUI class. (As some others, probably.)
@@ -274,7 +278,7 @@ impl Entity<'_> {
 
     // fn get_archived_status(
     //     &mut self,
-    //     transaction: &Option<&mut Transaction<Postgres>>,
+       // transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     // ) -> Result<bool, anyhow::Error> {
     //     if !self.already_read_data {
     //         self.read_data_from_db(transaction)?;
@@ -284,7 +288,7 @@ impl Entity<'_> {
 
     fn is_archived(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -294,7 +298,7 @@ impl Entity<'_> {
 
     fn get_new_entries_stick_to_top(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -304,7 +308,7 @@ impl Entity<'_> {
 
     fn get_insertion_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -314,12 +318,12 @@ impl Entity<'_> {
 
     pub fn get_archived_status_display_string(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(transaction)?;
+            self.read_data_from_db(transaction.clone())?;
         }
-        let result = if !self.is_archived(transaction)? {
+        let result = if !self.is_archived(transaction.clone())? {
             ""
         } else {
             if self.db.include_archived_entities() {
@@ -327,7 +331,7 @@ impl Entity<'_> {
             } else {
                 return Err(anyhow!("FYI in case this can be better understood and fixed:  due to an error, the program \
                       got an archived entity to display, but this is probably a bug, \
-                      because the db setting to show archived entities is turned off. The entity is {} : {}", self.get_id(), self.get_name(transaction)?));
+                      because the db setting to show archived entities is turned off. The entity is {} : {}", self.get_id(), self.get_name(transaction.clone())?));
             }
         };
         Ok(result.to_string())
@@ -335,7 +339,7 @@ impl Entity<'_> {
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let entity_data = self.db.get_entity_data(transaction, self.id)?;
         if entity_data.len() == 0 {
@@ -413,14 +417,14 @@ impl Entity<'_> {
     /// getHumanIdentifier) and the instance id? Or, just combine the methods into one?
     fn get_unique_identifier(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         Ok(format!("{}_{}", self.db.id(transaction)?, self.get_id()))
     }
 
     fn get_attribute_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         include_archived_entities_in: bool, /*= db.include_archived_entities*/
     ) -> Result<u64, anyhow::Error> {
         self.db
@@ -429,7 +433,7 @@ impl Entity<'_> {
 
     fn get_relation_to_group_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
         self.db
             .get_relation_to_group_count(transaction, self.get_id())
@@ -437,34 +441,34 @@ impl Entity<'_> {
 
     fn get_display_string_helper(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         with_color: bool,
     ) -> Result<String, anyhow::Error> {
         let mut display_string: String = {
             if with_color {
                 format!(
                     "{}{}{}",
-                    self.get_public_status_display_string_with_color(transaction, true)?,
-                    self.get_archived_status_display_string(transaction)?,
-                    Color::blue(self.get_name(transaction)?)
+                    self.get_public_status_display_string_with_color(transaction.clone(), true)?,
+                    self.get_archived_status_display_string(transaction.clone())?,
+                    Color::blue(self.get_name(transaction.clone())?)
                 )
             } else {
                 format!(
                     "{}{}{}",
-                    self.get_public_status_display_string(transaction, true)?,
-                    self.get_archived_status_display_string(transaction)?,
-                    self.get_name(transaction)?
+                    self.get_public_status_display_string(transaction.clone(), true)?,
+                    self.get_archived_status_display_string(transaction.clone())?,
+                    self.get_name(transaction.clone())?
                 )
             }
         };
-        let count = self.db.get_class_count(transaction, Some(self.get_id()))?;
+        let count = self.db.get_class_count(transaction.clone(), Some(self.get_id()))?;
         let definer_info = if count > 0 {
             "template (defining entity) for "
         } else {
             ""
         };
-        let class_name: Option<String> = match self.get_class_id(transaction)? {
-            Some(class_id) => self.db.get_class_name(transaction, class_id)?,
+        let class_name: Option<String> = match self.get_class_id(transaction.clone())? {
+            Some(class_id) => self.db.get_class_name(transaction.clone(), class_id)?,
             None => None,
         };
         let sometext = match class_name {
@@ -477,7 +481,7 @@ impl Entity<'_> {
 
     fn get_display_string(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         with_color: bool, /*= false*/
     ) -> Result<String, anyhow::Error> {
         // let mut result = "".to_string();
@@ -500,7 +504,8 @@ impl Entity<'_> {
     /// Also for convenience
     fn add_quantity_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_unit_id: i64,
         in_number: f64,
@@ -524,7 +529,8 @@ impl Entity<'_> {
     /// See PostgreSQLDatabase.create_quantity_attribute(...) for details.
     fn add_quantity_attribute2<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_unit_id: i64,
         in_number: f64,
@@ -535,7 +541,7 @@ impl Entity<'_> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
         let id = self.db.create_quantity_attribute(
-            transaction,
+            transaction.clone(),
             self.id,
             in_attr_type_id,
             in_unit_id,
@@ -545,12 +551,13 @@ impl Entity<'_> {
             false,
             sorting_index_in,
         )?;
-        QuantityAttribute::new2(*self.db, transaction, id)
+        QuantityAttribute::new2(*self.db, transaction.clone(), id)
     }
 
     fn get_quantity_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
         QuantityAttribute::new2(*self.db, transaction, in_key)
@@ -558,7 +565,8 @@ impl Entity<'_> {
 
     fn get_text_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<TextAttribute<'a>, anyhow::Error> {
         TextAttribute::new2(*self.db, transaction, in_key)
@@ -566,7 +574,8 @@ impl Entity<'_> {
 
     fn get_date_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<DateAttribute<'a>, anyhow::Error> {
         DateAttribute::new2(*self.db, transaction, in_key)
@@ -574,7 +583,8 @@ impl Entity<'_> {
 
     fn get_boolean_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
         BooleanAttribute::new2(*self.db, transaction, in_key)
@@ -582,7 +592,8 @@ impl Entity<'_> {
 
     fn get_file_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<FileAttribute<'a>, anyhow::Error> {
         FileAttribute::new2(*self.db, transaction, in_key)
@@ -590,7 +601,7 @@ impl Entity<'_> {
 
     fn get_count_of_containing_groups(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
         self.db
             .get_count_of_groups_containing_entity(transaction, self.get_id())
@@ -598,7 +609,7 @@ impl Entity<'_> {
 
     fn get_containing_groups_ids(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Vec<i64>, anyhow::Error> {
         self.db
             .get_containing_groups_ids(transaction, self.get_id())
@@ -606,7 +617,7 @@ impl Entity<'_> {
 
     fn get_containing_relations_to_group(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_index_in: i64,   /*= 0*/
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
@@ -620,7 +631,7 @@ impl Entity<'_> {
 
     fn get_containing_relation_to_group_descriptions(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         limit_in: Option<i64>, /*= None*/
     ) -> Result<Vec<String>, anyhow::Error> {
         self.db
@@ -629,7 +640,7 @@ impl Entity<'_> {
 
     fn find_relation_to_and_group(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<String>, bool), anyhow::Error> {
         self.db
             .find_relation_to_and_group_on_entity(transaction, self.get_id(), None)
@@ -637,7 +648,7 @@ impl Entity<'_> {
 
     fn find_contained_local_entity_ids<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         results_in_out: &'a mut HashSet<i64>,
         search_string_in: &str,
         levels_remaining_in: i32,      /*= 20*/
@@ -655,7 +666,7 @@ impl Entity<'_> {
 
     fn get_count_of_containing_local_entities(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(u64, u64), anyhow::Error> {
         self.db
             .get_count_of_local_entities_containing_local_entity(transaction, self.get_id())
@@ -663,7 +674,7 @@ impl Entity<'_> {
 
     fn get_local_entities_containing_entity(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_index_in: i64,   /*= 0*/
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
@@ -677,7 +688,7 @@ impl Entity<'_> {
 
     fn get_adjacent_attributes_sorting_indexes(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sorting_index_in: i64,
         limit_in: Option<i64>,     /*= None*/
         forward_not_back_in: bool, /*= true*/
@@ -693,7 +704,7 @@ impl Entity<'_> {
 
     fn get_nearest_attribute_entrys_sorting_index(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_point_sorting_index_in: i64,
         forward_not_back_in: bool, /*= true*/
     ) -> Result<Option<i64>, anyhow::Error> {
@@ -707,7 +718,8 @@ impl Entity<'_> {
 
     fn renumber_sorting_indexes<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), anyhow::Error> {
         self.db.renumber_sorting_indexes(
@@ -720,7 +732,7 @@ impl Entity<'_> {
 
     fn update_attribute_sorting_index(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         attribute_form_id_in: i64,
         attribute_id_in: i64,
         sorting_index_in: i64,
@@ -736,7 +748,7 @@ impl Entity<'_> {
 
     fn get_attribute_sorting_index(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         attribute_form_id_in: i64,
         attribute_id_in: i64,
     ) -> Result<i64, anyhow::Error> {
@@ -750,7 +762,7 @@ impl Entity<'_> {
 
     fn is_attribute_sorting_index_in_use(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sorting_index_in: i64,
     ) -> Result<bool, anyhow::Error> {
         self.db
@@ -759,7 +771,7 @@ impl Entity<'_> {
 
     fn find_unused_attribute_sorting_index(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_with_in: Option<i64>, /*= None*/
     ) -> Result<i64, anyhow::Error> {
         self.db
@@ -768,7 +780,7 @@ impl Entity<'_> {
 
     fn get_relation_to_local_entity_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         include_archived_entities_in: bool, /*= true*/
     ) -> Result<u64, anyhow::Error> {
         self.db.get_relation_to_local_entity_count(
@@ -780,7 +792,7 @@ impl Entity<'_> {
 
     fn get_relation_to_remote_entity_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
         self.db
             .get_relation_to_remote_entity_count(transaction, self.get_id())
@@ -788,7 +800,7 @@ impl Entity<'_> {
 
     fn get_text_attribute_by_type_id(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         type_id_in: i64,
         expected_rows_in: Option<usize>, /*= None*/
     ) -> Result<Vec<TextAttribute>, anyhow::Error> {
@@ -802,7 +814,8 @@ impl Entity<'_> {
 
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
@@ -868,7 +881,8 @@ impl Entity<'_> {
     /// See add_quantity_attribute(...) methods for comments.
     fn add_text_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_text: &str,
         sorting_index_in: Option<i64>,
@@ -886,7 +900,8 @@ impl Entity<'_> {
 
     pub fn add_text_attribute2<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_text: &str,
         sorting_index_in: Option<i64>,
@@ -895,7 +910,7 @@ impl Entity<'_> {
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<TextAttribute<'a>, anyhow::Error> {
         let id = self.db.create_text_attribute(
-            transaction,
+            transaction.clone(),
             self.id,
             in_attr_type_id,
             in_text,
@@ -909,7 +924,8 @@ impl Entity<'_> {
 
     fn add_date_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_date: i64,
         sorting_index_in: Option<i64>, /*= None*/
@@ -922,7 +938,8 @@ impl Entity<'_> {
 
     fn add_boolean_attribute<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_boolean: bool,
         sorting_index_in: Option<i64>,
@@ -939,7 +956,8 @@ impl Entity<'_> {
 
     fn add_boolean_attribute2<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_boolean: bool,
         sorting_index_in: Option<i64>, /*= None*/
@@ -1031,7 +1049,8 @@ impl Entity<'_> {
     /// Creates new entity then adds it a particular kind of rte to this entity.
     pub fn create_entity_and_add_has_local_relation_to_it<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        //transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         new_entity_name_in: &str,
         observation_date_in: i64,
         is_public_in: Option<bool>,
@@ -1041,7 +1060,7 @@ impl Entity<'_> {
         // anyway:
         let relation_type_id = self
             .db
-            .find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?; //, Some(1))
+            .find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?; //, Some(1))
                                                                                  //.get(0);
         let (entity, rte) = self.add_entity_and_relation_to_local_entity(
             transaction,
@@ -1057,7 +1076,8 @@ impl Entity<'_> {
 
     fn add_entity_and_relation_to_local_entity<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        //transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
         new_entity_name_in: &str,
         valid_on_date_in: Option<i64>,
@@ -1066,7 +1086,7 @@ impl Entity<'_> {
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         let (entity_id, rte_id) = self.db.create_entity_and_relation_to_local_entity(
-            transaction,
+            transaction.clone(),
             self.get_id(),
             rel_type_id_in,
             new_entity_name_in,
@@ -1075,7 +1095,7 @@ impl Entity<'_> {
             observation_date_in,
             caller_manages_transactions_in,
         )?;
-        let entity = Entity::new2(Box::new(*self.db), transaction, entity_id)?;
+        let entity = Entity::new2(Box::new(*self.db), transaction.clone(), entity_id)?;
         let rte = RelationToLocalEntity::new2(
             *self.db,
             transaction,

@@ -65,7 +65,7 @@ impl Controller {
         });
         //
         let show_public_private_status_preference: Option<bool> = db.get_user_preference_boolean(
-            &None,
+            None,
             Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE,
             None,
         )?;

@@ -1297,7 +1297,7 @@ impl Util {
                     None => Ok(None),
                     Some(e) => {
                         // create a new instance of this entity, to avoid compiler errors
-                        let new_same_entity = match Entity::new2(db, &None, e.get_id()) {
+                        let new_same_entity = match Entity::new2(db, None, e.get_id()) {
                             Err(e) => return Err(e.to_string()),
                             Ok(entity) => entity,
                         };

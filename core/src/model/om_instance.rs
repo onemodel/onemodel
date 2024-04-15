@@ -12,6 +12,8 @@ use crate::model::database::Database;
 use crate::util::Util;
 use anyhow::{anyhow, Error, Result};
 use sqlx::{Postgres, Transaction};
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 pub struct OmInstance<'a> {
     id: String,
@@ -30,7 +32,7 @@ impl OmInstance<'_> {
 
     fn is_duplicate(
         db_in: &dyn Database,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         address_in: &str,
         _self_id_to_ignore_in: Option<String>, /*= None*/
     ) -> Result<bool, anyhow::Error> {
@@ -39,7 +41,8 @@ impl OmInstance<'_> {
 
     fn create<'a>(
         db_in: Box<&'a dyn Database>,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: &'a str,
         address_in: &'a str,
         entity_id_in: Option<i64>, /*= None*/
@@ -91,7 +94,7 @@ impl OmInstance<'_> {
     /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
     pub fn new2<'a>(
         db: Box<&'a dyn Database>,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: String,
     ) -> Result<OmInstance<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
@@ -118,14 +121,14 @@ impl OmInstance<'_> {
 
     fn get_local(&mut self) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.is_local)
     }
 
     fn get_creation_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -135,7 +138,7 @@ impl OmInstance<'_> {
 
     fn get_creation_date_formatted(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         Ok(Util::useful_date_format(
             self.get_creation_date(transaction)?,
@@ -144,14 +147,14 @@ impl OmInstance<'_> {
 
     fn get_address(&mut self) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
-            self.read_data_from_db(&None)?;
+            self.read_data_from_db(None)?;
         }
         Ok(self.address.clone())
     }
 
     fn get_entity_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -161,7 +164,7 @@ impl OmInstance<'_> {
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> =
             self.db.get_om_instance_data(transaction, self.get_id()?)?;
@@ -200,7 +203,7 @@ impl OmInstance<'_> {
 
     fn get_display_string(&mut self) -> Result<String, anyhow::Error> {
         let addr = self.get_address()?;
-        let date = self.get_creation_date_formatted(&None)?;
+        let date = self.get_creation_date_formatted(None)?;
         Ok(format!(
             "{}:{}, {}, created on {}",
             self.id,
@@ -212,11 +215,11 @@ impl OmInstance<'_> {
 
     fn update(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         new_address: String,
     ) -> Result<u64, Error> {
         self.db.update_om_instance(
-            transaction,
+            transaction.clone(),
             self.get_id()?,
             new_address,
             self.get_entity_id(transaction)?,
@@ -225,7 +228,8 @@ impl OmInstance<'_> {
 
     fn delete<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, Error> {
         self.db
             .delete_om_instance(transaction, self.get_id()?.as_str())

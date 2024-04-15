@@ -18,6 +18,8 @@ use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_*entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
@@ -70,7 +72,7 @@ impl BooleanAttribute<'_> {
     /// create a new object.
     pub fn new2<'a>(
         db: &'a dyn Database,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
         // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
@@ -95,7 +97,7 @@ impl BooleanAttribute<'_> {
 
     pub fn get_boolean(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -105,7 +107,7 @@ impl BooleanAttribute<'_> {
 
     fn update(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         attr_type_id_in: i64,
         boolean_in: bool,
         valid_on_date_in: Option<i64>,
@@ -114,9 +116,9 @@ impl BooleanAttribute<'_> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
         self.db.update_boolean_attribute(
-            transaction,
+            transaction.clone(),
             self.id,
-            self.get_parent_id(transaction)?,
+            self.get_parent_id(transaction.clone())?,
             attr_type_id_in,
             boolean_in,
             valid_on_date_in,
@@ -141,12 +143,12 @@ impl Attribute for BooleanAttribute<'_> {
         _unused2: Option<RelationType>, /*=None*/
         simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
-        let attr_type_id = self.get_attr_type_id(&None)?;
-        let type_name: String = match self.db.get_entity_name(&None, attr_type_id)? {
+        let attr_type_id = self.get_attr_type_id(None)?;
+        let type_name: String = match self.db.get_entity_name(None, attr_type_id)? {
             None => "(None)".to_string(),
             Some(x) => x,
         };
-        let mut result: String = format!("{}: {}", type_name, self.get_boolean(&None)?);
+        let mut result: String = format!("{}: {}", type_name, self.get_boolean(None)?);
         if !simplify {
             result = format!(
                 "{}; {}",
@@ -162,7 +164,7 @@ impl Attribute for BooleanAttribute<'_> {
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> =
             self.db.get_boolean_attribute_data(transaction, self.id)?;
@@ -225,7 +227,8 @@ impl Attribute for BooleanAttribute<'_> {
 
     fn delete<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        //transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_boolean_attribute(transaction, self.id)
@@ -261,7 +264,7 @@ impl Attribute for BooleanAttribute<'_> {
 
     fn get_attr_type_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -271,7 +274,7 @@ impl Attribute for BooleanAttribute<'_> {
 
     fn get_sorting_index(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -281,7 +284,7 @@ impl Attribute for BooleanAttribute<'_> {
 
     fn get_parent_id(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -293,7 +296,7 @@ impl Attribute for BooleanAttribute<'_> {
 impl AttributeWithValidAndObservedDates for BooleanAttribute<'_> {
     fn get_valid_on_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
@@ -302,7 +305,7 @@ impl AttributeWithValidAndObservedDates for BooleanAttribute<'_> {
     }
     fn get_observation_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;

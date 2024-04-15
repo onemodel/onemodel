@@ -15,6 +15,8 @@ use crate::model::relation_to_group::RelationToGroup;
 use crate::util::Util;
 use anyhow::{anyhow, Error, Result};
 use sqlx::{Postgres, Transaction};
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 pub struct Group<'a> {
     id: i64,
@@ -30,11 +32,12 @@ impl Group<'_> {
     /// Creates a new group in the database.
     fn create_group<'a>(
         db_in: Box<&'a dyn Database>,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &'a str,
         allow_mixed_classes_in_group_in: bool, /*= false*/
     ) -> Result<Group<'a>, Error> {
-        let id: i64 = db_in.create_group(transaction, in_name, allow_mixed_classes_in_group_in)?;
+        let id: i64 = db_in.create_group(transaction.clone(), in_name, allow_mixed_classes_in_group_in)?;
         // Might be obvious but: Calling fn new2, not new, here, because we don't have enough data to
         // call new and so it will load from the db the other values when needed, as saved by the above.
         Group::new2(*db_in, transaction, id)
@@ -43,7 +46,8 @@ impl Group<'_> {
     /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     fn get_group<'a>(
         db_in: Box<&'a dyn Database>,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<Group<'a>>, Error> {
         let result: Result<Group, Error> = Group::new2(*db_in, transaction, id);
@@ -87,7 +91,7 @@ impl Group<'_> {
     /// Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
     pub fn new2<'a>(
         db: &'a dyn Database,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Group<'a>, Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
@@ -109,7 +113,8 @@ impl Group<'_> {
     //%%eliminate the _ parameters? who calls it w/ them & why?
     fn update<'a>(
         &'a mut self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         _attr_type_id_in: Option<i64>,                 /*= None*/
         name_in: Option<String>,                       /*= None*/
         allow_mixed_classes_in_group_in: Option<bool>, /*= None*/
@@ -120,17 +125,17 @@ impl Group<'_> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
         self.db.update_group(
-            transaction,
+            transaction.clone(),
             self.id,
             match name_in {
-                None => self.get_name(transaction)?,
+                None => self.get_name(transaction.clone())?,
                 Some(ref s) => {
                     self.name = s.clone();
                     s.clone()
                 }
             },
             match allow_mixed_classes_in_group_in {
-                None => self.get_mixed_classes_allowed(transaction)?,
+                None => self.get_mixed_classes_allowed(transaction.clone())?,
                 Some(b) => {
                     self.mixed_classes_allowed = b;
                     b
@@ -149,13 +154,13 @@ impl Group<'_> {
 
     pub fn get_display_string(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         length_limit_in: usize, /*= 0*/
         simplify_in: bool,      /* = false*/
     ) -> Result<String, Error> {
-        let num_entries = self.db.get_group_size(transaction, self.get_id(), 1)?;
+        let num_entries = self.db.get_group_size(transaction.clone(), self.get_id(), 1)?;
         let mut result: String = "".to_string();
-        let name = &self.get_name(&None)?;
+        let name = &self.get_name(None)?;
         let formatted_name = format!("grp {} /{}: {}", self.id, num_entries, Color::blue(name));
         result.push_str(if simplify_in {
             name.as_str()
@@ -168,7 +173,7 @@ impl Group<'_> {
                 if self.get_mixed_classes_allowed(transaction)? {
                     "(mixed)".to_string()
                 } else {
-                    let class_name_option = self.get_class_name(&None)?;
+                    let class_name_option = self.get_class_name(None)?;
                     match class_name_option {
                         None => "None".to_string(),
                         Some(cn) => {
@@ -192,7 +197,7 @@ impl Group<'_> {
 
     fn read_data_from_db(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), Error> {
         let data: Vec<Option<DataType>> = self.db.get_group_data(transaction, self.id)?;
         if data.len() == 0 {
@@ -226,7 +231,8 @@ impl Group<'_> {
     /// Removes this object from the system.
     fn delete<'a>(
         &'a self,
-        //_transaction: &Option<&mut Transaction<'a, Postgres>>,
+        ////_transaction: &Option<&mut Transaction<'a, Postgres>>,
+        //_transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //_id_in: i64,
     ) -> Result<(), Error> {
         self.db.delete_group_and_relations_to_it(self.id)
@@ -235,7 +241,8 @@ impl Group<'_> {
     /// Removes an entity from this group.
     fn remove_entity<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id: i64,
     ) -> Result<u64, Error> {
         self.db
@@ -250,7 +257,7 @@ impl Group<'_> {
     // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability)?
     fn get_size(&self, include_which_entities: i32 /*= 3*/) -> Result<u64, Error> {
         self.db
-            .get_group_size(&None, self.id, include_which_entities)
+            .get_group_size(None, self.id, include_which_entities)
     }
 
     fn get_group_entries(
@@ -259,7 +266,7 @@ impl Group<'_> {
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Entity>, Error> {
         self.db
-            .get_group_entry_objects(&None, self.id, starting_index_in, max_vals_in)
+            .get_group_entry_objects(None, self.id, starting_index_in, max_vals_in)
     }
 
     fn add_entity(
@@ -269,7 +276,7 @@ impl Group<'_> {
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), Error> {
         self.db.add_entity_to_group(
-            &None,
+            None,
             self.get_id(),
             in_entity_id,
             sorting_index_in,
@@ -283,7 +290,7 @@ impl Group<'_> {
 
     fn get_name(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -293,7 +300,7 @@ impl Group<'_> {
 
     fn get_mixed_classes_allowed(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -303,7 +310,7 @@ impl Group<'_> {
 
     fn get_new_entries_stick_to_top(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -313,7 +320,7 @@ impl Group<'_> {
 
     fn get_insertion_date(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -323,12 +330,12 @@ impl Group<'_> {
 
     fn get_class_name(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<String>, Error> {
-        if self.get_mixed_classes_allowed(transaction)? {
+        if self.get_mixed_classes_allowed(transaction.clone())? {
             Ok(None)
         } else {
-            let class_id: Option<i64> = self.get_class_id(transaction)?;
+            let class_id: Option<i64> = self.get_class_id(transaction.clone())?;
             match class_id {
                 None => {
                     if self.get_size(3)? == 0 {
@@ -340,7 +347,7 @@ impl Group<'_> {
                     }
                 }
                 Some(cid) => {
-                    let mut example_entitys_class = EntityClass::new2(&self.db, transaction, cid)?;
+                    let mut example_entitys_class = EntityClass::new2(&self.db, transaction.clone(), cid)?;
                     Ok(Some(example_entitys_class.get_name(transaction)?))
                 }
             }
@@ -373,14 +380,14 @@ impl Group<'_> {
     // }
     fn get_class_id(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, Error> {
         if self.mixed_classes_allowed {
             Ok(None)
         } else {
             let mut entries: Vec<Entity> =
                 self.db
-                    .get_group_entry_objects(transaction, self.get_id(), 0, Some(1))?;
+                    .get_group_entry_objects(transaction.clone(), self.get_id(), 0, Some(1))?;
             let specified: bool = entries.len() > 0;
             if !specified {
                 Ok(None)
@@ -415,18 +422,18 @@ impl Group<'_> {
 
     fn get_class_template_entity(
         &mut self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<Entity>, Error> {
-        let class_id: Option<i64> = self.get_class_id(transaction)?;
+        let class_id: Option<i64> = self.get_class_id(transaction.clone())?;
         match class_id {
-            None if self.get_mixed_classes_allowed(transaction)? => Ok(None),
+            None if self.get_mixed_classes_allowed(transaction.clone())? => Ok(None),
             Some(id) => {
-                let mut ec = EntityClass::new2(&self.db, transaction, id)?;
-                let template_entity_id = ec.get_template_entity_id(transaction)?;
-                //Ok(Some(Entity::new2(self.db, transaction, template_entity_id)?))
+                let mut ec = EntityClass::new2(&self.db, transaction.clone(), id)?;
+                let template_entity_id = ec.get_template_entity_id(transaction.clone())?;
+                //Ok(Some(Entity::new2(self.db, transaction.clone(), template_entity_id)?))
                 //if let Ok(db) = self.db.downcast::<&dyn Database>() {
                 //if let db = *self.db {
-                //    Ok(Some(Entity::new2(Box::new(db), transaction, template_entity_id)?))
+                //    Ok(Some(Entity::new2(Box::new(db), transaction.clone(), template_entity_id)?))
                 //} else {
                 //    Err(anyhow!("Unexpected result from dereference, in group.get_class_template_entity?"))
                 // }
@@ -446,7 +453,7 @@ impl Group<'_> {
 
     fn get_highest_sorting_index(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, Error> {
         self.db
             .get_highest_sorting_index_for_group(transaction, self.get_id())
@@ -454,7 +461,7 @@ impl Group<'_> {
 
     fn get_containing_relations_to_group(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_index_in: i64,
         max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<RelationToGroup>, Error> {
@@ -468,7 +475,7 @@ impl Group<'_> {
 
     fn get_count_of_entities_containing_group(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(u64, u64), Error> {
         self.db
             .get_count_of_entities_containing_group(transaction, self.get_id())
@@ -476,7 +483,7 @@ impl Group<'_> {
 
     fn get_entities_containing_group(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<(i64, Entity)>, Error> {
@@ -490,7 +497,7 @@ impl Group<'_> {
 
     fn find_unused_sorting_index(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_with_in: Option<i64>, /*= None*/
     ) -> Result<i64, Error> {
         self.db
@@ -499,7 +506,7 @@ impl Group<'_> {
 
     fn get_groups_containing_entitys_groups_ids(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         limit_in: Option<i64>, /*= Some(5)*/
     ) -> Result<Vec<Vec<Option<DataType>>>, Error> {
         self.db
@@ -508,7 +515,7 @@ impl Group<'_> {
 
     fn is_entity_in_group(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
     ) -> Result<bool, Error> {
         self.db
@@ -517,7 +524,7 @@ impl Group<'_> {
 
     fn get_adjacent_group_entries_sorting_indexes(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sorting_index_in: i64,
         limit_in: Option<i64>, /*= None*/
         forward_not_back_in: bool,
@@ -533,7 +540,7 @@ impl Group<'_> {
 
     fn get_nearest_group_entrys_sorting_index(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_point_sorting_index_in: i64,
         forward_not_back_in: bool,
     ) -> Result<Option<i64>, Error> {
@@ -547,7 +554,7 @@ impl Group<'_> {
 
     fn get_entry_sorting_index(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
     ) -> Result<i64, Error> {
         self.db
@@ -556,7 +563,7 @@ impl Group<'_> {
 
     fn is_group_entry_sorting_index_in_use(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sorting_index_in: i64,
     ) -> Result<bool, Error> {
         self.db
@@ -565,7 +572,7 @@ impl Group<'_> {
 
     fn update_sorting_index(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<u64, Error> {
@@ -579,7 +586,8 @@ impl Group<'_> {
 
     fn renumber_sorting_indexes<'a>(
         &'a self,
-        transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), Error> {
         self.db.renumber_sorting_indexes(

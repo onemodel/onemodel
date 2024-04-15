@@ -29,7 +29,9 @@ use chrono::Utc;
 // in use, in the code.
 // use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
 use sqlx::{Postgres, Transaction};
+use std::cell::RefCell;
 use std::collections::HashSet;
+use std::rc::Rc;
 // use std::fmt::format;
 // use tracing::*;
 
@@ -75,7 +77,7 @@ impl PostgreSQLDatabase {
     /// @return the sorting_index value that is actually used.
     pub fn add_attribute_sorting_row(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         attribute_form_id_in: i32,
         attribute_id_in: i64,
@@ -87,15 +89,15 @@ impl PostgreSQLDatabase {
             let index = {
                 if sorting_index_in.is_some() {
                     sorting_index_in.unwrap()
-                } else if self.get_attribute_count(transaction, entity_id_in, false)? == 0 {
+                } else if self.get_attribute_count(transaction.clone(), entity_id_in, false)? == 0 {
                     // start with an increment off the min or max, so that later there is room to sort something before or after it, manually:
                     self.min_id_value() + 99999
                 } else {
                     self.max_id_value() - 99999
                 }
             };
-            if self.is_attribute_sorting_index_in_use(transaction, entity_id_in, index)? {
-                self.find_unused_attribute_sorting_index(transaction, entity_id_in, None)?
+            if self.is_attribute_sorting_index_in_use(transaction.clone(), entity_id_in, index)? {
+                self.find_unused_attribute_sorting_index(transaction.clone(), entity_id_in, None)?
             } else {
                 index
             }
@@ -108,7 +110,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_system_entity_id(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         let ids: Vec<i64> =
             self.find_entity_only_ids_by_name(transaction, Util::SYSTEM_ENTITY_NAME.to_string())?;
@@ -127,7 +129,7 @@ impl PostgreSQLDatabase {
     //%%%%remove now? Or, can I find a way to do it in a fn again somehow? w/ online help?
     // fn confirm_which_transaction(
     //     &self,
-    //     transaction_in: &Option<&mut Transaction<Postgres>>,
+    //     transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     //     caller_manages_transactions_in: bool,
     // ) -> Result<Option<Transaction<Postgres>>, anyhow::Error> {
     //     // Make sure we either have a good local_tx or good transaction_in, to use one correctly
@@ -165,7 +167,7 @@ impl PostgreSQLDatabase {
         &'a self,
         // The purpose of transaction_in is so that whenever a direct db call needs to be done in a
         // transaction, as opposed to just using the pool as Executor, it will be available.
-        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         where_clause_in: &str,
         rows_expected: u64, /*%%= 1*/
@@ -184,7 +186,7 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let mut local_tx: Transaction<Postgres> = {
+        let local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
                     return Err(anyhow!("In delete_objects, inconsistent values for caller_manages_transactions_in \
@@ -208,8 +210,9 @@ impl PostgreSQLDatabase {
                 }
             }
         };
-        let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let transaction = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -225,7 +228,7 @@ impl PostgreSQLDatabase {
             //     Some(mut tx) => &Some(&mut tx),
             //     None => transaction_in,
             // },
-            transaction,
+            transaction.clone(),
             sql.as_str(),
             /*%%caller_checks_row_count_etc =*/ true,
             false,
@@ -248,9 +251,22 @@ impl PostgreSQLDatabase {
                 // Using local_tx to make the compiler happy and because it is the one we need,
                 // if !caller_manages_transactions_in. Ie, there is no transaction provided by
                 // the caller.
-                if let Err(e) = self.commit_trans(local_tx) {
-                    return Err(anyhow!(e.to_string()));
+                let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+                    Rc::into_inner(transaction.unwrap());
+                match local_tx_cell {
+                    Some(t) => {
+                        let unwrapped_local_tx = t.into_inner();
+                        if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                            return Err(anyhow!(e.to_string()));
+                        }
+                    }
+                    None => {
+                        return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
+                    }
                 }
+                //    if let Err(e) = self.commit_trans(transaction) {
+                //        return Err(anyhow!(e.to_string()));
+                //    }
             }
             Ok(rows_deleted)
         }
@@ -258,7 +274,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_user_preference2<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         preferences_container_id_in: i64,
         preference_name_in: &str,
         preference_type: &str,
@@ -269,7 +285,7 @@ impl PostgreSQLDatabase {
         // preferences to be nested up to that many levels (3 as of this writing).
         let mut set: HashSet<i64> = HashSet::new();
         let found_preferences: &mut HashSet<i64> = self.find_contained_local_entity_ids(
-            transaction,
+            transaction.clone(),
             &mut set,
             preferences_container_id_in,
             preference_name_in,
@@ -298,7 +314,7 @@ impl PostgreSQLDatabase {
             }
             let preference_entity = Entity::new2(
                 Box::new(self as &dyn Database),
-                transaction,
+                transaction.clone(),
                 preference_entity_id,
             );
             let relevant_attribute_rows: Vec<Vec<Option<DataType>>> = {
@@ -306,10 +322,10 @@ impl PostgreSQLDatabase {
                     // (Using the preference_entity.get_id for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
                     // IN setUserPreference METHOD CALL TO create_boolean_attribute!)
                     let sql2 = format!("select id, boolean_value from booleanattribute where entity_id={} and attr_type_id={}", preference_entity_id, preference_entity_id);
-                    self.db_query(transaction, sql2.as_str(), "i64,bool")?
+                    self.db_query(transaction.clone(), sql2.as_str(), "i64,bool")?
                 } else if preference_type == Util::PREF_TYPE_ENTITY_ID {
                     let sql2 = format!("select rel_type_id, entity_id, entity_id_2 from relationtoentity where entity_id={}", preference_entity_id);
-                    self.db_query(transaction, sql2.as_str(), "i64,i64,i64")?
+                    self.db_query(transaction.clone(), sql2.as_str(), "i64,i64,i64")?
                 } else {
                     return Err(anyhow!("Unexpected preference_type: {}", preference_type));
                 }
@@ -321,7 +337,7 @@ impl PostgreSQLDatabase {
                 // Or, just delete the bad preference (self-cleanup). If it was the public/private display toggle, its absence will cause errors (though it is a
                 // very unlikely situation here), and it will be fixed on restarting the app (or starting another instance), via the create_and_check_expected_data
                 // (or current equivalent?) method.
-                self.delete_entity(transaction, preference_entity_id, false)?;
+                self.delete_entity(transaction.clone(), preference_entity_id, false)?;
                 Ok(Vec::new())
             } else {
                 let attr_msg: String = if preference_type == Util::PREF_TYPE_BOOLEAN {
@@ -342,7 +358,10 @@ impl PostgreSQLDatabase {
                         // Using 0 as a best-effort non-existent id (even though it does exists) because
                         // no better idea came to mind, at least for this error handling.
                         Err(e) => (format!("(Unknown/error: {})", e.to_string()), 0_i64),
-                        Ok(mut entity) => (entity.get_name(transaction)?.clone(), entity.get_id()),
+                        Ok(mut entity) => (
+                            entity.get_name(transaction.clone())?.clone(),
+                            entity.get_id(),
+                        ),
                     };
                     return Err(anyhow!("Under the entity {} ({}), there are {}{}so the program does not know what to use for this.  There should be *one*.",
                                        pref_entity_name,
@@ -389,7 +408,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_relation_to_local_entity_by_name(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         containing_entity_id_in: i64,
         name_in: &str,
     ) -> Result<Option<i64>, anyhow::Error> {
@@ -403,7 +422,7 @@ impl PostgreSQLDatabase {
             rte.entity_id={}{} and rte.entity_id_2=e.id and e.name='{}'",
             containing_entity_id_in, if_not_archived, name_in
         );
-        let related_entity_id_rows = self.db_query(transaction, sql.as_str(), "i64")?;
+        let related_entity_id_rows = self.db_query(transaction.clone(), sql.as_str(), "i64")?;
         if related_entity_id_rows.len() == 0 {
             Ok(None)
         } else {
@@ -435,7 +454,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_quantity_attribute_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
@@ -450,7 +469,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_text_attribute_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
@@ -465,7 +484,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_date_attribute_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
@@ -480,7 +499,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_boolean_attribute_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
@@ -495,7 +514,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_file_attribute_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
@@ -514,15 +533,15 @@ impl PostgreSQLDatabase {
     /// because create_tables always provides the latest structure in a new system.  This method is just for updating older instances to what is in create_tables!
     pub fn do_database_upgrades_if_needed(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let version_table_exists: bool = self.does_this_exist(
-            transaction,
+            transaction.clone(),
             "select count(1) from pg_class where relname='odb_version'",
             true,
         )?;
         if !version_table_exists {
-            self.create_version_table(transaction)?;
+            self.create_version_table(transaction.clone())?;
         }
         let db_version_row: Vec<Option<DataType>> = self.db_query_wrapper_for_one_row(
             transaction,
@@ -570,7 +589,7 @@ impl PostgreSQLDatabase {
     // code should really go. Not sure if that idea includes this method or not.
     pub fn find_first_class_id_by_name(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,
         case_sensitive: bool, /*= false*/
     ) -> Result<Option<i64>, anyhow::Error> {
@@ -603,7 +622,7 @@ impl PostgreSQLDatabase {
     /// @return the id of the new RTE
     pub fn add_has_relation_to_local_entity<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         from_entity_id_in: i64,
         to_entity_id_in: i64,
         valid_on_date_in: Option<i64>,
@@ -611,9 +630,9 @@ impl PostgreSQLDatabase {
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
         let relation_type_id: i64 =
-            self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
+            self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?;
         let new_rte = self.create_relation_to_local_entity(
-            transaction,
+            transaction.clone(),
             relation_type_id,
             from_entity_id_in,
             to_entity_id_in,
@@ -627,7 +646,7 @@ impl PostgreSQLDatabase {
 
     pub fn update_class_name(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
         name_in: String,
     ) -> Result<u64, anyhow::Error> {
@@ -649,11 +668,11 @@ impl PostgreSQLDatabase {
     // "deletions2" if at all.
     pub fn delete_relation_to_group_and_all_recursively<'a>(
         &'a self,
-        transaction: &Option<&mut Transaction<'a, Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
     ) -> Result<(u64, u64), anyhow::Error> {
         let entity_ids: Vec<Vec<Option<DataType>>> = self.db_query(
-            transaction,
+            transaction.clone(),
             format!(
                 "select entity_id from entitiesinagroup where group_id={}",
                 group_id_in
@@ -663,7 +682,7 @@ impl PostgreSQLDatabase {
         )?;
         let num_e_ids: u64 = entity_ids.len().try_into()?;
         let deletions1 = self.delete_objects(
-            transaction,
+            transaction.clone(),
             "entitiesinagroup",
             format!("where group_id={}", group_id_in).as_str(),
             num_e_ids,
@@ -677,7 +696,7 @@ impl PostgreSQLDatabase {
         for id_vec in entity_ids {
             match id_vec[0] {
                 Some(DataType::Bigint(id)) => {
-                    self.delete_objects(transaction, Util::ENTITY_TYPE,
+                    self.delete_objects(transaction.clone(), Util::ENTITY_TYPE,
                                         format!("where id={}", id).as_str(), 1, true)?
                 },
                 None => return Err(anyhow!("In delete_relation_to_group_and_all_recursively, How did we get a null entity_id back from query?")),
@@ -689,7 +708,7 @@ impl PostgreSQLDatabase {
         //and finally:
         // (passing 0 for rows expected, because there either could be some, or none if the group is not contained in any entity.)
         self.delete_objects(
-            transaction,
+            transaction.clone(),
             Util::RELATION_TO_GROUP_TYPE,
             format!("where group_id={}", group_id_in).as_str(),
             0,
@@ -707,7 +726,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_entity_attribute_sorting_data(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         limit_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
@@ -742,7 +761,7 @@ impl PostgreSQLDatabase {
 
     fn get_attribute_sorting_rows_count(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: Option<i64>, /*= None*/
     ) -> Result<u64, anyhow::Error> {
         let where_entity_id = match entity_id_in {
@@ -758,7 +777,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_relation_to_group_count_by_group(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.extract_row_count_from_count_query(
@@ -773,7 +792,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_all_relation_to_local_entity_data_by_id(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(transaction,
@@ -783,7 +802,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_all_relation_to_remote_entity_data_by_id(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(transaction,
@@ -794,7 +813,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_all_relation_to_group_data_by_id(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         self.db_query_wrapper_for_one_row(transaction,
@@ -813,7 +832,7 @@ impl PostgreSQLDatabase {
 
     fn relation_to_group_keys_exist(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id: i64,
         relation_type_id: i64,
         group_id: i64,
@@ -826,7 +845,7 @@ impl PostgreSQLDatabase {
     /// Excludes those entities that are really relationtypes, attribute types, or quantity units.
     pub fn entity_only_key_exists(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<bool, anyhow::Error> {
         let not_archived = if !self.include_archived_entities {
@@ -848,7 +867,7 @@ impl PostgreSQLDatabase {
 
     fn relation_to_local_entity_exists(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
@@ -859,7 +878,7 @@ impl PostgreSQLDatabase {
 
     fn relation_to_remote_entity_exists(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
         entity_id1_in: i64,
         remote_instance_id_in: String,
@@ -870,7 +889,9 @@ impl PostgreSQLDatabase {
                                                   rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in).as_str(), true)
     }
 
-    // fn add_new_entity_to_results(&self, transaction: &Option<&mut Transaction<Postgres>>, final_results: Vec<Entity>,
+    // fn add_new_entity_to_results(&self,
+    //    transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    // final_results: Vec<Entity>,
     //                              intermediate_result_in: Vec<Option<DataType>>) -> Result<bool, anyhow::Error> {
     //     let result = intermediate_result_in;
     //     // None of these values should be of "None" type. If they are it's a bug:
@@ -886,10 +907,10 @@ impl PostgreSQLDatabase {
 
     pub fn get_containing_entities_helper(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_in: &str,
     ) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
-        let early_results = self.db_query(transaction, sql_in, "i64,i64")?;
+        let early_results = self.db_query(transaction.clone(), sql_in, "i64,i64")?;
         let early_results_len = early_results.len();
         let mut final_results: Vec<(i64, Entity)> = Vec::new();
         // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
@@ -899,7 +920,7 @@ impl PostgreSQLDatabase {
             let rel_type_id = get_i64_from_row(&result, 0)?;
             let id = get_i64_from_row(&result, 1)?;
             let entity: Entity =
-                Entity::new2(Box::new(self as &dyn Database), transaction, id.clone()).unwrap();
+                Entity::new2(Box::new(self as &dyn Database), transaction.clone(), id.clone()).unwrap();
             final_results.push((rel_type_id.clone(), entity))
         }
 
@@ -911,10 +932,10 @@ impl PostgreSQLDatabase {
 
     pub fn get_containing_relation_to_groups_helper(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_in: &str,
     ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
-        let early_results = self.db_query(transaction, sql_in, "i64")?;
+        let early_results = self.db_query(transaction.clone(), sql_in, "i64")?;
         let mut group_id_results: Vec<i64> = Vec::new();
         let early_results_len = early_results.len();
         // idea: should the remainder of this method be moved to Group, so the persistence layer doesn't know anything about the Model? (helps avoid circular
@@ -936,7 +957,7 @@ impl PostgreSQLDatabase {
         let mut containing_relations_to_group: Vec<RelationToGroup> = Vec::new();
         for gid in group_id_results {
             let rtgs: Vec<RelationToGroup> =
-                self.get_relations_to_group_containing_this_group(transaction, gid, 0, None)?;
+                self.get_relations_to_group_containing_this_group(transaction.clone(), gid, 0, None)?;
             for rtg in rtgs {
                 containing_relations_to_group.push(rtg);
             }
@@ -990,7 +1011,7 @@ impl PostgreSQLDatabase {
     // 1st parm is 0-based index to start with, 2nd parm is # of obj's to return (if None, means no limit).
     pub fn get_entities_generic(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>,
         table_name_in: &str,
@@ -1125,7 +1146,7 @@ impl PostgreSQLDatabase {
 
     fn get_entities_from_relations_to_local_entity(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_entity_id_in: i64,
         name_in: &str,
         rel_type_id_in: Option<i64>, /*= None*/
@@ -1138,7 +1159,7 @@ impl PostgreSQLDatabase {
             Some(rtid) => format!(" and rel_type_id={}", rtid),
             _ => "".to_string(),
         };
-        let query_results: Vec<Vec<Option<DataType>>> = self.db_query(transaction,
+        let query_results: Vec<Vec<Option<DataType>>> = self.db_query(transaction.clone(),
                                                                       format!("select id from entity where name='{}' and id in (select entity_id_2 from \
                                                                      relationToEntity where entity_id={} {})",
                                                                               name_in, parent_entity_id_in, rel_type).as_str(),
@@ -1158,7 +1179,7 @@ impl PostgreSQLDatabase {
             if let Some(DataType::Bigint(id)) = r[0] {
                 final_result.push(Entity::new2(
                     Box::new(self as &dyn Database),
-                    transaction,
+                    transaction.clone(),
                     id,
                 )?);
                 // index += 1
@@ -1181,7 +1202,8 @@ impl PostgreSQLDatabase {
     // /// table, then all attributes (since remember they might not *be* in the AttributeSorting table), then sort them with the best available information,
     // /// then decide which ones to return.  Maybe instead we could do that smartly, on just the needed subset.  But it still need to gracefully handle it
     // /// when a given attribute (or all) is not found in the sorting table.
-    // fn get_sorted_attributes(&self, transaction: &Option<&mut Transaction<Postgres>>,
+    // fn get_sorted_attributes(&self,
+    //    transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     //                          entity_id_in: i64, starting_object_index_in: usize /*= 0*/, max_vals_in: usize /*= 0*/,
     //                          only_public_entities_in: bool /*= true*/) -> Result<(Vec<(i64, Attribute)>, usize), anyhow::Error> {
     //     let allResults: java.util.ArrayList[(Option<i64>, Attribute)] = new java.util.ArrayList[(Option<i64>, Attribute)];
@@ -1371,7 +1393,7 @@ impl PostgreSQLDatabase {
     /// The in_self_id_to_ignore parameter is to avoid saying a class is a duplicate of itself: checks for all others only.
     pub fn is_duplicate_row(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         possible_duplicate_in: &str,
         table: &str,
         key_column_to_ignore_on: &str,
@@ -1409,7 +1431,7 @@ impl PostgreSQLDatabase {
     /// Returns the # of rows affected (archived or un-archived).
     pub fn archive_objects<'a>(
         &'a self,
-        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         where_clause_in: &str,
         rows_expected: u64,                   /*= 1*/
@@ -1427,7 +1449,7 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let mut local_tx: Transaction<Postgres> = {
+        let local_tx: Transaction<Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
                     return Err(anyhow!("In archive_objects, inconsistent values for caller_manages_transactions_in \
@@ -1451,8 +1473,9 @@ impl PostgreSQLDatabase {
                 }
             }
         };
-        let local_tx_option = &Some(&mut local_tx);
-        let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
+        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let transaction = if caller_manages_transactions_in {
             transaction_in
         } else {
             local_tx_option
@@ -1469,7 +1492,7 @@ impl PostgreSQLDatabase {
             "update {} set (archived, archived_date) = ({}, {}), {}",
             table_name_in, archive, archived_date, where_clause_in
         );
-        let rows_affected = self.db_action(transaction, sql.as_str(), true, false)?;
+        let rows_affected = self.db_action(transaction.clone(), sql.as_str(), true, false)?;
         if rows_expected > 0 && rows_affected != rows_expected {
             // No need to explicitly roll back a locally created transaction aka tx, though we
             // definitely don't want to archive an unexpected # of rows,
@@ -1485,8 +1508,18 @@ impl PostgreSQLDatabase {
                 // Using local_tx to make the compiler happy and because it is the one we need,
                 // if !caller_manages_transactions_in. Ie, there is no transaction provided by
                 // the caller.
-                if let Err(e) = self.commit_trans(local_tx) {
-                    return Err(anyhow!(e.to_string()));
+                let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+                    Rc::into_inner(transaction.unwrap());
+                match local_tx_cell {
+                    Some(t) => {
+                        let unwrapped_local_tx = t.into_inner();
+                        if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                            return Err(anyhow!(e.to_string()));
+                        }
+                    }
+                    None => {
+                        return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
+                    }
                 }
             }
             Ok(rows_affected)
@@ -1495,7 +1528,7 @@ impl PostgreSQLDatabase {
 
     pub fn delete_object_by_id<'a>(
         &'a self,
-        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         id_in: i64,
         caller_manages_transactions_in: bool, /*= false*/
@@ -1511,7 +1544,7 @@ impl PostgreSQLDatabase {
 
     pub fn delete_object_by_id2<'a>(
         &'a self,
-        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         id_in: &str,
         caller_manages_transactions_in: bool, /*= false*/
@@ -1528,14 +1561,14 @@ impl PostgreSQLDatabase {
     // idea: see comment on find_unused_sorting_index
     pub fn find_id_which_is_not_key_of_any_entity<'a>(
         &'a self,
-        transaction_in: &Option<&mut Transaction<'a, Postgres>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably
         //only one iteration, ever.  (See similar comments elsewhere.)
         let mut working_id: i64 = self.max_id_value() - 1;
         let mut counter: i64 = 0;
         loop {
-            if self.entity_key_exists(transaction_in, working_id, true)? {
+            if self.entity_key_exists(transaction_in.clone(), working_id, true)? {
                 if working_id == self.max_id_value() {
                     // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a
                     // performance problem long before. It's a bug.
@@ -1562,7 +1595,7 @@ impl PostgreSQLDatabase {
     /// @return the OmInstance object that stands for *this*: the OmInstance to which this PostgreSQLDatabase class instance reads/writes directly.
     pub fn get_local_om_instance_data(
         &self,
-        transaction: &Option<&mut Transaction<Postgres>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<OmInstance, anyhow::Error> {
         let sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE";
         let results = self.db_query(transaction, sql, "String,String,i64,i64")?;
