@@ -41,7 +41,7 @@ pub trait Attribute {
 
     fn delete<'a>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error>;
 

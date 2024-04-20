@@ -582,7 +582,7 @@ impl Attribute for FileAttribute<'_> {
     /** Removes this object from the system. */
     fn delete<'a>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_file_attribute(transaction, self.id)

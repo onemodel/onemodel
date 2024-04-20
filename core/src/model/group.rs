@@ -242,7 +242,7 @@ impl Group<'_> {
     fn remove_entity<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         entity_id: i64,
     ) -> Result<u64, Error> {
         self.db
@@ -587,7 +587,7 @@ impl Group<'_> {
     fn renumber_sorting_indexes<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), Error> {
         self.db.renumber_sorting_indexes(

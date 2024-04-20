@@ -214,7 +214,7 @@ impl RelationType<'_> {
     pub fn delete<'a>(
         &'a mut self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_type(transaction, self.entity_id)
     }

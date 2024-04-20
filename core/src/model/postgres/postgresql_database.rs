@@ -649,7 +649,7 @@ impl PostgreSQLDatabase {
     /// after an OM release was done.  This puts it into existing databases if needed.
     fn create_and_check_expected_data<'a>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         debug!("starting fn create_and_check_expected_data");
         //Idea: should this really be in the Controller then?  It wouldn't differ by which database type we are using.  Hmm, no, if there were multiple
@@ -1580,7 +1580,7 @@ impl PostgreSQLDatabase {
     /// Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.
     fn create_base_data<'a>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?
         let ids: Vec<i64> = self.find_entity_only_ids_by_name(
@@ -1782,7 +1782,7 @@ impl PostgreSQLDatabase {
     /** Returns the class_id and entity_id, in a tuple. */
     pub fn create_class_and_its_template_entity2<'a>(
         &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         class_name_in: String,
         entity_name_in: String,
         // (See fn delete_objects for more about this parameter, and transaction above.)

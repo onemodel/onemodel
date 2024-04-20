@@ -505,7 +505,7 @@ impl Entity<'_> {
     fn add_quantity_attribute<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_unit_id: i64,
         in_number: f64,
@@ -530,7 +530,7 @@ impl Entity<'_> {
     fn add_quantity_attribute2<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_unit_id: i64,
         in_number: f64,
@@ -629,9 +629,9 @@ impl Entity<'_> {
         )
     }
 
-    fn get_containing_relation_to_group_descriptions(
+    fn get_containing_relation_to_group_descriptions<'a>(
         &self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         limit_in: Option<i64>, /*= None*/
     ) -> Result<Vec<String>, anyhow::Error> {
         self.db
@@ -719,7 +719,7 @@ impl Entity<'_> {
     fn renumber_sorting_indexes<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), anyhow::Error> {
         self.db.renumber_sorting_indexes(
@@ -815,7 +815,7 @@ impl Entity<'_> {
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
@@ -882,7 +882,7 @@ impl Entity<'_> {
     fn add_text_attribute<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_text: &str,
         sorting_index_in: Option<i64>,
@@ -901,7 +901,7 @@ impl Entity<'_> {
     pub fn add_text_attribute2<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_text: &str,
         sorting_index_in: Option<i64>,
@@ -1050,7 +1050,7 @@ impl Entity<'_> {
     pub fn create_entity_and_add_has_local_relation_to_it<'a>(
         &'a self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         new_entity_name_in: &str,
         observation_date_in: i64,
         is_public_in: Option<bool>,
@@ -1077,7 +1077,7 @@ impl Entity<'_> {
     fn add_entity_and_relation_to_local_entity<'a>(
         &'a self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         rel_type_id_in: i64,
         new_entity_name_in: &str,
         valid_on_date_in: Option<i64>,

@@ -307,7 +307,7 @@ impl RelationToLocalEntity<'_> {
     fn delete<'a>(
         &'a mut self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         _id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_to_local_entity(
@@ -448,7 +448,7 @@ impl Attribute for RelationToLocalEntity<'_> {
     fn delete<'a>(
         &'a self,
         //transaction: & Option<& mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         //_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_to_local_entity(

@@ -249,7 +249,7 @@ impl Attribute for QuantityAttribute<'_> {
     fn delete<'a>(
         &'a self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_quantity_attribute(transaction, self.id)

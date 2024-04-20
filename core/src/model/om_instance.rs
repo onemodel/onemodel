@@ -229,7 +229,7 @@ impl OmInstance<'_> {
     fn delete<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<u64, Error> {
         self.db
             .delete_om_instance(transaction, self.get_id()?.as_str())
