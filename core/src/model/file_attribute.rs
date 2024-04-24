@@ -69,7 +69,7 @@ impl FileAttribute<'_> {
         size: i64,
         md5hash: String,
         sorting_index: i64,
-    ) -> FileAttribute<'a> {
+    ) -> FileAttribute {
         // idea: make the parameter order uniform throughout the system
         FileAttribute {
             id,
@@ -96,7 +96,7 @@ impl FileAttribute<'_> {
         db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<FileAttribute<'a>, anyhow::Error> {
+    ) -> Result<FileAttribute, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.file_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -580,8 +580,8 @@ impl Attribute for FileAttribute<'_> {
     // }
 
     /** Removes this object from the system. */
-    fn delete<'a>(
-        &'a self,
+    fn delete(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {

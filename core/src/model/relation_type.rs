@@ -51,13 +51,13 @@ impl RelationType<'_> {
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
-    pub fn new<'a>(
-        db: &'a dyn Database,
+    pub fn new(
+        db: & dyn Database,
         entity_id: i64,
         name: String,
         name_in_reverse_direction: String,
         directionality: String,
-    ) -> RelationType<'a> {
+    ) -> RelationType {
         RelationType {
             db: Box::new(db),
             entity_id,
@@ -71,11 +71,11 @@ impl RelationType<'_> {
     /// This constructor instantiates an existing object from the DB. You can use Entity.addRelationTypeAttribute() to
     /// create a new object. Assumes caller just read it from the DB and the info is accurate (i.e., this may only
     /// ever need to be called by a Database instance?).
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: & dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<RelationType<'a>, anyhow::Error> {
+    ) -> Result<RelationType, anyhow::Error> {
         // (see comments at similar location in boolean_attribute.rs.)
         if !db.is_remote() && !db.relation_type_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -211,8 +211,8 @@ impl RelationType<'_> {
     }
 
     /// Removes this object from the system.
-    pub fn delete<'a>(
-        &'a mut self,
+    pub fn delete(
+        &mut self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {

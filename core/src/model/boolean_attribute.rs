@@ -44,8 +44,8 @@ impl BooleanAttribute<'_> {
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new<'a>(
-        db: Box<&'a dyn Database>,
+    fn new(
+        db: Box<& dyn Database>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -53,7 +53,7 @@ impl BooleanAttribute<'_> {
         valid_on_date: Option<i64>,
         observation_date: i64,
         sorting_index: i64,
-    ) -> BooleanAttribute<'a> {
+    ) -> BooleanAttribute {
         BooleanAttribute {
             db,
             id,
@@ -70,11 +70,11 @@ impl BooleanAttribute<'_> {
 
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: & dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
+    ) -> Result<BooleanAttribute, anyhow::Error> {
         // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
         // wait for an error later to see if there is a problem (ie, assuming usually not).
         // idea: And today having doubts about that.
@@ -225,8 +225,8 @@ impl Attribute for BooleanAttribute<'_> {
         Ok(())
     }
 
-    fn delete<'a>(
-        &'a self,
+    fn delete(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,

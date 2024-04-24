@@ -647,8 +647,9 @@ impl PostgreSQLDatabase {
 
     /// For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
     /// after an OM release was done.  This puts it into existing databases if needed.
-    fn create_and_check_expected_data<'a>(
-        &'a self,
+    fn create_and_check_expected_data(
+        //&'a self,
+        & self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         debug!("starting fn create_and_check_expected_data");
@@ -1578,8 +1579,8 @@ impl PostgreSQLDatabase {
     }
 
     /// Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.
-    fn create_base_data<'a>(
-        &'a self,
+    fn create_base_data(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?
@@ -1780,8 +1781,8 @@ impl PostgreSQLDatabase {
     }
 
     /** Returns the class_id and entity_id, in a tuple. */
-    pub fn create_class_and_its_template_entity2<'a>(
-        &'a self,
+    pub fn create_class_and_its_template_entity2(
+        &self,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_name_in: String,
         entity_name_in: String,

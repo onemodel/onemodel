@@ -40,11 +40,12 @@ use std::rc::Rc;
 use tracing::*;
 
 impl Database for PostgreSQLDatabase {
-    fn add_uri_entity_with_uri_attribute<'a>(
-        &'a self,
+    fn add_uri_entity_with_uri_attribute(
+        &self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        containing_entity_in: &'a Entity<'a>,
+        //containing_entity_in: &'a Entity,
+        containing_entity_in: &Entity,
         new_entity_name_in: &str,
         _uri_in: &str,
         observation_date_in: i64,
@@ -314,10 +315,11 @@ impl Database for PostgreSQLDatabase {
     ///                          case, or not following any RelationTo[Local|Remote]Entity links (which defeats the ability to organize the preferences in a hierarchy),
     ///                          or flagging certain ones to skip by marking them as a preference (not a link to follow in the preferences hierarchy), but
     ///                          those all seemed more complicated.
-    fn find_contained_local_entity_ids<'a>(
-        &'a self,
+    fn find_contained_local_entity_ids(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        results_in_out: &'a mut HashSet<i64>,
+        //results_in_out: &'a mut HashSet<i64>,
+        results_in_out: &mut HashSet<i64>,
         from_entity_id_in: i64,
         search_string_in: &str,
         levels_remaining: i32,      /*%% = 20*/
@@ -448,8 +450,8 @@ impl Database for PostgreSQLDatabase {
         Ok(results_in_out)
     }
 
-    fn create_class_and_its_template_entity<'a>(
-        &'a self,
+    fn create_class_and_its_template_entity(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_name_in: &str,
     ) -> Result<(i64, i64), anyhow::Error> {
@@ -651,8 +653,8 @@ impl Database for PostgreSQLDatabase {
     /// of the data you can do some research and let us know what you find.
     /// <p/>
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_quantity_attribute<'a>(
-        &'a self,
+    fn create_quantity_attribute(
+        &self,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
@@ -953,8 +955,8 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn update_class_and_template_entity_name<'a>(
-        &'a self,
+    fn update_class_and_template_entity_name(
+        &self,
         //transaction_in: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_id_in: i64,
@@ -1039,8 +1041,8 @@ impl Database for PostgreSQLDatabase {
         Ok(entity_id)
     }
 
-    fn update_entitys_class<'a>(
-        &'a self,
+    fn update_entitys_class(
+        &self,
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id: i64,
@@ -1207,8 +1209,8 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_text_attribute<'a>(
-        &'a self,
+    fn create_text_attribute(
+        &self,
         // purpose: see comment in delete_objects
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -1494,8 +1496,8 @@ impl Database for PostgreSQLDatabase {
     // }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
-    fn create_relation_to_local_entity<'a>(
-        &'a self,
+    fn create_relation_to_local_entity(
+        &self,
         // purpose: see comment in delete_objects
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -1607,8 +1609,8 @@ impl Database for PostgreSQLDatabase {
     }
 
     /** Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
-    fn create_relation_to_remote_entity<'a>(
-        &'a self,
+    fn create_relation_to_remote_entity(
+        &self,
         // purpose: see comment in delete_objects
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -1934,8 +1936,8 @@ impl Database for PostgreSQLDatabase {
 
     /// I.e., make it so the entity has a group in it, which can contain entities.
     // Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_group_and_relation_to_group<'a>(
-        &'a self,
+    fn create_group_and_relation_to_group(
+        &self,
         // purpose: see comment in delete_objects
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -2026,8 +2028,8 @@ impl Database for PostgreSQLDatabase {
 
     /// I.e., make it so the entity has a relation to a new entity in it.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_entity_and_relation_to_local_entity<'a>(
-        &'a self,
+    fn create_entity_and_relation_to_local_entity(
+        &self,
         // purpose: see comment in delete_objects
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -2120,8 +2122,8 @@ impl Database for PostgreSQLDatabase {
     /// I.e., make it so the entity has a group in it, which can contain entities.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
     /// @return a tuple containing the id and new sorting_index: (id, sorting_index)
-    fn create_relation_to_group<'a>(
-        &'a self,
+    fn create_relation_to_group(
+        &self,
         // purpose: see comment in delete_objects
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -2514,8 +2516,8 @@ impl Database for PostgreSQLDatabase {
     /// I.e., insert an entity into a group of entities. Using a default value for the sorting_index because user can set it if/as desired;
     /// the max (ie putting it at the end) might be the least often surprising if the user wonders where one went....
     /// **ABOUT THE SORTINGINDEX*:  SEE the related comment on method add_attribute_sorting_row.
-    fn add_entity_to_group<'a>(
-        &'a self,
+    fn add_entity_to_group(
+        &self,
         // purpose: see comment in delete_objects
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -2670,8 +2672,8 @@ impl Database for PostgreSQLDatabase {
         Ok(id)
     }
 
-    fn create_relation_type<'a>(
-        &'a self,
+    fn create_relation_type(
+        &self,
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool,
         // purpose: see comment in delete_objects
@@ -2792,8 +2794,8 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn delete_entity<'a>(
-        &'a self,
+    fn delete_entity(
+        &self,
         // purpose: see comment in delete_objects
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -2888,8 +2890,8 @@ impl Database for PostgreSQLDatabase {
         Ok(())
     }
 
-    fn archive_entity<'a>(
-        &'a self,
+    fn archive_entity(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -2905,8 +2907,8 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn unarchive_entity<'a>(
-        &'a self,
+    fn unarchive_entity(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -2922,8 +2924,8 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn delete_quantity_attribute<'a>(
-        &'a self,
+    fn delete_quantity_attribute(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -2931,8 +2933,8 @@ impl Database for PostgreSQLDatabase {
         self.delete_object_by_id(transaction, Util::QUANTITY_TYPE, id_in, false)
     }
 
-    fn delete_text_attribute<'a>(
-        &'a self,
+    fn delete_text_attribute(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -2940,8 +2942,8 @@ impl Database for PostgreSQLDatabase {
         self.delete_object_by_id(transaction, Util::TEXT_TYPE, id_in, false)
     }
 
-    fn delete_date_attribute<'a>(
-        &'a self,
+    fn delete_date_attribute(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -2949,8 +2951,8 @@ impl Database for PostgreSQLDatabase {
         self.delete_object_by_id(transaction, Util::DATE_TYPE, id_in, false)
     }
 
-    fn delete_boolean_attribute<'a>(
-        &'a self,
+    fn delete_boolean_attribute(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -2958,8 +2960,8 @@ impl Database for PostgreSQLDatabase {
         self.delete_object_by_id(transaction, Util::BOOLEAN_TYPE, id_in, false)
     }
 
-    fn delete_file_attribute<'a>(
-        &'a self,
+    fn delete_file_attribute(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -2967,8 +2969,8 @@ impl Database for PostgreSQLDatabase {
         self.delete_object_by_id(transaction, Util::FILE_TYPE, id_in, false)
     }
 
-    fn delete_relation_to_local_entity<'a>(
-        &'a self,
+    fn delete_relation_to_local_entity(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
@@ -2988,8 +2990,8 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn delete_relation_to_remote_entity<'a>(
-        &'a self,
+    fn delete_relation_to_remote_entity(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
@@ -3003,8 +3005,8 @@ impl Database for PostgreSQLDatabase {
                             1, false)
     }
 
-    fn delete_relation_to_group<'a>(
-        &'a self,
+    fn delete_relation_to_group(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
@@ -3069,8 +3071,8 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn remove_entity_from_group<'a>(
-        &'a self,
+    fn remove_entity_from_group(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
@@ -3124,8 +3126,8 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn delete_relation_type<'a>(
-        &'a self,
+    fn delete_relation_type(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -3147,8 +3149,8 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Creates the preference if it doesn't already exist.
-    fn set_user_preference_boolean<'a>(
-        &'a self,
+    fn set_user_preference_boolean(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,
@@ -3215,8 +3217,8 @@ impl Database for PostgreSQLDatabase {
             Ok(())
         }
     }
-    fn get_user_preference_boolean<'a>(
-        &'a self,
+    fn get_user_preference_boolean(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         preference_name_in: &str,
@@ -3243,8 +3245,8 @@ impl Database for PostgreSQLDatabase {
         }
     }
     /// Creates the preference if it doesn't already exist.
-    fn set_user_preference_entity_id<'a>(
-        &'a self,
+    fn set_user_preference_entity_id(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,
@@ -3314,8 +3316,8 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn get_user_preference_entity_id<'a>(
-        &'a self,
+    fn get_user_preference_entity_id(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         preference_name_in: &str,
@@ -3460,8 +3462,8 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn renumber_sorting_indexes<'a>(
-        &'a self,
+    fn renumber_sorting_indexes(
+        &self,
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_or_group_id_in: i64,
@@ -5446,8 +5448,8 @@ impl Database for PostgreSQLDatabase {
     //     self.pool.%%?
     // }
 
-    fn get_or_create_class_and_template_entity<'a>(
-        &'a self,
+    fn get_or_create_class_and_template_entity(
+        &self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_name_in: &str,
@@ -5691,8 +5693,8 @@ impl Database for PostgreSQLDatabase {
         self.db_action(transaction, sql.as_str(), false, false)
     }
 
-    fn delete_om_instance<'a>(
-        &'a self,
+    fn delete_om_instance(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: &str,
     ) -> Result<u64, anyhow::Error> {

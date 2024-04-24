@@ -376,9 +376,10 @@ mod test {
     // fn sqlx_do_query(executor: &mut sqlx::Executor<Database = Postgres>, rt: &tokio::runtime::Runtime, sql: &str) {
     // Why does below line not work (compile errors), but the 2 lines below it do work (as mimicked from sqlx:;query.execute(...))?
     // fn sqlx_do_query<'a>(executor: sqlx::Executor<'a, Database = Postgres>, rt: &tokio::runtime::Runtime, sql: &str) {
-    fn sqlx_do_query<'a, E>(executor: E, rt: &tokio::runtime::Runtime, sql: &str)
+    //fn sqlx_do_query<'a, E>(executor: E, rt: &tokio::runtime::Runtime, sql: &str)
+    fn sqlx_do_query<E>(executor: E, rt: &tokio::runtime::Runtime, sql: &str)
     where
-        E: sqlx::Executor<'a, Database = Postgres>,
+        E: sqlx::Executor<Database = Postgres>,
     {
         let x: PgQueryResult = rt
             .block_on(sqlx::query(sql).execute(executor))

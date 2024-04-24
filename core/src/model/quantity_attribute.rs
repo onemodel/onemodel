@@ -59,7 +59,7 @@ impl QuantityAttribute<'_> {
         valid_on_date: Option<i64>,
         observation_date: i64,
         sorting_index: i64,
-    ) -> QuantityAttribute<'a> {
+    ) -> QuantityAttribute {
         QuantityAttribute {
             id,
             db,
@@ -80,7 +80,7 @@ impl QuantityAttribute<'_> {
         db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
+    ) -> Result<QuantityAttribute, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.quantity_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -246,8 +246,8 @@ impl Attribute for QuantityAttribute<'_> {
     }
 
     //%%why is an id passed as a parm, vs. using the one in the struct??  ck scala original, callers.
-    fn delete<'a>(
-        &'a self,
+    fn delete(
+        &self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,

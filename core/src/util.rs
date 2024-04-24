@@ -1217,14 +1217,14 @@ impl Util {
      */
     //%%do any callers of this have a transaction? If so, does it make sense to pass that into here so
     //it can pass it into the below call to "let new_same_entity = match Entity::new2(...)"?
-    fn find_entity_to_highlight_next<'a>(
-        db: Box<&'a dyn Database>,
+    fn find_entity_to_highlight_next(
+        db: Box<& dyn Database>,
         object_set_size: usize,
         objects_to_display_in: Vec<Entity>,
         removed_one_in: bool,
         previously_highlighted_index_in_obj_list_in: usize,
-        previously_highlighted_entry_in: Entity<'a>,
-    ) -> Result<Option<Entity<'a>>, String> {
+        previously_highlighted_entry_in: Entity,
+    ) -> Result<Option<Entity>, String> {
         //NOTE: SIMILAR TO find_attribute_to_highlight_next: WHEN MAINTAINING ONE, DO SIMILARLY ON THE OTHER, until they are merged maybe by using the type
         //system better.
 
