@@ -52,8 +52,8 @@ impl RelationToGroup<'_> {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     /// See comment about these 2 dates in PostgreSQLDatabase.create_tables()
-    pub fn new(
-        db: Box<& dyn Database>,
+    pub fn new<'a>(
+        db: Box<&'a dyn Database>,
         id: i64,
         entity_id: i64,
         rel_type_id: i64,
@@ -61,7 +61,7 @@ impl RelationToGroup<'_> {
         valid_on_date: Option<i64>,
         observation_date: i64,
         sorting_index: i64,
-    ) -> RelationToGroup {
+    ) -> RelationToGroup<'a> {
         RelationToGroup {
             db,
             id,
@@ -76,14 +76,14 @@ impl RelationToGroup<'_> {
         }
     }
 
-    fn new2(
-        db: Box<& dyn Database>,
+    fn new2<'a>(
+        db: Box<&'a dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
         entity_id: i64,
         rel_type_id: i64,
         group_id: i64,
-    ) -> Result<RelationToGroup, anyhow::Error> {
+    ) -> Result<RelationToGroup<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         // if db.is_remote || db.relation_to_group_keys_exist_and_match(transaction, id, entity_id, rel_type_id, group_id) {
         // something else might be cleaner, but these are the same thing and we need to make sure that (what was
@@ -126,11 +126,11 @@ impl RelationToGroup<'_> {
     // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
     // new constructors just wasn't working out (in scala code when I originally wrote this comment, anyway?).
     ///See comments on fn new, here.
-    fn create_relation_to_group(
-        db: Box<& dyn Database>,
+    fn create_relation_to_group<'a>(
+        db: Box<&'a dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
-    ) -> Result<RelationToGroup, anyhow::Error> {
+    ) -> Result<RelationToGroup<'a>, anyhow::Error> {
         let relation_data: Vec<Option<DataType>> =
             db.get_relation_to_group_data(transaction, id_in)?;
         if relation_data.len() == 0 {
@@ -184,11 +184,11 @@ impl RelationToGroup<'_> {
         Ok(self.group_id)
     }
 
-    fn get_group(
-        & mut self,
+    fn get_group<'a>(
+        &'a mut self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<Group, anyhow::Error> {
+    ) -> Result<Group<'a>, anyhow::Error> {
         Group::new2(*self.db, transaction.clone(), self.get_group_id(transaction.clone())?)
     }
 
@@ -347,8 +347,8 @@ impl Attribute for RelationToGroup<'_> {
     }
 
     /// Removes this object from the system.
-    fn delete(
-        &self,
+    fn delete<'a>(
+        &'a self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //_id_in: i64,

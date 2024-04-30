@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 pub struct EntityClass<'a> {
     id: i64,
-    db: Box<&'a dyn Database>,
+    db: &'a Box<&'a dyn Database>,
     already_read_data: bool,                 /*= false*/
     name: String,                            /*= null*/
     template_entity_id: i64,                 /*= 0*/
@@ -32,8 +32,8 @@ impl EntityClass<'_> {
         Util::class_name_length()
     }
 
-    fn is_duplicate(
-        db_in: Box<& dyn Database>,
+    fn is_duplicate<'a>(
+        db_in: Box<&'a dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         in_self_id_to_ignore: Option<i64>, /*= None*/
@@ -45,12 +45,12 @@ impl EntityClass<'_> {
     ///  that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a Box<&'a dyn Database>,
         id: i64,
         name_in: &str,
         template_entity_id: i64,
         create_default_attributes: Option<bool>, /*= None*/
-    ) -> EntityClass {
+    ) -> EntityClass<'a> {
         EntityClass {
             db,
             id,
@@ -63,10 +63,10 @@ impl EntityClass<'_> {
 
     /// See comments on similar methods in group.rs.
     pub fn new2<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a Box<&'a dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<EntityClass, anyhow::Error> {
+    ) -> Result<EntityClass<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.class_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -179,8 +179,8 @@ impl EntityClass<'_> {
     // result
     // }
 
-    fn update_class_and_template_entity_name(
-        &mut self,
+    fn update_class_and_template_entity_name<'a>(
+        &'a mut self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,

@@ -54,7 +54,7 @@ impl TextAttribute<'_> {
         valid_on_date: Option<i64>,
         observation_date: i64,
         sorting_index: i64,
-    ) -> TextAttribute {
+    ) -> TextAttribute<'a> {
         // idea: make the parameter order uniform throughout the system?
         TextAttribute {
             id,
@@ -77,7 +77,7 @@ impl TextAttribute<'_> {
         db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<TextAttribute, anyhow::Error> {
+    ) -> Result<TextAttribute<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.text_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -234,8 +234,8 @@ impl Attribute for TextAttribute<'_> {
     }
 
     /// Removes this object from the system.
-    fn delete(
-        &self,
+    fn delete<'a>(
+        &'a self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,

@@ -52,7 +52,7 @@ impl DateAttribute<'_> {
         attr_type_id: i64,
         date_value: i64,
         sorting_index: i64,
-    ) -> DateAttribute {
+    ) -> DateAttribute<'a> {
         DateAttribute {
             id,
             db,
@@ -66,11 +66,11 @@ impl DateAttribute<'_> {
 
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
-    pub fn new2(
-        db: & dyn Database,
+    pub fn new2<'a>(
+        db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<DateAttribute, anyhow::Error> {
+    ) -> Result<DateAttribute<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.date_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -184,8 +184,8 @@ impl Attribute for DateAttribute<'_> {
         Ok(())
     }
 
-    fn delete(
-        &self,
+    fn delete<'a>(
+        &'a self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {

@@ -34,10 +34,9 @@ impl Group<'_> {
         db_in: Box<&'a dyn Database>,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        //in_name: &'a str,
-        in_name: & str,
+        in_name: &'a str,
         allow_mixed_classes_in_group_in: bool, /*= false*/
-    ) -> Result<Group, Error> {
+    ) -> Result<Group<'a>, Error> {
         let id: i64 = db_in.create_group(transaction.clone(), in_name, allow_mixed_classes_in_group_in)?;
         // Might be obvious but: Calling fn new2, not new, here, because we don't have enough data to
         // call new and so it will load from the db the other values when needed, as saved by the above.
@@ -50,7 +49,7 @@ impl Group<'_> {
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<Option<Group>, Error> {
+    ) -> Result<Option<Group<'a>>, Error> {
         let result: Result<Group, Error> = Group::new2(*db_in, transaction, id);
         match result {
             Err(e) => {
@@ -76,7 +75,7 @@ impl Group<'_> {
         insertion_date: i64,
         mixed_classes_allowed: bool,
         new_entries_stick_to_top: bool,
-    ) -> Group {
+    ) -> Group<'a> {
         Group {
             db,
             id,
@@ -94,7 +93,7 @@ impl Group<'_> {
         db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<Group, Error> {
+    ) -> Result<Group<'a>, Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.group_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -112,8 +111,8 @@ impl Group<'_> {
     }
 
     //%%eliminate the _ parameters? who calls it w/ them & why?
-    fn update(
-        &mut self,
+    fn update<'a>(
+        &'a mut self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         _attr_type_id_in: Option<i64>,                 /*= None*/
@@ -230,8 +229,8 @@ impl Group<'_> {
     }
 
     /// Removes this object from the system.
-    fn delete(
-        &self,
+    fn delete<'a>(
+        &'a self,
         ////_transaction: &Option<&mut Transaction<'a, Postgres>>,
         //_transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //_id_in: i64,
@@ -240,8 +239,8 @@ impl Group<'_> {
     }
 
     /// Removes an entity from this group.
-    fn remove_entity(
-        &self,
+    fn remove_entity<'a>(
+        &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id: i64,
@@ -585,8 +584,8 @@ impl Group<'_> {
         )
     }
 
-    fn renumber_sorting_indexes(
-        &self,
+    fn renumber_sorting_indexes<'a>(
+        &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         caller_manages_transactions_in: bool, /*= false*/

@@ -43,10 +43,10 @@ impl OmInstance<'_> {
         db_in: Box<&'a dyn Database>,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        id_in: &str,
-        address_in: &str,
+        id_in: &'a str,
+        address_in: &'a str,
         entity_id_in: Option<i64>, /*= None*/
-    ) -> Result<OmInstance, anyhow::Error> {
+    ) -> Result<OmInstance<'a>, anyhow::Error> {
         // Passing false for is_local_in because the only time that should be true is when it is created at db creation, for this site, and that is done
         // in the db class more directly.
         let insertion_date: i64 = db_in.create_om_instance(
@@ -77,7 +77,7 @@ impl OmInstance<'_> {
         address_in: String,
         insertion_date_in: i64,
         entity_id_in: Option<i64>, /*= None*/
-    ) -> OmInstance {
+    ) -> OmInstance<'a> {
         OmInstance {
             id: id.clone(),
             db,
@@ -96,7 +96,7 @@ impl OmInstance<'_> {
         db: Box<&'a dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: String,
-    ) -> Result<OmInstance, anyhow::Error> {
+    ) -> Result<OmInstance<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.om_instance_key_exists(transaction, id.as_str())? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -226,8 +226,8 @@ impl OmInstance<'_> {
         )
     }
 
-    fn delete(
-        &self,
+    fn delete<'a>(
+        &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, Error> {

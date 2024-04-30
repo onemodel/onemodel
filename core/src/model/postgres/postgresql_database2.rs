@@ -163,8 +163,8 @@ impl PostgreSQLDatabase {
 
     // Cloned to archive_objects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
     /// Unless the parameter rows_expected==-1, it will allow any # of rows to be deleted; otherwise if the # of rows is wrong it will abort tran & fail.
-    pub fn delete_objects(
-        &self,
+    pub fn delete_objects<'a>(
+        &'a self,
         // The purpose of transaction_in is so that whenever a direct db call needs to be done in a
         // transaction, as opposed to just using the pool as Executor, it will be available.
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -272,8 +272,8 @@ impl PostgreSQLDatabase {
         }
     }
 
-    pub fn get_user_preference2(
-        &self,
+    pub fn get_user_preference2<'a>(
+        &'a self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         preferences_container_id_in: i64,
         preference_name_in: &str,
@@ -620,8 +620,8 @@ impl PostgreSQLDatabase {
         }
     }
     /// @return the id of the new RTE
-    pub fn add_has_relation_to_local_entity(
-        &self,
+    pub fn add_has_relation_to_local_entity<'a>(
+        &'a self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         from_entity_id_in: i64,
         to_entity_id_in: i64,
@@ -666,8 +666,8 @@ impl PostgreSQLDatabase {
     // This isn't really recursive and I don't immediately remember why.  Maybe it didn't make sense
     // or I was going to do it later.  It could use more thought.  Like how does that relate to
     // "deletions2" if at all.
-    pub fn delete_relation_to_group_and_all_recursively(
-        &self,
+    pub fn delete_relation_to_group_and_all_recursively<'a>(
+        &'a self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
     ) -> Result<(u64, u64), anyhow::Error> {
@@ -1429,8 +1429,8 @@ impl PostgreSQLDatabase {
 
     /// Cloned from delete_objects: CONSIDER UPDATING BOTH if updating one.
     /// Returns the # of rows affected (archived or un-archived).
-    pub fn archive_objects(
-        &self,
+    pub fn archive_objects<'a>(
+        &'a self,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         where_clause_in: &str,
@@ -1526,8 +1526,8 @@ impl PostgreSQLDatabase {
         }
     }
 
-    pub fn delete_object_by_id(
-        &self,
+    pub fn delete_object_by_id<'a>(
+        &'a self,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         id_in: i64,
@@ -1542,8 +1542,8 @@ impl PostgreSQLDatabase {
         )
     }
 
-    pub fn delete_object_by_id2(
-        &self,
+    pub fn delete_object_by_id2<'a>(
+        &'a self,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         id_in: &str,
@@ -1559,8 +1559,8 @@ impl PostgreSQLDatabase {
     }
     // (idea: find out: why doesn't compiler (ide or cli) complain when the 'override' is removed from next line?)
     // idea: see comment on find_unused_sorting_index
-    pub fn find_id_which_is_not_key_of_any_entity(
-        &self,
+    pub fn find_id_which_is_not_key_of_any_entity<'a>(
+        &'a self,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably

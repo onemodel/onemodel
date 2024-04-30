@@ -164,9 +164,9 @@ impl Controller {
     }
 
     /// If the 1st parm is true, the next 2 must be None.
-    fn try_db_logins(
+    fn try_db_logins<'a>(
         force_user_pass_prompt: bool,
-        ui: &TextUI,
+        ui: &'a TextUI,
         default_username: Option<&String>,
         default_password: Option<&String>,
     ) -> Result<Box<dyn Database>, anyhow::Error> {
@@ -194,7 +194,7 @@ impl Controller {
         }
     }
 
-    fn prompt_for_user_pass_and_login(ui: &TextUI) -> Result<Box<dyn Database>, anyhow::Error> {
+    fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<Box<dyn Database>, anyhow::Error> {
         loop {
             let usr = ui.ask_for_string1(vec!["Username"]);
             match usr {
