@@ -807,12 +807,16 @@ mod test {
         let entities_only_new_count = db
             .get_entities_only_count(tx.clone(), false, None, None)
             .unwrap();
+
+        // Next condition fails when run concurrently with other tests, because the other tests
+        // also manipulate data: apparently counting rows is not isolated by a transaction?
         if entity_count_before_creating + 1 != entity_count_after_1st_create
             || entities_only_first_count + 1 != entities_only_new_count
         {
             panic!("get_entity_count() after adding doesn't match prior count+1! Before: {} and {}, after: {} and {}.",
-                   entity_count_before_creating,  entities_only_new_count, entity_count_after_1st_create, entities_only_new_count);
+                   entity_count_before_creating,  entities_only_first_count, entity_count_after_1st_create, entities_only_new_count);
         }
+
         assert!(db.entity_key_exists(tx.clone(), id, true).unwrap());
 
         let new_name = "test: ' org.onemodel.PSQLDbTest.entityupdate...";
@@ -830,8 +834,12 @@ mod test {
         db.rollback_trans(unwrapped_local_tx).unwrap();
 
         // now should not exist
+        
+        // Next assert_eq fails when run concurrently with other tests, because the other tests
+        // create data:
         let entity_count_after_rollback = db.get_entity_count(None).unwrap();
         assert_eq!(entity_count_after_rollback, entity_count_before_creating);
+
         assert!(!db.entity_key_exists(None, id, true).unwrap());
     }
 
