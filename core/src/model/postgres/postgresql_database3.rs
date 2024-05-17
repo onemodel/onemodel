@@ -1323,15 +1323,57 @@ impl Database for PostgreSQLDatabase {
         Ok(id)
     }
 
-    fn create_date_attribute(
-        &self,
+    fn create_date_attribute<'a>(
+        &'a self,
+        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         date_in: i64,
-        sorting_index_in: Option<i64>, /*= None*/
+        sorting_index_in: Option<i64>,        /*= None*/
+        caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result</*id*/ i64, anyhow::Error> {
-        let tx = self.begin_trans()?;
-        let transaction = Some(Rc::new(RefCell::new(tx)));
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err(anyhow!("In create_date_attribute, inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                    .to_string()));
+                } else {
+                    self.begin_trans()?
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    self.begin_trans()?
+                } else {
+                    return Err(anyhow!(
+                        "In create_date_attribute, inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    ));
+                }
+            }
+        };
+        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let transaction = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
+
         let id: i64 = self.get_new_key(transaction.clone(), "DateAttributeKeySequence")?;
         self.add_attribute_sorting_row(
             transaction.clone(),
@@ -1351,35 +1393,80 @@ impl Database for PostgreSQLDatabase {
             false,
             false,
         )?;
-        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-            Rc::into_inner(transaction.unwrap());
-        match local_tx_cell {
-            Some(t) => {
-                let unwrapped_local_tx = t.into_inner();
-                if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                    return Err(anyhow!(e.to_string()));
+        if !caller_manages_transactions_in {
+            // Using local_tx to make the compiler happy and because it is the one we need,
+            // if !caller_manages_transactions_in. Ie, there is no transaction provided by
+            // the caller.
+            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+                Rc::into_inner(transaction.unwrap());
+            match local_tx_cell {
+                Some(t) => {
+                    let unwrapped_local_tx = t.into_inner();
+                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                        return Err(anyhow!(e.to_string()));
+                    }
                 }
-            }
-            None => {
-                return Err(anyhow!(
-                    "Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"
-                ));
-            }
-        };
+                None => {
+                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
+                }
+            };
+        }
         Ok(id)
     }
 
-    fn create_boolean_attribute(
-        &self,
+    fn create_boolean_attribute<'a>(
+        &'a self,
+        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         boolean_in: bool,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-        sorting_index_in: Option<i64>, /*%%= None*/
+        sorting_index_in: Option<i64>,        /*%%= None*/
+        caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<i64, anyhow::Error> {
-        let tx: Transaction<Postgres> = self.begin_trans()?;
-        let transaction = Some(Rc::new(RefCell::new(tx)));
+        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let local_tx: Transaction<Postgres> = {
+            if transaction_in.is_none() {
+                if caller_manages_transactions_in {
+                    return Err(anyhow!("In create_boolean_attribute, inconsistent values for caller_manages_transactions_in \
+                                and transaction_in: true and None??"
+                    .to_string()));
+                } else {
+                    self.begin_trans()?
+                }
+            } else {
+                if caller_manages_transactions_in {
+                    // That means we have determined that the caller is to use the transaction_in .
+                    // was just:  None
+                    // But now instead, create it anyway, per comment above.
+                    self.begin_trans()?
+                } else {
+                    return Err(anyhow!(
+                        "In create_boolean_attribute, inconsistent values for caller_manages_transactions_in & transaction_in: \
+                                false and Some??"
+                            .to_string(),
+                    ));
+                }
+            }
+        };
+        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let transaction = if caller_manages_transactions_in {
+            transaction_in
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
+
         let id: i64 = self.get_new_key(transaction.clone(), "BooleanAttributeKeySequence")?;
         // try {
         self.add_attribute_sorting_row(
@@ -1405,6 +1492,11 @@ impl Database for PostgreSQLDatabase {
             false,
             false,
         )?;
+
+        if !caller_manages_transactions_in {
+            // Using local_tx to make the compiler happy and because it is the one we need,
+            // if !caller_manages_transactions_in. Ie, there is no transaction provided by
+            // the caller.
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -1413,11 +1505,12 @@ impl Database for PostgreSQLDatabase {
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                         return Err(anyhow!(e.to_string()));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
-            }
+                }
+            };
+        }
         Ok(id)
     }
 
@@ -1596,10 +1689,10 @@ impl Database for PostgreSQLDatabase {
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                         return Err(anyhow!(e.to_string()));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+                }
             }
         }
         debug!("in create_relation_to_local_entity 5");
@@ -1665,7 +1758,8 @@ impl Database for PostgreSQLDatabase {
         };
         //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        let rte_id: i64 = self.get_new_key(transaction.clone(), "RelationToRemoteEntityKeySequence")?;
+        let rte_id: i64 =
+            self.get_new_key(transaction.clone(), "RelationToRemoteEntityKeySequence")?;
         // not creating anything in a remote DB, but a local record of a local relation to a remote entity.
         let result = self.add_attribute_sorting_row(
             transaction.clone(),
@@ -1702,10 +1796,10 @@ impl Database for PostgreSQLDatabase {
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                         return Err(anyhow!(e.to_string()));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+                }
             }
         }
         Ok(RelationToRemoteEntity {}) //%%%%really: self, rte_id, relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in
@@ -1821,19 +1915,21 @@ impl Database for PostgreSQLDatabase {
         //centralizes the question to one place in the code.
         //db_action("UPDATE RelationToEntity SET (entity_id) = ROW(" + new_containing_entity_id_in + ")" + " where id=" + relationToLocalEntityIdIn)
 
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                },
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
-            };
+        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+            Rc::into_inner(transaction.unwrap());
+        match local_tx_cell {
+            Some(t) => {
+                let unwrapped_local_tx = t.into_inner();
+                if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                    return Err(anyhow!(e.to_string()));
+                }
+            }
+            None => {
+                return Err(anyhow!(
+                    "Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"
+                ));
+            }
+        };
         Ok(new_rte)
     }
 
@@ -1886,19 +1982,21 @@ impl Database for PostgreSQLDatabase {
             Some(sorting_index_in),
             true,
         )?;
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                },
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+            Rc::into_inner(transaction.unwrap());
+        match local_tx_cell {
+            Some(t) => {
+                let unwrapped_local_tx = t.into_inner();
+                if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                    return Err(anyhow!(e.to_string()));
+                }
             }
+            None => {
+                return Err(anyhow!(
+                    "Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"
+                ));
+            }
+        }
         Ok(new_rte)
     }
 
@@ -2015,10 +2113,10 @@ impl Database for PostgreSQLDatabase {
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                         return Err(anyhow!(e.to_string()));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+                }
             }
         }
         Ok((group_id, rtg_id))
@@ -2105,12 +2203,15 @@ impl Database for PostgreSQLDatabase {
                 Some(t) => {
                     let unwrapped_local_tx = t.into_inner();
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!("In create_entity_and_relation_to_local_entity, {}: ", e.to_string()));
+                        return Err(anyhow!(
+                            "In create_entity_and_relation_to_local_entity, {}: ",
+                            e.to_string()
+                        ));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+                }
             }
         }
         //%%FIX NEXT LINE
@@ -2196,7 +2297,7 @@ impl Database for PostgreSQLDatabase {
         };
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-                // see comments in delete_objects about rollback
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -2205,10 +2306,10 @@ impl Database for PostgreSQLDatabase {
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                         return Err(anyhow!(e.to_string()));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+                }
             }
         }
         Ok((id, sorting_index))
@@ -2280,8 +2381,8 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<i64, anyhow::Error> {
         let tx = self.begin_trans()?;
         let transaction = Some(Rc::new(RefCell::new(tx)));
-        let rtg_data: Vec<Option<DataType>> =
-            self.get_all_relation_to_group_data_by_id(transaction.clone(), relation_to_group_id_in)?;
+        let rtg_data: Vec<Option<DataType>> = self
+            .get_all_relation_to_group_data_by_id(transaction.clone(), relation_to_group_id_in)?;
 
         // next lines are the same as in move_relation_to_local_entity_into_local_entity and its sibling; could maintain them similarly.
         let old_rtg_entity_id = get_i64_from_row(&rtg_data, 2)?;
@@ -2320,19 +2421,21 @@ impl Database for PostgreSQLDatabase {
         // (see comment at similar commented line in move_relation_to_local_entity_into_local_entity)
         //db_action("UPDATE RelationToGroup SET (entity_id) = ROW(" + new_containing_entity_id_in + ")" + " where id=" + relation_to_group_id_in)
 
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                },
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+            Rc::into_inner(transaction.unwrap());
+        match local_tx_cell {
+            Some(t) => {
+                let unwrapped_local_tx = t.into_inner();
+                if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                    return Err(anyhow!(e.to_string()));
+                }
             }
+            None => {
+                return Err(anyhow!(
+                    "Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"
+                ));
+            }
+        }
         Ok(new_rtg_id)
     }
 
@@ -2354,7 +2457,12 @@ impl Database for PostgreSQLDatabase {
             Some(sorting_index_in),
             true,
         )?;
-        self.remove_entity_from_group(transaction.clone(), from_group_id_in, move_entity_id_in, true)?;
+        self.remove_entity_from_group(
+            transaction.clone(),
+            from_group_id_in,
+            move_entity_id_in,
+            true,
+        )?;
         if self.is_entity_in_group(transaction.clone(), to_group_id_in, move_entity_id_in)?
             && !self.is_entity_in_group(transaction.clone(), from_group_id_in, move_entity_id_in)?
         {
@@ -2366,10 +2474,10 @@ impl Database for PostgreSQLDatabase {
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                         return Err(anyhow!(e.to_string()));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+                }
             }
             Ok(())
         } else {
@@ -2395,21 +2503,28 @@ impl Database for PostgreSQLDatabase {
             Utc::now().timestamp_millis(),
             Some(sorting_index_in),
         )?;
-        self.remove_entity_from_group(transaction.clone(), from_group_id_in, move_entity_id_in, true)?;
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                },
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+        self.remove_entity_from_group(
+            transaction.clone(),
+            from_group_id_in,
+            move_entity_id_in,
+            true,
+        )?;
+        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+            Rc::into_inner(transaction.unwrap());
+        match local_tx_cell {
+            Some(t) => {
+                let unwrapped_local_tx = t.into_inner();
+                if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                    return Err(anyhow!(e.to_string()));
+                }
             }
-            Ok(())
+            None => {
+                return Err(anyhow!(
+                    "Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"
+                ));
+            }
+        }
+        Ok(())
     }
     /// (See comments on moveEntityFromGroupToGroup.)
     fn move_local_entity_from_local_entity_to_group(
@@ -2495,7 +2610,11 @@ impl Database for PostgreSQLDatabase {
         let mut working_index = starting_with_in.unwrap_or(self.max_id_value() - 1);
         let mut counter = 0;
         loop {
-            if self.is_attribute_sorting_index_in_use(transaction.clone(), entity_id_in, working_index)? {
+            if self.is_attribute_sorting_index_in_use(
+                transaction.clone(),
+                entity_id_in,
+                working_index,
+            )? {
                 if working_index == self.max_id_value() {
                     return Err(anyhow!(Util::UNUSED_GROUP_ERR1.to_string()));
                 }
@@ -2613,10 +2732,10 @@ impl Database for PostgreSQLDatabase {
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                         return Err(anyhow!(e.to_string()));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+                }
             }
         }
         Ok(())
@@ -2767,18 +2886,18 @@ impl Database for PostgreSQLDatabase {
             if !caller_manages_transactions_in {
                 // see comments at similar location in delete_objects about local_tx
                 // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
+                let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+                    Rc::into_inner(transaction.unwrap());
                 match local_tx_cell {
                     Some(t) => {
                         let unwrapped_local_tx = t.into_inner();
                         if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                             return Err(anyhow!("In create_relation_type (2), {}", e.to_string()));
                         }
-                    },
+                    }
                     None => {
                         return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                    },
+                    }
                 }
             }
 
@@ -2879,10 +2998,10 @@ impl Database for PostgreSQLDatabase {
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                         return Err(anyhow!(e.to_string()));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+                }
             }
         }
         Ok(())
@@ -3062,10 +3181,12 @@ impl Database for PostgreSQLDatabase {
                     return Err(anyhow!(e.to_string()));
                 }
                 Ok(())
-            },
+            }
             None => {
-                return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-            },
+                return Err(anyhow!(
+                    "Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"
+                ));
+            }
         }
     }
 
@@ -3117,10 +3238,12 @@ impl Database for PostgreSQLDatabase {
                     return Err(anyhow!(e.to_string()));
                 }
                 Ok(())
-            },
+            }
             None => {
-                return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-            },
+                return Err(anyhow!(
+                    "Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"
+                ));
+            }
         }
     }
 
@@ -3154,7 +3277,8 @@ impl Database for PostgreSQLDatabase {
         name_in: &str,
         value_in: bool,
     ) -> Result<(), anyhow::Error> {
-        let preferences_container_id: i64 = self.get_preferences_container_id(transaction.clone())?;
+        let preferences_container_id: i64 =
+            self.get_preferences_container_id(transaction.clone())?;
         let result = self.get_user_preference2(
             transaction.clone(),
             preferences_container_id,
@@ -3205,19 +3329,20 @@ impl Database for PostgreSQLDatabase {
                 .0;
             // (For about the attr_type_id value (2nd parm), see comment about that field, in method get_user_preference_boolean2 below.)
             self.create_boolean_attribute(
+                transaction.clone(),
                 preference_entity_id,
                 preference_entity_id,
                 value_in,
                 Some(Utc::now().timestamp_millis()),
                 Utc::now().timestamp_millis(),
                 None,
+                true,
             )?;
             Ok(())
         }
     }
     fn get_user_preference_boolean<'a>(
         &'a self,
-        //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         preference_name_in: &str,
         default_value_in: Option<bool>, /*%%= None*/
@@ -3250,7 +3375,8 @@ impl Database for PostgreSQLDatabase {
         name_in: &str,
         entity_id_in: i64,
     ) -> Result<(), anyhow::Error> {
-        let preferences_container_id: i64 = self.get_preferences_container_id(transaction.clone())?;
+        let preferences_container_id: i64 =
+            self.get_preferences_container_id(transaction.clone())?;
         let pref: Vec<DataType> = self.get_user_preference2(
             transaction.clone(),
             preferences_container_id,
@@ -3537,7 +3663,12 @@ impl Database for PostgreSQLDatabase {
                         None,
                     )?
                 } else {
-                    self.get_group_entries_data(transaction.clone(), entity_id_or_group_id_in, None, true)?
+                    self.get_group_entries_data(
+                        transaction.clone(),
+                        entity_id_or_group_id_in,
+                        None,
+                        true,
+                    )?
                 }
             };
             if data.len() as u128 != number_of_entries as u128 {
@@ -3665,10 +3796,10 @@ impl Database for PostgreSQLDatabase {
                         if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                             return Err(anyhow!(e.to_string()));
                         }
-                    },
+                    }
                     None => {
                         return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                    },
+                    }
                 }
             }
         }
@@ -3738,7 +3869,9 @@ impl Database for PostgreSQLDatabase {
                 include_archived_entities_in,
             )?)
             .unwrap()
-            .checked_add(self.get_relation_to_remote_entity_count(transaction.clone(), entity_id_in)?)
+            .checked_add(
+                self.get_relation_to_remote_entity_count(transaction.clone(), entity_id_in)?,
+            )
             .unwrap()
             .checked_add(self.get_relation_to_group_count(transaction.clone(), entity_id_in)?)
             .unwrap();

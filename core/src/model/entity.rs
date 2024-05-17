@@ -925,21 +925,20 @@ impl Entity<'_> {
     fn add_date_attribute<'a>(
         &'a self,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_date: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<DateAttribute<'a>, anyhow::Error> {
         let id =
             self.db
-                .create_date_attribute(self.id, in_attr_type_id, in_date, sorting_index_in)?;
+                .create_date_attribute(transaction.clone(), self.id, in_attr_type_id, in_date, sorting_index_in, true)?;
         DateAttribute::new2(*self.db, transaction, id)
     }
 
     fn add_boolean_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_boolean: bool,
         sorting_index_in: Option<i64>,
@@ -956,8 +955,7 @@ impl Entity<'_> {
 
     fn add_boolean_attribute2<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_boolean: bool,
         sorting_index_in: Option<i64>, /*= None*/
@@ -965,12 +963,14 @@ impl Entity<'_> {
         observation_date_in: i64,
     ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
         let id = self.db.create_boolean_attribute(
+            transaction.clone(),
             self.id,
             in_attr_type_id,
             in_boolean,
             in_valid_on_date,
             observation_date_in,
             sorting_index_in,
+            true,
         )?;
         BooleanAttribute::new2(*self.db, transaction, id)
     }

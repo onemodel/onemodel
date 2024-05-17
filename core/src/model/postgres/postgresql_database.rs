@@ -214,14 +214,18 @@ impl PostgreSQLDatabase {
         //     self.rt.block_on(future).unwrap();
         // };
 
+        let using_transaction;
         if let Some(tx) = transaction {
             let mut tx_mut: RefMut<'_, _> = tx.borrow_mut();
             let future = map.fetch_all(&mut *tx_mut);
+            using_transaction = true;
             self.rt.block_on(future).unwrap();
         } else {
             let future = map.fetch_all(&self.pool);
+            using_transaction = false;
             self.rt.block_on(future).unwrap();
         }
+        debug!("In db_query, using_transaction={}", using_transaction);
 
         //%%JUST ANOTHER EXPERIMENT, probably can delete after other things working.
         // let future = match transaction {
@@ -428,13 +432,14 @@ impl PostgreSQLDatabase {
         caller_checks_row_count_etc: bool, /*%% = false*/
         skip_check_for_bad_sql_in: bool,   /*%% = false*/
     ) -> Result<u64, anyhow::Error> {
-        let mut rows_affected: u64 = 0;
+        let rows_affected: u64;
         let is_create_drop_or_alter = sql_in.to_lowercase().starts_with("create ")
             || sql_in.to_lowercase().starts_with("drop ")
             || sql_in.to_lowercase().starts_with("alter ");
         if !skip_check_for_bad_sql_in {
             Self::check_for_bad_sql(sql_in)?;
         }
+        let using_transaction;
         let x: Result<PgQueryResult, sqlx::Error> = if let Some(tx) = transaction {
             //%% let future = sqlx::query(sql_in).execute(tx); //a try
             //%% let future = sqlx::query(sql_in).execute(transaction.as_ref().unwrap()); //another try
@@ -442,19 +447,22 @@ impl PostgreSQLDatabase {
             //let future = sqlx::map.fetch_all(&mut *tx_mut);
             //let future = sqlx::query(sql_in).execute(&self.pool); //the fallback, but loses transaction features
             let future = sqlx::query(sql_in).execute(&mut *tx_mut);
+            using_transaction = true;
             self.rt.block_on(future)
         } else {
             let future = sqlx::query(sql_in).execute(&self.pool);
+            using_transaction = false;
             self.rt.block_on(future)
         };
         debug!(
-            "In db_action, sql is: {}\n... {:?} rows affected, w/ result: {:?}",
-            sql_in, rows_affected, &x
+            "In db_action, using_transaction={}, sql is: {}\n... w/ result: {:?}",
+            using_transaction, sql_in, &x
         );
         match x {
             Err(e) => return Err(anyhow!(e.to_string())),
             Ok(res) => {
                 rows_affected = res.rows_affected();
+                debug!("...and rows_affected is: {:?}.", rows_affected);
             }
         };
 
@@ -708,7 +716,7 @@ impl PostgreSQLDatabase {
             == 0
         {
             self.set_user_preference_boolean(
-                transaction,
+                transaction.clone(),
                 Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE,
                 false,
             )?;
@@ -1907,10 +1915,10 @@ impl PostgreSQLDatabase {
                     if let Err(e) = self.commit_trans(unwrapped_local_tx) {
                         return Err(anyhow!(e.to_string()));
                     }
-                },
+                }
                 None => {
                     return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                },
+                }
             };
         }
 
