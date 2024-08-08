@@ -888,7 +888,7 @@ impl Entity<'_> {
         sorting_index_in: Option<i64>,
     ) -> Result<TextAttribute<'a>, anyhow::Error> {
         self.add_text_attribute2(
-            transaction,
+            transaction.clone(),
             in_attr_type_id,
             in_text,
             sorting_index_in,
@@ -900,7 +900,6 @@ impl Entity<'_> {
 
     pub fn add_text_attribute2<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_text: &str,
@@ -924,7 +923,6 @@ impl Entity<'_> {
 
     fn add_date_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_date: i64,

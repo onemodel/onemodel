@@ -42,25 +42,24 @@ use tracing::*;
 impl Database for PostgreSQLDatabase {
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         containing_entity_in: &'a Entity,
         new_entity_name_in: &str,
-        _uri_in: &str,
+        uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(), anyhow::Error> {
-        //%%%%%%%%% temporary change while I figure out how to use Rc instead of lifetimes, in the
-        //pg.._tests code? See also the 8 %%s just below, to put back when I know how to elim from
-        //this fn sig?
-        //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
+    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
+    //) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
         if quote_in.is_some() {
             if quote_in.unwrap().is_empty() {
                 return Err(anyhow!("It doesn't make sense to store a blank quotation; there was probably a program error."));
             }
         }
+        //%%put here lines like where I have "duplicated code" ie other plcs using
+        //caller_manages_transaction_in ?:  (and for the commit at end?)
+        //
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in { self.begin_trans() }
         // try {
@@ -68,17 +67,17 @@ impl Database for PostgreSQLDatabase {
         // those in the same package? It was in Controller, but moved here
         // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
 
-        let (uri_class_id, _uri_class_template_id) = self.get_or_create_class_and_template_entity(
+        let (uri_class_id, uri_class_template_id) = self.get_or_create_class_and_template_entity(
             transaction.clone(),
             "URI",
             caller_manages_transactions_in,
         )?;
-        let (_, _quotation_class_template_id) = self.get_or_create_class_and_template_entity(
+        let (_, quotation_class_template_id) = self.get_or_create_class_and_template_entity(
             transaction.clone(),
             "quote",
             caller_manages_transactions_in,
         )?;
-        let (new_entity, _new_rtle) = containing_entity_in
+        let (new_entity, new_rtle) = containing_entity_in
             .create_entity_and_add_has_local_relation_to_it(
                 transaction.clone(),
                 new_entity_name_in,
@@ -86,16 +85,18 @@ impl Database for PostgreSQLDatabase {
                 make_them_public_in,
                 caller_manages_transactions_in,
             )?;
-        //let new_entity2: &'a Entity = &new_entity;
         self.update_entitys_class(
             transaction.clone(),
             new_entity.get_id(),
             Some(uri_class_id),
             caller_manages_transactions_in,
         )?;
-        /*%%%%%%%%%
-        //let ne_pointer = Rc::new(new_entity);
-        new_entity.add_text_attribute2(
+        //%%%%%%%%%
+        {
+        let new_entity2 = new_entity.clone();
+        //let new_entity2 = Rc::new(RefCell::new(new_entity));
+        //let new_entity3 = Rc::into_inner(new_entity2).unwrap().into_inner();
+        new_entity2.add_text_attribute2(
             transaction.clone(),
             uri_class_template_id,
             uri_in,
@@ -103,10 +104,10 @@ impl Database for PostgreSQLDatabase {
             None,
             observation_date_in,
             caller_manages_transactions_in,
-        );
+        )?;
         if quote_in.is_some() {
-            new_entity.add_text_attribute2(
-                transaction.clone(),
+            new_entity2.add_text_attribute2(
+                None, //%%transaction.clone(),
                 quotation_class_template_id,
                 quote_in.unwrap(),
                 None,
@@ -115,11 +116,11 @@ impl Database for PostgreSQLDatabase {
                 caller_manages_transactions_in,
             )?;
         };
+        }
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in {self.commit_trans() }
-        Ok((new_entity.clone(), new_rtle))
-        %%%%%%%%%*/
-        Ok(())
+        //Ok((new_entity.clone(), new_rtle))
+        Ok((new_entity, new_rtle))
         //  } catch {
         //    case e: Exception =>
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
