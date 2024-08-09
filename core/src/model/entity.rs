@@ -898,16 +898,16 @@ impl Entity<'_> {
         )
     }
 
-    pub fn add_text_attribute2<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    pub fn add_text_attribute2(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_text: &str,
         sorting_index_in: Option<i64>,
         in_valid_on_date: Option<i64>,
         observation_date_in: i64,
         caller_manages_transactions_in: bool, /*= false*/
-    ) -> Result<TextAttribute<'a>, anyhow::Error> {
+    ) -> Result<TextAttribute, anyhow::Error> {
         let id = self.db.create_text_attribute(
             transaction.clone(),
             self.id,

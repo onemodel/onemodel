@@ -92,7 +92,6 @@ impl Database for PostgreSQLDatabase {
             caller_manages_transactions_in,
         )?;
         //%%%%%%%%%
-        {
         let new_entity2 = new_entity.clone();
         //let new_entity2 = Rc::new(RefCell::new(new_entity));
         //let new_entity3 = Rc::into_inner(new_entity2).unwrap().into_inner();
@@ -116,11 +115,10 @@ impl Database for PostgreSQLDatabase {
                 caller_manages_transactions_in,
             )?;
         };
-        }
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in {self.commit_trans() }
         //Ok((new_entity.clone(), new_rtle))
-        Ok((new_entity, new_rtle))
+        Ok((new_entity2, new_rtle))
         //  } catch {
         //    case e: Exception =>
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
@@ -1208,11 +1206,11 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_text_attribute<'a>(
-        &'a self,
+    fn create_text_attribute(
+        &self,
         // purpose: see comment in delete_objects
         //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         text_in: &str,
