@@ -133,10 +133,9 @@ pub trait Database {
         sorting_index_in: Option<i64>, /*= None, ie, default or value to pass if irrelevant.  Was default for no parm, in scala version.*/
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<i64, anyhow::Error>;
-    fn create_text_attribute<'a>(
+    fn create_text_attribute<'a, 'b>(
         &'a self,
-        //transaction: &Option<&mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         text_in: &str,
@@ -144,7 +143,7 @@ pub trait Database {
         observation_date_in: i64,             /*= System.currentTimeMillis()*/
         caller_manages_transactions_in: bool, /*= false*/
         sorting_index_in: Option<i64>,        /*= None*/
-    ) -> Result<i64, anyhow::Error>;
+    ) -> Result<i64, anyhow::Error> where 'a: 'b;
     fn create_relation_to_local_entity<'a>(
         &'a self,
         //transaction: &Option<&mut Transaction<'a, Postgres>>,

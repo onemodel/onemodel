@@ -43,7 +43,7 @@ impl Database for PostgreSQLDatabase {
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        containing_entity_in: &'a Entity,
+        containing_entity_in: &'a Entity<'_>,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
@@ -1206,11 +1206,11 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_text_attribute(
-        &self,
+    fn create_text_attribute<'a, 'b>(
+        &'a self,
         // purpose: see comment in delete_objects
-        //transaction_in: &Option<&mut Transaction<'a, Postgres>>,
-        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        //transaction_in: &Option<&mut Transaction<'b, Postgres>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         text_in: &str,
@@ -1219,7 +1219,10 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
         sorting_index_in: Option<i64>,        /*%%= None*/
-    ) -> Result<i64, anyhow::Error> {
+        // The "where..." on the next line means "where 'a outlives 'b" and is explained in 
+        // the Rust reference (as quoted by) and in chapter 7 of the helpful site: 
+        // https://tfpk.github.io/lifetimekata/chapter_7.html .
+    ) -> Result<i64, anyhow::Error> where 'a: 'b {
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -1229,7 +1232,7 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
+        let local_tx: Transaction<'b, Postgres> = {
             if transaction_in.is_none() {
                 if caller_manages_transactions_in {
                     return Err(anyhow!("In create_text_attribute, inconsistent values for caller_manages_transactions_in \
@@ -1305,7 +1308,7 @@ impl Database for PostgreSQLDatabase {
         };
         if !caller_manages_transactions_in {
             // see comments at similar location in delete_objects about local_tx
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+            let local_tx_cell: Option<RefCell<Transaction<'b, Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
                 Some(t) => {

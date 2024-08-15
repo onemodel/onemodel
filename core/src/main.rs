@@ -8,6 +8,12 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 // use anyhow::{anyhow};
+
+#![deny(rust_2018_idioms)]
+//Next warning is to help debug some lifetime issues.
+//remove next line (or equivalently, change it to "deny")?  Or, keep it until all the warnings are fixed?
+#![warn(elided_lifetimes_in_paths)]
+
 pub mod color;
 pub mod controllers;
 pub mod model;
@@ -18,6 +24,7 @@ use crate::controllers::controller::Controller;
 use std::env;
 // use crate::util::Util;
 use crate::text_ui::TextUI;
+
 
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
