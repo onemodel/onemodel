@@ -40,9 +40,11 @@ use std::rc::Rc;
 use tracing::*;
 
 impl Database for PostgreSQLDatabase {
+    //%%do the lifetimes used with these parameters make sense? Or should there be a 'b? a 'c?
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        //%%why is there a warning (per top of main.rs) if the '_ is not here? What does it really mean?
         containing_entity_in: &'a Entity<'_>,
         new_entity_name_in: &str,
         uri_in: &str,
@@ -50,7 +52,8 @@ impl Database for PostgreSQLDatabase {
         make_them_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
+    // ('a are per warnings from top of main.rs)
+    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> /*%%where 'a: 'b*/ {
     //) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
         if quote_in.is_some() {
             if quote_in.unwrap().is_empty() {
@@ -91,12 +94,16 @@ impl Database for PostgreSQLDatabase {
             Some(uri_class_id),
             caller_manages_transactions_in,
         )?;
-        //%%%%%%%%%
-        let new_entity2 = new_entity.clone();
+        //(attempts to handle the transaction and lifetime compiler errors:)
+        //let new_entity2: Entity<'a> = new_entity.clone();
         //let new_entity2 = Rc::new(RefCell::new(new_entity));
         //let new_entity3 = Rc::into_inner(new_entity2).unwrap().into_inner();
-        new_entity2.add_text_attribute2(
-            transaction.clone(),
+        new_entity.add_text_attribute2(
+            //%%fix this (and next, similar one) to use the transaction again. How, given lifetime issues?
+            //%%could make it so the above transaction parameter to the fn doesn't require a
+            //lifetime, by changing that in postgresql_database.rs fn db_action, or such? Or
+            //just fix things here somehow?
+            None,  //transaction.clone(),
             uri_class_template_id,
             uri_in,
             None,
@@ -105,8 +112,9 @@ impl Database for PostgreSQLDatabase {
             caller_manages_transactions_in,
         )?;
         if quote_in.is_some() {
-            new_entity2.add_text_attribute2(
-                None, //%%transaction.clone(),
+            new_entity.add_text_attribute2(
+                //%%fix this to use the transaction again. How, given lifetime issues?
+                None,  //transaction.clone(),
                 quotation_class_template_id,
                 quote_in.unwrap(),
                 None,
@@ -118,7 +126,7 @@ impl Database for PostgreSQLDatabase {
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if !caller_manages_transactions_in {self.commit_trans() }
         //Ok((new_entity.clone(), new_rtle))
-        Ok((new_entity2, new_rtle))
+        Ok((new_entity, new_rtle))
         //  } catch {
         //    case e: Exception =>
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
@@ -1219,7 +1227,7 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         caller_manages_transactions_in: bool, /*%% = false*/
         sorting_index_in: Option<i64>,        /*%%= None*/
-        // The "where..." on the next line means "where 'a outlives 'b" and is explained in 
+        // The "where..." on the next line means "where 'a outlives (or is >=) 'b" and is explained in 
         // the Rust reference (as quoted by) and in chapter 7 of the helpful site: 
         // https://tfpk.github.io/lifetimekata/chapter_7.html .
     ) -> Result<i64, anyhow::Error> where 'a: 'b {

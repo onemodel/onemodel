@@ -9,10 +9,11 @@
 */
 // use anyhow::{anyhow};
 
-#![deny(rust_2018_idioms)]
-//Next warning is to help debug some lifetime issues.
+//Could put this line back if there were not so many warnings from it. Might be good.
+//#![deny(rust_2018_idioms)]
+//Next line is to help debug some lifetime issues, and to change the previous to "warn" for these.
 //remove next line (or equivalently, change it to "deny")?  Or, keep it until all the warnings are fixed?
-#![warn(elided_lifetimes_in_paths)]
+//#![warn(elided_lifetimes_in_paths)]
 
 pub mod color;
 pub mod controllers;

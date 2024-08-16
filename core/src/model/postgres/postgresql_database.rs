@@ -33,7 +33,6 @@ use tracing::*;
 
 /// An important thing to know about this code is that sqlx transactions automatically roll back
 /// if they go out of scope before commit() is called.
-//#![warn(elided_lifetimes_in_paths)]
 #[derive(Debug)]
 pub struct PostgreSQLDatabase {
     pub rt: tokio::runtime::Runtime,
