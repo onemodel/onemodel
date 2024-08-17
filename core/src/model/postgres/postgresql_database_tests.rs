@@ -824,7 +824,7 @@ mod test {
             .unwrap();
         // have to create new instance to re-read the data:
         let mut updated_entity =
-            Entity::new2(Box::new(&db as &dyn Database), tx.clone(), id).unwrap();
+            Entity::new2(&db as &dyn Database, tx.clone(), id).unwrap();
         let name3 = updated_entity.get_name(tx.clone()).unwrap().as_str();
         assert_eq!(name3, new_name);
 

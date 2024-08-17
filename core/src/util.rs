@@ -1218,7 +1218,7 @@ impl Util {
     //%%do any callers of this have a transaction? If so, does it make sense to pass that into here so
     //it can pass it into the below call to "let new_same_entity = match Entity::new2(...)"?
     fn find_entity_to_highlight_next<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         object_set_size: usize,
         objects_to_display_in: Vec<Entity>,
         removed_one_in: bool,
@@ -1256,7 +1256,7 @@ impl Util {
                 //         // Some(&e) => Some(e.to_owned()),
                 //         Some(&e) => {
                 //             // create a new instance of this entity, to avoid compiler errors
-                //             let new_same_entity = match Entity::new2(Box::new(self), e.get_id()) {
+                //             let new_same_entity = match Entity::new2(self, e.get_id()) {
                 //                 Err(e) => return Err(e.to_string()),
                 //                 Ok(entity) => entity,
                 //             };
@@ -1312,7 +1312,7 @@ impl Util {
     }
     /*
         /// Returns None if user wants to cancel.
-        fn ask_for_text_attribute_text(_: Box<dyn Database>, dh: &TextAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<TextAttributeDataHolder> {
+        fn ask_for_text_attribute_text(_: &dyn Database, dh: &TextAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<TextAttributeDataHolder> {
           // let outDH = dh_in.asInstanceOf[TextAttributeDataHolder];
           let default_value: Option<&str> = if editing_in {
               Some(dh.text.as_str())
@@ -1337,7 +1337,7 @@ impl Util {
 
         /// Returns None if user wants to cancel.
         // Idea: consider combining somehow with method ask_for_date_generic or note here why not, perhaps.
-        fn ask_for_date_attribute_value(_ignore: Box<dyn Database>, &mut dh: DateAttributeDataHolder, _editing_in: bool, ui: &TextUI) -> Result<Option<DateAttributeDataHolder>, Err()> {
+        fn ask_for_date_attribute_value(_ignore: &dyn Database, &mut dh: DateAttributeDataHolder, _editing_in: bool, ui: &TextUI) -> Result<Option<DateAttributeDataHolder>, Err()> {
           // let outDH = dh_in.asInstanceOf[DateAttributeDataHolder];
 
             //%% skipping this date processing for now, but make it convenient again later for omitting parts, or specifying detail.
@@ -1393,7 +1393,7 @@ impl Util {
 
     //%%is this really never used? sch/reading in the relevant places for its old non-_ name, like where the others are used (text sch found nothing)
         /// Returns None if user wants to cancel.
-        fn ask_for_bool_attribute_value(_: Box<dyn Database>, dh: BooleanAttributeDataHolder, editing_in: bool, ui: TextUI) -> Option<BooleanAttributeDataHolder> {
+        fn ask_for_bool_attribute_value(_: &dyn Database, dh: BooleanAttributeDataHolder, editing_in: bool, ui: TextUI) -> Option<BooleanAttributeDataHolder> {
           let answer = ui.ask_yes_no_question("Set the new value to true now? ('y' if so, 'n' for false)",
                                            {
                                                if editing_in && dh.boolean {
@@ -1425,7 +1425,7 @@ impl Util {
     /*
             /// Returns None if user wants to cancel/get out.
             //%%NEED TO TEST THIS EXPLICITLY
-            fn ask_for_file_attribute_info(_: Box<dyn Database>, mut dh: &FileAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<FileAttributeDataHolder> {
+            fn ask_for_file_attribute_info(_: &dyn Database, mut dh: &FileAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<FileAttributeDataHolder> {
               let mut path: Option<String> = None;
               if !editing_in {
                   // I.e., not editing an existing fileAttribute, but adding a new fileAttribute (%%right??).

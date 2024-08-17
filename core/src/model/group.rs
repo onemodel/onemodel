@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 pub struct Group<'a> {
     id: i64,
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     already_read_data: bool,        /*= false*/
     name: String,                   /*= null*/
     insertion_date: i64,            /*= 0L*/
@@ -31,7 +31,7 @@ pub struct Group<'a> {
 impl Group<'_> {
     /// Creates a new group in the database.
     fn create_group<'a>(
-        db_in: Box<&'a dyn Database>,
+        db_in: &'a dyn Database,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &'a str,
@@ -40,17 +40,17 @@ impl Group<'_> {
         let id: i64 = db_in.create_group(transaction.clone(), in_name, allow_mixed_classes_in_group_in)?;
         // Might be obvious but: Calling fn new2, not new, here, because we don't have enough data to
         // call new and so it will load from the db the other values when needed, as saved by the above.
-        Group::new2(*db_in, transaction, id)
+        Group::new2(db_in, transaction, id)
     }
 
     /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     fn get_group<'a>(
-        db_in: Box<&'a dyn Database>,
+        db_in: &'a dyn Database,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<Group<'a>>, Error> {
-        let result: Result<Group, Error> = Group::new2(*db_in, transaction, id);
+        let result: Result<Group, Error> = Group::new2(db_in, transaction, id);
         match result {
             Err(e) => {
                 if e.to_string().contains(Util::DOES_NOT_EXIST) {
@@ -69,7 +69,7 @@ impl Group<'_> {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     fn new<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         id: i64,
         name_in: &str,
         insertion_date: i64,
@@ -100,7 +100,7 @@ impl Group<'_> {
         } else {
             Ok(Group {
                 id,
-                db: Box::new(db),
+                db,
                 already_read_data: false,
                 name: "".to_string(),
                 insertion_date: 0,
@@ -347,7 +347,7 @@ impl Group<'_> {
                     }
                 }
                 Some(cid) => {
-                    let mut example_entitys_class = EntityClass::new2(&self.db, transaction.clone(), cid)?;
+                    let mut example_entitys_class = EntityClass::new2(self.db, transaction.clone(), cid)?;
                     Ok(Some(example_entitys_class.get_name(transaction)?))
                 }
             }
@@ -428,7 +428,7 @@ impl Group<'_> {
         match class_id {
             None if self.get_mixed_classes_allowed(transaction.clone())? => Ok(None),
             Some(id) => {
-                let mut ec = EntityClass::new2(&self.db, transaction.clone(), id)?;
+                let mut ec = EntityClass::new2(self.db, transaction.clone(), id)?;
                 let template_entity_id = ec.get_template_entity_id(transaction.clone())?;
                 //Ok(Some(Entity::new2(self.db, transaction.clone(), template_entity_id)?))
                 //if let Ok(db) = self.db.downcast::<&dyn Database>() {
@@ -438,11 +438,9 @@ impl Group<'_> {
                 //    Err(anyhow!("Unexpected result from dereference, in group.get_class_template_entity?"))
                 // }
 
-                // Idea: if this deref (*) leads to problems, use Rc here (and where the db
-                // is stored in various structs) instead of a Box (self.db).
-                let db: &dyn Database = *self.db;
+                let db: &dyn Database = self.db;
                 Ok(Some(Entity::new2(
-                    Box::new(db),
+                    db,
                     transaction,
                     template_entity_id,
                 )?))

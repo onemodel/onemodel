@@ -32,7 +32,7 @@ enum RelationDirectionality {
 }
 
 pub struct RelationType<'a> {
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     entity_id: i64,
     name: String,
     /// For descriptions of the meanings of these variables, see the comments
@@ -59,7 +59,7 @@ impl RelationType<'_> {
         directionality: String,
     ) -> RelationType<'a> {
         RelationType {
-            db: Box::new(db),
+            db,
             entity_id,
             name,
             name_in_reverse_direction,
@@ -81,7 +81,7 @@ impl RelationType<'_> {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(RelationType {
-                db: Box::new(db),
+                db,
                 entity_id: id,
                 name: "".to_string(),
                 name_in_reverse_direction: "".to_string(),
@@ -143,7 +143,7 @@ impl RelationType<'_> {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         _with_color /*IGNOREDFORNOW*/: bool,
     ) -> Result<String, anyhow::Error> {
-        let mut entity: Entity = Entity::new2(Box::new(*self.db), None, self.entity_id)?;
+        let mut entity: Entity = Entity::new2(self.db, None, self.entity_id)?;
         Ok(format!(
             "{}{} (a relation type with: {}/'{}')",
             entity.get_archived_status_display_string(transaction.clone())?.clone(),

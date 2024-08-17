@@ -30,7 +30,7 @@ pub struct TextAttribute<'a> {
     // on create_text_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
     id: i64,
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     text: String,               /*%=null in scala.*/
     already_read_data: bool,    /*%%= false*/
     parent_id: i64,             /*%%= 0_i64*/
@@ -46,7 +46,7 @@ impl TextAttribute<'_> {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -84,7 +84,7 @@ impl TextAttribute<'_> {
         } else {
             Ok(TextAttribute {
                 id,
-                db: Box::new(db),
+                db,
                 text: "".to_string(),
                 already_read_data: false,
                 parent_id: 0,

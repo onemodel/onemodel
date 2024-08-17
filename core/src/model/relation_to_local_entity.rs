@@ -34,7 +34,7 @@ pub struct RelationToLocalEntity<'a> {
     // For descriptions of the meanings of these variables, see the comments
     // on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     id: i64,
     // Unlike most other things that implement Attribute, rel_type_id takes the place of attr_type_id in this, since
     // unlike in the scala code self does not extend Attribute and inherit attr_type_id.
@@ -62,7 +62,7 @@ impl RelationToLocalEntity<'_> {
         sorting_index: i64,
     ) -> RelationToLocalEntity<'a> {
         RelationToLocalEntity {
-            db: Box::new(db),
+            db,
             id,
             rel_type_id,
             entity_id1,
@@ -112,7 +112,7 @@ impl RelationToLocalEntity<'_> {
         } else {
             //assign_common_vars(entity_id1, rel_type_id_in, valid_on_date_in, observation_date_in, sorting_index_in)
             Ok(RelationToLocalEntity {
-                db: Box::new(db),
+                db,
                 id,
                 rel_type_id,
                 entity_id1,
@@ -167,7 +167,7 @@ impl RelationToLocalEntity<'_> {
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Entity<'a>, anyhow::Error> {
-        Entity::new2(Box::new(*self.db), transaction, self.entity_id2)
+        Entity::new2(self.db, transaction, self.entity_id2)
     }
 
     /// %%%%%%%DUPLICATED: mark properly to maintain both, and sync them now, or see if can del 1
@@ -355,7 +355,7 @@ impl RelationToEntity for RelationToLocalEntity<'_> {
                     }
                     rt
                 }
-                _ => RelationType::new2(*self.db, None, self.get_attr_type_id(None)?)?,
+                _ => RelationType::new2(self.db, None, self.get_attr_type_id(None)?)?,
             }
         };
         //   *****MAKE SURE***** that during maintenance, anything that gets data relating to entity_id2
@@ -550,7 +550,7 @@ impl Attribute for RelationToLocalEntity<'_> {
                     }
                     rt
                 }
-                _ => RelationType::new2(*self.db, None, self.get_attr_type_id(None)?)?,
+                _ => RelationType::new2(self.db, None, self.get_attr_type_id(None)?)?,
             }
         };
         //   *****MAKE SURE***** that during maintenance, anything that gets data relating to entity_id2

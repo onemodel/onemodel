@@ -28,7 +28,7 @@ use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Entity<'a> {
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     id: i64,
     already_read_data: bool,        /*= false*/
     name: String,                   /*= _*/
@@ -48,7 +48,7 @@ impl Entity<'_> {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
     pub fn new<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         id: i64,
         name: String,
         class_id: Option<i64>, /*= None*/
@@ -59,7 +59,7 @@ impl Entity<'_> {
     ) -> Entity<'a> {
         Entity {
             id,
-            db, //: Box::new(db as &dyn Database),
+            db,
             name,
             class_id,
             insertion_date,
@@ -69,32 +69,17 @@ impl Entity<'_> {
             already_read_data: true,
         }
     }
-    /*
-         /// Allows create_entity to return an instance without duplicating the database check that it Entity(long, Database) does.
-         // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and
-         // EntityTest etc could be with mocks instead of real db use.)  Does this really skip that other check though?
-       pub fn new2(db: Box<&dyn Database>, id: i64) -> Entity {
-             Entity {
-                 id,
-                 db,
-                 already_read_data: false,
-                 name: "".to_string(),
-                 class_id: None,
-                 insertion_date: -1,
-                 public: None,
-                 archived: false,
-                 new_entries_stick_to_top: false,
-             }
-       }
-    %%*/
 
     /// Represents one object in the system.
+    /// Allows create_entity to return an instance without duplicating the database check that it Entity(long, Database) does.
     /// This constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
     /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
     /// (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
     /// set... method to fix it.)
+    // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and
+    // EntityTest etc could be with mocks instead of real db use.)  Does this really skip that other check though?
     pub fn new2<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Entity<'a>, anyhow::Error> {
@@ -124,7 +109,7 @@ impl Entity<'_> {
         is_public_in: Option<bool>, /*= None*/
     ) -> Result<Entity<'a>, anyhow::Error> {
         let id: i64 = db.create_entity(transaction.clone(), in_name, in_class_id, is_public_in)?;
-        Entity::new2(Box::new(db as &dyn Database), transaction.clone(), id)
+        Entity::new2(db as &dyn Database, transaction.clone(), id)
     }
 
     fn name_length() -> u32 {
@@ -143,7 +128,7 @@ impl Entity<'_> {
     /// This is for times when you want None if it doesn't exist, instead of the Error returned by
     /// the Entity constructor.  Or for convenience in tests.
     fn get_entity<'a>(
-        db_in: Box<&'a dyn Database>,
+        db_in: &'a dyn Database,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
@@ -551,7 +536,7 @@ impl Entity<'_> {
             false,
             sorting_index_in,
         )?;
-        QuantityAttribute::new2(*self.db, transaction.clone(), id)
+        QuantityAttribute::new2(self.db, transaction.clone(), id)
     }
 
     fn get_quantity_attribute<'a>(
@@ -560,7 +545,7 @@ impl Entity<'_> {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
-        QuantityAttribute::new2(*self.db, transaction, in_key)
+        QuantityAttribute::new2(self.db, transaction, in_key)
     }
 
     fn get_text_attribute<'a>(
@@ -569,7 +554,7 @@ impl Entity<'_> {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<TextAttribute<'a>, anyhow::Error> {
-        TextAttribute::new2(*self.db, transaction, in_key)
+        TextAttribute::new2(self.db, transaction, in_key)
     }
 
     fn get_date_attribute<'a>(
@@ -578,7 +563,7 @@ impl Entity<'_> {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<DateAttribute<'a>, anyhow::Error> {
-        DateAttribute::new2(*self.db, transaction, in_key)
+        DateAttribute::new2(self.db, transaction, in_key)
     }
 
     fn get_boolean_attribute<'a>(
@@ -587,7 +572,7 @@ impl Entity<'_> {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
-        BooleanAttribute::new2(*self.db, transaction, in_key)
+        BooleanAttribute::new2(self.db, transaction, in_key)
     }
 
     fn get_file_attribute<'a>(
@@ -596,7 +581,7 @@ impl Entity<'_> {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<FileAttribute<'a>, anyhow::Error> {
-        FileAttribute::new2(*self.db, transaction, in_key)
+        FileAttribute::new2(self.db, transaction, in_key)
     }
 
     fn get_count_of_containing_groups(
@@ -918,7 +903,7 @@ impl Entity<'_> {
             caller_manages_transactions_in,
             sorting_index_in,
         )?;
-        TextAttribute::new2(*self.db, transaction, id)
+        TextAttribute::new2(self.db, transaction, id)
     }
 
     fn add_date_attribute<'a>(
@@ -931,7 +916,7 @@ impl Entity<'_> {
         let id =
             self.db
                 .create_date_attribute(transaction.clone(), self.id, in_attr_type_id, in_date, sorting_index_in, true)?;
-        DateAttribute::new2(*self.db, transaction, id)
+        DateAttribute::new2(self.db, transaction, id)
     }
 
     fn add_boolean_attribute<'a>(
@@ -970,7 +955,7 @@ impl Entity<'_> {
             sorting_index_in,
             true,
         )?;
-        BooleanAttribute::new2(*self.db, transaction, id)
+        BooleanAttribute::new2(self.db, transaction, id)
     }
 
     /*%%
@@ -1093,9 +1078,9 @@ impl Entity<'_> {
             observation_date_in,
             caller_manages_transactions_in,
         )?;
-        let entity = Entity::new2(Box::new(*self.db), transaction.clone(), entity_id)?;
+        let entity = Entity::new2(self.db, transaction.clone(), entity_id)?;
         let rte = RelationToLocalEntity::new2(
-            *self.db,
+            self.db,
             transaction,
             rte_id,
             rel_type_id_in,

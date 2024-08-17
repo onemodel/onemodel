@@ -500,45 +500,6 @@ impl PostgreSQLDatabase {
         }
     }
 
-    /* %%This is just to see what is different that causes compile errors, between code in
-    // util.rs/ fn initialize_test_db and fn new here.
-    // pub fn new_test(username: &str,
-    //         password: &str,) -> Result<Box<dyn Database>, String> {
-    // pub fn new_test() -> Result<PostgreSQLDatabase, &'static str> {
-    pub fn new_test() -> Result<PostgreSQLDatabase, String> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        // let result = Self::connect(&rt, Util::TEST_USER, Util::TEST_USER, Util::TEST_PASS);
-        // let pool: PgPool;
-        // match result {
-        //     Ok(x) => pool = x,
-        // //     Err(e) => return Err(anyhow!(e.to_string())),
-        // Err(e) => return Err(anyhow!(e.to_string())),
-        // }
-        let pool =
-            PostgreSQLDatabase::connect(&rt, Util::TEST_USER, Util::TEST_USER, Util::TEST_PASS)
-                .unwrap();
-        let db: PostgreSQLDatabase = PostgreSQLDatabase {
-            rt,
-            pool,
-            include_archived_entities: false,
-        };
-        //NEXT LINE IS WHAT LETS IT HAPPEN HERE! IS THAT OK, to do what we are doing in this?
-        TEST_DB_INIT2.call_once(|| {
-        //     db.destroy_tables().unwrap();
-            let mut tx = db
-                .begin_trans()
-                .expect("Failure to begin transaction before creating test data.");
-            // db.create_tables(&Some(&mut tx)).unwrap();
-            // db.commit_trans(&mut tx)
-            //     .expect("Failure to commit transaction after creating test data.");
-        });
-        Ok(db)
-    }
-    */
-
     /// Any code that would change when we change storage systems (like from postgresql to
     /// an object database or who knows), goes in this class.
     /// Note that any changes to the database structures (or constraints, etc) whatsoever should

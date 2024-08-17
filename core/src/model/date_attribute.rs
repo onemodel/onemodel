@@ -32,7 +32,7 @@ pub struct DateAttribute<'a> {
     // For descriptions of the meanings of these variables, see the comments
     // with create_date_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes
     id: i64,
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     date_value: i64,         /*= 0_i64*/
     already_read_data: bool, /*%%= false*/
     parent_id: i64,          /*%%= 0_i64*/
@@ -46,7 +46,7 @@ impl DateAttribute<'_> {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     fn new<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -77,7 +77,7 @@ impl DateAttribute<'_> {
         } else {
             Ok(DateAttribute {
                 id,
-                db: Box::new(db),
+                db,
                 date_value: 0_i64,
                 already_read_data: false,
                 parent_id: 0,

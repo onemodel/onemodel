@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 pub struct EntityClass<'a> {
     id: i64,
-    db: &'a Box<&'a dyn Database>,
+    db: &'a dyn Database,
     already_read_data: bool,                 /*= false*/
     name: String,                            /*= null*/
     template_entity_id: i64,                 /*= 0*/
@@ -33,7 +33,7 @@ impl EntityClass<'_> {
     }
 
     fn is_duplicate<'a>(
-        db_in: Box<&'a dyn Database>,
+        db_in: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         in_self_id_to_ignore: Option<i64>, /*= None*/
@@ -45,7 +45,7 @@ impl EntityClass<'_> {
     ///  that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new<'a>(
-        db: &'a Box<&'a dyn Database>,
+        db: &'a dyn Database,
         id: i64,
         name_in: &str,
         template_entity_id: i64,
@@ -63,7 +63,7 @@ impl EntityClass<'_> {
 
     /// See comments on similar methods in group.rs.
     pub fn new2<'a>(
-        db: &'a Box<&'a dyn Database>,
+        db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<EntityClass<'a>, anyhow::Error> {

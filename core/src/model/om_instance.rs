@@ -17,7 +17,7 @@ use std::rc::Rc;
 
 pub struct OmInstance<'a> {
     id: String,
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     already_read_data: bool, /*= false*/
     is_local: bool,          /*= false*/
     address: String,         /*= ""*/
@@ -40,7 +40,7 @@ impl OmInstance<'_> {
     }
 
     fn create<'a>(
-        db_in: Box<&'a dyn Database>,
+        db_in: &'a dyn Database,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: &'a str,
@@ -71,7 +71,7 @@ impl OmInstance<'_> {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
     pub fn new<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         id: String,
         is_local_in: bool,
         address_in: String,
@@ -93,7 +93,7 @@ impl OmInstance<'_> {
     /// This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
     /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
     pub fn new2<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: String,
     ) -> Result<OmInstance<'a>, anyhow::Error> {

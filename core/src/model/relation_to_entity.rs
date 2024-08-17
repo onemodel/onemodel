@@ -32,7 +32,7 @@ use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAnd
 pub trait RelationToEntity: Attribute + AttributeWithValidAndObservedDates {
     //    //%%not needed right? would be called directly on the subclass rtle or rtre.
     //    fn new<'a>(
-    //        db: Box<&'a dyn Database>,
+    //        db: &'a dyn Database,
     //        id: i64,
     //        rel_type_id: i64,
     //        entity_id1: i64,

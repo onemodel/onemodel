@@ -29,7 +29,7 @@ pub struct QuantityAttribute<'a> {
     // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
     id: i64,
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     // **idea: make these members immutable?, by replacing them with something like:
     //           let (unit_id: i64, number: f64) = read_data_from_db();
     // BUT: have to figure out how to work with the
@@ -50,7 +50,7 @@ impl QuantityAttribute<'_> {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     fn new<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -87,7 +87,7 @@ impl QuantityAttribute<'_> {
         } else {
             Ok(QuantityAttribute {
                 id,
-                db: Box::new(db),
+                db,
                 unit_id: 0,
                 number: 0.0,
                 already_read_data: false,

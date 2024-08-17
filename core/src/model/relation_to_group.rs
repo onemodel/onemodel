@@ -33,7 +33,7 @@ pub struct RelationToGroup<'a> {
     // For descriptions of the meanings of these variables, see the comments
     // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     id: i64,
     entity_id: i64,
     // Unlike most other things that implement Attribute, rel_type_id takes the place of attr_type_id in this, since
@@ -53,7 +53,7 @@ impl RelationToGroup<'_> {
     /// one that already exists.  It does not confirm that the id exists in the db.
     /// See comment about these 2 dates in PostgreSQLDatabase.create_tables()
     pub fn new<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         id: i64,
         entity_id: i64,
         rel_type_id: i64,
@@ -77,7 +77,7 @@ impl RelationToGroup<'_> {
     }
 
     fn new2<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
         entity_id: i64,
@@ -127,7 +127,7 @@ impl RelationToGroup<'_> {
     // new constructors just wasn't working out (in scala code when I originally wrote this comment, anyway?).
     ///See comments on fn new, here.
     fn create_relation_to_group<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<RelationToGroup<'a>, anyhow::Error> {
@@ -189,7 +189,7 @@ impl RelationToGroup<'_> {
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Group<'a>, anyhow::Error> {
-        Group::new2(*self.db, transaction.clone(), self.get_group_id(transaction.clone())?)
+        Group::new2(self.db, transaction.clone(), self.get_group_id(transaction.clone())?)
     }
 
     fn move_it(
@@ -259,7 +259,7 @@ impl Attribute for RelationToGroup<'_> {
         _unused2: Option<RelationType>, /*=None*/
         simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
-        let mut group = Group::new2(*self.db, None, self.group_id)?;
+        let mut group = Group::new2(self.db, None, self.group_id)?;
         //%%put back after new is implemented!:
         //let rt_name = RelationType::new(self.db, self.get_attr_type_id(None)).get_name();
         let rt_name = "a relation type name stub";

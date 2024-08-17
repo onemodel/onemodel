@@ -33,7 +33,7 @@ pub struct FileAttribute<'a> {
     // on create_file_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
     id: i64,
-    db: Box<&'a dyn Database>,
+    db: &'a dyn Database,
     already_read_data: bool,    /*%%= false*/
     parent_id: i64,             /*%%= 0_i64*/
     attr_type_id: i64,          /*%%= 0_i64*/
@@ -55,7 +55,7 @@ impl FileAttribute<'_> {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     fn new<'a>(
-        db: Box<&'a dyn Database>,
+        db: &'a dyn Database,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -103,7 +103,7 @@ impl FileAttribute<'_> {
         } else {
             Ok(FileAttribute {
                 id,
-                db: Box::new(db),
+                db,
                 already_read_data: false,
                 parent_id: 0,
                 attr_type_id: 0,

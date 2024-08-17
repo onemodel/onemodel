@@ -217,7 +217,7 @@ impl Database for PostgreSQLDatabase {
                 ));
             };
             final_result.push(TextAttribute::new(
-                Box::new(self as &dyn Database),
+                self as &dyn Database,
                 *text_attribute_id,
                 parent_entity_id_in,
                 *attr_type_id,
@@ -1013,7 +1013,7 @@ impl Database for PostgreSQLDatabase {
 
         self.update_class_name(transaction.clone(), class_id_in, name.to_string())?;
         let entity_id: i64 = EntityClass::new2(
-            &Box::new(self as &dyn Database),
+            self as &dyn Database,
             transaction.clone(),
             class_id_in,
         )?
@@ -3988,7 +3988,7 @@ impl Database for PostgreSQLDatabase {
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[6])),
             };
             let rtg: RelationToGroup = RelationToGroup::new(
-                Box::new(self),
+                self,
                 id,
                 entity_id,
                 rel_type_id,
@@ -5391,7 +5391,7 @@ impl Database for PostgreSQLDatabase {
                     ))
                 }
                 Some(DataType::Bigint(i)) => final_results.push(Entity::new2(
-                    Box::new(self as &dyn Database),
+                    self as &dyn Database,
                     transaction.clone(),
                     i,
                 )?),
@@ -5605,7 +5605,7 @@ impl Database for PostgreSQLDatabase {
                 self.find_first_class_id_by_name(transaction.clone(), class_name_in, true)?;
             if found_id.is_some() {
                 let entity_id: i64 = EntityClass::new2(
-                    &Box::new(self as &dyn Database),
+                    self as &dyn Database,
                     transaction.clone(),
                     found_id.unwrap(),
                 )?

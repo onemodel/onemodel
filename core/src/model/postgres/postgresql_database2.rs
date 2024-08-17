@@ -313,7 +313,7 @@ impl PostgreSQLDatabase {
                 preference_entity_id = *x;
             }
             let preference_entity = Entity::new2(
-                Box::new(self as &dyn Database),
+                self as &dyn Database,
                 transaction.clone(),
                 preference_entity_id,
             );
@@ -920,7 +920,7 @@ impl PostgreSQLDatabase {
             let rel_type_id = get_i64_from_row(&result, 0)?;
             let id = get_i64_from_row(&result, 1)?;
             let entity: Entity =
-                Entity::new2(Box::new(self as &dyn Database), transaction.clone(), id.clone()).unwrap();
+                Entity::new2(self as &dyn Database, transaction.clone(), id.clone()).unwrap();
             final_results.push((rel_type_id.clone(), entity))
         }
 
@@ -1178,7 +1178,7 @@ impl PostgreSQLDatabase {
             }
             if let Some(DataType::Bigint(id)) = r[0] {
                 final_result.push(Entity::new2(
-                    Box::new(self as &dyn Database),
+                    self as &dyn Database,
                     transaction.clone(),
                     id,
                 )?);
@@ -1638,7 +1638,7 @@ impl PostgreSQLDatabase {
             }
         };
         Ok(OmInstance::new(
-            Box::new(self),
+            self,
             id,
             true,
             address,
