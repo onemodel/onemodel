@@ -170,75 +170,6 @@ impl RelationToLocalEntity<'_> {
         Entity::new2(self.db, transaction, self.entity_id2)
     }
 
-    /// %%%%%%%DUPLICATED: mark properly to maintain both, and sync them now, or see if can del 1
-    /// of them, like per note at get_display_string.
-    fn read_data_from_db(
-        &mut self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<(), anyhow::Error> {
-        let data: Vec<Option<DataType>> = self.db.get_relation_to_local_entity_data(
-            transaction,
-            self.rel_type_id,
-            self.entity_id1,
-            self.entity_id2,
-        )?;
-        if data.len() == 0 {
-            return Err(anyhow!(
-                "No results returned from data request for: {}, {}, {}",
-                self.rel_type_id,
-                self.entity_id1,
-                self.entity_id2
-            ));
-        }
-
-        self.id = match data[0] {
-            Some(DataType::Bigint(x)) => x,
-            _ => return Err(anyhow!("How did we get here for {:?}?", data[0])),
-        };
-        self.already_read_data = true;
-
-        //assign_common_vars(self.entity_id1, self.attr_type_id, relation_data(2).get.asInstanceOf[i64], relation_data(3).get.asInstanceOf[i64])
-        //***ONLY ROUGHLY COPIED***:
-        //BEGIN COPIED BLOCK descended from Attribute.assign_common_vars (unclear how to do better for now):
-        // No other local variables to assign.  All are either in the superclass or the primary key(s?).
-        //except omitting this one since the row keys are already filled in.  The above call to a db query returns id,
-        //valid_on_date, observation_date, and sorting_index.  Not already filled in by new2() are the last 3 of those.
-        // self.parent_id = match data[1] {
-        //     Some(DataType::Bigint(x)) => x,
-        //     _ => return Err(anyhow!("How did we get here for {:?}?", data[1])),
-        // };
-        // except(also) omitting this one, since rel_type_id takes the place of attr_type_id in this, since
-        // unlike in the scala code self does not extend Attribute and inherit attr_type_id.
-        // self.attr_type_id = match data[2] {
-        //     Some(DataType::Bigint(x)) => x,
-        //     _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
-        // };
-        self.sorting_index = match data[3] {
-            Some(DataType::Bigint(x)) => x,
-            _ => return Err(anyhow!("How did we get here for {:?}?", data[3])),
-        };
-        //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
-
-        //***ONLY ROUGHLY COPIED***:
-        //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
-        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-        // valid_on_date: Option<i64> /*%%= None*/,
-        /*DataType::Bigint(%%)*/
-        self.valid_on_date = None; //data[1];
-                                   // self.valid_on_date = match data[4] {
-                                   //     DataType::Bigint(x) => x,
-                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
-                                   // };
-
-        self.observation_date = match data[2] {
-            Some(DataType::Bigint(x)) => x,
-            _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
-        };
-        //END COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars.
-
-        Ok(())
-    }
-
     fn move_it(
         &self,
         to_local_containing_entity_id_in: i64,
@@ -300,23 +231,6 @@ impl RelationToLocalEntity<'_> {
         self.rel_type_id = new_attr_type_id;
         Ok(())
     }
-
-    /// Removes this object from the system.
-    /// %%%%%%%DUPLICATED: mark properly to maintain both, and sync them now, or see if can del 1
-    /// of them, like per note at get_display_string.
-    fn delete<'a>(
-        &'a mut self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        _id_in: i64,
-    ) -> Result<u64, anyhow::Error> {
-        self.db.delete_relation_to_local_entity(
-            transaction,
-            self.rel_type_id,
-            self.entity_id1,
-            self.entity_id2,
-        )
-    }
 }
 
 //BEGIN SIMILAR CODE: MAINTAIN THIS LIKE CODE FOUND IN relation_to_remote_entity.rs ! --------------------
@@ -328,128 +242,30 @@ impl RelationToEntity for RelationToLocalEntity<'_> {
         self.entity_id2
     }
 
-    /// See comments on namesake in the RelationToEntity trait.
-    /// %%%%%%%comment out this and the one in the trait and here, see if the below same-named method (in
-    /// Attribute trait impl) is enough?
-    /// %%%%%%%can I just move all the duplicated code into the traits? try 1st w/ smthg like
-    /// get_id(), or things that can take all as parameters? (BUT FIRST fix the existing compile errors.)
-    /// (also considering RelationType and its "parent", Entity.)
-    /// %%%%%%%DUPLICATED: mark properly to maintain both, and sync them now, or see if can del 1
-    /// of them incl from .._to_entity.. trait.
-    fn get_display_string(
-        &mut self,
-        length_limit_in: usize,
-        related_entity_in: Option<Entity>,
-        relation_type_in: Option<RelationType>,
-        simplify: bool, /*= false*/
-    ) -> Result<String, anyhow::Error> {
-        let mut rel_type: RelationType = {
-            match relation_type_in {
-                Some(rt) => {
-                    if rt.get_id() != self.get_attr_type_id(None)? {
-                        // It can be ignored, but in cases called generically (the same as other Attribute types)
-                        // it should have the right value or that indicates a
-                        // misunderstanding in the caller's code. Also, if passed in and this were changed to use
-                        // it again, it can save processing time re-instantiating one.
-                        return Err(anyhow!("inRT parameter should be the same as the relationType on this relation."));
-                    }
-                    rt
-                }
-                _ => RelationType::new2(self.db, None, self.get_attr_type_id(None)?)?,
-            }
-        };
-        //   *****MAKE SURE***** that during maintenance, anything that gets data relating to entity_id2
-        //   is using the right (local or remote) db!:
-        let mut related_entity: Entity = match related_entity_in {
-            Some(e) => e,
-            None => self.get_entity_for_entity_id2(None)?,
-        };
-        //let related_entity: Entity =
-        //    { related_entity_in.unwrap_or_else(|| self.get_entity_for_entity_id2(None)?) };
-        let rt_name: String = {
-            if related_entity.get_id() == self.entity_id2 {
-                rel_type.get_name(None)?
-            } else if related_entity.get_id() == self.entity_id1 {
-                rel_type.get_name_in_reverse_direction(None)?
-            } else {
-                return Err(anyhow!(
-                    "Unrelated parent entity parameter?: '{}', '{}'",
-                    related_entity.get_id(),
-                    related_entity.get_name(None)?
-                ));
-            }
-        };
-        // (See method comment about the related_entity_in param.)
-        let result: String = if simplify {
-            if rt_name == Util::THE_HAS_RELATION_TYPE_NAME {
-                related_entity.get_name(None)?.clone()
-            } else {
-                format!(
-                    "{}{}: {}",
-                    rt_name,
-                    Self::get_remote_description(),
-                    related_entity.get_name(None)?
-                )
-            }
-        } else {
-            format!(
-                "{}{}: {}; {}",
-                rt_name,
-                Self::get_remote_description(),
-                Color::blue(related_entity.get_name(None)?),
-                Util::get_dates_description(self.valid_on_date, self.observation_date)
-            )
-        };
-
-        //    if this.isInstanceOf[RelationToRemoteEntity]) {
-        //      result = "[remote]" + result
-        //    }
-        Ok(Util::limit_attribute_description_length(
-            result.as_str(),
-            length_limit_in,
-        ))
-    }
-
     //%%%%%%?: fn get_remote_description -> String
 
     // If related_entity_in is an RTRE, could be a different db so build accordingly:
     //%%%%%%?: fn get_entity_for_entity_id2 -> Entity
 
-    // (the next line used to be coded so instead of working it would return an exception, like this:
-    //     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
-    // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
-    // to have it be like this instead, for convenience:
-    /// %%%%%%%DUPLICATED: mark properly to maintain both, and sync them now, or see if can del 1
-    /// of them, like per note at get_display_string.
-    fn get_parent_id(&self) -> i64 {
-        self.get_related_id1()
-    }
 }
 //END SIMILAR CODE--------------------
 
 impl Attribute for RelationToLocalEntity<'_> {
-    // (the next line used to be coded so instead of working it would return an exception, like this:
+    // (The next line used to be coded so instead of working it would return an exception, like this:
     //     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
     // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
     // to have it be like this instead, for convenience:
-    /// %%%%%%%DUPLICATED: mark properly to maintain both, and sync them now, or see if can del 1
-    /// of them, like per note at get_display_string.
     fn get_parent_id(
         &mut self,
         _transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
-        //) -> i64 {
         Ok(self.get_related_id1())
     }
 
     /// Removes this object from the system.
-    /// %%%%%%%DUPLICATED: mark properly to maintain both, and sync them now, or see if can del 1
-    /// of them, like per note at get_display_string.
     fn delete<'a>(
         &'a self,
-        //transaction: & Option<& mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        //_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_to_local_entity(
             transaction,
@@ -459,8 +275,6 @@ impl Attribute for RelationToLocalEntity<'_> {
         )
     }
 
-    /// %%%%%%%DUPLICATED: mark properly to maintain both, and sync them now, or see if can del 1
-    /// of them, like per note at get_display_string.
     fn read_data_from_db(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -528,9 +342,11 @@ impl Attribute for RelationToLocalEntity<'_> {
         Ok(())
     }
 
-    /// See comments on namesake in the RelationToEntity trait.
-    /// %%%%%%%DUPLICATED: mark properly to maintain both, and sync them now, or see if can del 1
-    /// of them incl from .._to_entity.. trait.
+    /// @param related_entity_in, could be either entity_id2 or 1: it is always *not* the entity from whose perspective the result will be returned, ex.,
+    /// 'x contains y' OR 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
+    /// If left None here, the code will make a guess but might output confusing (backwards) info.
+    /// @param relation_type_in can be left None, but will run faster if not.
+    /// @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If in_length_limit is 0 you get the whole thing.
     fn get_display_string(
         &mut self,
         length_limit_in: usize,

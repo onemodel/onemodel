@@ -54,23 +54,8 @@ pub trait RelationToEntity: Attribute + AttributeWithValidAndObservedDates {
     fn get_related_id1(&self) -> i64;
     fn get_related_id2(&self) -> i64;
 
-    /// @param related_entity_in, could be either entity_id2 or 1: it is always *not* the entity from whose perspective the result will be returned, ex.,
-    /// 'x contains y' OR 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
-    /// If left None here, the code will make a guess but might output confusing (backwards) info.
-    /// @param relation_type_in can be left None, but will run faster if not.
-    /// @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If in_length_limit is 0 you get the whole thing.
-    fn get_display_string(
-        &mut self,
-        length_limit_in: usize,
-        related_entity_in: Option<Entity>,
-        relation_type_in: Option<RelationType>,
-        simplify: bool, /*= false*/
-    ) -> Result<String, anyhow::Error>;
-
     //%%?: fn get_remote_description -> String
 
     // If related_entity_in is an RTRE, could be a different db so build accordingly:
     //%%?: fn get_entity_for_entity_id2 -> Entity
-
-    fn get_parent_id(&self) -> i64;
 }

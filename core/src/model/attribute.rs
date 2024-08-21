@@ -42,7 +42,6 @@ pub trait Attribute {
     fn delete<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        //id_in: i64,
     ) -> Result<u64, anyhow::Error>;
 
     //looks unused except for Entity and EntityClass
