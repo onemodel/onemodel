@@ -799,7 +799,6 @@ impl Entity<'_> {
 
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         new_entity_name_in: &str,
         uri_in: &str,
@@ -807,9 +806,7 @@ impl Entity<'_> {
         make_them_public_in: Option<bool>,
         caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
-    //%%%%%%%%%
-    //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         self.db.add_uri_entity_with_uri_attribute(
             transaction,
             self,
@@ -820,12 +817,6 @@ impl Entity<'_> {
             caller_manages_transactions_in,
             quote_in,
         )
-            //%%%%%%%%%
-            ?
-            ;
-            //remove next line when fixing above sig change after figuring out lifetimes/smart
-            //pointers issues.... see other %%x9
-            Ok(())
     }
 
     /*%%%%%
