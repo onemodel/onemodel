@@ -103,6 +103,7 @@ impl Database for PostgreSQLDatabase {
             //%%could make it so the above transaction parameter to the fn doesn't require a
             //lifetime, by changing that in postgresql_database.rs fn db_action, or such? Or
             //just fix things here somehow?
+            //How is this call different from other db calls that don't have the problem?
             None,  //transaction.clone(),
             uri_class_template_id,
             uri_in,

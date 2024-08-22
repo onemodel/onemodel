@@ -1152,7 +1152,7 @@ impl Entity<'_> {
 
 #[cfg(test)]
 mod test {
-    /*
+    /*%%%%%%
       let mut mEntity: Entity = null;
       let mut mUnitId: i64 = 0;
       let mut db: PostgreSQLDatabase = null;
@@ -1191,10 +1191,14 @@ mod test {
       protected fn tearDown() {
         PostgreSQLDatabaseTest.tearDownTestDB()
       }
-
-      "testAddQuantityAttribute" should "work" in {
-        db.begin_trans()
-        println!("starting testAddQuantityAttribute")
+*/
+    /*%%%%%%%
+    #[test]
+    fn test_add_quantity_attribute() {
+        Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let tx = db.begin_trans().unwrap();
+        let tx = Some(Rc::new(RefCell::new(tx)));
         let id: i64 = mEntity.add_quantity_attribute(mQuantityAttrTypeId, mUnitId, 100, None).get_id;
         let qo: QuantityAttribute = mEntity.get_quantity_attribute(id);
         if qo == null {
@@ -1203,7 +1207,8 @@ mod test {
         assert(qo.get_id == id)
         db.rollback_trans()
       }
-
+*/
+      /*
       "testAddTextAttribute" should "also work" in {
         db.begin_trans()
         println!("starting testAddTextAttribute")
