@@ -73,8 +73,8 @@ impl RelationToLocalEntity<'_> {
             already_read_data: true,
         }
         //    if this.isInstanceOf[RelationToRemoteEntity]) {
-        //    %%
-        //      //idea: this test & exception feel awkward. What is the better approach?  Maybe using scala's type features?
+        //    %%latercheck
+        //      //idea: this test & exception feel awkward. What is the better approach?  Maybe using Rust's type features?
         //      throw new OmException("This constructor should not be called by the subclass.")
         //    }
     }
@@ -157,19 +157,6 @@ impl RelationToLocalEntity<'_> {
         }
     }
 
-    fn get_remote_description() -> String {
-        //%%have it throw an err instead? what do callers expect.  (The scala version also had "".)
-        "".to_string()
-    }
-
-    fn get_entity_for_entity_id2<'a>(
-        &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<Entity<'a>, anyhow::Error> {
-        Entity::new2(self.db, transaction, self.entity_id2)
-    }
-
     fn move_it(
         &self,
         to_local_containing_entity_id_in: i64,
@@ -242,10 +229,18 @@ impl RelationToEntity for RelationToLocalEntity<'_> {
         self.entity_id2
     }
 
-    //%%%%%%?: fn get_remote_description -> String
-
     // If related_entity_in is an RTRE, could be a different db so build accordingly:
-    //%%%%%%?: fn get_entity_for_entity_id2 -> Entity
+    fn get_remote_description(&self) -> String {
+        //%%later: have it throw an err instead? what do callers expect.  (The scala version also had "".)
+        "".to_string()
+    }
+
+    fn get_entity_for_entity_id2<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    ) -> Result<Entity<'a>, anyhow::Error> {
+        Entity::new2(self.db, transaction, self.entity_id2)
+    }
 
 }
 //END SIMILAR CODE--------------------
@@ -300,7 +295,8 @@ impl Attribute for RelationToLocalEntity<'_> {
         };
         self.already_read_data = true;
 
-        //assign_common_vars(self.entity_id1, self.attr_type_id, relation_data(2).get.asInstanceOf[i64], relation_data(3).get.asInstanceOf[i64])
+        //assign_common_vars(self.entity_id1, self.attr_type_id, relation_data(2).get.asInstanceOf[i64], 
+        //relation_data(3).get.asInstanceOf[i64])
         //***ONLY ROUGHLY COPIED***:
         //BEGIN COPIED BLOCK descended from Attribute.assign_common_vars (unclear how to do better for now):
         // No other local variables to assign.  All are either in the superclass or the primary key(s?).
@@ -342,11 +338,13 @@ impl Attribute for RelationToLocalEntity<'_> {
         Ok(())
     }
 
-    /// @param related_entity_in, could be either entity_id2 or 1: it is always *not* the entity from whose perspective the result will be returned, ex.,
+    /// @param related_entity_in, could be either entity_id2 or 1: it is always *not* the entity 
+    /// from whose perspective the result will be returned, ex.,
     /// 'x contains y' OR 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
     /// If left None here, the code will make a guess but might output confusing (backwards) info.
     /// @param relation_type_in can be left None, but will run faster if not.
-    /// @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". If in_length_limit is 0 you get the whole thing.
+    /// @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". 
+    /// If in_length_limit is 0 you get the whole thing.
     fn get_display_string(
         &mut self,
         length_limit_in: usize,
@@ -375,8 +373,6 @@ impl Attribute for RelationToLocalEntity<'_> {
             Some(e) => e,
             None => self.get_entity_for_entity_id2(None)?,
         };
-        //let related_entity: Entity =
-        //    { related_entity_in.unwrap_or_else(|| self.get_entity_for_entity_id2(None)?) };
         let rt_name: String = {
             if related_entity.get_id() == self.entity_id2 {
                 rel_type.get_name(None)?
@@ -398,7 +394,7 @@ impl Attribute for RelationToLocalEntity<'_> {
                 format!(
                     "{}{}: {}",
                     rt_name,
-                    Self::get_remote_description(),
+                    self.get_remote_description(),
                     related_entity.get_name(None)?
                 )
             }
@@ -406,7 +402,7 @@ impl Attribute for RelationToLocalEntity<'_> {
             format!(
                 "{}{}: {}; {}",
                 rt_name,
-                Self::get_remote_description(),
+                self.get_remote_description(),
                 Color::blue(related_entity.get_name(None)?),
                 Util::get_dates_description(self.valid_on_date, self.observation_date)
             )
@@ -421,8 +417,6 @@ impl Attribute for RelationToLocalEntity<'_> {
         ))
     }
 
-    //%% see ex in rtg
-    //%%%%%%
     // This datum is provided upon construction (new2(), at minimum), so can be returned
     // regardless of already_read_data / read_data_from_db().
     fn get_id(&self) -> i64 {
@@ -450,20 +444,10 @@ impl Attribute for RelationToLocalEntity<'_> {
         }
         Ok(self.sorting_index)
     }
-    //%%%%%%
-    //    fn get_parent_id(
-    //        &mut self,
-        //transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    //    ) -> Result<i64, anyhow::Error> {
-    //        if !self.already_read_data {
-    //            self.read_data_from_db(transaction)?;
-    //        }
-    //        Ok(self.entity_id)
-    //    }
 }
 
 impl AttributeWithValidAndObservedDates for RelationToLocalEntity<'_> {
-    //%%%%%%Can these be impl in the trait only, instead of here/all children?
+    //%%later: Can these be impl in the trait only, instead of here/all children?
     fn get_valid_on_date(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -482,10 +466,9 @@ impl AttributeWithValidAndObservedDates for RelationToLocalEntity<'_> {
         }
         Ok(self.observation_date)
     }
-    //%%%%%% see ex in rtg?
 }
 
 #[cfg(test)]
 mod test {
-    //%%%%%%
+    //%%latertests
 }

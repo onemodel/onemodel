@@ -1152,11 +1152,30 @@ impl Entity<'_> {
 
 #[cfg(test)]
 mod test {
-    /*%%%%%%
-      let mut mEntity: Entity = null;
+    use super::Entity;
+use crate::model::boolean_attribute::BooleanAttribute;
+//use crate::model::database::{DataType, Database};
+use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
+use crate::model::date_attribute::DateAttribute;
+use crate::model::file_attribute::FileAttribute;
+use crate::model::id_wrapper::IdWrapper;
+use crate::model::relation_to_group::RelationToGroup;
+use crate::model::relation_to_local_entity::RelationToLocalEntity;
+//use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
+use crate::color::Color;
+use crate::model::quantity_attribute::QuantityAttribute;
+use crate::model::text_attribute::TextAttribute;
+use crate::util::Util;
+use anyhow::{anyhow, Result};
+use chrono::Utc;
+use sqlx::{/*Error, */ Postgres, Transaction};
+use std::collections::HashSet;
+use std::cell::{RefCell};
+use std::rc::Rc;
+    
+    /*%%latertests
       let mut mUnitId: i64 = 0;
-      let mut db: PostgreSQLDatabase = null;
-      let mut mQuantityAttrTypeId: i64 = 0;
+      let mut quantity_attr_type_id: i64 = 0;
       let mut mTextAttrTypeId: i64 = 0;
       let mut mDateAttrTypeId = 0L;
       let mut m_booleanAttrTypeId = 0L;
@@ -1178,7 +1197,6 @@ mod test {
         db = new PostgreSQLDatabase(Database::TEST_USER, Database::TEST_PASS)
 
         mUnitId = db.create_entity("centimeters")
-        mQuantityAttrTypeId = db.create_entity("length")
         mTextAttrTypeId = db.create_entity("someName")
         mDateAttrTypeId = db.create_entity("someName")
         m_booleanAttrTypeId = db.create_entity("someName")
@@ -1192,14 +1210,19 @@ mod test {
         PostgreSQLDatabaseTest.tearDownTestDB()
       }
 */
-    /*%%%%%%%
+      /* %%latertests
     #[test]
     fn test_add_quantity_attribute() {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         let tx = db.begin_trans().unwrap();
         let tx = Some(Rc::new(RefCell::new(tx)));
-        let id: i64 = mEntity.add_quantity_attribute(mQuantityAttrTypeId, mUnitId, 100, None).get_id;
+        //%%latertests Maybe move things like this into a setup method that does "once" like util.rs does, equiv to the above?
+        //Or one that returns the various values? or just fill in & keep copy/pasting as needed?
+        //%%latertests Or look up the once_cell crate -- would it help fill in vars w/ boxes? at what level? *singletons*?
+        let quantity_attr_type_id = Entity::create_entity(&DB, tx, "length", None, None).unwrap();
+        let e: Entity = Entity::create_entity(&DB, tx, "testEntityName", None, None).unwrap();
+        let id: i64 = e.add_quantity_attribute(quantity_attr_type_id, mUnitId, 100, None).get_id();
         let qo: QuantityAttribute = mEntity.get_quantity_attribute(id);
         if qo == null {
           fail("add_quantity_attribute then get_quantity_attribute returned null")
@@ -1207,8 +1230,7 @@ mod test {
         assert(qo.get_id == id)
         db.rollback_trans()
       }
-*/
-      /*
+
       "testAddTextAttribute" should "also work" in {
         db.begin_trans()
         println!("starting testAddTextAttribute")
@@ -1415,4 +1437,3 @@ mod test {
       }
     */
 }
-//%%%%%%

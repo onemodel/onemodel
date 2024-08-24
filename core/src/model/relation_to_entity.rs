@@ -17,12 +17,12 @@
 use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
-//use sqlx::{Postgres, Transaction};
+use sqlx::{Postgres, Transaction};
 //use tracing_subscriber::registry::Data;
 use crate::model::attribute::Attribute;
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
-//use std::cell::{RefCell};
-//use std::rc::Rc;
+use std::cell::{RefCell};
+use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
@@ -54,8 +54,11 @@ pub trait RelationToEntity: Attribute + AttributeWithValidAndObservedDates {
     fn get_related_id1(&self) -> i64;
     fn get_related_id2(&self) -> i64;
 
-    //%%?: fn get_remote_description -> String
+    fn get_remote_description(&self) -> String;
 
     // If related_entity_in is an RTRE, could be a different db so build accordingly:
-    //%%?: fn get_entity_for_entity_id2 -> Entity
+    fn get_entity_for_entity_id2<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    ) -> Result<Entity<'a>, anyhow::Error>;
 }

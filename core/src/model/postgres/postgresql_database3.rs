@@ -671,6 +671,11 @@ impl Database for PostgreSQLDatabase {
         caller_manages_transactions_in: bool, /*= false*/
         sorting_index_in: Option<i64>,        /*= None*/
     ) -> Result</*id*/ i64, anyhow::Error> {
+        /*For the duplicated code & comments just below, would ideas from these help?:
+            The weird of function-local types in Rust
+            https://elastio.github.io/bon/blog/the-weird-of-function-local-types-in-rust
+            https://news.ycombinator.com/item?id=41272893
+        */  
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using

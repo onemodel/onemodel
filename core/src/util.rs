@@ -42,7 +42,7 @@ enum DateType {
     OBSERVED,
 }
 
-// for explanation, see fn initialize_test_db() below
+// for explanation and an idea, see fn initialize_test_db() below
 static TEST_DB_INIT: std::sync::Once = std::sync::Once::new();
 static TEST_TRACING_INIT: std::sync::Once = std::sync::Once::new();
 // static mut TEST_DB: Option<PostgreSQLDatabase> = None;
@@ -1169,6 +1169,8 @@ impl Util {
             pool,
             include_archived_entities: false,
         };
+        //Idea: another way to do this might be the crate once_cell. (Or does std::sync::Once
+        //superceded that?)
         TEST_DB_INIT.call_once(|| {
             // for some explanation, see:
             //   https://doc.rust-lang.org/std/sync/struct.Once.html
