@@ -53,10 +53,9 @@ impl PostgreSQLDatabase {
         format!("{}{}", Util::DB_NAME_PREFIX, db_name_without_prefix)
     }
 
-    //%%should this and other eventual callers of db_query take its advice and call the ck method?
+    //%%later: should this and other eventual callers of db_query take its advice and call the ck method?
     pub fn db_query_wrapper_for_one_row(
         &self,
-        //transaction: &Option<&mut Transaction<Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql: &str,
         types: &str,
@@ -97,8 +96,8 @@ impl PostgreSQLDatabase {
     /// Before calling this, the caller should have made sure that any parameters it received in the form of
     /// Strings should have been passed through escape_quotes_etc FIRST, and ONLY THE RESULT SENT HERE.
     /// Returns the results (a collection of rows, each row being its own collection).
-    //%%should do that escape_quotes_etc here instead, so guaranteed? or comment why not?
-    //%%%%should the things in "types" parm be an enum or something like that? Or doc it here?
+    //%%later: Should do that escape_quotes_etc here instead, so guaranteed? or comment why not?
+    //%%later: Should the things in "types" parm be an enum or something like that? Or doc it here?
     pub fn db_query(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -237,7 +236,7 @@ impl PostgreSQLDatabase {
 
         // idea: (see comment at other use in this class, of getWarnings)
         // idea: maybe both uses of getWarnings should be combined into a method.
-        //%%how do this in rust/sqlx?:
+        //%%later: How do this in rust/sqlx?:
         // let warnings = rs.getWarnings;
         // let warnings2 = st.getWarnings;
         // if warnings != null || warnings2 != null) throw new OmDatabaseException("Warnings from postgresql. Matters? Says: " + warnings + ", and " + warnings2)

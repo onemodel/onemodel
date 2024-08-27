@@ -15,7 +15,7 @@ use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::*;
 // use crate::model::postgres::*;
-// use crate::model::RelationToLocalEntity::RelationToLocalEntity;
+use crate::model::relation_to_local_entity::RelationToLocalEntity;
 // use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::date_attribute::DateAttribute;
@@ -147,11 +147,11 @@ mod test {
             .connect(connect_str.as_str());
         let pool = rt.block_on(future).unwrap();
 
-        // idea: could get the next lines to work also and show something useful re the current setting??:
-        // let future = sqlx::query("show transaction isolation level").execute(&pool);
-        // let x = rt.block_on(future).unwrap();
-        // debug!("in test_basic_sql_connectivity_with_async_and_tokio: Query result re transaction isolation lvl?:  {:?}", x);
-        // %%Search for related cmts w/ "isolation".
+        //idea: could get the next lines to work also and show something useful re the current setting??:
+        //let future = sqlx::query("show transaction isolation level").execute(&pool);
+        //let x = rt.block_on(future).unwrap();
+        //debug!("in test_basic_sql_connectivity_with_async_and_tokio: Query result re transaction isolation lvl?:  {:?}", x);
+        //%%later: Search for related cmts w/ "isolation".
 
         for c in 1..=150 {
             debug!(
@@ -162,9 +162,9 @@ mod test {
             // hung after 1-4 iterations, when block_on didn't have "rt.":
             let sql: String = "DROP table IF EXISTS test_doesnt_exist CASCADE".to_string();
             let future = sqlx::query(sql.as_str()).execute(&pool);
-            let x: Result<PgQueryResult, sqlx::Error> = /*%%: i32 asking compiler or println below*/ rt.block_on(future);
+            let x: Result<PgQueryResult, sqlx::Error> = rt.block_on(future);
             //using next line instead avoided the problem!
-            // let x: Result<PgQueryResult, sqlx::Error> = /*%%: i32 asking compiler or println below*/ future.await;
+            // let x: Result<PgQueryResult, sqlx::Error> = future.await;
             if let Err(e) = x {
                 panic!("FAILURE 1: {}", e.to_string());
             } else {
@@ -289,7 +289,7 @@ mod test {
             .entity_key_exists(transaction.clone(), id, true)
             .expect(format!("Found: {}", id).as_str()));
 
-        //%%can make every place like this call common fns instead of dup code? Note that this one
+        //%%later: Can make every place like this call common fns instead of dup code? Note that this one
         //does *rollback*, most do commit.  It also differs because self is not db.
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
@@ -407,7 +407,7 @@ mod test {
     }
 
     #[test]
-    ///yes it actually was failing when written, in my use of Sqlx somehow.%%finish cmt--what fixed?
+    ///yes it actually was failing when written, in my use of Sqlx somehow.
     fn test_rollback_and_commit_with_less_helper_code() {
         Util::initialize_tracing();
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -420,7 +420,7 @@ mod test {
             Util::TEST_PASS,
             "om_t1"
         );
-        //%%% why does the insert sql get "PoolTimedOut" if .max_connections is 1 instead of 10??
+        //%%later: Why does the insert sql get "PoolTimedOut" if .max_connections is 1 instead of 10??
         //(Is similar to similar problem w/ .max_connections noted elsewhere?)
         let future = PgPoolOptions::new()
             .max_connections(10)
@@ -479,9 +479,7 @@ mod test {
         count = sqlx_get_int(&pool, &rt, count_sql.as_str());
         debug!("in test_rollback_and_commit_with_less_helper_code: count after rollback should be 0: {}", count);
 
-        //%%%this fails, so try?: xnew version of sqlx w what changes, xmore web searches, reddit?, file an issue (filed 20230406)?
-        //%%%why doesnt the rollback, implied OR explicit, do anything? due to xactn isolation or...??
-        //AFTER FIXING, see all the places with "rollbacketc%%" (2) and address them.
+        //%%later: AFTER FIXING (is fixed now, right?), see all the places with "rollbacketc%%" (2) and address them.
         //could: Search for related cmts w/ "isolation".
         assert_eq!(count, 0);
 
@@ -652,7 +650,7 @@ mod test {
         boolean_attribute_id
     }
 
-    /*%%%latertests
+    /*%%latertests after FileAttribute is more completed.
     fn create_test_file_attribute_and_one_entity(in_parent_entity: Entity, in_descr: String, added_kilobytes_in: i32, verify_in: bool /*= true*/) -> FileAttribute {
         let attr_type_id: i64 = db.create_entity("fileAttributeType");
         let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
@@ -711,39 +709,38 @@ mod test {
         if file != null { file.delete() }
         }
     }
-    %%%%%%*/
+    */
 
     fn create_test_relation_to_local_entity_with_one_entity(
-        _in_entity_id: i64,
-        _in_rel_type_id: i64,
-        _in_valid_on_date: Option<i64>, /*= None*/
+        in_entity_id: i64,
+        in_rel_type_id: i64,
+        in_valid_on_date: Option<i64>, /*= None*/
     ) -> i64 {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         // idea: could use here instead: db.create_entityAndRelationToLocalEntity
-        let _related_entity_id: i64 = db
+        let related_entity_id: i64 = db
             .create_entity(None, RELATED_ENTITY_NAME, None, None)
             .unwrap();
         // let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty { None } else { in_valid_on_date };
-        let _observation_date: i64 = Utc::now().timestamp_millis();
-        0_i64
+        let observation_date: i64 = Utc::now().timestamp_millis();
 
-        //%%%%finish when attrs in place again:
-        // let id = db.create_relation_to_local_entity(None, in_rel_type_id,
-        //                                             in_entity_id, related_entity_id,
-        //                                             in_valid_on_date, observation_date).get_id;
-        //
-        // // and verify it:
-        // let rtle: RelationToLocalEntity = new RelationToLocalEntity(db, id, in_rel_type_id, in_entity_id, related_entity_id);
-        // if in_valid_on_date.isEmpty {
-        //     assert(rtle.get_valid_on_date().isEmpty)
-        // } else {
-        //     let inDt: i64 = in_valid_on_date.get;
-        //     let gotDt: i64 = rtle.get_valid_on_date().get;
-        //     assert(inDt == gotDt)
-        // }
-        // assert(rtle.get_observation_date() == observation_date)
-        // related_entity_id
+        let id = db.create_relation_to_local_entity(None, in_rel_type_id,
+                                                    in_entity_id, related_entity_id,
+                                                    in_valid_on_date, observation_date, None, false).unwrap().get_id();
+        
+        // and verify it:
+        let mut rtle: RelationToLocalEntity =  RelationToLocalEntity::new2(&db, None, id, in_rel_type_id, in_entity_id, related_entity_id).unwrap();
+        match in_valid_on_date {
+            None => assert!(rtle.get_valid_on_date(None).unwrap().is_none()),
+            Some(d) => {
+                let in_dt: i64 = d;
+                let got_dt: i64 = rtle.get_valid_on_date(None).unwrap().unwrap();
+                assert!(in_dt == got_dt);
+            }
+        }
+        assert!(rtle.get_observation_date(None).unwrap() == observation_date);
+        related_entity_id
     }
 
     #[test]

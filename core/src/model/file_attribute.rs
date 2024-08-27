@@ -34,10 +34,10 @@ pub struct FileAttribute<'a> {
     // and/or examples in the database testing code.
     id: i64,
     db: &'a dyn Database,
-    already_read_data: bool,    /*%%= false*/
-    parent_id: i64,             /*%%= 0_i64*/
-    attr_type_id: i64,          /*%%= 0_i64*/
-    sorting_index: i64,         /*%%= 0_i64*/
+    already_read_data: bool,    /*= false*/
+    parent_id: i64,             /*= 0_i64*/
+    attr_type_id: i64,          /*= 0_i64*/
+    sorting_index: i64,         /*= 0_i64*/
     description: String,        /*= null;*/
     original_file_date: i64,    /*= 0;*/
     stored_date: i64,           /*= 0;*/
@@ -156,12 +156,12 @@ impl FileAttribute<'_> {
         let _n = std::io::copy(&mut file, &mut hasher)?;
         let _hash = hasher.finalize();
         let _dst = [0 as u8; 32];
-        //%%low confidence the next line is right.  Doesn't compile (no "into_bytes" &c).  Ck tests.  See those docs?  What is dst for?
+        //%%later: low confidence the next line is right.  Doesn't compile (no "into_bytes" &c).  Ck tests.  See those docs?  What is dst for?
         // let hex_hash = base16ct::lower::encode_str(&hash.into_bytes(), &mut dst)?;
         let hex_hash = "%%fix above line and delete this one";
         return Ok(hex_hash.to_string());
 
-        /*%%old scala code for this:
+        /*%%later: old scala code for this:
         let mut fis: java.io.FileInputStream = null;
         let d = java.security.MessageDigest.getInstance("MD5");
         try {
@@ -200,10 +200,10 @@ impl FileAttribute<'_> {
     }
 
     /// Returns a prefix and suffix (like, "filename" and ".ext").
-    /// I.e., for use with java.nio.file.Files.createTempFile (which makes sure it will not collide with existing names).
+    /// I.e., was for use with java.nio.file.Files.createTempFile (which makes sure it will not collide with existing names).
     /// Calling this likely presumes that the caller has already decided not to use the old path, or at least the old filename in the temp directory.
     fn get_usable_filename(
-        /*%%noSelf*/ original_file_path_in: &str,
+        original_file_path_in: &str,
     ) -> Result<(String, String), anyhow::Error> {
         let file_name: &OsStr = match Path::new(original_file_path_in).file_name() {
             Some(s) => s,

@@ -100,7 +100,7 @@ impl Entity<'_> {
         })
     }
 
-    fn create_entity<'a>(
+    pub fn create_entity<'a>(
         db: &'a dyn Database,
         //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,

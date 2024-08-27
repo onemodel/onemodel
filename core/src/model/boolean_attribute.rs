@@ -18,7 +18,7 @@ use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_*entity.rs and relation_to_group.rs,
@@ -30,13 +30,13 @@ pub struct BooleanAttribute<'a> {
     // and/or examples in the database testing code.
     db: &'a dyn Database,
     id: i64,
-    parent_id: i64,             /*%%= 0_i64*/
-    attr_type_id: i64,          /*%%= 0_i64*/
-    boolean_value: bool,        /*%%false*/
-    valid_on_date: Option<i64>, /*%%= None*/
-    observation_date: i64,      /*%%= 0_i64*/
-    sorting_index: i64,         /*%%= 0_i64*/
-    already_read_data: bool,    /*%%= false*/
+    parent_id: i64,             /*= 0_i64*/
+    attr_type_id: i64,          /*= 0_i64*/
+    boolean_value: bool,        /*false*/
+    valid_on_date: Option<i64>, /*= None*/
+    observation_date: i64,      /*= 0_i64*/
+    sorting_index: i64,         /*= 0_i64*/
+    already_read_data: bool,    /*= false*/
 }
 
 impl BooleanAttribute<'_> {
@@ -175,7 +175,7 @@ impl Attribute for BooleanAttribute<'_> {
             ));
         }
 
-        //%%%%%what do about making this into shared code? duplicate it or can work from the Trait/s? see in anki re : to get fns from a trait (search
+        //%%later: what do about making this into shared code? duplicate it or can work from the Trait/s? see in anki re : to get fns from a trait (search
         // rustlang deck re trait, is near end of a note), or
         // the newtype pattern?
         //idea: surely there is some better way than what I am doing here? See other places similarly.  Maybe implement DataType.clone() ?
@@ -207,8 +207,7 @@ impl Attribute for BooleanAttribute<'_> {
 
         //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
         //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-        // valid_on_date: Option<i64> /*%%= None*/,
-        /*DataType::Bigint(%%)*/
+        // valid_on_date: Option<i64> /*= None*/,
         self.valid_on_date = None; //data[4];
                                    // self.valid_on_date = match data[4] {
                                    //     DataType::Bigint(x) => x,
@@ -250,7 +249,7 @@ impl Attribute for BooleanAttribute<'_> {
 
     fn get_form_id(&self) -> Result<i32, Error> {
         // self.db.get_attribute_form_id(was in scala:  this.getClass.getSimpleName)
-        //%% Since not using the reflection(?) from the line above, why not just return a constant
+        //%%later: Since not using the reflection(?) from the line above, why not just return a constant
         //here?  What other places call the below method and its reverse? Do they matter now?
         self.db.get_attribute_form_id(Util::BOOLEAN_TYPE)
     }
@@ -316,48 +315,84 @@ impl AttributeWithValidAndObservedDates for BooleanAttribute<'_> {
 
 #[cfg(test)]
 mod test {
-    /*%%put this back when it is time to learn from mockall docs, since putting "#[automock]" at
+    /*%%latertests: Revisit mbe when it is time to learn from mockall docs, since putting "#[automock]" at
         the top of Database gets ~500 errors, and automock in docs is not supported. See:
         https://docs.rs/mockall/latest/
         ...and search for "mock!", click/open that/use it, and then mbe cont reading at "Static return values".
+        //use mockall::{automock, mock, predicate::*};
+    */
     use super::*;
-    use mockall::{automock, mock, predicate::*};
+    use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
+    use tracing::*;
 
     /// BA should "return correct string and length"
     #[test]
     fn test_get_display_string() {
+        Util::initialize_tracing();
         // let mock_db = mock[PostgreSQLDatabase];
-        let mut mock_db = MockDatabase::new();
-        let entity_id = 0;
+        //let mut mock_db = MockDatabase::new();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        //let entity_id = 0;
+        //If using mocks I wouldn't have to actually create the data in the db.
+        let attr_type_name = "description";
+        let entity_id: i64 = Entity::create_entity(&db, None, attr_type_name, None, None)
+            .unwrap()
+            .get_id();
         let boolean_value = true;
         let other_entity_id = 1;
-        let boolean_attribute_id = 0;
+        //let boolean_attribute_id = 0;
         //arbitrary, in milliseconds:
         let date = 304;
-        let attr_type_name = "description";
-        // when(mock_db.get_entity_name(other_entity_id)).thenReturn(Some(attr_type_name))
-        mock_db.expect_get_entity_name()
-            .with(predicate::eq(other_entity_id))
-            .times(1)
-            .returning(|| "description");
-        // when(mock_db.boolean_attribute_key_exists(boolean_attribute_id)).thenReturn(true)
+        //// when(mock_db.get_entity_name(other_entity_id)).thenReturn(Some(attr_type_name))
+        //mock_db.expect_get_entity_name()
+        //    .with(predicate::eq(other_entity_id))
+        //    .times(1)
+        //    .returning(|| "description");
+        //// when(mock_db.boolean_attribute_key_exists(boolean_attribute_id)).thenReturn(true)
 
         // (using arbitrary numbers for the unnamed parameters):
-        let mut boolean_attribute = BooleanAttribute::new(mock_db, boolean_attribute_id,
-                                                      entity_id, other_entity_id,
-                                                      boolean_value, None,
-                                                      date, 0);
+        //let mut boolean_attribute = BooleanAttribute::new(mock_db, boolean_attribute_id,
+        //let mut boolean_attribute = BooleanAttribute::new(&db, boolean_attribute_id, entity_id,
+        //                                                  other_entity_id, boolean_value, None, date, 0,
+        //);
+        let mut bid = db
+            .create_boolean_attribute(
+                None, entity_id, //boolean_attribute_id,
+                entity_id, true, None, date, None, false,
+            )
+            .unwrap();
+        let mut boolean_attribute: BooleanAttribute =
+            BooleanAttribute::new2(&db, None, bid).unwrap();
         let small_limit = 35;
-        let display1: String = boolean_attribute.get_display_string(small_limit, None, None)?;
-        let whole_thing: String = format!("{}: true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:{} MST", attr_type_name, date);
+        let display1: String = boolean_attribute
+            .get_display_string(small_limit, None, None, false)
+            .unwrap();
+        let whole_thing: String = format!(
+            //%%later: make this not depend on my local time zone being MST!? or what? See 2nd assert below.
+            //%%%later: getting different value for it now, in Rust. Why? Is because of date
+            //handling (in the time zone & api), or due to not using a mock, or...?  Also not matching w/
+            //"date" variable just below.
+            //"{}: true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:{} MST",
+            "{}: true; valid unsp'd, obsv'd 1970-01-01 00:05:04:{} UTC",
+            attr_type_name, "000" //date
+        );
         // idea: put the real string here instead of dup logic?;
         // let expected: String = whole_thing.substring(0, small_limit - 3) + "..." ;
-        let expected: String = Util::substring_from_start(whole_thing.as_str(), small_limit - 3) + "...";
+        let expected: String =
+            Util::substring_from_start(whole_thing.as_str(), small_limit - 3) + "...";
+        debug!("display1 = \"{}\", expected = \"{}\"", display1, expected);
         assert!(display1 == expected);
 
         let unlimited = 0;
-        let display2: String = boolean_attribute.get_display_string(unlimited, None, None)?;
+        let display2: String = boolean_attribute
+            .get_display_string(unlimited, None, None, false)
+            .unwrap();
+        debug!(
+            "display2 = \"{}\", whole_thing = \"{}\"",
+            display2, whole_thing
+        );
         assert!(display2 == whole_thing);
     }
-    */
 }
