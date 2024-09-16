@@ -23,7 +23,7 @@ class QuantityAttributeDataHolder(attr_type_id_in: i64,
                                   valid_on_date_in: Option<i64>,
                                   observation_date_in: i64,
                                   let mut number: Float,;
-                                  let mut unitId: i64);
+                                  let mut unit_id: i64);
     extends AttributeDataHolderWithVODates(attr_type_id_in, valid_on_date_in, observation_date_in)
 
 class TextAttributeDataHolder(attr_type_id_in: i64,

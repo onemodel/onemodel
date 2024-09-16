@@ -7,13 +7,16 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+use crate::model::attribute::Attribute;
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::{DataType, Database};
 use crate::model::date_attribute::DateAttribute;
 use crate::model::file_attribute::FileAttribute;
+use crate::model::group::Group;
 use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_to_group::RelationToGroup;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
+use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 //use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
 use crate::color::Color;
 use crate::model::quantity_attribute::QuantityAttribute;
@@ -22,8 +25,8 @@ use crate::util::Util;
 use anyhow::{anyhow, Result};
 use chrono::Utc;
 use sqlx::{/*Error, */ Postgres, Transaction};
+use std::cell::RefCell;
 use std::collections::HashSet;
-use std::cell::{RefCell};
 use std::rc::Rc;
 
 #[derive(Clone)]
@@ -84,6 +87,7 @@ impl Entity<'_> {
         id: i64,
     ) -> Result<Entity<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
+        //%%%%%%%%
         if !db.is_remote() && !db.entity_key_exists(transaction, id, true)? {
             return Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST));
         }
@@ -102,7 +106,6 @@ impl Entity<'_> {
 
     pub fn create_entity<'a>(
         db: &'a dyn Database,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &'a str,
         in_class_id: Option<i64>,   /*= None*/
@@ -129,7 +132,6 @@ impl Entity<'_> {
     /// the Entity constructor.  Or for convenience in tests.
     fn get_entity<'a>(
         db_in: &'a dyn Database,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<Entity<'a>>, String> {
@@ -263,7 +265,7 @@ impl Entity<'_> {
 
     // fn get_archived_status(
     //     &mut self,
-       // transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    // transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     // ) -> Result<bool, anyhow::Error> {
     //     if !self.already_read_data {
     //         self.read_data_from_db(transaction)?;
@@ -446,7 +448,9 @@ impl Entity<'_> {
                 )
             }
         };
-        let count = self.db.get_class_count(transaction.clone(), Some(self.get_id()))?;
+        let count = self
+            .db
+            .get_class_count(transaction.clone(), Some(self.get_id()))?;
         let definer_info = if count > 0 {
             "template (defining entity) for "
         } else {
@@ -489,7 +493,6 @@ impl Entity<'_> {
     /// Also for convenience
     fn add_quantity_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_unit_id: i64,
@@ -514,7 +517,6 @@ impl Entity<'_> {
     /// See PostgreSQLDatabase.create_quantity_attribute(...) for details.
     fn add_quantity_attribute2<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_unit_id: i64,
@@ -541,7 +543,6 @@ impl Entity<'_> {
 
     fn get_quantity_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
@@ -550,7 +551,6 @@ impl Entity<'_> {
 
     fn get_text_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<TextAttribute<'a>, anyhow::Error> {
@@ -559,7 +559,6 @@ impl Entity<'_> {
 
     fn get_date_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<DateAttribute<'a>, anyhow::Error> {
@@ -568,7 +567,6 @@ impl Entity<'_> {
 
     fn get_boolean_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
@@ -577,7 +575,6 @@ impl Entity<'_> {
 
     fn get_file_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
     ) -> Result<FileAttribute<'a>, anyhow::Error> {
@@ -703,7 +700,6 @@ impl Entity<'_> {
 
     fn renumber_sorting_indexes<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), anyhow::Error> {
@@ -857,7 +853,6 @@ impl Entity<'_> {
     /// See add_quantity_attribute(...) methods for comments.
     fn add_text_attribute<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_text: &str,
@@ -883,7 +878,10 @@ impl Entity<'_> {
         in_valid_on_date: Option<i64>,
         observation_date_in: i64,
         caller_manages_transactions_in: bool, /*= false*/
-    ) -> Result<TextAttribute<'a>, anyhow::Error> where 'a: 'b {
+    ) -> Result<TextAttribute<'a>, anyhow::Error>
+    where
+        'a: 'b,
+    {
         let id = self.db.create_text_attribute(
             transaction.clone(),
             self.id,
@@ -904,9 +902,14 @@ impl Entity<'_> {
         in_date: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<DateAttribute<'a>, anyhow::Error> {
-        let id =
-            self.db
-                .create_date_attribute(transaction.clone(), self.id, in_attr_type_id, in_date, sorting_index_in, true)?;
+        let id = self.db.create_date_attribute(
+            transaction.clone(),
+            self.id,
+            in_attr_type_id,
+            in_date,
+            sorting_index_in,
+            true,
+        )?;
         DateAttribute::new2(self.db, transaction, id)
     }
 
@@ -950,80 +953,168 @@ impl Entity<'_> {
     }
 
     /*%%
-                fn add_file_attribute(in_attr_type_id: i64, inFile: java.io.File) -> FileAttribute {
-                add_file_attribute(in_attr_type_id, inFile.get_name, inFile)
-              }
-
-                fn add_file_attribute(in_attr_type_id: i64, description_in: String, inFile: java.io.File, sorting_index_in: Option<i64> = None) -> FileAttribute {
-                if !inFile.exists() {
-                  throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
-                }
-                // idea: could be a little faster if the md5_hash method were merged into the database method, so that the file is only traversed once (for both
-                // upload and md5 calculation).
-                let mut inputStream: java.io.FileInputStream = null;
-                try {
-                  inputStream = new FileInputStream(inFile)
-                  let id = db.create_file_attribute(id, in_attr_type_id, description_in, inFile.lastModified, Utc::now().timestamp_millis(), inFile.getCanonicalPath,;
-                                                   inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute::md5_hash(inFile), inputStream,
-                                                   sorting_index_in)
-                  FileAttribute::new(db, id)
-                }
-                finally {
-                  if inputStream != null) {
-                    inputStream.close()
+                    fn add_file_attribute(in_attr_type_id: i64, inFile: java.io.File) -> FileAttribute {
+                    add_file_attribute(in_attr_type_id, inFile.get_name, inFile)
                   }
-                }
-              }
 
-                fn addRelationToLocalEntity(in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
-                                      in_valid_on_date: Option<i64> = None, observation_date_in: i64 = Utc::now().timestamp_millis()) -> RelationToLocalEntity {
-                let rte_id = db.create_relation_to_local_entity(in_attr_type_id, get_id, in_entity_id2, in_valid_on_date, observation_date_in, sorting_index_in).get_id;
-                new RelationToLocalEntity(db, rte_id, in_attr_type_id, get_id, in_entity_id2)
-              }
-
-                fn addRelationToRemoteEntity(in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
-                                      in_valid_on_date: Option<i64> = None, observation_date_in: i64 = Utc::now().timestamp_millis(),
-                                      remote_instance_id_in: String) -> RelationToRemoteEntity {
-                let rte_id = db.create_relation_to_remote_entity(in_attr_type_id, get_id, in_entity_id2, in_valid_on_date, observation_date_in,;
-                                                             remote_instance_id_in, sorting_index_in).get_id
-                new RelationToRemoteEntity(db, rte_id, in_attr_type_id, get_id, remote_instance_id_in, in_entity_id2)
-              }
-
-              /** Creates then adds a particular kind of rtg to this entity.
-                * Returns new group's id, and the new RelationToGroup object
-                * */
-                fn create_groupAndAddHASRelationToIt(new_group_name_in: String, mixed_classes_allowedIn: bool, observation_date_in: i64,
-                                                   caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
-                // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
-                // anyway:
-                let relation_type_id = db.find_relation_type(Database::THE_HAS_RELATION_TYPE_NAME, Some(1)).get(0);
-                let (group, rtg) = addGroupAndRelationToGroup(relation_type_id, new_group_name_in, mixed_classes_allowedIn, None, observation_date_in,;
-                                                              None, caller_manages_transactions_in)
-                (group, rtg)
-              }
-
-              /** Like others, returns the new things' IDs. */
-                fn addGroupAndRelationToGroup(rel_type_id_in: i64, new_group_name_in: String, allow_mixed_classes_in_group_in: bool = false, valid_on_date_in: Option<i64>,
-                                             observation_date_in: i64, sorting_index_in: Option<i64>, caller_manages_transactions_in: bool = false) -> (Group, RelationToGroup) {
-                let (group_id: i64, rtg_id: i64) = db.create_group_and_relation_to_group(get_id, rel_type_id_in, new_group_name_in, allow_mixed_classes_in_group_in, valid_on_date_in,;
-                                                                                     observation_date_in, sorting_index_in, caller_manages_transactions_in)
-                let group = new Group(db, group_id);
-                let rtg = new RelationToGroup(db, rtg_id, get_id, rel_type_id_in, group_id);
-                (group, rtg)
-              }
-
-              /**
-               * @return the id of the new RTE
-               */
-                fn add_has_relation_to_local_entity(entity_id_in: i64, valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToLocalEntity {
-                db.add_has_relation_to_local_entity(get_id, entity_id_in, valid_on_date_in, observation_date_in)
-              }
+                    fn add_file_attribute(in_attr_type_id: i64, description_in: String, inFile: java.io.File, sorting_index_in: Option<i64> = None) -> FileAttribute {
+                    if !inFile.exists() {
+                      throw new Exception("File " + inFile.getCanonicalPath + " doesn't exist.")
+                    }
+                    // idea: could be a little faster if the md5_hash method were merged into the database method, so that the file is only traversed once (for both
+                    // upload and md5 calculation).
+                    let mut inputStream: java.io.FileInputStream = null;
+                    try {
+                      inputStream = new FileInputStream(inFile)
+                      let id = db.create_file_attribute(id, in_attr_type_id, description_in, inFile.lastModified, Utc::now().timestamp_millis(), inFile.getCanonicalPath,;
+                                                       inFile.canRead, inFile.canWrite, inFile.canExecute, inFile.length, FileAttribute::md5_hash(inFile), inputStream,
+                                                       sorting_index_in)
+                      FileAttribute::new(db, id)
+                    }
+                    finally {
+                      if inputStream != null) {
+                        inputStream.close()
+                      }
+                    }
+                  }
     */
+    fn add_relation_to_local_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        in_attr_type_id: i64,
+        in_entity_id2: i64,
+        sorting_index_in: Option<i64>,
+        in_valid_on_date: Option<i64>, /*= None*/
+        observation_date_in: i64,      /*= Utc::now().timestamp_millis()*/
+    ) -> Result<RelationToLocalEntity, anyhow::Error> {
+        //%%latertrans
+        //let rte_id = self.db.create_relation_to_local_entity(transaction.clone(), in_attr_type_id, self.get_id(), in_entity_id2, in_valid_on_date, observation_date_in, sorting_index_in, false)?.get_id();
+        let rte_id = self
+            .db
+            .create_relation_to_local_entity(
+                None,
+                in_attr_type_id,
+                self.get_id(),
+                in_entity_id2,
+                in_valid_on_date,
+                observation_date_in,
+                sorting_index_in,
+                false,
+            )?
+            .get_id();
+        RelationToLocalEntity::new2(
+            self.db,
+            transaction.clone(),
+            rte_id,
+            in_attr_type_id,
+            self.get_id(),
+            in_entity_id2,
+        )
+    }
+
+    /*%%put back after converting RelationToRemoteEntity
+    fn add_relation_to_remote_entity(&self,
+                                        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+                                         in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
+                              in_valid_on_date: Option<i64> /*= None*/, observation_date_in: i64 /*= Utc::now().timestamp_millis()*/,
+                              remote_instance_id_in: String)
+    -> Result<RelationToRemoteEntity, anyhow::Error> {
+        let rte_id = self.db.create_relation_to_remote_entity(transaction.clone(), in_attr_type_id, self.get_id(), in_entity_id2, in_valid_on_date, observation_date_in, remote_instance_id_in, sorting_index_in, false);
+        RelationToRemoteEntity::new2(self.db, rte_id, in_attr_type_id, self.get_id(), remote_instance_id_in, in_entity_id2)
+      }
+                              */
+
+    /// Creates then adds a particular kind of rtg to this entity.
+    /// Returns new group's id, and the new RelationToGroup object
+    fn create_group_and_add_a_has_relation_to_it<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        new_group_name_in: &str,
+        mixed_classes_allowed_in: bool,
+        observation_date_in: i64,
+        caller_manages_transactions_in: bool, /*= false*/
+    ) -> Result<(i64, i64), anyhow::Error> {
+        // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
+        // anyway:
+        let relation_type_id = self
+            .db
+            .find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?; //, Some(1)).get(0);
+        let (group_id, rtg_id) = self.add_group_and_relation_to_group(
+            transaction.clone(),
+            relation_type_id,
+            new_group_name_in,
+            mixed_classes_allowed_in,
+            None,
+            observation_date_in,
+            None,
+            caller_manages_transactions_in,
+        )?;
+        Ok((group_id, rtg_id))
+    }
+
+    /// Like others, returns the new things' IDs. */
+    //pub fn add_group_and_relation_to_group<'a, 'b>(&'a self,
+    pub fn add_group_and_relation_to_group<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        rel_type_id_in: i64,
+        new_group_name_in: &str,
+        allow_mixed_classes_in_group_in: bool, /*= false*/
+        valid_on_date_in: Option<i64>,
+        observation_date_in: i64,
+        sorting_index_in: Option<i64>,
+        caller_manages_transactions_in: bool, /*= false*/
+    ) -> Result<(i64, i64), anyhow::Error> {
+        //%%%%%%this gets the deadlock from the test:
+        let (group_id, rtg_id) = self.db.create_group_and_relation_to_group(
+            transaction.clone(),
+            self.get_id(),
+            rel_type_id_in,
+            new_group_name_in,
+            allow_mixed_classes_in_group_in,
+            valid_on_date_in,
+            observation_date_in,
+            sorting_index_in,
+            caller_manages_transactions_in,
+        )?;
+        //latertrans: let group: Group = Group::new2(self.db, transaction.clone(), group_id)?;
+        /*%%%%%%
+        let group: Group = Group::new2(self.db, None, group_id)?;
+        //let rtg = RelationToGroup::new2(self.db, transaction.clone(), rtg_id, self.get_id(), rel_type_id_in, group_id)?;
+        let rtg = RelationToGroup::new2(
+            self.db,
+            None,
+            rtg_id,
+            self.get_id(),
+            rel_type_id_in,
+            group_id,
+        )?;
+        Ok((group.get_id(), rtg.get_id()))
+        %%%%%%*/
+        Ok((0 as i64, 0 as i64))
+    }
+
+    /// @return the id of the new RTE
+    fn add_has_relation_to_local_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        entity_id_in: i64,
+        valid_on_date_in: Option<i64>,
+        observation_date_in: i64,
+    ) -> Result<RelationToLocalEntity, anyhow::Error> {
+        self.db.add_has_relation_to_local_entity(
+            transaction,
+            self.get_id(),
+            entity_id_in,
+            valid_on_date_in,
+            observation_date_in,
+            None,
+        )
+    }
 
     /// Creates new entity then adds it a particular kind of rte to this entity.
     pub fn create_entity_and_add_has_local_relation_to_it<'a>(
         &'a self,
-        //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         new_entity_name_in: &str,
         observation_date_in: i64,
@@ -1035,7 +1126,7 @@ impl Entity<'_> {
         let relation_type_id = self
             .db
             .find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?; //, Some(1))
-                                                                                 //.get(0);
+                                                                                         //.get(0);
         let (entity, rte) = self.add_entity_and_relation_to_local_entity(
             transaction,
             relation_type_id,
@@ -1050,7 +1141,6 @@ impl Entity<'_> {
 
     fn add_entity_and_relation_to_local_entity<'a>(
         &'a self,
-        //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         rel_type_id_in: i64,
         new_entity_name_in: &str,
@@ -1153,64 +1243,64 @@ impl Entity<'_> {
 #[cfg(test)]
 mod test {
     use super::Entity;
-use crate::model::boolean_attribute::BooleanAttribute;
-//use crate::model::database::{DataType, Database};
-use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
-use crate::model::date_attribute::DateAttribute;
-use crate::model::file_attribute::FileAttribute;
-use crate::model::id_wrapper::IdWrapper;
-use crate::model::relation_to_group::RelationToGroup;
-use crate::model::relation_to_local_entity::RelationToLocalEntity;
-//use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
-use crate::color::Color;
-use crate::model::quantity_attribute::QuantityAttribute;
-use crate::model::text_attribute::TextAttribute;
-use crate::util::Util;
-use anyhow::{anyhow, Result};
-use chrono::Utc;
-use sqlx::{/*Error, */ Postgres, Transaction};
-use std::collections::HashSet;
-use std::cell::{RefCell};
-use std::rc::Rc;
-    
+    use crate::model::boolean_attribute::BooleanAttribute;
+    //use crate::model::database::{DataType, Database};
+    use crate::model::date_attribute::DateAttribute;
+    use crate::model::file_attribute::FileAttribute;
+    use crate::model::id_wrapper::IdWrapper;
+    use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
+    use crate::model::relation_to_group::RelationToGroup;
+    use crate::model::relation_to_local_entity::RelationToLocalEntity;
+    //use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
+    use crate::color::Color;
+    use crate::model::quantity_attribute::QuantityAttribute;
+    use crate::model::text_attribute::TextAttribute;
+    use crate::util::Util;
+    use anyhow::{anyhow, Result};
+    use chrono::Utc;
+    use sqlx::{/*Error, */ Postgres, Transaction};
+    use std::cell::RefCell;
+    use std::collections::HashSet;
+    use std::rc::Rc;
+
     /*%%latertests
-      let mut mUnitId: i64 = 0;
-      let mut quantity_attr_type_id: i64 = 0;
-      let mut mTextAttrTypeId: i64 = 0;
-      let mut mDateAttrTypeId = 0L;
-      let mut m_booleanAttrTypeId = 0L;
-      let mut mFileAttrTypeId = 0L;
-      let mut mRelationTypeId = 0L;
+          let mut mUnitId: i64 = 0;
+          let mut quantity_attr_type_id: i64 = 0;
+          let mut mTextAttrTypeId: i64 = 0;
+          let mut mDateAttrTypeId = 0L;
+          let mut m_booleanAttrTypeId = 0L;
+          let mut mFileAttrTypeId = 0L;
+          let mut mRelationTypeId = 0L;
 
-      override fn runTests(testName: Option<String>, args: Args) -> Status {
-        setUp()
-        let result: Status = super.runTests(testName, args);
-        // (not calling tearDown: see comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
-        result
-      }
+          override fn runTests(testName: Option<String>, args: Args) -> Status {
+            setUp()
+            let result: Status = super.runTests(testName, args);
+            // (not calling tearDown: see comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
+            result
+          }
 
-      protected fn setUp() {
-        //start fresh
-        PostgreSQLDatabaseTest.tearDownTestDB()
+          protected fn setUp() {
+            //start fresh
+            PostgreSQLDatabaseTest.tearDownTestDB()
 
-        // instantiation does DB setup (creates tables, default data, etc):
-        db = new PostgreSQLDatabase(Database::TEST_USER, Database::TEST_PASS)
+            // instantiation does DB setup (creates tables, default data, etc):
+            db = new PostgreSQLDatabase(Database::TEST_USER, Database::TEST_PASS)
 
-        mUnitId = db.create_entity("centimeters")
-        mTextAttrTypeId = db.create_entity("someName")
-        mDateAttrTypeId = db.create_entity("someName")
-        m_booleanAttrTypeId = db.create_entity("someName")
-        mFileAttrTypeId = db.create_entity("someName")
-        mRelationTypeId = db.createRelationType("someRelationType", "reversedName", "NON")
-        let id: i64 = db.create_entity("test object");
-        mEntity = new Entity(db, id)
-      }
+            mUnitId = db.create_entity("centimeters")
+            mTextAttrTypeId = db.create_entity("someName")
+            mDateAttrTypeId = db.create_entity("someName")
+            m_booleanAttrTypeId = db.create_entity("someName")
+            mFileAttrTypeId = db.create_entity("someName")
+            mRelationTypeId = db.create_relation_type("someRelationType", "reversedName", "NON")
+            let id: i64 = db.create_entity("test object");
+            mEntity = new Entity(db, id)
+          }
 
-      protected fn tearDown() {
-        PostgreSQLDatabaseTest.tearDownTestDB()
-      }
-*/
-      /* %%latertests
+          protected fn tearDown() {
+            PostgreSQLDatabaseTest.tearDownTestDB()
+          }
+    */
+    /* %%latertests
     #[test]
     fn test_add_quantity_attribute() {
         Util::initialize_tracing();
@@ -1376,8 +1466,8 @@ use std::rc::Rc;
         let e1Id: i64 = db.create_entity("test object1");
         let e1 = new Entity(db, e1Id);
         mEntity.add_has_relation_to_local_entity(e1.get_id, Some(0), 0)
-        let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.addGroupAndRelationToGroup(mRelationTypeId, "grpName",;
-                                                                                        allowMixedClassesInGroupIn = true, Some(0), 0, None)
+        let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.add_group_and_relation_to_group(mRelationTypeId, "grpName",;
+                                                                                        allow_mixed_classes_inGroupIn = true, Some(0), 0, None)
         let e2Id: i64 = db.create_entity("test object2");
         let e2 = new Entity(db, e1Id);
         group.add_entity(e2Id)

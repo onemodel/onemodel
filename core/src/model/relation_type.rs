@@ -20,7 +20,7 @@ use crate::model::entity::Entity;
 //use crate::model::relation_to_entity::RelationToEntity;
 //use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 //move this to some *relation* struct like RelationType?
@@ -146,7 +146,9 @@ impl RelationType<'_> {
         let mut entity: Entity = Entity::new2(self.db, None, self.entity_id)?;
         Ok(format!(
             "{}{} (a relation type with: {}/'{}')",
-            entity.get_archived_status_display_string(transaction.clone())?.clone(),
+            entity
+                .get_archived_status_display_string(transaction.clone())?
+                .clone(),
             self.get_name(transaction.clone())?.clone(),
             self.get_directionality(transaction.clone())?.clone(),
             self.get_name_in_reverse_direction(transaction)?.clone()
@@ -213,7 +215,6 @@ impl RelationType<'_> {
     /// Removes this object from the system.
     pub fn delete<'a>(
         &'a mut self,
-        //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_type(transaction, self.entity_id)

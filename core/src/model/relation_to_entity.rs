@@ -21,7 +21,7 @@ use sqlx::{Postgres, Transaction};
 //use tracing_subscriber::registry::Data;
 use crate::model::attribute::Attribute;
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,

@@ -81,7 +81,7 @@ impl PostgreSQLDatabase {
         entity_id_in: i64,
         attribute_form_id_in: i32,
         attribute_id_in: i64,
-        sorting_index_in: Option<i64>, /*%% = None*/
+        sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<i64, anyhow::Error> {
         // SEE COMMENTS IN SIMILAR METHOD: add_entity_to_group.  **AND DO MAINTENANCE. IN BOTH PLACES.
         // Should probably be called from inside a transaction (which isn't managed in this method, since all its current callers do it.)
@@ -102,9 +102,14 @@ impl PostgreSQLDatabase {
                 index
             }
         };
+        //%%%%%%%%this gets the deadlock from the test?: maybe related but not directly?
+        Util::print_backtrace();
+        //std::thread::sleep(std::time::Duration::new(4, 0)); //is (secs, nanos)
         self.db_action(transaction, format!("insert into AttributeSorting (entity_id, attribute_form_id, attribute_id, sorting_index) \
             values ({},{},{},{})", entity_id_in, attribute_form_id_in, attribute_id_in, sorting_index).as_str(),
                        false, false)?;
+        /*%%%%%%%%
+            %%%%%%%%*/
         Ok(sorting_index)
     }
 
@@ -170,12 +175,12 @@ impl PostgreSQLDatabase {
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         table_name_in: &str,
         where_clause_in: &str,
-        rows_expected: u64, /*%%= 1*/
+        rows_expected: u64, /*= 1*/
         // The purpose of transaction_in is for those times when this method does not know the
         // context in which it will be called: whether it should rollback itself on error
         // (automatically by creating a transaction and letting it go out of scope), or should allow
         // the caller only to manage that.
-        caller_manages_transactions_in: bool, /*%%= false*/
+        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<u64, anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -230,7 +235,7 @@ impl PostgreSQLDatabase {
             // },
             transaction.clone(),
             sql.as_str(),
-            /*%%caller_checks_row_count_etc =*/ true,
+            /*caller_checks_row_count_etc =*/ true,
             false,
         )?;
         if rows_expected > 0 && rows_deleted != rows_expected {
@@ -619,30 +624,6 @@ impl PostgreSQLDatabase {
             Ok(Some(results[0]))
         }
     }
-    /// @return the id of the new RTE
-    pub fn add_has_relation_to_local_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        from_entity_id_in: i64,
-        to_entity_id_in: i64,
-        valid_on_date_in: Option<i64>,
-        observation_date_in: i64,
-        sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<RelationToLocalEntity, anyhow::Error> {
-        let relation_type_id: i64 =
-            self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?;
-        let new_rte = self.create_relation_to_local_entity(
-            transaction.clone(),
-            relation_type_id,
-            from_entity_id_in,
-            to_entity_id_in,
-            valid_on_date_in,
-            observation_date_in,
-            sorting_index_in,
-            false,
-        )?;
-        Ok(new_rte)
-    }
 
     pub fn update_class_name(
         &self,
@@ -759,7 +740,7 @@ impl PostgreSQLDatabase {
         Ok(res)
     }
 
-    fn get_attribute_sorting_rows_count(
+    pub fn get_attribute_sorting_rows_count(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: Option<i64>, /*= None*/
@@ -956,8 +937,12 @@ impl PostgreSQLDatabase {
         }
         let mut containing_relations_to_group: Vec<RelationToGroup> = Vec::new();
         for gid in group_id_results {
-            let rtgs: Vec<RelationToGroup> =
-                self.get_relations_to_group_containing_this_group(transaction.clone(), gid, 0, None)?;
+            let rtgs: Vec<RelationToGroup> = self.get_relations_to_group_containing_this_group(
+                transaction.clone(),
+                gid,
+                0,
+                None,
+            )?;
             for rtg in rtgs {
                 containing_relations_to_group.push(rtg);
             }
@@ -1560,7 +1545,7 @@ impl PostgreSQLDatabase {
     // (idea: find out: why doesn't compiler (ide or cli) complain when the 'override' is removed from next line?)
     // idea: see comment on find_unused_sorting_index
     pub fn find_id_which_is_not_key_of_any_entity(
-        & self,
+        &self,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
         //better idea?  This should be fast because we start in remote regions and return as soon as an unused id is found, probably

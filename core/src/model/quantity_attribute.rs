@@ -17,7 +17,7 @@ use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
@@ -100,7 +100,7 @@ impl QuantityAttribute<'_> {
         }
     }
 
-    fn get_number(
+    pub fn get_number(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<f64, anyhow::Error> {
@@ -110,7 +110,7 @@ impl QuantityAttribute<'_> {
         Ok(self.number)
     }
 
-    fn get_unit_id(
+    pub fn get_unit_id(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
@@ -248,9 +248,7 @@ impl Attribute for QuantityAttribute<'_> {
     //%%why is an id passed as a parm, vs. using the one in the struct??  ck scala original, callers.
     fn delete<'a>(
         &'a self,
-        //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_quantity_attribute(transaction, self.id)
     }
@@ -325,16 +323,16 @@ mod test {
            let entity_id = 0;
            let attr_type_id = 1;
            let quantityAttributeId = 2;
-           let unitId = 3;
+           let unit_id = 3;
            let number = 50;
            // arbitrary:
            let date = 304;
            when(mock_db.relation_type_key_exists(quantityAttributeId)).thenReturn(true)
            when(mock_db.entity_key_exists(entity_id)).thenReturn(true)
            when(mock_db.get_entity_name(attr_type_id)).thenReturn(Some("length"))
-           when(mock_db.get_entity_name(unitId)).thenReturn(Some("meters"))
+           when(mock_db.get_entity_name(unit_id)).thenReturn(Some("meters"))
 
-           let quantityAttribute = new QuantityAttribute(mock_db, quantityAttributeId, entity_id, attr_type_id, unitId, number, None, date, 0);
+           let quantityAttribute = new QuantityAttribute(mock_db, quantityAttributeId, entity_id, attr_type_id, unit_id, number, None, date, 0);
            let small_limit = 8;
            let display1: String = quantityAttribute.get_display_string(small_limit, None, None);
            //noinspection SpellCheckingInspection

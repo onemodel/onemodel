@@ -181,7 +181,6 @@ impl EntityClass<'_> {
 
     fn update_class_and_template_entity_name<'a>(
         &'a mut self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         name_in: &str,
     ) -> Result<i64, anyhow::Error> {

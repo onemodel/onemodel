@@ -26,7 +26,6 @@ use std::env;
 // use crate::util::Util;
 use crate::text_ui::TextUI;
 
-
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.

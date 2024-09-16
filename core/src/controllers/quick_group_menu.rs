@@ -65,7 +65,7 @@ class QuickGroupMenu(override let ui: TextUI, val controller: Controller) extend
     let (targetRelationToGroupId: i64, targetRelationTypeId: i64, target_group_id: i64) = {;
       if targetEntitysRtgCount == 0) {
         let name: String = targetEntityIn.get_name;
-        let (newGroup: Group, newRTG: RelationToGroup) = targetEntityIn.create_groupAndAddHASRelationToIt(name, group_in.get_mixed_classes_allowed,;
+        let (newGroup: Group, newRTG: RelationToGroup) = targetEntityIn.create_group_and_add_a_has_relation_to_it(name, group_in.get_mixed_classes_allowed,;
                                                                                                          System.currentTimeMillis)
         (newRTG.get_id, newRTG.get_attr_type_id(), newGroup.get_id)
       } else {

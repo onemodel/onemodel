@@ -22,13 +22,14 @@ use crate::model::group::Group;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 //use tracing_subscriber::registry::Data;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
 
+//#[derive(Clone)]
 pub struct RelationToGroup<'a> {
     // For descriptions of the meanings of these variables, see the comments
     // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
@@ -76,7 +77,7 @@ impl RelationToGroup<'_> {
         }
     }
 
-    fn new2<'a>(
+    pub fn new2<'a>(
         db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
@@ -122,11 +123,13 @@ impl RelationToGroup<'_> {
         }
     }
 
+    /// %%Is this really the same as what should be called new3? I.e., just reading from DB, not
+    /// creating something new there.
     // Old idea?: could change this into a constructor if the fn new's parameters are changed to be only db, transaction, and id, and a new constructor is created
     // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
     // new constructors just wasn't working out (in scala code when I originally wrote this comment, anyway?).
     ///See comments on fn new, here.
-    fn create_relation_to_group<'a>(
+    pub fn create_relation_to_group<'a>(
         db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -186,10 +189,13 @@ impl RelationToGroup<'_> {
 
     fn get_group<'a>(
         &'a mut self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Group<'a>, anyhow::Error> {
-        Group::new2(self.db, transaction.clone(), self.get_group_id(transaction.clone())?)
+        Group::new2(
+            self.db,
+            transaction.clone(),
+            self.get_group_id(transaction.clone())?,
+        )
     }
 
     fn move_it(
@@ -268,11 +274,7 @@ impl Attribute for RelationToGroup<'_> {
         } else {
             format!("{} ", rt_name)
         };
-        result = format!(
-            "{}{}",
-            result,
-            group.get_display_string(None, 0, simplify)?
-        );
+        result = format!("{}{}", result, group.get_display_string(None, 0, simplify)?);
         if !simplify {
             result = format!(
                 "{}; {}",
@@ -349,9 +351,7 @@ impl Attribute for RelationToGroup<'_> {
     /// Removes this object from the system.
     fn delete<'a>(
         &'a self,
-        //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        //_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.delete_relation_to_group(
             transaction,
@@ -558,7 +558,7 @@ mod test {
 
       "move and update" should "work" in {
         let entity1 = new Entity(db, db.create_entity("entityName1"));
-        let (_, rtg: RelationToGroup) = entity1.create_groupAndAddHASRelationToIt("group_name", mixedClassesAllowedIn = false, 0);
+        let (_, rtg: RelationToGroup) = entity1.create_group_and_add_a_has_relation_to_it("group_name", mixedClassesAllowedIn = false, 0);
         let (attributeTuples1: Array[(i64, Attribute)], _) = entity1.get_sorted_attributes(0, 0);
         let rtg1 = attributeTuples1(0)._2.asInstanceOf[RelationToGroup];
         assert(rtg1.get_parent_id() == entity1.get_id)
@@ -583,7 +583,7 @@ mod test {
         assert(rtg1_rtid == rtg2RelTypeId)
         assert(rtg2.get_id != rtg.get_id)
 
-        let new_relation_type_id = db.createRelationType("RTName", "reversed", "BI");
+        let new_relation_type_id = db.create_relation_type("RTName", "reversed", "BI");
         let new_group_id = db.create_group("newGroup");
         let newVod = Some(4321L);
         let newOd = Some(5432L);

@@ -52,7 +52,7 @@ class ImportExportTest extends FlatSpec with MockitoSugar {
     //// instantiation does DB setup (creates tables, default data, etc):
     db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
     // this is used by the files we import:
-    db.createRelationType("a test relation type","","UNI")
+    db.create_relation_type("a test relation type","","UNI")
     // idea: fix the bad smell: shouldn't need a ui (& maybe not a Controller?) to run tests of logic.  Noted in tasks to fix.
     //(ALSO FIX SIMILAR USAGE IN PostgreSQLDatabaseTest.)
     mImportExport = new ImportExport(ui, new Controller(ui, forceUserPassPromptIn = false,

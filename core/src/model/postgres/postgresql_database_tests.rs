@@ -15,13 +15,15 @@ use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::*;
 // use crate::model::postgres::*;
+use crate::model::group::Group;
+use crate::model::relation_to_group::RelationToGroup;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 // use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::date_attribute::DateAttribute;
 use crate::model::relation_type::RelationType;
 //use crate::model::file_attribute::FileAttribute;
-//use crate::model::quantity_attribute::QuantityAttribute;
+use crate::model::quantity_attribute::QuantityAttribute;
 use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 // use anyhow::anyhow;
@@ -44,6 +46,7 @@ mod test {
     use super::*;
     use crate::model::attribute::Attribute;
     use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
+    //use crate::model::relation_to_group::RelationToGroup;
 
     const QUANTITY_TYPE_NAME: &str = "length";
     const RELATION_TYPE_NAME: &str = "someRelationToEntityTypeName";
@@ -558,8 +561,8 @@ mod test {
     }
 
     fn create_test_text_attribute_with_one_entity<'a>(
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         db: &'a PostgreSQLDatabase,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_parent_id: i64,
         in_valid_on_date: Option<i64>, /*= None*/
     ) -> i64 {
@@ -575,7 +578,7 @@ mod test {
                 transaction.clone(),
                 in_parent_id,
                 attr_type_id,
-                text,
+                &text,
                 valid_on_date,
                 observation_date,
                 true,
@@ -711,35 +714,55 @@ mod test {
     }
     */
 
-    fn create_test_relation_to_local_entity_with_one_entity(
+    fn create_test_relation_to_local_entity_with_one_entity<'a>(
+        db: &'a dyn Database,
+        tx: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_entity_id: i64,
         in_rel_type_id: i64,
         in_valid_on_date: Option<i64>, /*= None*/
     ) -> i64 {
-        Util::initialize_tracing();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        //Util::initialize_tracing();
+        //let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         // idea: could use here instead: db.create_entityAndRelationToLocalEntity
         let related_entity_id: i64 = db
-            .create_entity(None, RELATED_ENTITY_NAME, None, None)
+            .create_entity(tx.clone(), RELATED_ENTITY_NAME, None, None)
             .unwrap();
         // let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty { None } else { in_valid_on_date };
         let observation_date: i64 = Utc::now().timestamp_millis();
 
-        let id = db.create_relation_to_local_entity(None, in_rel_type_id,
-                                                    in_entity_id, related_entity_id,
-                                                    in_valid_on_date, observation_date, None, false).unwrap().get_id();
-        
+        let id = db
+            .create_relation_to_local_entity(
+                tx.clone(),
+                in_rel_type_id,
+                in_entity_id,
+                related_entity_id,
+                in_valid_on_date,
+                observation_date,
+                None,
+                true,
+            )
+            .unwrap()
+            .get_id();
+
         // and verify it:
-        let mut rtle: RelationToLocalEntity =  RelationToLocalEntity::new2(&db, None, id, in_rel_type_id, in_entity_id, related_entity_id).unwrap();
+        let mut rtle: RelationToLocalEntity = RelationToLocalEntity::new2(
+            db,
+            tx.clone(),
+            id,
+            in_rel_type_id,
+            in_entity_id,
+            related_entity_id,
+        )
+        .unwrap();
         match in_valid_on_date {
-            None => assert!(rtle.get_valid_on_date(None).unwrap().is_none()),
+            None => assert!(rtle.get_valid_on_date(tx.clone()).unwrap().is_none()),
             Some(d) => {
                 let in_dt: i64 = d;
-                let got_dt: i64 = rtle.get_valid_on_date(None).unwrap().unwrap();
+                let got_dt: i64 = rtle.get_valid_on_date(tx.clone()).unwrap().unwrap();
                 assert!(in_dt == got_dt);
             }
         }
-        assert!(rtle.get_observation_date(None).unwrap() == observation_date);
+        assert!(rtle.get_observation_date(tx).unwrap() == observation_date);
         related_entity_id
     }
 
@@ -757,7 +780,7 @@ mod test {
 
         //and on an update:
         let text_attribute_id: i64 =
-            create_test_text_attribute_with_one_entity(tx.clone(), &db, entity_id, None);
+            create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
         let a_text_value = "as'dfjkl";
         let mut ta =
             TextAttribute::new2(&db as &dyn Database, tx.clone(), text_attribute_id).unwrap();
@@ -820,8 +843,7 @@ mod test {
         db.update_entity_only_name(tx.clone(), id, new_name)
             .unwrap();
         // have to create new instance to re-read the data:
-        let mut updated_entity =
-            Entity::new2(&db as &dyn Database, tx.clone(), id).unwrap();
+        let mut updated_entity = Entity::new2(&db as &dyn Database, tx.clone(), id).unwrap();
         let name3 = updated_entity.get_name(tx.clone()).unwrap().as_str();
         assert_eq!(name3, new_name);
 
@@ -831,7 +853,7 @@ mod test {
         db.rollback_trans(unwrapped_local_tx).unwrap();
 
         // now should not exist
-        
+
         // Next assert_eq fails when run concurrently with other tests, because the other tests
         // create data:
         let entity_count_after_rollback = db.get_entity_count(None).unwrap();
@@ -877,59 +899,186 @@ mod test {
         // db.rollback_trans(tx1).unwrap();
     }
 
-    /*%%%%
-      "getAttrCount, get_attribute_sorting_rows_count" should "work in all circumstances" in {
-        db.begin_trans()
+    #[test]
+    fn get_attr_count_and_get_attribute_sorting_rows_count() {
+        //%%latertrans: NOTE: this test deadlocks the db or something, when transaction are enabled instead of passing None
+        //all the time or such.  See OM note re "deadlock" for where I left off in diagnosing it,
+        //and comment re "latertrans2".
+        Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        //%%latertrans
+        //let tx = db.begin_trans().unwrap();
+        //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+        let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = None; //Some(Rc::new(RefCell::new(tx)));
 
-        let id: i64 = db.create_entity("test: org.onemodel.PSQLDbTest.getAttrCount...");
-        let initialNumSortingRows = db.get_attribute_sorting_rows_count(Some(id));
-        assert(db.get_attribute_count(id) == 0)
-        assert(initialNumSortingRows == 0)
+        let id: i64 = db
+            .create_entity(
+                tx.clone(),
+                "test: org.onemodel.PSQLDbTest.getAttrCount...",
+                None,
+                None,
+            )
+            .unwrap();
+        let initial_num_sorting_rows: u64 =
+            db.get_attribute_sorting_rows_count(None, Some(id)).unwrap();
+        assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 0);
+        assert!(initial_num_sorting_rows == 0);
 
-        createTestQuantityAttributeWithTwoEntities(id)
-        createTestQuantityAttributeWithTwoEntities(id)
-        assert(db.get_attribute_count(id) == 2)
-        assert(db.get_attribute_sorting_rows_count(Some(id)) == 2)
+        create_test_quantity_attribute_with_two_entities(&db, tx.clone(), id, None);
+        create_test_quantity_attribute_with_two_entities(&db, tx.clone(), id, None);
+        assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 2);
+        assert!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
+                .unwrap()
+                == 2
+        );
 
-        create_test_text_attribute_with_one_entity(id)
-        assert(db.get_attribute_count(id) == 3)
-        assert(db.get_attribute_sorting_rows_count(Some(id)) == 3)
+        create_test_text_attribute_with_one_entity(&db, tx.clone(), id, None);
+        assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 3);
+        assert!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
+                .unwrap()
+                == 3
+        );
 
         //whatever, just need some relation type to go with:
-        let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-        create_test_relation_to_local_entity_with_one_entity(id, rel_type_id)
-        assert(db.get_attribute_count(id) == 4)
-        assert(db.get_attribute_sorting_rows_count(Some(id)) == 4)
+        let rel_type_id: i64 = db
+            .create_relation_type(
+                true,
+                tx.clone(),
+                "contains",
+                "",
+                RelationType::UNIDIRECTIONAL,
+            )
+            .unwrap();
+        create_test_relation_to_local_entity_with_one_entity(
+            &db,
+            tx.clone(),
+            id,
+            rel_type_id,
+            None,
+        );
+        assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 4);
+        assert!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
+                .unwrap()
+                == 4
+        );
 
-        DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, id, rel_type_id, "somename", Some(12345L))
-        assert(db.get_attribute_count(id) == 5)
-        assert(db.get_attribute_sorting_rows_count(Some(id)) == 5)
+        create_and_add_test_relation_to_group_on_to_entity(
+            &db,
+            tx.clone(),
+            id,
+            rel_type_id,
+            "somename",
+            Some(12345 as i64),
+            true,
+        )
+        .unwrap();
+        /* %%%%%%
+        //%%latertrans these won't work until I can uncomment the code at the next latertrans just
+        //below (in next fn):
+        assert_eq!(db.get_attribute_count(tx.clone(), id, false).unwrap(), 5);
+        assert_eq!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
+                .unwrap(),
+            5
+        );
 
-        db.rollback_trans()
+        let unwrapped_local_tx = Rc::into_inner(tx.unwrap()).unwrap().into_inner();
+        db.rollback_trans(unwrapped_local_tx).unwrap();
+        %%%%%%*/
         //idea: (tracked in tasks): find out: WHY do the next lines fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
         // Do I not understand rollback?  But it does seem to work as expected in "entity creation/update and transaction rollback" test above.  See also
         // in EntityTest's "update_class_and_template_entity_name", at the last 2 commented lines which fail for unknown reason.  Maybe something obvious i'm just
         // missing, or maybe it's in the postgresql or jdbc transaction docs.  Could also ck in other places calling db.rollback_trans to see what's to learn from
         // current use (risk) & behaviors to compare.
-    //    assert(db.getAttrCount(id) == 0)
-    //    assert(db.get_attribute_sorting_rows_count(Some(id)) == 0)
-      }
+        //    assert(db.getAttrCount(id) == 0)
+        //    assert(db.get_attribute_sorting_rows_count(Some(id)) == 0)
+    }
 
+    /// Returns the group_id, and the RTG.
+    /// In scala, this file was in the core package (not in the test directory), so that by being included in the .jar,
+    /// it is available for use by the integration module (in RestDatabaseTest.scala).
+    /// (It was in core/src/model/database_test_utils.rs before that was converted to Rust, and in scala,
+    /// it was in core-scala/src/main/scala/org/onemodel/core/model/DatabaseTestUtils.scala.
+    //%%%%remember to delete the core/src/model/database_test_utils.rs rust file once this test works!
+    //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(db_in: &'a dyn Database,
+    fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(
+        db_in: &'a dyn Database,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        in_parent_id: i64,
+        in_rel_type_id: i64,
+        in_group_name: &str,           /*= "something"*/
+        in_valid_on_date: Option<i64>, /*= None*/
+        allow_mixed_classes_in: bool,  /*= true*/
+    ) -> Result<(i64, i64), anyhow::Error> {
+        //let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty) None else in_valid_on_date;
+        let observation_date: i64 = Utc::now().timestamp_millis();
+        let entity: Entity = Entity::new2(db_in, transaction.clone(), in_parent_id).unwrap();
+        //let (mut group, mut rtg) = entity.add_group_and_relation_to_group(transaction.clone(), in_rel_type_id, in_group_name, allow_mixed_classes_in, in_valid_on_date, observation_date, None, false)?;
+        //%%%%%% next line gets the db deadlock:
+        let (group_id, rtg_id) = entity.add_group_and_relation_to_group(
+            //%%latertrans
+            //%%%%%%%%%I guess this is the cause of the deadlock. The call just a few lines above
+            //to Entity::new2 opens a transaction and queries for if the entity exists.  Then this
+            //line waits for that transaction (created in top of
+            //get_attr_count_and_get_attribute_sorting_rows_count) to exit before it can do the
+            //next line without a transaction!
+            //transaction.clone(),
+            None,
+            in_rel_type_id,
+            in_group_name,
+            allow_mixed_classes_in,
+            in_valid_on_date,
+            observation_date,
+            None,
+            //%%latertrans (make it match above, so true?):
+            false,
+        )?;
+        /*%%%%%%
+        let mut group = Group::new2(db_in, transaction.clone(), group_id)?;
+        let mut rtg =
+            RelationToGroup::create_relation_to_group(db_in, transaction.clone(), rtg_id)?;
+
+        // and verify it:
+        match in_valid_on_date {
+            None => assert!(rtg.get_valid_on_date(transaction.clone())?.is_none()),
+            Some(vod) => {
+                let in_dt: i64 = vod;
+                let got_dt: i64 = rtg.get_valid_on_date(transaction.clone())?.unwrap();
+                assert!(in_dt == got_dt);
+            }
+        }
+        assert!(
+            group
+                .get_mixed_classes_allowed(transaction.clone())
+                .unwrap()
+                == allow_mixed_classes_in
+        );
+        assert!(group.get_name(transaction.clone()).unwrap() == in_group_name);
+        assert!(rtg.get_observation_date(transaction.clone()).unwrap() == observation_date);
+        Ok((group.get_id(), rtg.get_id()))
+        %%%%%%*/
+        Ok((0 as i64, 0 as i64))
+    }
+
+    /*%%%%
       "QuantityAttribute creation/update/deletion methods" should "work" in {
         db.begin_trans()
         let startingEntityCount = db.get_entity_count();
         let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.quantityAttrs()");
         let initialTotalSortingRowsCount = db.get_attribute_sorting_rows_count();
-        let quantityAttributeId: i64 = createTestQuantityAttributeWithTwoEntities(entity_id);
+        let quantityAttributeId: i64 = create_test_quantity_attribute_with_two_entities(entity_id);
         assert(db.get_attribute_sorting_rows_count() > initialTotalSortingRowsCount)
 
         let qa = new QuantityAttribute(db, quantityAttributeId);
-        let (pid1, atid1, uid1) = (qa.get_parent_id(), qa.get_attr_type_id(), qa.getUnitId);
+        let (pid1, atid1, uid1) = (qa.get_parent_id(), qa.get_attr_type_id(), qa.get_unit_id);
         assert(entity_id == pid1)
         db.update_quantity_attribute(quantityAttributeId, pid1, atid1, uid1, 4, Some(5), 6)
         // have to create new instance to re-read the data:
         let qa2 = new QuantityAttribute(db, quantityAttributeId);
-        let (pid2, atid2, uid2, num2, vod2, od2) = (qa2.get_parent_id(), qa2.get_attr_type_id(), qa2.getUnitId, qa2.getNumber, qa2.get_valid_on_date(), qa2.get_observation_date());
+        let (pid2, atid2, uid2, num2, vod2, od2) = (qa2.get_parent_id(), qa2.get_attr_type_id(), qa2.get_unit_id, qa2.get_number, qa2.get_valid_on_date(), qa2.get_observation_date());
         assert(pid2 == pid1)
         assert(atid2 == atid1)
         assert(uid2 == uid1)
@@ -967,7 +1116,7 @@ mod test {
 
       "Attribute and AttributeSorting row deletion" should "both happen automatically upon entity deletion" in {
         let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest sorting rows stuff");
-        createTestQuantityAttributeWithTwoEntities(entity_id)
+        create_test_quantity_attribute_with_two_entities(entity_id)
         assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
         assert(db.get_quantity_attribute_count(entity_id) == 1)
         db.delete_entity(entity_id)
@@ -1155,7 +1304,7 @@ mod test {
         assert(hash2.startsWith(hashNew))
         assert(db.get_file_attribute_count(entity_id) == 1)
 
-        let someRelTypeId = db.createRelationType("test: org.onemodel.PSQLDbTest.testFileAttrs-reltyp", "reversed", "BI");
+        let someRelTypeId = db.create_relation_type("test: org.onemodel.PSQLDbTest.testFileAttrs-reltyp", "reversed", "BI");
         let descNewer = "other-newer";
         new FileAttribute(db, fa.get_id).update(Some(someRelTypeId), Some(descNewer))
 
@@ -1287,7 +1436,7 @@ mod test {
         let startingRelationTypeCount = db.get_relation_type_count();
         let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
         let startingRelCount = db.get_relation_types(0, Some(25)).size;
-        let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
 
         //verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
         assert(db.get_relation_types(0, Some(25)).size == startingRelCount + 1)
@@ -1339,12 +1488,12 @@ mod test {
          ...and then checks that entity2 has 2 containing groups.
          */
     let entity_id1 = db.create_entity("test-get_containing_groups_ids-entity1");
-    let rel_type_id: i64 = db.createRelationType("test-get_containing_groups_ids-reltype1", "", RelationType.UNIDIRECTIONAL);
-    let (groupId1, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id1, rel_type_id, "test-get_containing_groups_ids-group1");
+    let rel_type_id: i64 = db.create_relation_type("test-get_containing_groups_ids-reltype1", "", RelationType.UNIDIRECTIONAL);
+    let (groupId1, _) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id1, rel_type_id, "test-get_containing_groups_ids-group1");
     let group1 = new Group(db,groupId1);
     let entity_id2 = db.create_entity("test-get_containing_groups_ids-entity2");
     group1.add_entity(entity_id2)
-    let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id2, rel_type_id, "test-get_containing_groups_ids-group1");
+    let (groupId2, _) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id2, rel_type_id, "test-get_containing_groups_ids-group1");
     let group2 = new Group(db, groupId2);
 
     let containingGroups:Vec<Option<DataType>>] = db.get_groups_containing_entitys_groups_ids(group2.get_id);
@@ -1352,7 +1501,7 @@ mod test {
     assert(containingGroups.head(0).get.asInstanceOf[i64] == groupId1)
 
     let entity_id3 = db.create_entity("test-get_containing_groups_ids-entity3");
-    let (groupId3, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id3, rel_type_id, "test-get_containing_groups_ids-group1");
+    let (groupId3, _) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id3, rel_type_id, "test-get_containing_groups_ids-group1");
     let group3 = new Group(db, groupId3);
     group3.add_entity(entity_id2)
 
@@ -1366,11 +1515,11 @@ mod test {
     let relToGroupName = "test: PSQLDbTest.testRelsNRelTypes()";
     let entityName = relToGroupName + "--theEntity";
     let entity_id = db.create_entity(entityName);
-    let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
     let valid_on_date = 12345L;
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-    let (groupId:i64, createdRtg:RelationToGroup) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id, relToGroupName,;
-                                                                                                                Some(valid_on_date), allowMixedClassesIn = true)
+    let (groupId:i64, createdRtg:RelationToGroup) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, relToGroupName,;
+                                                                                                                Some(valid_on_date), allow_mixed_classes_in = true)
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
 
     let rtg: RelationToGroup = new RelationToGroup(db, createdRtg.get_id, createdRtg.get_parent_id(), createdRtg.get_attr_type_id(), createdRtg.get_group_id);
@@ -1407,7 +1556,7 @@ mod test {
     assert(group.get_size() == 0) // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
     assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
 
-    let (groupId2, _) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id, "somename", None);
+    let (groupId2, _) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, "somename", None);
 
     let group2: Group = new Group(db, groupId2);
     assert(group2.get_size() == 0)
@@ -1459,9 +1608,9 @@ mod test {
     let relToGroupName = "test:PSQLDbTest.testDelEntity_InGroup";
     let entityName = relToGroupName + "--theEntity";
     let entity_id = db.create_entity(entityName);
-    let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
     let valid_on_date = 12345L;
-    let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id, relToGroupName, Some(valid_on_date))._1;
+    let groupId = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, relToGroupName, Some(valid_on_date))._1;
     //val rtg: RelationToGroup = new RelationToGroup
     let group:Group = new Group(db, groupId);
     group.add_entity(db.create_entity(entityName + 1))
@@ -1499,10 +1648,10 @@ mod test {
   "get_sorted_attributes" should "return them all and correctly" in {
     let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
     create_test_text_attribute_with_one_entity(entity_id)
-    createTestQuantityAttributeWithTwoEntities(entity_id)
-    let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
+    create_test_quantity_attribute_with_two_entities(entity_id)
+    let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
     let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id);
-    DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id)
+    DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id)
     create_test_date_attribute_with_one_entity(entity_id)
     create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
     create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "desc", 2, verify_in = false)
@@ -1528,10 +1677,10 @@ mod test {
     for (attr <- attrTuples) {
       attr._2 match {
         case attribute: QuantityAttribute =>
-          assert(attribute.getNumber == 50)
+          assert(attribute.get_number == 50)
           foundQA = true
-        case attribute: TextAttribute => //strangely, running in the intellij 12 IDE wouldn't report this line as a failure when necessary, but
-                                         // the cli does.
+    case attribute: TextAttribute => //strangely, running in the intellij 12 IDE wouldn't report this line as a failure when necessary, but
+                                     // the cli does.
     assert(attribute.get_text == "some test text")
           foundTA = true
         case attribute: RelationToLocalEntity =>
@@ -1554,7 +1703,7 @@ mod test {
 
   "entity deletion" should "also delete RelationToLocalEntity attributes (and get_relation_to_remote_entity_count should work)" in {
     let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
-    let rel_type_id: i64 = db.createRelationType("is sitting next to", "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id: i64 = db.create_relation_type("is sitting next to", "", RelationType.UNIDIRECTIONAL);
     let startingLocalCount = db.get_relation_to_local_entity_count(entity_id);
     let startingRemoteCount = db.get_relation_to_remote_entity_count(entity_id);
     let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id);
@@ -1584,13 +1733,13 @@ mod test {
 
   "attributes" should "handle valid_on_dates properly in & out of db" in {
     let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.attributes...");
-    let rel_type_id = db.createRelationType(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);
+    let rel_type_id = db.create_relation_type(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);
     // create attributes & read back / other values (None alr done above) as entered (confirms read back correctly)
     // (these methods do the checks, internally)
     create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id, Some(0L))
     create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id, Some(System.currentTimeMillis()))
-    createTestQuantityAttributeWithTwoEntities(entity_id)
-    createTestQuantityAttributeWithTwoEntities(entity_id, Some(0))
+    create_test_quantity_attribute_with_two_entities(entity_id)
+    create_test_quantity_attribute_with_two_entities(entity_id, Some(0))
     create_test_text_attribute_with_one_entity(entity_id)
     create_test_text_attribute_with_one_entity(entity_id, Some(0))
   }
@@ -1600,414 +1749,439 @@ mod test {
     let badParentId: i64 = db.findIdWhichIsNotKeyOfAnyEntity; // Database should not allow adding quantity with a bad parent (Entity) ID!
                                                               // idea: make it a more specific exception type, so we catch only the error we want...
     intercept[Exception] {
-                           createTestQuantityAttributeWithTwoEntities(badParentId)
+                           create_test_quantity_attribute_with_two_entities(badParentId)
                          }
 
   }
+*/
 
-    fn createTestQuantityAttributeWithTwoEntities(in_parent_id: i64, in_valid_on_date: Option<i64> = None) -> i64 {
-    let unitId: i64 = db.create_entity("centimeters");
-    let attr_type_id: i64 = db.create_entity(QUANTITY_TYPE_NAME);
-    let default_date: i64 = System.currentTimeMillis;
-    let valid_on_date: Option<i64> = in_valid_on_date;
-    let observation_date: i64 = default_date;
-    let number: Float = 50;
-    let quantityId: i64 = db.create_quantity_attribute(in_parent_id, attr_type_id, unitId, number, valid_on_date, observation_date);
-    // and verify it:
-    let qa: QuantityAttribute = new QuantityAttribute(db, quantityId);
-    assert(qa.get_parent_id() == in_parent_id)
-    assert(qa.getUnitId == unitId)
-    assert(qa.getNumber == number)
-    assert(qa.get_attr_type_id() == attr_type_id)
-    if in_valid_on_date.isEmpty {
-      assert(qa.get_valid_on_date().isEmpty)
-    } else {
-      let in_date: i64 = in_valid_on_date.get;
-      let gotDate: i64 = qa.get_valid_on_date().get;
-      assert(in_date == gotDate)
+    fn create_test_quantity_attribute_with_two_entities<'a>(
+        db: &'a dyn Database,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        in_parent_id: i64,
+        in_valid_on_date: Option<i64>, /*= None*/
+    ) -> i64 {
+        let unit_id: i64 = db
+            .create_entity(transaction.clone(), "centimeters", None, None)
+            .unwrap();
+        let attr_type_id: i64 = db
+            .create_entity(transaction.clone(), QUANTITY_TYPE_NAME, None, None)
+            .unwrap();
+        let default_date: i64 = Utc::now().timestamp_millis();
+        let valid_on_date: Option<i64> = in_valid_on_date;
+        let observation_date: i64 = default_date;
+        let number: f64 = 50.0;
+        let quantity_id: i64 = db
+            .create_quantity_attribute(
+                transaction.clone(),
+                in_parent_id,
+                attr_type_id,
+                unit_id,
+                number,
+                valid_on_date,
+                observation_date,
+                true,
+                None,
+            )
+            .unwrap();
+        // and verify it:
+        let mut qa: QuantityAttribute =
+            QuantityAttribute::new2(db, transaction.clone(), quantity_id).unwrap();
+        assert!(qa.get_parent_id(transaction.clone()).unwrap() == in_parent_id);
+        assert!(qa.get_unit_id(transaction.clone()).unwrap() == unit_id);
+        assert!(qa.get_number(transaction.clone()).unwrap() == number);
+        assert!(qa.get_attr_type_id(transaction.clone()).unwrap() == attr_type_id);
+        match in_valid_on_date {
+            None => assert!(qa.get_valid_on_date(transaction.clone()).unwrap().is_none()),
+            Some(d) => {
+                let in_date: i64 = d;
+                let got_date: i64 = qa.get_valid_on_date(transaction.clone()).unwrap().unwrap();
+                assert!(in_date == got_date);
+            }
+        }
+        assert!(qa.get_observation_date(transaction.clone()).unwrap() == observation_date);
+        quantity_id
     }
-    assert(qa.get_observation_date() == observation_date)
-    quantityId
-  }
 
-  "rollbackWithCatch" should "catch and return chained exception showing failed rollback" in {
-    let db = new PostgreSQLDatabase("abc", "defg") {;
-      override fn connect(inDbName: String, username: String, password: String) {
-    // leave it null so calling it will fail as desired below.
-    mConn = null
+    /*%%%%
+      "rollbackWithCatch" should "catch and return chained exception showing failed rollback" in {
+        let db = new PostgreSQLDatabase("abc", "defg") {;
+          override fn connect(inDbName: String, username: String, password: String) {
+        // leave it null so calling it will fail as desired below.
+        mConn = null
+          }
+          override fn create_and_check_expected_data() -> Unit { // Overriding because it is not needed for this test, and normally uses mConn, which by being set to null just above, breaks the method.
+                                                                 // (intentional style violation for readability)
+                                                                 //noinspection ScalaUselessExpression
+        None
+          }
+          override fn model_tables_exist()  -> bool {
+    true
+    } //noinspection ScalaUselessExpression  (intentional style violation, for readability)
+        override fn do_database_upgrades_if_needed() {
+    Unit
+    }
+        }
+        let mut found = false;
+        let originalErrMsg: String = "testing123";
+        try {
+          try throw new Exception(originalErrMsg)
+          catch {
+            case e: Exception => throw db.rollbackWithCatch(e)
+          }
+        } catch {
+          case t: Throwable =>
+            found = true
+            let sw = new java.io.StringWriter();
+            t.printStackTrace(new java.io.PrintWriter(sw))
+            let s = sw.toString;
+            assert(s.contains(originalErrMsg))
+            assert(s.contains("See the chained messages for ALL: the cause of rollback failure, AND"))
+            assert(s.contains("at org.onemodel.core.model.PostgreSQLDatabase.rollback_trans"))
+        }
+        assert(found)
       }
-      override fn create_and_check_expected_data() -> Unit { // Overriding because it is not needed for this test, and normally uses mConn, which by being set to null just above, breaks the method.
-                                                             // (intentional style violation for readability)
-                                                             //noinspection ScalaUselessExpression
-    None
+
+      "createBaseData, findEntityOnlyIdsByName, createClassTemplateEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
+      "have worked right in earlier db setup and now" in {
+        let PERSON_TEMPLATE: String = "person" + Database.TEMPLATE_NAME_SUFFIX;
+        let system_entity_id = db.getSystemEntityId;
+        let groupIdOfClassTemplates = db.find_relation_to_and_group_OnEntity(system_entity_id, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
+        // (Should be some value, but the activity on the test DB wouldn't have ids incremented to 0 yet,so that one would be invalid. Could use the
+        // other method to find an unused id, instead of 0.)
+        assert(groupIdOfClassTemplates.is_defined && groupIdOfClassTemplates.get != 0)
+        assert(new Group(db, groupIdOfClassTemplates.get).get_mixed_classes_allowed)
+
+        let personTemplateEntityId: i64 = db.findEntityOnlyIdsByName(PERSON_TEMPLATE).get.head;
+        // idea: make this next part more scala-like (but only if still very simple to read for programmers who are used to other languages):
+        let mut found = false;
+        let entitiesInGroup: Vec<Entity> = db.get_group_entry_objects(groupIdOfClassTemplates.get, 0);
+        for (entity <- entitiesInGroup.toArray) {
+          if entity.asInstanceOf[Entity].get_id == personTemplateEntityId {
+            found = true
+          }
+        }
+        assert(found) // make sure the other approach also works, even with deeply nested data:
+        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
+        let te1 = create_test_relation_to_local_entity_with_one_entity(personTemplateEntityId, rel_type_id);
+        let te2 = create_test_relation_to_local_entity_with_one_entity(te1, rel_type_id);
+        let te3 = create_test_relation_to_local_entity_with_one_entity(te2, rel_type_id);
+        let te4 = create_test_relation_to_local_entity_with_one_entity(te3, rel_type_id);
+        let found_ids: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, PERSON_TEMPLATE, 4,;
+                                                                         stop_after_any_found = false)
+        assert(found_ids.contains(personTemplateEntityId), "Value not found in query: " + personTemplateEntityId)
+        let allContainedWithName: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
+                                                                                     stop_after_any_found = false)
+        // (see idea above about making more scala-like)
+        let mut allContainedIds = "";
+        for (id: i64 <- allContainedWithName) {
+          allContainedIds += id + ", "
+        }
+        assert(allContainedWithName.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
+        let te4Entity: Entity = new Entity(db, te4);
+        te4Entity.add_text_attribute(te1 /*not really but whatever*/
+        , RELATED_ENTITY_NAME, None, None, 0)
+        let allContainedWithName2: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
+                                                                                      stop_after_any_found = false)
+        // should be no change yet (added it outside the # of levels to check):
+        assert(allContainedWithName2.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
+        let te2Entity: Entity = new Entity(db, te2);
+        te2Entity.add_text_attribute(te1 /*not really but whatever*/
+        , RELATED_ENTITY_NAME, None, None, 0)
+        let allContainedWithName3: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
+                                                                                      stop_after_any_found = false)
+        // should be no change yet (the entity was already in the return set, so the TA addition didn't add anything)
+        assert(allContainedWithName3.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
+        te2Entity.add_text_attribute(te1 /*not really but whatever*/
+        , "otherText", None, None, 0)
+        let allContainedWithName4: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, "otherText", 4,;
+                                                                                      stop_after_any_found = false)
+        // now there should be a change:
+        assert(allContainedWithName4.size == 1, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
+
+        let editorCmd = db.get_text_editor_command;
+        if Util::isWindows { assert(editorCmd.contains("notepad")) }
+        else {
+        assert(editorCmd == "vi") }
       }
-      override fn model_tables_exist()  -> bool {
-true
-} //noinspection ScalaUselessExpression  (intentional style violation, for readability)
-    override fn do_database_upgrades_if_needed() {
-Unit
-}
-    }
-    let mut found = false;
-    let originalErrMsg: String = "testing123";
-    try {
-      try throw new Exception(originalErrMsg)
-      catch {
-        case e: Exception => throw db.rollbackWithCatch(e)
+
+      "is_duplicateEntity" should "work" in {
+        let name: String = "testing is_duplicateEntity";
+        let entity_id: i64 = db.create_entity(name);
+        assert(db.is_duplicate_entity_name(name))
+        assert(!db.is_duplicate_entity_name(name, Some(entity_id)))
+
+        let entityWithSpaceInNameId: i64 = db.create_entity(name + " ");
+        assert(!db.is_duplicate_entity_name(name + " ", Some(entityWithSpaceInNameId)))
+
+        let entity_idWithLowercaseName: i64 = db.create_entity(name.toLowerCase);
+        assert(db.is_duplicate_entity_name(name, Some(entity_idWithLowercaseName)))
+
+        db.update_entity_only_name(entity_id, name.toLowerCase)
+        assert(db.is_duplicate_entity_name(name, Some(entity_idWithLowercaseName)))
+        assert(db.is_duplicate_entity_name(name, Some(entity_id)))
+
+        db.delete_entity(entity_idWithLowercaseName)
+        assert(!db.is_duplicate_entity_name(name, Some(entity_id))) // intentionally put some uppercase letters for later comparison w/ lowercase.
+        let relTypeName = name + "-RelationType";
+        let rel_type_id: i64 = db.create_relation_type("testingOnly", relTypeName, RelationType.UNIDIRECTIONAL);
+        assert(db.is_duplicate_entity_name(relTypeName))
+        assert(!db.is_duplicate_entity_name(relTypeName, Some(rel_type_id)))
+
+        db.begin_trans()
+        db.update_entity_only_name(entity_id, relTypeName.toLowerCase)
+        assert(db.is_duplicate_entity_name(relTypeName, Some(entity_id)))
+        assert(db.is_duplicate_entity_name(relTypeName, Some(rel_type_id))) // because setting an entity name to relTypeName doesn't really make sense, was just for that part of the test.
+        db.rollback_trans()
       }
-    } catch {
-      case t: Throwable =>
-        found = true
-        let sw = new java.io.StringWriter();
-        t.printStackTrace(new java.io.PrintWriter(sw))
-        let s = sw.toString;
-        assert(s.contains(originalErrMsg))
-        assert(s.contains("See the chained messages for ALL: the cause of rollback failure, AND"))
-        assert(s.contains("at org.onemodel.core.model.PostgreSQLDatabase.rollback_trans"))
-    }
-    assert(found)
-  }
 
-  "createBaseData, findEntityOnlyIdsByName, createClassTemplateEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
-  "have worked right in earlier db setup and now" in {
-    let PERSON_TEMPLATE: String = "person" + Database.TEMPLATE_NAME_SUFFIX;
-    let system_entity_id = db.getSystemEntityId;
-    let groupIdOfClassTemplates = db.find_relation_to_and_group_OnEntity(system_entity_id, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
-    // (Should be some value, but the activity on the test DB wouldn't have ids incremented to 0 yet,so that one would be invalid. Could use the
-    // other method to find an unused id, instead of 0.)
-    assert(groupIdOfClassTemplates.is_defined && groupIdOfClassTemplates.get != 0)
-    assert(new Group(db, groupIdOfClassTemplates.get).get_mixed_classes_allowed)
+      "is_duplicateEntityClass and class update/deletion" should "work" in {
+        let name: String = "testing is_duplicateEntityClass";
+        let (classId, entity_id) = db.createClassAndItsTemplateEntity(name, name);
+        assert(EntityClass.is_duplicate(db, name))
+        assert(!EntityClass.is_duplicate(db, name, Some(classId)))
 
-    let personTemplateEntityId: i64 = db.findEntityOnlyIdsByName(PERSON_TEMPLATE).get.head;
-    // idea: make this next part more scala-like (but only if still very simple to read for programmers who are used to other languages):
-    let mut found = false;
-    let entitiesInGroup: Vec<Entity> = db.get_group_entry_objects(groupIdOfClassTemplates.get, 0);
-    for (entity <- entitiesInGroup.toArray) {
-      if entity.asInstanceOf[Entity].get_id == personTemplateEntityId {
-        found = true
+        db.update_class_name(classId, name.toLowerCase)
+        assert(!EntityClass.is_duplicate(db, name, Some(classId)))
+        assert(EntityClass.is_duplicate(db, name.toLowerCase))
+        assert(!EntityClass.is_duplicate(db, name.toLowerCase, Some(classId)))
+        db.update_class_name(classId, name)
+
+        db.update_class_create_default_attributes(classId, Some(false))
+        let should1: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
+        assert(!should1.get)
+        db.update_class_create_default_attributes(classId, None)
+        let should2: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
+        assert(should2.isEmpty)
+        db.update_class_create_default_attributes(classId, Some(true))
+        let should3: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
+        assert(should3.get)
+
+        db.update_entitys_class(entity_id, None)
+        db.delete_class_and_its_template_entity(classId)
+        assert(!EntityClass.is_duplicate(db, name, Some(classId)))
+        assert(!EntityClass.is_duplicate(db, name))
+
       }
-    }
-    assert(found) // make sure the other approach also works, even with deeply nested data:
-    let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let te1 = create_test_relation_to_local_entity_with_one_entity(personTemplateEntityId, rel_type_id);
-    let te2 = create_test_relation_to_local_entity_with_one_entity(te1, rel_type_id);
-    let te3 = create_test_relation_to_local_entity_with_one_entity(te2, rel_type_id);
-    let te4 = create_test_relation_to_local_entity_with_one_entity(te3, rel_type_id);
-    let found_ids: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, PERSON_TEMPLATE, 4,;
-                                                                     stop_after_any_found = false)
-    assert(found_ids.contains(personTemplateEntityId), "Value not found in query: " + personTemplateEntityId)
-    let allContainedWithName: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
-                                                                                 stop_after_any_found = false)
-    // (see idea above about making more scala-like)
-    let mut allContainedIds = "";
-    for (id: i64 <- allContainedWithName) {
-      allContainedIds += id + ", "
-    }
-    assert(allContainedWithName.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
-    let te4Entity: Entity = new Entity(db, te4);
-    te4Entity.add_text_attribute(te1 /*not really but whatever*/
-    , RELATED_ENTITY_NAME, None, None, 0)
-    let allContainedWithName2: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
-                                                                                  stop_after_any_found = false)
-    // should be no change yet (added it outside the # of levels to check):
-    assert(allContainedWithName2.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
-    let te2Entity: Entity = new Entity(db, te2);
-    te2Entity.add_text_attribute(te1 /*not really but whatever*/
-    , RELATED_ENTITY_NAME, None, None, 0)
-    let allContainedWithName3: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
-                                                                                  stop_after_any_found = false)
-    // should be no change yet (the entity was already in the return set, so the TA addition didn't add anything)
-    assert(allContainedWithName3.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
-    te2Entity.add_text_attribute(te1 /*not really but whatever*/
-    , "otherText", None, None, 0)
-    let allContainedWithName4: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, "otherText", 4,;
-                                                                                  stop_after_any_found = false)
-    // now there should be a change:
-    assert(allContainedWithName4.size == 1, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
 
-    let editorCmd = db.get_text_editor_command;
-    if Util::isWindows { assert(editorCmd.contains("notepad")) }
-    else {
-    assert(editorCmd == "vi") }
-  }
+      "EntitiesInAGroup and getclasses/classcount methods" should "work, and should enforce class_id uniformity within a group of entities" in {
+        // ...for now anyway. See comments at this table in psqld.create_tables and/or hasMixedClasses.
 
-  "is_duplicateEntity" should "work" in {
-    let name: String = "testing is_duplicateEntity";
-    let entity_id: i64 = db.create_entity(name);
-    assert(db.is_duplicate_entity_name(name))
-    assert(!db.is_duplicate_entity_name(name, Some(entity_id)))
+        // This also tests db.create_entity and db.updateEntityOnlyClass.
+        let entityName = "test: PSQLDbTest.testgroup-class-uniqueness" + "--theEntity";
+        let (classId, entity_id) = db.createClassAndItsTemplateEntity(entityName, entityName);
+        let (classId2, entity_id2) = db.createClassAndItsTemplateEntity(entityName + 2, entityName + 2);
+        let classCount = db.get_class_count();
+        let classes = db.get_classes(0);
+        assert(classCount == classes.size)
+        let classCountLimited = db.get_class_count(Some(entity_id2));
+        assert(classCountLimited == 1) //whatever, just need some relation type to go with:
+        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
+        let groupId = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, "test: PSQLDbTest.testgroup-class-uniqueness",;
+                                                                                 Some(12345L), allow_mixed_classes_in = false)._1
+        let group: Group = new Group(db, groupId);
+        assert(! db.is_entity_in_group(groupId, entity_id))
+        assert(! db.is_entity_in_group(groupId, entity_id))
+        group.add_entity(entity_id)
+        assert(db.is_entity_in_group(groupId, entity_id))
+        assert(! db.is_entity_in_group(groupId, entity_id2)) //should fail due to mismatched classId (a long):
+        assert(intercept[Exception] {
+                                      group.add_entity(entity_id2)
+                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
+        // should succeed (same class now):
+        db.update_entitys_class(entity_id2, Some(classId))
+        group.add_entity(entity_id2) // ...and for convenience while here, make sure we can't make mixed classes with changing the *entity* either:
+        assert(intercept[Exception] {
+                                      db.update_entitys_class(entity_id2, Some(classId2))
+                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
+        assert(intercept[Exception] {
+                                      db.update_entitys_class(entity_id2, None)
+                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
+        //should fail due to mismatched classId (NULL):
+        let entity_id3 = db.create_entity(entityName + 3);
+        assert(intercept[Exception] {
+                                      group.add_entity(entity_id3)
+                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
 
-    let entityWithSpaceInNameId: i64 = db.create_entity(name + " ");
-    assert(!db.is_duplicate_entity_name(name + " ", Some(entityWithSpaceInNameId)))
-
-    let entity_idWithLowercaseName: i64 = db.create_entity(name.toLowerCase);
-    assert(db.is_duplicate_entity_name(name, Some(entity_idWithLowercaseName)))
-
-    db.update_entity_only_name(entity_id, name.toLowerCase)
-    assert(db.is_duplicate_entity_name(name, Some(entity_idWithLowercaseName)))
-    assert(db.is_duplicate_entity_name(name, Some(entity_id)))
-
-    db.delete_entity(entity_idWithLowercaseName)
-    assert(!db.is_duplicate_entity_name(name, Some(entity_id))) // intentionally put some uppercase letters for later comparison w/ lowercase.
-    let relTypeName = name + "-RelationType";
-    let rel_type_id: i64 = db.createRelationType("testingOnly", relTypeName, RelationType.UNIDIRECTIONAL);
-    assert(db.is_duplicate_entity_name(relTypeName))
-    assert(!db.is_duplicate_entity_name(relTypeName, Some(rel_type_id)))
-
-    db.begin_trans()
-    db.update_entity_only_name(entity_id, relTypeName.toLowerCase)
-    assert(db.is_duplicate_entity_name(relTypeName, Some(entity_id)))
-    assert(db.is_duplicate_entity_name(relTypeName, Some(rel_type_id))) // because setting an entity name to relTypeName doesn't really make sense, was just for that part of the test.
-    db.rollback_trans()
-  }
-
-  "is_duplicateEntityClass and class update/deletion" should "work" in {
-    let name: String = "testing is_duplicateEntityClass";
-    let (classId, entity_id) = db.createClassAndItsTemplateEntity(name, name);
-    assert(EntityClass.is_duplicate(db, name))
-    assert(!EntityClass.is_duplicate(db, name, Some(classId)))
-
-    db.update_class_name(classId, name.toLowerCase)
-    assert(!EntityClass.is_duplicate(db, name, Some(classId)))
-    assert(EntityClass.is_duplicate(db, name.toLowerCase))
-    assert(!EntityClass.is_duplicate(db, name.toLowerCase, Some(classId)))
-    db.update_class_name(classId, name)
-
-    db.update_class_create_default_attributes(classId, Some(false))
-    let should1: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
-    assert(!should1.get)
-    db.update_class_create_default_attributes(classId, None)
-    let should2: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
-    assert(should2.isEmpty)
-    db.update_class_create_default_attributes(classId, Some(true))
-    let should3: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
-    assert(should3.get)
-
-    db.update_entitys_class(entity_id, None)
-    db.delete_class_and_its_template_entity(classId)
-    assert(!EntityClass.is_duplicate(db, name, Some(classId)))
-    assert(!EntityClass.is_duplicate(db, name))
-
-  }
-
-  "EntitiesInAGroup and getclasses/classcount methods" should "work, and should enforce class_id uniformity within a group of entities" in {
-    // ...for now anyway. See comments at this table in psqld.create_tables and/or hasMixedClasses.
-
-    // This also tests db.create_entity and db.updateEntityOnlyClass.
-    let entityName = "test: PSQLDbTest.testgroup-class-uniqueness" + "--theEntity";
-    let (classId, entity_id) = db.createClassAndItsTemplateEntity(entityName, entityName);
-    let (classId2, entity_id2) = db.createClassAndItsTemplateEntity(entityName + 2, entityName + 2);
-    let classCount = db.get_class_count();
-    let classes = db.get_classes(0);
-    assert(classCount == classes.size)
-    let classCountLimited = db.get_class_count(Some(entity_id2));
-    assert(classCountLimited == 1) //whatever, just need some relation type to go with:
-    let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id, "test: PSQLDbTest.testgroup-class-uniqueness",;
-                                                                             Some(12345L), allowMixedClassesIn = false)._1
-    let group: Group = new Group(db, groupId);
-    assert(! db.is_entity_in_group(groupId, entity_id))
-    assert(! db.is_entity_in_group(groupId, entity_id))
-    group.add_entity(entity_id)
-    assert(db.is_entity_in_group(groupId, entity_id))
-    assert(! db.is_entity_in_group(groupId, entity_id2)) //should fail due to mismatched classId (a long):
-    assert(intercept[Exception] {
-                                  group.add_entity(entity_id2)
-                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
-    // should succeed (same class now):
-    db.update_entitys_class(entity_id2, Some(classId))
-    group.add_entity(entity_id2) // ...and for convenience while here, make sure we can't make mixed classes with changing the *entity* either:
-    assert(intercept[Exception] {
-                                  db.update_entitys_class(entity_id2, Some(classId2))
-                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
-    assert(intercept[Exception] {
-                                  db.update_entitys_class(entity_id2, None)
-                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
-    //should fail due to mismatched classId (NULL):
-    let entity_id3 = db.create_entity(entityName + 3);
-    assert(intercept[Exception] {
-                                  group.add_entity(entity_id3)
-                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
-
-    assert(!db.areMixedClassesAllowed(groupId))
+        assert(!db.areMixedClassesAllowed(groupId))
 
 
-    let system_entity_id = db.getSystemEntityId; // idea: (noted at other use of this method)
-    let classGroupId = db.find_relation_to_and_group_OnEntity(system_entity_id, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
-    assert(db.areMixedClassesAllowed(classGroupId.get))
+        let system_entity_id = db.getSystemEntityId; // idea: (noted at other use of this method)
+        let classGroupId = db.find_relation_to_and_group_OnEntity(system_entity_id, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
+        assert(db.areMixedClassesAllowed(classGroupId.get))
 
-    let groupSizeBeforeRemoval = db.get_group_size(groupId);
+        let groupSizeBeforeRemoval = db.get_group_size(groupId);
 
-    assert(db.get_group_size(groupId, 2) == 0)
-    assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval)
-    assert(db.get_group_size(groupId) == groupSizeBeforeRemoval)
-    db.archive_entity(entity_id2)
-    assert(db.get_group_size(groupId, 2) == 1)
-    assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval - 1)
-    assert(db.get_group_size(groupId) == groupSizeBeforeRemoval)
+        assert(db.get_group_size(groupId, 2) == 0)
+        assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval)
+        assert(db.get_group_size(groupId) == groupSizeBeforeRemoval)
+        db.archive_entity(entity_id2)
+        assert(db.get_group_size(groupId, 2) == 1)
+        assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval - 1)
+        assert(db.get_group_size(groupId) == groupSizeBeforeRemoval)
 
-    db.remove_entity_from_group(groupId, entity_id2)
-    let groupSizeAfterRemoval = db.get_group_size(groupId);
-    assert(groupSizeAfterRemoval < groupSizeBeforeRemoval)
+        db.remove_entity_from_group(groupId, entity_id2)
+        let groupSizeAfterRemoval = db.get_group_size(groupId);
+        assert(groupSizeAfterRemoval < groupSizeBeforeRemoval)
 
-    assert(db.get_group_size(groupId, 2) == 0)
-    assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval - 1)
-    assert(db.get_group_size(groupId) == groupSizeBeforeRemoval - 1)
-  }
-
-  "get_entities_only and ...Count" should "allow limiting results by classId and/or group containment" in {
-    // idea: this could be rewritten to not depend on pre-existing data to fail when it's supposed to fail.
-    let startingEntityCount = db.get_entities_only_count();
-    let someClassId: i64 = db.db_query_wrapper_for_one_row("select id from class limit 1", "i64")(0).get.asInstanceOf[i64];
-    let numEntitiesInClass = db.extract_row_count_from_count_query("select count(1) from entity where class_id=" + someClassId);
-    assert(startingEntityCount > numEntitiesInClass)
-    let allEntitiesInClass = db.get_entities_only(0, None, Some(someClassId), limit_by_class = true);
-    let allEntitiesInClassCount1 = db.get_entities_only_count(limit_by_class = true, Some(someClassId));
-    let allEntitiesInClassCount2 = db.get_entities_only_count(limit_by_class = true, Some(someClassId), None);
-    assert(allEntitiesInClassCount1 == allEntitiesInClassCount2)
-    let templateClassId: i64 = new EntityClass(db, someClassId).get_template_entity_id;
-    let allEntitiesInClassCountWoClass = db.get_entities_only_count(limit_by_class = true, Some(someClassId), Some(templateClassId));
-    assert(allEntitiesInClassCountWoClass == allEntitiesInClassCount1 - 1)
-    assert(allEntitiesInClass.size == allEntitiesInClassCount1)
-    assert(allEntitiesInClass.size < db.get_entities_only(0, None, Some(someClassId), limit_by_class = false).size)
-    assert(allEntitiesInClass.size == numEntitiesInClass)
-    let e: Entity = allEntitiesInClass.get(0);
-    assert(e.get_class_id.get == someClassId) // part 2:
-                                              // some setup, confirm good
-    let startingEntityCount2 = db.get_entities_only_count();
-    let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let id1: i64 = db.create_entity("name1");
-    let (group, rtg) = new Entity(db, id1).addGroupAndRelationToGroup(rel_type_id, "someRelToGroupName", allowMixedClassesInGroupIn = false, None, 1234L,;
-                                                                       None, caller_manages_transactions_in = false)
-    assert(db.relation_to_group_keys_exist(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.get_group_id))
-    assert(db.attribute_key_exists(rtg.get_form_id, rtg.get_id))
-    let id2: i64 = db.create_entity("name2");
-    group.add_entity(id2)
-    let entity_countAfterCreating = db.get_entities_only_count();
-    assert(entity_countAfterCreating == startingEntityCount2 + 2)
-    let resultSize = db.get_entities_only(0).size();
-    assert(entity_countAfterCreating == resultSize)
-    let resultSizeWithNoneParameter = db.get_entities_only(0, None, group_to_omit_id_in = None).size();
-    assert(entity_countAfterCreating == resultSizeWithNoneParameter) // the real part 2 test
-    let resultSizeWithGroupOmission = db.get_entities_only(0, None, group_to_omit_id_in = Some(group.get_id)).size();
-    assert(entity_countAfterCreating - 1 == resultSizeWithGroupOmission)
-  }
-
-  "EntitiesInAGroup table (or methods? ick)" should "allow all a group's entities to have no class" in {
-    // ...for now anyway.  See comments at this table in psqld.create_tables and/or hasMixedClasses.
-    let entityName = "test: PSQLDbTest.testgroup-class-allowsAllNulls" + "--theEntity";
-    let (classId, entity_id) = db.createClassAndItsTemplateEntity(entityName, entityName);
-    let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let groupId = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id, "test: PSQLDbTest.testgroup-class-allowsAllNulls",;
-                                                                             Some(12345L), allowMixedClassesIn = false)._1
-    let group: Group = new Group(db, groupId); // 1st one has a NULL class_id
-    let entity_id3 = db.create_entity(entityName + 3);
-    group.add_entity(entity_id3) // ...so it works to add another one that's NULL
-    let entity_id4 = db.create_entity(entityName + 4);
-    group.add_entity(entity_id4) // but adding one with a class_id fails w/ mismatch:
-    let entity_id5 = db.create_entity(entityName + 5, Some(classId));
-    assert(intercept[Exception] {
-                                  group.add_entity(entity_id5)
-                                }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
-  }
-
-  "get_entities_only_count" should "not count entities used as relation types or attribute types" in {
-    let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.get_entities_only_count");
-    let c1 = db.get_entities_only_count();
-    assert(db.get_entities_only_count() == c1)
-    let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    assert(db.get_entities_only_count() == c1)
-    create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id)
-    let c2 = c1 + 1;
-    assert(db.get_entities_only_count() == c2) // this kind shouldn't matter--confirming:
-    let rel_type_id2: i64 = db.createRelationType("contains2", "", RelationType.UNIDIRECTIONAL);
-    DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id2)
-    assert(db.get_entities_only_count() == c2)
-
-    let prevEntitiesUsedAsAttributeTypes = db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false);
-    let date_attribute_id = create_test_date_attribute_with_one_entity(entity_id);
-    let dateAttribute = new DateAttribute(db, date_attribute_id);
-    assert(db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false) == prevEntitiesUsedAsAttributeTypes + 1)
-    assert(db.get_entities_only_count() == c2)
-    let dateAttributeTypeEntities: Array[Entity] = db.get_entities_used_as_attribute_types(Util::DATE_TYPE, 0, quantity_seeks_unit_not_type_in = false);
-                                                   .toArray(new Array[Entity](0 ))
-    let mut found = false;
-    for (dateAttributeType: Entity <- dateAttributeTypeEntities.toArray) {
-      if dateAttributeType.get_id == dateAttribute.get_attr_type_id()) {
-        found = true
+        assert(db.get_group_size(groupId, 2) == 0)
+        assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval - 1)
+        assert(db.get_group_size(groupId) == groupSizeBeforeRemoval - 1)
       }
-    }
-    assert(found)
 
-    create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
-    assert(db.get_entities_only_count() == c2)
+      "get_entities_only and ...Count" should "allow limiting results by classId and/or group containment" in {
+        // idea: this could be rewritten to not depend on pre-existing data to fail when it's supposed to fail.
+        let startingEntityCount = db.get_entities_only_count();
+        let someClassId: i64 = db.db_query_wrapper_for_one_row("select id from class limit 1", "i64")(0).get.asInstanceOf[i64];
+        let numEntitiesInClass = db.extract_row_count_from_count_query("select count(1) from entity where class_id=" + someClassId);
+        assert(startingEntityCount > numEntitiesInClass)
+        let allEntitiesInClass = db.get_entities_only(0, None, Some(someClassId), limit_by_class = true);
+        let allEntitiesInClassCount1 = db.get_entities_only_count(limit_by_class = true, Some(someClassId));
+        let allEntitiesInClassCount2 = db.get_entities_only_count(limit_by_class = true, Some(someClassId), None);
+        assert(allEntitiesInClassCount1 == allEntitiesInClassCount2)
+        let templateClassId: i64 = new EntityClass(db, someClassId).get_template_entity_id;
+        let allEntitiesInClassCountWoClass = db.get_entities_only_count(limit_by_class = true, Some(someClassId), Some(templateClassId));
+        assert(allEntitiesInClassCountWoClass == allEntitiesInClassCount1 - 1)
+        assert(allEntitiesInClass.size == allEntitiesInClassCount1)
+        assert(allEntitiesInClass.size < db.get_entities_only(0, None, Some(someClassId), limit_by_class = false).size)
+        assert(allEntitiesInClass.size == numEntitiesInClass)
+        let e: Entity = allEntitiesInClass.get(0);
+        assert(e.get_class_id.get == someClassId) // part 2:
+                                                  // some setup, confirm good
+        let startingEntityCount2 = db.get_entities_only_count();
+        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
+        let id1: i64 = db.create_entity("name1");
+        let (group, rtg) = new Entity(db, id1).add_group_and_relation_to_group(rel_type_id, "someRelToGroupName", allow_mixed_classes_inGroupIn = false, None, 1234L,;
+                                                                           None, caller_manages_transactions_in = false)
+        assert(db.relation_to_group_keys_exist(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.get_group_id))
+        assert(db.attribute_key_exists(rtg.get_form_id, rtg.get_id))
+        let id2: i64 = db.create_entity("name2");
+        group.add_entity(id2)
+        let entity_countAfterCreating = db.get_entities_only_count();
+        assert(entity_countAfterCreating == startingEntityCount2 + 2)
+        let resultSize = db.get_entities_only(0).size();
+        assert(entity_countAfterCreating == resultSize)
+        let resultSizeWithNoneParameter = db.get_entities_only(0, None, group_to_omit_id_in = None).size();
+        assert(entity_countAfterCreating == resultSizeWithNoneParameter) // the real part 2 test
+        let resultSizeWithGroupOmission = db.get_entities_only(0, None, group_to_omit_id_in = Some(group.get_id)).size();
+        assert(entity_countAfterCreating - 1 == resultSizeWithGroupOmission)
+      }
 
-    create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "desc", 2, verify_in = false)
-    assert(db.get_entities_only_count() == c2)
+      "EntitiesInAGroup table (or methods? ick)" should "allow all a group's entities to have no class" in {
+        // ...for now anyway.  See comments at this table in psqld.create_tables and/or hasMixedClasses.
+        let entityName = "test: PSQLDbTest.testgroup-class-allowsAllNulls" + "--theEntity";
+        let (classId, entity_id) = db.createClassAndItsTemplateEntity(entityName, entityName);
+        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
+        let groupId = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, "test: PSQLDbTest.testgroup-class-allowsAllNulls",;
+                                                                                 Some(12345L), allow_mixed_classes_in = false)._1
+        let group: Group = new Group(db, groupId); // 1st one has a NULL class_id
+        let entity_id3 = db.create_entity(entityName + 3);
+        group.add_entity(entity_id3) // ...so it works to add another one that's NULL
+        let entity_id4 = db.create_entity(entityName + 4);
+        group.add_entity(entity_id4) // but adding one with a class_id fails w/ mismatch:
+        let entity_id5 = db.create_entity(entityName + 5, Some(classId));
+        assert(intercept[Exception] {
+                                      group.add_entity(entity_id5)
+                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
+      }
 
-  }
+      "get_entities_only_count" should "not count entities used as relation types or attribute types" in {
+        let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.get_entities_only_count");
+        let c1 = db.get_entities_only_count();
+        assert(db.get_entities_only_count() == c1)
+        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
+        assert(db.get_entities_only_count() == c1)
+        create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id)
+        let c2 = c1 + 1;
+        assert(db.get_entities_only_count() == c2) // this kind shouldn't matter--confirming:
+        let rel_type_id2: i64 = db.create_relation_type("contains2", "", RelationType.UNIDIRECTIONAL);
+        DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id2)
+        assert(db.get_entities_only_count() == c2)
 
-  "get_matching_entities & Groups" should "work" in {
-    let entity_id1 = db.create_entity("test: org.onemodel.PSQLDbTest.get_matching_entities1--abc");
-    let entity1 = new Entity(db, entity_id1);
-    let entity_id2 = db.create_entity("test: org.onemodel.PSQLDbTest.get_matching_entities2");
-    db.create_text_attribute(entity_id1, entity_id2, "defg", None, 0)
-    let entities1 = db.get_matching_entities(0, None, None, "abc");
-    assert(entities1.size == 1)
-    db.create_text_attribute(entity_id2, entity_id1, "abc", None, 0)
-    let entities2 = db.get_matching_entities(0, None, None, "abc");
-    assert(entities2.size == 2)
+        let prevEntitiesUsedAsAttributeTypes = db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false);
+        let date_attribute_id = create_test_date_attribute_with_one_entity(entity_id);
+        let dateAttribute = new DateAttribute(db, date_attribute_id);
+        assert(db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false) == prevEntitiesUsedAsAttributeTypes + 1)
+        assert(db.get_entities_only_count() == c2)
+        let dateAttributeTypeEntities: Array[Entity] = db.get_entities_used_as_attribute_types(Util::DATE_TYPE, 0, quantity_seeks_unit_not_type_in = false);
+                                                       .toArray(new Array[Entity](0 ))
+        let mut found = false;
+        for (dateAttributeType: Entity <- dateAttributeTypeEntities.toArray) {
+          if dateAttributeType.get_id == dateAttribute.get_attr_type_id()) {
+            found = true
+          }
+        }
+        assert(found)
 
-    let rel_type_id: i64 = db.createRelationType("contains", "", RelationType.UNIDIRECTIONAL);
-    let group_name = "someRelToGroupName";
-    entity1.addGroupAndRelationToGroup(rel_type_id, group_name, allowMixedClassesInGroupIn = false, None, 1234L,
-                                       None, caller_manages_transactions_in = false)
-    assert(db.get_matching_groups(0, None, None, "some-xyz-not a grp name").size == 0)
-    assert(db.get_matching_groups(0, None, None, group_name).size > 0)
-  } //idea: should this be moved to ImportExportTest? why did i put it here originally?
-    "getJournal" should "show activity during a date range" in {
-    let startDataSetupTime = System.currentTimeMillis();
-    let entity_id: i64 = db.create_entity("test object");
-    let entity: Entity = new Entity(db, entity_id);
-    let importExport = new ImportExport(null, new Controller(null, false, Some(Database.TEST_USER), Some(Database.TEST_PASS)));
-    let importFile: File = importExport.tryImporting_FOR_TESTS("testImportFile0.txt", entity);
-    let ids: java.util.ArrayList[i64] = db.find_all_entity_ids_by_name("vsgeer-testing-getJournal-in-db");
-    let (fileContents: String, outputFile: File) = importExport.tryExportingTxt_FOR_TESTS(ids, db);
-    // (next 3 lines are redundant w/ a similar test in ImportExportTest, but are here to make sure the data
-    // is as expected before proceeding with the actual purpose of this test:)
-    assert(fileContents.contains("vsgeer"), "unexpected file contents:  " + fileContents)
-    assert(fileContents.contains("record/report/review"), "unexpected file contents:  " + fileContents)
-    assert(outputFile.length == importFile.length)
+        create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
+        assert(db.get_entities_only_count() == c2)
 
-    db.archive_entity(entity_id)
-    let endDataSetupTime = System.currentTimeMillis();
+        create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "desc", 2, verify_in = false)
+        assert(db.get_entities_only_count() == c2)
 
-    let results: util.ArrayList[(i64, String, i64)] = db.find_journal_entries(startDataSetupTime, endDataSetupTime);
-    assert(results.size > 0)
-  }
+      }
 
-  "get_textAttributeByNameForEntity" should "fail when no rows found" in {
-    intercept[org.onemodel.core.OmDatabaseException] {
-                                     let system_entity_id = db.getSystemEntityId;
-                                     db.get_text_attribute_by_type_id(system_entity_id, 1L, Some(1))
-                                   }
-  }
+      "get_matching_entities & Groups" should "work" in {
+        let entity_id1 = db.create_entity("test: org.onemodel.PSQLDbTest.get_matching_entities1--abc");
+        let entity1 = new Entity(db, entity_id1);
+        let entity_id2 = db.create_entity("test: org.onemodel.PSQLDbTest.get_matching_entities2");
+        db.create_text_attribute(entity_id1, entity_id2, "defg", None, 0)
+        let entities1 = db.get_matching_entities(0, None, None, "abc");
+        assert(entities1.size == 1)
+        db.create_text_attribute(entity_id2, entity_id1, "abc", None, 0)
+        let entities2 = db.get_matching_entities(0, None, None, "abc");
+        assert(entities2.size == 2)
 
-  "get_relations_to_group_containing_this_group and get_containing_relations_to_group" should "work" in {
-    let entity_id: i64 = db.create_entity("test: get_relations_to_group_containing_this_group...");
-    let entity_id2: i64 = db.create_entity("test: get_relations_to_group_containing_this_group2...");
-    let rel_type_id: i64 = db.createRelationType("contains in get_relations_to_group_containing_this_group", "", RelationType.UNIDIRECTIONAL);
-    let (groupId, rtg) = DatabaseTestUtils.createAndAddTestRelationToGroup_ToEntity(db, entity_id, rel_type_id,;
-                                                                                    "some group name in get_relations_to_group_containing_this_group")
-    let group = new Group(db, groupId);
-    group.add_entity(entity_id2)
-    let rtgs = db.get_relations_to_group_containing_this_group(groupId, 0);
-    assert(rtgs.size == 1)
-    assert(rtgs.get(0).get_id == rtg.get_id)
+        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
+        let group_name = "someRelToGroupName";
+        entity1.add_group_and_relation_to_group(rel_type_id, group_name, allow_mixed_classes_inGroupIn = false, None, 1234L,
+                                           None, caller_manages_transactions_in = false)
+        assert(db.get_matching_groups(0, None, None, "some-xyz-not a grp name").size == 0)
+        assert(db.get_matching_groups(0, None, None, group_name).size > 0)
+      } //idea: should this be moved to ImportExportTest? why did i put it here originally?
+        "getJournal" should "show activity during a date range" in {
+        let startDataSetupTime = System.currentTimeMillis();
+        let entity_id: i64 = db.create_entity("test object");
+        let entity: Entity = new Entity(db, entity_id);
+        let importExport = new ImportExport(null, new Controller(null, false, Some(Database.TEST_USER), Some(Database.TEST_PASS)));
+        let importFile: File = importExport.tryImporting_FOR_TESTS("testImportFile0.txt", entity);
+        let ids: java.util.ArrayList[i64] = db.find_all_entity_ids_by_name("vsgeer-testing-getJournal-in-db");
+        let (fileContents: String, outputFile: File) = importExport.tryExportingTxt_FOR_TESTS(ids, db);
+        // (next 3 lines are redundant w/ a similar test in ImportExportTest, but are here to make sure the data
+        // is as expected before proceeding with the actual purpose of this test:)
+        assert(fileContents.contains("vsgeer"), "unexpected file contents:  " + fileContents)
+        assert(fileContents.contains("record/report/review"), "unexpected file contents:  " + fileContents)
+        assert(outputFile.length == importFile.length)
 
-    let sameRtgs = db.get_containing_relations_to_group(entity_id2, 0);
-    assert(sameRtgs.size == 1)
-    assert(sameRtgs.get(0).get_id == rtg.get_id)
-  }
- */
+        db.archive_entity(entity_id)
+        let endDataSetupTime = System.currentTimeMillis();
+
+        let results: util.ArrayList[(i64, String, i64)] = db.find_journal_entries(startDataSetupTime, endDataSetupTime);
+        assert(results.size > 0)
+      }
+
+      "get_textAttributeByNameForEntity" should "fail when no rows found" in {
+        intercept[org.onemodel.core.OmDatabaseException] {
+                                         let system_entity_id = db.getSystemEntityId;
+                                         db.get_text_attribute_by_type_id(system_entity_id, 1L, Some(1))
+                                       }
+      }
+
+      "get_relations_to_group_containing_this_group and get_containing_relations_to_group" should "work" in {
+        let entity_id: i64 = db.create_entity("test: get_relations_to_group_containing_this_group...");
+        let entity_id2: i64 = db.create_entity("test: get_relations_to_group_containing_this_group2...");
+        let rel_type_id: i64 = db.create_relation_type("contains in get_relations_to_group_containing_this_group", "", RelationType.UNIDIRECTIONAL);
+        let (groupId, rtg) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id,;
+                                                                                        "some group name in get_relations_to_group_containing_this_group")
+        let group = new Group(db, groupId);
+        group.add_entity(entity_id2)
+        let rtgs = db.get_relations_to_group_containing_this_group(groupId, 0);
+        assert(rtgs.size == 1)
+        assert(rtgs.get(0).get_id == rtg.get_id)
+
+        let sameRtgs = db.get_containing_relations_to_group(entity_id2, 0);
+        assert(sameRtgs.size == 1)
+        assert(sameRtgs.get(0).get_id == rtg.get_id)
+      }
+     */
 }

@@ -10,7 +10,8 @@
     (Some code was moved to here from PostgreSQLDatabaseTest.scala, but the above year range for copyrights derived therefrom is a wild guess.)
 */
 struct DatabaseTestUtils {
-/*%%
+/*%%HAS THIS BEEN MIGRATED SUCCESSFULLY TO THE DB..TESTS...RC FILE NOW?
+ 
 package org.onemodel.core.model
 
 object DatabaseTestUtils {
@@ -18,12 +19,12 @@ object DatabaseTestUtils {
     * This file is in the core package (not in the test directory), so that by being included in the .jar,
     * it is available for use by the integration module (in RestDatabaseTest.scala).
     */
-    fn createAndAddTestRelationToGroup_ToEntity(db_in: Database, in_parent_id: i64, in_rel_type_id: i64, inGroupName: String = "something",
-                                               in_valid_on_date: Option<i64> = None, allowMixedClassesIn: bool = true) -> (i64, RelationToGroup) {
+    fn create_and_add_test_relation_to_group_on_to_entity(db_in: Database, in_parent_id: i64, in_rel_type_id: i64, in_group_name: String = "something",
+                                               in_valid_on_date: Option<i64> = None, allow_mixed_classes_in: bool = true) -> (i64, RelationToGroup) {
     let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty) None else in_valid_on_date;
     let observation_date: i64 = System.currentTimeMillis;
     let (group:Group, rtg: RelationToGroup) = new Entity(db_in, in_parent_id).;
-                                              addGroupAndRelationToGroup(in_rel_type_id, inGroupName, allowMixedClassesIn, valid_on_date, observation_date, None)
+                                              add_group_and_relation_to_group(in_rel_type_id, in_group_name, allow_mixed_classes_in, valid_on_date, observation_date, None)
 
     // and verify it:
     if in_valid_on_date.isEmpty) {
@@ -33,8 +34,8 @@ object DatabaseTestUtils {
       let gotDt: i64 = rtg.get_valid_on_date().get;
       assert(inDt == gotDt)
     }
-    assert(group.get_mixed_classes_allowed == allowMixedClassesIn)
-    assert(group.get_name == inGroupName)
+    assert(group.get_mixed_classes_allowed == allow_mixed_classes_in)
+    assert(group.get_name == in_group_name)
     assert(rtg.get_observation_date() == observation_date)
     (group.get_id, rtg)
   }

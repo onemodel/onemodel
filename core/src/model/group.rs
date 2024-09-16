@@ -15,7 +15,7 @@ use crate::model::relation_to_group::RelationToGroup;
 use crate::util::Util;
 use anyhow::{anyhow, Error, Result};
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct Group<'a> {
@@ -32,12 +32,15 @@ impl Group<'_> {
     /// Creates a new group in the database.
     fn create_group<'a>(
         db_in: &'a dyn Database,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        in_name: &'a str,
+        in_name: &str,
         allow_mixed_classes_in_group_in: bool, /*= false*/
     ) -> Result<Group<'a>, Error> {
-        let id: i64 = db_in.create_group(transaction.clone(), in_name, allow_mixed_classes_in_group_in)?;
+        let id: i64 = db_in.create_group(
+            transaction.clone(),
+            in_name,
+            allow_mixed_classes_in_group_in,
+        )?;
         // Might be obvious but: Calling fn new2, not new, here, because we don't have enough data to
         // call new and so it will load from the db the other values when needed, as saved by the above.
         Group::new2(db_in, transaction, id)
@@ -46,7 +49,6 @@ impl Group<'_> {
     /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     fn get_group<'a>(
         db_in: &'a dyn Database,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<Group<'a>>, Error> {
@@ -113,7 +115,6 @@ impl Group<'_> {
     //%%eliminate the _ parameters? who calls it w/ them & why?
     fn update<'a>(
         &'a mut self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         _attr_type_id_in: Option<i64>,                 /*= None*/
         name_in: Option<String>,                       /*= None*/
@@ -158,7 +159,9 @@ impl Group<'_> {
         length_limit_in: usize, /*= 0*/
         simplify_in: bool,      /* = false*/
     ) -> Result<String, Error> {
-        let num_entries = self.db.get_group_size(transaction.clone(), self.get_id(), 1)?;
+        let num_entries = self
+            .db
+            .get_group_size(transaction.clone(), self.get_id(), 1)?;
         let mut result: String = "".to_string();
         let name = &self.get_name(None)?;
         let formatted_name = format!("grp {} /{}: {}", self.id, num_entries, Color::blue(name));
@@ -241,7 +244,6 @@ impl Group<'_> {
     /// Removes an entity from this group.
     fn remove_entity<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         entity_id: i64,
     ) -> Result<u64, Error> {
@@ -284,11 +286,11 @@ impl Group<'_> {
         )
     }
 
-    fn get_id(&self) -> i64 {
+    pub fn get_id(&self) -> i64 {
         self.id
     }
 
-    fn get_name(
+    pub fn get_name(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, Error> {
@@ -298,7 +300,7 @@ impl Group<'_> {
         Ok(self.name.clone())
     }
 
-    fn get_mixed_classes_allowed(
+    pub fn get_mixed_classes_allowed(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, Error> {
@@ -308,7 +310,7 @@ impl Group<'_> {
         Ok(self.mixed_classes_allowed)
     }
 
-    fn get_new_entries_stick_to_top(
+    pub fn get_new_entries_stick_to_top(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, Error> {
@@ -347,7 +349,8 @@ impl Group<'_> {
                     }
                 }
                 Some(cid) => {
-                    let mut example_entitys_class = EntityClass::new2(self.db, transaction.clone(), cid)?;
+                    let mut example_entitys_class =
+                        EntityClass::new2(self.db, transaction.clone(), cid)?;
                     Ok(Some(example_entitys_class.get_name(transaction)?))
                 }
             }
@@ -439,11 +442,7 @@ impl Group<'_> {
                 // }
 
                 let db: &dyn Database = self.db;
-                Ok(Some(Entity::new2(
-                    db,
-                    transaction,
-                    template_entity_id,
-                )?))
+                Ok(Some(Entity::new2(db, transaction, template_entity_id)?))
             }
             _ => Err(anyhow!("Unexpected value for {:?}", class_id)),
         }
@@ -584,7 +583,6 @@ impl Group<'_> {
 
     fn renumber_sorting_indexes<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), Error> {
@@ -701,7 +699,7 @@ mod test {
         let entity2 = new Entity(db, db.create_entity("e2"));
         group1.add_entity(entity1.get_id)
         group2.add_entity(entity2.get_id)
-        let rt = new RelationType(db, db.createRelationType("rt", "rtReversed", "BI"));
+        let rt = new RelationType(db, db.create_relation_type("rt", "rtReversed", "BI"));
         entity1.addRelationToGroup(rt.get_id, group3.get_id, None)
         entity2.addRelationToGroup(rt.get_id, group3.get_id, None)
         let results = group3.get_groups_containing_entitys_groups_ids();

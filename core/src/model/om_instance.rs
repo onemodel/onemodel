@@ -41,7 +41,6 @@ impl OmInstance<'_> {
 
     fn create<'a>(
         db_in: &'a dyn Database,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: &'a str,
         address_in: &'a str,
@@ -228,7 +227,6 @@ impl OmInstance<'_> {
 
     fn delete<'a>(
         &'a self,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<u64, Error> {
         self.db

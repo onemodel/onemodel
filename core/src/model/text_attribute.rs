@@ -236,7 +236,6 @@ impl Attribute for TextAttribute<'_> {
     /// Removes this object from the system.
     fn delete<'a>(
         &'a self,
-        //transaction: &Option<&mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {

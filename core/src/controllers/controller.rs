@@ -399,7 +399,7 @@ impl Controller {
                       let directionalityStr: String = ans.get.trim().toUpperCase;
                       let name_in_reverse_directionStr = Util.ask_for_name_in_reverse_direction(directionalityStr, maxNameLength, name, previous_name_in_reverse_in, ui);
                       if createNotUpdate) {
-                        let newId = new RelationType(db_in, db_in.createRelationType(name, name_in_reverse_directionStr, directionalityStr)).get_id;
+                        let newId = new RelationType(db_in, db_in.create_relation_type(name, name_in_reverse_directionStr, directionalityStr)).get_id;
                         Some(newId, 0L)
                       } else {
                         existingEntityIn.get.asInstanceOf[RelationType].update(name, name_in_reverse_directionStr, directionalityStr)
@@ -624,14 +624,14 @@ impl Controller {
             attributeIn match {
               case quantityAttribute: QuantityAttribute =>
                 def update_quantity_attribute(dhInOut: QuantityAttributeDataHolder) {
-                  quantityAttribute.update(dhInOut.attr_type_id, dhInOut.unitId, dhInOut.number, dhInOut.valid_on_date,
+                  quantityAttribute.update(dhInOut.attr_type_id, dhInOut.unit_id, dhInOut.number, dhInOut.valid_on_date,
                                            dhInOut.observation_date)
                 }
                 askForInfoAndUpdateAttribute[QuantityAttributeDataHolder](attributeIn.db,
                                                                           new QuantityAttributeDataHolder(quantityAttribute.get_attr_type_id(),
                                                                                                           quantityAttribute.get_valid_on_date(),
                                                                                                           quantityAttribute.get_observation_date(),
-                                                                                                          quantityAttribute.getNumber, quantityAttribute.getUnitId),
+                                                                                                          quantityAttribute.get_number, quantityAttribute.get_unit_id),
                                                                           askForAttrTypeId = true, Util.QUANTITY_TYPE, Util.QUANTITY_TYPE_PROMPT,
                                                                           ask_for_quantity_attribute_numberAndUnit, update_quantity_attribute)
                 //force a reread from the DB so it shows the right info on the repeated menu:
@@ -733,9 +733,9 @@ impl Controller {
 
         attributeIn match {
           case quantityAttribute: QuantityAttribute =>
-            let num: Option[Float] = Util.ask_for_quantity_attribute_number(quantityAttribute.getNumber, ui);
+            let num: Option[Float] = Util.ask_for_quantity_attribute_number(quantityAttribute.get_number, ui);
             if num.is_defined) {
-              quantityAttribute.update(quantityAttribute.get_attr_type_id(), quantityAttribute.getUnitId,
+              quantityAttribute.update(quantityAttribute.get_attr_type_id(), quantityAttribute.get_unit_id,
                                        num.get,
                                        quantityAttribute.get_valid_on_date(), quantityAttribute.get_observation_date())
             }
@@ -1052,7 +1052,7 @@ impl Controller {
           let mut showJournalChoiceNum = 1;
           let mut swapObjectsToDisplayChoiceNum = 1;
           let mut linkToRemoteInstanceChoiceNum = 1;
-          let mut createRelationTypeChoiceNum = 1;
+          let mut create_relation_typeChoiceNum = 1;
           let mut createClassChoiceNum = 1;
           let mut createInstanceChoiceNum = 1;
           let mut choiceList = Array(Util.LIST_NEXT_ITEMS_PROMPT);
@@ -1066,7 +1066,7 @@ impl Controller {
             showJournalChoiceNum += 1
             swapObjectsToDisplayChoiceNum += 1
             linkToRemoteInstanceChoiceNum += 1
-            createRelationTypeChoiceNum += 1
+            create_relation_typeChoiceNum += 1
             createClassChoiceNum += 1
             createInstanceChoiceNum += 1
           }
@@ -1092,7 +1092,7 @@ impl Controller {
           } else if Util.RELATION_ATTR_TYPE_NAMES.contains(object_type_in)) {
             // These choice #s are only hit by the conditions below, when they should be...:
             choiceList = choiceList :+ Util::menutext_create_relation_type()
-            createRelationTypeChoiceNum += 1
+            create_relation_typeChoiceNum += 1
           } else if object_type_in == Util.ENTITY_CLASS_TYPE) {
             choiceList = choiceList :+ "Create new class (template for new entities)"
             createClassChoiceNum += 1
@@ -1101,7 +1101,7 @@ impl Controller {
             createInstanceChoiceNum += 1
           } else throw new Exception("invalid object_type_in: " + object_type_in)
 
-          (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityByNameChoiceNum, searchForEntityByIdChoiceNum, showJournalChoiceNum, createRelationTypeChoiceNum, createClassChoiceNum, createInstanceChoiceNum, swapObjectsToDisplayChoiceNum, linkToRemoteInstanceChoiceNum)
+          (choiceList, keepPreviousSelectionChoiceNum, createAttrTypeChoiceNum, searchForEntityByNameChoiceNum, searchForEntityByIdChoiceNum, showJournalChoiceNum, create_relation_typeChoiceNum, createClassChoiceNum, createInstanceChoiceNum, swapObjectsToDisplayChoiceNum, linkToRemoteInstanceChoiceNum)
         }
 
         def getLeadTextAndObjectList(choices_in: Vec<String>): (List[String],
@@ -1173,7 +1173,7 @@ impl Controller {
           index
         }
 
-        let (choices, keepPreviousSelectionChoice, create_entityOrAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, createRelationTypeChoice, createClassChoice, createInstanceChoice, swapObjectsToDisplayChoice, linkToRemoteInstanceChoice): (Vec<String>,;
+        let (choices, keepPreviousSelectionChoice, create_entityOrAttrTypeChoice, searchForEntityByNameChoice, searchForEntityByIdChoice, showJournalChoice, create_relation_typeChoice, createClassChoice, createInstanceChoice, swapObjectsToDisplayChoice, linkToRemoteInstanceChoice): (Vec<String>,;
           Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) = getChoiceList
 
         let (leading_text, objectsToDisplay, statusesAndNames) = getLeadTextAndObjectList(choices);
@@ -1298,7 +1298,7 @@ impl Controller {
                 }
               }
             }
-          } else if answer == createRelationTypeChoice && Util.RELATION_ATTR_TYPE_NAMES.contains(object_type_in) && answer <= choices.length) {
+          } else if answer == create_relation_typeChoice && Util.RELATION_ATTR_TYPE_NAMES.contains(object_type_in) && answer <= choices.length) {
             let entity: Option<Entity> = askForNameAndWriteEntity(db_in, Util.RELATION_TYPE_TYPE);
             if entity.isEmpty) None
             else Some(new IdWrapper(entity.get.get_id), false, "")
@@ -1400,15 +1400,15 @@ impl Controller {
         fn ask_for_quantity_attribute_numberAndUnit(db_in: Database, dhIn: QuantityAttributeDataHolder, editingIn: bool, ui: TextUI) -> Option[QuantityAttributeDataHolder] {
         let outDH: QuantityAttributeDataHolder = dhIn;
         let leading_text: List[String] = List("SELECT A *UNIT* FOR THIS QUANTITY (i.e., centimeters, or quarts; ESC or blank to cancel):");
-        let previousSelectionDesc = if editingIn) Some(new Entity(db_in, dhIn.unitId).get_name) else None;
-        let previousSelectionId = if editingIn) Some(dhIn.unitId) else None;
+        let previousSelectionDesc = if editingIn) Some(new Entity(db_in, dhIn.unit_id).get_name) else None;
+        let previousSelectionId = if editingIn) Some(dhIn.unit_id) else None;
         let unitSelection: Option[(IdWrapper, _, _)] = chooseOrCreateObject(db_in, Some(leading_text), previousSelectionDesc, previousSelectionId,;
                                                                             Util.QUANTITY_TYPE, quantity_seeks_unit_not_type_in = true)
         if unitSelection.isEmpty) {
           ui.display_text("Blank, so assuming you want to cancel; if not come back & add again.", false);
           None
         } else {
-          outDH.unitId = unitSelection.get._1.get_id
+          outDH.unit_id = unitSelection.get._1.get_id
           let ans: Option[Float] = Util.ask_for_quantity_attribute_number(outDH.number, ui);
           if ans.isEmpty) None
           else {
@@ -1731,7 +1731,7 @@ impl Controller {
         }
         if attrFormIn == Database.get_attribute_form_id(Util.QUANTITY_TYPE)) {
           def add_quantity_attribute(dhIn: QuantityAttributeDataHolder): Option[QuantityAttribute] = {
-            Some(entity_in.add_quantity_attribute(dhIn.attr_type_id, dhIn.unitId, dhIn.number, None, dhIn.valid_on_date, dhIn.observation_date))
+            Some(entity_in.add_quantity_attribute(dhIn.attr_type_id, dhIn.unit_id, dhIn.number, None, dhIn.valid_on_date, dhIn.observation_date))
           }
           askForInfoAndAddAttribute[QuantityAttributeDataHolder](entity_in.db, new QuantityAttributeDataHolder(attr_type_id, None, System.currentTimeMillis(), 0, 0),
                                                                  askForAttrTypeId, Util.QUANTITY_TYPE,
@@ -1779,9 +1779,9 @@ impl Controller {
           def addRelationToEntity(dhIn: RelationToEntityDataHolder): Option[AttributeWithValidAndObservedDates] = {
             let relation = {;
               if dhIn.is_remote) {
-                entity_in.addRelationToRemoteEntity(dhIn.attr_type_id, dhIn.entity_id2, None, dhIn.valid_on_date, dhIn.observation_date, dhIn.remoteInstanceId)
+                entity_in.add_relation_to_remote_entity(dhIn.attr_type_id, dhIn.entity_id2, None, dhIn.valid_on_date, dhIn.observation_date, dhIn.remoteInstanceId)
               } else {
-                entity_in.addRelationToLocalEntity(dhIn.attr_type_id, dhIn.entity_id2, None, dhIn.valid_on_date, dhIn.observation_date)
+                entity_in.add_relation_to_local_entity(dhIn.attr_type_id, dhIn.entity_id2, None, dhIn.valid_on_date, dhIn.observation_date)
               }
             }
             Some(relation)
@@ -1944,7 +1944,7 @@ impl Controller {
               attributeFromTemplate match {
                 case templateAttribute: QuantityAttribute =>
                   promptToEditAttributeCopy()
-                  Some(entity_in.add_quantity_attribute(templateAttribute.get_attr_type_id(), templateAttribute.getUnitId, templateAttribute.getNumber,
+                  Some(entity_in.add_quantity_attribute(templateAttribute.get_attr_type_id(), templateAttribute.get_unit_id, templateAttribute.get_number,
                                                      Some(templateAttribute.get_sorting_index)))
                 case templateAttribute: DateAttribute =>
                   promptToEditAttributeCopy()
@@ -1970,7 +1970,7 @@ impl Controller {
                 case templateAttribute: RelationToGroup =>
                   promptToEditAttributeCopy()
                   let templateGroup = templateAttribute.getGroup;
-                  let (_, newRTG: RelationToGroup) = entity_in.addGroupAndRelationToGroup(templateAttribute.get_attr_type_id(), templateGroup.get_name,;
+                  let (_, newRTG: RelationToGroup) = entity_in.add_group_and_relation_to_group(templateAttribute.get_attr_type_id(), templateGroup.get_name,;
                                                                                          templateGroup.get_mixed_classes_allowed, None,
                                                                                          System.currentTimeMillis(), Some(templateAttribute.get_sorting_index))
                   Some(newRTG)
@@ -2093,7 +2093,7 @@ impl Controller {
                   (None, askEveryTime)
                 } else {
                   newEntity.get.updateNewEntriesStickToTop(templatesRelatedEntity.get_new_entries_stick_to_top)
-                  let new_rtle = Some(entity_in.addRelationToLocalEntity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), newEntity.get.get_id,;
+                  let new_rtle = Some(entity_in.add_relation_to_local_entity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), newEntity.get.get_id,;
                                                          Some(relationToEntityAttributeFromTemplateIn.get_sorting_index)))
                   (new_rtle, askEveryTime)
                 }
@@ -2105,11 +2105,11 @@ impl Controller {
       //                                                        dh.get.valid_on_date, dh.get.observation_date,
       //                                                        dh.get.is_remote, if !dh.get.is_remote) None else Some(dh.get.remoteInstanceId))
                   if dh.get.is_remote) {
-                    let rtre = entity_in.addRelationToRemoteEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.get_sorting_index),;
+                    let rtre = entity_in.add_relation_to_remote_entity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.get_sorting_index),;
                                                                   dh.get.valid_on_date, dh.get.observation_date, dh.get.remoteInstanceId)
                     (Some(rtre), askEveryTime)
                   } else {
-                    let rtle = entity_in.addRelationToLocalEntity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.get_sorting_index),;
+                    let rtle = entity_in.add_relation_to_local_entity(dh.get.attr_type_id, dh.get.entity_id2, Some(relationToEntityAttributeFromTemplateIn.get_sorting_index),;
                                                                  dh.get.valid_on_date, dh.get.observation_date)
                     (Some(rtle), askEveryTime)
                   }
@@ -2119,11 +2119,11 @@ impl Controller {
               } else if allKeepReference || (howCopyRteResponse.is_defined && howCopyRteResponse.get == keepSameReferenceAsInTemplateChoiceNum)) {
                 let relation = {;
                   if relationToEntityAttributeFromTemplateIn.db.is_remote) {
-                    entity_in.addRelationToRemoteEntity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), relatedId2,
+                    entity_in.add_relation_to_remote_entity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), relatedId2,
                                                        Some(relationToEntityAttributeFromTemplateIn.get_sorting_index), None, System.currentTimeMillis(),
                                                        relationToEntityAttributeFromTemplateIn.asInstanceOf[RelationToRemoteEntity].getRemoteInstanceId)
                   } else {
-                    entity_in.addRelationToLocalEntity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), relatedId2,
+                    entity_in.add_relation_to_local_entity(relationToEntityAttributeFromTemplateIn.get_attr_type_id(), relatedId2,
                                                       Some(relationToEntityAttributeFromTemplateIn.get_sorting_index), None, System.currentTimeMillis())
                   }
                 }

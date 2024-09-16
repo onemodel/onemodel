@@ -248,6 +248,8 @@ impl PostgreSQLDatabase {
                 results.len()
             ));
         }
+        debug!("In db_query, results.len()={:?}", results.len());
+        //Util::print_backtrace();
         Ok(results)
     }
 
@@ -309,8 +311,11 @@ impl PostgreSQLDatabase {
         // Doing these individually so that if one fails (not previously existing, such as
         // testing or a new installation), the others can proceed (drop method ignores that
         // exception).
+        debug!("destroy_tables 1");
         self.drop(None, "table", "odb_version")?;
+        debug!("destroy_tables 2");
         self.drop(None, "table", Util::QUANTITY_TYPE)?;
+        debug!("destroy_tables 3");
         self.drop(None, "table", Util::DATE_TYPE)?;
         self.drop(None, "table", Util::BOOLEAN_TYPE)?;
         // The next line is to invoke the trigger that will clean out Large Objects
@@ -366,13 +371,16 @@ impl PostgreSQLDatabase {
         sql_type: &str,
         name: &str,
     ) -> Result<(), anyhow::Error> {
+        debug!("In pg drop 1");
         let sql: String = format!(
             "DROP {} IF EXISTS {} CASCADE",
             Self::escape_quotes_etc(sql_type.to_string()),
             Self::escape_quotes_etc(name.to_string())
         );
+        debug!("In pg drop 2");
         let result: Result<u64, anyhow::Error> =
             self.db_action(transaction, sql.as_str(), false, false);
+        debug!("In pg drop 4, result={:?}", result);
         match result {
             Err(msg) => {
                 // (Now that "IF EXISTS" is added in the above DROP statement, this check might
@@ -380,12 +388,17 @@ impl PostgreSQLDatabase {
                 // notification, per the pg docs.  Not sure at this writing how that is
                 // reported by sqlx here though.)
                 if !msg.to_string().contains("does not exist") {
+                    debug!("In pg drop 5");
                     Err(anyhow!(msg.to_string().clone()))
                 } else {
+                    debug!("In pg drop 6");
                     Ok(())
                 }
-            }
-            _ => Ok(()),
+            },
+            _ => {
+                debug!("In pg drop 7");
+                Ok(())
+            },
         }
     }
 
@@ -435,9 +448,11 @@ impl PostgreSQLDatabase {
         let is_create_drop_or_alter = sql_in.to_lowercase().starts_with("create ")
             || sql_in.to_lowercase().starts_with("drop ")
             || sql_in.to_lowercase().starts_with("alter ");
+        debug!("In db_action 2");
         if !skip_check_for_bad_sql_in {
             Self::check_for_bad_sql(sql_in)?;
         }
+        debug!("In db_action 3, sql is: {}", sql_in);
         let using_transaction;
         let x: Result<PgQueryResult, sqlx::Error> = if let Some(tx) = transaction {
             //%% let future = sqlx::query(sql_in).execute(tx); //a try
@@ -445,18 +460,20 @@ impl PostgreSQLDatabase {
             let mut tx_mut: RefMut<'_, _> = tx.borrow_mut();
             //let future = sqlx::map.fetch_all(&mut *tx_mut);
             //let future = sqlx::query(sql_in).execute(&self.pool); //the fallback, but loses transaction features
+            debug!("In db_action 3.1");
             let future = sqlx::query(sql_in).execute(&mut *tx_mut);
             using_transaction = true;
+            debug!("In db_action 3.2");
             self.rt.block_on(future)
         } else {
+            debug!("In db_action 3.4");
             let future = sqlx::query(sql_in).execute(&self.pool);
             using_transaction = false;
+            debug!("In db_action 3.5");
             self.rt.block_on(future)
         };
-        debug!(
-            "In db_action, using_transaction={}, sql is: {}\n... w/ result: {:?}",
-            using_transaction, sql_in, &x
-        );
+        debug!("In db_action 3.6");
+        debug!("In db_action, using_transaction={}, result={:?}", using_transaction, &x);
         match x {
             Err(e) => return Err(anyhow!(e.to_string())),
             Ok(res) => {
@@ -484,6 +501,7 @@ impl PostgreSQLDatabase {
                 sql_in
             ));
         }
+        //Util::print_backtrace();
         Ok(rows_affected)
     }
 
@@ -597,7 +615,7 @@ impl PostgreSQLDatabase {
             self.create_base_data(Some(transaction.clone()))?;
         }
         self.do_database_upgrades_if_needed(Some(transaction.clone()))?;
-        self.create_and_check_expected_data(Some(transaction.clone()))?;
+        //%%%%%%%%self.create_and_check_expected_data(Some(transaction.clone()))?;
         let t0 = Rc::into_inner(transaction);
         match t0 {
             Some(t1) => {
@@ -1664,7 +1682,7 @@ impl PostgreSQLDatabase {
         // the intent of this group is user convenience: the app shouldn't rely on this group to find classDefiningEntities (templates), but use the relevant table.
         // idea: REALLY, this should probably be replaced with a query to the class table: so, when queries as menu options are part of the OM
         // features, put them all there instead.
-        // It is set to allowMixedClassesInGroup just because no current known reason not to; will be interesting to see what comes of it.
+        // It is set to allow_mixed_classes_inGroup just because no current known reason not to; will be interesting to see what comes of it.
         self.create_group_and_relation_to_group(
             transaction.clone(),
             system_entity_id,

@@ -22,7 +22,7 @@ use crate::model::entity::Entity;
 use crate::model::relation_to_entity::RelationToEntity;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_*entity.rs and relation_to_group.rs,
@@ -129,7 +129,6 @@ impl RelationToLocalEntity<'_> {
     /// by the Entity constructor.  Or for convenience in tests.
     pub fn get_relation_to_local_entity<'a>(
         db: &'a dyn Database,
-        //transaction: &'a Option<&'a mut Transaction<'a, Postgres>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<RelationToLocalEntity<'a>>, anyhow::Error> {
@@ -241,7 +240,6 @@ impl RelationToEntity for RelationToLocalEntity<'_> {
     ) -> Result<Entity<'a>, anyhow::Error> {
         Entity::new2(self.db, transaction, self.entity_id2)
     }
-
 }
 //END SIMILAR CODE--------------------
 
@@ -295,7 +293,7 @@ impl Attribute for RelationToLocalEntity<'_> {
         };
         self.already_read_data = true;
 
-        //assign_common_vars(self.entity_id1, self.attr_type_id, relation_data(2).get.asInstanceOf[i64], 
+        //assign_common_vars(self.entity_id1, self.attr_type_id, relation_data(2).get.asInstanceOf[i64],
         //relation_data(3).get.asInstanceOf[i64])
         //***ONLY ROUGHLY COPIED***:
         //BEGIN COPIED BLOCK descended from Attribute.assign_common_vars (unclear how to do better for now):
@@ -338,12 +336,12 @@ impl Attribute for RelationToLocalEntity<'_> {
         Ok(())
     }
 
-    /// @param related_entity_in, could be either entity_id2 or 1: it is always *not* the entity 
+    /// @param related_entity_in, could be either entity_id2 or 1: it is always *not* the entity
     /// from whose perspective the result will be returned, ex.,
     /// 'x contains y' OR 'y is contained by x': the 2nd parameter should be the *2nd* one in that statement.
     /// If left None here, the code will make a guess but might output confusing (backwards) info.
     /// @param relation_type_in can be left None, but will run faster if not.
-    /// @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital". 
+    /// @return something like "son of: Paul" or "owns: Ford truck" or "employed by: hospital".
     /// If in_length_limit is 0 you get the whole thing.
     fn get_display_string(
         &mut self,

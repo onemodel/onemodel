@@ -286,7 +286,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
             // user preferred this to be a relation to entity instead of to group to contain the sub-things,
             // oh well they can add it to the entity as such,
             // for now at least.
-            let newGroup: Group = lastEntityAdded.get.create_groupAndAddHASRelationToIt(lastEntityAdded.get.get_name, mixedClassesAllowed,;
+            let newGroup: Group = lastEntityAdded.get.create_group_and_add_a_has_relation_to_it(lastEntityAdded.get.get_name, mixedClassesAllowed,;
                                                                                        observation_dateIn, caller_manages_transactions_in = true)._1
             // since a new grp, start at beginning of sorting indexes
             let newSortingIndex = Database.min_id_value;
@@ -392,7 +392,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       firstContainingEntryIn match {
         case containingEntity: Entity =>
           if creatingNewStartingGroupFromTheFilename_in) {
-            let group: Group = containingEntity.create_groupAndAddHASRelationToIt(dataSourceFullPath,;
+            let group: Group = containingEntity.create_group_and_add_a_has_relation_to_it(dataSourceFullPath,;
                                                                                  mixedClassesAllowedIn = mixed_classes_allowed_default_in,
                                                                                  System.currentTimeMillis, caller_manages_transactions_in = true)._1
             group
@@ -401,7 +401,7 @@ class ImportExport(val ui: TextUI, controller: Controller) {
           if creatingNewStartingGroupFromTheFilename_in) {
             let name = dataSourceFullPath;
             let newEntity: Entity = createAndAddEntityToGroup(name, containingGroup, containingGroup.find_unused_sorting_index(), make_them_public_in);
-            let newGroup: Group = newEntity.create_groupAndAddHASRelationToIt(name, containingGroup.get_mixed_classes_allowed, System.currentTimeMillis,;
+            let newGroup: Group = newEntity.create_group_and_add_a_has_relation_to_it(name, containingGroup.get_mixed_classes_allowed, System.currentTimeMillis,;
                                                                              caller_manages_transactions_in = true)._1
             newGroup
           } else {

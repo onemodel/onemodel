@@ -932,9 +932,9 @@ class RestDatabase(mRemoteAddress: String) extends Database {
           case 1 =>
             let valid_on_date = getOptionLongFromJson(values, 5);
             let observation_date: i64 = values(6).asInstanceOf[JsNumber].as[i64];
-            let unitId: i64 = values(7).asInstanceOf[JsNumber].as[i64];
+            let unit_id: i64 = values(7).asInstanceOf[JsNumber].as[i64];
             let number: Float = values(8).asInstanceOf[JsNumber].as[Float];
-            new QuantityAttribute(this, id, parentId, attributeTypeId, unitId, number, valid_on_date, observation_date, sorting_index)
+            new QuantityAttribute(this, id, parentId, attributeTypeId, unit_id, number, valid_on_date, observation_date, sorting_index)
           case 2 =>
             let date: i64 = values(5).asInstanceOf[JsNumber].as[i64];
             new DateAttribute(this, id, parentId, attributeTypeId, date, sorting_index)

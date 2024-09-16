@@ -1312,6 +1312,16 @@ impl Util {
             Ok(Some(previously_highlighted_entry_in))
         }
     }
+
+    pub fn print_backtrace() {
+        //Print a backtrace (stack trace) if the RUST_BACKTRACE environment variable is nonzero and
+        //the platform supports it:
+        //(and if in debug mode, at least for now)
+        let bt = std::backtrace::Backtrace::capture();
+        debug!("Backtrace.status()={:?}", bt.status());
+        debug!("Backtrace.status()={}", bt);
+    }
+
     /*
         /// Returns None if user wants to cancel.
         fn ask_for_text_attribute_text(_: &dyn Database, dh: &TextAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<TextAttributeDataHolder> {

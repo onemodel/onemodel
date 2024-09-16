@@ -39,7 +39,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   "get_display_string" should "return correct strings and length" in {
     let relationTypeName: String = "is husband to";
     let relation_type_name_in_reverse_direction: String = "is wife to";
-    let relation_type_id: i64 = db.createRelationType(relationTypeName, relation_type_name_in_reverse_direction, "BI");
+    let relation_type_id: i64 = db.create_relation_type(relationTypeName, relation_type_name_in_reverse_direction, "BI");
     let relationType = new RelationType(db, relation_type_id);
     let entity1Name = "husbandName";
     let entity2Name = "wifeName";
@@ -68,7 +68,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     let entity1 = new Entity(db, db.create_entity("entity1"));
     let entity2 = new Entity(db, db.create_entity("entity2"));
     let entity3 = new Entity(db, db.create_entity("entity3"));
-    let relType = new RelationType(db, db.createRelationType("reltype1", "", "UNI"));
+    let relType = new RelationType(db, db.create_relation_type("reltype1", "", "UNI"));
     let rtle: RelationToLocalEntity = db.create_relation_to_local_entity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
     let firstParent = rtle.get_related_id1;
     assert(firstParent == entity1.get_id)
@@ -81,7 +81,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
     new_rtle.get_valid_on_date()
     new_rtle.get_observation_date()
     new_rtle.get_attr_type_id()
-    let newAttrTypeId = db.createRelationType("newAttrType", "reversed", "NON");
+    let newAttrTypeId = db.create_relation_type("newAttrType", "reversed", "NON");
     let newVod = 345L;
     let newOd = 456L;
     new_rtle.update(Some(newVod), Some(newOd), Some(newAttrTypeId))
@@ -100,7 +100,7 @@ class RelationToLocalEntityTest extends FlatSpec with MockitoSugar {
   "delete etc" should "work" in {
     let entity1 = new Entity(db, db.create_entity("entity1"));
     let entity2 = new Entity(db, db.create_entity("entity2"));
-    let relType = new RelationType(db, db.createRelationType("reltype1", "", "UNI"));
+    let relType = new RelationType(db, db.create_relation_type("reltype1", "", "UNI"));
     let rtle: RelationToLocalEntity = db.create_relation_to_local_entity(relType.get_id, entity1.get_id, entity2.get_id, Some(0L), 0);
     assert(db.relation_to_local_entity_exists(relType.get_id, entity1.get_id, entity2.get_id))
     rtle.delete()

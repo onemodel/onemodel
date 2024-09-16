@@ -26,7 +26,7 @@ import org.onemodel.core.{OmException, Util}
  *
    **NOTE**: it *yes does* make sense to instantiate a RelationToRemoteEntity with a db parameter being for a *local* (ex., postgresql) database,
    because the local db contains references to remote ones.  Then, when creating for example an Entity for a record at a remote site, that
-   would have a db parameter which is remote (i.e., an instance of RestDatabase; see Entity.addRelationToRemoteEntity).
+   would have a db parameter which is remote (i.e., an instance of RestDatabase; see Entity.add_relation_to_remote_entity).
 
    *****  MAKE SURE  ***** that during maintenance, anything that gets data relating to entity_id2 is using the right (remote) db!:
  *
