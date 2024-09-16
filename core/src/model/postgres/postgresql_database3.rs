@@ -50,7 +50,6 @@ impl Database for PostgreSQLDatabase {
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
-        caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
                                 // ('a are per warnings from top of main.rs)
     ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> /*%%where 'a: 'b*/ {
@@ -60,25 +59,21 @@ impl Database for PostgreSQLDatabase {
                 return Err(anyhow!("It doesn't make sense to store a blank quotation; there was probably a program error."));
             }
         }
-        //%%put here lines like where I have "duplicated code" ie other plcs using
-        //caller_manages_transaction_in ?:  (and for the commit at end?)
-        //
+        //%%put here lines like where I have "duplicated code" or "unfortunately" re transactions?
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-        // if !caller_manages_transactions_in { self.begin_trans() }
+        // if transaction_in.is_none() { self.begin_trans() }
         // try {
         // **idea: BAD SMELL: should this method be moved out of the db class, since it depends on higher-layer components, like EntityClass and
         // those in the same package? It was in Controller, but moved here
-        // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers.
+        // because it seemed like things that manage transactions should be in the db layer.  So maybe it needs un-mixing of layers (and maybe other places do too).
 
         let (uri_class_id, uri_class_template_id) = self.get_or_create_class_and_template_entity(
             transaction.clone(),
             "URI",
-            caller_manages_transactions_in,
         )?;
         let (_, quotation_class_template_id) = self.get_or_create_class_and_template_entity(
             transaction.clone(),
             "quote",
-            caller_manages_transactions_in,
         )?;
         let (new_entity, new_rtle) = containing_entity_in
             .create_entity_and_add_has_local_relation_to_it(
@@ -86,13 +81,11 @@ impl Database for PostgreSQLDatabase {
                 new_entity_name_in,
                 observation_date_in,
                 make_them_public_in,
-                caller_manages_transactions_in,
             )?;
         self.update_entitys_class(
             transaction.clone(),
             new_entity.get_id(),
             Some(uri_class_id),
-            caller_manages_transactions_in,
         )?;
         //(attempts to handle the transaction and lifetime compiler errors:)
         //let new_entity2: Entity<'a> = new_entity.clone();
@@ -112,7 +105,6 @@ impl Database for PostgreSQLDatabase {
             None,
             None,
             observation_date_in,
-            caller_manages_transactions_in,
         )?;
         if quote_in.is_some() {
             new_entity.add_text_attribute2(
@@ -123,17 +115,16 @@ impl Database for PostgreSQLDatabase {
                 None,
                 None,
                 observation_date_in,
-                caller_manages_transactions_in,
             )?;
         };
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-        // if !caller_manages_transactions_in {self.commit_trans() }
+        // if transaction_in.is_none() {self.commit_trans() }
         //Ok((new_entity.clone(), new_rtle))
         Ok((new_entity, new_rtle))
         //  } catch {
         //    case e: Exception =>
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-        // if !caller_manages_transactions_in) rollback_trans()
+        // if transaction_in.is_none() rollback_trans()
     }
 
     fn get_text_attribute_by_type_id(
@@ -471,13 +462,11 @@ impl Database for PostgreSQLDatabase {
             transaction.clone(),
             class_name_in.to_string(),
             format!("{}{}", class_name_in.clone(), Util::TEMPLATE_NAME_SUFFIX),
-            transaction.is_some(),
         )
     }
 
     fn delete_class_and_its_template_entity(&self, class_id_in: i64) -> Result<(), anyhow::Error> {
         let tx: Transaction<Postgres> = self.begin_trans()?;
-        //let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
         let transaction = Some(Rc::new(RefCell::new(tx)));
         let template_entity_id_vec: Vec<Option<DataType>> =
             self.get_class_data(transaction.clone(), class_id_in)?;
@@ -497,23 +486,22 @@ impl Database for PostgreSQLDatabase {
                 transaction.clone(),
                 class_group_id.unwrap(),
                 template_entity_id,
-                true,
             )?;
         }
-        self.update_entitys_class(transaction.clone(), template_entity_id, None, true)?;
+        self.update_entitys_class(transaction.clone(), template_entity_id, None)?;
         self.delete_object_by_id2(
             transaction.clone(),
             "class",
             class_id_in.to_string().as_str(),
-            true,
         )?;
         self.delete_object_by_id2(
             transaction.clone(),
             Util::ENTITY_TYPE,
             template_entity_id.to_string().as_str(),
-            true,
         )?;
 
+        // see comments at similar location in delete_objects about local_tx
+        // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
         match local_tx_cell {
@@ -674,14 +662,8 @@ impl Database for PostgreSQLDatabase {
         number_in: f64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-        caller_manages_transactions_in: bool, /*= false*/
         sorting_index_in: Option<i64>,        /*= None*/
     ) -> Result</*id*/ i64, anyhow::Error> {
-        /*For the duplicated code & comments just below, would ideas from these help?:
-            The weird of function-local types in Rust
-            https://elastio.github.io/bon/blog/the-weird-of-function-local-types-in-rust
-            https://news.ycombinator.com/item?id=41272893
-        */
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -691,35 +673,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_quantity_attribute, Inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                    .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_quantity_attribute, Inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
-        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        //let transaction: &Option<&mut Transaction<Postgres>> = if caller_manages_transactions_in {
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -743,8 +700,9 @@ impl Database for PostgreSQLDatabase {
                                          quantity_number, attr_type_id, valid_on_date, observation_date) values ({},{},{},{},\
                                          {},{},{})", id, parent_id_in, unit_id_in, number_in, attr_type_id_in, valid_on, observation_date_in).as_str(),
                        false, false)?;
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -977,7 +935,6 @@ impl Database for PostgreSQLDatabase {
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         class_id_in: i64,
         name: &str,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<i64, anyhow::Error> {
         // let mut tx = self.begin_trans()?;
         //   let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
@@ -990,33 +947,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In update_class_and_template_entity_name, Inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                    .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In update_class_and_template_entity_name, Inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1035,8 +969,9 @@ impl Database for PostgreSQLDatabase {
         //     see comments in delete_objects about rollback
         // return Err(anyhow!(e.to_string()));
         // }
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -1059,7 +994,6 @@ impl Database for PostgreSQLDatabase {
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         entity_id: i64,
         class_id: Option<i64>,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -1070,33 +1004,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In update_entitys_class, Inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                    .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In update_entitys_class, Inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1145,8 +1056,9 @@ impl Database for PostgreSQLDatabase {
                 ));
             }
         }
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -1202,6 +1114,8 @@ impl Database for PostgreSQLDatabase {
             false,
         )?;
 
+        // see comments at similar location in delete_objects about local_tx
+        // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
         match local_tx_cell {
@@ -1231,7 +1145,6 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>, /*= None*/
         observation_date_in: i64,      /*= System.currentTimeMillis()*/
         // purpose: see comment in delete_objects
-        caller_manages_transactions_in: bool, /*= false*/
         sorting_index_in: Option<i64>, /*(%%how comment places like this to show what I mean by it for readers? maybe search for "/\*=" and "/\* ="? :) = None*/
                                        // The "where..." on the next line means "where 'a outlives (or is >=) 'b" and is explained in
                                        // the Rust reference (as quoted by) and in chapter 7 of the helpful site:
@@ -1247,33 +1160,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<'a, Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_text_attribute, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                        .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_text_attribute, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<'a, Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1321,8 +1211,9 @@ impl Database for PostgreSQLDatabase {
             }
             _ => {}
         };
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<'a, Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -1347,7 +1238,6 @@ impl Database for PostgreSQLDatabase {
         attr_type_id_in: i64,
         date_in: i64,
         sorting_index_in: Option<i64>,        /*= None*/
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result</*id*/ i64, anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -1358,34 +1248,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_date_attribute, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                    .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_date_attribute, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
-        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1410,10 +1276,9 @@ impl Database for PostgreSQLDatabase {
             false,
             false,
         )?;
-        if !caller_manages_transactions_in {
-            // Using local_tx to make the compiler happy and because it is the one we need,
-            // if !caller_manages_transactions_in. Ie, there is no transaction provided by
-            // the caller.
+        if transaction_in.is_none() {
+            // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -1433,6 +1298,7 @@ impl Database for PostgreSQLDatabase {
 
     fn create_boolean_attribute<'a>(
         &'a self,
+        // purpose: see comment in delete_objects
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
@@ -1440,7 +1306,6 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,        /*= None*/
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<i64, anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -1451,34 +1316,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_boolean_attribute, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                    .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_boolean_attribute, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
-        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1510,10 +1351,9 @@ impl Database for PostgreSQLDatabase {
             false,
         )?;
 
-        if !caller_manages_transactions_in {
-            // Using local_tx to make the compiler happy and because it is the one we need,
-            // if !caller_manages_transactions_in. Ie, there is no transaction provided by
-            // the caller.
+        if transaction_in.is_none() {
+            // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -1614,8 +1454,6 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-        // purpose: see comment in delete_objects
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
         debug!("in create_relation_to_local_entity 0");
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
@@ -1627,33 +1465,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_relation_to_local_entity, Inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                        .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1695,8 +1510,9 @@ impl Database for PostgreSQLDatabase {
             entity_id1_in,
             entity_id2_in,
         )?;
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -1727,8 +1543,6 @@ impl Database for PostgreSQLDatabase {
         observation_date_in: i64,
         remote_instance_id_in: &str,
         sorting_index_in: Option<i64>, /*= None*/
-        // purpose: see comment in delete_objects
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<RelationToRemoteEntity, anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -1739,35 +1553,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!(
-                        "Inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                            .to_string()
-                    ));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_relation_to_local_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1801,8 +1590,9 @@ impl Database for PostgreSQLDatabase {
             // see comments in delete_objects about rollback
             return Err(anyhow!(e));
         }
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -1923,13 +1713,14 @@ impl Database for PostgreSQLDatabase {
             valid_on_date,
             observed_date,
             Some(sorting_index_in),
-            true,
         )?;
         //Something like the next line might have been more efficient than the above code to run, but not to write, given that it adds a complexity about updating
         //the attributesorting table, which might be more tricky in future when something is added to prevent those from being orphaned. The above avoids that or
         //centralizes the question to one place in the code.
         //db_action("UPDATE RelationToEntity SET (entity_id) = ROW(" + new_containing_entity_id_in + ")" + " where id=" + relationToLocalEntityIdIn)
 
+        // see comments at similar location in delete_objects about local_tx
+        // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
         match local_tx_cell {
@@ -1995,8 +1786,9 @@ impl Database for PostgreSQLDatabase {
             observed_date,
             remote_instance_id_in,
             Some(sorting_index_in),
-            true,
         )?;
+        // see comments at similar location in delete_objects about local_tx
+        // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
         match local_tx_cell {
@@ -2058,8 +1850,6 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
-        // purpose: see comment in delete_objects
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(i64, i64), anyhow::Error> {
         //%%latertrans: fix/simplify these blocks??  can dup in a simple enough thing to post on URLO?
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
@@ -2071,32 +1861,9 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_group_and_relation_to_group, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                        .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_group_and_relation_to_group, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
+        let transaction = if transaction_in.is_some() {
             transaction_in
         } else {
             local_tx_option
@@ -2117,11 +1884,11 @@ impl Database for PostgreSQLDatabase {
             valid_on_date_in,
             observation_date_in,
             sorting_index_in,
-            true,
         )?;
         /*%%%%%%
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -2153,8 +1920,6 @@ impl Database for PostgreSQLDatabase {
         is_public_in: Option<bool>,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-        // purpose: see comment in delete_objects
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(i64, i64), anyhow::Error> {
         let name: String = Self::escape_quotes_etc(new_entity_name_in.to_string());
 
@@ -2167,33 +1932,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_entity_and_relation_to_local_entity, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                        .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_entity_and_relation_to_local_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -2210,9 +1952,8 @@ impl Database for PostgreSQLDatabase {
             valid_on_date_in,
             observation_date_in,
             None,
-            caller_manages_transactions_in,
         )?;
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
@@ -2249,8 +1990,6 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-        // purpose: see comment in delete_objects
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(i64, i64), anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -2261,32 +2000,9 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_relation_to_group, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                        .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_relation_to_group, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
+        let transaction = if transaction_in.is_some() {
             transaction_in
         } else {
             local_tx_option
@@ -2317,7 +2033,7 @@ impl Database for PostgreSQLDatabase {
             //0
         };
         /*%%%%%%
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
@@ -2439,12 +2155,13 @@ impl Database for PostgreSQLDatabase {
             valid_on_date,
             observed_date,
             Some(sorting_index_in),
-            true,
         )?;
 
         // (see comment at similar commented line in move_relation_to_local_entity_into_local_entity)
         //db_action("UPDATE RelationToGroup SET (entity_id) = ROW(" + new_containing_entity_id_in + ")" + " where id=" + relation_to_group_id_in)
 
+        // see comments at similar location in delete_objects about local_tx
+        // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
         match local_tx_cell {
@@ -2479,17 +2196,17 @@ impl Database for PostgreSQLDatabase {
             to_group_id_in,
             move_entity_id_in,
             Some(sorting_index_in),
-            true,
         )?;
         self.remove_entity_from_group(
             transaction.clone(),
             from_group_id_in,
             move_entity_id_in,
-            true,
         )?;
         if self.is_entity_in_group(transaction.clone(), to_group_id_in, move_entity_id_in)?
             && !self.is_entity_in_group(transaction.clone(), from_group_id_in, move_entity_id_in)?
         {
+            // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
@@ -2531,8 +2248,9 @@ impl Database for PostgreSQLDatabase {
             transaction.clone(),
             from_group_id_in,
             move_entity_id_in,
-            true,
         )?;
+        // see comments at similar location in delete_objects about local_tx
+        // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
         match local_tx_cell {
@@ -2571,7 +2289,6 @@ impl Database for PostgreSQLDatabase {
             target_group_id_in,
             removing_rtle_in.get_related_id2(),
             Some(sorting_index_in),
-            true,
         )?;
         self.delete_relation_to_local_entity(
             //%%latertrans1: here too:  transaction,
@@ -2666,8 +2383,6 @@ impl Database for PostgreSQLDatabase {
         group_id_in: i64,
         contained_entity_id_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-        // purpose: see comment in delete_objects
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), anyhow::Error> {
         // IF THIS CHANGES ALSO DO MAINTENANCE IN SIMILAR METHOD add_attribute_sorting_row
 
@@ -2680,33 +2395,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In add_entity_to_group, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                        .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In add_entity_to_group, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -2746,7 +2438,7 @@ impl Database for PostgreSQLDatabase {
             // see comments in delete_objects about rollback
             return Err(anyhow!(Util::MIXED_CLASSES_EXCEPTION.to_string()));
         }
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
@@ -2817,8 +2509,6 @@ impl Database for PostgreSQLDatabase {
     fn create_relation_type<'a>(
         &'a self,
         // purpose: see comment in delete_objects
-        caller_manages_transactions_in: bool,
-        // purpose: see comment in delete_objects
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         name_in: &str,
         name_in_reverse_direction_in: &str,
@@ -2843,33 +2533,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_relation_type, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                        .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_relation_type, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -2907,7 +2574,7 @@ impl Database for PostgreSQLDatabase {
             if result.is_err() {
                 break;
             }
-            if !caller_manages_transactions_in {
+            if transaction_in.is_none() {
                 // see comments at similar location in delete_objects about local_tx
                 // see comments in delete_objects about rollback
                 let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
@@ -2940,8 +2607,6 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id_in: i64,
-        // purpose: see comment in delete_objects
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), anyhow::Error> {
         // idea: (also on task list i think but) we should not delete entities until dealing with their use as attr_type_ids etc!
         // (or does the DB's integrity constraints do that for us?)
@@ -2955,35 +2620,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!(
-                        "In delete_entity, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                            .to_string()
-                    ));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In delete_entity, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -2994,23 +2634,20 @@ impl Database for PostgreSQLDatabase {
             "EntitiesInAGroup",
             format!("where entity_id={}", id_in).as_str(),
             0,
-            true,
         )?;
         self.delete_objects(
             transaction.clone(),
             Util::ENTITY_TYPE,
             format!("where id={}", id_in).as_str(),
             1,
-            true,
         )?;
         self.delete_objects(
             transaction.clone(),
             "AttributeSorting",
             format!("where entity_id={}", id_in).as_str(),
             0,
-            true,
         )?;
-        if !caller_manages_transactions_in {
+        if transaction_in.is_none() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
@@ -3034,14 +2671,12 @@ impl Database for PostgreSQLDatabase {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id_in: i64,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<u64, anyhow::Error> {
         self.archive_objects(
             transaction,
             Util::ENTITY_TYPE,
             format!("where id={}", id_in).as_str(),
             1,
-            caller_manages_transactions_in,
             false,
         )
     }
@@ -3050,14 +2685,12 @@ impl Database for PostgreSQLDatabase {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id_in: i64,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<u64, anyhow::Error> {
         self.archive_objects(
             transaction,
             Util::ENTITY_TYPE,
             format!("where id={}", id_in).as_str(),
             1,
-            caller_manages_transactions_in,
             true,
         )
     }
@@ -3067,7 +2700,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        self.delete_object_by_id(transaction, Util::QUANTITY_TYPE, id_in, false)
+        self.delete_object_by_id(transaction, Util::QUANTITY_TYPE, id_in)
     }
 
     fn delete_text_attribute<'a>(
@@ -3075,7 +2708,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        self.delete_object_by_id(transaction, Util::TEXT_TYPE, id_in, false)
+        self.delete_object_by_id(transaction, Util::TEXT_TYPE, id_in)
     }
 
     fn delete_date_attribute<'a>(
@@ -3083,7 +2716,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        self.delete_object_by_id(transaction, Util::DATE_TYPE, id_in, false)
+        self.delete_object_by_id(transaction, Util::DATE_TYPE, id_in)
     }
 
     fn delete_boolean_attribute<'a>(
@@ -3091,7 +2724,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        self.delete_object_by_id(transaction, Util::BOOLEAN_TYPE, id_in, false)
+        self.delete_object_by_id(transaction, Util::BOOLEAN_TYPE, id_in)
     }
 
     fn delete_file_attribute<'a>(
@@ -3099,7 +2732,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        self.delete_object_by_id(transaction, Util::FILE_TYPE, id_in, false)
+        self.delete_object_by_id(transaction, Util::FILE_TYPE, id_in)
     }
 
     fn delete_relation_to_local_entity<'a>(
@@ -3118,7 +2751,6 @@ impl Database for PostgreSQLDatabase {
             )
             .as_str(),
             1,
-            false,
         )
     }
 
@@ -3133,7 +2765,7 @@ impl Database for PostgreSQLDatabase {
         self.delete_objects(transaction, Util::RELATION_TO_REMOTE_ENTITY_TYPE,
                             format!("where rel_type_id={} and entity_id={} and remote_instance_id='{}' and entity_id_2={}",
                                     rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in).as_str(),
-                            1, false)
+                            1)
     }
 
     fn delete_relation_to_group<'a>(
@@ -3152,7 +2784,6 @@ impl Database for PostgreSQLDatabase {
             )
             .as_str(),
             1,
-            false,
         )
     }
 
@@ -3165,7 +2796,6 @@ impl Database for PostgreSQLDatabase {
             "EntitiesInAGroup",
             format!("where group_id={}", id_in).as_str(),
             entity_count,
-            true,
         )?;
         let num_groups: u64 = self
             .get_relation_to_group_count_by_group(transaction.clone(), id_in)?
@@ -3175,16 +2805,16 @@ impl Database for PostgreSQLDatabase {
             Util::RELATION_TO_GROUP_TYPE,
             format!("where group_id={}", id_in).as_str(),
             num_groups,
-            true,
         )?;
         self.delete_objects(
             transaction.clone(),
             "grupo",
             format!("where id={}", id_in).as_str(),
             1,
-            true,
         )?;
 
+        // see comments at similar location in delete_objects about local_tx
+        // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
         match local_tx_cell {
@@ -3208,7 +2838,6 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         group_id_in: i64,
         contained_entity_id_in: i64,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<u64, anyhow::Error> {
         self.delete_objects(
             transaction,
@@ -3219,7 +2848,6 @@ impl Database for PostgreSQLDatabase {
             )
             .as_str(),
             1,
-            caller_manages_transactions_in,
         )
     }
 
@@ -3241,6 +2869,8 @@ impl Database for PostgreSQLDatabase {
                 entity_count
             ));
         }
+        // see comments at similar location in delete_objects about local_tx
+        // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
         match local_tx_cell {
@@ -3276,7 +2906,6 @@ impl Database for PostgreSQLDatabase {
             Util::ENTITY_TYPE,
             format!("where id={}", id_in).as_str(),
             1,
-            false,
         )
     }
 
@@ -3334,7 +2963,6 @@ impl Database for PostgreSQLDatabase {
                     None,
                     Some(Utc::now().timestamp_millis()),
                     Utc::now().timestamp_millis(),
-                    true,
                 )?
                 .0;
             // (For about the attr_type_id value (2nd parm), see comment about that field, in method get_user_preference_boolean2 below.)
@@ -3346,7 +2974,6 @@ impl Database for PostgreSQLDatabase {
                 Some(Utc::now().timestamp_millis()),
                 Utc::now().timestamp_millis(),
                 None,
-                true,
             )?;
             Ok(())
         }
@@ -3415,7 +3042,6 @@ impl Database for PostgreSQLDatabase {
                 Some(Utc::now().timestamp_millis()),
                 Utc::now().timestamp_millis(),
                 None,
-                false,
             )?;
             Ok(())
         } else if pref.len() == 0 {
@@ -3430,7 +3056,6 @@ impl Database for PostgreSQLDatabase {
                     None,
                     Some(Utc::now().timestamp_millis()),
                     Utc::now().timestamp_millis(),
-                    true,
                 )?
                 .0;
             self.create_relation_to_local_entity(
@@ -3441,7 +3066,6 @@ impl Database for PostgreSQLDatabase {
                 Some(Utc::now().timestamp_millis()),
                 Utc::now().timestamp_millis(),
                 None,
-                true,
             )?;
             Ok(())
         } else {
@@ -3598,7 +3222,6 @@ impl Database for PostgreSQLDatabase {
         &'a self,
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         entity_id_or_group_id_in: i64,
-        caller_manages_transactions_in: bool,    /*= false*/
         is_entity_attrs_not_group_entries: bool, /*= true*/
     ) -> Result<(), anyhow::Error> {
         //This used to be called "renumberAttributeSortingIndexes" before it was merged with "renumberGroupSortingIndexes" (very similar).
@@ -3630,33 +3253,10 @@ impl Database for PostgreSQLDatabase {
             // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
             // I didn't try a proc macro but based on some reading I think it would have the same
             // problem.)
-            let local_tx: Transaction<Postgres> = {
-                if transaction_in.is_none() {
-                    if caller_manages_transactions_in {
-                        return Err(anyhow!("In renumber_sorting_indexes, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                    .to_string()));
-                    } else {
-                        self.begin_trans()?
-                    }
-                } else {
-                    if caller_manages_transactions_in {
-                        // That means we have determined that the caller is to use the transaction_in .
-                        // was just:  None
-                        // But now instead, create it anyway, per comment above.
-                        self.begin_trans()?
-                    } else {
-                        return Err(anyhow!(
-                        "In renumber_sorting_indexes, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                    }
-                }
-            };
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
             let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-            let transaction = if caller_manages_transactions_in {
-                transaction_in
+            let transaction = if transaction_in.clone().is_some() {
+                transaction_in.clone()
             } else {
                 local_tx_option
             };
@@ -3791,10 +3391,9 @@ impl Database for PostgreSQLDatabase {
             //assert((maxIDValue - next) < (increment * 2))
 
             //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-            if !caller_manages_transactions_in {
-                // Using local_tx to make the compiler happy and because it is the one we need,
-                // if !caller_manages_transactions_in. Ie, there is no transaction provided by
-                // the caller.
+            if transaction_in.is_none() {
+                // see comments at similar location in delete_objects about local_tx
+                // see comments in delete_objects about rollback
                 let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                     Rc::into_inner(transaction.unwrap());
                 match local_tx_cell {
@@ -3876,7 +3475,6 @@ impl Database for PostgreSQLDatabase {
             valid_on_date_in,
             observation_date_in,
             sorting_index_in,
-            false,
         )?;
         Ok(new_rte)
     }
@@ -5615,11 +5213,11 @@ impl Database for PostgreSQLDatabase {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         class_name_in: &str,
-        _caller_manages_transactions_in: bool,
     ) -> Result<(i64, i64), anyhow::Error> {
-        //(see note above re 'bad smell' in method add_uri_entity_with_uri_attribute.)
+        //(%%see note above re 'bad smell' in method add_uri_entity_with_uri_attribute.)
+        //(or places that have "unfortunately" and copy/pasted code?)
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-        // if !caller_manages_transactions_in { self.begin_trans() }
+        // if transaction_in.is_none() { self.begin_trans() }
         //                    try {
         let (class_id, entity_id) = {
             let found_id: Option<i64> =
@@ -5640,13 +5238,13 @@ impl Database for PostgreSQLDatabase {
             }
         };
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-        // if !caller_manages_transactions_in {self.commit_trans() }
+        // if transaction_in.is_none {self.commit_trans() }
         Ok((class_id, entity_id))
         //                  }
         //                catch {
         //                case e: Exception =>
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
-        // if !caller_manages_transactions_in) rollback_trans()
+        // if transaction_in.is_none() rollback_trans()
         //                throw e
         //          }
     }
@@ -5860,6 +5458,6 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id_in: &str,
     ) -> Result<u64, anyhow::Error> {
-        self.delete_object_by_id2(transaction, "omInstance", id_in, false)
+        self.delete_object_by_id2(transaction, "omInstance", id_in)
     }
 }

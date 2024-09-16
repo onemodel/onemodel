@@ -673,7 +673,6 @@ impl PostgreSQLDatabase {
                             None,
                             Some(now),
                             now,
-                            true,
                         )?
                         .0;
                     debug!("in create_and_check_expected_data: in 'match preferences_entity_id' for USER_PREFERENCES, after create_entity_and_relation_to_local_entity");
@@ -1590,7 +1589,6 @@ impl PostgreSQLDatabase {
         //idea: as probably mentioned elsewhere, this "BI" (and other strings?) should be replaced with a constant somewhere (or enum?)!
         debug!("in create_base_data: after creating entity 'existence'.");
         let has_rel_type_id = self.create_relation_type(
-            true,
             transaction.clone(),
             Util::THE_HAS_RELATION_TYPE_NAME,
             Util::THE_IS_HAD_BY_REVERSE_NAME,
@@ -1608,7 +1606,6 @@ impl PostgreSQLDatabase {
             Some(current_time_millis),
             current_time_millis,
             None,
-            true,
         )?;
         debug!("in create_base_data: after creating rte.");
 
@@ -1627,7 +1624,6 @@ impl PostgreSQLDatabase {
             Some(current_time_millis),
             current_time_millis,
             None,
-            true,
         )?;
         let text_editor_info_entity_id = self.create_entity(
             transaction.clone(),
@@ -1643,7 +1639,6 @@ impl PostgreSQLDatabase {
             Some(current_time_millis),
             current_time_millis,
             None,
-            true,
         )?;
         let text_editor_command_attribute_type_id = self.create_entity(
             transaction.clone(),
@@ -1659,7 +1654,6 @@ impl PostgreSQLDatabase {
             Some(current_time_millis),
             current_time_millis,
             None,
-            true,
         )?;
         let editor_command: &str = {
             if Util::is_windows() {
@@ -1675,7 +1669,6 @@ impl PostgreSQLDatabase {
             editor_command,
             Some(current_time_millis),
             current_time_millis,
-            true,
             None,
         )?;
 
@@ -1692,7 +1685,6 @@ impl PostgreSQLDatabase {
             Some(current_time_millis),
             current_time_millis,
             None,
-            true,
         )?;
 
         // NOTICE: code should not rely on this name, but on data in the tables.
@@ -1772,8 +1764,13 @@ impl PostgreSQLDatabase {
         class_name_in: String,
         entity_name_in: String,
         // (See fn delete_objects for more about this parameter, and transaction above.)
-        caller_manages_transactions_in: bool, /*%%= false*/
     ) -> Result<(i64, i64), anyhow::Error> {
+        //%%can I further simplify this and similar places now?  Maybe using Cow from stdlib?
+        /*%%For the duplicated code & comments just below, would ideas from these help?:
+            The weird of function-local types in Rust
+            https://elastio.github.io/bon/blog/the-weird-of-function-local-types-in-rust
+            https://news.ycombinator.com/item?id=41272893
+        */
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -1783,34 +1780,10 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In create_class_and_its_template_entity2, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                    .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In create_class_and_its_template_entity2, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
-        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1876,15 +1849,13 @@ impl PostgreSQLDatabase {
                 class_group_id.unwrap(),
                 entity_id,
                 None,
-                caller_manages_transactions_in,
             )?;
         }
 
         //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-        if !caller_manages_transactions_in {
-            // Using local_tx to make the compiler happy and because it is the one we need,
-            // if !caller_manages_transactions_in. Ie, there is no transaction provided by
-            // the caller.
+        if transaction_in.is_none() {
+            // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {

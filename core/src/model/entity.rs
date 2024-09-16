@@ -535,7 +535,6 @@ impl Entity<'_> {
             in_number,
             in_valid_on_date,
             observation_date_in,
-            false,
             sorting_index_in,
         )?;
         QuantityAttribute::new2(self.db, transaction.clone(), id)
@@ -701,12 +700,10 @@ impl Entity<'_> {
     fn renumber_sorting_indexes<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), anyhow::Error> {
         self.db.renumber_sorting_indexes(
             transaction,
             self.get_id(),
-            caller_manages_transactions_in,
             true,
         )
     }
@@ -800,7 +797,6 @@ impl Entity<'_> {
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
-        caller_manages_transactions_in: bool,
         quote_in: Option<&str>, /*= None*/
     ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         self.db.add_uri_entity_with_uri_attribute(
@@ -810,7 +806,6 @@ impl Entity<'_> {
             uri_in,
             observation_date_in,
             make_them_public_in,
-            caller_manages_transactions_in,
             quote_in,
         )
     }
@@ -865,7 +860,6 @@ impl Entity<'_> {
             sorting_index_in,
             None,
             Utc::now().timestamp_millis(),
-            false,
         )
     }
 
@@ -877,7 +871,6 @@ impl Entity<'_> {
         sorting_index_in: Option<i64>,
         in_valid_on_date: Option<i64>,
         observation_date_in: i64,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<TextAttribute<'a>, anyhow::Error>
     where
         'a: 'b,
@@ -889,7 +882,6 @@ impl Entity<'_> {
             in_text,
             in_valid_on_date,
             observation_date_in,
-            caller_manages_transactions_in,
             sorting_index_in,
         )?;
         TextAttribute::new2(self.db, transaction, id)
@@ -908,7 +900,6 @@ impl Entity<'_> {
             in_attr_type_id,
             in_date,
             sorting_index_in,
-            true,
         )?;
         DateAttribute::new2(self.db, transaction, id)
     }
@@ -947,7 +938,6 @@ impl Entity<'_> {
             in_valid_on_date,
             observation_date_in,
             sorting_index_in,
-            true,
         )?;
         BooleanAttribute::new2(self.db, transaction, id)
     }
@@ -999,7 +989,6 @@ impl Entity<'_> {
                 in_valid_on_date,
                 observation_date_in,
                 sorting_index_in,
-                false,
             )?
             .get_id();
         RelationToLocalEntity::new2(
@@ -1032,7 +1021,6 @@ impl Entity<'_> {
         new_group_name_in: &str,
         mixed_classes_allowed_in: bool,
         observation_date_in: i64,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(i64, i64), anyhow::Error> {
         // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
         // anyway:
@@ -1047,7 +1035,6 @@ impl Entity<'_> {
             None,
             observation_date_in,
             None,
-            caller_manages_transactions_in,
         )?;
         Ok((group_id, rtg_id))
     }
@@ -1063,7 +1050,6 @@ impl Entity<'_> {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(i64, i64), anyhow::Error> {
         //%%%%%%this gets the deadlock from the test:
         let (group_id, rtg_id) = self.db.create_group_and_relation_to_group(
@@ -1075,7 +1061,6 @@ impl Entity<'_> {
             valid_on_date_in,
             observation_date_in,
             sorting_index_in,
-            caller_manages_transactions_in,
         )?;
         //latertrans: let group: Group = Group::new2(self.db, transaction.clone(), group_id)?;
         /*%%%%%%
@@ -1119,7 +1104,6 @@ impl Entity<'_> {
         new_entity_name_in: &str,
         observation_date_in: i64,
         is_public_in: Option<bool>,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
         // anyway:
@@ -1134,7 +1118,6 @@ impl Entity<'_> {
             None,
             observation_date_in,
             is_public_in,
-            caller_manages_transactions_in,
         )?;
         Ok((entity, rte))
     }
@@ -1147,7 +1130,6 @@ impl Entity<'_> {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         is_public_in: Option<bool>,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
         let (entity_id, rte_id) = self.db.create_entity_and_relation_to_local_entity(
             transaction.clone(),
@@ -1157,7 +1139,6 @@ impl Entity<'_> {
             is_public_in,
             valid_on_date_in,
             observation_date_in,
-            caller_manages_transactions_in,
         )?;
         let entity = Entity::new2(self.db, transaction.clone(), entity_id)?;
         let rte = RelationToLocalEntity::new2(

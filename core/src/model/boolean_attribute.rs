@@ -358,7 +358,7 @@ mod test {
         let mut bid = db
             .create_boolean_attribute(
                 None, entity_id, //boolean_attribute_id,
-                entity_id, true, None, date, None, false,
+                entity_id, true, None, date, None,
             )
             .unwrap();
         let mut boolean_attribute: BooleanAttribute =

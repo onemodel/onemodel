@@ -188,7 +188,6 @@ impl EntityClass<'_> {
             transaction.clone(),
             self.get_id(),
             name_in,
-            false,
         )?;
         self.name = name_in.to_string();
         let read_template_entity_id = self.get_template_entity_id(transaction)?;

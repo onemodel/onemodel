@@ -581,7 +581,6 @@ mod test {
                 &text,
                 valid_on_date,
                 observation_date,
-                true,
                 None,
             )
             .unwrap();
@@ -611,7 +610,7 @@ mod test {
             .unwrap();
         let date: i64 = Utc::now().timestamp_millis();
         let date_attribute_id: i64 = db
-            .create_date_attribute(None, in_parent_id, attr_type_id, date, None, false)
+            .create_date_attribute(None, in_parent_id, attr_type_id, date, None)
             .unwrap();
         let mut ba: DateAttribute =
             DateAttribute::new2(db as &dyn Database, None, date_attribute_id).unwrap();
@@ -640,7 +639,6 @@ mod test {
                 in_valid_on_date,
                 observation_date_in,
                 None,
-                false,
             )
             .unwrap();
         let mut ba =
@@ -739,7 +737,6 @@ mod test {
                 in_valid_on_date,
                 observation_date,
                 None,
-                true,
             )
             .unwrap()
             .get_id();
@@ -885,7 +882,6 @@ mod test {
         // let tx = &Some(&mut tx1);
         let temp_rel_type_id: i64 = db
             .create_relation_type(
-                false,
                 None,
                 RELATION_TYPE_NAME,
                 "",
@@ -944,7 +940,6 @@ mod test {
         //whatever, just need some relation type to go with:
         let rel_type_id: i64 = db
             .create_relation_type(
-                true,
                 tx.clone(),
                 "contains",
                 "",
@@ -1034,7 +1029,6 @@ mod test {
             observation_date,
             None,
             //%%latertrans (make it match above, so true?):
-            false,
         )?;
         /*%%%%%%
         let mut group = Group::new2(db_in, transaction.clone(), group_id)?;
@@ -1780,7 +1774,6 @@ mod test {
                 number,
                 valid_on_date,
                 observation_date,
-                true,
                 None,
             )
             .unwrap();
@@ -2052,7 +2045,7 @@ mod test {
         let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
         let id1: i64 = db.create_entity("name1");
         let (group, rtg) = new Entity(db, id1).add_group_and_relation_to_group(rel_type_id, "someRelToGroupName", allow_mixed_classes_inGroupIn = false, None, 1234L,;
-                                                                           None, caller_manages_transactions_in = false)
+                                                                           None)
         assert(db.relation_to_group_keys_exist(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.get_group_id))
         assert(db.attribute_key_exists(rtg.get_form_id, rtg.get_id))
         let id2: i64 = db.create_entity("name2");
@@ -2135,7 +2128,7 @@ mod test {
         let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
         let group_name = "someRelToGroupName";
         entity1.add_group_and_relation_to_group(rel_type_id, group_name, allow_mixed_classes_inGroupIn = false, None, 1234L,
-                                           None, caller_manages_transactions_in = false)
+                                           None)
         assert(db.get_matching_groups(0, None, None, "some-xyz-not a grp name").size == 0)
         assert(db.get_matching_groups(0, None, None, group_name).size > 0)
       } //idea: should this be moved to ImportExportTest? why did i put it here originally?

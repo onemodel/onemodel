@@ -131,56 +131,20 @@ impl PostgreSQLDatabase {
         Ok(ids[0])
     }
 
-    //%%%%remove now? Or, can I find a way to do it in a fn again somehow? w/ online help?
-    // fn confirm_which_transaction(
-    //     &self,
-    //     transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    //     caller_manages_transactions_in: bool,
-    // ) -> Result<Option<Transaction<Postgres>>, anyhow::Error> {
-    //     // Make sure we either have a good local_tx or good transaction_in, to use one correctly
-    //     // further down.
-    //     if transaction_in.is_none() {
-    //         if caller_manages_transactions_in {
-    //             Err("Inconsistent values for caller_manages_transactions_in \
-    //             and transaction_in: true and None??"
-    //                 .to_string())
-    //         } else {
-    //             let mut tx: Transaction<Postgres> = match self.begin_trans() {
-    // //                 Err(e) => return Err(anyhow!e.to_string())),
-    //                 Err(e) => return Err(anyhow!(e.to_string())),
-    //                 Ok(t) => t,
-    //             };
-    //             Ok(Some(tx))
-    //         }
-    //     } else {
-    //         if caller_manages_transactions_in {
-    //             // that means we have determined that the caller is to use the transaction_in .
-    //             Ok(None)
-    //         } else {
-    //             Err(
-    //                 "Inconsistent values for caller_manages_transactions_in & transaction_in: \
-    //             false and Some?? Not sure yet whether this happens, or if it should."
-    //                     .to_string(),
-    //             )
-    //         }
-    //     }
-    // }
-
     // Cloned to archive_objects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
     /// Unless the parameter rows_expected==-1, it will allow any # of rows to be deleted; otherwise if the # of rows is wrong it will abort tran & fail.
     pub fn delete_objects<'a>(
         &'a self,
         // The purpose of transaction_in is so that whenever a direct db call needs to be done in a
         // transaction, as opposed to just using the pool as Executor, it will be available.
+        // And (it being None vs. Some) for those times when this method does not know the
+        // context in which it will be called: whether it should rollback itself on error
+        // (automatically by creating a transaction and letting it go out of scope), or should allow
+        // the caller only to manage that.
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         table_name_in: &str,
         where_clause_in: &str,
         rows_expected: u64, /*= 1*/
-        // The purpose of transaction_in is for those times when this method does not know the
-        // context in which it will be called: whether it should rollback itself on error
-        // (automatically by creating a transaction and letting it go out of scope), or should allow
-        // the caller only to manage that.
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<u64, anyhow::Error> {
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -191,34 +155,10 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In delete_objects, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                    .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In delete_objects, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
-        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx: Transaction<Postgres> =  self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -252,10 +192,9 @@ impl PostgreSQLDatabase {
             ));
         } else {
             //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-            if !caller_manages_transactions_in {
+            if transaction_in.is_none() {
                 // Using local_tx to make the compiler happy and because it is the one we need,
-                // if !caller_manages_transactions_in. Ie, there is no transaction provided by
-                // the caller.
+                // Ie, there is no transaction provided by the caller.
                 let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                     Rc::into_inner(transaction.unwrap());
                 match local_tx_cell {
@@ -269,9 +208,6 @@ impl PostgreSQLDatabase {
                         return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
                     }
                 }
-                //    if let Err(e) = self.commit_trans(transaction) {
-                //        return Err(anyhow!(e.to_string()));
-                //    }
             }
             Ok(rows_deleted)
         }
@@ -342,7 +278,7 @@ impl PostgreSQLDatabase {
                 // Or, just delete the bad preference (self-cleanup). If it was the public/private display toggle, its absence will cause errors (though it is a
                 // very unlikely situation here), and it will be fixed on restarting the app (or starting another instance), via the create_and_check_expected_data
                 // (or current equivalent?) method.
-                self.delete_entity(transaction.clone(), preference_entity_id, false)?;
+                self.delete_entity(transaction.clone(), preference_entity_id)?;
                 Ok(Vec::new())
             } else {
                 let attr_msg: String = if preference_type == Util::PREF_TYPE_BOOLEAN {
@@ -667,7 +603,6 @@ impl PostgreSQLDatabase {
             "entitiesinagroup",
             format!("where group_id={}", group_id_in).as_str(),
             num_e_ids,
-            true,
         )?;
         // Have to delete these 2nd because of a constraint on EntitiesInAGroup:
         // idea: is there a temp table somewhere that these could go into instead, for efficiency?
@@ -678,7 +613,7 @@ impl PostgreSQLDatabase {
             match id_vec[0] {
                 Some(DataType::Bigint(id)) => {
                     self.delete_objects(transaction.clone(), Util::ENTITY_TYPE,
-                                        format!("where id={}", id).as_str(), 1, true)?
+                                        format!("where id={}", id).as_str(), 1)?
                 },
                 None => return Err(anyhow!("In delete_relation_to_group_and_all_recursively, How did we get a null entity_id back from query?")),
                 _ => return Err(anyhow!("In delete_relation_to_group_and_all_recursively, How did we get {:?} back from query?", id_vec)),
@@ -693,14 +628,12 @@ impl PostgreSQLDatabase {
             Util::RELATION_TO_GROUP_TYPE,
             format!("where group_id={}", group_id_in).as_str(),
             0,
-            true,
         )?;
         self.delete_objects(
             transaction,
             "grupo",
             format!("where id={}", group_id_in).as_str(),
             1,
-            true,
         )?;
         Ok((deletions1, deletions2))
     }
@@ -1420,7 +1353,6 @@ impl PostgreSQLDatabase {
         table_name_in: &str,
         where_clause_in: &str,
         rows_expected: u64,                   /*= 1*/
-        caller_manages_transactions_in: bool, /*= false*/
         unarchive: bool,                      /*= false*/
     ) -> Result<u64, anyhow::Error> {
         //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
@@ -1434,34 +1366,10 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = {
-            if transaction_in.is_none() {
-                if caller_manages_transactions_in {
-                    return Err(anyhow!("In archive_objects, inconsistent values for caller_manages_transactions_in \
-                                and transaction_in: true and None??"
-                    .to_string()));
-                } else {
-                    self.begin_trans()?
-                }
-            } else {
-                if caller_manages_transactions_in {
-                    // That means we have determined that the caller is to use the transaction_in .
-                    // was just:  None
-                    // But now instead, create it anyway, per comment above.
-                    self.begin_trans()?
-                } else {
-                    return Err(anyhow!(
-                        "In archive_objects, inconsistent values for caller_manages_transactions_in & transaction_in: \
-                                false and Some??"
-                            .to_string(),
-                    ));
-                }
-            }
-        };
-        //let local_tx_option = &Some(&mut local_tx);
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if caller_manages_transactions_in {
-            transaction_in
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1489,10 +1397,9 @@ impl PostgreSQLDatabase {
                             rows_affected, rows_expected, sql)));
         } else {
             //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-            if !caller_manages_transactions_in {
-                // Using local_tx to make the compiler happy and because it is the one we need,
-                // if !caller_manages_transactions_in. Ie, there is no transaction provided by
-                // the caller.
+            if transaction_in.is_none() {
+                // see comments at similar location in delete_objects about local_tx
+                // see comments in delete_objects about rollback
                 let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
                     Rc::into_inner(transaction.unwrap());
                 match local_tx_cell {
@@ -1516,14 +1423,12 @@ impl PostgreSQLDatabase {
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         table_name_in: &str,
         id_in: i64,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<u64, anyhow::Error> {
         self.delete_objects(
             transaction_in,
             table_name_in,
             format!("where id={}", id_in).as_str(),
             1,
-            caller_manages_transactions_in,
         )
     }
 
@@ -1532,14 +1437,12 @@ impl PostgreSQLDatabase {
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         table_name_in: &str,
         id_in: &str,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<u64, anyhow::Error> {
         self.delete_objects(
             transaction_in,
             table_name_in,
             format!("where id='{}'", id_in).as_str(),
             1,
-            caller_manages_transactions_in,
         )
     }
     // (idea: find out: why doesn't compiler (ide or cli) complain when the 'override' is removed from next line?)

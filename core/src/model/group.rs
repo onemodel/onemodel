@@ -248,7 +248,7 @@ impl Group<'_> {
         entity_id: i64,
     ) -> Result<u64, Error> {
         self.db
-            .remove_entity_from_group(transaction, self.id, entity_id, false)
+            .remove_entity_from_group(transaction, self.id, entity_id)
     }
 
     fn delete_with_entities(&self) -> Result<(), Error> {
@@ -275,14 +275,12 @@ impl Group<'_> {
         &self,
         in_entity_id: i64,
         sorting_index_in: Option<i64>,        /*= None*/
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), Error> {
         self.db.add_entity_to_group(
             None,
             self.get_id(),
             in_entity_id,
             sorting_index_in,
-            caller_manages_transactions_in,
         )
     }
 
@@ -584,12 +582,10 @@ impl Group<'_> {
     fn renumber_sorting_indexes<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        caller_manages_transactions_in: bool, /*= false*/
     ) -> Result<(), Error> {
         self.db.renumber_sorting_indexes(
             transaction,
             self.get_id(),
-            caller_manages_transactions_in,
             false,
         )
     }
