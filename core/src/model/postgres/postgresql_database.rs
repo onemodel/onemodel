@@ -394,11 +394,11 @@ impl PostgreSQLDatabase {
                     debug!("In pg drop 6");
                     Ok(())
                 }
-            },
+            }
             _ => {
                 debug!("In pg drop 7");
                 Ok(())
-            },
+            }
         }
     }
 
@@ -473,7 +473,10 @@ impl PostgreSQLDatabase {
             self.rt.block_on(future)
         };
         debug!("In db_action 3.6");
-        debug!("In db_action, using_transaction={}, result={:?}", using_transaction, &x);
+        debug!(
+            "In db_action, using_transaction={}, result={:?}",
+            using_transaction, &x
+        );
         match x {
             Err(e) => return Err(anyhow!(e.to_string())),
             Ok(res) => {
@@ -563,7 +566,7 @@ impl PostgreSQLDatabase {
             include_archived_entities,
         };
 
-        //%% why does having this here instead of in a separate fn setup_db cause
+        //%%latertrans why does having this here instead of in a separate fn setup_db cause
         //a compile error about using a moved value new_db (moved on the next line, returned in the
         //"Ok" line below)????  should I make a test and submit it, to learn or have it fixed or??
         //Note that *another* seeming solution is the line "TEST_DB_INIT2.call_once(|| {" (and the
@@ -607,28 +610,32 @@ impl PostgreSQLDatabase {
     // #[tracing::instrument]
     pub fn setup_db(&self) -> Result<(), anyhow::Error> {
         let tx = self.begin_trans()?;
-        let transaction = Rc::new(RefCell::new(tx));
-        if !self.model_tables_exist(Some(transaction.clone()))? {
-            // //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
-            self.create_tables(Some(transaction.clone()))?;
-            //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
-            self.create_base_data(Some(transaction.clone()))?;
+        //%%latertrans
+        //let transaction = Some(Rc::new(RefCell::new(tx)));
+        let transaction = None;
+        if !self.model_tables_exist(transaction.clone())? {
+            // //%% try to see what happens if pg down be4 & during this--does the err propagate ok?
+            self.create_tables(transaction.clone())?;
+            //%% try to see what happens if pg down be4 & during this--does the err propagate ok?
+            self.create_base_data(transaction.clone())?;
         }
-        self.do_database_upgrades_if_needed(Some(transaction.clone()))?;
-        //%%%%%%%%self.create_and_check_expected_data(Some(transaction.clone()))?;
-        let t0 = Rc::into_inner(transaction);
-        match t0 {
-            Some(t1) => {
-                let t2: Transaction<Postgres> = t1.into_inner();
-                self.commit_trans(t2)
-            }
-            //%%is this rolling back automatically, per other places I noted to ck/confirm?:
-            None => {
-                return Err(anyhow!(
-                    "setup_db's call to Rc::into_inner(...) could not get a transaction to commit!"
-                ))
-            }
-        }
+        self.do_database_upgrades_if_needed(transaction.clone())?;
+        self.create_and_check_expected_data(transaction.clone())?;
+        //%%latertrans put back when using them again:
+        Ok(())
+        //let t0 = Rc::into_inner(transaction);
+        //match t0 {
+        //    Some(t1) => {
+        //        let t2: Transaction<Postgres> = t1.into_inner();
+        //        self.commit_trans(t2)
+        //    }
+        //    //%%is this rolling back automatically, per other places I noted to ck/confirm?:
+        //    None => {
+        //        return Err(anyhow!(
+        //            "setup_db's call to Rc::into_inner(...) could not get a transaction to commit!"
+        //        ))
+        //    }
+        //}
     }
 
     /// For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
@@ -1781,7 +1788,9 @@ impl PostgreSQLDatabase {
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        //%%latertrans
+        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let local_tx_option = None;
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -1853,7 +1862,7 @@ impl PostgreSQLDatabase {
         }
 
         //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-        if transaction_in.is_none() {
+        if transaction_in.is_none() && transaction.is_some() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
             let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =

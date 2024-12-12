@@ -155,8 +155,10 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
+        //%%latertrans
         let local_tx: Transaction<Postgres> =  self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let local_tx_option = None;
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -192,7 +194,7 @@ impl PostgreSQLDatabase {
             ));
         } else {
             //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-            if transaction_in.is_none() {
+            if transaction_in.is_none() && transaction.is_some() {
                 // Using local_tx to make the compiler happy and because it is the one we need,
                 // Ie, there is no transaction provided by the caller.
                 let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
@@ -1366,8 +1368,10 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
+        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let local_tx_option = None;
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -1397,7 +1401,7 @@ impl PostgreSQLDatabase {
                             rows_affected, rows_expected, sql)));
         } else {
             //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-            if transaction_in.is_none() {
+            if transaction_in.is_none() && transaction.is_some() {
                 // see comments at similar location in delete_objects about local_tx
                 // see comments in delete_objects about rollback
                 let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =

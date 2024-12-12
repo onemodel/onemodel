@@ -1062,7 +1062,7 @@ impl Entity<'_> {
             observation_date_in,
             sorting_index_in,
         )?;
-        //latertrans: let group: Group = Group::new2(self.db, transaction.clone(), group_id)?;
+        //%%latertrans: let group: Group = Group::new2(self.db, transaction.clone(), group_id)?;
         /*%%%%%%
         let group: Group = Group::new2(self.db, None, group_id)?;
         //let rtg = RelationToGroup::new2(self.db, transaction.clone(), rtg_id, self.get_id(), rel_type_id_in, group_id)?;
