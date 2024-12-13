@@ -19,9 +19,9 @@ use crate::model::entity::Entity;
 use crate::model::relation_type::RelationType;
 use md5::{Digest, Md5};
 use sqlx::{Postgres, Transaction};
+use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::path::Path;
-use std::cell::{RefCell};
 use std::rc::Rc;
 
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_entity.rs and relation_to_group.rs,
@@ -202,9 +202,7 @@ impl FileAttribute<'_> {
     /// Returns a prefix and suffix (like, "filename" and ".ext").
     /// I.e., was for use with java.nio.file.Files.createTempFile (which makes sure it will not collide with existing names).
     /// Calling this likely presumes that the caller has already decided not to use the old path, or at least the old filename in the temp directory.
-    fn get_usable_filename(
-        original_file_path_in: &str,
-    ) -> Result<(String, String), anyhow::Error> {
+    fn get_usable_filename(original_file_path_in: &str) -> Result<(String, String), anyhow::Error> {
         let file_name: &OsStr = match Path::new(original_file_path_in).file_name() {
             Some(s) => s,
             None => return Err(anyhow!("No file name in {} ?", original_file_path_in)),

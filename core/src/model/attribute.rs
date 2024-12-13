@@ -15,7 +15,7 @@ use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 /// Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
@@ -67,7 +67,6 @@ pub trait Attribute {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error>;
-
 
     // For descriptions of the meanings of these variables, see the comments
     // on create_tables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.

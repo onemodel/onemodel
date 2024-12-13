@@ -374,7 +374,8 @@ mod test {
             //"date" variable just below.
             //"{}: true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:{} MST",
             "{}: true; valid unsp'd, obsv'd 1970-01-01 00:05:04:{} UTC",
-            attr_type_name, "000" //date
+            attr_type_name,
+            "000" //date
         );
         // idea: put the real string here instead of dup logic?;
         // let expected: String = whole_thing.substring(0, small_limit - 3) + "..." ;

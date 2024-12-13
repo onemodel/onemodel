@@ -10,7 +10,7 @@
 use crate::model::attribute::Attribute;
 // use crate::util::Util;
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 // (For more info see "supertraits" in The Book (or in anki notes).)
@@ -38,7 +38,8 @@ pub trait AttributeWithValidAndObservedDates: Attribute {
     //     Util::get_dates_description(valid_on_date, observation_date)
     //   }
 
-    fn get_valid_on_date(&mut self,
+    fn get_valid_on_date(
+        &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error>;
 

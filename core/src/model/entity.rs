@@ -701,11 +701,8 @@ impl Entity<'_> {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
-        self.db.renumber_sorting_indexes(
-            transaction,
-            self.get_id(),
-            true,
-        )
+        self.db
+            .renumber_sorting_indexes(transaction, self.get_id(), true)
     }
 
     fn update_attribute_sorting_index(
