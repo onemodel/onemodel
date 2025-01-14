@@ -453,7 +453,7 @@ impl Database for PostgreSQLDatabase {
         self.create_class_and_its_template_entity2(
             transaction.clone(),
             class_name_in.to_string(),
-            format!("{}{}", class_name_in.clone(), Util::TEMPLATE_NAME_SUFFIX),
+            format!("{}{}", class_name_in, Util::TEMPLATE_NAME_SUFFIX),
         )
     }
 

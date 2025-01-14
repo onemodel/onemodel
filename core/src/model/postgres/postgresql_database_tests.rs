@@ -881,12 +881,7 @@ mod test {
         // let mut tx1 = db.begin_trans().unwrap();
         // let tx = &Some(&mut tx1);
         let temp_rel_type_id: i64 = db
-            .create_relation_type(
-                None,
-                RELATION_TYPE_NAME,
-                "",
-                RelationType::UNIDIRECTIONAL,
-            )
+            .create_relation_type(None, RELATION_TYPE_NAME, "", RelationType::UNIDIRECTIONAL)
             .unwrap();
         // assert!(!db.entity_only_key_exists(tx, temp_rel_type_id).unwrap());
         assert!(!db.entity_only_key_exists(None, temp_rel_type_id).unwrap());
@@ -939,12 +934,7 @@ mod test {
 
         //whatever, just need some relation type to go with:
         let rel_type_id: i64 = db
-            .create_relation_type(
-                tx.clone(),
-                "contains",
-                "",
-                RelationType::UNIDIRECTIONAL,
-            )
+            .create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL)
             .unwrap();
         create_test_relation_to_local_entity_with_one_entity(
             &db,
@@ -970,7 +960,7 @@ mod test {
             true,
         )
         .unwrap();
-        /* %%%%%%
+        /*
         //%%latertrans these won't work until I can uncomment the code at the next latertrans just
         //below (in next fn):
         assert_eq!(db.get_attribute_count(tx.clone(), id, false).unwrap(), 5);
@@ -982,7 +972,7 @@ mod test {
 
         let unwrapped_local_tx = Rc::into_inner(tx.unwrap()).unwrap().into_inner();
         db.rollback_trans(unwrapped_local_tx).unwrap();
-        %%%%%%*/
+        */
         //idea: (tracked in tasks): find out: WHY do the next lines fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
         // Do I not understand rollback?  But it does seem to work as expected in "entity creation/update and transaction rollback" test above.  See also
         // in EntityTest's "update_class_and_template_entity_name", at the last 2 commented lines which fail for unknown reason.  Maybe something obvious i'm just
@@ -1012,14 +1002,15 @@ mod test {
         let observation_date: i64 = Utc::now().timestamp_millis();
         let entity: Entity = Entity::new2(db_in, transaction.clone(), in_parent_id).unwrap();
         //let (mut group, mut rtg) = entity.add_group_and_relation_to_group(transaction.clone(), in_rel_type_id, in_group_name, allow_mixed_classes_in, in_valid_on_date, observation_date, None, false)?;
-        //%%%%%% next line gets the db deadlock:
+        //%% next line gets the db deadlock (maybe only after the latertranses are fixed?):
         let (group_id, rtg_id) = entity.add_group_and_relation_to_group(
-            //%%latertrans
-            //%%%%%%%%%I guess this is the cause of the deadlock. The call just a few lines above
+            //%%latertrans? after below transaction issue is fixed?
+            //I guess this is the cause of the deadlock. The call just a few lines above
             //to Entity::new2 opens a transaction and queries for if the entity exists.  Then this
             //line waits for that transaction (created in top of
             //get_attr_count_and_get_attribute_sorting_rows_count) to exit before it can do the
             //next line without a transaction!
+            //%%latertrans
             //transaction.clone(),
             None,
             in_rel_type_id,
@@ -1028,10 +1019,10 @@ mod test {
             in_valid_on_date,
             observation_date,
             None,
-            //%%latertrans (make it match above, so true?):
+            //%%latertrans (make it match (commented line just?) above, so true?):
         )?;
-        /*%%%%%%
         let mut group = Group::new2(db_in, transaction.clone(), group_id)?;
+        debug!("new group id = {}", group.
         let mut rtg =
             RelationToGroup::create_relation_to_group(db_in, transaction.clone(), rtg_id)?;
 
@@ -1052,9 +1043,10 @@ mod test {
         );
         assert!(group.get_name(transaction.clone()).unwrap() == in_group_name);
         assert!(rtg.get_observation_date(transaction.clone()).unwrap() == observation_date);
-        Ok((group.get_id(), rtg.get_id()))
-        %%%%%%*/
+        /*%%%%%%
         Ok((0 as i64, 0 as i64))
+        %%%%%%*/
+        Ok((group.get_id(), rtg.get_id()))
     }
 
     /*%%%%

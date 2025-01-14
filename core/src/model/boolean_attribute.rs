@@ -355,7 +355,7 @@ mod test {
         //let mut boolean_attribute = BooleanAttribute::new(&db, boolean_attribute_id, entity_id,
         //                                                  other_entity_id, boolean_value, None, date, 0,
         //);
-        let mut bid = db
+        let bid = db
             .create_boolean_attribute(
                 None, entity_id, //boolean_attribute_id,
                 entity_id, true, None, date, None,

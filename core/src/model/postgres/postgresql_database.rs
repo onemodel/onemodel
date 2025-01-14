@@ -117,41 +117,38 @@ impl PostgreSQLDatabase {
             .map(|sqlx_row: PgRow| {
                 // (next line is 1-based -- intended to compare to the size of results, later)
                 row_counter += 1;
-                //was: let row: Vec<Option<DataType>> = new Vec<Option<DataType>>(types_vec.length);
                 let mut row: Vec<Option<DataType>> = Vec::with_capacity(types_vec.len());
                 let mut column_counter: usize = 0;
                 for type_name in &types_vec {
-                    // the for loop is to take us through all the columns in this row, as specified by the caller in the "types" parm.
-                    //was: if rs.getObject(column_counter) == null) row(column_counter - 1) = None
-                    //%%name?:
-                    //%%how will these handle nulls? (like validOnDate or Entity.m_class_id??) how can they? See idea below under i64 & test, use that
-                    //  elsewhere?
-                    //%%what should error handling in this context be like? how should it work? see the open tabs re errs in closures,
-                    // AND/OR the sqlx doc for this closure for what err it returns, or what caller expects...???
+                    // the for loop is to take us through all the columns in this row, as 
+                    // specified by the caller in the "types" parm.
                     let col: &PgColumn = sqlx_row.try_column(column_counter).unwrap();
-                    let value_ref = sqlx_row.try_get_raw(column_counter).unwrap();
                     let ti: &PgTypeInfo = col.type_info();
-                    // %%let is_null: bool = ti.is_null();
+                    let value_ref = sqlx_row.try_get_raw(column_counter).unwrap();
                     let is_null: bool = value_ref.is_null();
-                    //%%next 2 lines just for development:
                     let db_type_info = ti.to_string();
                     debug!("In fn db_query, is_null: {}, type_name={}, col={:?}, and db_type_info: {}", is_null, type_name, col, db_type_info);
                     if is_null {
+                        //was in scala: if rs.getObject(column_counter) == null) row(column_counter - 1) = None
                         row.push(None);
+                        debug!("In fn db_query, pushed a None onto the row.");
                     } else {
-                        // When modifying: COMPARE TO AND SYNCHRONIZE WITH THE TYPES IN the for loop in RestDatabase.processArrayOptionAny .
+                        // ****WHEN MODIFYING: COMPARE TO AND SYNCHRONIZE WITH THE TYPES IN the 
+                        // for loop in RestDatabase.processArrayOptionAny . ****
                         if type_name == &"Float" {
                             //was: row(column_counter) = Some(rs.getFloat(column_counter))
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
-                            let x: f64 = decode_mbe.unwrap(); //%%???
+                            //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
+                            let x: f64 = decode_mbe.unwrap(); 
                             debug!("in db_query1: x is {} .", x);
                             let y = DataType::Float(x);
                             row.push(Some(y));
                         } else if type_name == &"String" {
-                            //%%%
-                            //     was: row(column_counter) = Some(PostgreSQLDatabase.unescape_quotes_etc(rs.getString(column_counter)))
+                            //was: row(column_counter) = Some(PostgreSQLDatabase.unescape_quotes_etc(
+                            //rs.getString(column_counter)))
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
-                            let x: String = decode_mbe.unwrap(); //%%???
+                            //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
+                            let x: String = decode_mbe.unwrap();
                             debug!("in db_query3: x is {} .", x);
                             let y = DataType::String(Self::unescape_quotes_etc(x));
                             debug!("in db_query3: y is {:?} .", y);
@@ -160,13 +157,11 @@ impl PostgreSQLDatabase {
                             //was: row(column_counter) = Some(rs.getLong(column_counter))
                             let decode_mbe = sqlx_row.try_get(column_counter);
                             // let decode_mbe = sqlx_row.try_column(column_counter);
-                            let x: i64 = decode_mbe.unwrap(); //%%??? for all such.
-                            // let x: i64 = match decode_mbe { //%%???
-                            //     None => %
-                            // };
+                            //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
+                            let x: i64 = decode_mbe.unwrap(); 
                             debug!("in db_query4: x is {} .", x);
                             row.push(Some(DataType::Bigint(x)));
-                        //u64 here unsupported by sqlx:
+                        //u64 here unsupported by sqlx as of v 0.6.3:
                         // } else if type_name == &"u64" {
                         //     let decode_mbe = sqlx_row.try_get(column_counter);
                         //     let x: u64 = decode_mbe.unwrap();
@@ -175,29 +170,34 @@ impl PostgreSQLDatabase {
                         } else if type_name == &"bool" {
                             //was: row(column_counter) = Some(rs.get_boolean(column_counter))
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
-                            let x: bool = decode_mbe.unwrap(); //%%???
+                            //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
+                            let x: bool = decode_mbe.unwrap(); 
                             debug!("in db_query5: x is {} .", x);
                             let y = DataType::Boolean(x);
                             row.push(Some(y));
                         } else if type_name == &"Int" {
-                            //     row(column_counter) = Some(rs.getInt(column_counter))
+                            //was: row(column_counter) = Some(rs.getInt(column_counter))
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
-                            let x: i32 = decode_mbe.unwrap(); //%%???
+                            //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
+                            let x: i32 = decode_mbe.unwrap(); 
                             debug!("in db_query6: x is {} .", x);
                             let y = DataType::Smallint(x);
                             row.push(Some(y));
                         } else {
-                        //     %% make sure to address this? and that I know what happens when this line is hit: test it (mbe change some code so alw hit, just2see? or in a test?)
-                        //     return Err(anyhow!("In db_query, Unexpected DataType value: '{}' at column: {}, with db_type_info={:?}.",
-                            //     type_name, column_counter, db_type_info));
-                            panic!("Unexpected DataType value: '{}' at column: {}, with db_type_info={:?}.",
+                            // Can't return Err here from closure right? or how? Idea: find out.
+                            // return Err(anyhow!("In db_query, Unexpected DataType value: '{}' at column: {}, 
+                            // with db_type_info={:?}.", type_name, column_counter, db_type_info));
+                            panic!("in db_query, unexpected DataType value: '{}' at column: {}, with db_type_info={:?}.",
                                 type_name, column_counter, db_type_info);
                         }
                     }
                     column_counter += 1;
                 }
                 if row.len() != types_vec.len() {
-                    //%% make sure to address this? and that I know what happens when this line is hit: test it (mbe change some code so alw hit, just2see? or in a test?)
+                    // %%Can't return Err here from closure right? or how? Idea: find out w code
+                    // change, and apply what is learned to the
+                    // like it just above as well. Use the open browser tabs re errs in closures,
+                    // AND/OR the sqlx doc for this closure for what err it returns, or what caller expects...?
                     // return Err(anyhow!("In db_query, Row length {} does not equal expected types list length {}.", row.len(), types_vec.len()));
                     panic!("Row length {} does not equal expected types list length {}.", row.len(), types_vec.len());
                 }
