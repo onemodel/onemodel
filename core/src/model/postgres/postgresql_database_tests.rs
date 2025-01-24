@@ -1021,8 +1021,11 @@ mod test {
             None,
             //%%latertrans (make it match (commented line just?) above, so true?):
         )?;
+        //latertrans: should not matter during this no-trans period?:
         let mut group = Group::new2(db_in, transaction.clone(), group_id)?;
-        debug!("new group id = {}", group.
+        //let mut group = Group::new2(db_in, None, group_id)?;
+        debug!("new group id = {}", group.get_id());
+
         let mut rtg =
             RelationToGroup::create_relation_to_group(db_in, transaction.clone(), rtg_id)?;
 
