@@ -40,19 +40,21 @@ use std::rc::Rc;
 use tracing::*;
 
 impl Database for PostgreSQLDatabase {
-    //%%do the lifetimes used with these parameters make sense? Or should there be a 'b? a 'c?
+    /// @return the new entity id and the new relation_to_local_entity id that relates to it.
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         //%%why is there a warning (per top of main.rs) if the '_ is not here? What does it really mean?
-        containing_entity_in: &'a Entity<'_>,
+        //containing_entity_in: &'a Entity<'_>,
+        containing_entity_id_in: i64,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
                                 // ('a are per warnings from top of main.rs)
-    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> /*%%where 'a: 'b*/ {
+    //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> /*%%where 'a: 'b*/ {
+    ) -> Result<(i64, i64), anyhow::Error> /*%%where 'a: 'b*/ {
         //) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
         if quote_in.is_some() {
             if quote_in.unwrap().is_empty() {
@@ -71,52 +73,97 @@ impl Database for PostgreSQLDatabase {
             self.get_or_create_class_and_template_entity(transaction.clone(), "URI")?;
         let (_, quotation_class_template_id) =
             self.get_or_create_class_and_template_entity(transaction.clone(), "quote")?;
-        let (new_entity, new_rtle) = containing_entity_in
+        let (new_entity_id, new_rtle_id, relation_type_id) = self
             .create_entity_and_add_has_local_relation_to_it(
                 transaction.clone(),
+                containing_entity_id_in,
                 new_entity_name_in,
                 observation_date_in,
                 make_them_public_in,
             )?;
-        self.update_entitys_class(transaction.clone(), new_entity.get_id(), Some(uri_class_id))?;
+        self.update_entitys_class(transaction.clone(), new_entity_id, Some(uri_class_id))?;
         //(attempts to handle the transaction and lifetime compiler errors:)
         //let new_entity2: Entity<'a> = new_entity.clone();
         //let new_entity2 = Rc::new(RefCell::new(new_entity));
         //let new_entity3 = Rc::into_inner(new_entity2).unwrap().into_inner();
-        new_entity.add_text_attribute2(
-            //%%latertrans1 fix this (and next, similar one) to use the transaction again. How, given lifetime issues?
-            //could make it so the above transaction parameter to the fn doesn't require a
-            //lifetime, by changing that in postgresql_database.rs fn db_action, or such? Or
-            //just fix things here somehow?
-            //How is this call different from other db calls that don't have the problem?
-            //some discussion was in:
-            //https://users.rust-lang.org/t/error-e0597-new-entity2-does-not-live-long-enough/115725
-            None, //transaction.clone(),
+        self.create_text_attribute(
+            transaction.clone(),
+            new_entity_id,
             uri_class_template_id,
             uri_in,
             None,
-            None,
             observation_date_in,
+            None,
         )?;
         if quote_in.is_some() {
-            new_entity.add_text_attribute2(
-                //%%latertrans1 fix this to use the transaction again. How, given lifetime issues?
-                None, //transaction.clone(),
+            self.create_text_attribute(
+                transaction.clone(),
+            new_entity_id,
                 quotation_class_template_id,
                 quote_in.unwrap(),
                 None,
-                None,
                 observation_date_in,
+                None,
             )?;
         };
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if transaction_in.is_none() {self.commit_trans() }
         //Ok((new_entity.clone(), new_rtle))
-        Ok((new_entity, new_rtle))
+        Ok((new_entity_id, new_rtle_id))
         //  } catch {
         //    case e: Exception =>
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if transaction_in.is_none() rollback_trans()
+    }
+
+    /// Creates new entity then adds to it a particular kind of rte.
+    /// @return the new entity_id & rte_id, and the relation_type_id.
+    fn create_entity_and_add_has_local_relation_to_it<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        from_entity_id_in: i64,
+        new_entity_name_in: &str,
+        observation_date_in: i64,
+        is_public_in: Option<bool>,
+    ) -> Result<(i64, i64, i64), anyhow::Error> {
+        // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
+        // anyway:
+        let relation_type_id = self
+            .find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?; //, Some(1))
+                                                                                         //.get(0);
+        let (new_entity_id, new_rte_id) = self.add_entity_and_relation_to_local_entity(
+            transaction,
+            relation_type_id,
+            from_entity_id_in,
+            new_entity_name_in,
+            None,
+            observation_date_in,
+            is_public_in,
+        )?;
+        Ok((new_entity_id, new_rte_id, relation_type_id))
+    }
+
+    /// @return the new_entity_id and new_rte_id.
+    fn add_entity_and_relation_to_local_entity<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        rel_type_id_in: i64,
+        from_entity_id_in: i64,
+        new_entity_name_in: &str,
+        valid_on_date_in: Option<i64>,
+        observation_date_in: i64,
+        is_public_in: Option<bool>,
+    ) -> Result<(i64, i64), anyhow::Error> {
+        let (new_entity_id, new_rte_id) = self.create_entity_and_relation_to_local_entity(
+            transaction.clone(),
+            from_entity_id_in,
+            rel_type_id_in,
+            new_entity_name_in,
+            is_public_in,
+            valid_on_date_in,
+            observation_date_in,
+        )?;
+        Ok((new_entity_id, new_rte_id))
     }
 
     fn get_text_attribute_by_type_id(
@@ -1137,10 +1184,10 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_text_attribute<'a>(
+    fn create_text_attribute<'a, 'b>(
         &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         text_in: &str,
@@ -1152,7 +1199,9 @@ impl Database for PostgreSQLDatabase {
                                        // the Rust reference (as quoted by) and in chapter 7 of the helpful site:
                                        // https://tfpk.github.io/lifetimekata/chapter_7.html .
                                        //) -> Result<i64, anyhow::Error> where 'a: 'b {
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<i64, anyhow::Error> 
+    where 'a: 'b
+    {
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -1218,7 +1267,7 @@ impl Database for PostgreSQLDatabase {
         if transaction_in.is_none() && transaction.is_some() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<'a, Postgres>>> =
+            let local_tx_cell: Option<RefCell<Transaction<'b, Postgres>>> =
                 Rc::into_inner(transaction.unwrap());
             match local_tx_cell {
                 Some(t) => {
@@ -1452,6 +1501,7 @@ impl Database for PostgreSQLDatabase {
     // }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
+    /// @return the new ID and the sorting_index.
     fn create_relation_to_local_entity<'a>(
         &'a self,
         // purpose: see comment in delete_objects
@@ -1462,7 +1512,11 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<RelationToLocalEntity, anyhow::Error> {
+    //) -> Result<RelationToLocalEntity<'b>, anyhow::Error> 
+    ) -> Result<(i64, i64), anyhow::Error> 
+    //where
+    //    'a: 'b
+    {
         debug!("in create_relation_to_local_entity 0");
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -1486,18 +1540,21 @@ impl Database for PostgreSQLDatabase {
 
         debug!("in create_relation_to_local_entity 1");
         let rte_id: i64 = self.get_new_key(transaction.clone(), "RelationToEntityKeySequence")?;
-        let result: Result<i64, anyhow::Error> = self.add_attribute_sorting_row(
+        //let result: Result<i64, anyhow::Error> = self.add_attribute_sorting_row(
+        let sorting_index = self.add_attribute_sorting_row(
             transaction.clone(),
             entity_id1_in,
             self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)
                 .unwrap(),
             rte_id,
             sorting_index_in,
-        );
-        if let Err(e) = result {
-            // see comments in delete_objects about rollback
-            return Err(anyhow!(e));
-        }
+        )?;
+        //(why did i do this before using the "?" on the line above? matters
+        //for some reason of how the error is returned or something?)
+        //if let Err(e) = result {
+        //    // see comments in delete_objects about rollback
+        //    return Err(anyhow!(e));
+        //}
         let valid_on_date_sql_str = match valid_on_date_in {
             Some(date) => date.to_string(),
             None => "NULL".to_string(),
@@ -1512,14 +1569,14 @@ impl Database for PostgreSQLDatabase {
             return Err(anyhow!(e));
         }
         debug!("in create_relation_to_local_entity 4");
-        let rtle = RelationToLocalEntity::new2(
-            self,
-            transaction.clone(),
-            rte_id,
-            relation_type_id_in,
-            entity_id1_in,
-            entity_id2_in,
-        )?;
+        //let rtle = RelationToLocalEntity::new2(
+        //    self,
+        //    transaction.clone(),
+        //    rte_id,
+        //    relation_type_id_in,
+        //    entity_id1_in,
+        //    entity_id2_in,
+        //)?;
         if transaction_in.is_none() && transaction.is_some() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
@@ -1538,7 +1595,8 @@ impl Database for PostgreSQLDatabase {
             }
         }
         debug!("in create_relation_to_local_entity 5");
-        Ok(rtle)
+        //Ok(rtle)
+        Ok((rte_id, sorting_index))
     }
 
     /** Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
@@ -1683,13 +1741,14 @@ impl Database for PostgreSQLDatabase {
 
     /// Takes an RTLE and unlinks it from one local entity, and links it under another instead.
     /// @param sorting_index_in Used because it seems handy (as done in calls to other move methods) to keep it in case one moves many entries: they stay in order.
-    /// @return the new RelationToLocalEntity
+    /// @return the id and sorting_index of the new RelationToLocalEntity
     fn move_relation_to_local_entity_into_local_entity(
         &self,
         rtle_id_in: i64,
         to_containing_entity_id_in: i64,
         sorting_index_in: i64,
-    ) -> Result<RelationToLocalEntity, anyhow::Error> {
+    //) -> Result<RelationToLocalEntity, anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> {
         //%%latertrans
         let tx = self.begin_trans()?;
         //let transaction = Some(Rc::new(RefCell::new(tx)));
@@ -1718,7 +1777,7 @@ impl Database for PostgreSQLDatabase {
             old_rte_entity_1,
             old_rte_entity_2,
         )?;
-        let new_rte: RelationToLocalEntity = self.create_relation_to_local_entity(
+        let (new_rte_id, new_sorting_index) = self.create_relation_to_local_entity(
             transaction.clone(),
             old_rte_rel_type,
             to_containing_entity_id_in,
@@ -1732,7 +1791,7 @@ impl Database for PostgreSQLDatabase {
         //centralizes the question to one place in the code.
         //db_action("UPDATE RelationToEntity SET (entity_id) = ROW(" + new_containing_entity_id_in + ")" + " where id=" + relationToLocalEntityIdIn)
 
-        // see comments at similar location in delete_objects about local_tx
+// see comments at similar location in delete_objects about local_tx
         // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
@@ -1749,7 +1808,7 @@ impl Database for PostgreSQLDatabase {
                 ));
             }
         };
-        Ok(new_rte)
+        Ok((new_rte_id, new_sorting_index))
     }
 
     /// See comments on & in method move_relation_to_local_entity_into_local_entity.  Only this one takes an RTRE (stored locally), and instead of linking it inside one local
@@ -1927,6 +1986,7 @@ impl Database for PostgreSQLDatabase {
 
     /// I.e., make it so the entity has a relation to a new entity in it.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
+    /// @return the new_entity_id, and new_rte_id.
     fn create_entity_and_relation_to_local_entity<'a>(
         &'a self,
         // purpose: see comment in delete_objects
@@ -1962,7 +2022,7 @@ impl Database for PostgreSQLDatabase {
 
         let new_entity_id: i64 =
             self.create_entity(transaction.clone(), name.as_str(), None, is_public_in)?;
-        let _new_rte: RelationToLocalEntity = self.create_relation_to_local_entity(
+        let (new_rte_id, _new_sorting_index) = self.create_relation_to_local_entity(
             //%%should this not be "_in"?:
             transaction.clone(),
             relation_type_id_in,
@@ -1992,8 +2052,7 @@ impl Database for PostgreSQLDatabase {
                 }
             }
         }
-        //%%FIX NEXT LINE
-        Ok((new_entity_id, 0)) //%%%%really: , new_rte.get_id()))
+        Ok((new_entity_id, new_rte_id))
     }
 
     /// I.e., make it so the entity has a group in it, which can contain entities.
@@ -2294,31 +2353,21 @@ impl Database for PostgreSQLDatabase {
         target_group_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(), anyhow::Error> {
-        //%%latertrans1: why dont the lines below compile as expected? (the commit_trans unwrap call
-        //moves transaction.):
-        //let mut tx = self.begin_trans()?;
-        //let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-        ////let trans: &mut Transaction<Postgres> = &mut tx;
+        let tx = self.begin_trans()?;
+        let transaction: Option<Rc<RefCell<Transaction<'_, Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
         self.add_entity_to_group(
-            //%%latertrans1
-            //transaction,
-            ////&Some(trans),
-            ////%%latertrans1 down to here also (and just below)
-            None,
+            transaction.clone(),
             target_group_id_in,
             removing_rtle_in.get_related_id2(),
             Some(sorting_index_in),
         )?;
         self.delete_relation_to_local_entity(
-            //%%latertrans1: here too:  transaction,
-            ////&Some(trans),
-            None,
-            //%%latertrans1 here too: removing_rtle_in.get_attr_type_id(transaction)?,
-            ////removing_rtle_in.get_attr_type_id(&Some(trans))?,
-            removing_rtle_in.get_attr_type_id(None)?,
+            transaction.clone(),
+            removing_rtle_in.get_attr_type_id(transaction)?,
             removing_rtle_in.get_related_id1(),
             removing_rtle_in.get_related_id2(),
         )?;
+        //%%does this auto-commit as expected? is there a test, or similar enough elsewhere?
         //%%latertrans: self.commit_trans(*(transaction.unwrap()))
         ////%%latertrans: self.commit_trans(*trans)
         //%%latertrans:
@@ -3484,22 +3533,26 @@ impl Database for PostgreSQLDatabase {
         self.extract_row_count_from_count_query(transaction, "select count(1) from RelationType")
     }
 
-    /// @return the id of the new RTE
-    fn add_has_relation_to_local_entity(
-        &self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    /// @return the id of the new RTE, the id of the "has" relation type, and the new sorting_index
+    /// of the RTE added.
+    //fn add_has_relation_to_local_entity<'a, 'b>(
+    fn add_has_relation_to_local_entity<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         from_entity_id_in: i64,
         to_entity_id_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<RelationToLocalEntity, anyhow::Error> {
+    //) -> Result<RelationToLocalEntity, anyhow::Error> 
+    ) -> Result<(i64, i64, i64), anyhow::Error> 
+    //where 
+    //    'a: 'b
+    {
         let relation_type_id: i64 =
             self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?;
-        let new_rte = self.create_relation_to_local_entity(
-            //%%latertrans1
-            //transaction.clone(),
-            None,
+        let (new_rte_id, new_sorting_index) = self.create_relation_to_local_entity(
+            transaction.clone(),
             relation_type_id,
             from_entity_id_in,
             to_entity_id_in,
@@ -3507,7 +3560,8 @@ impl Database for PostgreSQLDatabase {
             observation_date_in,
             sorting_index_in,
         )?;
-        Ok(new_rte)
+        //Ok(new_rte.get_id())
+        Ok((new_rte_id, relation_type_id, new_sorting_index))
     }
     fn get_attribute_count(
         &self,

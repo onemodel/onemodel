@@ -132,16 +132,18 @@ pub trait Database {
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None, ie, default or value to pass if irrelevant.  Was default for no parm, in scala version.*/
     ) -> Result<i64, anyhow::Error>;
-    fn create_text_attribute<'a>(
+    fn create_text_attribute<'a, 'b>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         text_in: &str,
         valid_on_date_in: Option<i64>,        /*= None*/
         observation_date_in: i64,             /*= System.currentTimeMillis()*/
         sorting_index_in: Option<i64>,        /*= None*/
-    ) -> Result<i64, anyhow::Error>;
+    ) -> Result<i64, anyhow::Error>
+    where
+        'a: 'b;
     fn create_relation_to_local_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -151,7 +153,11 @@ pub trait Database {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,        /* = None*/
-    ) -> Result<RelationToLocalEntity, anyhow::Error>;
+    //) -> Result<RelationToLocalEntity<'a>, anyhow::Error>
+    ) -> Result<(i64, i64), anyhow::Error>
+    //where
+    //    'a: 'b
+        ;
     fn create_relation_to_remote_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -332,15 +338,20 @@ pub trait Database {
     //                          executable_in: bool, size_in: i64, md5_hash_in: String,
     //                          inputStreamIn: java.io.FileInputStream,
     //                          sorting_index_in: Option<i64> /*= None*/) -> /*id*/ Result<i64, anyhow::Error>;
-    fn add_has_relation_to_local_entity(
-        &self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    //fn add_has_relation_to_local_entity<'a, 'b>(
+    fn add_has_relation_to_local_entity<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         from_entity_id_in: i64,
         to_entity_id_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<RelationToLocalEntity, anyhow::Error>;
+    //) -> Result<RelationToLocalEntity, anyhow::Error>
+    ) -> Result<(i64, i64, i64), anyhow::Error>
+    //where
+    //    'a: 'b;
+    ;
     fn get_or_create_class_and_template_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -349,13 +360,14 @@ pub trait Database {
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        containing_entity_in: &'a Entity<'a>,
+        containing_entity_id_in: i64,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> /*%%where 'a: 'b*/;
+    //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> /*%%where 'a: 'b*/;
+    ) -> Result<(i64, i64), anyhow::Error>; /*%%where 'a: 'b*/ 
     fn attribute_key_exists(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -980,7 +992,8 @@ pub trait Database {
         rtle_id_in: i64,
         new_containing_entity_id_in: i64,
         sorting_index_in: i64,
-    ) -> Result<RelationToLocalEntity, anyhow::Error>;
+    //) -> Result<RelationToLocalEntity, anyhow::Error>;
+    ) -> Result<(i64, i64), anyhow::Error>;
     fn move_relation_to_remote_entity_to_local_entity(
         &self,
         remote_instance_id_in: &str,
@@ -988,6 +1001,24 @@ pub trait Database {
         to_containing_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<RelationToRemoteEntity, anyhow::Error>;
+    fn create_entity_and_add_has_local_relation_to_it<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        from_entity_id_in: i64,
+        new_entity_name_in: &str,
+        observation_date_in: i64,
+        is_public_in: Option<bool>,
+    ) -> Result<(i64, i64, i64), anyhow::Error>;
+     fn add_entity_and_relation_to_local_entity<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        rel_type_id_in: i64,
+        from_entity_id_in: i64,
+        new_entity_name_in: &str,
+        valid_on_date_in: Option<i64>,
+        observation_date_in: i64,
+        is_public_in: Option<bool>,
+    ) -> Result<(i64, i64), anyhow::Error>;
     fn move_local_entity_from_local_entity_to_group(
         &self,
         removing_rtle_in: &mut RelationToLocalEntity,

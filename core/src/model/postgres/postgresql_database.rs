@@ -565,54 +565,21 @@ impl PostgreSQLDatabase {
             pool,
             include_archived_entities,
         };
-
-        //%%latertrans why does having this here instead of in a separate fn setup_db cause
-        //a compile error about using a moved value new_db (moved on the next line, returned in the
-        //"Ok" line below)????  should I make a test and submit it, to learn or have it fixed or??
-        //Note that *another* seeming solution is the line "TEST_DB_INIT2.call_once(|| {" (and the
-        //part to end its block) found in experimental fn new_test, above.
-        // // let x = new_db.begin_trans_test();
-        // let mut tx = new_db.begin_trans();
-        // let mut tx = match tx {
-        // // let mut tx = match rt.block_on(pool.begin()) {
-        //     Err(e) => {
-        //         return Err(anyhow!(
-        //             "Unable to start a database transaction to set up database?: {}",
-        //             e.to_string()
-        //         ))
-        //     }
-        //     Ok(t) => t,
-        // };
-        // if !new_db.model_tables_exist(&Some(&mut tx))? {
-        //     // //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
-        //     new_db.create_tables(&Some(&mut tx))?;
-        //     //%%% try to see what happens if pg down be4 & during this--does the err propagate ok?
-        //     new_db.create_base_data(&Some(&mut tx))?;
-        // }
-        // //%% do_database_upgrades_if_needed()
-        // new_db.create_and_check_expected_data(&Some(&mut tx))?;
-        // match new_db.commit_trans(&mut tx) {
-        //     Err(e) => {
-        //         return Err(anyhow!(
-        //             "Unable to commit database transaction for db setup: {}",
-        //             e.to_string()
-        //         ))
-        //     }
-        //     Ok(t) => t,
-        // }
         new_db.setup_db()?;
-
         Ok(Box::new(new_db))
     }
-    //%%
-    //Moved from fn new to see about addressing a compile error. See cmts there.
+
+    //Idea: why does having this here instead inline in new() (above) cause
+    //a compile error about using a moved value new_db (in comments in method above, removed
+    // in commit on/after b009eafe82ab)? Should I make a test and submit it, to learn?
+    //Note that *another* seeming solution is the line "TEST_DB_INIT2.call_once(|| {" (and the
+    //part to end its block) found in experimental fn new_test, above.
+    //
     //(removed next line to remove noise from debug output in test log)
     // #[tracing::instrument]
     pub fn setup_db(&self) -> Result<(), anyhow::Error> {
         let tx = self.begin_trans()?;
-        //%%latertrans
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         if !self.model_tables_exist(transaction.clone())? {
             // //%% try to see what happens if pg down be4 & during this--does the err propagate ok?
             self.create_tables(transaction.clone())?;
@@ -621,21 +588,19 @@ impl PostgreSQLDatabase {
         }
         self.do_database_upgrades_if_needed(transaction.clone())?;
         self.create_and_check_expected_data(transaction.clone())?;
-        //%%latertrans put back when using them again:
-        Ok(())
-        //let t0 = Rc::into_inner(transaction);
-        //match t0 {
-        //    Some(t1) => {
-        //        let t2: Transaction<Postgres> = t1.into_inner();
-        //        self.commit_trans(t2)
-        //    }
-        //    //%%is this rolling back automatically, per other places I noted to ck/confirm?:
-        //    None => {
-        //        return Err(anyhow!(
-        //            "setup_db's call to Rc::into_inner(...) could not get a transaction to commit!"
-        //        ))
-        //    }
-        //}
+        let t0 = Rc::into_inner(transaction.unwrap());
+        match t0 {
+            Some(t1) => {
+                let t2: Transaction<Postgres> = t1.into_inner();
+                self.commit_trans(t2)
+            }
+            //%%is this rolling back automatically, per other places I noted to ck/confirm?:
+            None => {
+                return Err(anyhow!(
+                    "setup_db's call to Rc::into_inner(...) could not get a transaction to commit!"
+                ))
+            }
+        }
     }
 
     /// For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),

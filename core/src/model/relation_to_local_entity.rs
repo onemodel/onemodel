@@ -48,10 +48,11 @@ pub struct RelationToLocalEntity<'a> {
 }
 
 impl RelationToLocalEntity<'_> {
-    /// This one is perhaps only called by the database code--so it can return arrays of objects & save more DB hits
-    /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
-    /// one that already exists.
-    fn new<'a>(
+    /// This one is perhaps only called by the database code [or code that just hit the db]--so it can return 
+    /// arrays of objects & save more DB hits
+    /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent 
+    /// object--but rather should reflect one that already exists.
+    pub fn new<'a>(
         db: &'a dyn Database,
         id: i64,
         rel_type_id: i64,
@@ -156,11 +157,13 @@ impl RelationToLocalEntity<'_> {
         }
     }
 
+    /// @return the id and sorting_index of the newly moved RTLE.
     fn move_it(
         &self,
         to_local_containing_entity_id_in: i64,
         sorting_index_in: i64,
-    ) -> Result<RelationToLocalEntity, anyhow::Error> {
+    //) -> Result<RelationToLocalEntity, anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> {
         self.db.move_relation_to_local_entity_into_local_entity(
             self.get_id(),
             to_local_containing_entity_id_in,

@@ -728,7 +728,7 @@ mod test {
         // let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty { None } else { in_valid_on_date };
         let observation_date: i64 = Utc::now().timestamp_millis();
 
-        let id = db
+        let (id, _new_sorting_index) = db
             .create_relation_to_local_entity(
                 tx.clone(),
                 in_rel_type_id,
@@ -738,8 +738,7 @@ mod test {
                 observation_date,
                 None,
             )
-            .unwrap()
-            .get_id();
+            .unwrap();
 
         // and verify it:
         let mut rtle: RelationToLocalEntity = RelationToLocalEntity::new2(
@@ -888,6 +887,104 @@ mod test {
         // db.delete_relation_type(tx, temp_rel_type_id).unwrap();
         db.delete_relation_type(None, temp_rel_type_id).unwrap();
         // db.rollback_trans(tx1).unwrap();
+    }
+
+    // Purpose: to make add_text_attribute2_should_work_without_weird_transaction_compile_errors
+    // more standalone/reportable.
+    fn create_entity_stub(
+        //&self,
+        //_transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        _transaction2: Option<Rc<RefCell<String>>>,
+        _name_in: &str,
+        _class_id_in: Option<i64>,   /*= None*/
+        _is_public_in: Option<bool>, /*= None*/
+    ) -> Result<i64, anyhow::Error> {
+        Ok(0)
+    }
+    // Purpose: to make add_text_attribute2_should_work_without_weird_transaction_compile_errors
+    // more standalone/reportable.
+    //fn new_entity_stub<'a>(
+    fn new_entity_stub(
+    //pub fn new<'a>(
+        //_db: &'a dyn Database,
+        _id: i64,
+        _name: String,
+        _class_id: Option<i64>, /*= None*/
+        _insertion_date: i64,
+        _public: Option<bool>,
+        _archived: bool,
+        _new_entries_stick_to_top: bool,
+    //) -> Entity<'a> {
+    //) -> String<'a> {
+    //) -> String {
+    //) -> EntityStub<'a> {
+    ) -> EntityStub {
+        EntityStub{}
+    }
+    //struct EntityStub<'a> {}
+    struct EntityStub {}
+    impl EntityStub {
+        pub fn add_text_attribute2<'a, 'b>(
+            &'a self,
+            _transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+            //_transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+            //_transaction: Option<Rc<RefCell<String>>>,
+            _in_attr_type_id: i64,
+            _in_text: &str,
+            _sorting_index_in: Option<i64>,
+            _in_valid_on_date: Option<i64>,
+            _observation_date_in: i64,
+        //) -> Result<TextAttribute<'a>, anyhow::Error>
+        //) -> Result<String<'a>, anyhow::Error>
+        ) -> Result<String, anyhow::Error>
+        //%%istill needed? this next change in next 2 lines makes it not show error in nvim or compiler.
+        where
+            'a: 'b,
+        {
+            Ok("1234".to_string())
+        }
+    }
+    #[test]
+    fn add_text_attribute2_should_work_without_weird_transaction_compile_errors() {
+        //Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let name = "entity_to_add_attr_2"; 
+        let new_entity: EntityStub = new_entity_stub(0, name.to_string(), None, 0, None, false, false);
+        let tx: Transaction<Postgres> = db.begin_trans().unwrap();
+        //let tx2: String = "1234".to_string();
+        let transaction: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+        //let transaction2: Option<Rc<RefCell<String>>> = Some(Rc::new(RefCell::new(tx2)));
+        //let id: i64 = db.create_entity(transaction.clone(), name, None, None).unwrap();
+        //let id: i64 = create_entity_stub(transaction.clone(), name, None, None).unwrap();
+        //let id: i64 = create_entity_stub(transaction2.clone(), name, None, None).unwrap();
+        {
+            //let new_entity: Entity = Entity::new(&db, id, name.to_string(), None, 0, None, false, false);
+            //let new_entity: EntityStub = new_entity_stub(&db, id, name.to_string(), None, 0, None, false, false);
+            //let new_entity: EntityStub = new_entity_stub(id, name.to_string(), None, 0, None, false, false);
+            {
+                //let (_uri_class_id, uri_class_template_id) =
+                //    //db.get_or_create_class_and_template_entity(transaction.clone(), "URI").unwrap();
+                //    (0, 0);
+                //{
+
+                    let _ = new_entity.add_text_attribute2(
+                        //could make it so the above transaction parameter to the fn doesn't require a
+                        //lifetime, by changing that in postgresql_database.rs fn db_action, or such? Or
+                        //just fix things here somehow?
+                        //How is this call different from other db calls that don't have the problem?
+                        //some discussion was in:
+                        //https://users.rust-lang.org/t/error-e0597-new-entity2-does-not-live-long-enough/115725
+                        transaction.clone(),
+                        0, //uri_class_template_id,
+                        "someUri",
+                        None,
+                        None,
+                        0,
+                    );
+                //}
+            }
+        }
+ 
     }
 
     #[test]
