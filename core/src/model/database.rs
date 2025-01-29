@@ -153,11 +153,7 @@ pub trait Database {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,        /* = None*/
-    //) -> Result<RelationToLocalEntity<'a>, anyhow::Error>
-    ) -> Result<(i64, i64), anyhow::Error>
-    //where
-    //    'a: 'b
-        ;
+    ) -> Result<(i64, i64), anyhow::Error>;
     fn create_relation_to_remote_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -338,7 +334,6 @@ pub trait Database {
     //                          executable_in: bool, size_in: i64, md5_hash_in: String,
     //                          inputStreamIn: java.io.FileInputStream,
     //                          sorting_index_in: Option<i64> /*= None*/) -> /*id*/ Result<i64, anyhow::Error>;
-    //fn add_has_relation_to_local_entity<'a, 'b>(
     fn add_has_relation_to_local_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -347,11 +342,7 @@ pub trait Database {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    //) -> Result<RelationToLocalEntity, anyhow::Error>
-    ) -> Result<(i64, i64, i64), anyhow::Error>
-    //where
-    //    'a: 'b;
-    ;
+    ) -> Result<(i64, i64, i64), anyhow::Error>;
     fn get_or_create_class_and_template_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -366,8 +357,7 @@ pub trait Database {
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-    //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> /*%%where 'a: 'b*/;
-    ) -> Result<(i64, i64), anyhow::Error>; /*%%where 'a: 'b*/ 
+    ) -> Result<(i64, i64), anyhow::Error>; 
     fn attribute_key_exists(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -726,7 +716,7 @@ pub trait Database {
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<RelationToGroup>, anyhow::Error>;
-    // fn get_should_create_default_attributes(&self, transaction: &Option<&mut Transaction<Postgres>>, class_id_in: i64) -> Result<Option<bool>, anyhow::Error>;
+    //%% fn get_should_create_default_attributes(&self, transaction: &Option<&mut Transaction<Postgres>>, class_id_in: i64) -> Result<Option<bool>, anyhow::Error>;
     fn update_class_create_default_attributes(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -813,7 +803,7 @@ pub trait Database {
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error>;
-    // fn get_classes(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/) -> Result<Vec<EntityClass>, anyhow::Error>;
+    //%% fn get_classes(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/) -> Result<Vec<EntityClass>, anyhow::Error>;
     fn get_relation_type_count(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -837,7 +827,7 @@ pub trait Database {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error>;
-    // fn get_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/, group_to_omit_id_in: Option<i64> /*= None*/) -> Result<Vec<Group>, anyhow::Error>;
+    //%% fn get_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/, group_to_omit_id_in: Option<i64> /*= None*/) -> Result<Vec<Group>, anyhow::Error>;
     fn create_group(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -992,7 +982,6 @@ pub trait Database {
         rtle_id_in: i64,
         new_containing_entity_id_in: i64,
         sorting_index_in: i64,
-    //) -> Result<RelationToLocalEntity, anyhow::Error>;
     ) -> Result<(i64, i64), anyhow::Error>;
     fn move_relation_to_remote_entity_to_local_entity(
         &self,
@@ -1189,5 +1178,5 @@ pub trait Database {
         preference_name_in: &str,
         default_value_in: Option<i64>, /*= None*/
     ) -> Result<Option<i64>, anyhow::Error>;
-    // fn get_om_instances(&self, transaction: &Option<&mut Transaction<Postgres>>, localIn: Option<bool> /*= None*/) -> Result<Vec<OmInstance>, anyhow::Error>;
+    //%% fn get_om_instances(&self, transaction: &Option<&mut Transaction<Postgres>>, localIn: Option<bool> /*= None*/) -> Result<Vec<OmInstance>, anyhow::Error>;
 }

@@ -162,7 +162,6 @@ impl RelationToLocalEntity<'_> {
         &self,
         to_local_containing_entity_id_in: i64,
         sorting_index_in: i64,
-    //) -> Result<RelationToLocalEntity, anyhow::Error> {
     ) -> Result<(i64, i64), anyhow::Error> {
         self.db.move_relation_to_local_entity_into_local_entity(
             self.get_id(),

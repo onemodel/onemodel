@@ -44,18 +44,13 @@ impl Database for PostgreSQLDatabase {
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        //%%why is there a warning (per top of main.rs) if the '_ is not here? What does it really mean?
-        //containing_entity_in: &'a Entity<'_>,
         containing_entity_id_in: i64,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-                                // ('a are per warnings from top of main.rs)
-    //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> /*%%where 'a: 'b*/ {
-    ) -> Result<(i64, i64), anyhow::Error> /*%%where 'a: 'b*/ {
-        //) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> {
         if quote_in.is_some() {
             if quote_in.unwrap().is_empty() {
                 return Err(anyhow!("It doesn't make sense to store a blank quotation; there was probably a program error."));
@@ -82,10 +77,6 @@ impl Database for PostgreSQLDatabase {
                 make_them_public_in,
             )?;
         self.update_entitys_class(transaction.clone(), new_entity_id, Some(uri_class_id))?;
-        //(attempts to handle the transaction and lifetime compiler errors:)
-        //let new_entity2: Entity<'a> = new_entity.clone();
-        //let new_entity2 = Rc::new(RefCell::new(new_entity));
-        //let new_entity3 = Rc::into_inner(new_entity2).unwrap().into_inner();
         self.create_text_attribute(
             transaction.clone(),
             new_entity_id,
@@ -108,7 +99,6 @@ impl Database for PostgreSQLDatabase {
         };
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if transaction_in.is_none() {self.commit_trans() }
-        //Ok((new_entity.clone(), new_rtle))
         Ok((new_entity_id, new_rtle_id))
         //  } catch {
         //    case e: Exception =>
@@ -293,9 +283,6 @@ impl Database for PostgreSQLDatabase {
     /// sql statement, but if you call begin/rollback/commit, it will let you manage
     /// explicitly and will automatically turn autocommit on/off as needed to allow that. (???)
     fn begin_trans(&self) -> Result<Transaction<Postgres>, anyhow::Error> {
-        //Util::print_backtrace();
-        //panic!("%%latertrans2?: exiting for a test/tmp only to show what is calling this that causes deadlock?");
-        //%%%%%%%
         let tx: Transaction<Postgres> = match self.rt.block_on(self.pool.begin()) {
             Err(e) => return Err(anyhow!(e.to_string())),
             Ok(t) => t,
@@ -303,7 +290,6 @@ impl Database for PostgreSQLDatabase {
         // %% see comments in fn connect() re this AND remove above method comment??
         // connection.setAutoCommit(false);
         Ok(tx)
-        //
     }
     /// Not needed when the transaction simply goes out of scope! Rollback is then automatic, per
     /// sqlx and a test I wrote to verify it, below.
@@ -505,10 +491,8 @@ impl Database for PostgreSQLDatabase {
     }
 
     fn delete_class_and_its_template_entity(&self, class_id_in: i64) -> Result<(), anyhow::Error> {
-        //%%latertrans
         let tx: Transaction<Postgres> = self.begin_trans()?;
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         let template_entity_id_vec: Vec<Option<DataType>> =
             self.get_class_data(transaction.clone(), class_id_in)?;
         let template_entity_id: i64 = match template_entity_id_vec.get(1) {
@@ -714,10 +698,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -990,10 +972,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -1049,10 +1029,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -1137,10 +1115,8 @@ impl Database for PostgreSQLDatabase {
             Self::escape_quotes_etc(name_in_reverse_direction_in);
         let name: String = Self::escape_quotes_etc(name_in);
         let directionality: String = Self::escape_quotes_etc(directionality_in);
-        //%%latertrans
         let tx = self.begin_trans()?;
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         self.db_action(
             transaction.clone(),
             format!(
@@ -1211,10 +1187,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<'a, Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -1301,10 +1275,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -1371,10 +1343,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.is_some() {
             transaction_in.clone()
         } else {
@@ -1512,11 +1482,7 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    //) -> Result<RelationToLocalEntity<'b>, anyhow::Error> 
-    ) -> Result<(i64, i64), anyhow::Error> 
-    //where
-    //    'a: 'b
-    {
+    ) -> Result<(i64, i64), anyhow::Error> {
         debug!("in create_relation_to_local_entity 0");
         //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -1527,10 +1493,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -1540,7 +1504,6 @@ impl Database for PostgreSQLDatabase {
 
         debug!("in create_relation_to_local_entity 1");
         let rte_id: i64 = self.get_new_key(transaction.clone(), "RelationToEntityKeySequence")?;
-        //let result: Result<i64, anyhow::Error> = self.add_attribute_sorting_row(
         let sorting_index = self.add_attribute_sorting_row(
             transaction.clone(),
             entity_id1_in,
@@ -1569,14 +1532,6 @@ impl Database for PostgreSQLDatabase {
             return Err(anyhow!(e));
         }
         debug!("in create_relation_to_local_entity 4");
-        //let rtle = RelationToLocalEntity::new2(
-        //    self,
-        //    transaction.clone(),
-        //    rte_id,
-        //    relation_type_id_in,
-        //    entity_id1_in,
-        //    entity_id2_in,
-        //)?;
         if transaction_in.is_none() && transaction.is_some() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
@@ -1595,7 +1550,6 @@ impl Database for PostgreSQLDatabase {
             }
         }
         debug!("in create_relation_to_local_entity 5");
-        //Ok(rtle)
         Ok((rte_id, sorting_index))
     }
 
@@ -1621,10 +1575,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -1747,12 +1699,9 @@ impl Database for PostgreSQLDatabase {
         rtle_id_in: i64,
         to_containing_entity_id_in: i64,
         sorting_index_in: i64,
-    //) -> Result<RelationToLocalEntity, anyhow::Error> {
     ) -> Result<(i64, i64), anyhow::Error> {
-        //%%latertrans
         let tx = self.begin_trans()?;
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         let rte_data: Vec<Option<DataType>> =
             self.get_all_relation_to_local_entity_data_by_id(transaction.clone(), rtle_id_in)?;
         // next lines are the same as in move_relation_to_remote_entity_to_local_entity and move_relation_to_group; could maintain them similarly.
@@ -1791,7 +1740,7 @@ impl Database for PostgreSQLDatabase {
         //centralizes the question to one place in the code.
         //db_action("UPDATE RelationToEntity SET (entity_id) = ROW(" + new_containing_entity_id_in + ")" + " where id=" + relationToLocalEntityIdIn)
 
-// see comments at similar location in delete_objects about local_tx
+        // see comments at similar location in delete_objects about local_tx
         // see comments in delete_objects about rollback
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
             Rc::into_inner(transaction.unwrap());
@@ -1820,10 +1769,8 @@ impl Database for PostgreSQLDatabase {
         to_containing_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<RelationToRemoteEntity, anyhow::Error> {
-        //%%latertrans
         let tx = self.begin_trans()?;
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         let rte_data: Vec<Option<DataType>> = self.get_all_relation_to_remote_entity_data_by_id(
             transaction.clone(),
             relation_to_remote_entity_id_in,
@@ -1935,12 +1882,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.is_some() {
-            transaction_in
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -1951,7 +1896,6 @@ impl Database for PostgreSQLDatabase {
             new_group_name_in,
             allow_mixed_classes_in_group_in,
         )?;
-        //%%%%%%this gets the deadlock from the test:
         let (rtg_id, _) = self.create_relation_to_group(
             transaction.clone(),
             entity_id_in,
@@ -1961,7 +1905,6 @@ impl Database for PostgreSQLDatabase {
             observation_date_in,
             sorting_index_in,
         )?;
-        /*%%%%%%
         if transaction_in.is_none() && transaction.is_some() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
@@ -1980,8 +1923,6 @@ impl Database for PostgreSQLDatabase {
             }
         }
         Ok((group_id, rtg_id))
-        %%%%%%*/
-        Ok((0 as i64, 0 as i64))
     }
 
     /// I.e., make it so the entity has a relation to a new entity in it.
@@ -2009,10 +1950,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -2078,12 +2017,10 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.is_some() {
-            transaction_in
+            transaction_in.clone()
         } else {
             local_tx_option
         };
@@ -2099,8 +2036,6 @@ impl Database for PostgreSQLDatabase {
                 id,
                 sorting_index_in,
             )?;
-            //%%%%%%
-            //%%%%%%%this gets the deadlock from the test:
             let valid_date = match valid_on_date_in {
                 None => "NULL".to_string(),
                 Some(d) => d.to_string(),
@@ -2109,10 +2044,7 @@ impl Database for PostgreSQLDatabase {
                              VALUES ({},{},{},{},{},{})", id, entity_id_in, relation_type_id_in, group_id_in, valid_date, observation_date_in).as_str(),
                            false, false)?;
             sorting_index
-            //%%%%%%//
-            //0
         };
-        /*%%%%%%
         if transaction_in.is_none() && transaction.is_some() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
@@ -2131,8 +2063,6 @@ impl Database for PostgreSQLDatabase {
             }
         }
         Ok((id, sorting_index))
-            %%%%%%*/
-        Ok((0 as i64, 0 as i64))
     }
 
     fn update_group(
@@ -2199,10 +2129,8 @@ impl Database for PostgreSQLDatabase {
         new_containing_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<i64, anyhow::Error> {
-        //%%latertrans
         let tx = self.begin_trans()?;
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         let rtg_data: Vec<Option<DataType>> = self
             .get_all_relation_to_group_data_by_id(transaction.clone(), relation_to_group_id_in)?;
 
@@ -2271,10 +2199,8 @@ impl Database for PostgreSQLDatabase {
         move_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(), anyhow::Error> {
-        //%%latertrans
         let tx = self.begin_trans()?;
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         self.add_entity_to_group(
             transaction.clone(),
             to_group_id_in,
@@ -2314,10 +2240,8 @@ impl Database for PostgreSQLDatabase {
         move_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(), anyhow::Error> {
-        //%%latertrans
         let tx = self.begin_trans()?;
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         self.add_has_relation_to_local_entity(
             transaction.clone(),
             to_entity_id_in,
@@ -2368,9 +2292,8 @@ impl Database for PostgreSQLDatabase {
             removing_rtle_in.get_related_id2(),
         )?;
         //%%does this auto-commit as expected? is there a test, or similar enough elsewhere?
-        //%%latertrans: self.commit_trans(*(transaction.unwrap()))
-        ////%%latertrans: self.commit_trans(*trans)
-        //%%latertrans:
+        //%%: self.commit_trans(*(transaction.unwrap()))
+        ////%%l: self.commit_trans(*trans)
         Ok(())
     }
 
@@ -2463,10 +2386,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -2603,10 +2524,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -2692,10 +2611,8 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -2862,10 +2779,8 @@ impl Database for PostgreSQLDatabase {
     }
 
     fn delete_group_and_relations_to_it(&self, id_in: i64) -> Result<(), anyhow::Error> {
-        //%%latertrans
         let tx = self.begin_trans()?;
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         let entity_count: u64 = self.get_group_size(transaction.clone(), id_in, 3)?;
         self.delete_objects(
             transaction.clone(),
@@ -2932,10 +2847,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         group_id_in: i64,
     ) -> Result<(), anyhow::Error> {
-        //%%latertrans
         let tx = self.begin_trans()?;
-        //let transaction = Some(Rc::new(RefCell::new(tx)));
-        let transaction = None;
+        let transaction = Some(Rc::new(RefCell::new(tx)));
         let entity_count = self.get_group_size(transaction.clone(), group_id_in, 3)?;
         let (deletions1, deletions2) =
             self.delete_relation_to_group_and_all_recursively(transaction.clone(), group_id_in)?;
@@ -3331,10 +3244,8 @@ impl Database for PostgreSQLDatabase {
             // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
             // I didn't try a proc macro but based on some reading I think it would have the same
             // problem.)
-            //%%latertrans
             let local_tx: Transaction<Postgres> = self.begin_trans()?;
-            //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-            let local_tx_option = None;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
             let transaction = if transaction_in.clone().is_some() {
                 transaction_in.clone()
             } else {
@@ -3535,7 +3446,6 @@ impl Database for PostgreSQLDatabase {
 
     /// @return the id of the new RTE, the id of the "has" relation type, and the new sorting_index
     /// of the RTE added.
-    //fn add_has_relation_to_local_entity<'a, 'b>(
     fn add_has_relation_to_local_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -3544,11 +3454,7 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    //) -> Result<RelationToLocalEntity, anyhow::Error> 
-    ) -> Result<(i64, i64, i64), anyhow::Error> 
-    //where 
-    //    'a: 'b
-    {
+    ) -> Result<(i64, i64, i64), anyhow::Error> {
         let relation_type_id: i64 =
             self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?;
         let (new_rte_id, new_sorting_index) = self.create_relation_to_local_entity(
@@ -3560,7 +3466,6 @@ impl Database for PostgreSQLDatabase {
             observation_date_in,
             sorting_index_in,
         )?;
-        //Ok(new_rte.get_id())
         Ok((new_rte_id, relation_type_id, new_sorting_index))
     }
     fn get_attribute_count(
@@ -4384,7 +4289,7 @@ impl Database for PostgreSQLDatabase {
         } else {
             ""
         };
-        Util::print_backtrace();
+        //Util::print_backtrace();
         self.does_this_exist(
             transaction,
             format!(

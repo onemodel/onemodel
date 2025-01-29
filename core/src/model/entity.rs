@@ -798,7 +798,6 @@ impl Entity<'_> {
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-    //) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
     ) -> Result<(i64, i64), anyhow::Error> {
         self.db.add_uri_entity_with_uri_attribute(
             transaction,
@@ -812,6 +811,7 @@ impl Entity<'_> {
     }
 
     /*%%%%%
+     //%%why do we have both add..() (just below) and create..() here?
       fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> /*= None*/,
                             observation_date_in: i64 = Utc::now().timestamp_millis(), caller_manages_transactions_in: bool /*= false*/,
                             sorting_index_in: Option<i64> /*= None*/) -> /*id*/ i64 {
@@ -864,7 +864,6 @@ impl Entity<'_> {
         )
     }
 
-    //pub fn add_text_attribute2<'a, 'b>(
     pub fn add_text_attribute2<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -968,21 +967,19 @@ impl Entity<'_> {
                     }
                   }
     */
-    fn add_relation_to_local_entity(
-        &self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    fn add_relation_to_local_entity<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_attr_type_id: i64,
         in_entity_id2: i64,
         sorting_index_in: Option<i64>,
         in_valid_on_date: Option<i64>, /*= None*/
         in_observation_date: i64,      /*= Utc::now().timestamp_millis()*/
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
-        //%%latertrans
-        //let rte_id = self.db.create_relation_to_local_entity(transaction.clone(), in_attr_type_id, self.get_id(), in_entity_id2, in_valid_on_date, observation_date_in, sorting_index_in, false)?.get_id();
         let (rte_id, new_sorting_index) = self
             .db
             .create_relation_to_local_entity(
-                None,
+                transaction.clone(),
                 in_attr_type_id,
                 self.get_id(),
                 in_entity_id2,
@@ -990,10 +987,8 @@ impl Entity<'_> {
                 in_observation_date,
                 sorting_index_in,
             )?;
-            //.get_id();
         Ok(RelationToLocalEntity::new(
             self.db,
-            //transaction.clone(),
             rte_id,
             in_attr_type_id,
             self.get_id(),
@@ -1043,7 +1038,6 @@ impl Entity<'_> {
     }
 
     /// Like others, returns the new things' IDs. */
-    //pub fn add_group_and_relation_to_group<'a, 'b>(&'a self,
     pub fn add_group_and_relation_to_group<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -1054,7 +1048,6 @@ impl Entity<'_> {
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
     ) -> Result<(i64, i64), anyhow::Error> {
-        //%%%%%%this gets the deadlock from the test:
         let (group_id, rtg_id) = self.db.create_group_and_relation_to_group(
             transaction.clone(),
             self.get_id(),
@@ -1065,27 +1058,19 @@ impl Entity<'_> {
             observation_date_in,
             sorting_index_in,
         )?;
-        //%%latertrans: 
-        //let group: Group = Group::new2(self.db, transaction.clone(), group_id)?;
-        // /*%%%%%%
-        let group: Group = Group::new2(self.db, None, group_id)?;
-        //%%latertrans: 
-        //let rtg = RelationToGroup::new2(self.db, transaction.clone(), rtg_id, self.get_id(), rel_type_id_in, group_id)?;
+        let group: Group = Group::new2(self.db, transaction.clone(), group_id)?;
         let rtg = RelationToGroup::new2(
             self.db,
-            None,
+            transaction.clone(),
             rtg_id,
             self.get_id(),
             rel_type_id_in,
             group_id,
         )?;
         Ok((group.get_id(), rtg.get_id()))
-        // %%%%%%*/
-        // Ok((0 as i64, 0 as i64))
     }
 
     /// @return the id of the new RTE
-    //fn add_has_relation_to_local_entity<'a, 'b>(
     fn add_has_relation_to_local_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
@@ -1093,7 +1078,6 @@ impl Entity<'_> {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
     ) -> Result<RelationToLocalEntity<'a>, anyhow::Error> 
-    //where 'b: 'a
     {
         let (rel_id, has_rel_type_id, new_sorting_index) = self.db.add_has_relation_to_local_entity(
             transaction,

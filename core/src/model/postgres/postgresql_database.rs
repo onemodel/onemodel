@@ -249,7 +249,6 @@ impl PostgreSQLDatabase {
             ));
         }
         debug!("In db_query, results.len()={:?}", results.len());
-        //Util::print_backtrace();
         Ok(results)
     }
 
@@ -504,7 +503,6 @@ impl PostgreSQLDatabase {
                 sql_in
             ));
         }
-        //Util::print_backtrace();
         Ok(rows_affected)
     }
 
@@ -1753,9 +1751,7 @@ impl PostgreSQLDatabase {
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //%%latertrans
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {

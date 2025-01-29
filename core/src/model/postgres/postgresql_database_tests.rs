@@ -876,137 +876,35 @@ mod test {
     fn entity_only_key_exists_should_not_find_relation_to_local_entity_record() {
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
-        //%%how long have these lines been commented out below? should I retry with them, fixed?
-        // let mut tx1 = db.begin_trans().unwrap();
-        // let tx = &Some(&mut tx1);
+        let tx = db.begin_trans().unwrap();
+        let tx1 = Some(Rc::new(RefCell::new(tx)));
         let temp_rel_type_id: i64 = db
-            .create_relation_type(None, RELATION_TYPE_NAME, "", RelationType::UNIDIRECTIONAL)
+            .create_relation_type(tx1.clone(), RELATION_TYPE_NAME, "", RelationType::UNIDIRECTIONAL)
             .unwrap();
-        // assert!(!db.entity_only_key_exists(tx, temp_rel_type_id).unwrap());
-        assert!(!db.entity_only_key_exists(None, temp_rel_type_id).unwrap());
-        // db.delete_relation_type(tx, temp_rel_type_id).unwrap();
-        db.delete_relation_type(None, temp_rel_type_id).unwrap();
-        // db.rollback_trans(tx1).unwrap();
-    }
-
-    // Purpose: to make add_text_attribute2_should_work_without_weird_transaction_compile_errors
-    // more standalone/reportable.
-    fn create_entity_stub(
-        //&self,
-        //_transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        _transaction2: Option<Rc<RefCell<String>>>,
-        _name_in: &str,
-        _class_id_in: Option<i64>,   /*= None*/
-        _is_public_in: Option<bool>, /*= None*/
-    ) -> Result<i64, anyhow::Error> {
-        Ok(0)
-    }
-    // Purpose: to make add_text_attribute2_should_work_without_weird_transaction_compile_errors
-    // more standalone/reportable.
-    //fn new_entity_stub<'a>(
-    fn new_entity_stub(
-    //pub fn new<'a>(
-        //_db: &'a dyn Database,
-        _id: i64,
-        _name: String,
-        _class_id: Option<i64>, /*= None*/
-        _insertion_date: i64,
-        _public: Option<bool>,
-        _archived: bool,
-        _new_entries_stick_to_top: bool,
-    //) -> Entity<'a> {
-    //) -> String<'a> {
-    //) -> String {
-    //) -> EntityStub<'a> {
-    ) -> EntityStub {
-        EntityStub{}
-    }
-    //struct EntityStub<'a> {}
-    struct EntityStub {}
-    impl EntityStub {
-        pub fn add_text_attribute2<'a, 'b>(
-            &'a self,
-            _transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-            //_transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-            //_transaction: Option<Rc<RefCell<String>>>,
-            _in_attr_type_id: i64,
-            _in_text: &str,
-            _sorting_index_in: Option<i64>,
-            _in_valid_on_date: Option<i64>,
-            _observation_date_in: i64,
-        //) -> Result<TextAttribute<'a>, anyhow::Error>
-        //) -> Result<String<'a>, anyhow::Error>
-        ) -> Result<String, anyhow::Error>
-        //%%istill needed? this next change in next 2 lines makes it not show error in nvim or compiler.
-        where
-            'a: 'b,
-        {
-            Ok("1234".to_string())
-        }
-    }
-    #[test]
-    fn add_text_attribute2_should_work_without_weird_transaction_compile_errors() {
-        //Util::initialize_tracing();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
-        let name = "entity_to_add_attr_2"; 
-        let new_entity: EntityStub = new_entity_stub(0, name.to_string(), None, 0, None, false, false);
-        let tx: Transaction<Postgres> = db.begin_trans().unwrap();
-        //let tx2: String = "1234".to_string();
-        let transaction: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
-        //let transaction2: Option<Rc<RefCell<String>>> = Some(Rc::new(RefCell::new(tx2)));
-        //let id: i64 = db.create_entity(transaction.clone(), name, None, None).unwrap();
-        //let id: i64 = create_entity_stub(transaction.clone(), name, None, None).unwrap();
-        //let id: i64 = create_entity_stub(transaction2.clone(), name, None, None).unwrap();
-        {
-            //let new_entity: Entity = Entity::new(&db, id, name.to_string(), None, 0, None, false, false);
-            //let new_entity: EntityStub = new_entity_stub(&db, id, name.to_string(), None, 0, None, false, false);
-            //let new_entity: EntityStub = new_entity_stub(id, name.to_string(), None, 0, None, false, false);
-            {
-                //let (_uri_class_id, uri_class_template_id) =
-                //    //db.get_or_create_class_and_template_entity(transaction.clone(), "URI").unwrap();
-                //    (0, 0);
-                //{
-
-                    let _ = new_entity.add_text_attribute2(
-                        //could make it so the above transaction parameter to the fn doesn't require a
-                        //lifetime, by changing that in postgresql_database.rs fn db_action, or such? Or
-                        //just fix things here somehow?
-                        //How is this call different from other db calls that don't have the problem?
-                        //some discussion was in:
-                        //https://users.rust-lang.org/t/error-e0597-new-entity2-does-not-live-long-enough/115725
-                        transaction.clone(),
-                        0, //uri_class_template_id,
-                        "someUri",
-                        None,
-                        None,
-                        0,
-                    );
-                //}
-            }
-        }
- 
+        assert!(!db.entity_only_key_exists(tx1.clone(), temp_rel_type_id).unwrap());
+        //no need to delete if we are shortly afterward rolling back
+        //db.delete_relation_type(tx1.clone(), temp_rel_type_id).unwrap();
+        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> = Rc::into_inner(tx1.unwrap());
+        let unwrapped_local_tx = local_tx_cell.unwrap().into_inner();
+        db.rollback_trans(unwrapped_local_tx).unwrap();
     }
 
     #[test]
     fn get_attr_count_and_get_attribute_sorting_rows_count() {
-        //%%latertrans: NOTE: this test deadlocks the db or something, when transaction are enabled instead of passing None
-        //all the time or such.  See OM note re "deadlock" for where I left off in diagnosing it,
-        //and comment re "latertrans2".
         Util::initialize_tracing();
         let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
-        //%%latertrans
-        //let tx = db.begin_trans().unwrap();
-        //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
-        let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = None; //Some(Rc::new(RefCell::new(tx)));
-
         let id: i64 = db
             .create_entity(
-                tx.clone(),
+                None, //tx.clone(),
                 "test: org.onemodel.PSQLDbTest.getAttrCount...",
                 None,
                 None,
             )
             .unwrap();
+        let entity: Entity = Entity::new2(&db, None /*tx.clone*/, id).unwrap();
+        let tx = db.begin_trans().unwrap();
+        let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+
         let initial_num_sorting_rows: u64 =
             db.get_attribute_sorting_rows_count(None, Some(id)).unwrap();
         assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 0);
@@ -1049,17 +947,14 @@ mod test {
 
         create_and_add_test_relation_to_group_on_to_entity(
             &db,
+            &entity,
             tx.clone(),
-            id,
             rel_type_id,
             "somename",
             Some(12345 as i64),
             true,
         )
         .unwrap();
-        /*
-        //%%latertrans these won't work until I can uncomment the code at the next latertrans just
-        //below (in next fn):
         assert_eq!(db.get_attribute_count(tx.clone(), id, false).unwrap(), 5);
         assert_eq!(
             db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
@@ -1069,8 +964,8 @@ mod test {
 
         let unwrapped_local_tx = Rc::into_inner(tx.unwrap()).unwrap().into_inner();
         db.rollback_trans(unwrapped_local_tx).unwrap();
-        */
-        //idea: (tracked in tasks): find out: WHY do the next lines fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
+
+        //%%idea: (tracked in tasks): find out: WHY do the next lines fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
         // Do I not understand rollback?  But it does seem to work as expected in "entity creation/update and transaction rollback" test above.  See also
         // in EntityTest's "update_class_and_template_entity_name", at the last 2 commented lines which fail for unknown reason.  Maybe something obvious i'm just
         // missing, or maybe it's in the postgresql or jdbc transaction docs.  Could also ck in other places calling db.rollback_trans to see what's to learn from
@@ -1082,45 +977,34 @@ mod test {
     /// Returns the group_id, and the RTG.
     /// In scala, this file was in the core package (not in the test directory), so that by being included in the .jar,
     /// it is available for use by the integration module (in RestDatabaseTest.scala).
-    /// (It was in core/src/model/database_test_utils.rs before that was converted to Rust, and in scala,
+    /// (It was in core/src/model/database_test_utils.rs before that was converted to Rust, and in scala
     /// it was in core-scala/src/main/scala/org/onemodel/core/model/DatabaseTestUtils.scala.
     //%%%%remember to delete the core/src/model/database_test_utils.rs rust file once this test works!
     //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(db_in: &'a dyn Database,
     fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(
         db_in: &'a dyn Database,
+        in_entity: &'b Entity,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-        in_parent_id: i64,
         in_rel_type_id: i64,
         in_group_name: &str,           /*= "something"*/
         in_valid_on_date: Option<i64>, /*= None*/
         allow_mixed_classes_in: bool,  /*= true*/
-    ) -> Result<(i64, i64), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> 
+    where 'a: 'b
+    {
         //let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty) None else in_valid_on_date;
         let observation_date: i64 = Utc::now().timestamp_millis();
-        let entity: Entity = Entity::new2(db_in, transaction.clone(), in_parent_id).unwrap();
         //let (mut group, mut rtg) = entity.add_group_and_relation_to_group(transaction.clone(), in_rel_type_id, in_group_name, allow_mixed_classes_in, in_valid_on_date, observation_date, None, false)?;
-        //%% next line gets the db deadlock (maybe only after the latertranses are fixed?):
-        let (group_id, rtg_id) = entity.add_group_and_relation_to_group(
-            //%%latertrans? after below transaction issue is fixed?
-            //I guess this is the cause of the deadlock. The call just a few lines above
-            //to Entity::new2 opens a transaction and queries for if the entity exists.  Then this
-            //line waits for that transaction (created in top of
-            //get_attr_count_and_get_attribute_sorting_rows_count) to exit before it can do the
-            //next line without a transaction!
-            //%%latertrans
-            //transaction.clone(),
-            None,
+        let (group_id, rtg_id) = in_entity.add_group_and_relation_to_group(
+            transaction.clone(),
             in_rel_type_id,
             in_group_name,
             allow_mixed_classes_in,
             in_valid_on_date,
             observation_date,
             None,
-            //%%latertrans (make it match (commented line just?) above, so true?):
         )?;
-        //latertrans: should not matter during this no-trans period?:
         let mut group = Group::new2(db_in, transaction.clone(), group_id)?;
-        //let mut group = Group::new2(db_in, None, group_id)?;
         debug!("new group id = {}", group.get_id());
 
         let mut rtg =
@@ -1143,9 +1027,6 @@ mod test {
         );
         assert!(group.get_name(transaction.clone()).unwrap() == in_group_name);
         assert!(rtg.get_observation_date(transaction.clone()).unwrap() == observation_date);
-        /*%%%%%%
-        Ok((0 as i64, 0 as i64))
-        %%%%%%*/
         Ok((group.get_id(), rtg.get_id()))
     }
 

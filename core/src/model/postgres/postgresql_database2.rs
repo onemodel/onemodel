@@ -102,14 +102,9 @@ impl PostgreSQLDatabase {
                 index
             }
         };
-        //%%%%%%%%this gets the deadlock from the test?: maybe related but not directly?
-        Util::print_backtrace();
-        //std::thread::sleep(std::time::Duration::new(4, 0)); //is (secs, nanos)
         self.db_action(transaction, format!("insert into AttributeSorting (entity_id, attribute_form_id, attribute_id, sorting_index) \
             values ({},{},{},{})", entity_id_in, attribute_form_id_in, attribute_id_in, sorting_index).as_str(),
                        false, false)?;
-        /*%%%%%%%%
-            %%%%%%%%*/
         Ok(sorting_index)
     }
 
@@ -155,10 +150,8 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> =  self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
@@ -1368,10 +1361,8 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        //%%latertrans
         let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let local_tx_option = None;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
         } else {
