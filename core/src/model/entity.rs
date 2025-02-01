@@ -87,7 +87,6 @@ impl Entity<'_> {
         id: i64,
     ) -> Result<Entity<'a>, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-        //%%%%%%%%
         if !db.is_remote() && !db.entity_key_exists(transaction, id, true)? {
             return Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST));
         }
@@ -787,8 +786,8 @@ impl Entity<'_> {
         )
     }
 
-    // Depending on future callers, should this return instead an Entity and RTLE, 
-    // creating them here? 
+    // Depending on future callers, should this return instead an Entity and RTLE,
+    // creating them here?
     /// @return the new entity_id and relation_to_local_entity_id that relates to it.
     fn add_uri_entity_with_uri_attribute<'a>(
         &'a self,
@@ -872,8 +871,7 @@ impl Entity<'_> {
         sorting_index_in: Option<i64>,
         in_valid_on_date: Option<i64>,
         observation_date_in: i64,
-    ) -> Result<TextAttribute<'a>, anyhow::Error>
-    {
+    ) -> Result<TextAttribute<'a>, anyhow::Error> {
         let id = self.db.create_text_attribute(
             transaction.clone(),
             self.id,
@@ -976,17 +974,15 @@ impl Entity<'_> {
         in_valid_on_date: Option<i64>, /*= None*/
         in_observation_date: i64,      /*= Utc::now().timestamp_millis()*/
     ) -> Result<RelationToLocalEntity, anyhow::Error> {
-        let (rte_id, new_sorting_index) = self
-            .db
-            .create_relation_to_local_entity(
-                transaction.clone(),
-                in_attr_type_id,
-                self.get_id(),
-                in_entity_id2,
-                in_valid_on_date,
-                in_observation_date,
-                sorting_index_in,
-            )?;
+        let (rte_id, new_sorting_index) = self.db.create_relation_to_local_entity(
+            transaction.clone(),
+            in_attr_type_id,
+            self.get_id(),
+            in_entity_id2,
+            in_valid_on_date,
+            in_observation_date,
+            sorting_index_in,
+        )?;
         Ok(RelationToLocalEntity::new(
             self.db,
             rte_id,
@@ -1038,16 +1034,20 @@ impl Entity<'_> {
     }
 
     /// Like others, returns the new things' IDs. */
-    pub fn add_group_and_relation_to_group<'a>(
+    //%%%%%%?
+    pub fn add_group_and_relation_to_group<'a, 'b>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         rel_type_id_in: i64,
         new_group_name_in: &str,
         allow_mixed_classes_in_group_in: bool, /*= false*/
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
-    ) -> Result<(i64, i64), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> 
+    where
+        'a: 'b,
+    {
         let (group_id, rtg_id) = self.db.create_group_and_relation_to_group(
             transaction.clone(),
             self.get_id(),
@@ -1077,18 +1077,26 @@ impl Entity<'_> {
         entity_id_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-    ) -> Result<RelationToLocalEntity<'a>, anyhow::Error> 
-    {
-        let (rel_id, has_rel_type_id, new_sorting_index) = self.db.add_has_relation_to_local_entity(
-            transaction,
+    ) -> Result<RelationToLocalEntity<'a>, anyhow::Error> {
+        let (rel_id, has_rel_type_id, new_sorting_index) =
+            self.db.add_has_relation_to_local_entity(
+                transaction,
+                self.get_id(),
+                entity_id_in,
+                valid_on_date_in,
+                observation_date_in,
+                None,
+            )?;
+        let rtle: RelationToLocalEntity = RelationToLocalEntity::new(
+            self.db,
+            rel_id,
+            has_rel_type_id,
             self.get_id(),
             entity_id_in,
             valid_on_date_in,
             observation_date_in,
-            None,
-        )?;
-        let rtle: RelationToLocalEntity = RelationToLocalEntity::new(self.db, rel_id, has_rel_type_id, 
-            self.get_id(), entity_id_in, valid_on_date_in, observation_date_in, new_sorting_index);
+            new_sorting_index,
+        );
         Ok(rtle)
     }
 
@@ -1100,20 +1108,27 @@ impl Entity<'_> {
         observation_date_in: i64,
         is_public_in: Option<bool>,
     ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
-        let (new_entity_id, rte_id, relation_type_id) = self.db.create_entity_and_add_has_local_relation_to_it(
-            transaction.clone(),
-            self.get_id(),
-            new_entity_name_in,
-            observation_date_in,
-            is_public_in,
-        )?;
+        let (new_entity_id, rte_id, relation_type_id) =
+            self.db.create_entity_and_add_has_local_relation_to_it(
+                transaction.clone(),
+                self.get_id(),
+                new_entity_name_in,
+                observation_date_in,
+                is_public_in,
+            )?;
         //idea: would be faster (no db hit) if we called Entity::new here instead, with the data
         //as needed returned from the fn call just above, instead of Entity::new2. Might have
         //to add some return values to Entity::new.
-        let new_entity: Entity = Entity::new2(self.db, transaction.clone(), new_entity_id)?; 
+        let new_entity: Entity = Entity::new2(self.db, transaction.clone(), new_entity_id)?;
         //idea: ditto the comment just above.
-        let rte: RelationToLocalEntity = RelationToLocalEntity::new2(self.db, transaction.clone(), rte_id, 
-            relation_type_id, self.get_id(), new_entity_id)?;
+        let rte: RelationToLocalEntity = RelationToLocalEntity::new2(
+            self.db,
+            transaction.clone(),
+            rte_id,
+            relation_type_id,
+            self.get_id(),
+            new_entity_id,
+        )?;
         Ok((new_entity, rte))
     }
 

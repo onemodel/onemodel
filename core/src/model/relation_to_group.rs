@@ -177,7 +177,7 @@ impl RelationToGroup<'_> {
         ))
     }
 
-    fn get_group_id(
+    pub fn get_group_id(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error> {
@@ -252,8 +252,12 @@ impl RelationToGroup<'_> {
     }
 
     /// Removes this object from the system.
-    fn delete_group_and_relations_to_it(&self) -> Result<(), anyhow::Error> {
-        self.db.delete_group_and_relations_to_it(self.group_id)
+    fn delete_group_and_relations_to_it<'a>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    ) -> Result<(), anyhow::Error> {
+        self.db
+            .delete_group_and_relations_to_it(transaction, self.group_id)
     }
 }
 

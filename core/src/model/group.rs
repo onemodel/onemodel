@@ -30,12 +30,15 @@ pub struct Group<'a> {
 
 impl Group<'_> {
     /// Creates a new group in the database.
-    fn create_group<'a>(
+    fn create_group<'a, 'b>(
         db_in: &'a dyn Database,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_name: &str,
         allow_mixed_classes_in_group_in: bool, /*= false*/
-    ) -> Result<Group<'a>, Error> {
+    ) -> Result<Group<'b>, Error> 
+    where
+        'a: 'b
+    {
         let id: i64 = db_in.create_group(
             transaction.clone(),
             in_name,
@@ -49,7 +52,7 @@ impl Group<'_> {
     /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     fn get_group<'a>(
         db_in: &'a dyn Database,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         id: i64,
     ) -> Result<Option<Group<'a>>, Error> {
         let result: Result<Group, Error> = Group::new2(db_in, transaction, id);
@@ -70,7 +73,7 @@ impl Group<'_> {
     /// [%%Confirm?:] This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new<'a>(
+    pub fn new<'a>(
         db: &'a dyn Database,
         id: i64,
         name_in: &str,
@@ -91,11 +94,14 @@ impl Group<'_> {
 
     /// See comments on similar methods in RelationToEntity (or maybe its subclasses%%).
     /// Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
-    pub fn new2<'a>(
+    pub fn new2<'a, 'b>(
         db: &'a dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<Group<'a>, Error> {
+    ) -> Result<Group<'b>, Error> 
+    where
+        'a: 'b,
+    {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.group_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -163,7 +169,7 @@ impl Group<'_> {
             .db
             .get_group_size(transaction.clone(), self.get_id(), 1)?;
         let mut result: String = "".to_string();
-        let name = &self.get_name(None)?;
+        let name = &self.get_name(transaction.clone())?;
         let formatted_name = format!("grp {} /{}: {}", self.id, num_entries, Color::blue(name));
         result.push_str(if simplify_in {
             name.as_str()
@@ -173,10 +179,10 @@ impl Group<'_> {
         if !simplify_in {
             result.push_str(", class: ");
             let class_name = {
-                if self.get_mixed_classes_allowed(transaction)? {
+                if self.get_mixed_classes_allowed(transaction.clone())? {
                     "(mixed)".to_string()
                 } else {
-                    let class_name_option = self.get_class_name(None)?;
+                    let class_name_option = self.get_class_name(transaction.clone())?;
                     match class_name_option {
                         None => "None".to_string(),
                         Some(cn) => {
@@ -232,17 +238,18 @@ impl Group<'_> {
     }
 
     /// Removes this object from the system.
-    fn delete<'a>(
+    pub fn delete<'a, 'b>(
         &'a self,
-        ////_transaction: &Option<&mut Transaction<'a, Postgres>>,
-        //_transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        //_id_in: i64,
-    ) -> Result<(), Error> {
-        self.db.delete_group_and_relations_to_it(self.id)
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    ) -> Result<(), Error> 
+    where 
+        'a: 'b,
+    {
+        self.db.delete_group_and_relations_to_it(transaction, self.id)
     }
 
     /// Removes an entity from this group.
-    fn remove_entity<'a>(
+    pub fn remove_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         entity_id: i64,
@@ -251,33 +258,42 @@ impl Group<'_> {
             .remove_entity_from_group(transaction, self.id, entity_id)
     }
 
-    fn delete_with_entities(&self) -> Result<(), Error> {
+    pub fn delete_with_entities(&self) -> Result<(), Error> {
         self.db
             .delete_group_relations_to_it_and_its_entries(self.id)
     }
 
     // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability)?
-    fn get_size(&self, include_which_entities: i32 /*= 3*/) -> Result<u64, Error> {
+    pub fn get_size(&self, 
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        include_which_entities: i32 /*= 3*/) -> Result<u64, Error> 
+    {
         self.db
-            .get_group_size(None, self.id, include_which_entities)
+            .get_group_size(transaction, self.id, include_which_entities)
     }
 
     fn get_group_entries(
         &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Entity>, Error> {
         self.db
-            .get_group_entry_objects(None, self.id, starting_index_in, max_vals_in)
+            .get_group_entry_objects(transaction, self.id, starting_index_in, max_vals_in)
     }
 
-    fn add_entity(
-        &self,
+    //%%%%%%?
+    pub fn add_entity<'a, 'b>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_entity_id: i64,
         sorting_index_in: Option<i64>,        /*= None*/
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error> 
+    where
+        'a: 'b,
+    {
         self.db.add_entity_to_group(
-            None,
+            transaction,
             self.get_id(),
             in_entity_id,
             sorting_index_in,
@@ -338,7 +354,7 @@ impl Group<'_> {
             let class_id: Option<i64> = self.get_class_id(transaction.clone())?;
             match class_id {
                 None => {
-                    if self.get_size(3)? == 0 {
+                    if self.get_size(transaction.clone(), 3)? == 0 {
                         // display should indicate that we know mixed are not allowed, so a class could be specified, but none has.
                         Ok(Some("(unspecified)".to_string()))
                     } else {

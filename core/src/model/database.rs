@@ -138,9 +138,9 @@ pub trait Database {
         parent_id_in: i64,
         attr_type_id_in: i64,
         text_in: &str,
-        valid_on_date_in: Option<i64>,        /*= None*/
-        observation_date_in: i64,             /*= System.currentTimeMillis()*/
-        sorting_index_in: Option<i64>,        /*= None*/
+        valid_on_date_in: Option<i64>, /*= None*/
+        observation_date_in: i64,      /*= System.currentTimeMillis()*/
+        sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<i64, anyhow::Error>
     where
         'a: 'b;
@@ -152,7 +152,7 @@ pub trait Database {
         entity_id2_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-        sorting_index_in: Option<i64>,        /* = None*/
+        sorting_index_in: Option<i64>, /* = None*/
     ) -> Result<(i64, i64), anyhow::Error>;
     fn create_relation_to_remote_entity<'a>(
         &'a self,
@@ -163,11 +163,11 @@ pub trait Database {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         remote_instance_id_in: &str,
-        sorting_index_in: Option<i64>,        /* = None*/
+        sorting_index_in: Option<i64>, /* = None*/
     ) -> Result<RelationToRemoteEntity, anyhow::Error>;
-    fn create_group_and_relation_to_group<'a>(
+    fn create_group_and_relation_to_group<'a, 'b>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         new_group_name_in: &str,
@@ -175,7 +175,10 @@ pub trait Database {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
-    ) -> Result<(i64, i64), anyhow::Error>;
+    ) -> Result<(i64, i64), anyhow::Error>
+    where
+        'a: 'b
+    ;
 
     fn create_entity<'a>(
         &'a self,
@@ -202,14 +205,14 @@ pub trait Database {
         group_id_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-        sorting_index_in: Option<i64>,        /*= None*/
+        sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<(i64, i64), anyhow::Error>;
     fn add_entity_to_group<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         group_id_in: i64,
         contained_entity_id_in: i64,
-        sorting_index_in: Option<i64>,        /*= None*/
+        sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<(), anyhow::Error>;
     fn create_om_instance<'a>(
         &'a self,
@@ -316,7 +319,7 @@ pub trait Database {
         number_in: f64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-        sorting_index_in: Option<i64>,        /*= None*/
+        sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<i64, anyhow::Error>;
     fn create_date_attribute<'a>(
         &'a self,
@@ -324,7 +327,7 @@ pub trait Database {
         parent_id_in: i64,
         attr_type_id_in: i64,
         date_in: i64,
-        sorting_index_in: Option<i64>,        /*= None*/
+        sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<i64, anyhow::Error>;
     //%%
     // fn create_file_attribute(&self,
@@ -357,7 +360,7 @@ pub trait Database {
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error>; 
+    ) -> Result<(i64, i64), anyhow::Error>;
     fn attribute_key_exists(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -998,7 +1001,7 @@ pub trait Database {
         observation_date_in: i64,
         is_public_in: Option<bool>,
     ) -> Result<(i64, i64, i64), anyhow::Error>;
-     fn add_entity_and_relation_to_local_entity<'a>(
+    fn add_entity_and_relation_to_local_entity<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         rel_type_id_in: i64,
@@ -1133,7 +1136,14 @@ pub trait Database {
         rel_type_id_in: i64,
         group_id_in: i64,
     ) -> Result<u64, anyhow::Error>;
-    fn delete_group_and_relations_to_it(&self, id_in: i64) -> Result<(), anyhow::Error>;
+    fn delete_group_and_relations_to_it<'a, 'b>(
+        &'a self, 
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        id_in: i64
+    ) -> Result<(), anyhow::Error>
+    where
+        'a: 'b,
+    ;
     fn delete_relation_type<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,

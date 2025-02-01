@@ -227,15 +227,11 @@ impl Attribute for QuantityAttribute<'_> {
         //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
 
         //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
-        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-        // valid_on_date: Option<i64> /*%%= None*/,
-        /*DataType::Bigint(%%)*/
-        self.valid_on_date = None; //data[4];
-                                   // self.valid_on_date = match data[4] {
-                                   //     DataType::Bigint(x) => x,
-                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
-                                   // };
-
+        self.valid_on_date = match data[4] {
+            Some(DataType::Bigint(x)) => Some(x),
+            None => None,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
+        };
         self.observation_date = match data[5] {
             Some(DataType::Bigint(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", data[5])),

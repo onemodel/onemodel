@@ -48,9 +48,9 @@ pub struct RelationToLocalEntity<'a> {
 }
 
 impl RelationToLocalEntity<'_> {
-    /// This one is perhaps only called by the database code [or code that just hit the db]--so it can return 
+    /// This one is perhaps only called by the database code [or code that just hit the db]--so it can return
     /// arrays of objects & save more DB hits
-    /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent 
+    /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent
     /// object--but rather should reflect one that already exists.
     pub fn new<'a>(
         db: &'a dyn Database,

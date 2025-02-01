@@ -620,19 +620,29 @@ mod test {
         date_attribute_id
     }
 
-    fn create_test_boolean_attribute_with_one_entity(
-        db: &PostgreSQLDatabase,
+    fn create_test_boolean_attribute_with_one_entity<'a, 'b>(
+        db: &'a PostgreSQLDatabase,
+        // purpose: see comment in delete_objects
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_parent_id: i64,
         val_in: bool,
         in_valid_on_date: Option<i64>, /*= None*/
         observation_date_in: i64,
-    ) -> i64 {
+    ) -> i64
+    where
+        'a: 'b,
+    {
         let attr_type_id: i64 = db
-            .create_entity(None, "boolAttributeType-like-isDone", None, None)
+            .create_entity(
+                transaction.clone(),
+                "boolAttributeType-like-isDone",
+                None,
+                None,
+            )
             .unwrap();
         let boolean_attribute_id: i64 = db
             .create_boolean_attribute(
-                None,
+                transaction.clone(),
                 in_parent_id,
                 attr_type_id,
                 val_in,
@@ -641,13 +651,17 @@ mod test {
                 None,
             )
             .unwrap();
-        let mut ba =
-            BooleanAttribute::new2(db as &dyn Database, None, boolean_attribute_id).unwrap();
-        assert!(ba.get_attr_type_id(None).unwrap() == attr_type_id);
-        assert!(ba.get_boolean(None).unwrap() == val_in);
-        assert!(ba.get_valid_on_date(None).unwrap() == in_valid_on_date);
-        assert!(ba.get_parent_id(None).unwrap() == in_parent_id);
-        assert!(ba.get_observation_date(None).unwrap() == observation_date_in);
+        let mut ba = BooleanAttribute::new2(
+            db as &dyn Database,
+            transaction.clone(),
+            boolean_attribute_id,
+        )
+        .unwrap();
+        assert!(ba.get_attr_type_id(transaction.clone()).unwrap() == attr_type_id);
+        assert!(ba.get_boolean(transaction.clone()).unwrap() == val_in);
+        assert!(ba.get_valid_on_date(transaction.clone()).unwrap() == in_valid_on_date);
+        assert!(ba.get_parent_id(transaction.clone()).unwrap() == in_parent_id);
+        assert!(ba.get_observation_date(transaction.clone()).unwrap() == observation_date_in);
         boolean_attribute_id
     }
 
@@ -879,9 +893,16 @@ mod test {
         let tx = db.begin_trans().unwrap();
         let tx1 = Some(Rc::new(RefCell::new(tx)));
         let temp_rel_type_id: i64 = db
-            .create_relation_type(tx1.clone(), RELATION_TYPE_NAME, "", RelationType::UNIDIRECTIONAL)
+            .create_relation_type(
+                tx1.clone(),
+                RELATION_TYPE_NAME,
+                "",
+                RelationType::UNIDIRECTIONAL,
+            )
             .unwrap();
-        assert!(!db.entity_only_key_exists(tx1.clone(), temp_rel_type_id).unwrap());
+        assert!(!db
+            .entity_only_key_exists(tx1.clone(), temp_rel_type_id)
+            .unwrap());
         //no need to delete if we are shortly afterward rolling back
         //db.delete_relation_type(tx1.clone(), temp_rel_type_id).unwrap();
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> = Rc::into_inner(tx1.unwrap());
@@ -947,8 +968,8 @@ mod test {
 
         create_and_add_test_relation_to_group_on_to_entity(
             &db,
-            &entity,
             tx.clone(),
+            &entity,
             rel_type_id,
             "somename",
             Some(12345 as i64),
@@ -981,16 +1002,21 @@ mod test {
     /// it was in core-scala/src/main/scala/org/onemodel/core/model/DatabaseTestUtils.scala.
     //%%%%remember to delete the core/src/model/database_test_utils.rs rust file once this test works!
     //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(db_in: &'a dyn Database,
+    //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b, 'c>(
     fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(
         db_in: &'a dyn Database,
-        in_entity: &'b Entity,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        //in_entity: &'c Entity<'a>,
+        in_entity: &'b Entity<'_>,
         in_rel_type_id: i64,
         in_group_name: &str,           /*= "something"*/
         in_valid_on_date: Option<i64>, /*= None*/
         allow_mixed_classes_in: bool,  /*= true*/
-    ) -> Result<(i64, i64), anyhow::Error> 
-    where 'a: 'b
+    ) -> Result<(i64, i64), anyhow::Error>
+    where
+        'a: 'b,
+        //%%%%%%experimental:
+        //'b: 'c,
     {
         //let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty) None else in_valid_on_date;
         let observation_date: i64 = Utc::now().timestamp_millis();
@@ -1030,213 +1056,430 @@ mod test {
         Ok((group.get_id(), rtg.get_id()))
     }
 
-    /*%%%%
-      "QuantityAttribute creation/update/deletion methods" should "work" in {
-        db.begin_trans()
-        let startingEntityCount = db.get_entity_count();
-        let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.quantityAttrs()");
-        let initialTotalSortingRowsCount = db.get_attribute_sorting_rows_count();
-        let quantityAttributeId: i64 = create_test_quantity_attribute_with_two_entities(entity_id);
-        assert(db.get_attribute_sorting_rows_count() > initialTotalSortingRowsCount)
+    #[test]
+    fn quantity_create_update_delete_methods() {
+        Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
 
-        let qa = new QuantityAttribute(db, quantityAttributeId);
-        let (pid1, atid1, uid1) = (qa.get_parent_id(), qa.get_attr_type_id(), qa.get_unit_id);
-        assert(entity_id == pid1)
-        db.update_quantity_attribute(quantityAttributeId, pid1, atid1, uid1, 4, Some(5), 6)
-        // have to create new instance to re-read the data:
-        let qa2 = new QuantityAttribute(db, quantityAttributeId);
-        let (pid2, atid2, uid2, num2, vod2, od2) = (qa2.get_parent_id(), qa2.get_attr_type_id(), qa2.get_unit_id, qa2.get_number, qa2.get_valid_on_date(), qa2.get_observation_date());
-        assert(pid2 == pid1)
-        assert(atid2 == atid1)
-        assert(uid2 == uid1)
-        assert(num2 == 4)
-        // (the ".contains" suggested by the IDE just caused another problem)
-        //noinspection OptionEqualsSome
-        assert(vod2 == Some(5L))
-        assert(od2 == 6)
+        // Begin transaction
+        let tx = db.begin_trans().unwrap();
+        let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
-        let qAttrCount = db.get_quantity_attribute_count(entity_id);
-        assert(qAttrCount == 1)
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
+        let starting_entity_count = db.get_entity_count(tx.clone()).unwrap();
+        let entity_id = db
+            .create_entity(
+                tx.clone(),
+                "test: org.onemodel.PSQLDbTest.quantityAttrs()",
+                None,
+                None,
+            )
+            .unwrap();
+        let initial_total_sorting_rows_count = db
+            .get_attribute_sorting_rows_count(tx.clone(), None)
+            .unwrap();
 
-        //delete the quantity attribute: #'s still right?
-        let entity_countBeforeQuantityDeletion: i64 = db.get_entity_count();
-        db.delete_quantity_attribute(quantityAttributeId)
-        // next 2 lines should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-        assert(db.get_attribute_sorting_rows_count() == initialTotalSortingRowsCount)
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+        let quantity_attribute_id: i64 =
+            create_test_quantity_attribute_with_two_entities(&db, tx.clone(), entity_id, None);
+        assert!(
+            db.get_attribute_sorting_rows_count(tx.clone(), None)
+                .unwrap()
+                > initial_total_sorting_rows_count
+        );
 
-        let entity_countAfterQuantityDeletion: i64 = db.get_entity_count();
-        assert(db.get_quantity_attribute_count(entity_id) == 0)
-        if entity_countAfterQuantityDeletion != entity_countBeforeQuantityDeletion {
-          fail("Got constraint backwards? Deleting quantity attribute changed Entity count from " + entity_countBeforeQuantityDeletion + " to " +
-               entity_countAfterQuantityDeletion)
+        let mut qa = QuantityAttribute::new2(&db, tx.clone(), quantity_attribute_id).unwrap();
+        let (pid1, atid1, uid1) = (
+            qa.get_parent_id(tx.clone()).unwrap(),
+            qa.get_attr_type_id(tx.clone()).unwrap(),
+            qa.get_unit_id(tx.clone()).unwrap(),
+        );
+        assert!(entity_id == pid1);
+
+        db.update_quantity_attribute(
+            tx.clone(),
+            quantity_attribute_id,
+            pid1,
+            atid1,
+            uid1,
+            4.0,
+            Some(5),
+            6,
+        )
+        .unwrap();
+
+        // Re-read the data by creating a new instance
+        let mut qa2 = QuantityAttribute::new2(&db, tx.clone(), quantity_attribute_id).unwrap();
+        let (pid2, atid2, uid2, num2, vod2, od2) = (
+            qa2.get_parent_id(tx.clone()).unwrap(),
+            qa2.get_attr_type_id(tx.clone()).unwrap(),
+            qa2.get_unit_id(tx.clone()).unwrap(),
+            qa2.get_number(tx.clone()).unwrap(),
+            qa2.get_valid_on_date(tx.clone()).unwrap(),
+            qa2.get_observation_date(tx.clone()).unwrap(),
+        );
+
+        assert_eq!(pid2, pid1);
+        assert_eq!(atid2, atid1);
+        assert_eq!(uid2, uid1);
+        assert_eq!(num2, 4.0);
+        assert_eq!(vod2, Some(5 as i64));
+        assert_eq!(od2, 6);
+
+        let q_attr_count = db
+            .get_quantity_attribute_count(tx.clone(), entity_id)
+            .unwrap();
+        assert_eq!(q_attr_count, 1);
+        assert_eq!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+                .unwrap()
+               , 1
+        );
+
+        // Delete the quantity attribute and check correctness
+        let entity_count_before_quantity_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        db.delete_quantity_attribute(tx.clone(), quantity_attribute_id)
+            .unwrap();
+
+        // next 2 assert! lines should work because of the database logic (triggers as of this writing)
+        // that removes sorting rows when attrs are removed):
+        assert_eq!(
+            db.get_attribute_sorting_rows_count(tx.clone(), None)
+                .unwrap()
+               , initial_total_sorting_rows_count
+        );
+        assert_eq!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+                .unwrap()
+               , 0
+        );
+
+        let entity_count_after_quantity_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        assert_eq!(
+            db.get_quantity_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+               , 0
+        );
+
+        if entity_count_after_quantity_deletion != entity_count_before_quantity_deletion {
+            panic!(
+            "Got constraint backwards? Deleting quantity attribute changed Entity count from {} to {}",
+            entity_count_before_quantity_deletion, entity_count_after_quantity_deletion
+        );
         }
 
-        db.delete_entity(entity_id)
-        let endingEntityCount = db.get_entity_count();
-        // 2 more entities came during quantity creation (units & quantity type, is OK to leave in this kind of situation)
-        assert(endingEntityCount == startingEntityCount + 2)
-        assert(db.get_quantity_attribute_count(entity_id) == 0)
-        db.rollback_trans()
-      }
+        db.delete_entity(tx.clone(), entity_id).unwrap();
+        let ending_entity_count = db.get_entity_count(tx.clone()).unwrap();
+        // 2 more entities came during quantity creation (units & quantity type), it's OK to leave 
+        // them in this kind of situation)
+        assert_eq!(ending_entity_count, starting_entity_count + 2);
+        assert_eq!(
+            db.get_quantity_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+               , 0
+        );
 
-      "Attribute and AttributeSorting row deletion" should "both happen automatically upon entity deletion" in {
-        let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest sorting rows stuff");
-        create_test_quantity_attribute_with_two_entities(entity_id)
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-        assert(db.get_quantity_attribute_count(entity_id) == 1)
-        db.delete_entity(entity_id)
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        assert(db.get_quantity_attribute_count(entity_id) == 0)
-      }
+        // Rollback transaction (handled automatically when tx goes out of scope)
+        // No explicit rollback needed, as per sqlx docs.
+    }
+    /*
+          "Attribute and AttributeSorting row deletion" should "both happen automatically upon entity deletion" in {
+            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest sorting rows stuff");
+            create_test_quantity_attribute_with_two_entities(entity_id)
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
+            assert(db.get_quantity_attribute_count(entity_id) == 1)
+            db.delete_entity(entity_id)
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            assert(db.get_quantity_attribute_count(entity_id) == 0)
+          }
 
-      "TextAttribute create/delete/update methods" should "work" in {
-        let startingEntityCount = db.get_entity_count();
-        let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testTextAttrs");
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(entity_id);
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-        let a_text_value = "asdfjkl";
+          "TextAttribute create/delete/update methods" should "work" in {
+            let starting_entity_count = db.get_entity_count();
+            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testTextAttrs");
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(entity_id);
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
+            let a_text_value = "asdfjkl";
 
-        let ta = new TextAttribute(db, text_attribute_id);
-        let (pid1, atid1) = (ta.get_parent_id(), ta.get_attr_type_id());
-        assert(entity_id == pid1)
-        db.update_text_attribute(text_attribute_id, pid1, atid1, a_text_value, Some(123), 456)
-        // have to create new instance to re-read the data: immutability makes programs easier to work with
-        let ta2 = new TextAttribute(db, text_attribute_id);
-        let (pid2, atid2, txt2, vod2, od2) = (ta2.get_parent_id(), ta2.get_attr_type_id(), ta2.get_text, ta2.get_valid_on_date(), ta2.get_observation_date());
-        assert(pid2 == pid1)
-        assert(atid2 == atid1)
-        assert(txt2 == a_text_value)
-        // (the ".contains" suggested by the IDE just caused another problem)
-        //noinspection OptionEqualsSome
-        assert(vod2 == Some(123L))
-        assert(od2 == 456)
+            let ta = new TextAttribute(db, text_attribute_id);
+            let (pid1, atid1) = (ta.get_parent_id(), ta.get_attr_type_id());
+            assert(entity_id == pid1)
+            db.update_text_attribute(text_attribute_id, pid1, atid1, a_text_value, Some(123), 456)
+            // have to create new instance to re-read the data: immutability makes programs easier to work with
+            let ta2 = new TextAttribute(db, text_attribute_id);
+            let (pid2, atid2, txt2, vod2, od2) = (ta2.get_parent_id(), ta2.get_attr_type_id(), ta2.get_text, ta2.get_valid_on_date(), ta2.get_observation_date());
+            assert(pid2 == pid1)
+            assert(atid2 == atid1)
+            assert(txt2 == a_text_value)
+            // (the ".contains" suggested by the IDE just caused another problem)
+            //noinspection OptionEqualsSome
+            assert(vod2 == Some(123L))
+            assert(od2 == 456)
 
-        assert(db.get_text_attribute_count(entity_id) == 1)
+            assert(db.get_text_attribute_count(entity_id) == 1)
 
-        let entity_countBeforeTextDeletion: i64 = db.get_entity_count();
-        db.delete_text_attribute(text_attribute_id)
-        assert(db.get_text_attribute_count(entity_id) == 0)
-        // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        let entity_countAfterTextDeletion: i64 = db.get_entity_count();
-        if entity_countAfterTextDeletion != entity_countBeforeTextDeletion {
-          fail("Got constraint backwards? Deleting text attribute changed Entity count from " + entity_countBeforeTextDeletion + " to " +
-               entity_countAfterTextDeletion)
-        }
-        // then recreate the text attribute (to verify its auto-deletion when Entity is deleted, below)
-        create_test_text_attribute_with_one_entity(entity_id)
-        db.delete_entity(entity_id)
-        if db.get_text_attribute_count(entity_id) > 0 {
-          fail("Deleting the model entity should also have deleted its text attributes; get_text_attribute_count(entity_idInNewTransaction) is " +
-               db.get_text_attribute_count(entity_id) + ".")
-        }
+            let entity_countBeforeTextDeletion: i64 = db.get_entity_count();
+            db.delete_text_attribute(text_attribute_id)
+            assert(db.get_text_attribute_count(entity_id) == 0)
+            // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            let entity_countAfterTextDeletion: i64 = db.get_entity_count();
+            if entity_countAfterTextDeletion != entity_countBeforeTextDeletion {
+              fail("Got constraint backwards? Deleting text attribute changed Entity count from " + entity_countBeforeTextDeletion + " to " +
+                   entity_countAfterTextDeletion)
+            }
+            // then recreate the text attribute (to verify its auto-deletion when Entity is deleted, below)
+            create_test_text_attribute_with_one_entity(entity_id)
+            db.delete_entity(entity_id)
+            if db.get_text_attribute_count(entity_id) > 0 {
+              fail("Deleting the model entity should also have deleted its text attributes; get_text_attribute_count(entity_idInNewTransaction) is " +
+                   db.get_text_attribute_count(entity_id) + ".")
+            }
 
-        let endingEntityCount = db.get_entity_count();
-        // 2 more entities came during text attribute creation, which we don't care about either way, for this test
-        assert(endingEntityCount == startingEntityCount + 2)
-      }
+            let ending_entity_count = db.get_entity_count();
+            // 2 more entities came during text attribute creation, which we don't care about either way, for this test
+            assert(ending_entity_count == starting_entity_count + 2)
+          }
 
-      "DateAttribute create/delete/update methods" should "work" in {
-        let startingEntityCount = db.get_entity_count();
-        let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testDateAttrs");
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        let date_attribute_id: i64 = create_test_date_attribute_with_one_entity(entity_id);
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-        let da = new DateAttribute(db, date_attribute_id);
-        let (pid1, atid1) = (da.get_parent_id(), da.get_attr_type_id());
-        assert(entity_id == pid1)
-        let date = System.currentTimeMillis;
-        db.update_date_attribute(date_attribute_id, pid1, date, atid1)
-        // Have to create new instance to re-read the data: immutability makes the program easier to debug/reason about.
-        let da2 = new DateAttribute(db, date_attribute_id);
-        let (pid2, atid2, date2) = (da2.get_parent_id(), da2.get_attr_type_id(), da2.get_date);
-        assert(pid2 == pid1)
-        assert(atid2 == atid1)
-        assert(date2 == date)
-        // Also test the other constructor.
-        let da3 = new DateAttribute(db, date_attribute_id, pid1, atid1, date, 0);
-        let (pid3, atid3, date3) = (da3.get_parent_id(), da3.get_attr_type_id(), da3.get_date);
-        assert(pid3 == pid1)
-        assert(atid3 == atid1)
-        assert(date3 == date)
-        assert(db.get_date_attribute_count(entity_id) == 1)
+          "DateAttribute create/delete/update methods" should "work" in {
+            let starting_entity_count = db.get_entity_count();
+            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testDateAttrs");
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            let date_attribute_id: i64 = create_test_date_attribute_with_one_entity(entity_id);
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
+            let da = new DateAttribute(db, date_attribute_id);
+            let (pid1, atid1) = (da.get_parent_id(), da.get_attr_type_id());
+            assert(entity_id == pid1)
+            let date = System.currentTimeMillis;
+            db.update_date_attribute(date_attribute_id, pid1, date, atid1)
+            // Have to create new instance to re-read the data: immutability makes the program easier to debug/reason about.
+            let da2 = new DateAttribute(db, date_attribute_id);
+            let (pid2, atid2, date2) = (da2.get_parent_id(), da2.get_attr_type_id(), da2.get_date);
+            assert(pid2 == pid1)
+            assert(atid2 == atid1)
+            assert(date2 == date)
+            // Also test the other constructor.
+            let da3 = new DateAttribute(db, date_attribute_id, pid1, atid1, date, 0);
+            let (pid3, atid3, date3) = (da3.get_parent_id(), da3.get_attr_type_id(), da3.get_date);
+            assert(pid3 == pid1)
+            assert(atid3 == atid1)
+            assert(date3 == date)
+            assert(db.get_date_attribute_count(entity_id) == 1)
 
-        let entity_countBeforeDateDeletion: i64 = db.get_entity_count();
-        db.delete_date_attribute(date_attribute_id)
-        assert(db.get_date_attribute_count(entity_id) == 0)
-        // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        assert(db.get_entity_count() == entity_countBeforeDateDeletion)
+            let entity_countBeforeDateDeletion: i64 = db.get_entity_count();
+            db.delete_date_attribute(date_attribute_id)
+            assert(db.get_date_attribute_count(entity_id) == 0)
+            // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            assert(db.get_entity_count() == entity_countBeforeDateDeletion)
 
-        // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below)
-        create_test_date_attribute_with_one_entity(entity_id)
-        db.delete_entity(entity_id)
-        assert(db.get_date_attribute_count(entity_id) == 0)
+            // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below)
+            create_test_date_attribute_with_one_entity(entity_id)
+            db.delete_entity(entity_id)
+            assert(db.get_date_attribute_count(entity_id) == 0)
 
-        // 2 more entities came during attribute creation, which we don't care about either way, for this test
-        assert(db.get_entity_count() == startingEntityCount + 2)
-      }
+            // 2 more entities came during attribute creation, which we don't care about either way, for this test
+            assert(db.get_entity_count() == starting_entity_count + 2)
+          }
 
-      "BooleanAttribute create/delete/update methods" should "work" in {
-        let startingEntityCount = db.get_entity_count();
-        let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testBooleanAttrs");
+          //%%(keeping this copy of the test in scala temporarily to provide a before/after for chatgpt etc.)
+          "BooleanAttribute create/delete/update methods" should "work" in {
+            let starting_entity_count = db.get_entity_count();
+            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testBooleanAttrs");
+            let val1 = true;
+            let observation_date: i64 = System.currentTimeMillis;
+            let valid_on_date: Option<i64> = Some(1234L);
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            let boolean_attribute_id: i64 = create_test_boolean_attribute_with_one_entity(entity_id, val1, valid_on_date, observation_date);
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
+
+            let ba = new BooleanAttribute(db, boolean_attribute_id);
+            let (pid1, atid1) = (ba.get_parent_id(), ba.get_attr_type_id());
+            assert(entity_id == pid1)
+
+            let val2 = false;
+            db.update_boolean_attribute(boolean_attribute_id, pid1, atid1, val2, Some(123), 456)
+            // have to create new instance to re-read the data:
+            let ba2 = new BooleanAttribute(db, boolean_attribute_id);
+            let (pid2, atid2, bool2, vod2, od2) = (ba2.get_parent_id(), ba2.get_attr_type_id(), ba2.get_boolean, ba2.get_valid_on_date(), ba2.get_observation_date());
+            assert(pid2 == pid1)
+            assert(atid2 == atid1)
+            assert(bool2 == val2)
+            // (the ".contains" suggested by the IDE just caused another problem)
+            //noinspection OptionEqualsSome
+            assert(vod2 == Some(123L))
+            assert(od2 == 456)
+
+            assert(db.get_boolean_attribute_count(entity_id) == 1)
+
+            let entity_count_before_attr_deletion: i64 = db.get_entity_count();
+            db.delete_boolean_attribute(boolean_attribute_id)
+            assert(db.get_boolean_attribute_count(entity_id) == 0)
+            // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            let entity_count_after_attr_deletion: i64 = db.get_entity_count();
+            if entity_count_after_attr_deletion != entity_count_before_attr_deletion {
+              fail("Got constraint backwards? Deleting boolean attribute changed Entity count from " + entity_count_before_attr_deletion + " to " +
+                   entity_count_after_attr_deletion)
+            }
+
+            // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below; and to verify behavior with other values)
+            let testval2: bool = true;
+            let valid_on_date2: Option<i64> = None;
+            let bool_attribute_id2: i64 = db.create_boolean_attribute(pid1, atid1, testval2, valid_on_date2, observation_date);
+            let ba3: BooleanAttribute = new BooleanAttribute(db, bool_attribute_id2);
+            assert(ba3.get_boolean == testval2)
+            assert(ba3.get_valid_on_date().isEmpty)
+            db.delete_entity(entity_id)
+            assert(db.get_boolean_attribute_count(entity_id) == 0)
+
+            let ending_entity_count = db.get_entity_count();
+            // 2 more entities came during attribute creation, but we deleted one and (unlike similar tests) didn't recreate it.
+            assert(ending_entity_count == starting_entity_count + 1)
+          }
+    */
+    #[test]
+    fn boolean_create_delete_update_methods() {
+        Util::initialize_tracing();
+        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        //let id: i64 = db
+        //    .create_entity(
+        //        None, //tx.clone(),
+        //        "test: org.onemodel.PSQLDbTest.getAttrCount...",
+        //        None,
+        //        None,
+        //    )
+        //    .unwrap();
+        //let entity: Entity = Entity::new2(&db, None /*tx.clone*/, id).unwrap();
+        let tx = db.begin_trans().unwrap();
+        let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+
+        let starting_entity_count = db.get_entity_count(tx.clone()).unwrap();
+        let entity_id = db
+            .create_entity(
+                tx.clone(),
+                "test: org.onemodel.PSQLDbTest.testBooleanAttrs",
+                None,
+                None,
+            )
+            .unwrap();
         let val1 = true;
-        let observation_date: i64 = System.currentTimeMillis;
-        let valid_on_date: Option<i64> = Some(1234L);
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        let boolean_attribute_id: i64 = create_test_boolean_attribute_with_one_entity(entity_id, val1, valid_on_date, observation_date);
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
+        let observation_date: i64 = Utc::now().timestamp_millis();
+        let valid_on_date: Option<i64> = Some(1234);
+        assert!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+                .unwrap()
+                == 0
+        );
+        let boolean_attribute_id: i64 = create_test_boolean_attribute_with_one_entity(
+            &db,
+            tx.clone(),
+            entity_id,
+            val1,
+            valid_on_date,
+            observation_date,
+        );
+        assert!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+                .unwrap()
+                == 1
+        );
 
-        let ba = new BooleanAttribute(db, boolean_attribute_id);
-        let (pid1, atid1) = (ba.get_parent_id(), ba.get_attr_type_id());
-        assert(entity_id == pid1)
+        let mut ba = BooleanAttribute::new2(&db, tx.clone(), boolean_attribute_id).unwrap();
+        let (pid1, atid1) = (
+            ba.get_parent_id(tx.clone()).unwrap(),
+            ba.get_attr_type_id(tx.clone()).unwrap(),
+        );
+        assert!(entity_id == pid1);
 
         let val2 = false;
-        db.update_boolean_attribute(boolean_attribute_id, pid1, atid1, val2, Some(123), 456)
+        db.update_boolean_attribute(
+            tx.clone(),
+            boolean_attribute_id,
+            pid1,
+            atid1,
+            val2,
+            Some(123),
+            456,
+        )
+        .unwrap();
         // have to create new instance to re-read the data:
-        let ba2 = new BooleanAttribute(db, boolean_attribute_id);
-        let (pid2, atid2, bool2, vod2, od2) = (ba2.get_parent_id(), ba2.get_attr_type_id(), ba2.get_boolean, ba2.get_valid_on_date(), ba2.get_observation_date());
-        assert(pid2 == pid1)
-        assert(atid2 == atid1)
-        assert(bool2 == val2)
-        // (the ".contains" suggested by the IDE just caused another problem)
-        //noinspection OptionEqualsSome
-        assert(vod2 == Some(123L))
-        assert(od2 == 456)
+        let mut ba2 = BooleanAttribute::new2(&db, tx.clone(), boolean_attribute_id).unwrap();
+        let (pid2, atid2, bool2, vod2, od2) = (
+            ba2.get_parent_id(tx.clone()).unwrap(),
+            ba2.get_attr_type_id(tx.clone()).unwrap(),
+            ba2.get_boolean(tx.clone()).unwrap(),
+            ba2.get_valid_on_date(tx.clone()).unwrap(),
+            ba2.get_observation_date(tx.clone()).unwrap(),
+        );
+        assert!(pid2 == pid1);
+        assert!(atid2 == atid1);
+        assert!(bool2 == val2);
+        //%%does the "as i64" below matter?
+        assert!(vod2 == Some(123 as i64));
+        assert!(od2 == 456);
 
-        assert(db.get_boolean_attribute_count(entity_id) == 1)
+        assert!(
+            db.get_boolean_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+                == 1
+        );
 
-        let entity_countBeforeAttrDeletion: i64 = db.get_entity_count();
-        db.delete_boolean_attribute(boolean_attribute_id)
-        assert(db.get_boolean_attribute_count(entity_id) == 0)
-        // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        let entity_countAfterAttrDeletion: i64 = db.get_entity_count();
-        if entity_countAfterAttrDeletion != entity_countBeforeAttrDeletion {
-          fail("Got constraint backwards? Deleting boolean attribute changed Entity count from " + entity_countBeforeAttrDeletion + " to " +
-               entity_countAfterAttrDeletion)
+        let entity_count_before_attr_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        db.delete_boolean_attribute(tx.clone(), boolean_attribute_id)
+            .unwrap();
+        assert!(
+            db.get_boolean_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+                == 0
+        );
+        // Next line should work because of the database logic (triggers as of this writing)
+        // that removes sorting rows when attrs are removed):
+        assert!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+                .unwrap()
+                == 0
+        );
+        let entity_count_after_attr_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        if entity_count_after_attr_deletion != entity_count_before_attr_deletion {
+            panic!("Got constraint backwards? Deleting boolean attribute changed Entity count from {} to {}",
+               entity_count_before_attr_deletion, entity_count_after_attr_deletion);
         }
 
         // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below; and to verify behavior with other values)
         let testval2: bool = true;
         let valid_on_date2: Option<i64> = None;
-        let boolAttributeId2: i64 = db.create_boolean_attribute(pid1, atid1, testval2, valid_on_date2, observation_date);
-        let ba3: BooleanAttribute = new BooleanAttribute(db, boolAttributeId2);
-        assert(ba3.get_boolean == testval2)
-        assert(ba3.get_valid_on_date().isEmpty)
-        db.delete_entity(entity_id)
-        assert(db.get_boolean_attribute_count(entity_id) == 0)
+        let bool_attribute_id2: i64 = db
+            .create_boolean_attribute(
+                tx.clone(),
+                pid1,
+                atid1,
+                testval2,
+                valid_on_date2,
+                observation_date,
+                None,
+            )
+            .unwrap();
+        let mut ba3: BooleanAttribute =
+            BooleanAttribute::new2(&db, tx.clone(), bool_attribute_id2).unwrap();
+        assert!(ba3.get_boolean(tx.clone()).unwrap() == testval2);
+        assert!(ba3.get_valid_on_date(tx.clone()).unwrap().is_none());
+        db.delete_entity(tx.clone(), entity_id).unwrap();
+        assert!(
+            db.get_boolean_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+                == 0
+        );
 
-        let endingEntityCount = db.get_entity_count();
+        let ending_entity_count = db.get_entity_count(tx).unwrap();
         // 2 more entities came during attribute creation, but we deleted one and (unlike similar tests) didn't recreate it.
-        assert(endingEntityCount == startingEntityCount + 1)
-      }
+        assert!(ending_entity_count == starting_entity_count + 1)
 
+        // no need to db.rollback_trans(), because that is automatic when tx goes out of scope, per sqlx docs.
+        // (if the transaction is even needed here; arguably not.)
+    }
+
+    /*
       "FileAttribute create/delete/update methods" should "work" in {
-        let startingEntityCount = db.get_entity_count();
+        let starting_entity_count = db.get_entity_count();
         let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testFileAttrs");
         let descr = "somedescr";
         assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
@@ -1329,7 +1572,7 @@ mod test {
 
 
         // more entities came during attribute creation, which we don't care about either way, for this test
-        assert(db.get_entity_count() == startingEntityCount + 4)
+        assert(db.get_entity_count() == starting_entity_count + 4)
       }
 
     // for a test just below
@@ -1477,78 +1720,144 @@ mod test {
     assert(containingGroups2.head(0).get.asInstanceOf[i64] == groupId1)
     assert(containingGroups2.tail.head(0).get.asInstanceOf[i64] == groupId3)
   }
+*/
 
-  "relation to group and group methods" should "work" in {
-    let relToGroupName = "test: PSQLDbTest.testRelsNRelTypes()";
-    let entityName = relToGroupName + "--theEntity";
-    let entity_id = db.create_entity(entityName);
-    let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
-    let valid_on_date = 12345L;
-    assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-    let (groupId:i64, createdRtg:RelationToGroup) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, relToGroupName,;
-                                                                                                                Some(valid_on_date), allow_mixed_classes_in = true)
-    assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
+    /*
+//%%%%%%latertrans
+#[test]
+fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error>> {
+    Util::initialize_tracing();
+    let db: PostgreSQLDatabase = Util::initialize_test_db()?;
+    let rel_to_group_name = "test: PSQLDbTest.testRelsNRelTypes()";
+    let entity_name = format!("{}--theEntity", rel_to_group_name);
+    // Set to None, but variable exists in case we want to test with a transaction 
+    // later (but then consider the tx of the entity above?):
+    // %%%%%latertrans/idea to try?: use a tx here & make sure the test still passes! then del above cmt?
+    let tx = None;
 
-    let rtg: RelationToGroup = new RelationToGroup(db, createdRtg.get_id, createdRtg.get_parent_id(), createdRtg.get_attr_type_id(), createdRtg.get_group_id);
-    let group: Group = new Group(db, groupId);
-    assert(group.get_mixed_classes_allowed)
-    assert(group.get_name == relToGroupName)
+    let rel_type_id = db.create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL)?;
+    let valid_on_date = 12345;
+    let entity_id = db.create_entity(tx.clone(), entity_name.as_str(), None, None)?;
+    assert!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap() == 0);
+    let entity = Entity::new2(&db, tx.clone(), entity_id).unwrap();
+    let (group_id, created_rtg_id) = create_and_add_test_relation_to_group_on_to_entity(
+        &db, tx.clone(), &entity, rel_type_id, rel_to_group_name, Some(valid_on_date), true)?;
+    assert!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))? == 1);
 
-    let checkRelation = db.get_relation_to_group_data_by_keys(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.get_group_id);
-    assert(checkRelation(0).get.asInstanceOf[i64] == rtg.get_id)
-    assert(checkRelation(0).get.asInstanceOf[i64] == createdRtg.get_id)
-    assert(checkRelation(1).get.asInstanceOf[i64] == entity_id)
-    assert(checkRelation(2).get.asInstanceOf[i64] == rel_type_id)
-    assert(checkRelation(3).get.asInstanceOf[i64] == groupId)
-    assert(checkRelation(4).get.asInstanceOf[i64] == valid_on_date)
-    let checkAgain = db.get_relation_to_group_data(rtg.get_id);
-    assert(checkAgain(0).get.asInstanceOf[i64] == rtg.get_id)
-    assert(checkAgain(0).get.asInstanceOf[i64] == createdRtg.get_id)
-    assert(checkAgain(1).get.asInstanceOf[i64] == entity_id)
-    assert(checkAgain(2).get.asInstanceOf[i64] == rel_type_id)
-    assert(checkAgain(3).get.asInstanceOf[i64] == groupId)
-    assert(checkAgain(4).get.asInstanceOf[i64] == valid_on_date)
+    let mut rtg = RelationToGroup::new2(&db, tx.clone(), created_rtg_id, entity_id, rel_type_id, group_id).unwrap();
+    let mut group = Group::new2(&db, tx.clone(), group_id).unwrap();
 
-    assert(group.get_size() == 0)
-    let entity_id2 = db.create_entity(entityName + 2);
-    group.add_entity(entity_id2)
-    assert(group.get_size() == 1)
-    group.delete_with_entities()
-    assert(intercept[Exception] {
-                                  new RelationToGroup(db, rtg.get_id, rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.get_group_id )
-                                }.getMessage.contains("does not exist"))
-    assert(intercept[Exception] {
-                                  new Entity(db, entity_id2)
-                                }.getMessage.contains("does not exist"))
-    assert(group.get_size() == 0) // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-    assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+    assert!(group.get_mixed_classes_allowed(tx.clone()).unwrap());
+    assert!(group.get_name(tx.clone()).unwrap() == rel_to_group_name);
 
-    let (groupId2, _) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, "somename", None);
+    let check_relation = db.get_relation_to_group_data_by_keys(tx.clone(), rtg.get_parent_id(tx.clone()).unwrap(), rtg.get_attr_type_id(tx.clone()).unwrap(), rtg.get_group_id(tx.clone()).unwrap()).unwrap();
+    if let DataType::Bigint(x) = check_relation[0].as_ref().unwrap() {
+        assert!(*x == rtg.get_id());
+    } else {
+        panic!("How did we get here with {:?}?", check_relation[0]);
+    }
+    if let DataType::Bigint(x) = check_relation[1].as_ref().unwrap() {
+        assert!(*x == entity_id);
+    } else {
+        panic!("How did we get here with {:?}?", check_relation[1]);
+    }
+    if let DataType::Bigint(x) = check_relation[2].as_ref().unwrap() {
+        assert!(*x == rel_type_id);
+    } else {
+        panic!("How did we get here with {:?}?", check_relation[2]);
+    }
+    if let DataType::Bigint(x) = check_relation[3].as_ref().unwrap() {
+        assert!(*x == group_id);
+    } else {
+        panic!("How did we get here with {:?}?", check_relation[3]);
+    }
+    if let DataType::Bigint(x) = check_relation[4].as_ref().unwrap() {
+        assert!(*x == valid_on_date);
+    } else {
+        panic!("How did we get here with {:?}?", check_relation[4]);
+    }
+    let check_again = db.get_relation_to_group_data(tx.clone(), rtg.get_id())?;
+    if let DataType::Bigint(x) = check_again[0].as_ref().unwrap() {
+        assert!(*x == rtg.get_id());
+    } else {
+        panic!("How did we get here with {:?}?", check_again[0]);
+    }
+    if let DataType::Bigint(x) = check_again[1].as_ref().unwrap() {
+        assert!(*x == entity_id);
+    } else {
+        panic!("How did we get here with {:?}?", check_again[1]);
+    }
+    if let DataType::Bigint(x) = check_again[2].as_ref().unwrap() {
+        assert!(*x == rel_type_id);
+    } else {
+        panic!("How did we get here with {:?}?", check_again[2]);
+    }
+    if let DataType::Bigint(x) = check_again[3].as_ref().unwrap() {
+        assert!(*x == group_id);
+    } else {
+        panic!("How did we get here with {:?}?", check_again[3]);
+    }
+    if let DataType::Bigint(x) = check_again[4].as_ref().unwrap() {
+        assert!(*x == valid_on_date);
+    } else {
+        panic!("How did we get here with {:?}?", check_again[4]);
+    }
+    assert!(group.get_size(tx.clone(), 3).unwrap() == 0);
 
-    let group2: Group = new Group(db, groupId2);
-    assert(group2.get_size() == 0)
+    let entity_id2 = db.create_entity(tx.clone(), format!("{}2", entity_name).as_str(), None, None).unwrap();
+    group.add_entity(tx.clone(), entity_id2, None).unwrap();
+    //group.add_entity(None, entity_id2, None).unwrap();
+    assert!(group.get_size(tx.clone(), 3)? == 1);
 
-    let entity_id3 = db.create_entity(entityName + 3);
-    group2.add_entity(entity_id3)
-    assert(group2.get_size() == 1)
+    group.delete_with_entities().unwrap();
 
-    let entity_id4 = db.create_entity(entityName + 4);
-    group2.add_entity(entity_id4)
-    let entity_id5 = db.create_entity(entityName + 5);
-    group2.add_entity(entity_id5) // (at least make sure next method runs:)
-    db.get_group_entry_sorting_index(groupId2, entity_id5)
-    assert(group2.get_size() == 3)
-    assert(db.get_group_entry_objects(group2.get_id, 0).size() == 3)
+    let result = RelationToGroup::new2(&db, tx.clone(), rtg.get_id(), rtg.get_parent_id(tx.clone()).unwrap(), rtg.get_attr_type_id(tx.clone()).unwrap(), rtg.get_group_id(tx.clone()).unwrap());
+    assert!(result.is_err() && result.err().unwrap().to_string().contains("does not exist"));
 
-    group2.remove_entity(entity_id5)
-    assert(db.get_group_entry_objects(group2.get_id, 0).size() == 2)
+    let result = Entity::new2(&db, tx.clone(), entity_id2);
+    assert!(result.is_err() && result.err().unwrap().to_string().contains("does not exist"));
 
-    group2.delete()
-    assert(intercept[Exception] {
-                                  new Group(db, groupId)
-                                }.getMessage.contains("does not exist"))
-    assert(group2.get_size() == 0) // ensure the other entity still exists: not deleted by that delete command
-    new Entity(db, entity_id3) // probably revise this later for use when adding that update method:
+    assert!(group.get_size(tx.clone(), 3).unwrap() == 0);
+
+    // next line should work because of the database logic (triggers as of this writing) that re
+    // moves sorting rows when attrs are removed):
+    assert!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap() == 0);
+    
+    let (group_id2, _) = create_and_add_test_relation_to_group_on_to_entity(
+        &db, tx.clone(), &entity, rel_type_id, "somename", None, false
+    )?;
+
+    let group2 = Group::new2(&db, tx.clone(), group_id2).unwrap();
+    assert!(group2.get_size(tx.clone(), 3).unwrap() == 0);
+
+    let entity_id3 = db.create_entity(tx.clone(), format!("{}3", entity_name).as_str(), None, None).unwrap();
+    group2.add_entity(tx.clone(), entity_id3, None).unwrap();
+    assert!(group2.get_size(tx.clone(), 3).unwrap() == 1);
+
+    let entity_id4 = db.create_entity(tx.clone(), format!("{}4", entity_name).as_str(), None, None).unwrap();
+    group2.add_entity(tx.clone(), entity_id4, None).unwrap();
+
+    let entity_id5 = db.create_entity(tx.clone(), format!("{}5", entity_name).as_str(), None, None).unwrap();
+    group2.add_entity(tx.clone(), entity_id5, None).unwrap();
+
+    db.get_group_entry_sorting_index(tx.clone(), group_id2, entity_id5).unwrap();
+
+    assert!(group2.get_size(tx.clone(), 3).unwrap() == 3);
+    assert!(db.get_group_entry_objects(tx.clone(), group2.get_id(), 0, None).unwrap().len() == 3);
+
+    group2.remove_entity(tx.clone(), entity_id5).unwrap();
+    assert!(db.get_group_entry_objects(tx.clone(), group2.get_id(), 0, None).unwrap().len() == 2);
+
+    group2.delete(tx.clone()).unwrap();
+    let result = Group::new2(&db, tx.clone(), group_id2);
+    assert!(result.is_err() && result.err().unwrap().to_string().contains("does not exist"));
+    assert_eq!(group2.get_size(tx.clone(), 3).unwrap(), 0);
+
+    // ensure the other entity still exists: not deleted by that delete command
+    let entity6 = Entity::new2(&db, tx.clone(), entity_id3).unwrap();
+
+    // Idea?: old comments: 
+    // probably revise this later for use when adding that update method:
                                //val new_name = "test: org.onemodel.PSQLDbTest.relationupdate..."
                                //db.update_relation_type(rel_type_id, new_name, name_in_reverse, RelationType.BIDIRECTIONAL)
                                //// have to create new instance to re-read the data:
@@ -1559,8 +1868,43 @@ mod test {
 
     //db.delete_relation_to_group(relToGroupId)
     //assert(db.get_relation_to_group_count(entity_id) == 0)
-    }
+ 
+    Ok(())
+}
+// %%%%%%*/
 
+    //%%%%%%latertrans/compiler error:
+#[test]
+fn test_lifetime_issue() -> Result<(), Box<dyn std::error::Error>> {
+    let tx = None;
+    let test_struct_instance = TestStruct{};
+    test_struct_instance.fn2(tx.clone());
+    Ok(())
+}
+struct TestStruct{}
+impl TestStruct {
+    //pub fn fn2<'a>(
+    pub fn fn2<'a, 'b>(
+        &'a self,  // in the real code, this points to the database on which we have a transaction.
+        //transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    ) -> i32
+    {
+        fn3(
+            transaction,
+        )
+    }
+}
+fn fn3(
+    _transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
+) -> i32 {
+    1
+}
+
+
+
+
+    /*
   "get_groups" should "work" in {
     let group3id = db.create_group("g3");
     let number = db.get_groups(0).size;
@@ -1571,7 +1915,7 @@ mod test {
   }
 
   "deleting entity" should "work even if entity is in a relationtogroup" in {
-    let startingEntityCount = db.get_entities_only_count();
+    let starting_entity_count = db.get_entities_only_count();
     let relToGroupName = "test:PSQLDbTest.testDelEntity_InGroup";
     let entityName = relToGroupName + "--theEntity";
     let entity_id = db.create_entity(entityName);
@@ -1581,11 +1925,11 @@ mod test {
     //val rtg: RelationToGroup = new RelationToGroup
     let group:Group = new Group(db, groupId);
     group.add_entity(db.create_entity(entityName + 1))
-    assert(db.get_entities_only_count() == startingEntityCount + 2)
+    assert(db.get_entities_only_count() == starting_entity_count + 2)
     assert(db.get_group_size(groupId) == 1)
 
     let entity_id2 = db.create_entity(entityName + 2);
-    assert(db.get_entities_only_count() == startingEntityCount + 3)
+    assert(db.get_entities_only_count() == starting_entity_count + 3)
     assert(db.get_count_of_groups_containing_entity(entity_id2) == 0)
     group.add_entity(entity_id2)
     assert(db.get_group_size(groupId) == 2)
@@ -1598,7 +1942,7 @@ mod test {
     let descriptions2 = db.get_containing_relation_to_group_descriptions(entity_id2, Some(9999));
     assert(descriptions2.size == 0)
     assert(db.get_count_of_groups_containing_entity(entity_id2) == 0)
-    assert(db.get_entities_only_count() == startingEntityCount + 2)
+    assert(db.get_entities_only_count() == starting_entity_count + 2)
     assert(intercept[Exception] {
                                   new Entity(db, entity_id2)
                                 }.getMessage.contains("does not exist"))
@@ -1997,10 +2341,10 @@ mod test {
 
       "get_entities_only and ...Count" should "allow limiting results by classId and/or group containment" in {
         // idea: this could be rewritten to not depend on pre-existing data to fail when it's supposed to fail.
-        let startingEntityCount = db.get_entities_only_count();
+        let starting_entity_count = db.get_entities_only_count();
         let someClassId: i64 = db.db_query_wrapper_for_one_row("select id from class limit 1", "i64")(0).get.asInstanceOf[i64];
         let numEntitiesInClass = db.extract_row_count_from_count_query("select count(1) from entity where class_id=" + someClassId);
-        assert(startingEntityCount > numEntitiesInClass)
+        assert(starting_entity_count > numEntitiesInClass)
         let allEntitiesInClass = db.get_entities_only(0, None, Some(someClassId), limit_by_class = true);
         let allEntitiesInClassCount1 = db.get_entities_only_count(limit_by_class = true, Some(someClassId));
         let allEntitiesInClassCount2 = db.get_entities_only_count(limit_by_class = true, Some(someClassId), None);
@@ -2014,7 +2358,7 @@ mod test {
         let e: Entity = allEntitiesInClass.get(0);
         assert(e.get_class_id.get == someClassId) // part 2:
                                                   // some setup, confirm good
-        let startingEntityCount2 = db.get_entities_only_count();
+        let starting_entity_count2 = db.get_entities_only_count();
         let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
         let id1: i64 = db.create_entity("name1");
         let (group, rtg) = new Entity(db, id1).add_group_and_relation_to_group(rel_type_id, "someRelToGroupName", allow_mixed_classes_inGroupIn = false, None, 1234L,;
@@ -2024,7 +2368,7 @@ mod test {
         let id2: i64 = db.create_entity("name2");
         group.add_entity(id2)
         let entity_countAfterCreating = db.get_entities_only_count();
-        assert(entity_countAfterCreating == startingEntityCount2 + 2)
+        assert(entity_countAfterCreating == starting_entity_count2 + 2)
         let resultSize = db.get_entities_only(0).size();
         assert(entity_countAfterCreating == resultSize)
         let resultSizeWithNoneParameter = db.get_entities_only(0, None, group_to_omit_id_in = None).size();

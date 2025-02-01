@@ -68,7 +68,7 @@ impl Database for PostgreSQLDatabase {
             self.get_or_create_class_and_template_entity(transaction.clone(), "URI")?;
         let (_, quotation_class_template_id) =
             self.get_or_create_class_and_template_entity(transaction.clone(), "quote")?;
-        let (new_entity_id, new_rtle_id, relation_type_id) = self
+        let (new_entity_id, new_rtle_id, _relation_type_id) = self
             .create_entity_and_add_has_local_relation_to_it(
                 transaction.clone(),
                 containing_entity_id_in,
@@ -89,7 +89,7 @@ impl Database for PostgreSQLDatabase {
         if quote_in.is_some() {
             self.create_text_attribute(
                 transaction.clone(),
-            new_entity_id,
+                new_entity_id,
                 quotation_class_template_id,
                 quote_in.unwrap(),
                 None,
@@ -118,9 +118,9 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<(i64, i64, i64), anyhow::Error> {
         // the "has" relation type that we want should always be the 1st one, since it is created by in the initial app startup; otherwise it seems we can use it
         // anyway:
-        let relation_type_id = self
-            .find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?; //, Some(1))
-                                                                                         //.get(0);
+        let relation_type_id =
+            self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?; //, Some(1))
+                                                                                             //.get(0);
         let (new_entity_id, new_rte_id) = self.add_entity_and_relation_to_local_entity(
             transaction,
             relation_type_id,
@@ -689,7 +689,7 @@ impl Database for PostgreSQLDatabase {
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result</*id*/ i64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -963,7 +963,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<i64, anyhow::Error> {
         // let mut tx = self.begin_trans()?;
         //   let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1020,7 +1020,7 @@ impl Database for PostgreSQLDatabase {
         entity_id: i64,
         class_id: Option<i64>,
     ) -> Result<(), anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1175,10 +1175,11 @@ impl Database for PostgreSQLDatabase {
                                        // the Rust reference (as quoted by) and in chapter 7 of the helpful site:
                                        // https://tfpk.github.io/lifetimekata/chapter_7.html .
                                        //) -> Result<i64, anyhow::Error> where 'a: 'b {
-    ) -> Result<i64, anyhow::Error> 
-    where 'a: 'b
+    ) -> Result<i64, anyhow::Error>
+    where
+        'a: 'b,
     {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1266,7 +1267,7 @@ impl Database for PostgreSQLDatabase {
         date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result</*id*/ i64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1334,7 +1335,7 @@ impl Database for PostgreSQLDatabase {
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<i64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1484,7 +1485,7 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<(i64, i64), anyhow::Error> {
         debug!("in create_relation_to_local_entity 0");
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1566,7 +1567,7 @@ impl Database for PostgreSQLDatabase {
         remote_instance_id_in: &str,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<RelationToRemoteEntity, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1860,10 +1861,11 @@ impl Database for PostgreSQLDatabase {
 
     /// I.e., make it so the entity has a group in it, which can contain entities.
     // Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_group_and_relation_to_group<'a>(
+    // %%%%%%?
+    fn create_group_and_relation_to_group<'a, 'b>(
         &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         new_group_name_in: &str,
@@ -1871,9 +1873,12 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
-    ) -> Result<(i64, i64), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> 
+    where
+        'a: 'b
+    {
         //%%latertrans: fix/simplify these blocks??  can dup in a simple enough thing to post on URLO?
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -1941,7 +1946,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<(i64, i64), anyhow::Error> {
         let name: String = Self::escape_quotes_etc(new_entity_name_in.to_string());
 
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -2008,7 +2013,7 @@ impl Database for PostgreSQLDatabase {
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<(i64, i64), anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -2278,7 +2283,8 @@ impl Database for PostgreSQLDatabase {
         sorting_index_in: i64,
     ) -> Result<(), anyhow::Error> {
         let tx = self.begin_trans()?;
-        let transaction: Option<Rc<RefCell<Transaction<'_, Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+        let transaction: Option<Rc<RefCell<Transaction<'_, Postgres>>>> =
+            Some(Rc::new(RefCell::new(tx)));
         self.add_entity_to_group(
             transaction.clone(),
             target_group_id_in,
@@ -2377,7 +2383,7 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<(), anyhow::Error> {
         // IF THIS CHANGES ALSO DO MAINTENANCE IN SIMILAR METHOD add_attribute_sorting_row
 
-        //BEGIN COPY/PASTED/DUPLICATED (except "anyhow!(\"in <fn_name>" below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -2515,7 +2521,7 @@ impl Database for PostgreSQLDatabase {
             ));
         }
 
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -2602,7 +2608,7 @@ impl Database for PostgreSQLDatabase {
         // idea: (also on task list i think but) we should not delete entities until dealing with their use as attr_type_ids etc!
         // (or does the DB's integrity constraints do that for us?)
 
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -2778,9 +2784,32 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn delete_group_and_relations_to_it(&self, id_in: i64) -> Result<(), anyhow::Error> {
-        let tx = self.begin_trans()?;
-        let transaction = Some(Rc::new(RefCell::new(tx)));
+    fn delete_group_and_relations_to_it<'a, 'b>(
+        &'a self, 
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        id_in: i64) 
+    -> Result<(), anyhow::Error> 
+    where 
+        'a: 'b,
+    {
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
+
         let entity_count: u64 = self.get_group_size(transaction.clone(), id_in, 3)?;
         self.delete_objects(
             transaction.clone(),
@@ -2804,24 +2833,24 @@ impl Database for PostgreSQLDatabase {
             1,
         )?;
 
-        // see comments at similar location in delete_objects about local_tx
-        // see comments in delete_objects about rollback
-        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-            Rc::into_inner(transaction.unwrap());
-        match local_tx_cell {
-            Some(t) => {
-                let unwrapped_local_tx = t.into_inner();
-                if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                    return Err(anyhow!(e.to_string()));
+        if transaction_in.is_none() && transaction.is_some() {
+            // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
+            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+                Rc::into_inner(transaction.unwrap());
+            match local_tx_cell {
+                Some(t) => {
+                    let unwrapped_local_tx = t.into_inner();
+                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                        return Err(anyhow!(e.to_string()));
+                    }
                 }
-                Ok(())
-            }
-            None => {
-                return Err(anyhow!(
-                    "Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"
-                ));
+                None => {
+                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
+                }
             }
         }
+        Ok(())
     }
 
     fn remove_entity_from_group<'a>(
@@ -3235,7 +3264,7 @@ impl Database for PostgreSQLDatabase {
             let mut next: i64 = self.min_id_value().checked_add(increment).unwrap();
             let mut previous: i64 = self.min_id_value();
 
-            //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+            //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
             // Try creating a local transaction whether we use it or not, to handle compiler errors
             // about variable moves. I'm not seeing a better way to get around them by just using
             // conditions and an Option (many errors):

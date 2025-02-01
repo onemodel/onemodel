@@ -503,6 +503,7 @@ impl PostgreSQLDatabase {
                 sql_in
             ));
         }
+        //Util::print_backtrace();
         Ok(rows_affected)
     }
 
@@ -1741,7 +1742,7 @@ impl PostgreSQLDatabase {
             https://elastio.github.io/bon/blog/the-weird-of-function-local-types-in-rust
             https://news.ycombinator.com/item?id=41272893
         */
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):

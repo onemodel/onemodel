@@ -141,7 +141,7 @@ impl PostgreSQLDatabase {
         where_clause_in: &str,
         rows_expected: u64, /*= 1*/
     ) -> Result<u64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):
@@ -150,7 +150,7 @@ impl PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> =  self.begin_trans()?;
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
@@ -1347,12 +1347,12 @@ impl PostgreSQLDatabase {
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         table_name_in: &str,
         where_clause_in: &str,
-        rows_expected: u64,                   /*= 1*/
-        unarchive: bool,                      /*= false*/
+        rows_expected: u64, /*= 1*/
+        unarchive: bool,    /*= false*/
     ) -> Result<u64, anyhow::Error> {
         //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
 
-        //BEGIN COPY/PASTED/DUPLICATED (except "in <fn_name>" in 2 Err msgs below) BLOCK-----------------------------------
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
         // conditions and an Option (many errors):

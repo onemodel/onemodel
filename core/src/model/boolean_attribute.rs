@@ -182,7 +182,6 @@ impl Attribute for BooleanAttribute<'_> {
 
         // super.assign_common_vars(data(0).get.asInstanceOf[i64], data(2).get.asInstanceOf[i64], data(3).asInstanceOf[Option<i64>],
         //                        data(4).get.asInstanceOf[i64], data(5).get.asInstanceOf[i64])
-        self.already_read_data = true;
         // DataType::Boolean(self.boolean_value) = data[1];
         self.boolean_value = match data[1] {
             Some(DataType::Boolean(b)) => b,
@@ -206,21 +205,19 @@ impl Attribute for BooleanAttribute<'_> {
         //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
 
         //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
-        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-        // valid_on_date: Option<i64> /*= None*/,
-        self.valid_on_date = None; //data[4];
-                                   // self.valid_on_date = match data[4] {
-                                   //     DataType::Bigint(x) => x,
-                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
-                                   // };
-
-        // DataType::Bigint(self.observation_date) = data[4];
+        //%%%%% AND fix the related/similarly COPIED blocks elsewhere, w/ same fixes?
+        self.valid_on_date = match data[4] {
+            Some(DataType::Bigint(x)) => Some(x),
+            None => None,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
+        };
         self.observation_date = match data[5] {
             Some(DataType::Bigint(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", data[5])),
         };
         //END COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars.
 
+        self.already_read_data = true;
         Ok(())
     }
 
