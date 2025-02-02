@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2024 inclusive, Luke A. Call.
+    Copyright in each year of 2003, 2004, 2010, 2011, 2013-2020 inclusive, and 2023-2025 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -204,15 +204,6 @@ impl PostgreSQLDatabase {
                  // }
                 results.push(row);
             });
-        //PROBABLY IGNORE/DEL THIS
-        // let future = map.fetch_all(&self.pool);
-        // if let Some(tx) = transaction {
-        // if transaction.is_some() {
-        //     let mut  trans = *(transaction.unwrap());
-        //     let future = map.fetch_all(&mut trans);
-        //     self.rt.block_on(future).unwrap();
-        // };
-
         let using_transaction;
         if let Some(tx) = transaction {
             let mut tx_mut: RefMut<'_, _> = tx.borrow_mut();
@@ -225,14 +216,6 @@ impl PostgreSQLDatabase {
             self.rt.block_on(future).unwrap();
         }
         debug!("In db_query, using_transaction={}", using_transaction);
-
-        //%%JUST ANOTHER EXPERIMENT, probably can delete after other things working.
-        // let future = match transaction {
-        //     Some(tx) => map.fetch_all(tx),
-        //     None => map.fetch_all(&(&self.pool)),
-        // };
-        /*let rows =*/
-        // self.rt.block_on(future).unwrap();
 
         // idea: (see comment at other use in this class, of getWarnings)
         // idea: maybe both uses of getWarnings should be combined into a method.
@@ -454,11 +437,7 @@ impl PostgreSQLDatabase {
         debug!("In db_action 3, sql is: {}", sql_in);
         let using_transaction;
         let x: Result<PgQueryResult, sqlx::Error> = if let Some(tx) = transaction {
-            //%% let future = sqlx::query(sql_in).execute(tx); //a try
-            //%% let future = sqlx::query(sql_in).execute(transaction.as_ref().unwrap()); //another try
             let mut tx_mut: RefMut<'_, _> = tx.borrow_mut();
-            //let future = sqlx::map.fetch_all(&mut *tx_mut);
-            //let future = sqlx::query(sql_in).execute(&self.pool); //the fallback, but loses transaction features
             debug!("In db_action 3.1");
             let future = sqlx::query(sql_in).execute(&mut *tx_mut);
             using_transaction = true;
