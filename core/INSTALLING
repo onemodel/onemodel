@@ -352,7 +352,7 @@ Compiling, above), you can:
   1) verify that the installation was successful
   by running this from the project directory:
     mvn clean test
-    (Note, for Rust, one of the tests, src/model/postgres/postgresql_database_tests.rs' test_entity_creation_and_update, needs to be run without other tests simultaneously, so to get them all to pass run
+    (Note, for Rust, at least one of the tests, src/model/postgres/postgresql_database_tests.rs' test_entity_creation_and_update, needs to be run without other tests simultaneously, so to get them all to pass run
       cargo test -- --test-threads=1
     .)
   ...or if you change any code then instead run

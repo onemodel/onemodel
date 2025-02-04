@@ -220,7 +220,7 @@ mod test {
     #[test]
     fn test_set_user_preference_and_get_user_preference() {
         Util::initialize_tracing();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
 
         let tx = db.begin_trans().unwrap();
         let tx = Some(Rc::new(RefCell::new(tx)));
@@ -727,7 +727,7 @@ mod test {
     */
 
     fn create_test_relation_to_local_entity_with_one_entity<'a>(
-        db: &'a dyn Database,
+        db: Rc<dyn Database>,
         tx: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_entity_id: i64,
         in_rel_type_id: i64,
@@ -820,9 +820,10 @@ mod test {
     /// With transaction rollback, this should create one new entity, work right, then have none.
     fn test_entity_creation_and_update() {
         Util::initialize_tracing();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
         let name = "test: org.onemodel.PSQLDbTest.entitycreation...";
-        let tx1 = db.begin_trans().unwrap();
+        let temp = db.clone();
+        let tx1 = temp.begin_trans().unwrap();
         let tx = Some(Rc::new(RefCell::new(tx1)));
 
         let entity_count_before_creating: u64 = db.get_entity_count(tx.clone()).unwrap();
@@ -853,7 +854,7 @@ mod test {
         db.update_entity_only_name(tx.clone(), id, new_name)
             .unwrap();
         // have to create new instance to re-read the data:
-        let mut updated_entity = Entity::new2(&db as &dyn Database, tx.clone(), id).unwrap();
+        let mut updated_entity = Entity::new2(db.clone(), tx.clone(), id).unwrap();
         let name3 = updated_entity.get_name(tx.clone()).unwrap().as_str();
         assert_eq!(name3, new_name);
 
@@ -913,7 +914,7 @@ mod test {
     #[test]
     fn get_attr_count_and_get_attribute_sorting_rows_count() {
         Util::initialize_tracing();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
         let id: i64 = db
             .create_entity(
                 None, //tx.clone(),
@@ -922,8 +923,9 @@ mod test {
                 None,
             )
             .unwrap();
-        let entity: Entity = Entity::new2(&db, None /*tx.clone*/, id).unwrap();
-        let tx = db.begin_trans().unwrap();
+        let entity: Entity = Entity::new2(db.clone(), None /*tx.clone*/, id).unwrap();
+        let temp = db.clone();
+        let tx = temp.begin_trans().unwrap();
         let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
         let initial_num_sorting_rows: u64 =
@@ -931,11 +933,11 @@ mod test {
         assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 0);
         assert!(initial_num_sorting_rows == 0);
 
-        create_test_quantity_attribute_with_two_entities(&db, tx.clone(), id, None);
-        create_test_quantity_attribute_with_two_entities(&db, tx.clone(), id, None);
-        assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 2);
+        create_test_quantity_attribute_with_two_entities(db.clone(), tx.clone(), id, None);
+        create_test_quantity_attribute_with_two_entities(db.clone(), tx.clone(), id, None);
+        assert!(db.clone().get_attribute_count(tx.clone(), id, false).unwrap() == 2);
         assert!(
-            db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
+            db.clone().get_attribute_sorting_rows_count(tx.clone(), Some(id))
                 .unwrap()
                 == 2
         );
@@ -953,13 +955,13 @@ mod test {
             .create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL)
             .unwrap();
         create_test_relation_to_local_entity_with_one_entity(
-            &db,
+            db.clone(),
             tx.clone(),
             id,
             rel_type_id,
             None,
         );
-        assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 4);
+        assert!(db.clone().get_attribute_count(tx.clone(), id, false).unwrap() == 4);
         assert!(
             db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
                 .unwrap()
@@ -967,7 +969,7 @@ mod test {
         );
 
         create_and_add_test_relation_to_group_on_to_entity(
-            &db,
+            db.clone(),
             tx.clone(),
             &entity,
             rel_type_id,
@@ -1003,20 +1005,20 @@ mod test {
     //%%%%remember to delete the core/src/model/database_test_utils.rs rust file once this test works!
     //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(db_in: &'a dyn Database,
     //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b, 'c>(
-    fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(
-        db_in: &'a dyn Database,
+    fn create_and_add_test_relation_to_group_on_to_entity<'b>(
+        db_in: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         //in_entity: &'c Entity<'a>,
-        in_entity: &'b Entity<'_>,
+        in_entity: &Entity,
         in_rel_type_id: i64,
         in_group_name: &str,           /*= "something"*/
         in_valid_on_date: Option<i64>, /*= None*/
         allow_mixed_classes_in: bool,  /*= true*/
     ) -> Result<(i64, i64), anyhow::Error>
-    where
-        'a: 'b,
+    //where
+    //    'a: 'b,
         //%%%%%%experimental:
-        //'b: 'c,
+        //'c: 'b,
     {
         //let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty) None else in_valid_on_date;
         let observation_date: i64 = Utc::now().timestamp_millis();
@@ -1059,7 +1061,7 @@ mod test {
     #[test]
     fn quantity_create_update_delete_methods() {
         Util::initialize_tracing();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
 
         // Begin transaction
         let tx = db.begin_trans().unwrap();
@@ -1079,7 +1081,7 @@ mod test {
             .unwrap();
 
         let quantity_attribute_id: i64 =
-            create_test_quantity_attribute_with_two_entities(&db, tx.clone(), entity_id, None);
+            create_test_quantity_attribute_with_two_entities(db.clone(), tx.clone(), entity_id, None);
         assert!(
             db.get_attribute_sorting_rows_count(tx.clone(), None)
                 .unwrap()
@@ -1722,12 +1724,12 @@ mod test {
   }
 */
 
-    /*
+    // /*
 //%%%%%%latertrans
 #[test]
 fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error>> {
     Util::initialize_tracing();
-    let db: PostgreSQLDatabase = Util::initialize_test_db()?;
+    let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db()?);
     let rel_to_group_name = "test: PSQLDbTest.testRelsNRelTypes()";
     let entity_name = format!("{}--theEntity", rel_to_group_name);
     // Set to None, but variable exists in case we want to test with a transaction 
@@ -1739,13 +1741,13 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     let valid_on_date = 12345;
     let entity_id = db.create_entity(tx.clone(), entity_name.as_str(), None, None)?;
     assert!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap() == 0);
-    let entity = Entity::new2(&db, tx.clone(), entity_id).unwrap();
+    let entity = Entity::new2(db, tx.clone(), entity_id).unwrap();
     let (group_id, created_rtg_id) = create_and_add_test_relation_to_group_on_to_entity(
-        &db, tx.clone(), &entity, rel_type_id, rel_to_group_name, Some(valid_on_date), true)?;
+        db, tx.clone(), &entity, rel_type_id, rel_to_group_name, Some(valid_on_date), true)?;
     assert!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))? == 1);
 
-    let mut rtg = RelationToGroup::new2(&db, tx.clone(), created_rtg_id, entity_id, rel_type_id, group_id).unwrap();
-    let mut group = Group::new2(&db, tx.clone(), group_id).unwrap();
+    let mut rtg = RelationToGroup::new2(db, tx.clone(), created_rtg_id, entity_id, rel_type_id, group_id).unwrap();
+    let mut group = Group::new2(db, tx.clone(), group_id).unwrap();
 
     assert!(group.get_mixed_classes_allowed(tx.clone()).unwrap());
     assert!(group.get_name(tx.clone()).unwrap() == rel_to_group_name);
@@ -1811,10 +1813,10 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
 
     group.delete_with_entities().unwrap();
 
-    let result = RelationToGroup::new2(&db, tx.clone(), rtg.get_id(), rtg.get_parent_id(tx.clone()).unwrap(), rtg.get_attr_type_id(tx.clone()).unwrap(), rtg.get_group_id(tx.clone()).unwrap());
+    let result = RelationToGroup::new2(db, tx.clone(), rtg.get_id(), rtg.get_parent_id(tx.clone()).unwrap(), rtg.get_attr_type_id(tx.clone()).unwrap(), rtg.get_group_id(tx.clone()).unwrap());
     assert!(result.is_err() && result.err().unwrap().to_string().contains("does not exist"));
 
-    let result = Entity::new2(&db, tx.clone(), entity_id2);
+    let result = Entity::new2(db, tx.clone(), entity_id2);
     assert!(result.is_err() && result.err().unwrap().to_string().contains("does not exist"));
 
     assert!(group.get_size(tx.clone(), 3).unwrap() == 0);
@@ -1824,10 +1826,10 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     assert!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap() == 0);
     
     let (group_id2, _) = create_and_add_test_relation_to_group_on_to_entity(
-        &db, tx.clone(), &entity, rel_type_id, "somename", None, false
+        db, tx.clone(), &entity, rel_type_id, "somename", None, false
     )?;
 
-    let group2 = Group::new2(&db, tx.clone(), group_id2).unwrap();
+    let group2 = Group::new2(db, tx.clone(), group_id2).unwrap();
     assert!(group2.get_size(tx.clone(), 3).unwrap() == 0);
 
     let entity_id3 = db.create_entity(tx.clone(), format!("{}3", entity_name).as_str(), None, None).unwrap();
@@ -1849,12 +1851,12 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     assert!(db.get_group_entry_objects(tx.clone(), group2.get_id(), 0, None).unwrap().len() == 2);
 
     group2.delete(tx.clone()).unwrap();
-    let result = Group::new2(&db, tx.clone(), group_id2);
+    let result = Group::new2(db, tx.clone(), group_id2);
     assert!(result.is_err() && result.err().unwrap().to_string().contains("does not exist"));
     assert_eq!(group2.get_size(tx.clone(), 3).unwrap(), 0);
 
     // ensure the other entity still exists: not deleted by that delete command
-    let entity6 = Entity::new2(&db, tx.clone(), entity_id3).unwrap();
+    let _entity6 = Entity::new2(db, tx.clone(), entity_id3).unwrap();
 
     // Idea?: old comments: 
     // probably revise this later for use when adding that update method:
@@ -1866,6 +1868,7 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
                                //assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
                                //assert(updatedRelationType.get_directionality == RelationType.BIDIRECTIONAL)
 
+    //??: %%%%%
     //db.delete_relation_to_group(relToGroupId)
     //assert(db.get_relation_to_group_count(entity_id) == 0)
  
@@ -1874,15 +1877,42 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
 // %%%%%%*/
 
     //%%%%%%latertrans/compiler error:
+    /*
 #[test]
 fn test_lifetime_issue() -> Result<(), Box<dyn std::error::Error>> {
+    //%%%%%%why does the order of next 2 lines matter?? Or only sometimes?
     let tx = None;
-    let test_struct_instance = TestStruct{};
-    test_struct_instance.fn2(tx.clone());
+    //{
+    //let db: PostgreSQLDatabase = Util::initialize_test_db()?;
+    let db: String = "1234".to_string();
+    //{
+    //let test_struct_instance = TestStruct::new2(&db, tx.clone(), entity_id).unwrap();
+    let test_struct_instance = TestStruct::new2(&db, tx.clone()).unwrap();
+    let (_group_id, _created_rtg_id) = fn4(&db, tx.clone(), &test_struct_instance).unwrap();
+    //}}
+    //let test_struct_instance = TestStruct{};
+    //test_struct_instance.fn2(tx.clone());
     Ok(())
 }
-struct TestStruct{}
-impl TestStruct {
+struct TestStruct<'a>{
+    //db: &'a dyn Database,
+    //db: &'a dyn String,
+    db: &'a String,
+}
+impl TestStruct<'_>{
+    pub fn new2<'a, 'b>(
+        //db: &'a dyn Database,
+        db: &'a String,
+        _transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    //) -> Result<Entity<'a>, anyhow::Error> {
+    ) -> Result<TestStruct<'a>, anyhow::Error> 
+    where
+        'a: 'b
+    {
+        Ok(TestStruct{
+            db
+        })
+    }
     //pub fn fn2<'a>(
     pub fn fn2<'a, 'b>(
         &'a self,  // in the real code, this points to the database on which we have a transaction.
@@ -1895,12 +1925,135 @@ impl TestStruct {
         )
     }
 }
+//fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(
+fn fn4<'a, 'b>(
+    //_db_in: &'a dyn Database,
+    _db_in: &'a String,
+    _transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    //_in_entity: &'c Entity<'a>,
+    _in_entity: &'b TestStruct<'_>,
+) -> Result<(i64, i64), anyhow::Error>
+where
+    'a: 'b,
+    //%%%%%%experimental:
+    //'b: 'c,
+{
+    Ok((0, 0))
+}
 fn fn3(
     _transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
 ) -> i32 {
     1
 }
-
+// */
+#[test]
+fn relation_to_group_and_group_methods_shorter_testing() -> Result<(), Box<dyn std::error::Error>> {
+    let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db()?);
+    let db_cloned = db.clone();
+    let tx = None;
+    let rel_to_group_name = "test: PSQLDbTest.testRelsNRelTypes()";
+    let entity_name = format!("{}--theEntity", rel_to_group_name);
+    let rel_type_id = db_cloned.create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL)?;
+    let valid_on_date = 12345;
+    let entity_id = db.clone().create_entity(tx.clone(), entity_name.as_str(), None, None)?;
+    let entity = Entity::new2(db.clone(), tx.clone(), entity_id).unwrap();
+    let (_group_id, _created_rtg_id) = create_and_add_test_relation_to_group_on_to_entity(
+        db.clone(), tx.clone(), &entity, rel_type_id, rel_to_group_name, Some(valid_on_date), true)?;
+    Ok(())
+}
+#[test]
+fn test_lifetime_issue_simpler_simpler() -> Result<(), Box<dyn std::error::Error>> {
+    //{
+    //let db: String = "1234".to_string();
+    let db: Rc<FakeDb> = Rc::new(FakeDb{});
+    let tx = None;
+    //{
+    let test_struct_instance = TestStruct::new2(db.clone(), tx.clone()).unwrap();
+    let (_group_id, _created_rtg_id) = fn4(db.clone(), tx.clone(), &test_struct_instance).unwrap();
+    //}}
+    Ok(())
+}
+struct FakeDb{
+}
+impl FakeDb{
+    //fn create_group_and_relation_to_group<'a, 'b>(
+    fn create_group_and_relation_to_group<'b>(
+        &self,
+        // purpose: see comment in delete_objects
+        _transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    ) -> Result<(i64, i64), anyhow::Error> 
+    //where
+    //    'a: 'b
+    {
+        Ok((1, 1))
+    }
+}
+struct TestStruct{
+    //db: &'a String,
+    //db: &'a FakeDb,
+    db: Rc<FakeDb>,
+}
+//impl TestStruct<'_>{
+impl TestStruct{
+    pub fn new2<'a, 'b>(
+        //db: &'a String,
+        //db: &'a FakeDb,
+        db: Rc<FakeDb>,
+        _transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        //doesnt have a compiler problem w/ this line instead:
+        //_transaction: Option<Rc<RefCell<String>>>,
+    //) -> Result<TestStruct<'a>, anyhow::Error> 
+    ) -> Result<TestStruct, anyhow::Error> 
+    where
+        'a: 'b
+    {
+        Ok(TestStruct{
+            db
+        })
+    }
+    //pub fn add_group_and_relation_to_group<'a, 'b>(
+    pub fn add_group_and_relation_to_group<'b>(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    ) -> Result<(i64, i64), anyhow::Error> 
+    where
+        //?: %%%%%%
+        //'b: 'a,
+    {
+        //let entity_id = self.get_id();
+        //let ref db = self.db; //? %%%%%%
+        let (group_id, rtg_id) = self.db.clone().create_group_and_relation_to_group(
+            transaction.clone(),
+        )?;
+        Ok((group_id, rtg_id))
+    }
+}
+fn fn4<'a, 'b, 'c>(
+    //_db_in: &'a String,
+    //_db_in: &'a FakeDb,
+    _db_in: Rc<FakeDb>,
+    transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    //_transaction: Option<Rc<RefCell<String>>>,
+    //in_entity: &'_ TestStruct<'_>,
+    in_entity: &'_ TestStruct,
+) -> Result<(i64, i64), anyhow::Error>
+where
+    'a: 'b,
+    //%%%%%%experimental:
+    //'b: 'c,
+{
+    //let (group_id, rtg_id) = in_entity.add_group_and_relation_to_group(
+    let (_group_id, _rtg_id) = in_entity.add_group_and_relation_to_group(
+        transaction.clone(),
+        //0, //in_rel_type_id,
+        //"abc", //in_group_name,
+        //false, //allow_mixed_classes_in,
+        //None, //in_valid_on_date,
+        //0, //observation_date,
+        //None,
+    )?;
+    Ok((0, 0))
+}
 
 
 
@@ -2067,7 +2220,7 @@ fn fn3(
 */
 
     fn create_test_quantity_attribute_with_two_entities<'a>(
-        db: &'a dyn Database,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_parent_id: i64,
         in_valid_on_date: Option<i64>, /*= None*/

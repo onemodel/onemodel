@@ -30,8 +30,8 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 #[derive(Clone)]
-pub struct Entity<'a> {
-    db: &'a dyn Database,
+pub struct Entity {
+    db: Rc<dyn Database>,
     id: i64,
     already_read_data: bool,        /*= false*/
     name: String,                   /*= _*/
@@ -42,7 +42,7 @@ pub struct Entity<'a> {
     new_entries_stick_to_top: bool, /*= false*/
 }
 
-impl Entity<'_> {
+impl Entity {
     const PRIVACY_PUBLIC: &'static str = "[PUBLIC]";
     const PRIVACY_NON_PUBLIC: &'static str = "[NON-PUBLIC]";
     const PRIVACY_UNSET: &'static str = "[UNSET]";
@@ -50,8 +50,8 @@ impl Entity<'_> {
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
-    pub fn new<'a>(
-        db: &'a dyn Database,
+    pub fn new(
+        db: Rc<dyn Database>,
         id: i64,
         name: String,
         class_id: Option<i64>, /*= None*/
@@ -59,7 +59,7 @@ impl Entity<'_> {
         public: Option<bool>,
         archived: bool,
         new_entries_stick_to_top: bool,
-    ) -> Entity<'a> {
+    ) -> Entity {
         Entity {
             id,
             db,
@@ -81,11 +81,11 @@ impl Entity<'_> {
     /// set... method to fix it.)
     // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and
     // EntityTest etc could be with mocks instead of real db use.)  Does this really skip that other check though?
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<Entity<'a>, anyhow::Error> {
+    ) -> Result<Entity, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.entity_key_exists(transaction, id, true)? {
             return Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST));
@@ -103,15 +103,15 @@ impl Entity<'_> {
         })
     }
 
-    pub fn create_entity<'a>(
-        db: &'a dyn Database,
+    pub fn create_entity(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        in_name: &'a str,
+        in_name: &str,
         in_class_id: Option<i64>,   /*= None*/
         is_public_in: Option<bool>, /*= None*/
-    ) -> Result<Entity<'a>, anyhow::Error> {
+    ) -> Result<Entity, anyhow::Error> {
         let id: i64 = db.create_entity(transaction.clone(), in_name, in_class_id, is_public_in)?;
-        Entity::new2(db as &dyn Database, transaction.clone(), id)
+        Entity::new2(db as Rc<dyn Database>, transaction.clone(), id)
     }
 
     fn name_length() -> u32 {
@@ -119,7 +119,7 @@ impl Entity<'_> {
     }
 
     fn is_duplicate(
-        db_in: &dyn Database,
+        db_in: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         in_self_id_to_ignore: Option<i64>, /*= None*/
@@ -129,11 +129,11 @@ impl Entity<'_> {
 
     /// This is for times when you want None if it doesn't exist, instead of the Error returned by
     /// the Entity constructor.  Or for convenience in tests.
-    fn get_entity<'a>(
-        db_in: &'a dyn Database,
+    fn get_entity(
+        db_in: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<Option<Entity<'a>>, String> {
+    ) -> Result<Option<Entity>, String> {
         let e = Entity::new2(db_in, transaction, id);
         match e {
             Ok(entity) => Ok(Some(entity)),
@@ -490,14 +490,14 @@ impl Entity<'_> {
     }
 
     /// Also for convenience
-    fn add_quantity_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_quantity_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_unit_id: i64,
         in_number: f64,
         sorting_index_in: Option<i64>,
-    ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
+    ) -> Result<QuantityAttribute, anyhow::Error> {
         self.add_quantity_attribute2(
             transaction,
             in_attr_type_id,
@@ -514,16 +514,16 @@ impl Entity<'_> {
     /// for explanation of the parameters. It might also be nice to add the recorder's ID (person or app), but we'd have to do some kind
     /// of authentication/login 1st? And a GUID for users (as Entities?)?
     /// See PostgreSQLDatabase.create_quantity_attribute(...) for details.
-    fn add_quantity_attribute2<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_quantity_attribute2(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_unit_id: i64,
         in_number: f64,
         sorting_index_in: Option<i64>, /*= None*/
         in_valid_on_date: Option<i64>,
         observation_date_in: i64,
-    ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
+    ) -> Result<QuantityAttribute, anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
         let id = self.db.create_quantity_attribute(
@@ -536,46 +536,46 @@ impl Entity<'_> {
             observation_date_in,
             sorting_index_in,
         )?;
-        QuantityAttribute::new2(self.db, transaction.clone(), id)
+        QuantityAttribute::new2(self.db.clone(), transaction.clone(), id)
     }
 
-    fn get_quantity_attribute<'a>(
-        &'a self,
+    fn get_quantity_attribute(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
-    ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
-        QuantityAttribute::new2(self.db, transaction, in_key)
+    ) -> Result<QuantityAttribute, anyhow::Error> {
+        QuantityAttribute::new2(self.db.clone(), transaction, in_key)
     }
 
-    fn get_text_attribute<'a>(
-        &'a self,
+    fn get_text_attribute(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
-    ) -> Result<TextAttribute<'a>, anyhow::Error> {
-        TextAttribute::new2(self.db, transaction, in_key)
+    ) -> Result<TextAttribute, anyhow::Error> {
+        TextAttribute::new2(self.db.clone(), transaction, in_key)
     }
 
-    fn get_date_attribute<'a>(
-        &'a self,
+    fn get_date_attribute(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
-    ) -> Result<DateAttribute<'a>, anyhow::Error> {
-        DateAttribute::new2(self.db, transaction, in_key)
+    ) -> Result<DateAttribute, anyhow::Error> {
+        DateAttribute::new2(self.db.clone(), transaction, in_key)
     }
 
-    fn get_boolean_attribute<'a>(
-        &'a self,
+    fn get_boolean_attribute(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
-    ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
-        BooleanAttribute::new2(self.db, transaction, in_key)
+    ) -> Result<BooleanAttribute, anyhow::Error> {
+        BooleanAttribute::new2(self.db.clone(), transaction, in_key)
     }
 
-    fn get_file_attribute<'a>(
-        &'a self,
+    fn get_file_attribute(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_key: i64,
-    ) -> Result<FileAttribute<'a>, anyhow::Error> {
+    ) -> Result<FileAttribute, anyhow::Error> {
         FileAttribute::new2(self.db, transaction, in_key)
     }
 
@@ -609,9 +609,9 @@ impl Entity<'_> {
         )
     }
 
-    fn get_containing_relation_to_group_descriptions<'a>(
+    fn get_containing_relation_to_group_descriptions(
         &self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         limit_in: Option<i64>, /*= None*/
     ) -> Result<Vec<String>, anyhow::Error> {
         self.db
@@ -626,14 +626,14 @@ impl Entity<'_> {
             .find_relation_to_and_group_on_entity(transaction, self.get_id(), None)
     }
 
-    fn find_contained_local_entity_ids<'a>(
+    fn find_contained_local_entity_ids<'a, 'c>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        results_in_out: &'a mut HashSet<i64>,
+        results_in_out: &'c mut HashSet<i64>,
         search_string_in: &str,
         levels_remaining_in: i32,      /*= 20*/
         stop_after_any_found_in: bool, /*= true*/
-    ) -> Result<&mut HashSet<i64>, anyhow::Error> {
+    ) -> Result<&'c mut HashSet<i64>, anyhow::Error> {
         self.db.find_contained_local_entity_ids(
             transaction,
             results_in_out,
@@ -658,12 +658,18 @@ impl Entity<'_> {
         starting_index_in: i64,   /*= 0*/
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
-        self.db.get_local_entities_containing_local_entity(
-            transaction,
+        let list: Vec<(i64, i64)> = self.db.get_local_entities_containing_local_entity(
+            transaction.clone(),
             self.get_id(),
             starting_index_in,
             max_vals_in,
-        )
+        )?;
+        let mut result: Vec<(i64, Entity)> = Vec::new();
+        for (rel_type_id, entity_id) in list.iter() {
+            let entity = Entity::new2(self.db.clone(), transaction.clone(), *entity_id)?;
+            result.push((*rel_type_id, entity));
+        };
+        Ok(result)
     }
 
     fn get_adjacent_attributes_sorting_indexes(
@@ -696,12 +702,14 @@ impl Entity<'_> {
         )
     }
 
-    fn renumber_sorting_indexes<'a>(
+    fn renumber_sorting_indexes<'a, 'b>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
-        self.db
-            .renumber_sorting_indexes(transaction, self.get_id(), true)
+        let ref cloned = self.db.clone();
+        let tx = transaction.clone();
+        let id = self.get_id();
+        cloned.renumber_sorting_indexes(tx, id, true)
     }
 
     fn update_attribute_sorting_index(
@@ -789,17 +797,24 @@ impl Entity<'_> {
     // Depending on future callers, should this return instead an Entity and RTLE,
     // creating them here?
     /// @return the new entity_id and relation_to_local_entity_id that relates to it.
-    fn add_uri_entity_with_uri_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_uri_entity_with_uri_attribute<'b>(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error> {
-        self.db.add_uri_entity_with_uri_attribute(
-            transaction,
+    ) -> Result<(i64, i64), anyhow::Error> 
+    //where
+    //    'a: 'b
+    {
+        let db_cloned = self.db.clone();
+        let tx = transaction.clone();
+        //self.db.clone().add_uri_entity_with_uri_attribute(
+        db_cloned.add_uri_entity_with_uri_attribute(
+            tx,
+            //None, //tx, //transaction.clone(),
             self.get_id(),
             new_entity_name_in,
             uri_in,
@@ -846,13 +861,13 @@ impl Entity<'_> {
     %%  */
 
     /// See add_quantity_attribute(...) methods for comments.
-    fn add_text_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_text_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_text: &str,
         sorting_index_in: Option<i64>,
-    ) -> Result<TextAttribute<'a>, anyhow::Error> {
+    ) -> Result<TextAttribute, anyhow::Error> {
         self.add_text_attribute2(
             transaction.clone(),
             in_attr_type_id,
@@ -863,15 +878,15 @@ impl Entity<'_> {
         )
     }
 
-    pub fn add_text_attribute2<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    pub fn add_text_attribute2(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_text: &str,
         sorting_index_in: Option<i64>,
         in_valid_on_date: Option<i64>,
         observation_date_in: i64,
-    ) -> Result<TextAttribute<'a>, anyhow::Error> {
+    ) -> Result<TextAttribute, anyhow::Error> {
         let id = self.db.create_text_attribute(
             transaction.clone(),
             self.id,
@@ -884,13 +899,13 @@ impl Entity<'_> {
         TextAttribute::new2(self.db, transaction, id)
     }
 
-    fn add_date_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_date_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_date: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<DateAttribute<'a>, anyhow::Error> {
+    ) -> Result<DateAttribute, anyhow::Error> {
         let id = self.db.create_date_attribute(
             transaction.clone(),
             self.id,
@@ -901,13 +916,13 @@ impl Entity<'_> {
         DateAttribute::new2(self.db, transaction, id)
     }
 
-    fn add_boolean_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_boolean_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_boolean: bool,
         sorting_index_in: Option<i64>,
-    ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
+    ) -> Result<BooleanAttribute, anyhow::Error> {
         self.add_boolean_attribute2(
             transaction,
             in_attr_type_id,
@@ -918,15 +933,15 @@ impl Entity<'_> {
         )
     }
 
-    fn add_boolean_attribute2<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_boolean_attribute2(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_boolean: bool,
         sorting_index_in: Option<i64>, /*= None*/
         in_valid_on_date: Option<i64>,
         observation_date_in: i64,
-    ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
+    ) -> Result<BooleanAttribute, anyhow::Error> {
         let id = self.db.create_boolean_attribute(
             transaction.clone(),
             self.id,
@@ -965,9 +980,9 @@ impl Entity<'_> {
                     }
                   }
     */
-    fn add_relation_to_local_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_relation_to_local_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_entity_id2: i64,
         sorting_index_in: Option<i64>,
@@ -1009,9 +1024,9 @@ impl Entity<'_> {
 
     /// Creates then adds a particular kind of rtg to this entity.
     /// Returns new group's id, and the new RelationToGroup object
-    fn create_group_and_add_a_has_relation_to_it<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn create_group_and_add_a_has_relation_to_it(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         new_group_name_in: &str,
         mixed_classes_allowed_in: bool,
         observation_date_in: i64,
@@ -1035,8 +1050,8 @@ impl Entity<'_> {
 
     /// Like others, returns the new things' IDs. */
     //%%%%%%?
-    pub fn add_group_and_relation_to_group<'a, 'b>(
-        &'a self,
+    pub fn add_group_and_relation_to_group<'b>(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         rel_type_id_in: i64,
         new_group_name_in: &str,
@@ -1045,10 +1060,8 @@ impl Entity<'_> {
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
     ) -> Result<(i64, i64), anyhow::Error> 
-    where
-        'a: 'b,
     {
-        let (group_id, rtg_id) = self.db.create_group_and_relation_to_group(
+        let (group_id, rtg_id) = self.db.clone().create_group_and_relation_to_group(
             transaction.clone(),
             self.get_id(),
             rel_type_id_in,
@@ -1071,13 +1084,13 @@ impl Entity<'_> {
     }
 
     /// @return the id of the new RTE
-    fn add_has_relation_to_local_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_has_relation_to_local_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
-    ) -> Result<RelationToLocalEntity<'a>, anyhow::Error> {
+    ) -> Result<RelationToLocalEntity, anyhow::Error> {
         let (rel_id, has_rel_type_id, new_sorting_index) =
             self.db.add_has_relation_to_local_entity(
                 transaction,
@@ -1101,13 +1114,13 @@ impl Entity<'_> {
     }
 
     /// Creates new entity then adds it a particular kind of rte to this entity.
-    pub fn create_entity_and_add_has_local_relation_to_it<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    pub fn create_entity_and_add_has_local_relation_to_it(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         new_entity_name_in: &str,
         observation_date_in: i64,
         is_public_in: Option<bool>,
-    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
+    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
         let (new_entity_id, rte_id, relation_type_id) =
             self.db.create_entity_and_add_has_local_relation_to_it(
                 transaction.clone(),
@@ -1132,15 +1145,15 @@ impl Entity<'_> {
         Ok((new_entity, rte))
     }
 
-    fn add_entity_and_relation_to_local_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_entity_and_relation_to_local_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
         new_entity_name_in: &str,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         is_public_in: Option<bool>,
-    ) -> Result<(Entity<'a>, RelationToLocalEntity<'a>), anyhow::Error> {
+    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error> {
         let (new_entity_id, new_rte_id) = self.db.create_entity_and_relation_to_local_entity(
             transaction.clone(),
             self.get_id(),

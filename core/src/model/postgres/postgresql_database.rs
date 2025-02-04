@@ -1708,13 +1708,16 @@ impl PostgreSQLDatabase {
     }
 
     /** Returns the class_id and entity_id, in a tuple. */
-    pub fn create_class_and_its_template_entity2<'a>(
+    pub fn create_class_and_its_template_entity2<'a, 'b>(
         &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         class_name_in: String,
         entity_name_in: String,
         // (See fn delete_objects for more about this parameter, and transaction above.)
-    ) -> Result<(i64, i64), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> 
+    where
+        'a: 'b
+    {
         //%%can I further simplify this and similar places now?  Maybe using Cow from stdlib?
         /*%%For the duplicated code & comments just below, would ideas from these help?:
             The weird of function-local types in Rust

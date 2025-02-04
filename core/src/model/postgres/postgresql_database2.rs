@@ -208,13 +208,16 @@ impl PostgreSQLDatabase {
         }
     }
 
-    pub fn get_user_preference2<'a>(
+    pub fn get_user_preference2<'a, 'b>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         preferences_container_id_in: i64,
         preference_name_in: &str,
         preference_type: &str,
-    ) -> Result<Vec<DataType>, anyhow::Error> {
+    ) -> Result<Vec<DataType>, anyhow::Error> 
+    where
+        'a: 'b
+    {
         // (Passing a smaller numeric parameter to find_contained_local_entity_ids for levels_remainingIn, so that in the (very rare) case where one does not
         // have a default entity set at the *top* level of the preferences under the system entity, and there are links there to entities with many links
         // to others, then it still won't take too long to traverse them all at startup when searching for the default entity.  But still allowing for
@@ -248,11 +251,6 @@ impl PostgreSQLDatabase {
                 // there is exactly one, as checked above
                 preference_entity_id = *x;
             }
-            let preference_entity = Entity::new2(
-                self as &dyn Database,
-                transaction.clone(),
-                preference_entity_id,
-            );
             let relevant_attribute_rows: Vec<Vec<Option<DataType>>> = {
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
                     // (Using the preference_entity.get_id for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
@@ -289,19 +287,8 @@ impl PostgreSQLDatabase {
 
                 if relevant_attribute_rows.len() != 1 {
                     // ASSUMED it is 1, below!
-                    // preference_entity.get_id()
-                    let (pref_entity_name, id) = match preference_entity {
-                        // Using 0 as a best-effort non-existent id (even though it does exists) because
-                        // no better idea came to mind, at least for this error handling.
-                        Err(e) => (format!("(Unknown/error: {})", e.to_string()), 0_i64),
-                        Ok(mut entity) => (
-                            entity.get_name(transaction.clone())?.clone(),
-                            entity.get_id(),
-                        ),
-                    };
-                    return Err(anyhow!("Under the entity {} ({}), there are {}{}so the program does not know what to use for this.  There should be *one*.",
-                                       pref_entity_name,
-                                        id,
+                    return Err(anyhow!("Under the entity {}, there are {}{}so the program does not know what to use for this.  There should be *one*.",
+                                        preference_entity_id,
                                        relevant_attribute_rows.len(), attr_msg));
                 }
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
@@ -814,23 +801,26 @@ impl PostgreSQLDatabase {
     //     final_results.add(Entity::new2(this, transaction, id, name, class_id, insertion_date, public, archived, new_entries_stick_to_top)
     // }
 
+    /// @return a Vec of (relation_type_id, entity_id) tuples.
     pub fn get_containing_entities_helper(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_in: &str,
-    ) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+    //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+    ) -> Result<Vec<(i64, i64)>, anyhow::Error> {
         let early_results = self.db_query(transaction.clone(), sql_in, "i64,i64")?;
         let early_results_len = early_results.len();
-        let mut final_results: Vec<(i64, Entity)> = Vec::new();
+        //let mut final_results: Vec<(i64, Entity)> = Vec::new();
+        let mut final_results: Vec<(i64, i64)> = Vec::new();
         // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
         // dependencies? is a cleaner design?.)
         for result in early_results {
             // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
             let rel_type_id = get_i64_from_row(&result, 0)?;
             let id = get_i64_from_row(&result, 1)?;
-            let entity: Entity =
-                Entity::new2(self as &dyn Database, transaction.clone(), id.clone()).unwrap();
-            final_results.push((rel_type_id.clone(), entity))
+            //let entity: Entity =
+            //    Entity::new2(self as &dyn Database, transaction.clone(), id.clone()).unwrap();
+            final_results.push((rel_type_id.clone(), id))
         }
 
         if !(final_results.len() == early_results_len) {
@@ -847,7 +837,8 @@ impl PostgreSQLDatabase {
         let early_results = self.db_query(transaction.clone(), sql_in, "i64")?;
         let mut group_id_results: Vec<i64> = Vec::new();
         let early_results_len = early_results.len();
-        // idea: should the remainder of this method be moved to Group, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+        // idea: should the remainder of this method be moved to Group, so the 
+        // persistence layer doesn't know anything about the Model? (helps avoid circular
         // dependencies? is a cleaner design?)
         for result in early_results {
             //val group:Group = new Group(this, result(0).asInstanceOf[i64])
@@ -1064,7 +1055,7 @@ impl PostgreSQLDatabase {
         name_in: &str,
         rel_type_id_in: Option<i64>, /*= None*/
         expected_rows: Option<u64>,  /*= None*/
-    ) -> Result<Vec<Entity>, anyhow::Error> {
+    ) -> Result<Vec<i64>, anyhow::Error> {
         // (not getting all the attributes in this case, and doing another query to the entity table (less efficient), to save programming
         // time for the case that the entity table changes, we don't have to carefully update all the columns selected here & the mappings.  This is a more
         // likely change than for the TextAttribute table, below.
@@ -1083,18 +1074,15 @@ impl PostgreSQLDatabase {
                 return Err(anyhow!("In get_entities_from_relations_to_local_entity, In get_entities_from_relations_to_local_entity, found {} rows in instead of expected {}", count, expected_row_count));
             }
         }
-        let mut final_result: Vec<Entity> = Vec::with_capacity(query_results.len());
+        let mut final_result: Vec<i64> = Vec::with_capacity(query_results.len());
         // let mut index: usize = 0;
         for r in query_results {
             if r.len() == 0 {
                 return Err(anyhow!("In get_entities_from_relations_to_local_entity, in get_entities_from_relations_to_local_entity, did not expect returned row to have 0 elements!: {:?}", r));
             }
             if let Some(DataType::Bigint(id)) = r[0] {
-                final_result.push(Entity::new2(
-                    self as &dyn Database,
-                    transaction.clone(),
-                    id,
-                )?);
+                //final_result.push(Entity::new2( self as &dyn Database, transaction.clone(), id,)?);
+                final_result.push(id);
                 // index += 1
             } else {
                 return Err(anyhow!("In get_entities_from_relations_to_local_entity, in get_entities_from_relations_to_local_entity, did not expect this: {:?}", r[0]));

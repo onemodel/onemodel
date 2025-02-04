@@ -24,12 +24,12 @@ use std::rc::Rc;
 // due to Rust limitations on OO.  Maintain them all similarly.
 
 /// Represents one quantity object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
-pub struct QuantityAttribute<'a> {
+pub struct QuantityAttribute {
     // For descriptions of the meanings of these variables, see the comments
     // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
     id: i64,
-    db: &'a dyn Database,
+    db: Rc<dyn Database>,
     // **idea: make these members immutable?, by replacing them with something like:
     //           let (unit_id: i64, number: f64) = read_data_from_db();
     // BUT: have to figure out how to work with the

@@ -41,16 +41,19 @@ use tracing::*;
 
 impl Database for PostgreSQLDatabase {
     /// @return the new entity id and the new relation_to_local_entity id that relates to it.
-    fn add_uri_entity_with_uri_attribute<'a>(
+    fn add_uri_entity_with_uri_attribute<'a, 'b>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         containing_entity_id_in: i64,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> 
+    where
+        'a: 'b
+    {
         if quote_in.is_some() {
             if quote_in.unwrap().is_empty() {
                 return Err(anyhow!("It doesn't make sense to store a blank quotation; there was probably a program error."));
@@ -344,15 +347,18 @@ impl Database for PostgreSQLDatabase {
     ///                          case, or not following any RelationTo[Local|Remote]Entity links (which defeats the ability to organize the preferences in a hierarchy),
     ///                          or flagging certain ones to skip by marking them as a preference (not a link to follow in the preferences hierarchy), but
     ///                          those all seemed more complicated.
-    fn find_contained_local_entity_ids<'a>(
+    fn find_contained_local_entity_ids<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        results_in_out: &'a mut HashSet<i64>,
+        results_in_out: &'b mut HashSet<i64>,
         from_entity_id_in: i64,
         search_string_in: &str,
         levels_remaining: i32,      /*= 20*/
         stop_after_any_found: bool, /*= true*/
-    ) -> Result<&mut HashSet<i64>, anyhow::Error> {
+    ) -> Result<&'b mut HashSet<i64>, anyhow::Error> 
+    where
+        'b: 'a
+    {
         // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two places).  But that has other complexities: see
         // comments on ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of levels total, it might not matter anyway
         // (ie, probably the current code is not optimized but is simpler and good enough for now).
@@ -478,11 +484,14 @@ impl Database for PostgreSQLDatabase {
         Ok(results_in_out)
     }
 
-    fn create_class_and_its_template_entity<'a>(
+    fn create_class_and_its_template_entity<'a, 'b>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         class_name_in: &str,
-    ) -> Result<(i64, i64), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> 
+    where
+        'a: 'b
+    {
         self.create_class_and_its_template_entity2(
             transaction.clone(),
             class_name_in.to_string(),
@@ -2002,17 +2011,20 @@ impl Database for PostgreSQLDatabase {
     /// I.e., make it so the entity has a group in it, which can contain entities.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
     /// @return a tuple containing the id and new sorting_index: (id, sorting_index)
-    fn create_relation_to_group<'a>(
+    fn create_relation_to_group<'a, 'b>(
         &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         group_id_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> 
+    where
+        'a: 'b
+    {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -2373,14 +2385,17 @@ impl Database for PostgreSQLDatabase {
     /// I.e., insert an entity into a group of entities. Using a default value for the sorting_index because user can set it if/as desired;
     /// the max (ie putting it at the end) might be the least often surprising if the user wonders where one went....
     /// **ABOUT THE SORTINGINDEX*:  SEE the related comment on method add_attribute_sorting_row.
-    fn add_entity_to_group<'a>(
+    fn add_entity_to_group<'a, 'b>(
         &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         group_id_in: i64,
         contained_entity_id_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), anyhow::Error> 
+    where
+        'a: 'b
+    {
         // IF THIS CHANGES ALSO DO MAINTENANCE IN SIMILAR METHOD add_attribute_sorting_row
 
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
@@ -2503,14 +2518,17 @@ impl Database for PostgreSQLDatabase {
         Ok(id)
     }
 
-    fn create_relation_type<'a>(
+    fn create_relation_type<'a, 'b>(
         &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         name_in: &str,
         name_in_reverse_direction_in: &str,
         directionality_in: &str,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<i64, anyhow::Error> 
+    where
+        'a: 'b
+    {
         let name_in_reverse_direction: String =
             Self::escape_quotes_etc(name_in_reverse_direction_in.to_string());
         let name: String = Self::escape_quotes_etc(name_in.to_string());
@@ -3238,12 +3256,17 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn renumber_sorting_indexes<'a>(
+    //%%%%%%%
+    fn renumber_sorting_indexes<'a, 'b>(
+    //fn renumber_sorting_indexes(
         &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         entity_id_or_group_id_in: i64,
         is_entity_attrs_not_group_entries: bool, /*= true*/
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), anyhow::Error> 
+    where
+        'a: 'b
+    {
         //This used to be called "renumberAttributeSortingIndexes" before it was merged with "renumberGroupSortingIndexes" (very similar).
         let number_of_entries: u64 = {
             if is_entity_attrs_not_group_entries {
@@ -3298,6 +3321,7 @@ impl Database for PostgreSQLDatabase {
                     )?
                 }
             };
+            ///*%%%%%%%
             if data.len() as u128 != number_of_entries as u128 {
                 // "Idea:: BAD SMELL! The UI should do all UI communication, no?"
                 // (SEE ALSO comments and code at other places with the part on previous line in quotes).
@@ -3428,6 +3452,7 @@ impl Database for PostgreSQLDatabase {
                     }
                 }
             }
+    //%%%%%% */
         }
         Ok(())
     }
@@ -4582,13 +4607,15 @@ impl Database for PostgreSQLDatabase {
         Ok(final_results)
     }
 
+    /// @return a vec of (rel_type_id, entity_id) tuples.
     fn get_local_entities_containing_local_entity(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    ) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+    //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+    ) -> Result<Vec<(i64, i64)>, anyhow::Error> {
         let not_archived = if !self.include_archived_entities {
             " and (not e.archived)"
         } else {
@@ -4603,13 +4630,15 @@ impl Database for PostgreSQLDatabase {
         self.get_containing_entities_helper(transaction, sql.as_str())
     }
 
+    /// @return a vec of (rel_type_id, entity_id) tuples.
     fn get_entities_containing_group(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    ) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+    //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+    ) -> Result<Vec<(i64, i64)>, anyhow::Error> {
         let sql = format!("select rel_type_id, entity_id from relationtogroup where group_id={}  order by entity_id, rel_type_id \
                                     limit {} offset {}",
                           group_id_in, Self::check_if_should_be_all_results(max_vals_in), starting_index_in);
@@ -5002,7 +5031,8 @@ impl Database for PostgreSQLDatabase {
         group_id_in: i64,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    ) -> Result<Vec<Entity>, anyhow::Error> {
+    //) -> Result<Vec<Entity>, anyhow::Error> {
+    ) -> Result<Vec<i64>, anyhow::Error> {
         let not_archived = if !self.include_archived_entities {
             " and (not e.archived) "
         } else {
@@ -5014,7 +5044,7 @@ impl Database for PostgreSQLDatabase {
                           not_archived, group_id_in, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in);
         let early_results = self.db_query(transaction.clone(), sql.as_str(), "i64,i64")?;
         let early_results_len = early_results.len();
-        let mut final_results: Vec<Entity> = Vec::new();
+        let mut final_results: Vec<i64> = Vec::new();
         // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
         // dependencies; is a cleaner design?  Or, maybe this class and all the object classes like Entity, etc, are all part of the same layer.)
         // And doing similarly elsewhere such as in get_om_instance_data().
@@ -5034,7 +5064,8 @@ impl Database for PostgreSQLDatabase {
                     ))
                 }
                 Some(DataType::Bigint(i)) => {
-                    final_results.push(Entity::new2(self as &dyn Database, transaction.clone(), i)?)
+                    //final_results.push(Entity::new2(self as &dyn Database, transaction.clone(), i)?)
+                    final_results.push(i)
                 }
                 _ => {
                     return Err(anyhow!(
@@ -5230,11 +5261,14 @@ impl Database for PostgreSQLDatabase {
     //     self.pool.%%?
     // }
 
-    fn get_or_create_class_and_template_entity<'a>(
+    fn get_or_create_class_and_template_entity<'a, 'b>(
         &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         class_name_in: &str,
-    ) -> Result<(i64, i64), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error> 
+    where
+        'a: 'b
+    {
         //(%%see note above re 'bad smell' in method add_uri_entity_with_uri_attribute.)
         //(or places that have "unfortunately" and copy/pasted code?)
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
