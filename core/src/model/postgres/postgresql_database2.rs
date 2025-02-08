@@ -829,46 +829,6 @@ impl PostgreSQLDatabase {
         Ok(final_results)
     }
 
-    pub fn get_containing_relation_to_groups_helper(
-        &self,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        sql_in: &str,
-    ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
-        let early_results = self.db_query(transaction.clone(), sql_in, "i64")?;
-        let mut group_id_results: Vec<i64> = Vec::new();
-        let early_results_len = early_results.len();
-        // idea: should the remainder of this method be moved to Group, so the 
-        // persistence layer doesn't know anything about the Model? (helps avoid circular
-        // dependencies? is a cleaner design?)
-        for result in early_results {
-            //val group:Group = new Group(this, result(0).asInstanceOf[i64])
-            let DataType::Bigint(id) = (match result.get(0) {
-                Some(Some(dt)) => dt,
-                None => return Err(anyhow!("In processing query, got an unexpected None!: {}", sql_in)),
-                _ => return Err(anyhow!("In pg2.get_containing_relation_to_groups_helper processing query:\n  {}\n..., got an unexpected value!: {:?}", sql_in, result.get(0))),
-            }) else {
-                return Err(anyhow!("In pgdb2.get_containing_relation_to_groups_helper, unexpected value: {:?}", result.get(0)));
-            };
-            group_id_results.push(id.clone());
-        }
-        if group_id_results.len() != early_results_len {
-            return Err(anyhow!("In get_containing_relation_to_groups_helper, group_id_results.len() ({}) != early_results.len() ({})", group_id_results.len(), early_results_len));
-        }
-        let mut containing_relations_to_group: Vec<RelationToGroup> = Vec::new();
-        for gid in group_id_results {
-            let rtgs: Vec<RelationToGroup> = self.get_relations_to_group_containing_this_group(
-                transaction.clone(),
-                gid,
-                0,
-                None,
-            )?;
-            for rtg in rtgs {
-                containing_relations_to_group.push(rtg);
-            }
-        }
-        Ok(containing_relations_to_group)
-    }
-
     pub fn get_entities_used_as_attribute_types_sql(
         &self,
         attribute_type_in: String,

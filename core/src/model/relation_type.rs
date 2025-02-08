@@ -31,8 +31,8 @@ enum RelationDirectionality {
     NON,
 }
 
-pub struct RelationType<'a> {
-    db: &'a dyn Database,
+pub struct RelationType {
+    db: Rc<dyn Database>,
     entity_id: i64,
     name: String,
     /// For descriptions of the meanings of these variables, see the comments
@@ -42,7 +42,7 @@ pub struct RelationType<'a> {
     already_read_data: bool,
 }
 
-impl RelationType<'_> {
+impl RelationType {
     // idea: should use these more, elsewhere (replacing hard-coded values! )
     pub const BIDIRECTIONAL: &'static str = "BI";
     pub const UNIDIRECTIONAL: &'static str = "UNI";
@@ -51,13 +51,13 @@ impl RelationType<'_> {
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
-    pub fn new<'a>(
-        db: &'a dyn Database,
+    pub fn new(
+        db: Rc<dyn Database>,
         entity_id: i64,
         name: String,
         name_in_reverse_direction: String,
         directionality: String,
-    ) -> RelationType<'a> {
+    ) -> RelationType {
         RelationType {
             db,
             entity_id,
@@ -71,11 +71,11 @@ impl RelationType<'_> {
     /// This constructor instantiates an existing object from the DB. You can use Entity.addRelationTypeAttribute() to
     /// create a new object. Assumes caller just read it from the DB and the info is accurate (i.e., this may only
     /// ever need to be called by a Database instance?).
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<RelationType<'a>, anyhow::Error> {
+    ) -> Result<RelationType, anyhow::Error> {
         // (see comments at similar location in boolean_attribute.rs.)
         if !db.is_remote() && !db.relation_type_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -143,7 +143,7 @@ impl RelationType<'_> {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         _with_color /*IGNOREDFORNOW*/: bool,
     ) -> Result<String, anyhow::Error> {
-        let mut entity: Entity = Entity::new2(self.db, None, self.entity_id)?;
+        let mut entity: Entity = Entity::new2(self.db.clone(), None, self.entity_id)?;
         Ok(format!(
             "{}{} (a relation type with: {}/'{}')",
             entity

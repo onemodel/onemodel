@@ -15,25 +15,25 @@ use crate::model::database::{DataType, Database};
 use crate::model::id_wrapper::IdWrapper;
 use crate::util::Util;
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct EntityClass<'a> {
+pub struct EntityClass {
+    db: Rc<dyn Database>,
     id: i64,
-    db: &'a dyn Database,
     already_read_data: bool,                 /*= false*/
     name: String,                            /*= null*/
     template_entity_id: i64,                 /*= 0*/
     create_default_attributes: Option<bool>, /*= None*/
 }
 
-impl EntityClass<'_> {
+impl EntityClass {
     fn name_length() -> u32 {
         Util::class_name_length()
     }
 
-    fn is_duplicate<'a>(
-        db_in: &'a dyn Database,
+    fn is_duplicate(
+        db_in: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         in_self_id_to_ignore: Option<i64>, /*= None*/
@@ -44,13 +44,13 @@ impl EntityClass<'_> {
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     ///  that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    pub fn new<'a>(
-        db: &'a dyn Database,
+    pub fn new(
+        db: Rc<dyn Database>,
         id: i64,
         name_in: &str,
         template_entity_id: i64,
         create_default_attributes: Option<bool>, /*= None*/
-    ) -> EntityClass<'a> {
+    ) -> EntityClass {
         EntityClass {
             db,
             id,
@@ -62,11 +62,11 @@ impl EntityClass<'_> {
     }
 
     /// See comments on similar methods in group.rs.
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<EntityClass<'a>, anyhow::Error> {
+    ) -> Result<EntityClass, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.class_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -92,10 +92,16 @@ impl EntityClass<'_> {
         Ok(self.name.clone())
     }
 
+    //pub fn get_template_entity_id<'a, 'b>(
+    //    &'a mut self,
+    //    transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
     pub fn get_template_entity_id(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<i64, anyhow::Error>
+    //where
+    //    'a: 'b,
+    {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
         }
@@ -179,26 +185,24 @@ impl EntityClass<'_> {
     // result
     // }
 
-    fn update_class_and_template_entity_name<'a>(
+    fn update_class_and_template_entity_name<'a, 'b>(
         &'a mut self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         name_in: &str,
-    ) -> Result<i64, anyhow::Error> {
-        let template_entity_id: i64 = self.db.update_class_and_template_entity_name(
+    ) -> Result<i64, anyhow::Error>
+    where
+        'a: 'b,
+    {
+        let ref rc_db = &self.db;
+        let ref cloned = rc_db.clone();
+        cloned.update_class_and_template_entity_name(
             transaction.clone(),
             self.get_id(),
+            self.template_entity_id,
             name_in,
         )?;
         self.name = name_in.to_string();
-        let read_template_entity_id = self.get_template_entity_id(transaction)?;
-        if self.template_entity_id != read_template_entity_id {
-            return Err(anyhow!(
-                "Template entity IDs do not match: {}, {}",
-                self.template_entity_id,
-                read_template_entity_id
-            ));
-        }
-        Ok(template_entity_id)
+        Ok(self.template_entity_id)
     }
 
     fn update_create_default_attributes(

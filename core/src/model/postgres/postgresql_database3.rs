@@ -50,9 +50,9 @@ impl Database for PostgreSQLDatabase {
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error> 
+    ) -> Result<(i64, i64), anyhow::Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         if quote_in.is_some() {
             if quote_in.unwrap().is_empty() {
@@ -159,13 +159,16 @@ impl Database for PostgreSQLDatabase {
         Ok((new_entity_id, new_rte_id))
     }
 
+    /// @return Vec of tuples for building TextAttribute instances. Each tuple
+    /// contains: (text_attribute_id, parent_entity_id_in, attr_type_id,
+    /// textvalue, valid_on_date, observation_date, sorting_index).
     fn get_text_attribute_by_type_id(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_entity_id_in: i64,
         type_id_in: i64,
         expected_rows: Option<usize>, /*= None*/
-    ) -> Result<Vec<TextAttribute>, anyhow::Error> {
+    ) -> Result<Vec<(i64, i64, i64, String, Option<i64>, i64, i64)>, anyhow::Error> {
         let form_id: i32 = self.get_attribute_form_id(Util::TEXT_TYPE).unwrap();
         let sql: String = format!("select ta.id, ta.textvalue, ta.attr_type_id, ta.valid_on_date, ta.observation_date, asort.sorting_index from \
              textattribute ta, AttributeSorting asort where ta.entity_id={} and ta.attr_type_id={} and ta.entity_id=asort.entity_id and \
@@ -182,7 +185,8 @@ impl Database for PostgreSQLDatabase {
                 ));
             }
         }
-        let mut final_result: Vec<TextAttribute> = Vec::with_capacity(query_results.len());
+        let mut final_result: Vec<(i64, i64, i64, String, Option<i64>, i64, i64)> =
+            Vec::with_capacity(query_results.len());
         for r in query_results {
             if r.len() < 6 {
                 return Err(anyhow!("In get_text_attribute_by_type_id, expected 6 elements in row returned, but found {}: {:?}", r.len(), r));
@@ -242,12 +246,11 @@ impl Database for PostgreSQLDatabase {
                     r.get(5)
                 ));
             };
-            final_result.push(TextAttribute::new(
-                self as &dyn Database,
+            final_result.push((
                 *text_attribute_id,
                 parent_entity_id_in,
                 *attr_type_id,
-                textvalue,
+                textvalue.clone(),
                 valid_on_date,
                 *observation_date,
                 *sorting_index,
@@ -355,9 +358,9 @@ impl Database for PostgreSQLDatabase {
         search_string_in: &str,
         levels_remaining: i32,      /*= 20*/
         stop_after_any_found: bool, /*= true*/
-    ) -> Result<&'b mut HashSet<i64>, anyhow::Error> 
+    ) -> Result<&'b mut HashSet<i64>, anyhow::Error>
     where
-        'b: 'a
+        'b: 'a,
     {
         // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two places).  But that has other complexities: see
         // comments on ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of levels total, it might not matter anyway
@@ -488,9 +491,9 @@ impl Database for PostgreSQLDatabase {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         class_name_in: &str,
-    ) -> Result<(i64, i64), anyhow::Error> 
+    ) -> Result<(i64, i64), anyhow::Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         self.create_class_and_its_template_entity2(
             transaction.clone(),
@@ -687,9 +690,9 @@ impl Database for PostgreSQLDatabase {
     /// of the data you can do some research and let us know what you find.
     /// <p/>
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_quantity_attribute<'a>(
+    fn create_quantity_attribute<'a, 'b>(
         &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         unit_id_in: i64,
@@ -697,7 +700,10 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result</*id*/ i64, anyhow::Error> {
+    ) -> Result</*id*/ i64, anyhow::Error>
+    where
+        'a: 'b,
+    {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -844,6 +850,34 @@ impl Database for PostgreSQLDatabase {
                        false, false)?;
         Ok(())
     }
+    fn update_boolean_attribute_value(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        id_in: i64,
+        //not needed right? Is pointlessly used as a key in fn update_boolean_attribute (just
+        //above)?
+        //parent_id_in: i64,
+        boolean_in: bool,
+    ) -> Result<(), anyhow::Error> {
+        // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields 
+        // don't get updated in memory when the db updates, and the behavior gets weird.
+        self.db_action(
+            transaction,
+            format!(
+                //see comment just above about not using parent_id_in.
+                //"update BooleanAttribute set (boolean_value) \
+                //        = ({}) where id={} and entity_id={}",
+                //boolean_in, id_in, parent_id_in
+                "update BooleanAttribute set (boolean_value) \
+                        = ({}) where id={}",
+                boolean_in, id_in
+            )
+            .as_str(),
+            false,
+            false,
+        )?;
+        Ok(())
+    }
     /// We don't update the dates, path, size, hash because we set those based on the file's own timestamp, path current date,
     /// & contents when it is written. So the only
     /// point to having an update method might be the attribute type & description.
@@ -964,12 +998,16 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn update_class_and_template_entity_name<'a>(
+    fn update_class_and_template_entity_name<'a, 'b>(
         &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         class_id_in: i64,
+        template_entity_id_in: i64,
         name: &str,
-    ) -> Result<i64, anyhow::Error> {
+    ) -> Result<(), anyhow::Error>
+    where
+        'a: 'b,
+    {
         // let mut tx = self.begin_trans()?;
         //   let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
@@ -991,18 +1029,14 @@ impl Database for PostgreSQLDatabase {
         //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         self.update_class_name(transaction.clone(), class_id_in, name.to_string())?;
-        let entity_id: i64 =
-            EntityClass::new2(self as &dyn Database, transaction.clone(), class_id_in)?
-                .get_template_entity_id(transaction.clone())?;
+        //not needed since we pass the template_entity_id_in as a parameter?:
+        //let entity_id: i64 = EntityClass::new2(self as &dyn Database, transaction.clone(), class_id_in)?
+        //        .get_template_entity_id(transaction.clone())?;
         self.update_entity_only_name(
             transaction.clone(),
-            entity_id,
+            template_entity_id_in,
             format!("{}{}", name, Util::TEMPLATE_NAME_SUFFIX).as_str(),
         )?;
-        // if let Err(e) = self.commit_trans(tx) {
-        //     see comments in delete_objects about rollback
-        // return Err(anyhow!(e.to_string()));
-        // }
         if transaction_in.is_none() && transaction.is_some() {
             // see comments at similar location in delete_objects about local_tx
             // see comments in delete_objects about rollback
@@ -1020,7 +1054,7 @@ impl Database for PostgreSQLDatabase {
                 }
             }
         }
-        Ok(entity_id)
+        Ok(())
     }
 
     fn update_entitys_class<'a>(
@@ -1197,7 +1231,7 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<'a, Postgres> = self.begin_trans()?;
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
         let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
         let transaction = if transaction_in.clone().is_some() {
             transaction_in.clone()
@@ -1482,17 +1516,20 @@ impl Database for PostgreSQLDatabase {
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
     /// @return the new ID and the sorting_index.
-    fn create_relation_to_local_entity<'a>(
+    fn create_relation_to_local_entity<'a, 'b>(
         &'a self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         relation_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error> {
+    ) -> Result<(i64, i64), anyhow::Error>
+    where
+        'a: 'b,
+    {
         debug!("in create_relation_to_local_entity 0");
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -1882,9 +1919,9 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
-    ) -> Result<(i64, i64), anyhow::Error> 
+    ) -> Result<(i64, i64), anyhow::Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         //%%latertrans: fix/simplify these blocks??  can dup in a simple enough thing to post on URLO?
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
@@ -2021,9 +2058,9 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error> 
+    ) -> Result<(i64, i64), anyhow::Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -2392,9 +2429,9 @@ impl Database for PostgreSQLDatabase {
         group_id_in: i64,
         contained_entity_id_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<(), anyhow::Error> 
+    ) -> Result<(), anyhow::Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         // IF THIS CHANGES ALSO DO MAINTENANCE IN SIMILAR METHOD add_attribute_sorting_row
 
@@ -2525,9 +2562,9 @@ impl Database for PostgreSQLDatabase {
         name_in: &str,
         name_in_reverse_direction_in: &str,
         directionality_in: &str,
-    ) -> Result<i64, anyhow::Error> 
+    ) -> Result<i64, anyhow::Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         let name_in_reverse_direction: String =
             Self::escape_quotes_etc(name_in_reverse_direction_in.to_string());
@@ -2803,11 +2840,11 @@ impl Database for PostgreSQLDatabase {
     }
 
     fn delete_group_and_relations_to_it<'a, 'b>(
-        &'a self, 
+        &'a self,
         transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-        id_in: i64) 
-    -> Result<(), anyhow::Error> 
-    where 
+        id_in: i64,
+    ) -> Result<(), anyhow::Error>
+    where
         'a: 'b,
     {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
@@ -2970,25 +3007,27 @@ impl Database for PostgreSQLDatabase {
                 DataType::Bigint(x) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[0])),
             };
+            self.update_boolean_attribute_value(transaction.clone(), preference_attribute_id, value_in)
 
-            let mut attribute = BooleanAttribute::new2(
-                self as &dyn Database,
-                transaction.clone(),
-                preference_attribute_id,
-            )?;
-            // Now we have found a boolean attribute which already existed, and just need to
-            // update its boolean value. The other values we read from the db inside the first call
-            // to something like "get_parent_id()", and just write them back with the new boolean value,
-            // to conveniently reuse existing methods.
-            self.update_boolean_attribute(
-                transaction.clone(),
-                attribute.get_id(),
-                attribute.get_parent_id(transaction.clone())?,
-                attribute.get_attr_type_id(transaction.clone())?,
-                value_in,
-                attribute.get_valid_on_date(transaction.clone())?,
-                attribute.get_observation_date(transaction.clone())?,
-            )
+            //old logic/deletable after commit:
+            //let mut attribute = BooleanAttribute::new2(
+            //    self as &dyn Database,
+            //    transaction.clone(),
+            //    preference_attribute_id,
+            //)?;
+            //// Now we have found a boolean attribute which already existed, and just need to
+            //// update its boolean value. The other values we read from the db inside the first call
+            //// to something like "get_parent_id()", and just write them back with the new boolean value,
+            //// to conveniently reuse existing methods.
+            //self.update_boolean_attribute(
+            //    transaction.clone(),
+            //    attribute.get_id(),
+            //    attribute.get_parent_id(transaction.clone())?,
+            //    attribute.get_attr_type_id(transaction.clone())?,
+            //    value_in,
+            //    attribute.get_valid_on_date(transaction.clone())?,
+            //    attribute.get_observation_date(transaction.clone())?,
+            //)
         } else {
             let type_id_of_the_has_relation =
                 self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?;
@@ -3256,16 +3295,14 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    //%%%%%%%
     fn renumber_sorting_indexes<'a, 'b>(
-    //fn renumber_sorting_indexes(
         &'a self,
         transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         entity_id_or_group_id_in: i64,
         is_entity_attrs_not_group_entries: bool, /*= true*/
-    ) -> Result<(), anyhow::Error> 
+    ) -> Result<(), anyhow::Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         //This used to be called "renumberAttributeSortingIndexes" before it was merged with "renumberGroupSortingIndexes" (very similar).
         let number_of_entries: u64 = {
@@ -3321,7 +3358,6 @@ impl Database for PostgreSQLDatabase {
                     )?
                 }
             };
-            ///*%%%%%%%
             if data.len() as u128 != number_of_entries as u128 {
                 // "Idea:: BAD SMELL! The UI should do all UI communication, no?"
                 // (SEE ALSO comments and code at other places with the part on previous line in quotes).
@@ -3452,7 +3488,6 @@ impl Database for PostgreSQLDatabase {
                     }
                 }
             }
-    //%%%%%% */
         }
         Ok(())
     }
@@ -3599,14 +3634,17 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    //   // Idea: make starting_index_in and max_vals_in do something here.  How was that missed?  Is it needed?
+    //   Idea: make starting_index_in and max_vals_in do something here.  How was that missed?  Is it needed? See 
+    //   caller and its caller, and their comments for more info.
+    /// @return (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date, sorting_index)
     fn get_relations_to_group_containing_this_group(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         _starting_index_in: i64,
         _max_vals_in: Option<u64>, /*= None*/
-    ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
+    //) -> Result<Vec<RelationToGroup>, anyhow::Error> {
+    ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
         let sql = format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
                  asort.sorting_index from RelationToGroup rtg, AttributeSorting asort where group_id={} \
@@ -3614,7 +3652,8 @@ impl Database for PostgreSQLDatabase {
                  and rtg.id=asort.attribute_id", group_id_in, af_id);
         let early_results =
             self.db_query(transaction, sql.as_str(), "i64,i64,i64,i64,i64,i64,i64")?;
-        let mut final_results: Vec<RelationToGroup> = Vec::new();
+        //let final_results: Vec<RelationToGroup> = Vec::new();
+        let mut final_results: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> = Vec::new();
         // idea: should the remainder of this method be moved to RelationToGroup, so the persistence layer doesn't know anything about the Model? (helps avoid
         // circular dependencies? is a cleaner design, at least if RTG were in a separate library?)
         let early_results_len = early_results.len();
@@ -3640,10 +3679,10 @@ impl Database for PostgreSQLDatabase {
             //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
             // valid_on_date: Option<i64> /*%%= None*/,
             /*DataType::Bigint(%%)*/
-            let valid_on_date = None; //match result[4] {
-                                      //     DataType::Bigint(x) => x,
-                                      //     _ => return Err(anyhow!("How did we get here for {:?}?", result[4])),
-                                      // };
+            let valid_on_date: Option<i64> = None; //match result[4] {
+                                                   //     DataType::Bigint(x) => x,
+                                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", result[4])),
+                                                   // };
             let observation_date = match result[5] {
                 Some(DataType::Bigint(x)) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[5])),
@@ -3652,17 +3691,20 @@ impl Database for PostgreSQLDatabase {
                 Some(DataType::Bigint(x)) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[6])),
             };
-            let rtg: RelationToGroup = RelationToGroup::new(
-                self,
-                id,
-                entity_id,
-                rel_type_id,
-                group_id,
-                valid_on_date,
-                observation_date,
-                sorting_index,
-            );
-            final_results.push(rtg)
+            let result_tuple = (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date, sorting_index);
+            //deletable after next commit: 
+            //let rtg: RelationToGroup = RelationToGroup::new(
+            //    *self.clone() as dyn Database),
+            //    id,
+            //    entity_id,
+            //    rel_type_id,
+            //    group_id,
+            //    valid_on_date,
+            //    observation_date,
+            //    sorting_index,
+            //);
+            //final_results.push(rtg)
+            final_results.push(result_tuple)
         }
         if !(final_results.len() == early_results_len) {
             return Err(anyhow!("In get_relations_to_group_containing_this_group, Final results ({}) do not match count of early_results ({})", final_results.len(), early_results_len));
@@ -4614,7 +4656,7 @@ impl Database for PostgreSQLDatabase {
         entity_id_in: i64,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+                                  //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
     ) -> Result<Vec<(i64, i64)>, anyhow::Error> {
         let not_archived = if !self.include_archived_entities {
             " and (not e.archived)"
@@ -4637,7 +4679,7 @@ impl Database for PostgreSQLDatabase {
         group_id_in: i64,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+                                  //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
     ) -> Result<Vec<(i64, i64)>, anyhow::Error> {
         let sql = format!("select rel_type_id, entity_id from relationtogroup where group_id={}  order by entity_id, rel_type_id \
                                     limit {} offset {}",
@@ -4683,13 +4725,16 @@ impl Database for PostgreSQLDatabase {
         Ok((non_archived, archived))
     }
 
+    /// @return a collection of tuples containing (id, entity_id, rel_type_id, group_id,
+    /// valid_on_date, observation_date, sorting_index), one for each RTG.
     fn get_containing_relations_to_group(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
+    //) -> Result<Vec<RelationToGroup>, anyhow::Error> {
+    ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error> {
         // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
         // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
         // So, could: see the expectation of the place(s) calling this method, if uniform, make these 2 methods more uniform in what they do in meeting that,
@@ -4743,7 +4788,40 @@ impl Database for PostgreSQLDatabase {
 
         let sql = format!("select group_id from entitiesinagroup where entity_id={} order by group_id limit {} offset {}",
                          entity_id_in, Self::check_if_should_be_all_results(max_vals_in), starting_index_in);
-        self.get_containing_relation_to_groups_helper(transaction, sql.as_str())
+        let early_results = self.db_query(transaction.clone(), sql.as_str(), "i64")?;
+        let early_results_len = early_results.len();
+        let mut group_id_results: Vec<i64> = Vec::new();
+        // idea: should the remainder of this method be moved to Group, so the 
+        // persistence layer doesn't know anything about the Model? (helps avoid circular
+        // dependencies? is a cleaner design?)  Already moved some logic into Entity's
+        // fn get_containing_relations_to_group.
+        for result in early_results {
+            //val group:Group = new Group(this, result(0).asInstanceOf[i64])
+            let DataType::Bigint(id) = (match result.get(0) {
+                Some(Some(dt)) => dt,
+                None => return Err(anyhow!("In processing query, got an unexpected None!: {}", sql)),
+                _ => return Err(anyhow!("In pg2.get_containing_relation_to_group processing query:\n  {}\n..., got an unexpected value!: {:?}", sql, result.get(0))),
+            }) else {
+                return Err(anyhow!("In pgdb2.get_containing_relation_to_group, unexpected value: {:?}", result.get(0)));
+            };
+            group_id_results.push(id.clone());
+        }
+        if group_id_results.len() != early_results_len {
+            return Err(anyhow!("In get_containing_relation_to_group, group_id_results.len() ({}) != early_results.len() ({})", group_id_results.len(), early_results_len));
+        }
+        let mut rtgs: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> = Vec::new();
+        for gid in group_id_results {
+            let rtgs_for_this_group: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> = self.get_relations_to_group_containing_this_group(
+                transaction.clone(),
+                gid,
+                0,
+                None,
+            )?;
+            for one_rtg in rtgs_for_this_group {
+                rtgs.push(one_rtg);
+            };
+        }
+        Ok(rtgs)
     }
 
     fn get_count_of_entities_used_as_attribute_types(
@@ -5025,13 +5103,13 @@ impl Database for PostgreSQLDatabase {
     }
 
     // 2nd parm is 0-based index to start with, 3rd parm is # of objs to return (if < 1 then it means "all"):
-    fn get_group_entry_objects(
+    fn get_group_entry_ids(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    //) -> Result<Vec<Entity>, anyhow::Error> {
+                                  //) -> Result<Vec<Entity>, anyhow::Error> {
     ) -> Result<Vec<i64>, anyhow::Error> {
         let not_archived = if !self.include_archived_entities {
             " and (not e.archived) "
@@ -5051,7 +5129,7 @@ impl Database for PostgreSQLDatabase {
         for result in early_results {
             if result.len() == 0 {
                 return Err(anyhow!(
-                    "In get_group_entry_objects, Unexpected 0-len() result: {:?}",
+                    "In get_group_entry_ids, Unexpected 0-len() result: {:?}",
                     result
                 ));
             }
@@ -5059,7 +5137,7 @@ impl Database for PostgreSQLDatabase {
             match result[0] {
                 None => {
                     return Err(anyhow!(
-                        "In get_group_entry_objects, Unexpected None in result[0] {:?}",
+                        "In get_group_entry_ids, Unexpected None in result[0] {:?}",
                         result[0]
                     ))
                 }
@@ -5069,7 +5147,7 @@ impl Database for PostgreSQLDatabase {
                 }
                 _ => {
                     return Err(anyhow!(
-                        "In get_group_entry_objects, Unexpected value in result[0] {:?}",
+                        "In get_group_entry_ids, Unexpected value in result[0] {:?}",
                         result[0]
                     ))
                 }
@@ -5077,7 +5155,7 @@ impl Database for PostgreSQLDatabase {
         }
         if !(final_results.len() == early_results_len) {
             return Err(anyhow!(
-                "In get_group_entry_objects, final_results.len() ({}) != early_results.len() ({}).",
+                "In get_group_entry_ids, final_results.len() ({}) != early_results.len() ({}).",
                 final_results.len(),
                 early_results_len
             ));
@@ -5265,33 +5343,34 @@ impl Database for PostgreSQLDatabase {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         class_name_in: &str,
-    ) -> Result<(i64, i64), anyhow::Error> 
+    ) -> Result<(i64, i64), anyhow::Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         //(%%see note above re 'bad smell' in method add_uri_entity_with_uri_attribute.)
         //(or places that have "unfortunately" and copy/pasted code?)
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if transaction_in.is_none() { self.begin_trans() }
         //                    try {
-        let (class_id, entity_id) = {
-            let found_id: Option<i64> =
-                self.find_first_class_id_by_name(transaction.clone(), class_name_in, true)?;
-            if found_id.is_some() {
-                let entity_id: i64 = EntityClass::new2(
-                    self as &dyn Database,
-                    transaction.clone(),
-                    found_id.unwrap(),
-                )?
-                //.get_template_entity_id(found_id.get, entity_id)?;
-                .get_template_entity_id(transaction.clone())?;
-                (found_id.unwrap(), entity_id)
-            } else {
-                let (class_id, entity_id) =
-                    self.create_class_and_its_template_entity(transaction, class_name_in)?;
-                (class_id, entity_id)
-            }
-        };
+        //%%%%%%%
+        //let (class_id, entity_id) = {
+        //    let found_id: Option<i64> =
+        //        self.find_first_class_id_by_name(transaction.clone(), class_name_in, true)?;
+        //    if found_id.is_some() {
+        //        let entity_id: i64 = EntityClass::new2(
+        //            self as &dyn Database,
+        //            transaction.clone(),
+        //            found_id.unwrap(),
+        //        )?
+        //        //.get_template_entity_id(found_id.get, entity_id)?;
+        //        .get_template_entity_id(transaction.clone())?;
+        //        (found_id.unwrap(), entity_id)
+        //    } else {
+        //        let (class_id, entity_id) =
+        //            self.create_class_and_its_template_entity(transaction, class_name_in)?;
+        //        (class_id, entity_id)
+        //    }
+        //};
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if transaction_in.is_none {self.commit_trans() }
         Ok((class_id, entity_id))
@@ -5420,7 +5499,7 @@ impl Database for PostgreSQLDatabase {
                           })
                 let early_results = db_query(sql, "String,bool,String,i64,i64");
                 let final_results = new java.util.ArrayList[OmInstance];
-                // (Idea: See note in similar point in get_group_entry_objects.)
+                // (Idea: See note in similar point in get_group_entry_ids.)
                 for (result <- early_results) {
                   final_results.add(new OmInstance(this, result(0).get.asInstanceOf[String], is_local_in = result(1).get.asInstanceOf[Boolean],
                                                   result(2).get.asInstanceOf[String],

@@ -28,12 +28,12 @@ use std::rc::Rc;
 // due to Rust limitations on OO.  Maintain them all similarly.
 
 /// See BooleanAttribute, TextAttribute etc for some comments.
-pub struct FileAttribute<'a> {
+pub struct FileAttribute {
     // For descriptions of the meanings of these variables, see the comments
     // on create_file_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
     id: i64,
-    db: &'a dyn Database,
+    db: Rc<dyn Database>,
     already_read_data: bool,    /*= false*/
     parent_id: i64,             /*= 0_i64*/
     attr_type_id: i64,          /*= 0_i64*/
@@ -49,13 +49,13 @@ pub struct FileAttribute<'a> {
     md5hash: String,            /*= null;*/
 }
 
-impl FileAttribute<'_> {
+impl FileAttribute {
     /// This one is perhaps only called by the database class implementation (and a test)--so it
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new<'a>(
-        db: &'a dyn Database,
+    fn new(
+        db: Rc<dyn Database>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -69,7 +69,7 @@ impl FileAttribute<'_> {
         size: i64,
         md5hash: String,
         sorting_index: i64,
-    ) -> FileAttribute<'a> {
+    ) -> FileAttribute {
         // idea: make the parameter order uniform throughout the system
         FileAttribute {
             id,
@@ -92,11 +92,11 @@ impl FileAttribute<'_> {
 
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<FileAttribute<'a>, anyhow::Error> {
+    ) -> Result<FileAttribute, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.file_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -452,7 +452,7 @@ impl FileAttribute<'_> {
     */
 }
 
-impl Attribute for FileAttribute<'_> {
+impl Attribute for FileAttribute {
     /// Return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
     fn get_display_string(
         &mut self,

@@ -718,7 +718,7 @@ class RestDatabase(mRemoteAddress: String) extends Database {
                     if values(3) == JsNull) None else Some(values(3).asInstanceOf[JsBoolean].as[Boolean]))
   }
 
-  override fn get_group_entry_objects(group_id_in: i64, starting_object_index_in: i64, max_vals_in: Option<i64>) -> ArrayList[Entity] {
+  override fn get_group_entry_ids(group_id_in: i64, starting_object_index_in: i64, max_vals_in: Option<i64>) -> ArrayList[Entity] {
     getCollection[Entity]("/groups/" + group_id_in + "/entries/" + starting_object_index_in +
                           (if max_vals_in.isEmpty) "" else "?maxVals=" + max_vals_in.get),
                           Array(), Some(create_entityRow))

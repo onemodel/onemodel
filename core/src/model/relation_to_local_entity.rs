@@ -30,11 +30,11 @@ use std::rc::Rc;
 
 /// This class exists, instead of just using RelationToEntity, so that the consuming code can be more clear at any given
 /// time as to whether RelationToLocalEntity or RelationToRemoteEntity is being used, to avoid subtle bugs.
-pub struct RelationToLocalEntity<'a> {
+pub struct RelationToLocalEntity {
     // For descriptions of the meanings of these variables, see the comments
     // on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
-    db: &'a dyn Database,
+    db: Rc<dyn Database>,
     id: i64,
     // Unlike most other things that implement Attribute, rel_type_id takes the place of attr_type_id in this, since
     // unlike in the scala code self does not extend Attribute and inherit attr_type_id.
@@ -47,13 +47,13 @@ pub struct RelationToLocalEntity<'a> {
     already_read_data: bool,    /*%%= false*/
 }
 
-impl RelationToLocalEntity<'_> {
+impl RelationToLocalEntity {
     /// This one is perhaps only called by the database code [or code that just hit the db]--so it can return
     /// arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent
     /// object--but rather should reflect one that already exists.
-    pub fn new<'a>(
-        db: &'a dyn Database,
+    pub fn new(
+        db: Rc<dyn Database>,
         id: i64,
         rel_type_id: i64,
         entity_id1: i64,
@@ -61,7 +61,7 @@ impl RelationToLocalEntity<'_> {
         valid_on_date: Option<i64>,
         observation_date: i64,
         sorting_index: i64,
-    ) -> RelationToLocalEntity<'a> {
+    ) -> RelationToLocalEntity {
         RelationToLocalEntity {
             db,
             id,
@@ -82,14 +82,14 @@ impl RelationToLocalEntity<'_> {
 
     /// This constructor instantiates an existing object from the DB and is rarely needed.
     /// You can use Entity.addRelationTo[Local|Remote]Entity() to create a new persistent record.
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
         rel_type_id: i64,
         entity_id1: i64,
         entity_id2: i64,
-    ) -> Result<RelationToLocalEntity<'a>, anyhow::Error> {
+    ) -> Result<RelationToLocalEntity, anyhow::Error> {
         // Even a RelationToRemoteEntity can have db.is_remote == true, if it
         // is viewing data *in* a remote OM instance looking at RTLEs that are remote to that remote instance.
         // See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.
@@ -128,11 +128,14 @@ impl RelationToLocalEntity<'_> {
 
     /// This is for times when you want None if it doesn't exist, instead of the Err Result returned
     /// by the Entity constructor.  Or for convenience in tests.
-    pub fn get_relation_to_local_entity<'a>(
-        db: &'a dyn Database,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    pub fn get_relation_to_local_entity<'a, 'b>(
+        db: Rc<dyn Database>,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         id: i64,
-    ) -> Result<Option<RelationToLocalEntity<'a>>, anyhow::Error> {
+    ) -> Result<Option<RelationToLocalEntity>, anyhow::Error> 
+    where
+        'a: 'b
+    {
         let result: Vec<Option<DataType>> =
             db.get_relation_to_local_entity_data_by_id(transaction.clone(), id)?;
         let Some(DataType::Bigint(rel_type_id)) = result[0] else {
@@ -175,7 +178,7 @@ impl RelationToLocalEntity<'_> {
         target_group_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(), anyhow::Error> {
-        self.db.move_local_entity_from_local_entity_to_group(
+        self.db.clone().move_local_entity_from_local_entity_to_group(
             self,
             target_group_id_in,
             sorting_index_in,
@@ -222,7 +225,7 @@ impl RelationToLocalEntity<'_> {
 }
 
 //BEGIN SIMILAR CODE: MAINTAIN THIS LIKE CODE FOUND IN relation_to_remote_entity.rs ! --------------------
-impl RelationToEntity for RelationToLocalEntity<'_> {
+impl RelationToEntity for RelationToLocalEntity {
     fn get_related_id1(&self) -> i64 {
         self.entity_id1
     }
@@ -236,16 +239,17 @@ impl RelationToEntity for RelationToLocalEntity<'_> {
         "".to_string()
     }
 
-    fn get_entity_for_entity_id2<'a>(
-        &'a self,
+    fn get_entity_for_entity_id2(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<Entity<'a>, anyhow::Error> {
-        Entity::new2(self.db, transaction, self.entity_id2)
+    ) -> Result<Entity, anyhow::Error> 
+    {
+        Entity::new2(self.db.clone(), transaction, self.entity_id2)
     }
 }
 //END SIMILAR CODE--------------------
 
-impl Attribute for RelationToLocalEntity<'_> {
+impl Attribute for RelationToLocalEntity {
     // (The next line used to be coded so instead of working it would return an exception, like this:
     //     throw new UnsupportedOperationException("getParentId() operation not applicable to Relation class.")
     // ..., and I'm not sure of the reason: if it was just to prevent accidental misuse or confusion (probably), it seems OK
@@ -364,7 +368,7 @@ impl Attribute for RelationToLocalEntity<'_> {
                     }
                     rt
                 }
-                _ => RelationType::new2(self.db, None, self.get_attr_type_id(None)?)?,
+                _ => RelationType::new2(self.db.clone(), None, self.get_attr_type_id(None)?)?,
             }
         };
         //   *****MAKE SURE***** that during maintenance, anything that gets data relating to entity_id2
@@ -446,7 +450,7 @@ impl Attribute for RelationToLocalEntity<'_> {
     }
 }
 
-impl AttributeWithValidAndObservedDates for RelationToLocalEntity<'_> {
+impl AttributeWithValidAndObservedDates for RelationToLocalEntity {
     //%%later: Can these be impl in the trait only, instead of here/all children?
     fn get_valid_on_date(
         &mut self,

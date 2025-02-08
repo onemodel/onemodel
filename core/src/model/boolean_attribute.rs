@@ -24,11 +24,11 @@ use std::rc::Rc;
 // ***NOTE***: Similar/identical code found in *_attribute.rs, relation_to_*entity.rs and relation_to_group.rs,
 // due to Rust limitations on OO.  Maintain them all similarly.
 
-pub struct BooleanAttribute<'a> {
+pub struct BooleanAttribute {
     // For descriptions of the meanings of these variables, see the comments
     // on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
-    db: &'a dyn Database,
+    db: Rc<dyn Database>,
     id: i64,
     parent_id: i64,             /*= 0_i64*/
     attr_type_id: i64,          /*= 0_i64*/
@@ -39,13 +39,13 @@ pub struct BooleanAttribute<'a> {
     already_read_data: bool,    /*= false*/
 }
 
-impl BooleanAttribute<'_> {
+impl BooleanAttribute {
     /// This one is perhaps only called by the database class implementation (and a test)--so it
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new<'a>(
-        db: &'a dyn Database,
+    fn new(
+        db: Rc<dyn Database>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -53,7 +53,7 @@ impl BooleanAttribute<'_> {
         valid_on_date: Option<i64>,
         observation_date: i64,
         sorting_index: i64,
-    ) -> BooleanAttribute<'a> {
+    ) -> BooleanAttribute {
         BooleanAttribute {
             db,
             id,
@@ -68,13 +68,14 @@ impl BooleanAttribute<'_> {
         // assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
     }
 
-    /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
+    /// This constructor instantiates an existing object from the DB (or rather, creates it minimally, and then 
+    /// when data is read, it reads the whole object from the DB). You can use Entity.add*Attribute() to
     /// create a new object.
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<BooleanAttribute<'a>, anyhow::Error> {
+    ) -> Result<BooleanAttribute, anyhow::Error> {
         // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
         // wait for an error later to see if there is a problem (ie, assuming usually not).
         // idea: And today having doubts about that.
@@ -115,7 +116,7 @@ impl BooleanAttribute<'_> {
     ) -> Result<(), anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        self.db.update_boolean_attribute(
+        self.db.clone().update_boolean_attribute(
             transaction.clone(),
             self.id,
             self.get_parent_id(transaction.clone())?,
@@ -134,7 +135,7 @@ impl BooleanAttribute<'_> {
     }
 }
 
-impl Attribute for BooleanAttribute<'_> {
+impl Attribute for BooleanAttribute {
     /// Return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
     fn get_display_string(
         &mut self,
@@ -287,7 +288,7 @@ impl Attribute for BooleanAttribute<'_> {
     }
 }
 
-impl AttributeWithValidAndObservedDates for BooleanAttribute<'_> {
+impl AttributeWithValidAndObservedDates for BooleanAttribute {
     fn get_valid_on_date(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -326,17 +327,17 @@ mod test {
         Util::initialize_tracing();
         // let mock_db = mock[PostgreSQLDatabase];
         //let mut mock_db = MockDatabase::new();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         //let entity_id = 0;
         //If using mocks I wouldn't have to actually create the data in the db.
         let attr_type_name = "description";
-        let entity_id: i64 = Entity::create_entity(&db, None, attr_type_name, None, None)
+        let entity_id: i64 = Entity::create_entity(db.clone(), None, attr_type_name, None, None)
             .unwrap()
             .get_id();
-        let boolean_value = true;
-        let other_entity_id = 1;
+        //let boolean_value = true;
+        //let other_entity_id = 1;
         //let boolean_attribute_id = 0;
         //arbitrary, in milliseconds:
         let date = 304;
@@ -359,7 +360,7 @@ mod test {
             )
             .unwrap();
         let mut boolean_attribute: BooleanAttribute =
-            BooleanAttribute::new2(&db, None, bid).unwrap();
+            BooleanAttribute::new2(db, None, bid).unwrap();
         let small_limit = 35;
         let display1: String = boolean_attribute
             .get_display_string(small_limit, None, None, false)

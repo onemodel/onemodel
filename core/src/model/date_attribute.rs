@@ -28,11 +28,11 @@ use std::rc::Rc;
 /// See TextAttribute etc code, for some comments.
 /// Also, though this doesn't formally extend Attribute, it still belongs to the same group conceptually (just doesn't have the same date variables so code
 /// not shared (idea: model that better, and in FileAttribute).
-pub struct DateAttribute<'a> {
+pub struct DateAttribute {
     // For descriptions of the meanings of these variables, see the comments
     // with create_date_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes
     id: i64,
-    db: &'a dyn Database,
+    db: Rc<dyn Database>,
     date_value: i64,         /*= 0_i64*/
     already_read_data: bool, /*%%= false*/
     parent_id: i64,          /*%%= 0_i64*/
@@ -40,19 +40,19 @@ pub struct DateAttribute<'a> {
     sorting_index: i64,      /*%%= 0_i64*/
 }
 
-impl DateAttribute<'_> {
+impl DateAttribute {
     /// This one is perhaps only called by the database class implementation (and a test)--so it
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new<'a>(
-        db: &'a dyn Database,
+    fn new(
+        db: Rc<dyn Database>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
         date_value: i64,
         sorting_index: i64,
-    ) -> DateAttribute<'a> {
+    ) -> DateAttribute {
         DateAttribute {
             id,
             db,
@@ -66,11 +66,11 @@ impl DateAttribute<'_> {
 
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<DateAttribute<'a>, anyhow::Error> {
+    ) -> Result<DateAttribute, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.date_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -105,7 +105,7 @@ impl DateAttribute<'_> {
     ) -> Result<(), anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        self.db.update_date_attribute(
+        self.db.clone().update_date_attribute(
             transaction.clone(),
             self.id,
             self.get_parent_id(transaction.clone())?,
@@ -120,7 +120,7 @@ impl DateAttribute<'_> {
     }
 }
 
-impl Attribute for DateAttribute<'_> {
+impl Attribute for DateAttribute {
     /// Return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
     fn get_display_string(
         &mut self,

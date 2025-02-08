@@ -45,12 +45,12 @@ pub struct QuantityAttribute {
     sorting_index: i64,         /*%%= 0_i64*/
 }
 
-impl QuantityAttribute<'_> {
+impl QuantityAttribute {
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new<'a>(
-        db: &'a dyn Database,
+    fn new(
+        db: Rc<dyn Database>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -59,7 +59,7 @@ impl QuantityAttribute<'_> {
         valid_on_date: Option<i64>,
         observation_date: i64,
         sorting_index: i64,
-    ) -> QuantityAttribute<'a> {
+    ) -> QuantityAttribute {
         QuantityAttribute {
             id,
             db,
@@ -76,11 +76,11 @@ impl QuantityAttribute<'_> {
 
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<QuantityAttribute<'a>, anyhow::Error> {
+    ) -> Result<QuantityAttribute, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.quantity_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -131,7 +131,7 @@ impl QuantityAttribute<'_> {
     ) -> Result<(), anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        self.db.update_quantity_attribute(
+        self.db.clone().update_quantity_attribute(
             transaction.clone(),
             self.id,
             self.get_parent_id(transaction)?,
@@ -152,7 +152,7 @@ impl QuantityAttribute<'_> {
     }
 }
 
-impl Attribute for QuantityAttribute<'_> {
+impl Attribute for QuantityAttribute {
     /// Return something like "volume: 15.1 liters". For full length, pass in 0 for
     /// in_length_limit. The parameter in_parent_entity refers to the Entity whose
     /// attribute this is. 3rd parameter really only applies in one of the subclasses of Attribute,
@@ -169,7 +169,7 @@ impl Attribute for QuantityAttribute<'_> {
             None => "(None)".to_string(),
             Some(x) => x,
         };
-        let entity_name: String = match self.db.get_entity_name(None, self.get_unit_id(None)?)? {
+        let entity_name: String = match self.db.clone().get_entity_name(None, self.get_unit_id(None)?)? {
             None => "(None)".to_string(),
             Some(s) => s,
         };
@@ -245,7 +245,8 @@ impl Attribute for QuantityAttribute<'_> {
     fn delete<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-    ) -> Result<u64, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> 
+    {
         self.db.delete_quantity_attribute(transaction, self.id)
     }
 
@@ -290,7 +291,7 @@ impl Attribute for QuantityAttribute<'_> {
     }
 }
 
-impl AttributeWithValidAndObservedDates for QuantityAttribute<'_> {
+impl AttributeWithValidAndObservedDates for QuantityAttribute {
     fn get_valid_on_date(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,

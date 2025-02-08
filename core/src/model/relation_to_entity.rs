@@ -57,8 +57,8 @@ pub trait RelationToEntity: Attribute + AttributeWithValidAndObservedDates {
     fn get_remote_description(&self) -> String;
 
     // If related_entity_in is an RTRE, could be a different db so build accordingly:
-    fn get_entity_for_entity_id2<'a>(
-        &'a self,
+    fn get_entity_for_entity_id2(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<Entity<'a>, anyhow::Error>;
+    ) -> Result<Entity, anyhow::Error>;
 }

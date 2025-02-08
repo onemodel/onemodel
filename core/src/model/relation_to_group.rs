@@ -30,11 +30,11 @@ use std::rc::Rc;
 // due to Rust limitations on OO.  Maintain them all similarly.
 
 //#[derive(Clone)]
-pub struct RelationToGroup<'a> {
+pub struct RelationToGroup {
     // For descriptions of the meanings of these variables, see the comments
     // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
-    db: &'a dyn Database,
+    db: Rc<dyn Database>,
     id: i64,
     entity_id: i64,
     // Unlike most other things that implement Attribute, rel_type_id takes the place of attr_type_id in this, since
@@ -48,13 +48,13 @@ pub struct RelationToGroup<'a> {
     sorting_index: i64,         /*%%= 0_i64*/
 }
 
-impl RelationToGroup<'_> {
+impl RelationToGroup {
     /// This one is perhaps only called by the database class implementation [AND BELOW]--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     /// See comment about these 2 dates in PostgreSQLDatabase.create_tables()
-    pub fn new<'a>(
-        db: &'a dyn Database,
+    pub fn new(
+        db: Rc<dyn Database>,
         id: i64,
         entity_id: i64,
         rel_type_id: i64,
@@ -62,7 +62,7 @@ impl RelationToGroup<'_> {
         valid_on_date: Option<i64>,
         observation_date: i64,
         sorting_index: i64,
-    ) -> RelationToGroup<'a> {
+    ) -> RelationToGroup {
         RelationToGroup {
             db,
             id,
@@ -77,14 +77,14 @@ impl RelationToGroup<'_> {
         }
     }
 
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
         entity_id: i64,
         rel_type_id: i64,
         group_id: i64,
-    ) -> Result<RelationToGroup<'a>, anyhow::Error> {
+    ) -> Result<RelationToGroup, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         // if db.is_remote || db.relation_to_group_keys_exist_and_match(transaction, id, entity_id, rel_type_id, group_id) {
         // something else might be cleaner, but these are the same thing and we need to make sure that (what was
@@ -129,11 +129,11 @@ impl RelationToGroup<'_> {
     // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
     // new constructors just wasn't working out (in scala code when I originally wrote this comment, anyway?).
     ///See comments on fn new, here.
-    pub fn create_relation_to_group<'a>(
-        db: &'a dyn Database,
+    pub fn create_relation_to_group(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
-    ) -> Result<RelationToGroup<'a>, anyhow::Error> {
+    ) -> Result<RelationToGroup, anyhow::Error> {
         let relation_data: Vec<Option<DataType>> =
             db.get_relation_to_group_data(transaction, id_in)?;
         if relation_data.len() == 0 {
@@ -187,12 +187,12 @@ impl RelationToGroup<'_> {
         Ok(self.group_id)
     }
 
-    fn get_group<'a>(
-        &'a mut self,
+    fn get_group(
+        & mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<Group<'a>, anyhow::Error> {
+    ) -> Result<Group, anyhow::Error> {
         Group::new2(
-            self.db,
+            self.db.clone(),
             transaction.clone(),
             self.get_group_id(transaction.clone())?,
         )
@@ -261,7 +261,7 @@ impl RelationToGroup<'_> {
     }
 }
 
-impl Attribute for RelationToGroup<'_> {
+impl Attribute for RelationToGroup {
     fn get_display_string(
         &mut self,
         length_limit_in: usize,
@@ -269,7 +269,7 @@ impl Attribute for RelationToGroup<'_> {
         _unused2: Option<RelationType>, /*=None*/
         simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
-        let mut group = Group::new2(self.db, None, self.group_id)?;
+        let mut group = Group::new2(self.db.clone(), None, self.group_id)?;
         //%%put back after new is implemented!:
         //let rt_name = RelationType::new(self.db, self.get_attr_type_id(None)).get_name();
         let rt_name = "a relation type name stub";
@@ -406,7 +406,7 @@ impl Attribute for RelationToGroup<'_> {
     }
 }
 
-impl AttributeWithValidAndObservedDates for RelationToGroup<'_> {
+impl AttributeWithValidAndObservedDates for RelationToGroup {
     fn get_valid_on_date(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -499,7 +499,7 @@ mod test {
         when(mock_db.entity_key_exists(classTemplateEntityId)).thenReturn(true)
         let list = new Vec<Entity>(1);
         list.add(new Entity(mock_db, classTemplateEntityId, "asdf", None, 0L, None, false, false))
-        when(mock_db.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list)
+        when(mock_db.get_group_entry_ids(groupId, 0, Some(1))).thenReturn(list)
         when(mock_db.get_group_size(groupId, 3)).thenReturn(list.size)
         let all3: String = relationToGroup3.get_display_string(0, None);
         assert(!all3.contains("(mixed)"))
@@ -510,7 +510,7 @@ mod test {
         list4.add(new Entity(mock_db, classTemplateEntityId, "asdf", Some(classId), 0L, Some(true), false, false))
         when(mock_db.entity_key_exists(classTemplateEntityId)).thenReturn(true)
         when(mock_db.class_key_exists(classId)).thenReturn(true)
-        when(mock_db.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list4)
+        when(mock_db.get_group_entry_ids(groupId, 0, Some(1))).thenReturn(list4)
         let className = "someClassName";
         when(mock_db.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(classTemplateEntityId), Some(true)))
         let all4: String = relationToGroup4.get_display_string(0, None);
@@ -539,7 +539,7 @@ mod test {
         when(mock_db.entity_key_exists(entity_id)).thenReturn(true)
         when(mock_db.entity_key_exists(classTemplateEntityId)).thenReturn(true)
         when(mock_db.class_key_exists(classId)).thenReturn(true)
-        when(mock_db.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(new Vec<Entity>(0))
+        when(mock_db.get_group_entry_ids(groupId, 0, Some(1))).thenReturn(new Vec<Entity>(0))
         when(mock_db.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(classTemplateEntityId), Some(true)))
         when(mock_db.get_group_data(groupId)).thenReturn(Vec<Option<DataType>>(Some(grpName), Some(0L), Some(false), Some(false)))
         when(mock_db.get_remote_address).thenReturn(None)
@@ -549,7 +549,7 @@ mod test {
         let list = new Vec<Entity>(1);
         let entity = new Entity(mock_db, entity_id, "testEntityName", Some(classId), 0L, Some(false), false, false);
         list.add(entity)
-        when(mock_db.get_group_entry_objects(groupId, 0, Some(1))).thenReturn(list)
+        when(mock_db.get_group_entry_ids(groupId, 0, Some(1))).thenReturn(list)
         // should be != None because mixed classes are NOT allowed in the group and an entity was added:
         assert(group.get_class_template_entity.get.get_id == classTemplateEntityId)
 

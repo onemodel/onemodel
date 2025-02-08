@@ -25,12 +25,12 @@ use std::rc::Rc;
 // due to Rust limitations on OO.  Maintain them all similarly.
 
 /// Represents one String object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
-pub struct TextAttribute<'a> {
+pub struct TextAttribute {
     // For descriptions of the meanings of these variables, see the comments
     // on create_text_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
     id: i64,
-    db: &'a dyn Database,
+    db: Rc<dyn Database>,
     text: String,               /*%=null in scala.*/
     already_read_data: bool,    /*%%= false*/
     parent_id: i64,             /*%%= 0_i64*/
@@ -40,13 +40,13 @@ pub struct TextAttribute<'a> {
     sorting_index: i64,         /*%%= 0_i64*/
 }
 
-impl TextAttribute<'_> {
+impl TextAttribute {
     /// This one is perhaps only called by the database class implementation (and a test)--so it
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    pub fn new<'a>(
-        db: &'a dyn Database,
+    pub fn new(
+        db: Rc<dyn Database>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -54,7 +54,7 @@ impl TextAttribute<'_> {
         valid_on_date: Option<i64>,
         observation_date: i64,
         sorting_index: i64,
-    ) -> TextAttribute<'a> {
+    ) -> TextAttribute {
         // idea: make the parameter order uniform throughout the system?
         TextAttribute {
             id,
@@ -69,15 +69,13 @@ impl TextAttribute<'_> {
         }
     }
 
-    /// This constructor instantiates an existing object from the DB. You can use Entity.add_text_attribute() to
-    /// create a new object.
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<TextAttribute<'a>, anyhow::Error> {
+    ) -> Result<TextAttribute, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.text_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -116,7 +114,7 @@ impl TextAttribute<'_> {
     ) -> Result<(), anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        self.db.update_text_attribute(
+        self.db.clone().update_text_attribute(
             transaction.clone(),
             self.id,
             self.get_parent_id(transaction)?,
@@ -135,7 +133,7 @@ impl TextAttribute<'_> {
     }
 }
 
-impl Attribute for TextAttribute<'_> {
+impl Attribute for TextAttribute {
     /// Return some string. See comments on QuantityAttribute.get_display_string regarding the parameters.
     fn get_display_string(
         &mut self,
@@ -286,7 +284,7 @@ impl Attribute for TextAttribute<'_> {
     }
 }
 
-impl AttributeWithValidAndObservedDates for TextAttribute<'_> {
+impl AttributeWithValidAndObservedDates for TextAttribute {
     fn get_valid_on_date(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
