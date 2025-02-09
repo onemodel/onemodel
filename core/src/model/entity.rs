@@ -724,6 +724,7 @@ impl Entity {
     {
         let ref rc_db = &self.db;
         let ref cloned = rc_db.clone();
+        //let ref cloned = self.db.clone();
         let tx = transaction.clone();
         let id = self.get_id();
         cloned.renumber_sorting_indexes(tx, id, true)
@@ -1113,6 +1114,7 @@ impl Entity {
     where
         'a: 'b,
     {
+        println!("gh add_text_attribute 1");//%%%%%%%%
         let ref rc_db = &self.db;
         let ref cloned = rc_db.clone();
         let tx = transaction.clone();

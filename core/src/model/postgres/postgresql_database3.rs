@@ -5353,24 +5353,30 @@ impl Database for PostgreSQLDatabase {
         // if transaction_in.is_none() { self.begin_trans() }
         //                    try {
         //%%%%%%%
-        //let (class_id, entity_id) = {
-        //    let found_id: Option<i64> =
-        //        self.find_first_class_id_by_name(transaction.clone(), class_name_in, true)?;
-        //    if found_id.is_some() {
-        //        let entity_id: i64 = EntityClass::new2(
-        //            self as &dyn Database,
-        //            transaction.clone(),
-        //            found_id.unwrap(),
-        //        )?
-        //        //.get_template_entity_id(found_id.get, entity_id)?;
-        //        .get_template_entity_id(transaction.clone())?;
-        //        (found_id.unwrap(), entity_id)
-        //    } else {
-        //        let (class_id, entity_id) =
-        //            self.create_class_and_its_template_entity(transaction, class_name_in)?;
-        //        (class_id, entity_id)
-        //    }
-        //};
+        let (class_id, entity_id) = {
+            let found_id: Option<i64> =
+                self.find_first_class_id_by_name(transaction.clone(), class_name_in, true)?;
+            match found_id {
+                Some(found_id) => {
+                    let template_entity_id = EntityClass::get_template_entity_id_2(self, transaction, found_id)?;
+                    //deletable after next commit:
+                    //    EntityClass::new2(
+                    //    self as &dyn Database,
+                    //    transaction.clone(),
+                    //    found_id.unwrap(),
+                    //)?
+                    ////.get_template_entity_id(found_id.get, entity_id)?;
+                    //.get_template_entity_id(transaction.clone())?;
+                    //(found_id.unwrap(), entity_id)
+                    (found_id, template_entity_id)
+                },
+                None => {
+                    let (class_id, entity_id) =
+                        self.create_class_and_its_template_entity(transaction, class_name_in)?;
+                    (class_id, entity_id)
+                }
+            }
+        };
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
         // if transaction_in.is_none {self.commit_trans() }
         Ok((class_id, entity_id))

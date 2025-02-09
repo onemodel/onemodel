@@ -586,18 +586,18 @@ mod test {
             .unwrap();
         // and verify it:
         // %%%%%%%
-        //let mut ta: TextAttribute =
-        //    TextAttribute::new2(db as &dyn Database, transaction.clone(), text_attribute_id)
-        //        .unwrap();
-        //assert!(ta.get_parent_id(transaction.clone()).unwrap() == in_parent_id);
-        //assert!(ta.get_text(transaction.clone()).unwrap() == text);
-        //assert!(ta.get_attr_type_id(transaction.clone()).unwrap() == attr_type_id);
-        //if in_valid_on_date.is_none() {
-        //    assert!(ta.get_valid_on_date(transaction.clone()).unwrap().is_none());
-        //} else {
-        //    assert!(ta.get_valid_on_date(transaction.clone()).unwrap() == in_valid_on_date);
-        //}
-        //assert!(ta.get_observation_date(transaction.clone()).unwrap() == observation_date);
+        let mut ta: TextAttribute =
+            TextAttribute::new2(db as &dyn Database, transaction.clone(), text_attribute_id)
+                .unwrap();
+        assert!(ta.get_parent_id(transaction.clone()).unwrap() == in_parent_id);
+        assert!(ta.get_text(transaction.clone()).unwrap() == text);
+        assert!(ta.get_attr_type_id(transaction.clone()).unwrap() == attr_type_id);
+        if in_valid_on_date.is_none() {
+            assert!(ta.get_valid_on_date(transaction.clone()).unwrap().is_none());
+        } else {
+            assert!(ta.get_valid_on_date(transaction.clone()).unwrap() == in_valid_on_date);
+        }
+        assert!(ta.get_observation_date(transaction.clone()).unwrap() == observation_date);
 
         text_attribute_id
     }
