@@ -288,13 +288,9 @@ impl Group {
         Ok(results)
     }
 
-    //%%%%%%?
     pub fn add_entity<'a, 'b>(
-    //pub fn add_entity(
         &'a self,
-        //&self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-        //transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_entity_id: i64,
         sorting_index_in: Option<i64>,        /*= None*/
     ) -> Result<(), Error> 

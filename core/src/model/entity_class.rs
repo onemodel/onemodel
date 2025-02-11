@@ -108,6 +108,28 @@ impl EntityClass {
         Ok(self.template_entity_id)
     }
 
+    /// This is an associated function so the database can call it (without having to create a
+    /// EntityClass instance, which I couldn't figure out how to do, in the database code, and it
+    /// might not be a good idea anyway).
+    pub fn get_template_entity_id_2(
+        db: &dyn Database,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        entity_class_id: i64,
+    ) -> Result<i64, anyhow::Error> {
+        let data: Vec<Option<DataType>> = db.get_class_data(transaction, entity_class_id)?;
+        if data.len() == 0 {
+            return Err(anyhow!(
+                "No results returned from data request for: {}",
+                entity_class_id
+            ));
+        }
+        let template_entity_id: i64 = match data[1] {
+            Some(DataType::Bigint(x)) => x,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[1])),
+        };
+        Ok(template_entity_id)
+    }
+    
     fn get_create_default_attributes(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,

@@ -561,7 +561,7 @@ mod test {
     }
 
     fn create_test_text_attribute_with_one_entity<'a>(
-        db: &'a PostgreSQLDatabase,
+        db: &'a Rc<PostgreSQLDatabase>,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         in_parent_id: i64,
         in_valid_on_date: Option<i64>, /*= None*/
@@ -585,25 +585,23 @@ mod test {
             )
             .unwrap();
         // and verify it:
-        // %%%%%%%
-        //let mut ta: TextAttribute =
-        //    TextAttribute::new2(db as &dyn Database, transaction.clone(), text_attribute_id)
-        //        .unwrap();
-        //assert!(ta.get_parent_id(transaction.clone()).unwrap() == in_parent_id);
-        //assert!(ta.get_text(transaction.clone()).unwrap() == text);
-        //assert!(ta.get_attr_type_id(transaction.clone()).unwrap() == attr_type_id);
-        //if in_valid_on_date.is_none() {
-        //    assert!(ta.get_valid_on_date(transaction.clone()).unwrap().is_none());
-        //} else {
-        //    assert!(ta.get_valid_on_date(transaction.clone()).unwrap() == in_valid_on_date);
-        //}
-        //assert!(ta.get_observation_date(transaction.clone()).unwrap() == observation_date);
+        let mut ta: TextAttribute =
+            TextAttribute::new2(db.clone(), transaction.clone(), text_attribute_id).unwrap();
+        assert!(ta.get_parent_id(transaction.clone()).unwrap() == in_parent_id);
+        assert!(ta.get_text(transaction.clone()).unwrap() == text);
+        assert!(ta.get_attr_type_id(transaction.clone()).unwrap() == attr_type_id);
+        if in_valid_on_date.is_none() {
+            assert!(ta.get_valid_on_date(transaction.clone()).unwrap().is_none());
+        } else {
+            assert!(ta.get_valid_on_date(transaction.clone()).unwrap() == in_valid_on_date);
+        }
+        assert!(ta.get_observation_date(transaction.clone()).unwrap() == observation_date);
 
         text_attribute_id
     }
 
     fn create_test_date_attribute_with_one_entity(
-        db: &PostgreSQLDatabase,
+        db: &Rc<PostgreSQLDatabase>,
         in_parent_id: i64,
     ) -> i64 {
         let attr_type_id: i64 = db
@@ -613,17 +611,16 @@ mod test {
         let date_attribute_id: i64 = db
             .create_date_attribute(None, in_parent_id, attr_type_id, date, None)
             .unwrap();
-        //%%%%%%%
-        //let mut ba: DateAttribute =
-        //    DateAttribute::new2(db as &dyn Database, None, date_attribute_id).unwrap();
-        //assert!(ba.get_parent_id(None).unwrap() == in_parent_id);
-        //assert!(ba.get_date(None).unwrap() == date);
-        //assert!(ba.get_attr_type_id(None).unwrap() == attr_type_id);
+        let mut ba: DateAttribute =
+            DateAttribute::new2(db.clone(), None, date_attribute_id).unwrap();
+        assert!(ba.get_parent_id(None).unwrap() == in_parent_id);
+        assert!(ba.get_date(None).unwrap() == date);
+        assert!(ba.get_attr_type_id(None).unwrap() == attr_type_id);
         date_attribute_id
     }
 
     fn create_test_boolean_attribute_with_one_entity<'a, 'b>(
-        db: &'a PostgreSQLDatabase,
+        db: &'a Rc<PostgreSQLDatabase>,
         // purpose: see comment in delete_objects
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_parent_id: i64,
@@ -653,18 +650,17 @@ mod test {
                 None,
             )
             .unwrap();
-        //%%%%%%%
-        //let mut ba = BooleanAttribute::new2(
-        //    db as &dyn Database,
-        //    transaction.clone(),
-        //    boolean_attribute_id,
-        //)
-        //.unwrap();
-        //assert!(ba.get_attr_type_id(transaction.clone()).unwrap() == attr_type_id);
-        //assert!(ba.get_boolean(transaction.clone()).unwrap() == val_in);
-        //assert!(ba.get_valid_on_date(transaction.clone()).unwrap() == in_valid_on_date);
-        //assert!(ba.get_parent_id(transaction.clone()).unwrap() == in_parent_id);
-        //assert!(ba.get_observation_date(transaction.clone()).unwrap() == observation_date_in);
+        let mut ba = BooleanAttribute::new2(
+            db.clone(),
+            transaction.clone(),
+            boolean_attribute_id,
+        )
+        .unwrap();
+        assert!(ba.get_attr_type_id(transaction.clone()).unwrap() == attr_type_id);
+        assert!(ba.get_boolean(transaction.clone()).unwrap() == val_in);
+        assert!(ba.get_valid_on_date(transaction.clone()).unwrap() == in_valid_on_date);
+        assert!(ba.get_parent_id(transaction.clone()).unwrap() == in_parent_id);
+        assert!(ba.get_observation_date(transaction.clone()).unwrap() == observation_date_in);
         boolean_attribute_id
     }
 
@@ -792,7 +788,7 @@ mod test {
     #[test]
     fn escape_quotes_etc_allow_updating_db_with_single_quotes() {
         Util::initialize_tracing();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
         let name = "This ' name contains a single-quote.";
         let tx = db.begin_trans().unwrap();
         let tx = Some(Rc::new(RefCell::new(tx)));
@@ -802,32 +798,31 @@ mod test {
         assert_eq!(name, new_name.unwrap().unwrap().as_str());
 
         //and on an update:
-        //%%%%%%%
-        //let text_attribute_id: i64 =
-        //    create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
-        //let a_text_value = "as'dfjkl";
-        //let mut ta =
-        //    TextAttribute::new2(&db as &dyn Database, tx.clone(), text_attribute_id).unwrap();
-        //let (pid1, atid1) = (
-        //    ta.get_parent_id(tx.clone()).unwrap(),
-        //    ta.get_attr_type_id(tx.clone()).unwrap(),
-        //);
-        //db.update_text_attribute(
-        //    tx.clone(),
-        //    text_attribute_id,
-        //    pid1,
-        //    atid1,
-        //    a_text_value,
-        //    Some(123),
-        //    456,
-        //)
-        //.unwrap();
-        //// have to create new instance to re-read the data:
-        //let mut ta2 =
-        //    TextAttribute::new2(&db as &dyn Database, tx.clone(), text_attribute_id).unwrap();
-        //let txt2 = ta2.get_text(tx.clone()).unwrap();
-        //
-        //assert!(txt2 == a_text_value);
+        let text_attribute_id: i64 =
+            create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
+        let a_text_value = "as'dfjkl";
+        let mut ta =
+            TextAttribute::new2(db.clone(), tx.clone(), text_attribute_id).unwrap();
+        let (pid1, atid1) = (
+            ta.get_parent_id(tx.clone()).unwrap(),
+            ta.get_attr_type_id(tx.clone()).unwrap(),
+        );
+        db.update_text_attribute(
+            tx.clone(),
+            text_attribute_id,
+            pid1,
+            atid1,
+            a_text_value,
+            Some(123),
+            456,
+        )
+        .unwrap();
+        // have to create new instance to re-read the data:
+        let mut ta2 =
+            TextAttribute::new2(db.clone(), tx.clone(), text_attribute_id).unwrap();
+        let txt2 = ta2.get_text(tx.clone()).unwrap();
+
+        assert!(txt2 == a_text_value);
     }
 
     #[test]
@@ -1023,7 +1018,6 @@ mod test {
     fn create_and_add_test_relation_to_group_on_to_entity<'b, 'c>(
         db_in: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-        //in_entity: &'c Entity<'a>,
         in_entity: &'c Entity,
         in_rel_type_id: i64,
         in_group_name: &str,           /*= "something"*/
@@ -1031,13 +1025,9 @@ mod test {
         allow_mixed_classes_in: bool,  /*= true*/
     ) -> Result<(i64, i64), anyhow::Error>
     where
-    //    'a: 'b,
-        //%%%%%%experimental:
         'c: 'b,
     {
-        //let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty) None else in_valid_on_date;
         let observation_date: i64 = Utc::now().timestamp_millis();
-        //let (mut group, mut rtg) = entity.add_group_and_relation_to_group(transaction.clone(), in_rel_type_id, in_group_name, allow_mixed_classes_in, in_valid_on_date, observation_date, None, false)?;
         let (group_id, rtg_id) = in_entity.add_group_and_relation_to_group(
             transaction.clone(),
             in_rel_type_id,
@@ -1103,97 +1093,97 @@ mod test {
                 > initial_total_sorting_rows_count
         );
 
-        //let mut qa = QuantityAttribute::new2(&db, tx.clone(), quantity_attribute_id).unwrap();
-        //let (pid1, atid1, uid1) = (
-        //    qa.get_parent_id(tx.clone()).unwrap(),
-        //    qa.get_attr_type_id(tx.clone()).unwrap(),
-        //    qa.get_unit_id(tx.clone()).unwrap(),
-        //);
-        //assert!(entity_id == pid1);
-        //
-        //db.update_quantity_attribute(
-        //    tx.clone(),
-        //    quantity_attribute_id,
-        //    pid1,
-        //    atid1,
-        //    uid1,
-        //    4.0,
-        //    Some(5),
-        //    6,
-        //)
-        //.unwrap();
-        //
-        //// Re-read the data by creating a new instance
-        //let mut qa2 = QuantityAttribute::new2(&db, tx.clone(), quantity_attribute_id).unwrap();
-        //let (pid2, atid2, uid2, num2, vod2, od2) = (
-        //    qa2.get_parent_id(tx.clone()).unwrap(),
-        //    qa2.get_attr_type_id(tx.clone()).unwrap(),
-        //    qa2.get_unit_id(tx.clone()).unwrap(),
-        //    qa2.get_number(tx.clone()).unwrap(),
-        //    qa2.get_valid_on_date(tx.clone()).unwrap(),
-        //    qa2.get_observation_date(tx.clone()).unwrap(),
-        //);
-        //
-        //assert_eq!(pid2, pid1);
-        //assert_eq!(atid2, atid1);
-        //assert_eq!(uid2, uid1);
-        //assert_eq!(num2, 4.0);
-        //assert_eq!(vod2, Some(5 as i64));
-        //assert_eq!(od2, 6);
-        //
-        //let q_attr_count = db
-        //    .get_quantity_attribute_count(tx.clone(), entity_id)
-        //    .unwrap();
-        //assert_eq!(q_attr_count, 1);
-        //assert_eq!(
-        //    db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
-        //        .unwrap()
-        //       , 1
-        //);
-        //
-        //// Delete the quantity attribute and check correctness
-        //let entity_count_before_quantity_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
-        //db.delete_quantity_attribute(tx.clone(), quantity_attribute_id)
-        //    .unwrap();
-        //
-        //// next 2 assert! lines should work because of the database logic (triggers as of this writing)
-        //// that removes sorting rows when attrs are removed):
-        //assert_eq!(
-        //    db.get_attribute_sorting_rows_count(tx.clone(), None)
-        //        .unwrap()
-        //       , initial_total_sorting_rows_count
-        //);
-        //assert_eq!(
-        //    db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
-        //        .unwrap()
-        //       , 0
-        //);
-        //
-        //let entity_count_after_quantity_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
-        //assert_eq!(
-        //    db.get_quantity_attribute_count(tx.clone(), entity_id)
-        //        .unwrap()
-        //       , 0
-        //);
-        //
-        //if entity_count_after_quantity_deletion != entity_count_before_quantity_deletion {
-        //    panic!(
-        //    "Got constraint backwards? Deleting quantity attribute changed Entity count from {} to {}",
-        //    entity_count_before_quantity_deletion, entity_count_after_quantity_deletion
-        //);
-        //}
-        //
-        //db.delete_entity(tx.clone(), entity_id).unwrap();
-        //let ending_entity_count = db.get_entity_count(tx.clone()).unwrap();
-        //// 2 more entities came during quantity creation (units & quantity type), it's OK to leave 
-        //// them in this kind of situation)
-        //assert_eq!(ending_entity_count, starting_entity_count + 2);
-        //assert_eq!(
-        //    db.get_quantity_attribute_count(tx.clone(), entity_id)
-        //        .unwrap()
-        //       , 0
-        //);
-        //
+        let mut qa = QuantityAttribute::new2(db.clone(), tx.clone(), quantity_attribute_id).unwrap();
+        let (pid1, atid1, uid1) = (
+            qa.get_parent_id(tx.clone()).unwrap(),
+            qa.get_attr_type_id(tx.clone()).unwrap(),
+            qa.get_unit_id(tx.clone()).unwrap(),
+        );
+        assert!(entity_id == pid1);
+
+        db.update_quantity_attribute(
+            tx.clone(),
+            quantity_attribute_id,
+            pid1,
+            atid1,
+            uid1,
+            4.0,
+            Some(5),
+            6,
+        )
+        .unwrap();
+
+        // Re-read the data by creating a new instance
+        let mut qa2 = QuantityAttribute::new2(db.clone(), tx.clone(), quantity_attribute_id).unwrap();
+        let (pid2, atid2, uid2, num2, vod2, od2) = (
+            qa2.get_parent_id(tx.clone()).unwrap(),
+            qa2.get_attr_type_id(tx.clone()).unwrap(),
+            qa2.get_unit_id(tx.clone()).unwrap(),
+            qa2.get_number(tx.clone()).unwrap(),
+            qa2.get_valid_on_date(tx.clone()).unwrap(),
+            qa2.get_observation_date(tx.clone()).unwrap(),
+        );
+
+        assert_eq!(pid2, pid1);
+        assert_eq!(atid2, atid1);
+        assert_eq!(uid2, uid1);
+        assert_eq!(num2, 4.0);
+        assert_eq!(vod2, Some(5 as i64));
+        assert_eq!(od2, 6);
+
+        let q_attr_count = db
+            .get_quantity_attribute_count(tx.clone(), entity_id)
+            .unwrap();
+        assert_eq!(q_attr_count, 1);
+        assert_eq!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+                .unwrap()
+               , 1
+        );
+
+        // Delete the quantity attribute and check correctness
+        let entity_count_before_quantity_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        db.delete_quantity_attribute(tx.clone(), quantity_attribute_id)
+            .unwrap();
+
+        // next 2 assert! lines should work because of the database logic (triggers as of this writing)
+        // that removes sorting rows when attrs are removed):
+        assert_eq!(
+            db.get_attribute_sorting_rows_count(tx.clone(), None)
+                .unwrap()
+               , initial_total_sorting_rows_count
+        );
+        assert_eq!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+                .unwrap()
+               , 0
+        );
+
+        let entity_count_after_quantity_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        assert_eq!(
+            db.get_quantity_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+               , 0
+        );
+
+        if entity_count_after_quantity_deletion != entity_count_before_quantity_deletion {
+            panic!(
+            "Got constraint backwards? Deleting quantity attribute changed Entity count from {} to {}",
+            entity_count_before_quantity_deletion, entity_count_after_quantity_deletion
+        );
+        }
+
+        db.delete_entity(tx.clone(), entity_id).unwrap();
+        let ending_entity_count = db.get_entity_count(tx.clone()).unwrap();
+        // 2 more entities came during quantity creation (units & quantity type), it's OK to leave 
+        // them in this kind of situation)
+        assert_eq!(ending_entity_count, starting_entity_count + 2);
+        assert_eq!(
+            db.get_quantity_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+               , 0
+        );
+
         // Rollback transaction (handled automatically when tx goes out of scope)
         // No explicit rollback needed, as per sqlx docs.
     }
@@ -1356,16 +1346,7 @@ mod test {
     #[test]
     fn boolean_create_delete_update_methods() {
         Util::initialize_tracing();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
-        //let id: i64 = db
-        //    .create_entity(
-        //        None, //tx.clone(),
-        //        "test: org.onemodel.PSQLDbTest.getAttrCount...",
-        //        None,
-        //        None,
-        //    )
-        //    .unwrap();
-        //let entity: Entity = Entity::new2(&db, None /*tx.clone*/, id).unwrap();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
         let tx = db.begin_trans().unwrap();
         let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
@@ -1400,98 +1381,96 @@ mod test {
                 == 1
         );
 
-        //%%%%%%%
-        //let mut ba = BooleanAttribute::new2(&db, tx.clone(), boolean_attribute_id).unwrap();
-        //let (pid1, atid1) = (
-        //    ba.get_parent_id(tx.clone()).unwrap(),
-        //    ba.get_attr_type_id(tx.clone()).unwrap(),
-        //);
-        //assert!(entity_id == pid1);
-        //
-        //let val2 = false;
-        //db.update_boolean_attribute(
-        //    tx.clone(),
-        //    boolean_attribute_id,
-        //    pid1,
-        //    atid1,
-        //    val2,
-        //    Some(123),
-        //    456,
-        //)
-        //.unwrap();
-        //// have to create new instance to re-read the data:
-        //let mut ba2 = BooleanAttribute::new2(&db, tx.clone(), boolean_attribute_id).unwrap();
-        //let (pid2, atid2, bool2, vod2, od2) = (
-        //    ba2.get_parent_id(tx.clone()).unwrap(),
-        //    ba2.get_attr_type_id(tx.clone()).unwrap(),
-        //    ba2.get_boolean(tx.clone()).unwrap(),
-        //    ba2.get_valid_on_date(tx.clone()).unwrap(),
-        //    ba2.get_observation_date(tx.clone()).unwrap(),
-        //);
-        //assert!(pid2 == pid1);
-        //assert!(atid2 == atid1);
-        //assert!(bool2 == val2);
-        ////%%does the "as i64" below matter?
-        //assert!(vod2 == Some(123 as i64));
-        //assert!(od2 == 456);
-        //
-        //assert!(
-        //    db.get_boolean_attribute_count(tx.clone(), entity_id)
-        //        .unwrap()
-        //        == 1
-        //);
-        //
-        //let entity_count_before_attr_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
-        //db.delete_boolean_attribute(tx.clone(), boolean_attribute_id)
-        //    .unwrap();
-        //assert!(
-        //    db.get_boolean_attribute_count(tx.clone(), entity_id)
-        //        .unwrap()
-        //        == 0
-        //);
-        //// Next line should work because of the database logic (triggers as of this writing)
-        //// that removes sorting rows when attrs are removed):
-        //assert!(
-        //    db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
-        //        .unwrap()
-        //        == 0
-        //);
-        //let entity_count_after_attr_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
-        //if entity_count_after_attr_deletion != entity_count_before_attr_deletion {
-        //    panic!("Got constraint backwards? Deleting boolean attribute changed Entity count from {} to {}",
-        //       entity_count_before_attr_deletion, entity_count_after_attr_deletion);
-        //}
-        //
-        //// then recreate the attribute (to verify its auto-deletion when Entity is deleted, below; and to verify behavior with other values)
-        //let testval2: bool = true;
-        //let valid_on_date2: Option<i64> = None;
-        //let bool_attribute_id2: i64 = db
-        //    .create_boolean_attribute(
-        //        tx.clone(),
-        //        pid1,
-        //        atid1,
-        //        testval2,
-        //        valid_on_date2,
-        //        observation_date,
-        //        None,
-        //    )
-        //    .unwrap();
-        //let mut ba3: BooleanAttribute =
-        //    BooleanAttribute::new2(&db, tx.clone(), bool_attribute_id2).unwrap();
-        //assert!(ba3.get_boolean(tx.clone()).unwrap() == testval2);
-        //assert!(ba3.get_valid_on_date(tx.clone()).unwrap().is_none());
-        //db.delete_entity(tx.clone(), entity_id).unwrap();
-        //assert!(
-        //    db.get_boolean_attribute_count(tx.clone(), entity_id)
-        //        .unwrap()
-        //        == 0
-        //);
-        //
-        //let ending_entity_count = db.get_entity_count(tx).unwrap();
-        //// 2 more entities came during attribute creation, but we deleted one and (unlike similar tests) didn't recreate it.
-        //assert!(ending_entity_count == starting_entity_count + 1)
-        //
-        //// no need to db.rollback_trans(), because that is automatic when tx goes out of scope, per sqlx docs.
+        let mut ba = BooleanAttribute::new2(db.clone(), tx.clone(), boolean_attribute_id).unwrap();
+        let (pid1, atid1) = (
+            ba.get_parent_id(tx.clone()).unwrap(),
+            ba.get_attr_type_id(tx.clone()).unwrap(),
+        );
+        assert!(entity_id == pid1);
+
+        let val2 = false;
+        db.update_boolean_attribute(
+            tx.clone(),
+            boolean_attribute_id,
+            pid1,
+            atid1,
+            val2,
+            Some(123),
+            456,
+        )
+        .unwrap();
+        // have to create new instance to re-read the data:
+        let mut ba2 = BooleanAttribute::new2(db.clone(), tx.clone(), boolean_attribute_id).unwrap();
+        let (pid2, atid2, bool2, vod2, od2) = (
+            ba2.get_parent_id(tx.clone()).unwrap(),
+            ba2.get_attr_type_id(tx.clone()).unwrap(),
+            ba2.get_boolean(tx.clone()).unwrap(),
+            ba2.get_valid_on_date(tx.clone()).unwrap(),
+            ba2.get_observation_date(tx.clone()).unwrap(),
+        );
+        assert!(pid2 == pid1);
+        assert!(atid2 == atid1);
+        assert!(bool2 == val2);
+        assert!(vod2 == Some(123));
+        assert!(od2 == 456);
+
+        assert!(
+            db.get_boolean_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+                == 1
+        );
+
+        let entity_count_before_attr_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        db.delete_boolean_attribute(tx.clone(), boolean_attribute_id)
+            .unwrap();
+        assert!(
+            db.get_boolean_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+                == 0
+        );
+        // Next line should work because of the database logic (triggers as of this writing)
+        // that removes sorting rows when attrs are removed):
+        assert!(
+            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+                .unwrap()
+                == 0
+        );
+        let entity_count_after_attr_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        if entity_count_after_attr_deletion != entity_count_before_attr_deletion {
+            panic!("Got constraint backwards? Deleting boolean attribute changed Entity count from {} to {}",
+               entity_count_before_attr_deletion, entity_count_after_attr_deletion);
+        }
+
+        // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below; and to verify behavior with other values)
+        let testval2: bool = true;
+        let valid_on_date2: Option<i64> = None;
+        let bool_attribute_id2: i64 = db
+            .create_boolean_attribute(
+                tx.clone(),
+                pid1,
+                atid1,
+                testval2,
+                valid_on_date2,
+                observation_date,
+                None,
+            )
+            .unwrap();
+        let mut ba3: BooleanAttribute =
+            BooleanAttribute::new2(db.clone(), tx.clone(), bool_attribute_id2).unwrap();
+        assert!(ba3.get_boolean(tx.clone()).unwrap() == testval2);
+        assert!(ba3.get_valid_on_date(tx.clone()).unwrap().is_none());
+        db.delete_entity(tx.clone(), entity_id).unwrap();
+        assert!(
+            db.get_boolean_attribute_count(tx.clone(), entity_id)
+                .unwrap()
+                == 0
+        );
+
+        let ending_entity_count = db.get_entity_count(tx).unwrap();
+        // 2 more entities came during attribute creation, but we deleted one and (unlike similar tests) didn't recreate it.
+        assert!(ending_entity_count == starting_entity_count + 1)
+
+        // no need to db.rollback_trans(), because that is automatic when tx goes out of scope, per sqlx docs.
         // (if the transaction is even needed here; arguably not.)
     }
 
@@ -1740,8 +1719,6 @@ mod test {
   }
 */
 
-    // /*
-//%%%%%%latertrans
 #[test]
 fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error>> {
     Util::initialize_tracing();
@@ -1904,13 +1881,11 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
  
     Ok(())
 }
-// %%%%%%*/
 
-    //%%%%%%latertrans/compiler error:
     /*
 #[test]
 fn test_lifetime_issue() -> Result<(), Box<dyn std::error::Error>> {
-    //%%%%%%why does the order of next 2 lines matter?? Or only sometimes?
+    //why does the order of next 2 lines matter?? Or only sometimes?
     let tx = None;
     //{
     //let db: PostgreSQLDatabase = Util::initialize_test_db()?;
@@ -1955,8 +1930,6 @@ impl TestStruct<'_>{
         )
     }
 }
-//fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(
-fn fn4<'a, 'b>(
     //_db_in: &'a dyn Database,
     _db_in: &'a String,
     _transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
@@ -1965,7 +1938,6 @@ fn fn4<'a, 'b>(
 ) -> Result<(i64, i64), anyhow::Error>
 where
     'a: 'b,
-    //%%%%%%experimental:
     //'b: 'c,
 {
     Ok((0, 0))
@@ -2048,11 +2020,10 @@ impl TestStruct{
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
     ) -> Result<(i64, i64), anyhow::Error> 
     where
-        //?: %%%%%%
         //'b: 'a,
     {
         //let entity_id = self.get_id();
-        //let ref db = self.db; //? %%%%%%
+        //let ref db = self.db; //? 
         let (group_id, rtg_id) = self.db.clone().create_group_and_relation_to_group(
             transaction.clone(),
         )?;
@@ -2070,7 +2041,7 @@ fn fn4<'a, 'b, 'c>(
 ) -> Result<(i64, i64), anyhow::Error>
 where
     'a: 'b,
-    //%%%%%%experimental:
+    //experimental:
     //'b: 'c,
 {
     //let (group_id, rtg_id) = in_entity.add_group_and_relation_to_group(

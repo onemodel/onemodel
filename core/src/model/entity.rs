@@ -724,6 +724,7 @@ impl Entity {
     {
         let ref rc_db = &self.db;
         let ref cloned = rc_db.clone();
+        //let ref cloned = self.db.clone();
         let tx = transaction.clone();
         let id = self.get_id();
         cloned.renumber_sorting_indexes(tx, id, true)
@@ -1099,7 +1100,6 @@ impl Entity {
     }
 
     /// Like others, returns the new things' IDs. */
-    //%%%%%%?
     pub fn add_group_and_relation_to_group<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
