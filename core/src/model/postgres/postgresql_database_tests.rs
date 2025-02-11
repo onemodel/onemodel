@@ -1750,10 +1750,11 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     //let group2 = Group::new2(db.clone(), tx.clone(), group_id2).unwrap();
     let group2 = Group::new2(db.clone(), None, group_id2).unwrap();
 
-    // Set to None, but variable exists in case we want to test with a transaction 
-    // later (but then consider the tx of the entity above?). Other tests check transactions.
-    // %%%%%latertrans/idea to try?: use a tx here & make sure the test still passes! then del above cmt?
-    let tx = None;
+    // Was set to None, but variable exists in case we want to test with a transaction.
+    // Other tests also check transactions. But having the transaction exposed a db deadlock
+    // in call to group.delete_with_entities, below.
+    let tx = db.begin_trans().unwrap();
+    let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
     assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))?, 2);
 
@@ -1821,7 +1822,7 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     //group.add_entity(None, entity_id2, None).unwrap();
     assert_eq!(group.get_size(tx.clone(), 3)?, 1);
 
-    group.delete_with_entities().unwrap();
+    group.delete_with_entities(tx.clone()).unwrap();
 
     let result = RelationToGroup::new2(db.clone(), tx.clone(), rtg.get_id(), rtg.get_parent_id(tx.clone()).unwrap(), rtg.get_attr_type_id(tx.clone()).unwrap(), rtg.get_group_id(tx.clone()).unwrap());
     assert!(result.is_err() && result.err().unwrap().to_string().contains("does not exist"));

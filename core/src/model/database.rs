@@ -1184,10 +1184,14 @@ pub trait Database {
         id_in: i64,
     ) -> Result<u64, anyhow::Error>;
     fn delete_class_and_its_template_entity(&self, class_id_in: i64) -> Result<(), anyhow::Error>;
-    fn delete_group_relations_to_it_and_its_entries(
-        &self,
+    fn delete_group_relations_to_it_and_its_entries<'a, 'b>(
+        &'a self,
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         group_id_in: i64,
-    ) -> Result<(), anyhow::Error>;
+    ) -> Result<(), anyhow::Error>
+    where 
+        'a: 'b
+    ;
     fn delete_om_instance<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,

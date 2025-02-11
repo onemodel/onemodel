@@ -2926,12 +2926,33 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// I hope you have a backup.
-    fn delete_group_relations_to_it_and_its_entries(
-        &self,
+    fn delete_group_relations_to_it_and_its_entries<'a, 'b>(
+        &'a self,
+        // purpose: see comment in delete_objects
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         group_id_in: i64,
-    ) -> Result<(), anyhow::Error> {
-        let tx = self.begin_trans()?;
-        let transaction = Some(Rc::new(RefCell::new(tx)));
+    ) -> Result<(), anyhow::Error> 
+    where 
+        'a: 'b
+    {
+        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
+        // Try creating a local transaction whether we use it or not, to handle compiler errors
+        // about variable moves. I'm not seeing a better way to get around them by just using
+        // conditions and an Option (many errors):
+        // (I tried putting this in a function, then a macro, but it gets compile errors.
+        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
+        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
+        // I didn't try a proc macro but based on some reading I think it would have the same
+        // problem.)
+        let local_tx: Transaction<Postgres> = self.begin_trans()?;
+        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+        let transaction = if transaction_in.clone().is_some() {
+            transaction_in.clone()
+        } else {
+            local_tx_option
+        };
+        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
+        
         let entity_count = self.get_group_size(transaction.clone(), group_id_in, 3)?;
         let (deletions1, deletions2) =
             self.delete_relation_to_group_and_all_recursively(transaction.clone(), group_id_in)?;
@@ -2943,24 +2964,24 @@ impl Database for PostgreSQLDatabase {
                 entity_count
             ));
         }
-        // see comments at similar location in delete_objects about local_tx
-        // see comments in delete_objects about rollback
-        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-            Rc::into_inner(transaction.unwrap());
-        match local_tx_cell {
-            Some(t) => {
-                let unwrapped_local_tx = t.into_inner();
-                if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                    return Err(anyhow!(e.to_string()));
+        if transaction_in.is_none() && transaction.is_some() {
+            // see comments at similar location in delete_objects about local_tx
+            // see comments in delete_objects about rollback
+            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+                Rc::into_inner(transaction.unwrap());
+            match local_tx_cell {
+                Some(t) => {
+                    let unwrapped_local_tx = t.into_inner();
+                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
+                        return Err(anyhow!(e.to_string()));
+                    }
                 }
-                Ok(())
-            }
-            None => {
-                return Err(anyhow!(
-                    "Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"
-                ));
+                None => {
+                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
+                }
             }
         }
+        Ok(())
     }
 
     fn delete_relation_type<'a>(

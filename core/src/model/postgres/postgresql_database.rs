@@ -417,14 +417,17 @@ impl PostgreSQLDatabase {
     }
 
     /// Returns the # of rows affected.
-    /// @param skip_check_for_bad_sql_in  SET TO false EXCEPT *RARELY*, WITH CAUTION AND ONLY WHEN THE SQL HAS NO USER-PROVIDED STRING IN IT!!  SEE THE (hopefully
-    ///                              still just one) PLACE USING IT NOW (in method create_attribute_sorting_deletion_trigger) AND PROBABLY LIMIT USE TO THAT!
+    /// @param skip_check_for_bad_sql_in  SET TO false EXCEPT *RARELY*, WITH CAUTION AND ONLY WHEN THE SQL HAS 
+    /// NO USER-PROVIDED STRING IN IT!!  SEE THE (hopefully still just one) PLACE USING IT NOW (in method 
+    /// create_attribute_sorting_deletion_trigger) AND PROBABLY LIMIT USE TO THAT!
+    // (Idea: change that parm name to remove "skip_" so it is not a double-negative when false? And reverse
+    // all parameters appropriately, and fix the comment.)
     pub fn db_action(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_in: &str,
-        caller_checks_row_count_etc: bool, /*%% = false*/
-        skip_check_for_bad_sql_in: bool,   /*%% = false*/
+        caller_checks_row_count_etc: bool, /*= false*/
+        skip_check_for_bad_sql_in: bool,   /*= false*/
     ) -> Result<u64, anyhow::Error> {
         let rows_affected: u64;
         let is_create_drop_or_alter = sql_in.to_lowercase().starts_with("create ")

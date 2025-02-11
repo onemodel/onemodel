@@ -258,9 +258,16 @@ impl Group {
             .remove_entity_from_group(transaction, self.id, entity_id)
     }
 
-    pub fn delete_with_entities(&self) -> Result<(), Error> {
+    pub fn delete_with_entities<'a, 'b>(
+        &'a self,
+        // purpose: see comment in delete_objects
+        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    ) -> Result<(), Error> 
+    where
+        'a: 'b
+    {
         self.db
-            .delete_group_relations_to_it_and_its_entries(self.id)
+            .delete_group_relations_to_it_and_its_entries(transaction_in.clone(), self.id)
     }
 
     // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability)?
