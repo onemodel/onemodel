@@ -311,8 +311,6 @@ impl Attribute for RelationToGroup {
             ));
         }
 
-        self.already_read_data = true;
-
         //***ONLY ROUGHLY COPIED***:
         //BEGIN COPIED BLOCK descended from Attribute.assign_common_vars (unclear how to do better for now):
         //except omitting this one since entity_id takes the place of parent_id here (see below re attr_type_id)
@@ -334,21 +332,18 @@ impl Attribute for RelationToGroup {
 
         //***ONLY ROUGHLY COPIED***:
         //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
-        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-        // valid_on_date: Option<i64> /*%%= None*/,
-        /*DataType::Bigint(%%)*/
-        self.valid_on_date = None; //data[4];
-                                   // self.valid_on_date = match data[4] {
-                                   //     DataType::Bigint(x) => x,
-                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
-                                   // };
-
+        self.valid_on_date = match data[4] {
+            Some(DataType::Bigint(x)) => Some(x),
+            None => None,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
+        };
         self.observation_date = match data[5] {
             Some(DataType::Bigint(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", data[5])),
         };
         //END COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars.
 
+        self.already_read_data = true;
         Ok(())
     }
 

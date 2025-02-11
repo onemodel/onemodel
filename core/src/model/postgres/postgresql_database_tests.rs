@@ -1734,10 +1734,9 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     //let entity_id = db.create_entity(tx.clone(), entity_name.as_str(), None, None)?;
     let entity_id = db.clone().create_entity(None, entity_name.as_str(), None, None)?;
     //let entity = Entity::new2(db.clone(), tx.clone(), entity_id).unwrap();
-    let cloned = db.clone();
     let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
     //let rel_type_id = cloned.create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL)?;
-    let rel_type_id = cloned.create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL)?;
+    let rel_type_id = db.clone().create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL)?;
     let valid_on_date = 12345;
     let (group_id, created_rtg_id) = create_and_add_test_relation_to_group_on_to_entity(
         //db.clone(), tx.clone(), &entity, rel_type_id, rel_to_group_name, Some(valid_on_date), true)?;
@@ -1752,76 +1751,75 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     let group2 = Group::new2(db.clone(), None, group_id2).unwrap();
 
     // Set to None, but variable exists in case we want to test with a transaction 
-    // later (but then consider the tx of the entity above?):
+    // later (but then consider the tx of the entity above?). Other tests check transactions.
     // %%%%%latertrans/idea to try?: use a tx here & make sure the test still passes! then del above cmt?
     let tx = None;
 
-    assert!(db.clone().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap() == 0);
-    assert!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))? == 1);
+    assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))?, 2);
 
     let mut rtg = RelationToGroup::new2(db.clone(), tx.clone(), created_rtg_id, entity_id, rel_type_id, group_id).unwrap();
 
     assert!(group.get_mixed_classes_allowed(tx.clone()).unwrap());
-    assert!(group.get_name(tx.clone()).unwrap() == rel_to_group_name);
+    assert_eq!(group.get_name(tx.clone()).unwrap(), rel_to_group_name);
 
     let check_relation = db.get_relation_to_group_data_by_keys(tx.clone(), rtg.get_parent_id(tx.clone()).unwrap(), rtg.get_attr_type_id(tx.clone()).unwrap(), rtg.get_group_id(tx.clone()).unwrap()).unwrap();
     if let DataType::Bigint(x) = check_relation[0].as_ref().unwrap() {
-        assert!(*x == rtg.get_id());
+        assert_eq!(*x, rtg.get_id());
     } else {
         panic!("How did we get here with {:?}?", check_relation[0]);
     }
     if let DataType::Bigint(x) = check_relation[1].as_ref().unwrap() {
-        assert!(*x == entity_id);
+        assert_eq!(*x, entity_id);
     } else {
         panic!("How did we get here with {:?}?", check_relation[1]);
     }
     if let DataType::Bigint(x) = check_relation[2].as_ref().unwrap() {
-        assert!(*x == rel_type_id);
+        assert_eq!(*x, rel_type_id);
     } else {
         panic!("How did we get here with {:?}?", check_relation[2]);
     }
     if let DataType::Bigint(x) = check_relation[3].as_ref().unwrap() {
-        assert!(*x == group_id);
+        assert_eq!(*x, group_id);
     } else {
         panic!("How did we get here with {:?}?", check_relation[3]);
     }
     if let DataType::Bigint(x) = check_relation[4].as_ref().unwrap() {
-        assert!(*x == valid_on_date);
+        assert_eq!(*x, valid_on_date);
     } else {
         panic!("How did we get here with {:?}?", check_relation[4]);
     }
     let check_again = db.get_relation_to_group_data(tx.clone(), rtg.get_id())?;
     if let DataType::Bigint(x) = check_again[0].as_ref().unwrap() {
-        assert!(*x == rtg.get_id());
+        assert_eq!(*x, rtg.get_id());
     } else {
         panic!("How did we get here with {:?}?", check_again[0]);
     }
     if let DataType::Bigint(x) = check_again[1].as_ref().unwrap() {
-        assert!(*x == entity_id);
+        assert_eq!(*x, entity_id);
     } else {
         panic!("How did we get here with {:?}?", check_again[1]);
     }
     if let DataType::Bigint(x) = check_again[2].as_ref().unwrap() {
-        assert!(*x == rel_type_id);
+        assert_eq!(*x, rel_type_id);
     } else {
         panic!("How did we get here with {:?}?", check_again[2]);
     }
     if let DataType::Bigint(x) = check_again[3].as_ref().unwrap() {
-        assert!(*x == group_id);
+        assert_eq!(*x, group_id);
     } else {
         panic!("How did we get here with {:?}?", check_again[3]);
     }
     if let DataType::Bigint(x) = check_again[4].as_ref().unwrap() {
-        assert!(*x == valid_on_date);
+        assert_eq!(*x, valid_on_date);
     } else {
         panic!("How did we get here with {:?}?", check_again[4]);
     }
-    assert!(group.get_size(tx.clone(), 3).unwrap() == 0);
+    assert_eq!(group.get_size(tx.clone(), 3).unwrap(), 0);
 
     let entity_id2 = db.create_entity(tx.clone(), format!("{}2", entity_name).as_str(), None, None).unwrap();
     group.add_entity(tx.clone(), entity_id2, None).unwrap();
     //group.add_entity(None, entity_id2, None).unwrap();
-    assert!(group.get_size(tx.clone(), 3)? == 1);
+    assert_eq!(group.get_size(tx.clone(), 3)?, 1);
 
     group.delete_with_entities().unwrap();
 
@@ -1831,17 +1829,17 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     let result = Entity::new2(db.clone(), tx.clone(), entity_id2);
     assert!(result.is_err() && result.err().unwrap().to_string().contains("does not exist"));
 
-    assert!(group.get_size(tx.clone(), 3).unwrap() == 0);
+    assert_eq!(group.get_size(tx.clone(), 3).unwrap(), 0);
 
-    // next line should work because of the database logic (triggers as of this writing) that re
-    // moves sorting rows when attrs are removed):
-    assert!(db.clone().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap() == 0);
+    // next line should work because of the database logic (triggers as of this writing) that 
+    // removes sorting rows when attrs are removed):
+    assert_eq!(db.clone().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 1);
     
-    assert!(group2.get_size(tx.clone(), 3).unwrap() == 0);
+    assert_eq!(group2.get_size(tx.clone(), 3).unwrap(), 0);
 
     let entity_id3 = db.create_entity(tx.clone(), format!("{}3", entity_name).as_str(), None, None).unwrap();
     group2.add_entity(tx.clone(), entity_id3, None).unwrap();
-    assert!(group2.get_size(tx.clone(), 3).unwrap() == 1);
+    assert_eq!(group2.get_size(tx.clone(), 3).unwrap(), 1);
 
     let entity_id4 = db.clone().create_entity(tx.clone(), format!("{}4", entity_name).as_str(), None, None).unwrap();
     group2.add_entity(tx.clone(), entity_id4, None).unwrap();
@@ -1851,11 +1849,11 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
 
     db.get_group_entry_sorting_index(tx.clone(), group_id2, entity_id5).unwrap();
 
-    assert!(group2.get_size(tx.clone(), 3).unwrap() == 3);
-    assert!(db.get_group_entry_ids(tx.clone(), group2.get_id(), 0, None).unwrap().len() == 3);
+    assert_eq!(group2.get_size(tx.clone(), 3).unwrap(), 3);
+    assert_eq!(db.get_group_entry_ids(tx.clone(), group2.get_id(), 0, None).unwrap().len(), 3);
 
     group2.remove_entity(tx.clone(), entity_id5).unwrap();
-    assert!(db.get_group_entry_ids(tx.clone(), group2.get_id(), 0, None).unwrap().len() == 2);
+    assert_eq!(db.get_group_entry_ids(tx.clone(), group2.get_id(), 0, None).unwrap().len(), 2);
 
     group2.delete(tx.clone()).unwrap();
     let result = Group::new2(db.clone(), tx.clone(), group_id2);
@@ -1875,9 +1873,7 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
                                //assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
                                //assert(updatedRelationType.get_directionality == RelationType.BIDIRECTIONAL)
 
-    //??: %%%%%
-    //db.delete_relation_to_group(relToGroupId)
-    //assert(db.get_relation_to_group_count(entity_id) == 0)
+    assert_eq!(db.get_relation_to_group_count(tx.clone(), entity_id)?, 0);
  
     Ok(())
 }
