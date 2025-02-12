@@ -1,6 +1,5 @@
 This file is part of OneModel, a program to manage knowledge.
-Copyright in each year of 2003, 2010-2018 inclusive, 2020, and 
-2022-2024 inclusive, Luke A. Call;
+Copyright in each year of 2003, 2010-2018 inclusive, 2020, and 2022-2025 inclusive, Luke A. Call;
 all rights reserved.  OneModel is free software, distributed under
 a license that includes honesty, the Golden Rule, and the GNU Affero General
 Public License as published by the Free Software Foundation; see the file LICENSE
@@ -12,7 +11,8 @@ have received a copy of the GNU Affero General Public License along
 with OneModel.  If not, see <http://www.gnu.org/licenses/>
 --------------------------------------------------------------------------------
 
-%%todo: fix this file for the new rust version
+(%%todo: fix this file for the new rust version of OM.)
+
 This file has details of installation. For simpler instructions see
 http://onemodel.org/1/e-9223372036854624134.html .
 

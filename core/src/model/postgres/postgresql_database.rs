@@ -242,7 +242,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_in: &str,
-        fail_if_more_than_one_found: bool, /*%% = true*/
+        fail_if_more_than_one_found: bool, /* = true*/
     ) -> Result<bool, anyhow::Error> {
         let row_count: u64 = self.extract_row_count_from_count_query(transaction, sql_in)?;
         if fail_if_more_than_one_found {
@@ -308,7 +308,7 @@ impl PostgreSQLDatabase {
         let result: Result<u64, anyhow::Error> = self.db_action(
             None,
             "delete from FileAttributeContent",
-            /*%%caller_checks_row_count_etc =*/ true,
+            /*caller_checks_row_count_etc =*/ true,
             false,
         );
         if let Err(msg) = result {

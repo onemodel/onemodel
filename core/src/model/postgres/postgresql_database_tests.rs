@@ -1197,7 +1197,10 @@ mod test {
             assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
             assert(db.get_quantity_attribute_count(entity_id) == 0)
           }
+*/
 
+    //%%%%%%
+    /*
           "TextAttribute create/delete/update methods" should "work" in {
             let starting_entity_count = db.get_entity_count();
             let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testTextAttrs");
@@ -1245,7 +1248,9 @@ mod test {
             // 2 more entities came during text attribute creation, which we don't care about either way, for this test
             assert(ending_entity_count == starting_entity_count + 2)
           }
-
+          
+          // */
+/*
           "DateAttribute create/delete/update methods" should "work" in {
             let starting_entity_count = db.get_entity_count();
             let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testDateAttrs");
@@ -1637,7 +1642,9 @@ mod test {
           }
         }
       }
-
+*/
+    /*
+      //%%%%%%
       "relation to entity methods and relation type methods" should "work" in {
         let startingEntityOnlyCount = db.get_entities_only_count();
         let startingRelationTypeCount = db.get_relation_type_count();
@@ -1680,7 +1687,9 @@ mod test {
 
         db.delete_entity(entity_id)
       }
+// */
 
+/*
       "get_containing_groups_ids" should "find groups containing the test group" in {
         /*
         Makes a thing like this:        entity1    entity3
@@ -1726,7 +1735,7 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     let rel_to_group_name = "test: PSQLDbTest.testRelsNRelTypes()";
     let entity_name = format!("{}--theEntity", rel_to_group_name);
     
-    //%%creating things without a transaction in several lines just below, seemingly because
+    //Creating things without a transaction in the several lines just below, seemingly because
     //the compiler forced me to specify lifetimes that force these things to be created before
     //their transaction, otherwise I get error 0597, saying vars are dropped in order they are
     //created. To reproduce, move one of the lines, like the last one, to below the "let tx = None"
@@ -1906,7 +1915,6 @@ impl TestStruct<'_>{
         //db: &'a dyn Database,
         db: &'a String,
         _transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-    //) -> Result<Entity<'a>, anyhow::Error> {
     ) -> Result<TestStruct<'a>, anyhow::Error> 
     where
         'a: 'b
@@ -1915,143 +1923,6 @@ impl TestStruct<'_>{
             db
         })
     }
-    //pub fn fn2<'a>(
-    pub fn fn2<'a, 'b>(
-        &'a self,  // in the real code, this points to the database on which we have a transaction.
-        //transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
-        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-    ) -> i32
-    {
-        fn3(
-            transaction,
-        )
-    }
-}
-    //_db_in: &'a dyn Database,
-    _db_in: &'a String,
-    _transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-    //_in_entity: &'c Entity<'a>,
-    _in_entity: &'b TestStruct<'_>,
-) -> Result<(i64, i64), anyhow::Error>
-where
-    'a: 'b,
-    //'b: 'c,
-{
-    Ok((0, 0))
-}
-fn fn3(
-    _transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
-) -> i32 {
-    1
-}
-#[test]
-fn relation_to_group_and_group_methods_shorter_testing() -> Result<(), Box<dyn std::error::Error>> {
-    let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db()?);
-    let db_cloned = db.clone();
-    let rel_to_group_name = "test: PSQLDbTest.testRelsNRelTypes()";
-    let entity_name = format!("{}--theEntity", rel_to_group_name);
-    //let entity_id = db.clone().create_entity(tx.clone(), entity_name.as_str(), None, None)?;
-    let entity_id = db.clone().create_entity(None, entity_name.as_str(), None, None)?;
-    //let entity = Entity::new2(db.clone(), tx.clone(), entity_id).unwrap();
-    let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
-    let tx = None;
-    let rel_type_id = db_cloned.create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL)?;
-    let valid_on_date = 12345;
-    let (_group_id, _created_rtg_id) = create_and_add_test_relation_to_group_on_to_entity(
-        db.clone(), tx.clone(), &entity, rel_type_id, rel_to_group_name, Some(valid_on_date), true)?;
-    Ok(())
-}
-#[test]
-fn test_lifetime_issue_simpler_simpler() -> Result<(), Box<dyn std::error::Error>> {
-    //{
-    //let db: String = "1234".to_string();
-    let db: Rc<FakeDb> = Rc::new(FakeDb{});
-    let tx = None;
-    //{
-    let test_struct_instance = TestStruct::new2(db.clone(), tx.clone()).unwrap();
-    let (_group_id, _created_rtg_id) = fn4(db.clone(), tx.clone(), &test_struct_instance).unwrap();
-    //}}
-    Ok(())
-}
-struct FakeDb{
-}
-impl FakeDb{
-    //fn create_group_and_relation_to_group<'a, 'b>(
-    fn create_group_and_relation_to_group<'b>(
-        &self,
-        // purpose: see comment in delete_objects
-        _transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-    ) -> Result<(i64, i64), anyhow::Error> 
-    //where
-    //    'a: 'b
-    {
-        Ok((1, 1))
-    }
-}
-struct TestStruct{
-    //db: &'a String,
-    //db: &'a FakeDb,
-    db: Rc<FakeDb>,
-}
-//impl TestStruct<'_>{
-impl TestStruct{
-    pub fn new2<'a, 'b>(
-        //db: &'a String,
-        //db: &'a FakeDb,
-        db: Rc<FakeDb>,
-        _transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-        //doesnt have a compiler problem w/ this line instead:
-        //_transaction: Option<Rc<RefCell<String>>>,
-    //) -> Result<TestStruct<'a>, anyhow::Error> 
-    ) -> Result<TestStruct, anyhow::Error> 
-    where
-        'a: 'b
-    {
-        Ok(TestStruct{
-            db
-        })
-    }
-    //pub fn add_group_and_relation_to_group<'a, 'b>(
-    pub fn add_group_and_relation_to_group<'b>(
-        &self,
-        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-    ) -> Result<(i64, i64), anyhow::Error> 
-    where
-        //'b: 'a,
-    {
-        //let entity_id = self.get_id();
-        //let ref db = self.db; //? 
-        let (group_id, rtg_id) = self.db.clone().create_group_and_relation_to_group(
-            transaction.clone(),
-        )?;
-        Ok((group_id, rtg_id))
-    }
-}
-fn fn4<'a, 'b, 'c>(
-    //_db_in: &'a String,
-    //_db_in: &'a FakeDb,
-    _db_in: Rc<FakeDb>,
-    transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-    //_transaction: Option<Rc<RefCell<String>>>,
-    //in_entity: &'_ TestStruct<'_>,
-    in_entity: &'_ TestStruct,
-) -> Result<(i64, i64), anyhow::Error>
-where
-    'a: 'b,
-    //experimental:
-    //'b: 'c,
-{
-    //let (group_id, rtg_id) = in_entity.add_group_and_relation_to_group(
-    let (_group_id, _rtg_id) = in_entity.add_group_and_relation_to_group(
-        transaction.clone(),
-        //0, //in_rel_type_id,
-        //"abc", //in_group_name,
-        //false, //allow_mixed_classes_in,
-        //None, //in_valid_on_date,
-        //0, //observation_date,
-        //None,
-    )?;
-    Ok((0, 0))
 }
 // */
 
@@ -2194,7 +2065,10 @@ where
 
     db.delete_relation_type(rel_type_id)
   }
+*/
 
+//%%%%%%
+/*
   "attributes" should "handle valid_on_dates properly in & out of db" in {
     let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.attributes...");
     let rel_type_id = db.create_relation_type(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);
@@ -2207,7 +2081,9 @@ where
     create_test_text_attribute_with_one_entity(entity_id)
     create_test_text_attribute_with_one_entity(entity_id, Some(0))
   }
+// */
 
+/*
   "testAddQuantityAttributeWithBadParentID" should "not work" in {
     println!("starting testAddQuantityAttributeWithBadParentID")
     let badParentId: i64 = db.findIdWhichIsNotKeyOfAnyEntity; // Database should not allow adding quantity with a bad parent (Entity) ID!

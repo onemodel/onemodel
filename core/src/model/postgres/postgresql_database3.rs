@@ -3028,26 +3028,6 @@ impl Database for PostgreSQLDatabase {
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[0])),
             };
             self.update_boolean_attribute_value(transaction.clone(), preference_attribute_id, value_in)
-
-            //old logic/deletable after commit:
-            //let mut attribute = BooleanAttribute::new2(
-            //    self as &dyn Database,
-            //    transaction.clone(),
-            //    preference_attribute_id,
-            //)?;
-            //// Now we have found a boolean attribute which already existed, and just need to
-            //// update its boolean value. The other values we read from the db inside the first call
-            //// to something like "get_parent_id()", and just write them back with the new boolean value,
-            //// to conveniently reuse existing methods.
-            //self.update_boolean_attribute(
-            //    transaction.clone(),
-            //    attribute.get_id(),
-            //    attribute.get_parent_id(transaction.clone())?,
-            //    attribute.get_attr_type_id(transaction.clone())?,
-            //    value_in,
-            //    attribute.get_valid_on_date(transaction.clone())?,
-            //    attribute.get_observation_date(transaction.clone())?,
-            //)
         } else {
             let type_id_of_the_has_relation =
                 self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?;
@@ -3712,18 +3692,6 @@ impl Database for PostgreSQLDatabase {
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[6])),
             };
             let result_tuple = (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date, sorting_index);
-            //deletable after next commit: 
-            //let rtg: RelationToGroup = RelationToGroup::new(
-            //    *self.clone() as dyn Database),
-            //    id,
-            //    entity_id,
-            //    rel_type_id,
-            //    group_id,
-            //    valid_on_date,
-            //    observation_date,
-            //    sorting_index,
-            //);
-            //final_results.push(rtg)
             final_results.push(result_tuple)
         }
         if !(final_results.len() == early_results_len) {
@@ -5378,15 +5346,6 @@ impl Database for PostgreSQLDatabase {
             match found_id {
                 Some(found_id) => {
                     let template_entity_id = EntityClass::get_template_entity_id_2(self, transaction, found_id)?;
-                    //deletable after next commit:
-                    //    EntityClass::new2(
-                    //    self as &dyn Database,
-                    //    transaction.clone(),
-                    //    found_id.unwrap(),
-                    //)?
-                    ////.get_template_entity_id(found_id.get, entity_id)?;
-                    //.get_template_entity_id(transaction.clone())?;
-                    //(found_id.unwrap(), entity_id)
                     (found_id, template_entity_id)
                 },
                 None => {

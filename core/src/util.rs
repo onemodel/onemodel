@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2017 inclusive, 2019, and 2023-2024 inclusive, Luke A. Call.
+    Copyright in each year of 2003-2004 and 2008-2017 inclusive, 2019, and 2023-2025 inclusive, Luke A. Call.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala, and TextUI.java before that.
     And this file initially came from Controller.scala.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
