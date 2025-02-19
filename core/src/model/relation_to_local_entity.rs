@@ -297,8 +297,6 @@ impl Attribute for RelationToLocalEntity {
             Some(DataType::Bigint(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", data[0])),
         };
-        self.already_read_data = true;
-
         //assign_common_vars(self.entity_id1, self.attr_type_id, relation_data(2).get.asInstanceOf[i64],
         //relation_data(3).get.asInstanceOf[i64])
         //***ONLY ROUGHLY COPIED***:
@@ -324,21 +322,18 @@ impl Attribute for RelationToLocalEntity {
 
         //***ONLY ROUGHLY COPIED***:
         //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
-        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-        // valid_on_date: Option<i64> /*%%= None*/,
-        /*DataType::Bigint(%%)*/
-        self.valid_on_date = None; //data[1];
-                                   // self.valid_on_date = match data[4] {
-                                   //     DataType::Bigint(x) => x,
-                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", data[4])),
-                                   // };
-
+        self.valid_on_date = match data[1] {
+            Some(DataType::Bigint(x)) => Some(x),
+            None => None,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[1])),
+        };
         self.observation_date = match data[2] {
             Some(DataType::Bigint(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
         };
         //END COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars.
 
+        self.already_read_data = true;
         Ok(())
     }
 

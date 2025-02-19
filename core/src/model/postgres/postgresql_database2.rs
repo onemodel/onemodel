@@ -19,6 +19,7 @@ use crate::model::relation_to_group::RelationToGroup;
 // use crate::model::postgres::*;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 // use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
+use crate::model::relation_type::RelationType;
 //use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 use anyhow::anyhow;
@@ -214,9 +215,9 @@ impl PostgreSQLDatabase {
         preferences_container_id_in: i64,
         preference_name_in: &str,
         preference_type: &str,
-    ) -> Result<Vec<DataType>, anyhow::Error> 
+    ) -> Result<Vec<DataType>, anyhow::Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         // (Passing a smaller numeric parameter to find_contained_local_entity_ids for levels_remainingIn, so that in the (very rare) case where one does not
         // have a default entity set at the *top* level of the preferences under the system entity, and there are links there to entities with many links
@@ -785,28 +786,93 @@ impl PostgreSQLDatabase {
                                                   rel_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in).as_str(), true)
     }
 
-    // fn add_new_entity_to_results(&self,
-    //    transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    // final_results: Vec<Entity>,
-    //                              intermediate_result_in: Vec<Option<DataType>>) -> Result<bool, anyhow::Error> {
-    //     let result = intermediate_result_in;
-    //     // None of these values should be of "None" type. If they are it's a bug:
-    //     let DataType::Bigint(id) = result.get(0)?;
-    //     let DataType::String(name) = result.get(1)?;
-    //     let Option(DataType::Bigint(class_id)) = result.get(2);
-    //     let DataType::Bigint(insertion_date) = result.get(3)?;
-    //     let Option(DataType::Boolean(public)) = result.get(4);
-    //     let DataType::Boolean(archived) = result.get(5)?;
-    //     let DataType::Boolean(new_entries_stick_to_top_) = result.get(6)?;
-    //     final_results.add(Entity::new2(this, transaction, id, name, class_id, insertion_date, public, archived, new_entries_stick_to_top)
-    // }
+    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    fn add_new_entity_to_results(
+        &self,
+        db: Rc<dyn Database>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        final_results: &mut Vec<Entity>,
+        intermediate_result_in: Vec<Option<DataType>>,
+    ) -> Result<(), anyhow::Error> {
+        let result = intermediate_result_in;
+        let id: i64 = match result.get(0) {
+            Some(val) => match val {
+                Some(DataType::Bigint(x)) => *x,
+                _ => return Err(anyhow!("Expected Some(DataType::Bigint(id)), got {:?}", val))
+            },
+            _ => return Err(anyhow!("Expected Some(Some(DataType::Bigint(id))), got {:?}", result.get(0)))
+        };
+        //let DataType::String(name) = result.get(1)?;
+        let name: String = match result.get(1) {
+            Some(val) => match val {
+                Some(DataType::String(name)) => name.clone(),
+                _ => return Err(anyhow!("Expected Some(DataType::String(name)), got {:?}", val))
+            },
+            _ => return Err(anyhow!("Expected Some(Some(DataType::String(name))), got {:?}", result.get(1)))
+        };
+        //let Option(DataType::Bigint(class_id)) = result.get(2);
+        let class_id: Option<i64> = match result.get(2) {
+            Some(val) => match val {
+                Some(DataType::Bigint(id)) => Some(*id),
+                None => None,
+                _ => return Err(anyhow!("Expected Option<DataType::Bigint(class_id)>, got {:?}", val))
+            },
+            _ => return Err(anyhow!("Expected Some(Option<DataType::Bigint(class_id)>), got {:?}", result.get(2)))
+        };
+        //let DataType::Bigint(insertion_date) = result.get(3)?;
+        let insertion_date: i64 = match result.get(3) {
+            Some(val) => match val {
+                Some(DataType::Bigint(x)) => *x,
+                _ => return Err(anyhow!("Expected Some(DataType::Bigint(insertion_date)), got {:?}", val))
+            },
+            _ => return Err(anyhow!("Expected Some(Some(DataType::Bigint(insertion_date))), got {:?}", result.get(3)))
+        };
+        //let Option(DataType::Boolean(public)) = result.get(4);
+        let public: Option<bool> = match result.get(4) {
+            Some(val) => match val {
+                Some(DataType::Boolean(x)) => Some(*x),
+                None => None,
+                _ => return Err(anyhow!("Expected Option<DataType::Boolean(public)>, got {:?}", val))
+            },
+            _ => return Err(anyhow!("Expected Some(Option<DataType::Bigint(public)>), got {:?}", result.get(4)))
+        };
+        //let DataType::Boolean(archived) = result.get(5)?;
+        let archived: bool = match result.get(5) {
+            Some(val) => match val {
+                Some(DataType::Boolean(x)) => *x,
+                _ => return Err(anyhow!("Expected Some(DataType::Boolean(archived)), got {:?}", val))
+            },
+            _ => return Err(anyhow!("Expected Some(Some(DataType::Bigint(archived))), got {:?}", result.get(5)))
+        };
+        //let DataType::Boolean(new_entries_stick_to_top) = result.get(6)?;
+        let new_entries_stick_to_top: bool = match result.get(6) {
+            Some(val) => match val {
+                Some(DataType::Boolean(x)) => *x,
+                _ => return Err(anyhow!("Expected Some(DataType::Boolean(new_entries_stick_to_top)), got {:?}", val))
+            },
+            _ => return Err(anyhow!("Expected Some(Some(DataType::Bigint(new_entries_stick_to_top))), got {:?}", result.get(6)))
+        };
+
+        let e: Entity = Entity::new(
+            db,
+            id,
+            name,
+            class_id,
+            insertion_date,
+            public,
+            archived,
+            new_entries_stick_to_top,
+        );
+        final_results.push(e);
+        Ok(())
+    }
 
     /// @return a Vec of (relation_type_id, entity_id) tuples.
     pub fn get_containing_entities_helper(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sql_in: &str,
-    //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
+        //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
     ) -> Result<Vec<(i64, i64)>, anyhow::Error> {
         let early_results = self.db_query(transaction.clone(), sql_in, "i64,i64")?;
         let early_results_len = early_results.len();
@@ -872,9 +938,22 @@ impl PostgreSQLDatabase {
         Ok(sql)
     }
 
-    // 1st parm is 0-based index to start with, 2nd parm is # of obj's to return (if None, means no limit).
+    /// This also takes a db *parameter*, to handle lifetime issues that arose; there is probably a better
+    /// way but I considered various things (like making this an associated function, or returning a collection of
+    /// values to build an Entity or RelationType rather than an Entity or RelationType as such),
+    /// and I didn't want to make do_query part of the Database trait,
+    /// preferring to keep it internal so only the database code can call it, and thus calls to db_query can be more
+    /// controlled to do it right per its comment, and anything else; I also didn't want to put the
+    /// knowledge about handling returned column data from the database, outside the database and model code
+    /// into whoever calls it (even though I have done that elsewhere, like in
+    /// fn get_relations_to_group_containing_this_group).
+    /// The starting_object_index_in is 0-based index to start with.
+    /// The max_vals_in is # of obj's to return (if None, means no limit).
+    // This fn used to be integrated with get_relation_types. Probably want to check both when
+    // making changes?
     pub fn get_entities_generic(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>,
@@ -884,21 +963,11 @@ impl PostgreSQLDatabase {
         template_entity: Option<i64>,     /*= None*/
         group_to_omit_id_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error> {
-        let some_sql = if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
-            ", r.name_in_reverse_direction, r.directionality "
-        } else {
-            ""
-        };
+        let some_sql = "";
         let more = " from Entity e ";
-        let more2 = if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
-            // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
-            // for which a RelationType row also exists.
-            ", RelationType r "
-        } else {
-            ""
-        };
+        let more2 = "";
         let more3 = " where";
-        let more4 = if !self.include_archived_entities {
+        let more4 = if !self.include_archived_entities() {
             " (not archived) and"
         } else {
             ""
@@ -909,13 +978,8 @@ impl PostgreSQLDatabase {
         } else {
             "".to_string()
         };
-        let more7 = if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
-            // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
-            // for which a RelationType row also exists.
-            " and e.id = r.entity_id "
-        } else {
-            ""
-        };
+        //let more7 = "";
+        //%%%%%:what is this doing? why do we query both ways, for entities? Are my changes compatible with it??:
         let more8 = if table_name_in.eq_ignore_ascii_case("EntityOnly") {
             Self::limit_to_entities_only(Util::SELECT_ENTITY_START)
         } else {
@@ -927,13 +991,10 @@ impl PostgreSQLDatabase {
         } else {
             "".to_string()
         };
-        let types = if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
-            "i64,String,i64,i64,bool,bool,String,String"
-        } else {
-            "i64,String,i64,i64,bool,bool,bool"
-        };
+        let types = "i64,String,i64,i64,bool,bool,bool";
         let sql = format!(
-            "{}{}{}{}{}{} true {}{}{}{}{} order by id limit {} offset {}",
+            //"{}{}{}{}{}{} true {}{}{}{}{} order by id limit {} offset {}",
+            "{}{}{}{}{}{} true {}{}{}{} order by id limit {} offset {}",
             Util::SELECT_ENTITY_START,
             some_sql,
             more,
@@ -942,28 +1003,27 @@ impl PostgreSQLDatabase {
             more4,
             more5,
             more6,
-            more7,
+            //more7,
             more8,
             more9,
             Self::check_if_should_be_all_results(max_vals_in),
             starting_object_index_in
         );
-        let early_results = self.db_query(transaction, sql.as_str(), types)?;
+        let early_results: Vec<Vec<Option<DataType>>> =
+            self.db_query(transaction.clone(), sql.as_str(), types)?;
         let early_results_len = early_results.len();
 
-        let final_results: Vec<Entity> = Vec::new();
+        let mut final_results: Vec<Entity> = Vec::new();
         // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
         // dependencies; is a cleaner design?)  (and similar ones)
-        for _result in early_results {
+        for result in early_results {
             // None of these values should be of "None" type. If they are it's a bug:
-            if table_name_in.eq_ignore_ascii_case(Util::RELATION_TYPE_TYPE) {
-                //%%%%%
-                // final_results.push(RelationType::new(&self, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(6).get.asInstanceOf[String],
-                //                                    result(7).get.asInstanceOf[String]))
-            } else {
-                //%%%%%
-                // add_new_entity_to_results(final_results, result)
-            }
+            self.add_new_entity_to_results(
+                db.clone(),
+                transaction.clone(),
+                &mut final_results,
+                result,
+            )?;
         }
         if final_results.len() != early_results_len {
             return Err(anyhow!(

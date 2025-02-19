@@ -149,7 +149,7 @@ impl PostgreSQLDatabase {
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
                             //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
                             let x: String = decode_mbe.unwrap();
-                            debug!("in db_query3: x is {} .", x);
+                            debug!("in db_query3: x is \"{}\".", x);
                             let y = DataType::String(Self::unescape_quotes_etc(x));
                             debug!("in db_query3: y is {:?} .", y);
                             row.push(Some(y));

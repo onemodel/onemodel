@@ -22,6 +22,7 @@ use crate::model::entity::Entity;
 use sqlx::{Postgres, Transaction};
 use std::cell::RefCell;
 use std::rc::Rc;
+use tracing::*;
 
 //move this to some *relation* struct like RelationType?
 /// See comments on/in (Util or RelationType).ask_for_name_in_reverse_direction() and .ask_for_relation_directionality().
@@ -118,7 +119,7 @@ impl RelationType {
         Ok(self.name_in_reverse_direction.clone())
     }
 
-    fn get_directionality(
+    pub fn get_directionality(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
@@ -179,7 +180,7 @@ impl RelationType {
             _ => return Err(anyhow!("How did we get here for {:?}?", data[1])),
         };
         self.directionality = match data[2].clone() {
-            Some(DataType::String(x)) => x,
+            Some(DataType::String(x)) => x.trim_end().to_string(),
             _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
         };
         Ok(())
@@ -188,9 +189,9 @@ impl RelationType {
     fn update(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        name_in: String,
-        name_in_reverse_direction_in: String,
-        directionality_in: String,
+        name_in: &str,
+        name_in_reverse_direction_in: &str,
+        directionality_in: &str,
     ) -> Result<(), anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -201,13 +202,13 @@ impl RelationType {
         {
             self.db.update_relation_type(
                 self.get_id(),
-                name_in.clone(),
-                name_in_reverse_direction_in.clone(),
-                directionality_in.clone(),
+                name_in,
+                name_in_reverse_direction_in,
+                directionality_in,
             )?;
-            self.name = name_in;
-            self.name_in_reverse_direction = name_in_reverse_direction_in;
-            self.directionality = directionality_in;
+            self.name = name_in.to_string();
+            self.name_in_reverse_direction = name_in_reverse_direction_in.to_string();
+            self.directionality = directionality_in.to_string();
         }
         Ok(())
     }

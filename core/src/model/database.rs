@@ -12,6 +12,7 @@ use crate::model::group::Group;
 use crate::model::relation_to_group::RelationToGroup;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
+use crate::model::relation_type::RelationType;
 use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 use anyhow::anyhow;
@@ -27,7 +28,8 @@ use std::rc::Rc;
 pub enum DataType {
     Float(f64),
     String(String),
-    // not supported in return values from sqlx: see db_query for another, related comment.
+    // not supported in return values from sqlx: see db_query in postgresql_database.rs 
+    // for another, related comment:
     // UnsignedInt(u64),
     Bigint(i64),
     Boolean(bool),
@@ -798,12 +800,14 @@ pub trait Database {
     ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error>;
     fn get_entities(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error>;
     fn get_entities_only(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>,         /*= None*/
@@ -824,10 +828,11 @@ pub trait Database {
     //                                     quantity_seeks_unit_not_type_in: bool) -> Result<Vec<Entity>, anyhow::Error>;
     fn get_relation_types(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    ) -> Result<Vec<Entity>, anyhow::Error>;
+    ) -> Result<Vec<RelationType>, anyhow::Error>;
     //%% fn get_classes(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/) -> Result<Vec<EntityClass>, anyhow::Error>;
     fn get_relation_type_count(
         &self,
@@ -1099,9 +1104,9 @@ pub trait Database {
     fn update_relation_type(
         &self,
         id_in: i64,
-        name_in: String,
-        name_in_reverse_direction_in: String,
-        directionality_in: String,
+        name_in: &str,
+        name_in_reverse_direction_in: &str,
+        directionality_in: &str,
     ) -> Result<(), anyhow::Error>;
     fn update_class_and_template_entity_name<'a, 'b>(
         &'a self,

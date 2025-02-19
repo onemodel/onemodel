@@ -1248,7 +1248,53 @@ mod test {
             // 2 more entities came during text attribute creation, which we don't care about either way, for this test
             assert(ending_entity_count == starting_entity_count + 2)
           }
-          
+          "TextAttribute create/delete/update methods" should "work" in {
+            let starting_entity_count = db.get_entity_count();
+            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testTextAttrs");
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(entity_id);
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
+            let a_text_value = "asdfjkl";
+
+            let ta = new TextAttribute(db, text_attribute_id);
+            let (pid1, atid1) = (ta.get_parent_id(), ta.get_attr_type_id());
+            assert(entity_id == pid1)
+            db.update_text_attribute(text_attribute_id, pid1, atid1, a_text_value, Some(123), 456)
+            // have to create new instance to re-read the data: immutability makes programs easier to work with
+            let ta2 = new TextAttribute(db, text_attribute_id);
+            let (pid2, atid2, txt2, vod2, od2) = (ta2.get_parent_id(), ta2.get_attr_type_id(), ta2.get_text, ta2.get_valid_on_date(), ta2.get_observation_date());
+            assert(pid2 == pid1)
+            assert(atid2 == atid1)
+            assert(txt2 == a_text_value)
+            // (the ".contains" suggested by the IDE just caused another problem)
+            //noinspection OptionEqualsSome
+            assert(vod2 == Some(123L))
+            assert(od2 == 456)
+
+            assert(db.get_text_attribute_count(entity_id) == 1)
+
+            let entity_countBeforeTextDeletion: i64 = db.get_entity_count();
+            db.delete_text_attribute(text_attribute_id)
+            assert(db.get_text_attribute_count(entity_id) == 0)
+            // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            let entity_countAfterTextDeletion: i64 = db.get_entity_count();
+            if entity_countAfterTextDeletion != entity_countBeforeTextDeletion {
+              fail("Got constraint backwards? Deleting text attribute changed Entity count from " + entity_countBeforeTextDeletion + " to " +
+                   entity_countAfterTextDeletion)
+            }
+            // then recreate the text attribute (to verify its auto-deletion when Entity is deleted, below)
+            create_test_text_attribute_with_one_entity(entity_id)
+            db.delete_entity(entity_id)
+            if db.get_text_attribute_count(entity_id) > 0 {
+              fail("Deleting the model entity should also have deleted its text attributes; get_text_attribute_count(entity_idInNewTransaction) is " +
+                   db.get_text_attribute_count(entity_id) + ".")
+            }
+
+            let ending_entity_count = db.get_entity_count();
+            // 2 more entities came during text attribute creation, which we don't care about either way, for this test
+            assert(ending_entity_count == starting_entity_count + 2)
+          }
           // */
 /*
           "DateAttribute create/delete/update methods" should "work" in {
@@ -1643,51 +1689,58 @@ mod test {
         }
       }
 */
-    /*
-      //%%%%%%
-      "relation to entity methods and relation type methods" should "work" in {
-        let startingEntityOnlyCount = db.get_entities_only_count();
-        let startingRelationTypeCount = db.get_relation_type_count();
-        let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
-        let startingRelCount = db.get_relation_types(0, Some(25)).size;
-        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
+#[test]
+fn relation_to_entity_methods_and_relation_type_methods() {
+    Util::initialize_tracing();
+    let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+    let tx = None;
+    
+    let starting_entity_only_count = db.get_entities_only_count(tx.clone(), false, None, None).unwrap();
+    let starting_relation_type_count = db.get_relation_type_count(tx.clone()).unwrap();
+    let entity_id = db.create_entity(tx.clone(), "test: org.onemodel.PSQLDbTest.testRelsNRelTypes()", None, None).unwrap();
+    let starting_rel_count = db.get_relation_types(db.clone(), tx.clone(), 0, Some(25)).unwrap().len();
+    let rel_type_id: i64 = db.create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
 
-        //verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
-        assert(db.get_relation_types(0, Some(25)).size == startingRelCount + 1)
-        assert(db.get_entities_only_count() == startingEntityOnlyCount + 1)
+    // Verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
+    assert_eq!(db.get_relation_types(db.clone(), tx.clone(), 0, Some(25)).unwrap().len(), starting_rel_count + 1);
+    assert_eq!(db.get_entities_only_count(tx.clone(), false, None, None).unwrap(), starting_entity_only_count + 1);
 
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id);
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-        let checkRelation = db.get_relation_to_local_entity_data(rel_type_id, entity_id, related_entity_id);
-        let checkValidOnDate = checkRelation(1);
-        assert(checkValidOnDate.isEmpty) // should get back None when created with None: see description for table's field in create_tables method.
-        assert(db.get_relation_to_local_entity_count(entity_id) == 1)
+    assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
 
-        let new_name = "test: org.onemodel.PSQLDbTest.relationupdate...";
-        let name_in_reverse = "nameinreverse;!@#$%^&*()-_=+{}[]:\"'<>?,./`~" //and verify can handle some variety of chars;
-        db.update_relation_type(rel_type_id, new_name, name_in_reverse, RelationType.BIDIRECTIONAL)
-        // have to create new instance to re-read the data:
-        let updatedRelationType = new RelationType(db, rel_type_id);
-        assert(updatedRelationType.get_name == new_name)
-        assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
-        assert(updatedRelationType.get_directionality == RelationType.BIDIRECTIONAL)
+    let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(&db, tx.clone(), entity_id, rel_type_id, None);
+    assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 1);
 
-        db.delete_relation_to_local_entity(rel_type_id, entity_id, related_entity_id)
-        assert(db.get_relation_to_local_entity_count(entity_id) == 0)
-        // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+    let check_relation = db.get_relation_to_local_entity_data(tx.clone(), rel_type_id, entity_id, related_entity_id).unwrap();
+    let check_valid_on_date = check_relation.get(1).unwrap();
+    // should get back None when created with None: see description for table's field in create_tables method.
+    assert!(check_valid_on_date.is_none());
+    assert_eq!(db.get_relation_to_local_entity_count(tx.clone(), entity_id, true).unwrap(), 1);
 
-        let entityOnlyCountBeforeRelationTypeDeletion: i64 = db.get_entities_only_count();
-        db.delete_relation_type(rel_type_id)
-        assert(db.get_relation_type_count() == startingRelationTypeCount)
-        // ensure that removing rel type doesn't remove more entities than it should, and that the 'onlyCount' works right.
-        //i.e. as above, verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
-        assert(entityOnlyCountBeforeRelationTypeDeletion == db.get_entities_only_count())
+    let new_name = "test: org.onemodel.PSQLDbTest.relationupdate...";
+    let name_in_reverse = "nameinreverse;!@#$%^&*()-_=+{}[]:\"'<>?,./`~"; // And verify can handle some variety of chars;
+    
+    db.update_relation_type(rel_type_id, new_name, name_in_reverse, RelationType::BIDIRECTIONAL).unwrap();
+    
+    // Have to create new instance to re-read the data:
+    let mut updated_relation_type = RelationType::new2(db.clone(), tx.clone(), rel_type_id).unwrap();
+    assert_eq!(updated_relation_type.get_name(tx.clone()).unwrap(), new_name);
+    assert_eq!(updated_relation_type.get_name_in_reverse_direction(tx.clone()).unwrap(), name_in_reverse);
+    assert_eq!(updated_relation_type.get_directionality(tx.clone()).unwrap(), RelationType::BIDIRECTIONAL);
 
-        db.delete_entity(entity_id)
-      }
-// */
+    db.delete_relation_to_local_entity(tx.clone(), rel_type_id, entity_id, related_entity_id).unwrap();
+    assert_eq!(db.get_relation_to_local_entity_count(tx.clone(), entity_id, true).unwrap(), 0);
+    // Next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed:
+    assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
+
+    let entity_only_count_before_relation_type_deletion: u64 = db.get_entities_only_count(tx.clone(), false, None, None).unwrap();
+    db.delete_relation_type(tx.clone(), rel_type_id).unwrap();
+    assert_eq!(db.get_relation_type_count(tx.clone()).unwrap(), starting_relation_type_count);
+    // Ensure that removing rel type doesn't remove more entities than it should, and that the 'onlyCount' works right.
+    // i.e. as above, verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
+    assert_eq!(entity_only_count_before_relation_type_deletion, db.get_entities_only_count(tx.clone(), false, None, None).unwrap());
+
+    db.delete_entity(tx.clone(), entity_id).unwrap();
+}
 
 /*
       "get_containing_groups_ids" should "find groups containing the test group" in {
@@ -2081,6 +2134,23 @@ impl TestStruct<'_>{
     create_test_text_attribute_with_one_entity(entity_id)
     create_test_text_attribute_with_one_entity(entity_id, Some(0))
   }
+#[test]
+fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
+    let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+    Util::initialize_tracing();
+
+    let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.attributes...").unwrap();
+    let rel_type_id = db.create_relation_type(RELATION_TYPE_NAME, "", RelationType::UNIDIRECTIONAL).unwrap();
+
+    // Create attributes & read back / other values (None already done above) as entered (confirms read back correctly)
+    // (These methods do the checks, internally)
+    create_test_relation_to_local_entity_with_one_entity(&db, entity_id, rel_type_id, Some(0)).unwrap();
+    create_test_relation_to_local_entity_with_one_entity(&db, entity_id, rel_type_id, Some(Utc::now().timestamp_millis())).unwrap();
+    create_test_quantity_attribute_with_two_entities(&db, entity_id).unwrap();
+    create_test_quantity_attribute_with_two_entities(&db, entity_id, Some(0)).unwrap();
+    create_test_text_attribute_with_one_entity(&db, entity_id).unwrap();
+    create_test_text_attribute_with_one_entity(&db, entity_id, Some(0)).unwrap();
+}
 // */
 
 /*

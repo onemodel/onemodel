@@ -21,6 +21,7 @@ use crate::model::relation_to_entity::RelationToEntity;
 use crate::model::relation_to_group::RelationToGroup;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
+use crate::model::relation_type::RelationType;
 use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 use anyhow::anyhow;
@@ -859,7 +860,7 @@ impl Database for PostgreSQLDatabase {
         //parent_id_in: i64,
         boolean_in: bool,
     ) -> Result<(), anyhow::Error> {
-        // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields 
+        // NOTE: IF ADDING COLUMNS TO WHAT IS UPDATED, SIMILARLY UPDATE caller's update method! (else some fields
         // don't get updated in memory when the db updates, and the behavior gets weird.
         self.db_action(
             transaction,
@@ -1147,17 +1148,17 @@ impl Database for PostgreSQLDatabase {
     fn update_relation_type(
         &self,
         id_in: i64,
-        name_in: String,
-        name_in_reverse_direction_in: String,
-        directionality_in: String,
+        name_in: &str,
+        name_in_reverse_direction_in: &str,
+        directionality_in: &str,
     ) -> Result<(), anyhow::Error> {
         assert!(name_in.len() > 0);
         assert!(name_in_reverse_direction_in.len() > 0);
         assert!(directionality_in.len() > 0);
         let name_in_reverse_direction: String =
-            Self::escape_quotes_etc(name_in_reverse_direction_in);
-        let name: String = Self::escape_quotes_etc(name_in);
-        let directionality: String = Self::escape_quotes_etc(directionality_in);
+            Self::escape_quotes_etc(name_in_reverse_direction_in.to_string());
+        let name: String = Self::escape_quotes_etc(name_in.to_string());
+        let directionality: String = Self::escape_quotes_etc(directionality_in.to_string());
         let tx = self.begin_trans()?;
         let transaction = Some(Rc::new(RefCell::new(tx)));
         self.db_action(
@@ -2931,9 +2932,9 @@ impl Database for PostgreSQLDatabase {
         // purpose: see comment in delete_objects
         transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         group_id_in: i64,
-    ) -> Result<(), anyhow::Error> 
-    where 
-        'a: 'b
+    ) -> Result<(), anyhow::Error>
+    where
+        'a: 'b,
     {
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
@@ -2952,7 +2953,7 @@ impl Database for PostgreSQLDatabase {
             local_tx_option
         };
         //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
-        
+
         let entity_count = self.get_group_size(transaction.clone(), group_id_in, 3)?;
         let (deletions1, deletions2) =
             self.delete_relation_to_group_and_all_recursively(transaction.clone(), group_id_in)?;
@@ -3027,7 +3028,11 @@ impl Database for PostgreSQLDatabase {
                 DataType::Bigint(x) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[0])),
             };
-            self.update_boolean_attribute_value(transaction.clone(), preference_attribute_id, value_in)
+            self.update_boolean_attribute_value(
+                transaction.clone(),
+                preference_attribute_id,
+                value_in,
+            )
         } else {
             let type_id_of_the_has_relation =
                 self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?;
@@ -3634,7 +3639,7 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    //   Idea: make starting_index_in and max_vals_in do something here.  How was that missed?  Is it needed? See 
+    //   Idea: make starting_index_in and max_vals_in do something here.  How was that missed?  Is it needed? See
     //   caller and its caller, and their comments for more info.
     /// @return (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date, sorting_index)
     fn get_relations_to_group_containing_this_group(
@@ -3643,7 +3648,7 @@ impl Database for PostgreSQLDatabase {
         group_id_in: i64,
         _starting_index_in: i64,
         _max_vals_in: Option<u64>, /*= None*/
-    //) -> Result<Vec<RelationToGroup>, anyhow::Error> {
+                                   //) -> Result<Vec<RelationToGroup>, anyhow::Error> {
     ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)?;
         let sql = format!("select rtg.id, rtg.entity_id, rtg.rel_type_id, rtg.group_id, rtg.valid_on_date, rtg.observation_date, \
@@ -3691,7 +3696,15 @@ impl Database for PostgreSQLDatabase {
                 Some(DataType::Bigint(x)) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[6])),
             };
-            let result_tuple = (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date, sorting_index);
+            let result_tuple = (
+                id,
+                entity_id,
+                rel_type_id,
+                group_id,
+                valid_on_date,
+                observation_date,
+                sorting_index,
+            );
             final_results.push(result_tuple)
         }
         if !(final_results.len() == early_results_len) {
@@ -3978,9 +3991,11 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let af_id = self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?;
         self.db_query_wrapper_for_one_row(transaction,
-                                          format!("select rte.id, rte.valid_on_date, rte.observation_date, asort.sorting_index \
+                                          format!("select rte.id, rte.valid_on_date, rte.observation_date, \
+                                                 asort.sorting_index \
                                                  from RelationToEntity rte, AttributeSorting asort where rte.rel_type_id={} \
-                                                 and rte.entity_id={} and rte.entity_id_2={} and rte.entity_id=asort.entity_id \
+                                                 and rte.entity_id={} and rte.entity_id_2={} \
+                                                 and rte.entity_id=asort.entity_id \
                                                  and asort.attribute_form_id={} and rte.id=asort.attribute_id",
                                                   relation_type_id_in, entity_id1_in, entity_id2_in, af_id).as_str(),
                                           Util::GET_RELATION_TO_LOCAL_ENTITY__RESULT_TYPES)
@@ -4068,11 +4083,13 @@ impl Database for PostgreSQLDatabase {
         } else {
             ""
         };
-        self.db_query_wrapper_for_one_row(transaction,
-                                          format!("select name, name_in_reverse_direction, directionality from RelationType r, Entity e where {} \
-                                    e.id=r.entity_id and r.entity_id={}",
-                                                  not_archived, id_in).as_str(),
-                                          Util::GET_RELATION_TYPE_DATA__RESULT_TYPES)
+        let result = self.db_query_wrapper_for_one_row(transaction,
+                                          format!("select name, name_in_reverse_direction, directionality \
+                                              from RelationType r, Entity e \
+                                              where {} e.id=r.entity_id and r.entity_id={}",
+                                              not_archived, id_in).as_str(),
+                                              Util::GET_RELATION_TYPE_DATA__RESULT_TYPES);
+        result
     }
 
     // idea: combine all the methods that look like this (s.b. easier now, in scala, than java)
@@ -4492,13 +4509,16 @@ impl Database for PostgreSQLDatabase {
 
     /// Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
     /// 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
+    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
     fn get_entities(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error> {
         self.get_entities_generic(
+            db,
             transaction,
             starting_object_index_in,
             max_vals_in,
@@ -4517,8 +4537,10 @@ impl Database for PostgreSQLDatabase {
     ///
     /// The parameter omitEntity is (at this writing) used for the id of a class-defining (template) entity, which we shouldn't show for editing when showing all the
     /// entities in the class (editing that is a separate menu option), otherwise it confuses things.
+    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
     fn get_entities_only(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>,         /*= None*/
@@ -4528,6 +4550,7 @@ impl Database for PostgreSQLDatabase {
         group_to_omit_id_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error> {
         self.get_entities_generic(
+            db,
             transaction,
             starting_object_index_in,
             max_vals_in,
@@ -4539,23 +4562,120 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    /// similar to get_entities
+    ///// similar to get_entities*
+    // This fn used to be integrated with get_entities_generic. Probably want to check both when
+    // making changes?
+    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
     fn get_relation_types(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
-    ) -> Result<Vec<Entity>, anyhow::Error> {
-        self.get_entities_generic(
-            transaction,
-            starting_object_index_in,
-            max_vals_in,
-            Util::RELATION_TYPE_TYPE,
-            None,
-            false,
-            None,
-            None,
-        )
+        max_vals_in: Option<i64>,
+    ) -> Result<Vec<RelationType>, anyhow::Error> {
+        let some_sql = ", r.name_in_reverse_direction, r.directionality ";
+        let more = " from Entity e ";
+        // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
+        // for which a RelationType row also exists.
+        let more2 = ", RelationType r ";
+        let more3 = " where";
+        let more4 = if !self.include_archived_entities() {
+            " (not archived) and"
+        } else {
+            ""
+        };
+        //%%%%
+        //let more5 = Self::class_limit(limit_by_class, class_id_in)?;
+        //let more5 = "".to_string();
+        //let more6 = "".to_string();
+        // for RelationTypes, hit both tables since one "inherits", but limit it to those rows
+        // for which a RelationType row also exists.
+        let more7 = " and e.id = r.entity_id ";
+        //let more8 = "".to_string();
+        //let more9 = "".to_string();
+        let types = "i64,String,i64,i64,bool,bool,bool,String,String";
+        let sql = format!(
+            //"{}{}{}{}{}{} true {}{}{}{}{} order by id limit {} offset {}",
+            "{}{}{}{}{}{} true {} order by id limit {} offset {}",
+            Util::SELECT_ENTITY_START,
+            some_sql,
+            more,
+            more2,
+            more3,
+            more4,
+            //more5,
+            //more6,
+            more7,
+            //more8,
+            //more9,
+            Self::check_if_should_be_all_results(max_vals_in),
+            starting_object_index_in
+        );
+        let early_results: Vec<Vec<Option<DataType>>> =
+            self.db_query(transaction, sql.as_str(), types)?;
+        let early_results_len = early_results.len();
+
+        let mut final_results: Vec<RelationType> = Vec::new();
+        // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+        // dependencies; is a cleaner design?)  (and similar ones)
+        for result in early_results {
+            // None of these values should be of "None" type. If they are it's a bug:
+            //%%%
+            //final_results.push(RelationType::new(&self, result[0].get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(6).get.asInstanceOf[String],
+            //                                    result(7).get.asInstanceOf[String]))
+            //let Some(DataType::Bigint(entity_id)): i64 = result[0];
+            let entity_id: i64 =
+                match result[0] {
+                    Some(DataType::Bigint(x)) => x,
+                    _ => return Err(anyhow!(
+                        "In get_relation_types, Did not expect {:?} in retrieved column for id.",
+                        result[0]
+                    )),
+                };
+            let name: String =
+                match result[1].clone() {
+                    Some(DataType::String(x)) => x,
+                    _ => return Err(anyhow!(
+                        "In get_relation_types, Did not expect {:?} in retrieved column for name.",
+                        result[1]
+                    )),
+                };
+            let name_in_reverse_direction = match result[7].clone() {
+                Some(DataType::String(x)) => x,
+                _ => {
+                    return Err(anyhow!(
+                        "In get_relation_types, Did not expect {:?} in retrieved column \
+                        for name_in_reverse_direction.",
+                        result[7]
+                    ))
+                }
+            };
+            let directionality = match result[8].clone() {
+                Some(DataType::String(x)) => x,
+                _ => {
+                    return Err(anyhow!(
+                        "In get_relation_types, Did not expect {:?} in retrieved column for \
+                        directionality.",
+                        result[8]
+                    ))
+                }
+            };
+            final_results.push(RelationType::new(
+                db.clone(),
+                entity_id,
+                name,
+                name_in_reverse_direction,
+                directionality,
+            ));
+        }
+        if final_results.len() != early_results_len {
+            return Err(anyhow!(
+                "In get_entities_generic, final_results.len() ({}) != early_results.len() ({})",
+                final_results.len(),
+                early_results_len
+            ));
+        }
+        Ok(final_results)
     }
 
     fn get_matching_entities(
@@ -4721,7 +4841,7 @@ impl Database for PostgreSQLDatabase {
         entity_id_in: i64,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    //) -> Result<Vec<RelationToGroup>, anyhow::Error> {
+                                  //) -> Result<Vec<RelationToGroup>, anyhow::Error> {
     ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error> {
         // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
         // and there is no requirement/enforcement that all groups defined in eig are in an rtg, so they could get dif't/unexpected results.
@@ -4779,7 +4899,7 @@ impl Database for PostgreSQLDatabase {
         let early_results = self.db_query(transaction.clone(), sql.as_str(), "i64")?;
         let early_results_len = early_results.len();
         let mut group_id_results: Vec<i64> = Vec::new();
-        // idea: should the remainder of this method be moved to Group, so the 
+        // idea: should the remainder of this method be moved to Group, so the
         // persistence layer doesn't know anything about the Model? (helps avoid circular
         // dependencies? is a cleaner design?)  Already moved some logic into Entity's
         // fn get_containing_relations_to_group.
@@ -4799,15 +4919,11 @@ impl Database for PostgreSQLDatabase {
         }
         let mut rtgs: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> = Vec::new();
         for gid in group_id_results {
-            let rtgs_for_this_group: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> = self.get_relations_to_group_containing_this_group(
-                transaction.clone(),
-                gid,
-                0,
-                None,
-            )?;
+            let rtgs_for_this_group: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> = self
+                .get_relations_to_group_containing_this_group(transaction.clone(), gid, 0, None)?;
             for one_rtg in rtgs_for_this_group {
                 rtgs.push(one_rtg);
-            };
+            }
         }
         Ok(rtgs)
     }
@@ -5345,9 +5461,10 @@ impl Database for PostgreSQLDatabase {
                 self.find_first_class_id_by_name(transaction.clone(), class_name_in, true)?;
             match found_id {
                 Some(found_id) => {
-                    let template_entity_id = EntityClass::get_template_entity_id_2(self, transaction, found_id)?;
+                    let template_entity_id =
+                        EntityClass::get_template_entity_id_2(self, transaction, found_id)?;
                     (found_id, template_entity_id)
-                },
+                }
                 None => {
                     let (class_id, entity_id) =
                         self.create_class_and_its_template_entity(transaction, class_name_in)?;

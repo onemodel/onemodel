@@ -61,8 +61,8 @@ impl Entity {
         new_entries_stick_to_top: bool,
     ) -> Entity {
         Entity {
-            id,
             db,
+            id,
             name,
             class_id,
             insertion_date,
@@ -1311,6 +1311,7 @@ impl Entity {
           }
 
     %%*/
+     
 }
 
 #[cfg(test)]
