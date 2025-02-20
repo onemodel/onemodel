@@ -1199,108 +1199,73 @@ mod test {
           }
 */
 
-    //%%%%%%
-    /*
-          "TextAttribute create/delete/update methods" should "work" in {
-            let starting_entity_count = db.get_entity_count();
-            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testTextAttrs");
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-            let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(entity_id);
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-            let a_text_value = "asdfjkl";
+    #[test]
+    fn text_attribute_create_delete_update_methods() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let tx = db.begin_trans().unwrap();
+        let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
-            let ta = new TextAttribute(db, text_attribute_id);
-            let (pid1, atid1) = (ta.get_parent_id(), ta.get_attr_type_id());
-            assert(entity_id == pid1)
-            db.update_text_attribute(text_attribute_id, pid1, atid1, a_text_value, Some(123), 456)
-            // have to create new instance to re-read the data: immutability makes programs easier to work with
-            let ta2 = new TextAttribute(db, text_attribute_id);
-            let (pid2, atid2, txt2, vod2, od2) = (ta2.get_parent_id(), ta2.get_attr_type_id(), ta2.get_text, ta2.get_valid_on_date(), ta2.get_observation_date());
-            assert(pid2 == pid1)
-            assert(atid2 == atid1)
-            assert(txt2 == a_text_value)
-            // (the ".contains" suggested by the IDE just caused another problem)
-            //noinspection OptionEqualsSome
-            assert(vod2 == Some(123L))
-            assert(od2 == 456)
+        let starting_entity_count = db.get_entity_count(tx.clone()).unwrap();
+        let entity_id = db.create_entity(tx.clone(), "test: org.onemodel.PSQLDbTest.testTextAttrs", None, None).unwrap();
+        assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
+        let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
+        assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 1);
+        let a_text_value = "asdfjkl";
 
-            assert(db.get_text_attribute_count(entity_id) == 1)
+        let mut ta = TextAttribute::new2(db.clone(), tx.clone(), text_attribute_id).unwrap();
+        let (pid1, atid1) = (ta.get_parent_id(tx.clone()).unwrap(), ta.get_attr_type_id(tx.clone()).unwrap());
+        assert_eq!(entity_id, pid1);
+        db.update_text_attribute(tx.clone(), text_attribute_id, pid1, atid1, a_text_value, Some(123), 456).unwrap();
+        // have to create new instance to re-read the data: immutability makes programs easier to work with
+        let mut ta2 = TextAttribute::new2(db.clone(), tx.clone(), text_attribute_id).unwrap();
+        let pid2 = ta2.get_parent_id(tx.clone()).unwrap();
+        let atid2 = ta2.get_attr_type_id(tx.clone()).unwrap();
+        {
+            let txt2 = ta2.get_text(tx.clone()).unwrap();
+            assert_eq!(txt2, a_text_value);
+        //}
+        //{
+            let vod2 = ta2.get_valid_on_date(tx.clone()).unwrap();
+            assert_eq!(vod2, Some(123i64));
+        }
+        let od2 = ta2.get_observation_date(tx.clone()).unwrap();
+        assert_eq!(pid2, pid1);
+        assert_eq!(atid2, atid1);
+        assert_eq!(od2, 456);
+        assert_eq!(db.get_text_attribute_count(tx.clone(), entity_id).unwrap(), 1);
 
-            let entity_countBeforeTextDeletion: i64 = db.get_entity_count();
-            db.delete_text_attribute(text_attribute_id)
-            assert(db.get_text_attribute_count(entity_id) == 0)
-            // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-            let entity_countAfterTextDeletion: i64 = db.get_entity_count();
-            if entity_countAfterTextDeletion != entity_countBeforeTextDeletion {
-              fail("Got constraint backwards? Deleting text attribute changed Entity count from " + entity_countBeforeTextDeletion + " to " +
-                   entity_countAfterTextDeletion)
-            }
-            // then recreate the text attribute (to verify its auto-deletion when Entity is deleted, below)
-            create_test_text_attribute_with_one_entity(entity_id)
-            db.delete_entity(entity_id)
-            if db.get_text_attribute_count(entity_id) > 0 {
-              fail("Deleting the model entity should also have deleted its text attributes; get_text_attribute_count(entity_idInNewTransaction) is " +
-                   db.get_text_attribute_count(entity_id) + ".")
-            }
+        let entity_count_before_text_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        db.delete_text_attribute(tx.clone(), text_attribute_id).unwrap();
+        assert_eq!(db.get_text_attribute_count(tx.clone(), entity_id).unwrap(), 0);
+        // next line should work because of the database logic (triggers as of this writing) 
+        // that removes sorting rows when attrs are removed):
+        assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
+        let entity_count_after_text_deletion: u64 = db.get_entity_count(tx.clone(), ).unwrap();
+        if entity_count_after_text_deletion != entity_count_before_text_deletion {
+            panic!("Got constraint backwards? Deleting text attribute changed Entity count from {} to {}",
+                entity_count_before_text_deletion, 
+                entity_count_after_text_deletion);
+        }
+        // then recreate the text attribute (to verify its auto-deletion when Entity is deleted, below)
+        create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
+        db.delete_entity(tx.clone(), entity_id).unwrap();
+        if db.get_text_attribute_count(tx.clone(), entity_id).unwrap() > 0 {
+            panic!("Deleting the model entity should also have deleted its text \
+                attributes; get_text_attribute_count(entity_idInNewTransaction) is {}.", 
+                db.get_text_attribute_count(tx.clone(), entity_id).unwrap());
+        }
 
-            let ending_entity_count = db.get_entity_count();
-            // 2 more entities came during text attribute creation, which we don't care about either way, for this test
-            assert(ending_entity_count == starting_entity_count + 2)
-          }
-          "TextAttribute create/delete/update methods" should "work" in {
-            let starting_entity_count = db.get_entity_count();
-            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testTextAttrs");
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-            let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(entity_id);
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-            let a_text_value = "asdfjkl";
-
-            let ta = new TextAttribute(db, text_attribute_id);
-            let (pid1, atid1) = (ta.get_parent_id(), ta.get_attr_type_id());
-            assert(entity_id == pid1)
-            db.update_text_attribute(text_attribute_id, pid1, atid1, a_text_value, Some(123), 456)
-            // have to create new instance to re-read the data: immutability makes programs easier to work with
-            let ta2 = new TextAttribute(db, text_attribute_id);
-            let (pid2, atid2, txt2, vod2, od2) = (ta2.get_parent_id(), ta2.get_attr_type_id(), ta2.get_text, ta2.get_valid_on_date(), ta2.get_observation_date());
-            assert(pid2 == pid1)
-            assert(atid2 == atid1)
-            assert(txt2 == a_text_value)
-            // (the ".contains" suggested by the IDE just caused another problem)
-            //noinspection OptionEqualsSome
-            assert(vod2 == Some(123L))
-            assert(od2 == 456)
-
-            assert(db.get_text_attribute_count(entity_id) == 1)
-
-            let entity_countBeforeTextDeletion: i64 = db.get_entity_count();
-            db.delete_text_attribute(text_attribute_id)
-            assert(db.get_text_attribute_count(entity_id) == 0)
-            // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-            let entity_countAfterTextDeletion: i64 = db.get_entity_count();
-            if entity_countAfterTextDeletion != entity_countBeforeTextDeletion {
-              fail("Got constraint backwards? Deleting text attribute changed Entity count from " + entity_countBeforeTextDeletion + " to " +
-                   entity_countAfterTextDeletion)
-            }
-            // then recreate the text attribute (to verify its auto-deletion when Entity is deleted, below)
-            create_test_text_attribute_with_one_entity(entity_id)
-            db.delete_entity(entity_id)
-            if db.get_text_attribute_count(entity_id) > 0 {
-              fail("Deleting the model entity should also have deleted its text attributes; get_text_attribute_count(entity_idInNewTransaction) is " +
-                   db.get_text_attribute_count(entity_id) + ".")
-            }
-
-            let ending_entity_count = db.get_entity_count();
-            // 2 more entities came during text attribute creation, which we don't care about either way, for this test
-            assert(ending_entity_count == starting_entity_count + 2)
-          }
-          // */
+        let ending_entity_count = db.get_entity_count(tx.clone()).unwrap();
+        // 2 more entities came during text attribute creation, which we don't care about either way, for this test
+        assert_eq!(ending_entity_count, starting_entity_count + 2);
+      }
 /*
+ 
           "DateAttribute create/delete/update methods" should "work" in {
             let starting_entity_count = db.get_entity_count();
             let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testDateAttrs");
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
+            assert(db.get_attribute_sorting_rows_count(Some(entity_id)), 0);
             let date_attribute_id: i64 = create_test_date_attribute_with_one_entity(entity_id);
             assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
             let da = new DateAttribute(db, date_attribute_id);
