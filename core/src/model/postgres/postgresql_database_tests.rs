@@ -2085,38 +2085,24 @@ impl TestStruct<'_>{
   }
 */
 
-//%%%%%%
-/*
-  "attributes" should "handle valid_on_dates properly in & out of db" in {
-    let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.attributes...");
-    let rel_type_id = db.create_relation_type(RELATION_TYPE_NAME, "", RelationType.UNIDIRECTIONAL);
-    // create attributes & read back / other values (None alr done above) as entered (confirms read back correctly)
-    // (these methods do the checks, internally)
-    create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id, Some(0L))
-    create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id, Some(System.currentTimeMillis()))
-    create_test_quantity_attribute_with_two_entities(entity_id)
-    create_test_quantity_attribute_with_two_entities(entity_id, Some(0))
-    create_test_text_attribute_with_one_entity(entity_id)
-    create_test_text_attribute_with_one_entity(entity_id, Some(0))
-  }
 #[test]
 fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
-    let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
+    let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
     Util::initialize_tracing();
+    let tx=None;
 
-    let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.attributes...").unwrap();
-    let rel_type_id = db.create_relation_type(RELATION_TYPE_NAME, "", RelationType::UNIDIRECTIONAL).unwrap();
+    let entity_id = db.create_entity(tx.clone(), "test: org.onemodel.PSQLDbTest.attributes...", None, None).unwrap();
+    let rel_type_id = db.create_relation_type(tx.clone(), RELATION_TYPE_NAME, "", RelationType::UNIDIRECTIONAL).unwrap();
 
     // Create attributes & read back / other values (None already done above) as entered (confirms read back correctly)
     // (These methods do the checks, internally)
-    create_test_relation_to_local_entity_with_one_entity(&db, entity_id, rel_type_id, Some(0)).unwrap();
-    create_test_relation_to_local_entity_with_one_entity(&db, entity_id, rel_type_id, Some(Utc::now().timestamp_millis())).unwrap();
-    create_test_quantity_attribute_with_two_entities(&db, entity_id).unwrap();
-    create_test_quantity_attribute_with_two_entities(&db, entity_id, Some(0)).unwrap();
-    create_test_text_attribute_with_one_entity(&db, entity_id).unwrap();
-    create_test_text_attribute_with_one_entity(&db, entity_id, Some(0)).unwrap();
+    create_test_relation_to_local_entity_with_one_entity(&db, tx.clone(), entity_id, rel_type_id, Some(0));
+    create_test_relation_to_local_entity_with_one_entity(&db, tx.clone(), entity_id, rel_type_id, Some(Utc::now().timestamp_millis()));
+    create_test_quantity_attribute_with_two_entities(&db, tx.clone(), entity_id, None);
+    create_test_quantity_attribute_with_two_entities(&db, tx.clone(), entity_id, Some(0));
+    create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
+    create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, Some(0));
 }
-// */
 
 /*
   "testAddQuantityAttributeWithBadParentID" should "not work" in {
