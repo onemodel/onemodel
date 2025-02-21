@@ -692,28 +692,36 @@ impl Util {
                     "enter \"now\".  ESC to exit this.  ",
                     "For dates in the BC era you can prefix them with a minus sign: -3400 for example, but either way omit a space ",
                     "before the year), like -3400-01-31 23:59:59:999 GMT, entered at least up through the year, up to ~262000 years AD or BC.")
-                    //%%format cmts betr here
-                //IDEA: I had thought to say:  "Or for "all time", enter just 0.  ", BUT (while this is probably solved, it's not until the later part of
-                // this comment):
+                //IDEA: I had thought to say:  "Or for "all time", enter just 0.  ", BUT (while this is probably 
+                //solved, it's not until the later part of this comment):
                 //    "There is ambiguity about BC that needs some " +
-                //    "investigation, because java allows a '0' year (which for now means 'for all time' in just this program), but normal human time doesn't " +
-                //    "allow a '0' year, so maybe you have to subtract a year from all BC things for them to work right, and enter/read them accordingly, until " +
-                //    "someone learns for sure, and we decide whether to subtract a year from everything BC for you automatically. Hm. *OR* maybe dates in year " +
-                //    "zero " +
-                //    "just don't mean anything so can be ignored by users, and all other dates' entry are just fine, so there's nothing to do but use it as is? " +
-                //    "But that would have to be kept in mind if doing any relative date calculations in the program, e.g. # of years, spanning 0.)\n" +
+                //    "investigation, because java allows a '0' year (which for now means 'for all \
+                //    time' in just this program), but normal human time doesn't " +
+                //    "allow a '0' year, so maybe you have to subtract a year from all BC things \
+                //    for them to work right, and enter/read them accordingly, until " +
+                //    "someone learns for sure, and we decide whether to subtract a year from everything \
+                //    BC for you automatically. Hm. *OR* maybe dates in year " +
+                //    "zero just don't mean anything so can be ignored by users, and all other dates' \
+                //    entry are just fine, so there's nothing to do but use it as is? " +
+                //    "But that would have to be kept in mind if doing any relative date calculations in \
+                //    the program, e.g. # of years, spanning 0.)\n" +
                 //    "Also, real events with more " +
-                //    "specific time-tracking needs will probably need to model their own time-related entity classes, and establish relations to them, within " +
-                //    "their use of OM.")
+                //    "specific time-tracking needs will probably need to model their own time-related \
+                //    entity classes, and establish relations to them, within their use of OM.")
                 //ABOUT THAT LAST COMMENT: WHY DOES JAVA ALLOW A 0 YEAR, UNLESS ONLY BECAUSE IT USES long #'S? SEE E.G.
                 // http://www.msevans.com/calendar/daysbetweendatesapplet.php
-                //which says: "...[java?] uses a year 0, which is really 1 B.C. For B.C. dates, you have to remember that the years are off by one--10 B.C.
-                // to [java?] is really 11 B.C.", but this really needs more investigation on what is the Right Thing to do.
-                // Or, just let the dates go in & out of the data, interpreted just as they are now, but the savvy users will recognize that dates in year zero just
-                // don't mean anything, thus the long values in that range don't mean anything so can be disregarded (is that how it really works in java??), (or if
+                // which says: "...[java?] uses a year 0, which is really 1 B.C. For B.C. dates, you have 
+                // to remember that the years are off by one--10 B.C.
+                // to [java?] is really 11 B.C.", but this really needs more investigation on what is 
+                // the Right Thing to do.
+                // Or, just let the dates go in & out of the data, interpreted just as they are now, but 
+                // the savvy users will recognize that dates in year zero just
+                // don't mean anything, thus the long values in that range don't mean anything so can 
+                // be disregarded (is that how it really works in java??), (or if
                 // so we could inform users when such a date is present, that it's bogus and to use 1 instead)?
                 // **SO:** it is already in the task list to have a separate flag in the database for "all time".
-                // AND: how does Rust (chrono crate?) address all that?  Are we storing dates in UTC or what? sch code for GMT, MST, UTC.
+                // AND: how does Rust (chrono crate?) address all that?  Are we storing dates in UTC or 
+                // what? sch code for GMT, MST, UTC.
                 // and how does om know to show mst vs. mdt in the output of entities created in summer vs. winter?
             }
             DateType::OBSERVED => {
@@ -783,9 +791,10 @@ impl Util {
                 None => {
                     match date_type_in {
                         DateType::VALID => {
-                    //%%format cmts betr here
-                            // don't let user cancel from the "valid on" date: blank there means "unknown" (but user can ESC again from observed date. Making these
-                            // consistent probably meant figuring out how to modify jline2 (again, now) so that it will distinguish between user pressing ESC and user
+                            // don't let user cancel from the "valid on" date: blank there means "unknown" 
+                            // (but user can ESC again from observed date. Making these
+                            // consistent probably meant figuring out how to modify jline2 (again, now) 
+                            // so that it will distinguish between user pressing ESC and user
                             // pressing Enter with a blank line: now IIRC it just returns a blank line for both.
                             // Or something, now that using a readline library in Rust.
                             break (None, false);
@@ -903,16 +912,15 @@ impl Util {
             line_opt = lines.next();
         }
         text_to_show
-                    //%%format cmts betr here
-        /*idea: do this again somehow, or drop the idea?  There is the issue of providing the AGPL (etc/mine?) with the app,
-                and maybe it could also address that:
+        /*idea: do this again somehow, or drop the idea?  There is the issue of providing the AGPL (etc/mine?) 
+          with the app, and maybe it could also address that:
                     case e: Exception =>
-                      let ans = ui.ask_yes_no_question("\n\nThe file LICENSE is missing from the distribution of this program or for " +;
-                                                    "some other reason can't be displayed normally;
-                                    } please let us know to " +
-                                                    " correct that, and please be aware of the license.  You can go to this URL to see it:\n" +
-                                                    "    http://onemodel.org/download/OM-LICENSE \n" +
-                                                    ".  (Do you want to see the detailed error output?)")
+                      let ans = ui.ask_yes_no_question("\n\nThe file LICENSE is missing from the distribution \
+                      of this program or for " +;
+                        "some other reason can't be displayed normally; } please let us know to " +
+                        " correct that, and please be aware of the license.  You can go to this URL to see it:\n" +
+                        "    http://onemodel.org/download/OM-LICENSE \n" +
+                        ".  (Do you want to see the detailed error output?)")
         */
     }
 
@@ -1013,17 +1021,21 @@ impl Util {
     }
 
     fn edit_multiline_text(input: &String, ui: &TextUI) -> Result<String, String> {
-                    //%%format cmts betr here
         //idea: allow user to change the edit command setting (ie which editor to use) from here?
-        //idea: allow user to prevent this message in future. Could be by using ui.ask_yes_no_question instead, adding to the  prompt "(ask this again?)", with
-        // 'y' as default, and storing the answer in the db.SYSTEM_ENTITY_NAME somewhere perhaps.
+        //idea: allow user to prevent this message in future. Could be by using ui.ask_yes_no_question 
+        //instead, adding to the  prompt "(ask this again?)", with
+        //'y' as default, and storing the answer in the db.SYSTEM_ENTITY_NAME somewhere perhaps.
         // %%?:
-        //PUT THIS BACK (& review/test it) after taking the time to read the (Rust equivalent of the) Process package's classes or something like
-        // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
+        //PUT THIS BACK (& review/test it) after taking the time to read the (Rust equivalent of the) 
+        //Process package's classes or something like
+        // apache commons has, and learn to launch vi workably, from scala. And will the terminal 
+        // settings changes by OM have to be undone/redone for it?:
         //        let command: String = db.get_text_editor_command;
-        //        ui.display_text("Using " + command + " as the text editor, but you can change that by navigating to the Main OM menu with ESC, search for
+        //        ui.display_text("Using " + command + " as the text editor, but you can change that by 
+        //        navigating to the Main OM menu with ESC, search for
         // existing " +
-        //                       "entities, choose the first one (called " + PostgreSQLDatabase.SYSTEM_ENTITY_NAME + "), choose " +
+        //                       "entities, choose the first one (called " + 
+        //                       PostgreSQLDatabase.SYSTEM_ENTITY_NAME + "), choose " +
         //                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
         //                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
         //                       PostgreSQLDatabase.TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME + " and edit it with option 3.")
@@ -1255,16 +1267,17 @@ impl Util {
                     new_obj_list_size - 1,
                     previously_highlighted_index_in_obj_list_in,
                 );
-                    //%%format cmts betr here
                 //IF CODE WORKS OK w/ the below this comment block, it can be deleted. Try deleting an entry at the beginning,
                 //one at the end, one in the middle, and none? adding? write tests for it or skip?
                 // if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
                 //     // %%why doesn't Rust know the element is an Entity, vs. <Unknown>? why can't just return
-                //     // objects_to_display_in.get(new_index_to_highlight)? Maybe rustc would do OK but the IDE doesn't? try changing at first 1 of the
+                //     // objects_to_display_in.get(new_index_to_highlight)? Maybe rustc would do OK but the 
+                //     // IDE doesn't? try changing at first 1 of the
                 //     // 3 below places back, and see if rustc gets it right? or am I mistaken?
                 //     match objects_to_display_in.get(new_index_to_highlight) {
                 //         None => Ok(None),
-                //         //does the next line actually work?? ie, unknown how clone would work w/ its db. If not, remove derive clone fr entity?
+                //         //does the next line actually work?? ie, unknown how clone would work w/ its db. 
+                //         //If not, remove derive clone fr entity?
                 //         //might have to create a new instance of the entity, instead, with new2()?
                 //         // Some(&e) => Some(e.to_owned()),
                 //         Some(&e) => {
