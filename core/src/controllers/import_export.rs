@@ -354,6 +354,8 @@ class ImportExport(val ui: TextUI, controller: Controller) {
       let builder = getRestOfLines(r, new mutable.StringBuilder);
       builder.toString()
     }
+    //%%can use entity_in.add_text_attribute or ..2, instead? if so, del commented create* method
+    //there, as this is the only user of it.
     entity_in.create_text_attribute(attr_type_id, text, caller_manages_transactions_in = true)
   }
 

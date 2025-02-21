@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# (This header copied from /usr/local/bin/custom/canonicalScriptHeader.)
+set -eu #-o pipefail
+set -x  #comment this line out if the output is too noisy and you don't need to debug.
+# Purpose:  Show % complete, with %%s found and lines of comments, since 2025-02-20 (a Thursday).
+
+#if [[ $# -eq 0 ]]; then
+#  echo "Usage: $0 <%%>"
+#  exit 1
+#fi
+#SCRIPT_DIR=$(dirname $(readlink -f $0))
+#ASSUMES a ulb script!:  . $SCRIPT_DIR/script-functions  #provides ISOBSD='false' or 'true', but see xterm script here for alt?
+
+# 100% is 27.8% comments in source files, 0% is 18.6% (what core-scala has).
+COMMENT_LINES_PER_MIL_TARGET=186 #18.6% goal for comments relative to total source files, found in scala code.
+COMMENT_LINES_PER_MIL_STARTING=279 #27.8% starting point
+COMMENT_LINES_PER_MIL_TO_REMOVE_TARGET=$(( $COMMENT_LINES_PER_MIL_STARTING - $COMMENT_LINES_PER_MIL_TARGET ))
+# Another way: 100% is 0 %%s in source files. 0% is 340 %%s in source files.
+MARKERS_STARTING_COUNT=340
+
+# ("Per mil" is like percent but with an extra digit for precision.)
+cd ~lacall/proj/om/core
+TOTALS_LINE=$(cloc src|grep "SUM:")
+BLANK_LINES=$(echo $TOTALS_LINE|cut -d' ' -f 3)
+COMMENT_LINES=$(echo $TOTALS_LINE|cut -d' ' -f 4)
+CODE_LINES=$(echo $TOTALS_LINE|cut -d' ' -f 5)
+TOTAL_LINES=$(( $BLANK_LINES + $COMMENT_LINES + $CODE_LINES ))
+COMMENT_LINES_REMAINING_PER_MIL=$(( $COMMENT_LINES * 1000 / $TOTAL_LINES ))
+WORK_REMAINING=$(( $COMMENT_LINES_REMAINING_PER_MIL - $COMMENT_LINES_PER_MIL_TARGET ))
+WORK_REMAINING_PER_MIL=$(( $WORK_REMAINING * 1000 / $COMMENT_LINES_PER_MIL_TO_REMOVE_TARGET ))
+WORK_COMPLETED_PER_MIL=$(( 1000 - $WORK_REMAINING_PER_MIL ))
+echo "****** $WORK_COMPLETED_PER_MIL per mil target comments removed since 2025-02-20 (drop a digit for % complete)."
+
+
+cd src
+NUM_PERCENT_MARKERS=$(helper_findgrepfiles %%|wc|colrm 9)
+MARKERS_REMAINING_PER_MIL=$(( $NUM_PERCENT_MARKERS * 1000 / $MARKERS_STARTING_COUNT ))
+echo "****** $(( 1000 - $MARKERS_REMAINING_PER_MIL )) per mil %% markers removed since 2025-02-20 (drop a digit for % complete."

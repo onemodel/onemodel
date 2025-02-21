@@ -4177,6 +4177,7 @@ impl Database for PostgreSQLDatabase {
                        false, false)
     }
 
+    //%%:
     //   /// Returns whether the stored and calculated md5hashes match, and an error message when they don't.
     // fn verify_file_attribute_content_integrity(fileAttributeIdIn: i64) -> (Boolean, Option<String>) {
     //     // Idea: combine w/ similar logic in FileAttribute::md5_hash?

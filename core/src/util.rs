@@ -134,6 +134,7 @@ impl Util {
     pub const DATEFORMAT3: &'static str = "%Y-%m-%d %H:%M %Z";
     pub const DATEFORMAT4: &'static str = "%Y-%m-%d %H:%M";
     pub const DATEFORMAT5: &'static str = "%Y-%m-%d";
+    //%%?:
     // the chrono crate does not seem to support the ERA (BC/AD), but instead shows negative years.
     // const DATEFORMAT_WITH_ERA: &'static str = "%Y-%m-%d %H:%M:%S:%3f %Z";
     // const DATEFORMAT_WITH_ERA: &'static str = "GGyyyy-MM-dd HH:mm:ss:SSS zzz";
@@ -300,7 +301,7 @@ impl Util {
     //"  Or ESC to exit.  " +
     const TOO_LONG_MESSAGE: &'static str = "value too long for type";
 
-    /*
+    /*%%
        fn entity_menu_leading_text(entity_in: Entity) {
        "**CURRENT ENTITY " + entity_in.get_id() + ": " + entity_in.get_display_string(/*%%with_color = */true)
      }
@@ -691,6 +692,7 @@ impl Util {
                     "enter \"now\".  ESC to exit this.  ",
                     "For dates in the BC era you can prefix them with a minus sign: -3400 for example, but either way omit a space ",
                     "before the year), like -3400-01-31 23:59:59:999 GMT, entered at least up through the year, up to ~262000 years AD or BC.")
+                    //%%format cmts betr here
                 //IDEA: I had thought to say:  "Or for "all time", enter just 0.  ", BUT (while this is probably solved, it's not until the later part of
                 // this comment):
                 //    "There is ambiguity about BC that needs some " +
@@ -781,6 +783,7 @@ impl Util {
                 None => {
                     match date_type_in {
                         DateType::VALID => {
+                    //%%format cmts betr here
                             // don't let user cancel from the "valid on" date: blank there means "unknown" (but user can ESC again from observed date. Making these
                             // consistent probably meant figuring out how to modify jline2 (again, now) so that it will distinguish between user pressing ESC and user
                             // pressing Enter with a blank line: now IIRC it just returns a blank line for both.
@@ -900,6 +903,7 @@ impl Util {
             line_opt = lines.next();
         }
         text_to_show
+                    //%%format cmts betr here
         /*idea: do this again somehow, or drop the idea?  There is the issue of providing the AGPL (etc/mine?) with the app,
                 and maybe it could also address that:
                     case e: Exception =>
@@ -957,6 +961,7 @@ impl Util {
         _ui: &TextUI,
     ) -> String {
         // see create_tables (or UI prompts) for meanings of bi/uni/non...
+        // %%?:
         //   match directionality_in {
         //       RelationType::RelationDirectionality::UNI => "".to_string(),
         //       RelationType::RelationDirectionality::NON => name_in,
@@ -1008,9 +1013,11 @@ impl Util {
     }
 
     fn edit_multiline_text(input: &String, ui: &TextUI) -> Result<String, String> {
+                    //%%format cmts betr here
         //idea: allow user to change the edit command setting (ie which editor to use) from here?
         //idea: allow user to prevent this message in future. Could be by using ui.ask_yes_no_question instead, adding to the  prompt "(ask this again?)", with
         // 'y' as default, and storing the answer in the db.SYSTEM_ENTITY_NAME somewhere perhaps.
+        // %%?:
         //PUT THIS BACK (& review/test it) after taking the time to read the (Rust equivalent of the) Process package's classes or something like
         // apache commons has, and learn to launch vi workably, from scala. And will the terminal settings changes by OM have to be undone/redone for it?:
         //        let command: String = db.get_text_editor_command;
@@ -1048,6 +1055,7 @@ impl Util {
         //                   std::fs::write(path.to_str(), input)?;
         match write_result {
             Err(e) => {
+                //%%?:
                 // ui.display_text1(format!("Unable to write temporary file for editing: {}", e.to_string()).as_str());
                 // e
                 // Instead of using "?" to return the error, creating a new one so I know what type to return from the function.
@@ -1189,6 +1197,7 @@ impl Util {
 
             // no point in a transaction to destroy tables, it seems.
             db.destroy_tables().unwrap();
+            //%%?:
             // let mut tx = db
             //     .begin_trans()
             //     .expect("Failure to begin transaction before creating test data.");
@@ -1246,6 +1255,7 @@ impl Util {
                     new_obj_list_size - 1,
                     previously_highlighted_index_in_obj_list_in,
                 );
+                    //%%format cmts betr here
                 //IF CODE WORKS OK w/ the below this comment block, it can be deleted. Try deleting an entry at the beginning,
                 //one at the end, one in the middle, and none? adding? write tests for it or skip?
                 // if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
@@ -1323,7 +1333,7 @@ impl Util {
         debug!("Backtrace.status()={}", bt);
     }
 
-    /*
+    /*%%
         /// Returns None if user wants to cancel.
         fn ask_for_text_attribute_text(_: &dyn Database, dh: &TextAttributeDataHolder, editing_in: bool, ui: &TextUI) -> Option<TextAttributeDataHolder> {
           // let outDH = dh_in.asInstanceOf[TextAttributeDataHolder];
@@ -1529,9 +1539,9 @@ impl Util {
                     }
                 }
             }
-    */
+    %%*/
 
-    /*%
+    /*
     package org.onemodel.core
 
     import java.io.{BufferedReader, PrintWriter, StringWriter}
@@ -1542,5 +1552,5 @@ impl Util {
     import org.onemodel.core.model._
 
     import scala.annotation.tailrec
-    */
+    %%*/
 }

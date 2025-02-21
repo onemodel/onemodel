@@ -32,12 +32,12 @@ pub struct TextAttribute {
     id: i64,
     db: Rc<dyn Database>,
     text: String,               /*%=null in scala.*/
-    already_read_data: bool,    /*%%= false*/
-    parent_id: i64,             /*%%= 0_i64*/
-    attr_type_id: i64,          /*%%= 0_i64*/
-    valid_on_date: Option<i64>, /*%%= None*/
-    observation_date: i64,      /*%%= 0_i64*/
-    sorting_index: i64,         /*%%= 0_i64*/
+    already_read_data: bool,    /*= false*/
+    parent_id: i64,             /*= 0_i64*/
+    attr_type_id: i64,          /*= 0_i64*/
+    valid_on_date: Option<i64>, /*= None*/
+    observation_date: i64,      /*= 0_i64*/
+    sorting_index: i64,         /*= 0_i64*/
 }
 
 impl TextAttribute {

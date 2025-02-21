@@ -246,6 +246,7 @@ impl EntityClass {
 
 #[cfg(test)]
 mod test {
+    //%%%%%give the git url to chatgpt and see if it can convert the rest of the commented code?? or in what size of parts?
     /*
       let mut mTemplateEntity: Entity = null;
       let mut mEntityClass: EntityClass = null;

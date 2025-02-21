@@ -37,12 +37,12 @@ pub struct QuantityAttribute {
     // like how additional class vals are set when the other constructor (what's the term again?), is called. How to do the other constructor w/o a db hit.
     unit_id: i64,               /*= 0_i64*/
     number: f64,                /*= .0_f64*/
-    already_read_data: bool,    /*%%= false*/
-    parent_id: i64,             /*%%= 0_i64*/
-    attr_type_id: i64,          /*%%= 0_i64*/
-    valid_on_date: Option<i64>, /*%%= None*/
-    observation_date: i64,      /*%%= 0_i64*/
-    sorting_index: i64,         /*%%= 0_i64*/
+    already_read_data: bool,    /*= false*/
+    parent_id: i64,             /*= 0_i64*/
+    attr_type_id: i64,          /*= 0_i64*/
+    valid_on_date: Option<i64>, /*= None*/
+    observation_date: i64,      /*= 0_i64*/
+    sorting_index: i64,         /*= 0_i64*/
 }
 
 impl QuantityAttribute {

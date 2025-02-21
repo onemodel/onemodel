@@ -41,11 +41,11 @@ pub struct RelationToGroup {
     // unlike in the scala code self does not extend Attribute and inherit attr_type_id.
     rel_type_id: i64,
     group_id: i64,
-    already_read_data: bool, /*%%= false*/
-    // %%parent_id: i64,             /*%%= 0_i64*/
-    valid_on_date: Option<i64>, /*%%= None*/
-    observation_date: i64,      /*%%= 0_i64*/
-    sorting_index: i64,         /*%%= 0_i64*/
+    already_read_data: bool, /*= false*/
+    // %%parent_id: i64,             /*= 0_i64*/
+    valid_on_date: Option<i64>, /*= None*/
+    observation_date: i64,      /*= 0_i64*/
+    sorting_index: i64,         /*= 0_i64*/
 }
 
 impl RelationToGroup {

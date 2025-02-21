@@ -1187,7 +1187,7 @@ mod test {
         // Rollback transaction (handled automatically when tx goes out of scope)
         // No explicit rollback needed, as per sqlx docs.
     }
-    /*
+    /*%%
           "Attribute and AttributeSorting row deletion" should "both happen automatically upon entity deletion" in {
             let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest sorting rows stuff");
             create_test_quantity_attribute_with_two_entities(entity_id)
@@ -1260,7 +1260,7 @@ mod test {
         // 2 more entities came during text attribute creation, which we don't care about either way, for this test
         assert_eq!(ending_entity_count, starting_entity_count + 2);
       }
-/*
+/*%%
  
           "DateAttribute create/delete/update methods" should "work" in {
             let starting_entity_count = db.get_entity_count();
@@ -1490,7 +1490,7 @@ mod test {
         // (if the transaction is even needed here; arguably not.)
     }
 
-    /*
+    /*%%
       "FileAttribute create/delete/update methods" should "work" in {
         let starting_entity_count = db.get_entity_count();
         let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testFileAttrs");
@@ -1707,7 +1707,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
     db.delete_entity(tx.clone(), entity_id).unwrap();
 }
 
-/*
+/*%%
       "get_containing_groups_ids" should "find groups containing the test group" in {
         /*
         Makes a thing like this:        entity1    entity3
@@ -1906,7 +1906,7 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
-    /*
+    /*%%
 #[test]
 fn test_lifetime_issue() -> Result<(), Box<dyn std::error::Error>> {
     //why does the order of next 2 lines matter?? Or only sometimes?
@@ -2104,7 +2104,7 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
     create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, Some(0));
 }
 
-/*
+/*%%
   "testAddQuantityAttributeWithBadParentID" should "not work" in {
     println!("starting testAddQuantityAttributeWithBadParentID")
     let badParentId: i64 = db.findIdWhichIsNotKeyOfAnyEntity; // Database should not allow adding quantity with a bad parent (Entity) ID!
@@ -2553,5 +2553,5 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
         assert(sameRtgs.size == 1)
         assert(sameRtgs.get(0).get_id == rtg.get_id)
       }
-     */
+     %%*/
 }

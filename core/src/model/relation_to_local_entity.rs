@@ -41,10 +41,10 @@ pub struct RelationToLocalEntity {
     rel_type_id: i64,
     entity_id1: i64,
     entity_id2: i64,
-    valid_on_date: Option<i64>, /*%%= None*/
-    observation_date: i64,      /*%%= 0_i64*/
-    sorting_index: i64,         /*%%= 0_i64*/
-    already_read_data: bool,    /*%%= false*/
+    valid_on_date: Option<i64>, /*= None*/
+    observation_date: i64,      /*= 0_i64*/
+    sorting_index: i64,         /*= 0_i64*/
+    already_read_data: bool,    /*= false*/
 }
 
 impl RelationToLocalEntity {

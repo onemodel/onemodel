@@ -852,8 +852,8 @@ impl Entity {
         )
     }
 
-    /*%%%%%
-     //%%why do we have both add..() (just below) and create..() here?
+     /* //%%why do we have both add..() (just below) and create..() here? If import_export.rs (as
+     //noted there) can use add_text_attribute or 2 (below) instead, then can delete this.
       fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> /*= None*/,
                             observation_date_in: i64 = Utc::now().timestamp_millis(), caller_manages_transactions_in: bool /*= false*/,
                             sorting_index_in: Option<i64> /*= None*/) -> /*id*/ i64 {
@@ -886,7 +886,7 @@ impl Entity {
       }
       count
     }
-    %%  */
+    */
 
     /// See add_quantity_attribute(...) methods for comments.
     fn add_text_attribute<'a, 'b>(

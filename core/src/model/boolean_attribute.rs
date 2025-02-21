@@ -206,7 +206,6 @@ impl Attribute for BooleanAttribute {
         //END COPIED BLOCK descended from Attribute.assign_common_vars (might be in comment in boolean_attribute.rs)
 
         //BEGIN COPIED BLOCK descended from AttributeWithValidAndObservedDates.assign_common_vars (unclear how to do better):
-        //%%%%% AND fix the related/similarly COPIED blocks elsewhere, w/ same fixes?
         self.valid_on_date = match data[4] {
             Some(DataType::Bigint(x)) => Some(x),
             None => None,
