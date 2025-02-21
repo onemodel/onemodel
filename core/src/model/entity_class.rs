@@ -165,6 +165,13 @@ impl EntityClass {
 
         //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
         //(like similar place in BooleanAttribute)
+        //fixed version (ck after a test fails due to it)?:
+        //self.create_default_attributes = match data[2] {
+        //    Some(DataType::Boolean(x)) => x,
+        //    //None => None,
+        //    _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
+        //};
+        //old version:
         // self.create_default_attributes = match data[2] {
         //     Some(DataType::Boolean(b)) => b,
         //     _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
@@ -191,6 +198,7 @@ impl EntityClass {
         self.get_name(transaction)
     }
 
+    //%%%%%%?:
     // fn get_display_string -> String {
     // let mut result = "";
     // try {
@@ -246,8 +254,7 @@ impl EntityClass {
 
 #[cfg(test)]
 mod test {
-    //%%%%%give the git url to chatgpt and see if it can convert the rest of the commented code?? or in what size of parts?
-    /*
+    /*%%
       let mut mTemplateEntity: Entity = null;
       let mut mEntityClass: EntityClass = null;
       let mut db: PostgreSQLDatabase = null;
@@ -258,7 +265,6 @@ mod test {
         // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
         result
       }
-
       protected fn setUp() {
         //start fresh
         PostgreSQLDatabaseTest.tearDownTestDB()
@@ -275,23 +281,36 @@ mod test {
       protected fn tearDown() {
         PostgreSQLDatabaseTest.tearDownTestDB()
       }
+// */
 
-      "get_display_string" should "return a useful stack trace string, when called with a nonexistent class" in {
-        // for example, if the class has been deleted by one part of the code, or one user process in a console window (as an example), and is still
-        // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an class that's gone due to a bug).
+    //%%%%%%
+    #[test]
+    fn get_display_string_returns_useful_stack_trace() {
+        // For example, if the class has been deleted by one part of the code, or deleted by one user 
+        // process in a window (as an example), and is still referenced and attempted to 
+        // be displayed by another. Or to be somewhat helpful 
+        // if we try to get info on an class that's gone due to a bug.
         // (But should this issue go away w/ better design involving more use of immutability or something?)
-        let id = 0L;
-        let mock_db = mock[PostgreSQLDatabase];
-        when(mock_db.class_key_exists(id)).thenReturn(true)
-        when(mock_db.get_class_data(id)).thenThrow(new RuntimeException("some exception"))
+        //
+        let id = 0;
 
-        let entityClass = new EntityClass(mock_db, id);
+        //was, when using mocks; is an idea for future:
+        //let mock_db = mock[PostgreSQLDatabase];
+        //when(mock_db.class_key_exists(id)).thenReturn(true)
+        //when(mock_db.get_class_data(id)).thenThrow(new RuntimeException("some exception"))
+        //let entityClass = new EntityClass(mock_db, id);
+        
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+
+        let entity_class = new EntityClass(mock_db, id);
+        when(mock_db.get_class_data(id)).thenThrow(new RuntimeException("some exception"))
         let ec = entityClass.get_display_string;
         assert(ec.contains("Unable to get class description due to"))
         assert(ec.toLowerCase.contains("exception"))
         assert(ec.toLowerCase.contains("at org.onemodel"))
       }
-
+/*
       "get_display_string" should "return name" in {
         let id = 0L;
         let template_entity_id = 1L;
