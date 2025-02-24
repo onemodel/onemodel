@@ -17,6 +17,7 @@ use crate::util::Util;
 use sqlx::{Postgres, Transaction};
 use std::cell::RefCell;
 use std::rc::Rc;
+use tracing::debug;
 
 pub struct EntityClass {
     db: Rc<dyn Database>,
@@ -165,6 +166,13 @@ impl EntityClass {
 
         //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
         //(like similar place in BooleanAttribute)
+        //fixed version (ck after a test fails due to it)?:
+        //self.create_default_attributes = match data[2] {
+        //    Some(DataType::Boolean(x)) => x,
+        //    //None => None,
+        //    _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
+        //};
+        //old version:
         // self.create_default_attributes = match data[2] {
         //     Some(DataType::Boolean(b)) => b,
         //     _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
@@ -184,28 +192,37 @@ impl EntityClass {
         self.id
     }
 
+    fn get_display_string_helper(
+        &mut self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        // for explanation see comment in entity_class.rs fn get_display_string.
+        fail: bool,
+    ) -> Result<String, Error> {
+        if fail {
+            Err(anyhow!("Testing: intentionally generated error in get_display_string_helper"))
+        } else {
+            self.get_name(transaction)
+        }
+    }
+
     fn get_display_string(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<String, Error> {
-        self.get_name(transaction)
-    }
-
-    // fn get_display_string -> String {
-    // let mut result = "";
-    // try {
-    //   result = get_display_string_helper
-    // } catch {
-    //   case e: Exception =>
-    //     result += "Unable to get class description due to: "
-    //     result += {
-    //       let sw: StringWriter = new StringWriter();
-    //       e.printStackTrace(new PrintWriter(sw))
-    //       sw.toString
-    //     }
-    // }
-    // result
-    // }
+        // This parameter is for testing, to avoid using mocking crates that got very many 
+        // lifetime or other errors from the compiler. (I tried mockall, unimock, faux, and mry.)
+        fail: bool,
+    ) -> String {
+         let result = self.get_display_string_helper(transaction, fail);
+         match result {
+             Ok(s) => s,
+             Err(e) => {
+                 debug!("Unable to get class description due to error.\nFull error is: {:?},\nand \
+                     just as a short string: {} [end full error debug output]", 
+                     e, e.to_string());
+                 format!("{}", e)
+             },
+         }
+     }
 
     fn update_class_and_template_entity_name<'a, 'b>(
         &'a mut self,
@@ -246,8 +263,13 @@ impl EntityClass {
 
 #[cfg(test)]
 mod test {
-    //%%%%%give the git url to chatgpt and see if it can convert the rest of the commented code?? or in what size of parts?
-    /*
+use crate::model::database::{DataType, Database};
+use crate::util::Util;
+use std::rc::Rc;
+use super::EntityClass;
+
+
+    /*%%
       let mut mTemplateEntity: Entity = null;
       let mut mEntityClass: EntityClass = null;
       let mut db: PostgreSQLDatabase = null;
@@ -258,7 +280,6 @@ mod test {
         // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
         result
       }
-
       protected fn setUp() {
         //start fresh
         PostgreSQLDatabaseTest.tearDownTestDB()
@@ -275,30 +296,44 @@ mod test {
       protected fn tearDown() {
         PostgreSQLDatabaseTest.tearDownTestDB()
       }
+// */
 
-      "get_display_string" should "return a useful stack trace string, when called with a nonexistent class" in {
-        // for example, if the class has been deleted by one part of the code, or one user process in a console window (as an example), and is still
-        // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an class that's gone due to a bug).
+    #[test]
+    fn get_display_string_returns_useful_stack_trace() {
+        // For example, if the class has been deleted by one part of the code, or deleted by one user 
+        // process in a window (as an example), and is still referenced and attempted to 
+        // be displayed by another. Or to be somewhat helpful 
+        // if we try to get info on an class that's gone due to a bug.
         // (But should this issue go away w/ better design involving more use of immutability or something?)
-        let id = 0L;
-        let mock_db = mock[PostgreSQLDatabase];
-        when(mock_db.class_key_exists(id)).thenReturn(true)
-        when(mock_db.get_class_data(id)).thenThrow(new RuntimeException("some exception"))
+        //
+        //Was, when using mocks; is an idea for future (but see the "fail" parameter comment in
+        //entity_class.rs fn get_display_string .):
+        // An ID that will not exist in the test db, as we wouldn't have created enough objects to
+        // get there (about a quintillion IIRC):
+        //let id = 0;
+        //let mock_db = mock[PostgreSQLDatabase];
+        //when(mock_db.class_key_exists(id)).thenReturn(true)
+        //when(mock_db.get_class_data(id)).thenThrow(new RuntimeException("some exception"))
+        //let entityClass = new EntityClass(mock_db, id);
+        
+        Util::initialize_tracing();
+        let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
+        let tx = None;
 
-        let entityClass = new EntityClass(mock_db, id);
-        let ec = entityClass.get_display_string;
-        assert(ec.contains("Unable to get class description due to"))
-        assert(ec.toLowerCase.contains("exception"))
-        assert(ec.toLowerCase.contains("at org.onemodel"))
+        let (class_id, _entity_id) = db.create_class_and_its_template_entity(tx.clone(), "testclass").unwrap();
+        let mut entity_class = EntityClass::new2(db.clone(), tx.clone(), class_id).unwrap();
+        let ec: String = entity_class.get_display_string(tx.clone(), true);
+        assert!(ec.contains("intentionally generated error"));
       }
-
+/*
       "get_display_string" should "return name" in {
         let id = 0L;
         let template_entity_id = 1L;
         let mock_db = mock[PostgreSQLDatabase];
         when(mock_db.class_key_exists(id)).thenReturn(true)
         when(mock_db.get_class_name(id)).thenReturn(Some("class1Name"))
-        when(mock_db.get_class_data(id)).thenReturn(Vec<Option<DataType>>(Some("class1Name"), Some(template_entity_id), Some(true)))
+        when(mock_db.get_class_data(id)).thenReturn(Vec<Option<DataType>>(Some("class1Name"), 
+            Some(template_entity_id), Some(true)))
 
         let entityClass = new EntityClass(mock_db, id);
         let ds = entityClass.get_display_string;

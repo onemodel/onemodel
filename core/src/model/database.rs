@@ -16,7 +16,7 @@ use crate::model::relation_type::RelationType;
 use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 use anyhow::anyhow;
-// use mockall::{automock, mock, predicate::*};
+//use mockall::{automock, mock, predicate::*};
 use sqlx::{Postgres, Transaction};
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -36,7 +36,6 @@ pub enum DataType {
     Smallint(i32),
 }
 
-// #[automock]
 pub trait Database {
     fn is_remote(&self) -> bool;
     fn id<'a>(

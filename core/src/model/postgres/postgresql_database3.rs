@@ -488,6 +488,7 @@ impl Database for PostgreSQLDatabase {
         Ok(results_in_out)
     }
 
+    /// Returns the class_id and entity_id, in a tuple. 
     fn create_class_and_its_template_entity<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,

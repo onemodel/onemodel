@@ -1710,7 +1710,7 @@ impl PostgreSQLDatabase {
         // }
     }
 
-    /** Returns the class_id and entity_id, in a tuple. */
+    /// Returns the class_id and entity_id, in a tuple. 
     pub fn create_class_and_its_template_entity2<'a, 'b>(
         &'a self,
         transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,

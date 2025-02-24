@@ -36,7 +36,13 @@ features = [
     #"macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
 ]
 [dev-dependencies]
-mockall = "0.11.4"
+# (faux had fewer dependencies and still many users, compared to mockall. Could see others? I
+# got these ideas from https://blog.logrocket.com/mocking-rust-mockall-alternatives/ .)
+# For reasons I didn't use them, see entity_class.rs get_display_string parameter "fail".
+#faux = "0.1.12"
+# mockall = "0.13.1"
+# mry = "0.10.0"
+# unimock = "0.6.7"
 
 #not yet supported here, in rustc 1.72.1.  See main.rs "...elided..." instead:
 #[lints.rust]

@@ -1337,10 +1337,20 @@ impl Util {
         }
     }
 
+    // compare to fn print_backtrace.
+    // %%test this somehow? is it used? Was thinking of using it in entity_class
+    // get_display_string.
+    pub fn get_backtrace() -> String {
+        let bt = std::backtrace::Backtrace::capture();
+        let mut s = "".to_string();
+        s.push_str(format!("Backtrace.status()={:?}", bt.status()).as_str());
+        s.push_str(format!("Backtrace.status()={}", bt).as_str());
+        s
+    }
+
+    ///Print a backtrace (stack trace) if the RUST_BACKTRACE environment variable is nonzero and
+    ///the platform supports it: (and if in debug mode, at least for now)
     pub fn print_backtrace() {
-        //Print a backtrace (stack trace) if the RUST_BACKTRACE environment variable is nonzero and
-        //the platform supports it:
-        //(and if in debug mode, at least for now)
         let bt = std::backtrace::Backtrace::capture();
         debug!("Backtrace.status()={:?}", bt.status());
         debug!("Backtrace.status()={}", bt);
