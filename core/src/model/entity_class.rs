@@ -11,13 +11,12 @@
 use anyhow::{anyhow, Error, Result};
 //use crate::color::Color;
 use crate::model::database::{DataType, Database};
-//use crate::model::entity::Entity;
 use crate::model::id_wrapper::IdWrapper;
 use crate::util::Util;
 use sqlx::{Postgres, Transaction};
 use std::cell::RefCell;
 use std::rc::Rc;
-use tracing::debug;
+use tracing::*;
 
 pub struct EntityClass {
     db: Rc<dyn Database>,
@@ -99,9 +98,8 @@ impl EntityClass {
     pub fn get_template_entity_id(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<i64, anyhow::Error>
-    //where
-    //    'a: 'b,
+    ) -> Result<i64, anyhow::Error> 
+    //    where 'a: 'b
     {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -130,7 +128,7 @@ impl EntityClass {
         };
         Ok(template_entity_id)
     }
-    
+
     fn get_create_default_attributes(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -185,6 +183,7 @@ impl EntityClass {
     }
 
     fn get_id_wrapper(&self) -> IdWrapper {
+        //%%later: is this idea better replaced with something else in Rust?:
         IdWrapper::new(self.id)
     }
 
@@ -199,7 +198,9 @@ impl EntityClass {
         fail: bool,
     ) -> Result<String, Error> {
         if fail {
-            Err(anyhow!("Testing: intentionally generated error in get_display_string_helper"))
+            Err(anyhow!(
+                "Testing: intentionally generated error in get_display_string_helper"
+            ))
         } else {
             self.get_name(transaction)
         }
@@ -208,21 +209,24 @@ impl EntityClass {
     fn get_display_string(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        // This parameter is for testing, to avoid using mocking crates that got very many 
+        // This parameter is for testing, to avoid using mocking crates that got very many
         // lifetime or other errors from the compiler. (I tried mockall, unimock, faux, and mry.)
         fail: bool,
     ) -> String {
-         let result = self.get_display_string_helper(transaction, fail);
-         match result {
-             Ok(s) => s,
-             Err(e) => {
-                 debug!("Unable to get class description due to error.\nFull error is: {:?},\nand \
-                     just as a short string: {} [end full error debug output]", 
-                     e, e.to_string());
-                 format!("{}", e)
-             },
-         }
-     }
+        let result = self.get_display_string_helper(transaction, fail);
+        match result {
+            Ok(s) => s,
+            Err(e) => {
+                debug!(
+                    "Unable to get class description due to error.\nFull error is: {:?},\nand \
+                     just as a short string: {} [end full error debug output]",
+                    e,
+                    e.to_string()
+                );
+                format!("{}", e)
+            }
+        }
+    }
 
     fn update_class_and_template_entity_name<'a, 'b>(
         &'a mut self,
@@ -232,16 +236,19 @@ impl EntityClass {
     where
         'a: 'b,
     {
+        //%%%%%%for next line: had to do a get, not a direct reference. Make sure to fix that
+        //elsewhere in this class and beyond!!
+        let template_entity_id: i64 = self.get_template_entity_id(transaction.clone())?;
         let ref rc_db = &self.db;
-        let ref cloned = rc_db.clone();
-        cloned.update_class_and_template_entity_name(
+        let ref cloned_db = rc_db.clone();
+        cloned_db.update_class_and_template_entity_name(
             transaction.clone(),
             self.get_id(),
-            self.template_entity_id,
+            template_entity_id,
             name_in,
         )?;
         self.name = name_in.to_string();
-        Ok(self.template_entity_id)
+        Ok(template_entity_id)
     }
 
     fn update_create_default_attributes(
@@ -263,46 +270,43 @@ impl EntityClass {
 
 #[cfg(test)]
 mod test {
-use crate::model::database::{DataType, Database};
-use crate::util::Util;
-use std::rc::Rc;
-use super::EntityClass;
+    use super::EntityClass;
+    use crate::model::database::{DataType, Database};
+    use crate::model::entity::Entity;
+    use crate::util::Util;
+    use std::rc::Rc;
+    use tracing::*;
 
-
-    /*%%
-      let mut mTemplateEntity: Entity = null;
-      let mut mEntityClass: EntityClass = null;
-      let mut db: PostgreSQLDatabase = null;
-
-      override fn runTests(testName: Option<String>, args: Args) -> Status {
-        setUp()
-        let result:Status = super.runTests(testName,args);
-        // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
-        result
-      }
-      protected fn setUp() {
-        //start fresh
-        PostgreSQLDatabaseTest.tearDownTestDB()
-
-        // instantiation does DB setup (creates tables, default data, etc):
-        db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
-
-        let name = "name of test class and its template entity";
-        let (classId, entity_id): (i64, i64) = db.createClassAndItsTemplateEntity(name, name);
-        mTemplateEntity = new Entity(db, entity_id)
-        mEntityClass = new EntityClass(db, classId)
-      }
-
-      protected fn tearDown() {
-        PostgreSQLDatabaseTest.tearDownTestDB()
-      }
-// */
+    /*Idea: Maybe could do something like this again to make the tests run faster. Also in other structs' tests.
+          let mut mTemplateEntity: Entity = null;
+          let mut mEntityClass: EntityClass = null;
+          let mut db: PostgreSQLDatabase = null;
+          override fn runTests(testName: Option<String>, args: Args) -> Status {
+            setUp()
+            let result:Status = super.runTests(testName,args);
+            // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
+            result
+          }
+          protected fn setUp() {
+            //start fresh
+            PostgreSQLDatabaseTest.tearDownTestDB()
+            // instantiation does DB setup (creates tables, default data, etc):
+            db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+            let name = "name of test class and its template entity";
+            let (classId, entity_id): (i64, i64) = db.createClassAndItsTemplateEntity(name, name);
+            mTemplateEntity = new Entity(db, entity_id)
+            mEntityClass = new EntityClass(db, classId)
+          }
+          protected fn tearDown() {
+            PostgreSQLDatabaseTest.tearDownTestDB()
+          }
+    // */
 
     #[test]
     fn get_display_string_returns_useful_stack_trace() {
-        // For example, if the class has been deleted by one part of the code, or deleted by one user 
-        // process in a window (as an example), and is still referenced and attempted to 
-        // be displayed by another. Or to be somewhat helpful 
+        // For example, if the class has been deleted by one part of the code, or deleted by one user
+        // process in a window (as an example), and is still referenced and attempted to
+        // be displayed by another. Or to be somewhat helpful
         // if we try to get info on an class that's gone due to a bug.
         // (But should this issue go away w/ better design involving more use of immutability or something?)
         //
@@ -315,48 +319,71 @@ use super::EntityClass;
         //when(mock_db.class_key_exists(id)).thenReturn(true)
         //when(mock_db.get_class_data(id)).thenThrow(new RuntimeException("some exception"))
         //let entityClass = new EntityClass(mock_db, id);
-        
+
         Util::initialize_tracing();
         let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
         let tx = None;
 
-        let (class_id, _entity_id) = db.create_class_and_its_template_entity(tx.clone(), "testclass").unwrap();
+        let (class_id, _entity_id) = db
+            .create_class_and_its_template_entity(tx.clone(), "testclass")
+            .unwrap();
         let mut entity_class = EntityClass::new2(db.clone(), tx.clone(), class_id).unwrap();
-        let ec: String = entity_class.get_display_string(tx.clone(), true);
-        assert!(ec.contains("intentionally generated error"));
-      }
-/*
-      "get_display_string" should "return name" in {
-        let id = 0L;
-        let template_entity_id = 1L;
-        let mock_db = mock[PostgreSQLDatabase];
-        when(mock_db.class_key_exists(id)).thenReturn(true)
-        when(mock_db.get_class_name(id)).thenReturn(Some("class1Name"))
-        when(mock_db.get_class_data(id)).thenReturn(Vec<Option<DataType>>(Some("class1Name"), 
-            Some(template_entity_id), Some(true)))
+        let ecs: String = entity_class.get_display_string(tx.clone(), true);
+        assert!(ecs.contains("intentionally generated error"));
+    }
 
-        let entityClass = new EntityClass(mock_db, id);
-        let ds = entityClass.get_display_string;
-        assert(ds == "class1Name")
-      }
+    #[test]
+    fn get_display_string_returns_name() {
+        //ideas from when using mocks, in case we use them again:
+        //let id = 0L;
+        //let template_entity_id = 1L;
+        //let mock_db = mock[PostgreSQLDatabase];
+        //when(mock_db.class_key_exists(id)).thenReturn(true)
+        //when(mock_db.get_class_name(id)).thenReturn(Some("class1Name"))
+        //when(mock_db.get_class_data(id)).thenReturn(Vec<Option<DataType>>(Some("class1Name"),
+        //    Some(template_entity_id), Some(true)))
+        //let entityClass = new EntityClass(mock_db, id);
 
-      "update_class_and_template_entity_name" should "work" in {
+        Util::initialize_tracing();
+        let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
+        let tx = None;
+        let (class_id, _entity_id) = db
+            .create_class_and_its_template_entity(tx.clone(), "class1Name")
+            .unwrap();
+        let mut entity_class = EntityClass::new2(db.clone(), tx.clone(), class_id).unwrap();
+        let ecs: String = entity_class.get_display_string(tx.clone(), false);
+        assert_eq!(ecs, "class1Name");
+    }
+
+    #[test]
+      fn update_class_and_template_entity_name() {
+        Util::initialize_tracing();
+        let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
         //about begintrans: see comment farther below.
-    //    db.begin_trans()
-        let tmpName = "garbage-temp";
-        mEntityClass.update_class_and_template_entity_name(tmpName)
-        assert(mEntityClass.name == tmpName)
+        //db.begin_trans()
+        let tx = None;
+        let (class_id, entity_id) = db
+            .create_class_and_its_template_entity(tx.clone(), "class2Name")
+            .unwrap();
+        let tmp_name = "garbage-temp";
+        debug!("%%%%%%% class, entity ids are: {}, {}", class_id, entity_id);
+        let mut ec = EntityClass::new2(db.clone(), None, class_id).unwrap();
+        ec.update_class_and_template_entity_name(None, tmp_name).unwrap();
+        let name = ec.get_name(tx.clone()).unwrap();
+        assert_eq!(name, tmp_name);
         // have to reread to see the change:
-        assert(new EntityClass(db, mEntityClass.get_id).get_name == tmpName)
-        assert(new Entity(db, mTemplateEntity.get_id).get_name == tmpName + "-template")
-        // See comment about next 3 lines, at the rollback_trans call at the end of the PostgreSQLDatabaseTest.scala test
-        // "getAttrCount, get_attribute_sorting_rows_count".
-    //    db.rollback_trans()
-    //    assert(new EntityClass(db, mEntityClass.get_id).get_name != tmpName)
-    //    assert(new Entity(db, mTemplateEntity.get_id).get_name != tmpName + "-template")
+        assert_eq!(EntityClass::new2(db.clone(), tx.clone(), class_id).unwrap().get_name(tx.clone()).unwrap(), tmp_name);
+        assert_eq!(Entity::new2(db.clone(), tx.clone(), entity_id).unwrap()
+            .get_name(tx.clone()).unwrap(), format!("{}{}", tmp_name, "-template").as_str());
+        // Could add this back, but transactions generally are tested in postgresql_database_tests.rs.
+        //db.rollback_trans()
+        //assert(new EntityClass(db, mEntityClass.get_id).get_name != tmpName)
+        //assert(new Entity(db, mTemplateEntity.get_id).get_name != tmpName + "-template")
       }
 
-      "update_create_default_attributes" should "work" in {
+    /*
+    #[test]
+      fn update_create_default_attributes() {
         assert(mEntityClass.get_create_default_attributes.isEmpty)
         mEntityClass.update_create_default_attributes(Some(true))
         assert(mEntityClass.get_create_default_attributes.get)

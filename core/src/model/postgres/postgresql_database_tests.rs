@@ -998,10 +998,14 @@ mod test {
         let unwrapped_local_tx = Rc::into_inner(tx.unwrap()).unwrap().into_inner();
         db.rollback_trans(unwrapped_local_tx).unwrap();
 
-        //%%idea: (tracked in tasks): find out: WHY do the next lines fail, because the attrCount(id) is the same (4) after rolling back as before rolling back??
-        // Do I not understand rollback?  But it does seem to work as expected in "entity creation/update and transaction rollback" test above.  See also
-        // in EntityTest's "update_class_and_template_entity_name", at the last 2 commented lines which fail for unknown reason.  Maybe something obvious i'm just
-        // missing, or maybe it's in the postgresql or jdbc transaction docs.  Could also ck in other places calling db.rollback_trans to see what's to learn from
+        //%%idea: (tracked in tasks): find out: WHY do the next lines fail, because the attrCount(id) is 
+        //the same (4) after rolling back as before rolling back??
+        // Do I not understand rollback?  But it does seem to work as expected in "entity creation/update 
+        // and transaction rollback" test above.  See also
+        // in EntityTest's "update_class_and_template_entity_name", at the last 2 commented lines which fail 
+        // for unknown reason.  Maybe something obvious i'm just
+        // missing, or maybe it's in the postgresql or jdbc transaction docs.  Could also ck in other places 
+        // calling db.rollback_trans to see what's to learn from
         // current use (risk) & behaviors to compare.
         //    assert(db.getAttrCount(id) == 0)
         //    assert(db.get_attribute_sorting_rows_count(Some(id)) == 0)
