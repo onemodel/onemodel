@@ -179,7 +179,7 @@ impl Attribute for QuantityAttribute {
             result = format!(
                 "{}; {}",
                 result,
-                Util::get_dates_description(self.valid_on_date, self.observation_date)
+                Util::get_dates_description(self.get_valid_on_date(None)?, self.get_observation_date(None)?)
             );
         }
         Ok(Util::limit_attribute_description_length(

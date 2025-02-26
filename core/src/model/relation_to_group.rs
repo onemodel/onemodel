@@ -269,7 +269,7 @@ impl Attribute for RelationToGroup {
         _unused2: Option<RelationType>, /*=None*/
         simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
-        let mut group = Group::new2(self.db.clone(), None, self.group_id)?;
+        let mut group = Group::new2(self.db.clone(), None, self.get_group_id(None)?)?;
         //%%put back after new is implemented!:
         //let rt_name = RelationType::new(self.db, self.get_attr_type_id(None)).get_name();
         let rt_name = "a relation type name stub";
@@ -283,7 +283,7 @@ impl Attribute for RelationToGroup {
             result = format!(
                 "{}; {}",
                 result,
-                Util::get_dates_description(self.valid_on_date, self.observation_date)
+                Util::get_dates_description(self.get_valid_on_date(None)?, self.get_observation_date(None)?)
             );
         }
         Ok(Util::limit_attribute_description_length(

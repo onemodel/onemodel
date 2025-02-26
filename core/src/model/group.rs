@@ -407,10 +407,10 @@ impl Group {
     //   }
     // }
     fn get_class_id(
-        &self,
+        &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, Error> {
-        if self.mixed_classes_allowed {
+        if self.get_mixed_classes_allowed(transaction.clone())? {
             Ok(None)
         } else {
             let ids: Vec<i64> = 

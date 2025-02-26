@@ -403,7 +403,7 @@ impl Attribute for RelationToLocalEntity {
                 rt_name,
                 self.get_remote_description(),
                 Color::blue(related_entity.get_name(None)?),
-                Util::get_dates_description(self.valid_on_date, self.observation_date)
+                Util::get_dates_description(self.get_valid_on_date(None)?, self.get_observation_date(None)?)
             )
         };
 
