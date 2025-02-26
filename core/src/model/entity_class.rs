@@ -98,8 +98,8 @@ impl EntityClass {
     pub fn get_template_entity_id(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<i64, anyhow::Error> 
-    //    where 'a: 'b
+    ) -> Result<i64, anyhow::Error>
+//    where 'a: 'b
     {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?
@@ -150,9 +150,6 @@ impl EntityClass {
                 self.id
             ));
         }
-
-        self.already_read_data = true;
-
         self.name = match data[0].clone() {
             Some(DataType::String(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", data[0])),
@@ -161,29 +158,16 @@ impl EntityClass {
             Some(DataType::Bigint(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", data[1])),
         };
-
-        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-        //(like similar place in BooleanAttribute)
-        //fixed version (ck after a test fails due to it)?:
-        //self.create_default_attributes = match data[2] {
-        //    Some(DataType::Boolean(x)) => x,
-        //    //None => None,
-        //    _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
-        //};
-        //old version:
-        // self.create_default_attributes = match data[2] {
-        //     Some(DataType::Boolean(b)) => b,
-        //     _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
-        // };
-        self.create_default_attributes = None;
-
-        // create_default_attributes = classData(2).asInstanceOf[Option<bool>]
+        self.create_default_attributes = match data[2] {
+            Some(DataType::Boolean(x)) => Some(x),
+            None => None,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
+        };
         self.already_read_data = true;
         Ok(())
     }
 
     fn get_id_wrapper(&self) -> IdWrapper {
-        //%%later: is this idea better replaced with something else in Rust?:
         IdWrapper::new(self.id)
     }
 
@@ -236,8 +220,6 @@ impl EntityClass {
     where
         'a: 'b,
     {
-        //%%%%%%for next line: had to do a get, not a direct reference. Make sure to fix that
-        //elsewhere in this class and beyond!!
         let template_entity_id: i64 = self.get_template_entity_id(transaction.clone())?;
         let ref rc_db = &self.db;
         let ref cloned_db = rc_db.clone();
@@ -356,7 +338,7 @@ mod test {
     }
 
     #[test]
-      fn update_class_and_template_entity_name() {
+    fn update_class_and_template_entity_name() {
         Util::initialize_tracing();
         let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
         //about begintrans: see comment farther below.
@@ -366,29 +348,55 @@ mod test {
             .create_class_and_its_template_entity(tx.clone(), "class2Name")
             .unwrap();
         let tmp_name = "garbage-temp";
-        debug!("%%%%%%% class, entity ids are: {}, {}", class_id, entity_id);
         let mut ec = EntityClass::new2(db.clone(), None, class_id).unwrap();
-        ec.update_class_and_template_entity_name(None, tmp_name).unwrap();
+        ec.update_class_and_template_entity_name(None, tmp_name)
+            .unwrap();
         let name = ec.get_name(tx.clone()).unwrap();
         assert_eq!(name, tmp_name);
         // have to reread to see the change:
-        assert_eq!(EntityClass::new2(db.clone(), tx.clone(), class_id).unwrap().get_name(tx.clone()).unwrap(), tmp_name);
-        assert_eq!(Entity::new2(db.clone(), tx.clone(), entity_id).unwrap()
-            .get_name(tx.clone()).unwrap(), format!("{}{}", tmp_name, "-template").as_str());
-        // Could add this back, but transactions generally are tested in postgresql_database_tests.rs.
+        assert_eq!(
+            EntityClass::new2(db.clone(), tx.clone(), class_id)
+                .unwrap()
+                .get_name(tx.clone())
+                .unwrap(),
+            tmp_name
+        );
+        assert_eq!(
+            Entity::new2(db.clone(), tx.clone(), entity_id)
+                .unwrap()
+                .get_name(tx.clone())
+                .unwrap(),
+            format!("{}{}", tmp_name, "-template").as_str()
+        );
+        // Could add this back & convert it to Rust, but transactions generally are tested in postgresql_database_tests.rs.
         //db.rollback_trans()
         //assert(new EntityClass(db, mEntityClass.get_id).get_name != tmpName)
         //assert(new Entity(db, mTemplateEntity.get_id).get_name != tmpName + "-template")
-      }
+    }
 
-    /*
     #[test]
-      fn update_create_default_attributes() {
-        assert(mEntityClass.get_create_default_attributes.isEmpty)
-        mEntityClass.update_create_default_attributes(Some(true))
-        assert(mEntityClass.get_create_default_attributes.get)
-        assert(new EntityClass(db, mEntityClass.get_id).get_create_default_attributes.get)
-      }
-    */
+    fn update_create_default_attributes() {
+        Util::initialize_tracing();
+        let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
+        let tx = None;
+        let (class_id, _entity_id) = db
+            .create_class_and_its_template_entity(tx.clone(), "class3Name")
+            .unwrap();
+        let mut ec = EntityClass::new2(db.clone(), tx.clone(), class_id).unwrap();
+
+        assert_eq!(ec.get_create_default_attributes(tx.clone()).unwrap(), None);
+        ec.update_create_default_attributes(tx.clone(), Some(true))
+            .unwrap();
+        assert_eq!(
+            ec.get_create_default_attributes(tx.clone()).unwrap(),
+            Some(true)
+        );
+        assert_eq!(
+            EntityClass::new2(db.clone(), tx.clone(), class_id)
+                .unwrap()
+                .get_create_default_attributes(tx.clone())
+                .unwrap(),
+            Some(true)
+        );
+    }
 }
-// %%%%%
