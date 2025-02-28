@@ -790,7 +790,7 @@ impl PostgreSQLDatabase {
     fn add_new_entity_to_results(
         &self,
         db: Rc<dyn Database>,
-        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        //transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         final_results: &mut Vec<Entity>,
         intermediate_result_in: Vec<Option<DataType>>,
     ) -> Result<(), anyhow::Error> {
@@ -938,8 +938,9 @@ impl PostgreSQLDatabase {
         Ok(sql)
     }
 
-    /// This also takes a db *parameter*, to handle lifetime issues that arose; there is probably a better
-    /// way but I considered various things (like making this an associated function, or returning a collection of
+    /// This also takes a db *parameter*, to handle lifetime issues that arose. There is probably a better
+    /// way, but I tried and considered various things and it got complicated (like making this 
+    /// an associated function, or returning a collection of
     /// values to build an Entity or RelationType rather than an Entity or RelationType as such),
     /// and I didn't want to make do_query part of the Database trait,
     /// preferring to keep it internal so only the database code can call it, and thus calls to db_query can be more
@@ -1020,7 +1021,6 @@ impl PostgreSQLDatabase {
             // None of these values should be of "None" type. If they are it's a bug:
             self.add_new_entity_to_results(
                 db.clone(),
-                transaction.clone(),
                 &mut final_results,
                 result,
             )?;
@@ -1487,9 +1487,10 @@ impl PostgreSQLDatabase {
     pub fn get_local_om_instance_data(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<OmInstance, anyhow::Error> {
+    //) -> Result<OmInstance, anyhow::Error> {
+    ) -> Result<(String, bool, String, i64, Option<i64>), anyhow::Error> {
         let sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE";
-        let results = self.db_query(transaction, sql, "String,String,i64,i64")?;
+        let results = self.db_query(transaction, sql, "UUID,String,i64,i64")?;
         if results.len() != 1 {
             return Err(anyhow!(
                 "Got {} instead of 1 result from sql {}.  Does the usage now \
@@ -1528,9 +1529,11 @@ impl PostgreSQLDatabase {
                 ))
             }
         };
-        Ok(OmInstance::new(
-            self,
-            id,
+        // return a tuple instead of an OmInstance because I don't know how to construct one with 
+        // "self" as a parameter, rather than an owned db parameter. The caller can deal with it.
+        //Ok(OmInstance::new(
+        //    self,
+        Ok((id,
             true,
             address,
             insertion_date,

@@ -24,6 +24,7 @@ use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
 // in use, in the code.
 use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
+use sqlx::types::Uuid;
 use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 // use std::collections::HashSet;
@@ -152,6 +153,17 @@ impl PostgreSQLDatabase {
                             debug!("in db_query3: x is \"{}\".", x);
                             let y = DataType::String(Self::unescape_quotes_etc(x));
                             debug!("in db_query3: y is {:?} .", y);
+                            row.push(Some(y));
+                        } else if type_name == &"UUID" {
+                            //was: row(column_counter) = Some(PostgreSQLDatabase.unescape_quotes_etc(
+                            //rs.getString(column_counter)))
+                            let decode_mbe: Result<sqlx::types::Uuid, sqlx::Error> = sqlx_row.try_get(column_counter);
+                            //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
+                            debug!("in db_query3.5: decode_mbe is \"{:?}\".", decode_mbe );
+                            let x = decode_mbe.unwrap();
+                            debug!("in db_query3.5: x.to_string() is \"{:?}\".", x.to_string());
+                            let y = DataType::String(Self::unescape_quotes_etc(x.to_string()));
+                            debug!("in db_query3.5: y is {:?} .", y);
                             row.push(Some(y));
                         } else if type_name == &"i64" {
                             //was: row(column_counter) = Some(rs.getLong(column_counter))
@@ -1391,22 +1403,26 @@ impl PostgreSQLDatabase {
             false,
         )?;
 
-        /* This current database is one OM instance, and known (remote or local) databases to which this one might refer are other instances.
+        /* This current database is one OM instance, and known (remote or local) databases 
+         * to which this one might refer are other instances.
           Design musings:
-        This is being implemented in an explicit table instead of just with the features around EntityClass objects & the "class" table, to
-        avoid a chicken/egg problem:
-        imagine a new OM instance, or one where the user deleted via the UI the relevant entity class(es) for handling remote OM instances: how would the user
-        retrieve those classes from others' shared OM data if the feature to connect to remote ones is broken?  Still, it is debatable whether it would have
-        worked just as well to put this info in an entity under the .system entity, like user preferences are, and try to prevent deleting it or something,
-        because other info might be needed on it in the future such as security settings, and using the entity_id field for links to that info could become
-        just as awkward as having an entity to begin with.  But doing it the way it is now might make db-level constraints on such things
+        This is being implemented in an explicit table instead of just with the features around EntityClass 
+        objects & the "class" table, to avoid a chicken/egg problem:
+        imagine a new OM instance, or one where the user deleted via the UI the relevant entity class(es) 
+        for handling remote OM instances: how would the user
+        retrieve those classes from others' shared OM data if the feature to connect to remote ones is 
+        broken?  Still, it is debatable whether it would have worked just as well to put this info in an 
+        entity under the .system entity, like user preferences are, and try to prevent deleting it or something,
+        because other info might be needed on it in the future such as security settings, and using the entity_id 
+        field for links to that info could become just as awkward as having an entity to begin with.  But doing 
+        it the way it is now might make db-level constraints on such things
         more reliable, especially given that the OM-level constraints via classes/code on entities isn't developed yet.
 
         This might have some design overlap with the ".system" entity; maybe that should have been put here?
          */
-        // The "local" field doesn't mean whether the instance is found on localhost, but rather whether the row is for *this* instance: the OneModel
-        // instance whose database we are connected to right now.
-        // See Controller.askForAndWriteOmInstanceInfo.askAndSave for more description for the address column.
+        // The "local" field doesn't mean whether the instance is found on localhost, but rather whether 
+        // the row is for *this* instance: the OneModel instance whose database we are connected to right now.
+        // See Controller.ask_for_and_write_om_instance_info.ask_and_save for more description for the address column.
         // Idea: Is it worth having to know future address formats, to enforce validity in a
         // constraint?  Problems seem likely to be infrequent & easy to fix.
         // See table "entity" for description of insertion_date.
@@ -1652,7 +1668,7 @@ impl PostgreSQLDatabase {
         debug!("in create_base_data: tostring: {}", uuid.to_string());
         self.create_om_instance(
             transaction.clone(),
-            /*%%which from above!?*?*/ uuid.to_string(),
+            uuid.to_string(),
             true,
             Util::LOCAL_OM_INSTANCE_DEFAULT_DESCRIPTION.to_string(),
             None,

@@ -21,6 +21,7 @@ use crate::model::relation_to_local_entity::RelationToLocalEntity;
 // use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::date_attribute::DateAttribute;
+use crate::model::om_instance::OmInstance;
 use crate::model::relation_type::RelationType;
 //use crate::model::file_attribute::FileAttribute;
 use crate::model::quantity_attribute::QuantityAttribute;
@@ -2057,38 +2058,82 @@ impl TestStruct<'_>{
     }
     assert(foundQA && foundTA && foundRTE && foundRTG && foundDA && foundBA && foundFA)
   }
+%%*/
 
-  "entity deletion" should "also delete RelationToLocalEntity attributes (and get_relation_to_remote_entity_count should work)" in {
-    let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
-    let rel_type_id: i64 = db.create_relation_type("is sitting next to", "", RelationType.UNIDIRECTIONAL);
-    let startingLocalCount = db.get_relation_to_local_entity_count(entity_id);
-    let startingRemoteCount = db.get_relation_to_remote_entity_count(entity_id);
-    let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id);
-    assert(db.get_relation_to_local_entity_count(entity_id) == startingLocalCount + 1)
+    #[test]
+    fn om_instance_read_data_from_db() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let trans = None;
 
-    let oi: OmInstance = db.get_local_om_instance_data;
-    let remoteEntityId = 1234;
-    db.createRelationToRemoteEntity(rel_type_id, entity_id, remoteEntityId, None, 0, oi.get_id)
-    assert(db.get_relation_to_local_entity_count(entity_id) == startingLocalCount + 1)
-    assert(db.get_relation_to_remote_entity_count(entity_id) == startingRemoteCount + 1)
-    assert(db.get_relation_to_remote_entity_data(rel_type_id, entity_id, oi.get_id, remoteEntityId).length > 0)
-
-    db.delete_entity(entity_id)
-    if db.get_relation_to_local_entity_count(entity_id) != 0 {
-      fail("Deleting the model entity should also have deleted its RelationToLocalEntity objects. " +
-           "get_relation_to_local_entity_count(entity_idInNewTransaction) is " + db.get_relation_to_local_entity_count(entity_id) + ".")
+        let entity_id = db.create_entity(trans.clone(), "test: om_instance_read_data_from_db", None, None).unwrap();
+        let uuid = uuid::Uuid::new_v4();
+        let omi = OmInstance::create(db.clone(), trans.clone(), uuid.to_string().as_str(), "address", Some(entity_id)).unwrap();
+        let mut omi_retrieved = OmInstance::new2(db, trans.clone(), omi.get_id().unwrap()).unwrap();
+        let retrieved_id = omi_retrieved.get_entity_id(trans.clone()).unwrap();
+        assert_eq!(retrieved_id, Some(entity_id));
     }
-    assert(intercept[Exception] {
-                                  db.get_relation_to_local_entity_data(rel_type_id, entity_id, related_entity_id)
-                                }.getMessage.contains("Got 0 instead of 1 result"))
-    assert(intercept[Exception] {
-                                  db.get_relation_to_remote_entity_data(rel_type_id, entity_id, oi.get_id, related_entity_id)
-                                }.getMessage.contains("Got 0 instead of 1 result"))
 
-    db.delete_relation_type(rel_type_id)
-  }
-*/
+    // (and_get_relation_to_remote_entity_count_should_work.)
+    #[test]
+    fn entity_deletion_should_also_delete_relation_to_local_entity_attributes() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let trans = None;
 
+        let entity_id = db.create_entity(trans.clone(), "test: org.onemodel.PSQLDbTest.testRelsNRelTypes()", None, None).unwrap();
+        let rel_type_id = db.create_relation_type(trans.clone(), "is sitting next to", "", RelationType::UNIDIRECTIONAL).unwrap();
+        let starting_local_count = db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap();
+        let starting_remote_count = db.get_relation_to_remote_entity_count(trans.clone(), entity_id).unwrap();
+        let related_entity_id = create_test_relation_to_local_entity_with_one_entity(&db, trans.clone(), entity_id, rel_type_id, None);
+        assert_eq!(
+            db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap(),
+            starting_local_count + 1
+        );
+
+        let oi_info = db.get_local_om_instance_data(trans.clone()).unwrap();
+        let oi_id: String = oi_info.0;
+        let remote_entity_id = 1234;
+        db.create_relation_to_remote_entity(trans.clone(), rel_type_id, entity_id, remote_entity_id, None, 0, oi_id.as_str(), None).unwrap();
+        assert_eq!(
+            db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap(),
+            starting_local_count + 1
+        );
+        assert_eq!(
+            db.get_relation_to_remote_entity_count(trans.clone(), entity_id).unwrap(),
+            starting_remote_count + 1
+        );
+        assert!(!db
+            .get_relation_to_remote_entity_data(trans.clone(), rel_type_id, entity_id, oi_id.clone(), remote_entity_id)
+            .unwrap()
+            .is_empty());
+
+        db.delete_entity(trans.clone(), entity_id).unwrap();
+        if db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap() != 0 {
+            panic!(
+                "Deleting the model entity should also have deleted its RelationToLocalEntity objects. \
+                 get_relation_to_local_entity_count(entity_idInNewTransaction) is {}",
+                db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap()
+            );
+        }
+        let local_entity_result = 
+            db.get_relation_to_local_entity_data(trans.clone(), rel_type_id, entity_id, related_entity_id);
+        assert!(local_entity_result.is_err());
+        assert!(local_entity_result
+            .unwrap_err()
+            .to_string()
+            .contains("Got 0 instead of 1 result"));
+        let remote_entity_result = 
+            db.get_relation_to_remote_entity_data(trans.clone(), rel_type_id, entity_id, oi_id.clone(), remote_entity_id);
+        assert!(remote_entity_result.is_err());
+        assert!(remote_entity_result
+            .unwrap_err()
+            .to_string()
+            .contains("Got 0 instead of 1 result"));
+        db.delete_relation_type(trans.clone(), rel_type_id).unwrap();
+    }
+
+/*%%
 #[test]
 fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
     let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
@@ -2108,7 +2153,6 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
     create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, Some(0));
 }
 
-/*%%
   "testAddQuantityAttributeWithBadParentID" should "not work" in {
     println!("starting testAddQuantityAttributeWithBadParentID")
     let badParentId: i64 = db.findIdWhichIsNotKeyOfAnyEntity; // Database should not allow adding quantity with a bad parent (Entity) ID!

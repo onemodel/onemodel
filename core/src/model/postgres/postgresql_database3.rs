@@ -5572,7 +5572,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
-        self.get_local_om_instance_data(transaction)?.get_id()
+        let id = self.get_local_om_instance_data(transaction)?.0;
+        Ok(id)
     }
 
     fn om_instance_key_exists(

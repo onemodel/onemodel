@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2016-2017 inclusive, and 2023-2024 inclusive, Luke A. Call.
+    Copyright in each year of 2016-2017 inclusive, and 2023-2025 inclusive, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -12,12 +12,13 @@ use crate::model::database::Database;
 use crate::util::Util;
 use anyhow::{anyhow, Error, Result};
 use sqlx::{Postgres, Transaction};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
+use tracing::*;
 
-pub struct OmInstance<'a> {
+pub struct OmInstance {
     id: String,
-    db: &'a dyn Database,
+    db: Rc<dyn Database>,
     already_read_data: bool, /*= false*/
     is_local: bool,          /*= false*/
     address: String,         /*= ""*/
@@ -25,7 +26,7 @@ pub struct OmInstance<'a> {
     entity_id: Option<i64>,  /*= None*/
 }
 
-impl OmInstance<'_> {
+impl OmInstance {
     fn address_length(&self) -> i32 {
         self.db.om_instance_address_length()
     }
@@ -39,13 +40,13 @@ impl OmInstance<'_> {
         db_in.is_duplicate_om_instance_address(transaction, address_in, _self_id_to_ignore_in)
     }
 
-    fn create<'a>(
-        db_in: &'a dyn Database,
+    pub fn create(
+        db_in: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        id_in: &'a str,
-        address_in: &'a str,
+        id_in: &str,
+        address_in: &str,
         entity_id_in: Option<i64>, /*= None*/
-    ) -> Result<OmInstance<'a>, anyhow::Error> {
+    ) -> Result<OmInstance, anyhow::Error> {
         // Passing false for is_local_in because the only time that should be true is when it is created at db creation, for this site, and that is done
         // in the db class more directly.
         let insertion_date: i64 = db_in.create_om_instance(
@@ -69,14 +70,14 @@ impl OmInstance<'_> {
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
-    pub fn new<'a>(
-        db: &'a dyn Database,
+    pub fn new(
+        db: Rc<dyn Database>,
         id: String,
         is_local_in: bool,
         address_in: String,
         insertion_date_in: i64,
         entity_id_in: Option<i64>, /*= None*/
-    ) -> OmInstance<'a> {
+    ) -> OmInstance {
         OmInstance {
             id: id.clone(),
             db,
@@ -91,11 +92,11 @@ impl OmInstance<'_> {
     /// See table definition in the database class for details.
     /// This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
     /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
-    pub fn new2<'a>(
-        db: &'a dyn Database,
+    pub fn new2(
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: String,
-    ) -> Result<OmInstance<'a>, anyhow::Error> {
+    ) -> Result<OmInstance, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
         if !db.is_remote() && !db.om_instance_key_exists(transaction, id.as_str())? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
@@ -151,7 +152,7 @@ impl OmInstance<'_> {
         Ok(self.address.clone())
     }
 
-    fn get_entity_id(
+    pub fn get_entity_id(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error> {
@@ -187,15 +188,11 @@ impl OmInstance<'_> {
             Some(DataType::Bigint(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", data[2])),
         };
-        //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-        // valid_on_date: Option<i64> /*%%= None*/,
-        /*DataType::Bigint(%%)*/
-        self.entity_id = None; //data[3];
-                               // self.valid_on_date = match data[3] {
-                               //     DataType::Bigint(x) => x,
-                               //     _ => return Err(anyhow!("How did we get here for {:?}?", data[3])),
-                               // };
-                               // entity_id = omInstanceData(3).asInstanceOf[Option<i64>]
+        self.entity_id = match data[3] {
+            Some(DataType::Bigint(x)) => Some(x),
+            None => None,
+            _ => return Err(anyhow!("How did we get here for {:?}?", data[3])),
+        };
 
         Ok(())
     }
@@ -217,11 +214,12 @@ impl OmInstance<'_> {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         new_address: String,
     ) -> Result<u64, Error> {
+        let entity_id = self.get_entity_id(transaction.clone())?;
         self.db.update_om_instance(
             transaction.clone(),
             self.get_id()?,
             new_address,
-            self.get_entity_id(transaction)?,
+            entity_id,
         )
     }
 

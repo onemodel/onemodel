@@ -11,7 +11,7 @@ console = "0.15.1"
 # next line added ~4.xMB to the debug binary
 rustyline = "10.1.1"    #alternative?:  reedline = "0.11.0"
 # next lines added 62MB to the binary (from 6.9MB to 69MB, debug version)
-sqlx = { version = "0.6.3", features = [ "runtime-tokio-rustls", "postgres" ] }
+sqlx = { version = "0.6.3", features = [ "runtime-tokio-rustls", "postgres", "uuid" ] }
 #wont compile w/ next line: let...else statements are unstable or some such.
 #sqlx = { version = "0.7.0-alpha.2", features = [ "runtime-tokio-rustls", "postgres" ] }
 # next line is so we can use sqlx, but the code tries to minimize the impact by calling things synchronously.
