@@ -639,7 +639,7 @@ impl Entity {
             .find_relation_to_and_group_on_entity(transaction, self.get_id(), None)
     }
 
-    fn find_contained_local_entity_ids<'a, 'c>(
+    pub fn find_contained_local_entity_ids<'a, 'c>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         results_in_out: &'c mut HashSet<i64>,

@@ -663,7 +663,15 @@ impl Group {
 
 #[cfg(test)]
 mod test {
-    //%%%%%give the git url to chatgpt and see if it can convert the rest of the commented code?? or in what size of parts?
+    use crate::model::database::Database;
+    use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
+    use crate::model::entity::Entity;
+    use crate::model::group::Group;
+    use crate::util::Util;
+    use sqlx::{Postgres, Transaction};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    use std::collections::HashSet;
     /*
       let mut db: PostgreSQLDatabase = null;
 
@@ -686,50 +694,82 @@ mod test {
       protected fn tearDown() {
         PostgreSQLDatabaseTest.tearDownTestDB()
       }
+     */ //%%
 
-      "move_entity_to_different_group etc" should "work" in {
-        let group1 = new Group(db, db.create_group("group_name1"));
-        let group2 = new Group(db, db.create_group("group_name2"));
-        let e1 = new Entity(db, db.create_entity("e1"));
-        group1.add_entity(e1.get_id)
-        assert(group1.is_entity_in_group(e1.get_id))
-        assert(! group2.is_entity_in_group(e1.get_id))
-        group1.move_entity_to_different_group(group2.get_id, e1.get_id, -1)
-        assert(! group1.is_entity_in_group(e1.get_id))
-        assert(group2.is_entity_in_group(e1.get_id))
+    #[test]
+    fn move_entity_to_different_group_etc() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let gid1 = db.create_group(None, "group_name1", false).unwrap();
+        let gid2 = db.create_group(None, "group_name2", false).unwrap();
+        let group1 = Group::new2(db.clone(), None, gid1).unwrap();
+        let group2 = Group::new2(db.clone(), None, gid2).unwrap();
 
-        let index1 = group2.get_entry_sorting_index(e1.get_id);
-        assert(index1 == -1)
-        group2.update_sorting_index(e1.get_id, -2)
-        assert(group2.get_entry_sorting_index(e1.get_id) == -2)
-        group2.renumber_sorting_indexes()
-        assert(group2.get_entry_sorting_index(e1.get_id) != -1)
-        assert(group2.get_entry_sorting_index(e1.get_id) != -2)
-        assert(! group2.isGroupEntrySortingIndexInUse(-1))
-        assert(! group2.isGroupEntrySortingIndexInUse(-2))
+        //let tx = db.begin_trans().unwrap();
+        //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+        //See below 2 calls that do not take a "transaction" (noted there). Would it fail if using the above 2
+        //lines instead of the "let tx = None;" just below?
+        let tx = None;
 
-        let index2: i64 = group2.get_entry_sorting_index(e1.get_id);
-        assert(group2.find_unused_sorting_index(None) != index2)
-        let e3: Entity = new Entity(db, db.create_entity("e3"));
-        group2.add_entity(e3.get_id)
-        group2.update_sorting_index(e3.get_id, Database.min_id_value)
+        let eid1 = db.create_entity(tx.clone(), "e1", None, None).unwrap();
+        let e1 = Entity::new2(db.clone(), tx.clone(), eid1).unwrap();
+
+        // Add the entity to group1 and verify its presence.
+        group1.add_entity(tx.clone(), e1.get_id(), None).unwrap();
+        assert!(group1.is_entity_in_group(tx.clone(), e1.get_id()).unwrap());
+        assert!(!group2.is_entity_in_group(tx.clone(), e1.get_id()).unwrap());
+
+        // Move the entity from group1 to group2 and verify the change.
+        // why doesnt this call take a transaction? See note at top of this test.
+        group1.move_entity_to_different_group(group2.get_id(), e1.get_id(), -1).unwrap();
+        assert!(!group1.is_entity_in_group(tx.clone(), e1.get_id()).unwrap());
+        assert!(group2.is_entity_in_group(tx.clone(), e1.get_id()).unwrap());
+
+        // Verify and update the sorting index.
+        let index1 = group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap();
+        assert_eq!(index1, -1);
+        group2.update_sorting_index(tx.clone(), e1.get_id(), -2).unwrap();
+        assert_eq!(group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap(), -2);
+
+        // Renumber sorting indexes and verify changes.
+        group2.renumber_sorting_indexes(tx.clone()).unwrap();
+        assert_ne!(group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap(), -1);
+        assert_ne!(group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap(), -2);
+        assert!(!group2.is_group_entry_sorting_index_in_use(tx.clone(), -1).unwrap());
+        assert!(!group2.is_group_entry_sorting_index_in_use(tx.clone(), -2).unwrap());
+
+        let index2: i64 = group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap();
+        assert_ne!(group2.find_unused_sorting_index(tx.clone(), None).unwrap(), index2);
+
+        // Add another entity to group2 and update its sorting index.
+        let e3 = Entity::new2(db.clone(), tx.clone(), db.create_entity(tx.clone(), "e3", None, None).unwrap()).unwrap();
+        group2.add_entity(tx.clone(), e3.get_id(), None).unwrap();
+        group2.update_sorting_index(tx.clone(), e3.get_id(), db.min_id_value()).unwrap();
+
         // next lines not much of a test but is something:
-        let index3: Option<i64> = group2.get_nearest_group_entrys_sorting_index(Database.min_id_value, forward_not_back_in = true);
-        assert(index3.get > Database.min_id_value)
-        /*val index4: i64 = */group2.get_entry_sorting_index(e1.get_id)
-        let indexes = group2.get_adjacent_group_entries_sorting_indexes(Database.min_id_value, Some(0), forward_not_back_in = true);
-        assert(indexes.nonEmpty)
+        let index3: Option<i64> = group2.get_nearest_group_entrys_sorting_index(tx.clone(), db.min_id_value(), true).unwrap();
+        assert!(index3.unwrap() > db.min_id_value());
+        /*val index4: i64 = */group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap();
+        let indexes = group2.get_adjacent_group_entries_sorting_indexes(tx.clone(), db.min_id_value(), Some(0), true).unwrap();
+        assert!(!indexes.is_empty());
 
-        let e2 = new Entity(db, db.create_entity("e2"));
-        let results_in_out1: mutable.TreeSet[i64] = e2.find_contained_local_entity_ids(new mutable.TreeSet[i64], "e2");
-        assert(results_in_out1.isEmpty)
-        group2.move_entity_from_group_to_local_entity(e2.get_id, e1.get_id, 0)
-        assert(! group2.is_entity_in_group(e1.get_id))
-        let results_in_out2: mutable.TreeSet[i64] = e2.find_contained_local_entity_ids(new mutable.TreeSet[i64], "e1");
-        assert(results_in_out2.size == 1)
-        assert(results_in_out2.contains(e1.get_id))
-      }
+        // Move entity from group to local entity.
+        let e2 = Entity::new2(db.clone(), tx.clone(), db.create_entity(tx.clone(), "e2", None, None).unwrap()).unwrap();
+        let mut hs: HashSet<i64> = HashSet::new();
+        let results_in_out1: &HashSet<i64> = e2.find_contained_local_entity_ids(tx.clone(), 
+            &mut hs, "e2", 20, true).unwrap();
+        assert!(results_in_out1.is_empty());
+        // why doesnt this call take a transaction? See note at top of this test.
+        group2.move_entity_from_group_to_local_entity(e2.get_id(), e1.get_id(), 0).unwrap();
+        assert!(!group2.is_entity_in_group(tx.clone(), e1.get_id()).unwrap());
 
+        let mut hs2: HashSet<i64> = HashSet::new();
+        let results_in_out2: &HashSet<i64> = e2.find_contained_local_entity_ids(tx.clone(), &mut hs2, "e1", 20, true).unwrap();
+        assert_eq!(results_in_out2.len(), 1);
+        assert!(results_in_out2.contains(&e1.get_id()));
+    }
+
+    /* //%%%%%give the git url to chatgpt and see if it can convert the rest of the commented code?? or in what size of parts?
       "get_groups_containing_entitys_groups_ids etc" should "work" in {
         let group1 = new Group(db, db.create_group("g1"));
         let group2 = new Group(db, db.create_group("g2"));
@@ -755,4 +795,3 @@ mod test {
     */
 }
 
-// %%%%%
