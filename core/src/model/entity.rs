@@ -607,16 +607,25 @@ impl Entity {
         starting_index_in: i64,   /*= 0*/
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
-        let rtgs_data: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> = self.db.get_containing_relations_to_group(
-            transaction,
-            self.get_id(),
-            starting_index_in,
-            max_vals_in,
-        )?;
+        let rtgs_data: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> =
+            self.db.get_containing_relations_to_group(
+                transaction,
+                self.get_id(),
+                starting_index_in,
+                max_vals_in,
+            )?;
         let mut containing_relations_to_group: Vec<RelationToGroup> = Vec::new();
         for rtg_data in rtgs_data {
-            let rtg = RelationToGroup::new(self.db.clone(), rtg_data.0, rtg_data.1, rtg_data.2, 
-                rtg_data.3, rtg_data.4, rtg_data.5, rtg_data.6);
+            let rtg = RelationToGroup::new(
+                self.db.clone(),
+                rtg_data.0,
+                rtg_data.1,
+                rtg_data.2,
+                rtg_data.3,
+                rtg_data.4,
+                rtg_data.5,
+                rtg_data.6,
+            );
             containing_relations_to_group.push(rtg);
         }
         Ok(containing_relations_to_group)
@@ -812,10 +821,25 @@ impl Entity {
             )?;
         let mut results: Vec<TextAttribute> = Vec::with_capacity(query_results.len());
         for qr in query_results {
-            let (text_attribute_id, parent_entity_id, attr_type_id, textvalue, 
-                valid_on_date, observation_date, sorting_index) = qr;
-            let ta = TextAttribute::new(self.db.clone(), text_attribute_id, parent_entity_id, 
-                attr_type_id, textvalue.as_str(), valid_on_date, observation_date, sorting_index);
+            let (
+                text_attribute_id,
+                parent_entity_id,
+                attr_type_id,
+                textvalue,
+                valid_on_date,
+                observation_date,
+                sorting_index,
+            ) = qr;
+            let ta = TextAttribute::new(
+                self.db.clone(),
+                text_attribute_id,
+                parent_entity_id,
+                attr_type_id,
+                textvalue.as_str(),
+                valid_on_date,
+                observation_date,
+                sorting_index,
+            );
             results.push(ta);
         }
         Ok(results)
@@ -850,7 +874,7 @@ impl Entity {
         )
     }
 
-     /* //%%why do we have both add..() (just below) and create..() here? If import_export.rs (as
+    /* //%%why do we have both add..() (just below) and create..() here? If import_export.rs (as
      //noted there) can use add_text_attribute or 2 (below) instead, then can delete this.
       fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> /*= None*/,
                             observation_date_in: i64 = Utc::now().timestamp_millis(), caller_manages_transactions_in: bool /*= false*/,
@@ -1242,30 +1266,62 @@ impl Entity {
         Ok((entity, rte))
     }
 
-          /// @return the new group's id.
-        pub fn add_relation_to_group<'a, 'b>(&'a self, 
-            tx: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-            rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>) 
-                -> Result<RelationToGroup, anyhow::Error> 
-        where 'a: 'b
-        {
-            self.add_relation_to_group2(tx.clone(), rel_type_id_in, group_id_in, sorting_index_in, 
-                None, Utc::now().timestamp_millis())
-          }
+    /// @return the new group's id.
+    pub fn add_relation_to_group<'a, 'b>(
+        &'a self,
+        tx: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        rel_type_id_in: i64,
+        group_id_in: i64,
+        sorting_index_in: Option<i64>,
+    ) -> Result<RelationToGroup, anyhow::Error>
+    where
+        'a: 'b,
+    {
+        self.add_relation_to_group2(
+            tx.clone(),
+            rel_type_id_in,
+            group_id_in,
+            sorting_index_in,
+            None,
+            Utc::now().timestamp_millis(),
+        )
+    }
 
-        fn add_relation_to_group2<'a, 'b>(&'a self, 
-            tx: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-            rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>,
-                                 valid_on_date_in: Option<i64>, observation_date_in: i64) 
-                -> Result<RelationToGroup, anyhow::Error> 
-        where 'a: 'b
-        {
-            let ref rc_db = &self.db;
-            let ref cloned = rc_db.clone();
-            let local_tx = tx.clone();
-            let (new_rtg_id, sorting_index) = cloned.create_relation_to_group(local_tx, self.get_id(), rel_type_id_in, group_id_in, valid_on_date_in, observation_date_in, sorting_index_in)?;
-            Ok(RelationToGroup::new(self.db.clone(), new_rtg_id, self.get_id(), rel_type_id_in, group_id_in, valid_on_date_in, observation_date_in, sorting_index))
-          }
+    fn add_relation_to_group2<'a, 'b>(
+        &'a self,
+        tx: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        rel_type_id_in: i64,
+        group_id_in: i64,
+        sorting_index_in: Option<i64>,
+        valid_on_date_in: Option<i64>,
+        observation_date_in: i64,
+    ) -> Result<RelationToGroup, anyhow::Error>
+    where
+        'a: 'b,
+    {
+        let ref rc_db = &self.db;
+        let ref cloned = rc_db.clone();
+        let local_tx = tx.clone();
+        let (new_rtg_id, sorting_index) = cloned.create_relation_to_group(
+            local_tx,
+            self.get_id(),
+            rel_type_id_in,
+            group_id_in,
+            valid_on_date_in,
+            observation_date_in,
+            sorting_index_in,
+        )?;
+        Ok(RelationToGroup::new(
+            self.db.clone(),
+            new_rtg_id,
+            self.get_id(),
+            rel_type_id_in,
+            group_id_in,
+            valid_on_date_in,
+            observation_date_in,
+            sorting_index,
+        ))
+    }
 
     /*
             fn get_sorted_attributes(starting_object_index_in: Int = 0, max_vals_in: Int = 0, only_public_entities_in: bool = true) -> (Array[(i64, Attribute)], Int) {
@@ -1321,7 +1377,6 @@ impl Entity {
           }
 
     %%*/
-     
 }
 
 #[cfg(test)]

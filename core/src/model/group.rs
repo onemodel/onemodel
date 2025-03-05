@@ -35,8 +35,8 @@ impl Group {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         allow_mixed_classes_in_group_in: bool, /*= false*/
-    ) -> Result<Group, Error> 
-    //where
+    ) -> Result<Group, Error>
+//where
     //    'a: 'b
     {
         let id: i64 = db_in.create_group(
@@ -98,8 +98,8 @@ impl Group {
         db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<Group, Error> 
-    //where
+    ) -> Result<Group, Error>
+//where
     //    'a: 'b,
     {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
@@ -241,11 +241,12 @@ impl Group {
     pub fn delete<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-    ) -> Result<(), Error> 
-    where 
+    ) -> Result<(), Error>
+    where
         'a: 'b,
     {
-        self.db.delete_group_and_relations_to_it(transaction, self.id)
+        self.db
+            .delete_group_and_relations_to_it(transaction, self.id)
     }
 
     /// Removes an entity from this group.
@@ -262,19 +263,20 @@ impl Group {
         &'a self,
         // purpose: see comment in delete_objects
         transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-    ) -> Result<(), Error> 
+    ) -> Result<(), Error>
     where
-        'a: 'b
+        'a: 'b,
     {
         self.db
             .delete_group_relations_to_it_and_its_entries(transaction_in.clone(), self.id)
     }
 
     // idea: cache this?  when doing any other query also?  Is that safer because we really don't edit these in place (ie, immutability)?
-    pub fn get_size(&self, 
+    pub fn get_size(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        include_which_entities: i32 /*= 3*/) -> Result<u64, Error> 
-    {
+        include_which_entities: i32, /*= 3*/
+    ) -> Result<u64, Error> {
         self.db
             .get_group_size(transaction, self.id, include_which_entities)
     }
@@ -285,8 +287,12 @@ impl Group {
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Group>, Error> {
-        let ids = self.db.clone()
-            .get_group_entry_ids(transaction.clone(), self.id, starting_index_in, max_vals_in)?;
+        let ids = self.db.clone().get_group_entry_ids(
+            transaction.clone(),
+            self.id,
+            starting_index_in,
+            max_vals_in,
+        )?;
         let mut results: Vec<Group> = Vec::new();
         for id in ids {
             let grp = Group::new2(self.db.clone(), transaction.clone(), id)?;
@@ -299,8 +305,8 @@ impl Group {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_entity_id: i64,
-        sorting_index_in: Option<i64>,        /*= None*/
-    ) -> Result<(), Error> 
+        sorting_index_in: Option<i64>, /*= None*/
+    ) -> Result<(), Error>
     where
         'a: 'b,
     {
@@ -308,7 +314,7 @@ impl Group {
         let ref cloned = rc_db.clone();
         let tx = transaction.clone();
         let id = self.get_id();
-        cloned.add_entity_to_group(tx, id, in_entity_id, sorting_index_in,)
+        cloned.add_entity_to_group(tx, id, in_entity_id, sorting_index_in)
     }
 
     pub fn get_id(&self) -> i64 {
@@ -413,7 +419,7 @@ impl Group {
         if self.get_mixed_classes_allowed(transaction.clone())? {
             Ok(None)
         } else {
-            let ids: Vec<i64> = 
+            let ids: Vec<i64> =
                 self.db
                     .get_group_entry_ids(transaction.clone(), self.get_id(), 0, Some(1))?;
             let mut entries: Vec<Entity> = Vec::new();
@@ -489,18 +495,27 @@ impl Group {
         starting_index_in: i64,
         max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<RelationToGroup>, Error> {
-        let rtgs_data: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> = self.db.get_relations_to_group_containing_this_group(
-            transaction,
-            self.get_id(),
-            starting_index_in,
-            max_vals_in,
-        )?;
+        let rtgs_data: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> =
+            self.db.get_relations_to_group_containing_this_group(
+                transaction,
+                self.get_id(),
+                starting_index_in,
+                max_vals_in,
+            )?;
         let mut rtgs: Vec<RelationToGroup> = Vec::new();
         for rtg_data in rtgs_data {
-            let rtg = RelationToGroup::new(self.db.clone(), rtg_data.0, rtg_data.1, rtg_data.2, 
-                    rtg_data.3, rtg_data.4, rtg_data.5, rtg_data.6);
+            let rtg = RelationToGroup::new(
+                self.db.clone(),
+                rtg_data.0,
+                rtg_data.1,
+                rtg_data.2,
+                rtg_data.3,
+                rtg_data.4,
+                rtg_data.5,
+                rtg_data.6,
+            );
             rtgs.push(rtg);
-        };
+        }
         Ok(rtgs)
     }
 
@@ -625,11 +640,8 @@ impl Group {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<(), Error> {
-        self.db.renumber_sorting_indexes(
-            transaction,
-            self.get_id(),
-            false,
-        )
+        self.db
+            .renumber_sorting_indexes(transaction, self.get_id(), false)
     }
 
     fn move_entity_from_group_to_local_entity(
@@ -664,38 +676,39 @@ impl Group {
 #[cfg(test)]
 mod test {
     use crate::model::database::Database;
-    use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
     use crate::model::entity::Entity;
     use crate::model::group::Group;
+    use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
     use crate::model::relation_type::RelationType;
     use crate::util::Util;
     use sqlx::{Postgres, Transaction};
     use std::cell::RefCell;
-    use std::rc::Rc;
     use std::collections::HashSet;
+    use std::rc::Rc;
     /*
-      let mut db: PostgreSQLDatabase = null;
+     let mut db: PostgreSQLDatabase = null;
 
-      // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks. (?)
-      override fn runTests(testName: Option<String>, args: Args) -> Status {
-        setUp()
-        let result:Status = super.runTests(testName,args);
-        // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
-        result
-      }
+     // using the real db because it got too complicated with mocks, and the time savings don't seem enough to justify the work with the mocks. (?)
+     override fn runTests(testName: Option<String>, args: Args) -> Status {
+       setUp()
+       let result:Status = super.runTests(testName,args);
+       // (See comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
+       result
+     }
 
-      protected fn setUp() {
-        //start fresh
-        PostgreSQLDatabaseTest.tearDownTestDB()
+     protected fn setUp() {
+       //start fresh
+       PostgreSQLDatabaseTest.tearDownTestDB()
 
-        // instantiation does DB setup (creates tables, default data, etc):
-        db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
-      }
+       // instantiation does DB setup (creates tables, default data, etc):
+       db = new PostgreSQLDatabase(Database.TEST_USER, Database.TEST_PASS)
+     }
 
-      protected fn tearDown() {
-        PostgreSQLDatabaseTest.tearDownTestDB()
-      }
-     */ //%%
+     protected fn tearDown() {
+       PostgreSQLDatabaseTest.tearDownTestDB()
+     }
+    */
+ //%%
 
     #[test]
     fn move_entity_to_different_group_etc() {
@@ -722,50 +735,109 @@ mod test {
 
         // Move the entity from group1 to group2 and verify the change.
         // why doesnt this call take a transaction? See note at top of this test.
-        group1.move_entity_to_different_group(group2.get_id(), e1.get_id(), -1).unwrap();
+        group1
+            .move_entity_to_different_group(group2.get_id(), e1.get_id(), -1)
+            .unwrap();
         assert!(!group1.is_entity_in_group(tx.clone(), e1.get_id()).unwrap());
         assert!(group2.is_entity_in_group(tx.clone(), e1.get_id()).unwrap());
 
         // Verify and update the sorting index.
-        let index1 = group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap();
+        let index1 = group2
+            .get_entry_sorting_index(tx.clone(), e1.get_id())
+            .unwrap();
         assert_eq!(index1, -1);
-        group2.update_sorting_index(tx.clone(), e1.get_id(), -2).unwrap();
-        assert_eq!(group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap(), -2);
+        group2
+            .update_sorting_index(tx.clone(), e1.get_id(), -2)
+            .unwrap();
+        assert_eq!(
+            group2
+                .get_entry_sorting_index(tx.clone(), e1.get_id())
+                .unwrap(),
+            -2
+        );
 
         // Renumber sorting indexes and verify changes.
         group2.renumber_sorting_indexes(tx.clone()).unwrap();
-        assert_ne!(group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap(), -1);
-        assert_ne!(group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap(), -2);
-        assert!(!group2.is_group_entry_sorting_index_in_use(tx.clone(), -1).unwrap());
-        assert!(!group2.is_group_entry_sorting_index_in_use(tx.clone(), -2).unwrap());
+        assert_ne!(
+            group2
+                .get_entry_sorting_index(tx.clone(), e1.get_id())
+                .unwrap(),
+            -1
+        );
+        assert_ne!(
+            group2
+                .get_entry_sorting_index(tx.clone(), e1.get_id())
+                .unwrap(),
+            -2
+        );
+        assert!(!group2
+            .is_group_entry_sorting_index_in_use(tx.clone(), -1)
+            .unwrap());
+        assert!(!group2
+            .is_group_entry_sorting_index_in_use(tx.clone(), -2)
+            .unwrap());
 
-        let index2: i64 = group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap();
-        assert_ne!(group2.find_unused_sorting_index(tx.clone(), None).unwrap(), index2);
+        let index2: i64 = group2
+            .get_entry_sorting_index(tx.clone(), e1.get_id())
+            .unwrap();
+        assert_ne!(
+            group2.find_unused_sorting_index(tx.clone(), None).unwrap(),
+            index2
+        );
 
         // Add another entity to group2 and update its sorting index.
-        let e3 = Entity::new2(db.clone(), tx.clone(), db.create_entity(tx.clone(), "e3", None, None).unwrap()).unwrap();
+        let e3 = Entity::new2(
+            db.clone(),
+            tx.clone(),
+            db.create_entity(tx.clone(), "e3", None, None).unwrap(),
+        )
+        .unwrap();
         group2.add_entity(tx.clone(), e3.get_id(), None).unwrap();
-        group2.update_sorting_index(tx.clone(), e3.get_id(), db.min_id_value()).unwrap();
+        group2
+            .update_sorting_index(tx.clone(), e3.get_id(), db.min_id_value())
+            .unwrap();
 
         // next lines not much of a test but is something:
-        let index3: Option<i64> = group2.get_nearest_group_entrys_sorting_index(tx.clone(), db.min_id_value(), true).unwrap();
+        let index3: Option<i64> = group2
+            .get_nearest_group_entrys_sorting_index(tx.clone(), db.min_id_value(), true)
+            .unwrap();
         assert!(index3.unwrap() > db.min_id_value());
-        /*val index4: i64 = */group2.get_entry_sorting_index(tx.clone(), e1.get_id()).unwrap();
-        let indexes = group2.get_adjacent_group_entries_sorting_indexes(tx.clone(), db.min_id_value(), Some(0), true).unwrap();
+        /*val index4: i64 = */
+        group2
+            .get_entry_sorting_index(tx.clone(), e1.get_id())
+            .unwrap();
+        let indexes = group2
+            .get_adjacent_group_entries_sorting_indexes(
+                tx.clone(),
+                db.min_id_value(),
+                Some(0),
+                true,
+            )
+            .unwrap();
         assert!(!indexes.is_empty());
 
         // Move entity from group to local entity.
-        let e2 = Entity::new2(db.clone(), tx.clone(), db.create_entity(tx.clone(), "e2", None, None).unwrap()).unwrap();
+        let e2 = Entity::new2(
+            db.clone(),
+            tx.clone(),
+            db.create_entity(tx.clone(), "e2", None, None).unwrap(),
+        )
+        .unwrap();
         let mut hs: HashSet<i64> = HashSet::new();
-        let results_in_out1: &HashSet<i64> = e2.find_contained_local_entity_ids(tx.clone(), 
-            &mut hs, "e2", 20, true).unwrap();
+        let results_in_out1: &HashSet<i64> = e2
+            .find_contained_local_entity_ids(tx.clone(), &mut hs, "e2", 20, true)
+            .unwrap();
         assert!(results_in_out1.is_empty());
         // why doesnt this call take a transaction? See note at top of this test.
-        group2.move_entity_from_group_to_local_entity(e2.get_id(), e1.get_id(), 0).unwrap();
+        group2
+            .move_entity_from_group_to_local_entity(e2.get_id(), e1.get_id(), 0)
+            .unwrap();
         assert!(!group2.is_entity_in_group(tx.clone(), e1.get_id()).unwrap());
 
         let mut hs2: HashSet<i64> = HashSet::new();
-        let results_in_out2: &HashSet<i64> = e2.find_contained_local_entity_ids(tx.clone(), &mut hs2, "e1", 20, true).unwrap();
+        let results_in_out2: &HashSet<i64> = e2
+            .find_contained_local_entity_ids(tx.clone(), &mut hs2, "e1", 20, true)
+            .unwrap();
         assert_eq!(results_in_out2.len(), 1);
         assert!(results_in_out2.contains(&e1.get_id()));
     }
@@ -775,29 +847,74 @@ mod test {
         Util::initialize_tracing();
         let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
 
-        let g1 = Group::new2(db.clone(), None, db.create_group(None, "g1", false).unwrap()).unwrap();
-        let g2 = Group::new2(db.clone(), None, db.create_group(None, "g2", false).unwrap()).unwrap();
-        let g3 = Group::new2(db.clone(), None, db.create_group(None, "g3", false).unwrap()).unwrap();
-        let e1 = Entity::new2(db.clone(), None, db.create_entity(None, "e1", None, None).unwrap()).unwrap();
-        let e2 = Entity::new2(db.clone(), None, db.create_entity(None, "e2", None, None).unwrap()).unwrap();
-        let rt_id = db.clone().create_relation_type(None, "rt", "rtReversed", "BI").unwrap();
+        let g1 = Group::new2(
+            db.clone(),
+            None,
+            db.create_group(None, "g1", false).unwrap(),
+        )
+        .unwrap();
+        let g2 = Group::new2(
+            db.clone(),
+            None,
+            db.create_group(None, "g2", false).unwrap(),
+        )
+        .unwrap();
+        let g3 = Group::new2(
+            db.clone(),
+            None,
+            db.create_group(None, "g3", false).unwrap(),
+        )
+        .unwrap();
+        let e1 = Entity::new2(
+            db.clone(),
+            None,
+            db.create_entity(None, "e1", None, None).unwrap(),
+        )
+        .unwrap();
+        let e2 = Entity::new2(
+            db.clone(),
+            None,
+            db.create_entity(None, "e2", None, None).unwrap(),
+        )
+        .unwrap();
+        let rt_id = db
+            .clone()
+            .create_relation_type(None, "rt", "rtReversed", "BI")
+            .unwrap();
         let rt = RelationType::new2(db.clone(), None, rt_id).unwrap();
-        
+
         //let tx = db.begin_trans().unwrap();
         //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
         let tx = None;
 
         g1.add_entity(tx.clone(), e1.get_id(), None).unwrap();
         g2.add_entity(tx.clone(), e2.get_id(), None).unwrap();
-        e1.add_relation_to_group(tx.clone(), rt.get_id(), g3.get_id(), None).unwrap();
-        e2.add_relation_to_group(tx.clone(), rt.get_id(), g3.get_id(), None).unwrap();
-        let results = g3.get_groups_containing_entitys_groups_ids(tx.clone(), Some(5)).unwrap();
+        e1.add_relation_to_group(tx.clone(), rt.get_id(), g3.get_id(), None)
+            .unwrap();
+        e2.add_relation_to_group(tx.clone(), rt.get_id(), g3.get_id(), None)
+            .unwrap();
+        let results = g3
+            .get_groups_containing_entitys_groups_ids(tx.clone(), Some(5))
+            .unwrap();
         assert_eq!(results.len(), 2);
-        let entities = g3.get_entities_containing_group(tx.clone(), 0, None).unwrap();
+        let entities = g3
+            .get_entities_containing_group(tx.clone(), 0, None)
+            .unwrap();
         assert_eq!(entities.len(), 2);
-        assert_eq!(g3.get_count_of_entities_containing_group(tx.clone()).unwrap().0, 2);
-        assert_eq!(g3.get_containing_relations_to_group(tx.clone(), 0, None).unwrap().len(), 2);
-        assert!(Group::get_group(db, tx.clone(), g3.get_id()).unwrap().is_some());
+        assert_eq!(
+            g3.get_count_of_entities_containing_group(tx.clone())
+                .unwrap()
+                .0,
+            2
+        );
+        assert_eq!(
+            g3.get_containing_relations_to_group(tx.clone(), 0, None)
+                .unwrap()
+                .len(),
+            2
+        );
+        assert!(Group::get_group(db, tx.clone(), g3.get_id())
+            .unwrap()
+            .is_some());
     }
 }
-
