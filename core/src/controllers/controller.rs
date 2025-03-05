@@ -1800,9 +1800,9 @@ impl Controller {
             None
           }
         } else if attrFormIn == Database.get_attribute_form_id(Util.RELATION_TO_GROUP_TYPE)) {
-          def addRelationToGroup(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
+          def add_relation_to_group(dhIn: RelationToGroupDataHolder): Option[RelationToGroup] = {
             require(dhIn.entity_id == entity_in.get_id)
-            let newRTG: RelationToGroup = entity_in.addRelationToGroup(dhIn.attr_type_id, dhIn.groupId, None, dhIn.valid_on_date, dhIn.observation_date);
+            let newRTG: RelationToGroup = entity_in.add_relation_to_group(dhIn.attr_type_id, dhIn.groupId, None, dhIn.valid_on_date, dhIn.observation_date);
             Some(newRTG)
           }
           let result: Option[Attribute] = askForInfoAndAddAttribute[RelationToGroupDataHolder](entity_in.db,;
@@ -1813,7 +1813,7 @@ impl Controller {
                                                                                                     Util.REL_TYPE_EXAMPLES + ")" +
                                                                                                     ".\n" + "(Does anyone see a specific " +
                                                                                                     "reason to keep asking for these dates?)"),
-                                                                                               askForRelToGroupInfo, addRelationToGroup)
+                                                                                               askForRelToGroupInfo, add_relation_to_group)
           if result.isEmpty) {
             None
           } else {

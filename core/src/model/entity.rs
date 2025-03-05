@@ -724,7 +724,6 @@ impl Entity {
     {
         let ref rc_db = &self.db;
         let ref cloned = rc_db.clone();
-        //let ref cloned = self.db.clone();
         let tx = transaction.clone();
         let id = self.get_id();
         cloned.renumber_sorting_indexes(tx, id, true)
@@ -842,7 +841,6 @@ impl Entity {
         let tx = transaction.clone();
         cloned.add_uri_entity_with_uri_attribute(
             tx,
-            //None, //tx, //transaction.clone(),
             self.get_id(),
             new_entity_name_in,
             uri_in,
@@ -1244,20 +1242,32 @@ impl Entity {
         Ok((entity, rte))
     }
 
+          /// @return the new group's id.
+        pub fn add_relation_to_group<'a, 'b>(&'a self, 
+            tx: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+            rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>) 
+                -> Result<RelationToGroup, anyhow::Error> 
+        where 'a: 'b
+        {
+            self.add_relation_to_group2(tx.clone(), rel_type_id_in, group_id_in, sorting_index_in, 
+                None, Utc::now().timestamp_millis())
+          }
+
+        fn add_relation_to_group2<'a, 'b>(&'a self, 
+            tx: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+            rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>,
+                                 valid_on_date_in: Option<i64>, observation_date_in: i64) 
+                -> Result<RelationToGroup, anyhow::Error> 
+        where 'a: 'b
+        {
+            let ref rc_db = &self.db;
+            let ref cloned = rc_db.clone();
+            let local_tx = tx.clone();
+            let (new_rtg_id, sorting_index) = cloned.create_relation_to_group(local_tx, self.get_id(), rel_type_id_in, group_id_in, valid_on_date_in, observation_date_in, sorting_index_in)?;
+            Ok(RelationToGroup::new(self.db.clone(), new_rtg_id, self.get_id(), rel_type_id_in, group_id_in, valid_on_date_in, observation_date_in, sorting_index))
+          }
+
     /*
-          /**
-            * @return the new group's id.
-            */
-            fn addRelationToGroup(rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>) -> RelationToGroup {
-            addRelationToGroup(rel_type_id_in, group_id_in, sorting_index_in, None, Utc::now().timestamp_millis())
-          }
-
-            fn addRelationToGroup(rel_type_id_in: i64, group_id_in: i64, sorting_index_in: Option<i64>,
-                                 valid_on_date_in: Option<i64>, observation_date_in: i64) -> RelationToGroup {
-            let (new_rtg_id, sorting_index) = db.create_relation_to_group(get_id, rel_type_id_in, group_id_in, valid_on_date_in, observation_date_in, sorting_index_in);
-            new RelationToGroup(db, new_rtg_id, get_id, rel_type_id_in, group_id_in, valid_on_date_in, observation_date_in, sorting_index)
-          }
-
             fn get_sorted_attributes(starting_object_index_in: Int = 0, max_vals_in: Int = 0, only_public_entities_in: bool = true) -> (Array[(i64, Attribute)], Int) {
             db.get_sorted_attributes(get_id, starting_object_index_in, max_vals_in, only_public_entities_in = only_public_entities_in)
           }
@@ -1593,7 +1603,7 @@ mod test {
         g1.add_entity(e1.get_id)
         assert(e1.get_containing_groups_ids.size == 1)
         assert(e1.get_count_of_containing_groups == 1)
-        e2.get.addRelationToGroup(mRelationTypeId, g1.get_id, None)
+        e2.get.add_relation_to_group(mRelationTypeId, g1.get_id, None)
         assert(e1.get_containing_relations_to_group().size == 1)
         assert(e1.get_containing_relation_to_group_descriptions().size == 0)
         e2.get.unarchive()

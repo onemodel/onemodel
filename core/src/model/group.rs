@@ -667,6 +667,7 @@ mod test {
     use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
     use crate::model::entity::Entity;
     use crate::model::group::Group;
+    use crate::model::relation_type::RelationType;
     use crate::util::Util;
     use sqlx::{Postgres, Transaction};
     use std::cell::RefCell;
@@ -769,29 +770,34 @@ mod test {
         assert!(results_in_out2.contains(&e1.get_id()));
     }
 
-    /* //%%%%%give the git url to chatgpt and see if it can convert the rest of the commented code?? or in what size of parts?
-      "get_groups_containing_entitys_groups_ids etc" should "work" in {
-        let group1 = new Group(db, db.create_group("g1"));
-        let group2 = new Group(db, db.create_group("g2"));
-        let group3 = new Group(db, db.create_group("g3"));
-        let entity1 = new Entity(db, db.create_entity("e1"));
-        let entity2 = new Entity(db, db.create_entity("e2"));
-        group1.add_entity(entity1.get_id)
-        group2.add_entity(entity2.get_id)
-        let rt = new RelationType(db, db.create_relation_type("rt", "rtReversed", "BI"));
-        entity1.addRelationToGroup(rt.get_id, group3.get_id, None)
-        entity2.addRelationToGroup(rt.get_id, group3.get_id, None)
-        let results = group3.get_groups_containing_entitys_groups_ids();
-        assert(results.size == 2)
+    #[test]
+    fn get_groups_containing_entitys_groups_ids_etc_should_work() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
 
-        let entities = group3.get_entities_containing_group(0);
-        assert(entities.size == 2)
-        assert(group3.get_count_of_entities_containing_group._1 == 2)
-        assert(group3.get_containing_relations_to_group(0).size == 2)
+        let g1 = Group::new2(db.clone(), None, db.create_group(None, "g1", false).unwrap()).unwrap();
+        let g2 = Group::new2(db.clone(), None, db.create_group(None, "g2", false).unwrap()).unwrap();
+        let g3 = Group::new2(db.clone(), None, db.create_group(None, "g3", false).unwrap()).unwrap();
+        let e1 = Entity::new2(db.clone(), None, db.create_entity(None, "e1", None, None).unwrap()).unwrap();
+        let e2 = Entity::new2(db.clone(), None, db.create_entity(None, "e2", None, None).unwrap()).unwrap();
+        let rt_id = db.clone().create_relation_type(None, "rt", "rtReversed", "BI").unwrap();
+        let rt = RelationType::new2(db.clone(), None, rt_id).unwrap();
+        
+        //let tx = db.begin_trans().unwrap();
+        //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+        let tx = None;
 
-        assert(Group.get_group(db, group3.get_id).is_defined)
-      }
-
-    */
+        g1.add_entity(tx.clone(), e1.get_id(), None).unwrap();
+        g2.add_entity(tx.clone(), e2.get_id(), None).unwrap();
+        e1.add_relation_to_group(tx.clone(), rt.get_id(), g3.get_id(), None).unwrap();
+        e2.add_relation_to_group(tx.clone(), rt.get_id(), g3.get_id(), None).unwrap();
+        let results = g3.get_groups_containing_entitys_groups_ids(tx.clone(), Some(5)).unwrap();
+        assert_eq!(results.len(), 2);
+        let entities = g3.get_entities_containing_group(tx.clone(), 0, None).unwrap();
+        assert_eq!(entities.len(), 2);
+        assert_eq!(g3.get_count_of_entities_containing_group(tx.clone()).unwrap().0, 2);
+        assert_eq!(g3.get_containing_relations_to_group(tx.clone(), 0, None).unwrap().len(), 2);
+        assert!(Group::get_group(db, tx.clone(), g3.get_id()).unwrap().is_some());
+    }
 }
 
