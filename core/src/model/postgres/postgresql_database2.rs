@@ -966,7 +966,6 @@ impl PostgreSQLDatabase {
     ) -> Result<Vec<Entity>, anyhow::Error> {
         let some_sql = "";
         let more = " from Entity e ";
-        let more2 = "";
         let more3 = " where";
         let more4 = if !self.include_archived_entities() {
             " (not archived) and"
@@ -980,7 +979,6 @@ impl PostgreSQLDatabase {
             "".to_string()
         };
         //let more7 = "";
-        //%%%%%:what is this doing? why do we query both ways, for entities? Are my changes compatible with it??:
         let more8 = if table_name_in.eq_ignore_ascii_case("EntityOnly") {
             Self::limit_to_entities_only(Util::SELECT_ENTITY_START)
         } else {
@@ -995,11 +993,10 @@ impl PostgreSQLDatabase {
         let types = "i64,String,i64,i64,bool,bool,bool";
         let sql = format!(
             //"{}{}{}{}{}{} true {}{}{}{}{} order by id limit {} offset {}",
-            "{}{}{}{}{}{} true {}{}{}{} order by id limit {} offset {}",
+            "{}{}{}{}{} true {}{}{}{} order by id limit {} offset {}",
             Util::SELECT_ENTITY_START,
             some_sql,
             more,
-            more2,
             more3,
             more4,
             more5,
