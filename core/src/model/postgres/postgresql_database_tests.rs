@@ -222,7 +222,6 @@ mod test {
     fn test_set_user_preference_and_get_user_preference() {
         Util::initialize_tracing();
         let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
-
         let tx = db.begin_trans().unwrap();
         let tx = Some(Rc::new(RefCell::new(tx)));
         let pref_name = "xyznevercreatemeinreallife";
@@ -1012,12 +1011,11 @@ mod test {
         //    assert(db.get_attribute_sorting_rows_count(Some(id)) == 0)
     }
 
-    /// Returns the group_id, and the RTG.
+    /// Returns the group_id, and the rtg_id.
     /// In scala, this file was in the core package (not in the test directory), so that by being included in the .jar,
     /// it is available for use by the integration module (in RestDatabaseTest.scala).
     /// (It was in core/src/model/database_test_utils.rs before that was converted to Rust, and in scala
     /// it was in core-scala/src/main/scala/org/onemodel/core/model/DatabaseTestUtils.scala.
-    //%%%%remember to delete the core/src/model/database_test_utils.rs rust file once this test works!
     //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(db_in: &'a dyn Database,
     //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b, 'c>(
     fn create_and_add_test_relation_to_group_on_to_entity<'b, 'c>(
@@ -2584,22 +2582,58 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
                                          db.get_text_attribute_by_type_id(system_entity_id, 1L, Some(1))
                                        }
       }
-
-      "get_relations_to_group_containing_this_group and get_containing_relations_to_group" should "work" in {
-        let entity_id: i64 = db.create_entity("test: get_relations_to_group_containing_this_group...");
-        let entity_id2: i64 = db.create_entity("test: get_relations_to_group_containing_this_group2...");
-        let rel_type_id: i64 = db.create_relation_type("contains in get_relations_to_group_containing_this_group", "", RelationType.UNIDIRECTIONAL);
-        let (groupId, rtg) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id,;
-                                                                                        "some group name in get_relations_to_group_containing_this_group")
-        let group = new Group(db, groupId);
-        group.add_entity(entity_id2)
-        let rtgs = db.get_relations_to_group_containing_this_group(groupId, 0);
-        assert(rtgs.size == 1)
-        assert(rtgs.get(0).get_id == rtg.get_id)
-
-        let sameRtgs = db.get_containing_relations_to_group(entity_id2, 0);
-        assert(sameRtgs.size == 1)
-        assert(sameRtgs.get(0).get_id == rtg.get_id)
-      }
      %%*/
+
+    #[test]
+    fn get_relations_to_group_containing_this_group_and_get_containing_relations_to_group() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let entity_id: i64 = db
+            .create_entity(
+                None, 
+                "test: get_relations_to_group_containing_this_group...",
+                None,
+                None,
+            )
+            .unwrap();
+        let entity_id2: i64 = db
+            .create_entity(
+                None,
+                "test: get_relations_to_group_containing_this_group2...",
+                None,
+                None,
+            )
+            .unwrap();
+        let rel_type_id: i64 = db
+            .create_relation_type(
+                None,
+                "contains in get_relations_to_group_containing_this_group", 
+                "", 
+                RelationType::UNIDIRECTIONAL,
+            )
+            .unwrap();
+        let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
+        let (group_id, rtg_id) = create_and_add_test_relation_to_group_on_to_entity(
+            db.clone(), 
+            None,
+            &entity,
+            rel_type_id,
+            "some group name in get_relations_to_group_containing_this_group",
+            Some(1),
+            true,
+        ).unwrap();
+        let group = Group::new2(db.clone(), None, group_id).unwrap();
+        group.add_entity(None, entity_id2, None).unwrap();
+        
+        let rtg_data = db.get_relations_to_group_containing_this_group(None, group_id, 0, None).unwrap();
+        assert_eq!(rtg_data.len(), 1);
+        assert_eq!(rtg_data[0].0, rtg_id);
+        assert_eq!(rtg_data[0].4, Some(1));
+        
+        let same_rtgs = db.get_containing_relations_to_group(None, entity_id2, 0, None).unwrap();
+        assert_eq!(same_rtgs.len(), 1);
+        assert_eq!(same_rtgs[0].0, rtg_id);
+        // no need to db.rollback_trans(), because that is automatic when tx goes out of scope, per sqlx docs.
+    }
+
 }

@@ -3682,13 +3682,11 @@ impl Database for PostgreSQLDatabase {
                 Some(DataType::Bigint(x)) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[3])),
             };
-            //%%%%% fix this next part after figuring out about what happens when querying a null back, in pg.db_query etc!
-            // valid_on_date: Option<i64> /*%%= None*/,
-            /*DataType::Bigint(%%)*/
-            let valid_on_date: Option<i64> = None; //match result[4] {
-                                                   //     DataType::Bigint(x) => x,
-                                                   //     _ => return Err(anyhow!("How did we get here for {:?}?", result[4])),
-                                                   // };
+            let valid_on_date = match result[4] {
+                Some(DataType::Bigint(x)) => Some(x),
+                None => None,
+                _ => return Err(anyhow!("How did we get here for {:?}?", result[4])),
+            };
             let observation_date = match result[5] {
                 Some(DataType::Bigint(x)) => x,
                 _ => return Err(anyhow!("How did we get here for {:?}?", result[5])),
@@ -4982,7 +4980,7 @@ impl Database for PostgreSQLDatabase {
     //     // dependencies; is a cleaner design?)
     //     for result in early_results {
     //       // None of these values should be of "None" type. If they are it's a bug:
-    //         //%%%%%
+    //         //%%
     //       // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
     //       //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
     //     }
@@ -5001,7 +4999,7 @@ impl Database for PostgreSQLDatabase {
     //     // dependencies; is a cleaner design?; see similar comment in get_entities_generic.)
     //     for result in early_results {
     //       // Only one of these values should be of "None" type.  If they are it's a bug:
-    //         //%%%%%
+    //         //%%
     //       // final_results.push(new EntityClass(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
     //       //                                  if result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Boolean])))
     //     }

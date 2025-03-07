@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2023-2023 inclusive, Luke A. Call.
+    Copyright in each year of 2023 and 2025, Luke A. Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -13,7 +13,6 @@ pub mod attribute_data_holder;
 pub mod attribute_with_valid_and_observed_dates;
 pub mod boolean_attribute;
 pub mod database;
-pub mod database_test_utils;
 pub mod date_attribute;
 pub mod entity;
 pub mod entity_class;
