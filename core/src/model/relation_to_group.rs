@@ -123,13 +123,12 @@ impl RelationToGroup {
         }
     }
 
-    /// %%Is this really the same as what should be called new3? I.e., just reading from DB, not
-    /// creating something new there.
+    /// Just reading from DB, not creating something new here.
     // Old idea?: could change this into a constructor if the fn new's parameters are changed to be only db, transaction, and id, and a new constructor is created
     // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
     // new constructors just wasn't working out (in scala code when I originally wrote this comment, anyway?).
     ///See comments on fn new, here.
-    pub fn create_relation_to_group(
+    pub fn new3(
         db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
@@ -270,9 +269,7 @@ impl Attribute for RelationToGroup {
         simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
         let mut group = Group::new2(self.db.clone(), None, self.get_group_id(None)?)?;
-        //%%put back after new is implemented!:
-        //let rt_name = RelationType::new(self.db, self.get_attr_type_id(None)).get_name();
-        let rt_name = "a relation type name stub";
+        let rt_name = RelationType::new2(self.db.clone(), None, self.get_attr_type_id(None)?)?.get_name(None)?;
         let mut result: String = if simplify && rt_name == Util::THE_HAS_RELATION_TYPE_NAME {
             "".to_string()
         } else {
@@ -424,6 +421,12 @@ impl AttributeWithValidAndObservedDates for RelationToGroup {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use crate::model::{entity_class::EntityClass, postgres::postgresql_database::PostgreSQLDatabase};
+    use tracing::*;
+
+    // See comments about mockall, in boolean_attribute.rs.
+    
     /*%%put this back after similar place in boolean_attribute.rs is resolved and this can be similarly:
       let mut db: PostgreSQLDatabase = null;
 
@@ -446,7 +449,9 @@ mod test {
       protected fn tearDown() {
         PostgreSQLDatabaseTest.tearDownTestDB()
       }
+    */
 
+    /*
       "get_display_string" should "return correct string and length" in {
         let mock_db = mock[PostgreSQLDatabase];
 
@@ -512,7 +517,154 @@ mod test {
         assert(!all4.contains("(mixed)"))
         assert(all4.contains(", class: " + className))
       }
+*/
 
+
+    #[test]
+    fn rtg_get_display_string_returns_correct_string_and_length() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //using None instead of transactions to avoid some complexities not important for a test.
+        //let tx = db.begin_trans().unwrap();
+        //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+        
+        // See comment about mockall in boolean_attribute.rs. These comments are here for reference
+        // in case I use mocks later.
+        // let mock_db = mock[PostgreSQLDatabase];
+        // arbitrary...:
+        //let entity_id: i64 = 302;
+        //let rel_type_id: i64 = 401;
+        //let group_id: i64 = 301;
+        //let rtg_id: i64 = 300;
+        //let class_template_entity_id: i64 = 303;
+        //let class_id: i64 = 501;
+        let grp_name = "somename";
+        let grp_entry_count = 2;
+        //// arbitrary, in milliseconds:
+        let date = 304;
+        let relation_type_name: String = Util::THE_HAS_RELATION_TYPE_NAME.to_string();
+        // when(mock_db.group_key_exists(group_id)).thenReturn(true)
+        // when(mock_db.relation_type_key_exists(rel_type_id)).thenReturn(true)
+        // when(mock_db.entity_key_exists(rel_type_id)).thenReturn(true)
+        // when(mock_db.relation_to_group_keys_exist_and_match(rtg_id, entity_id, rel_type_id, group_id)).thenReturn(true)
+        // when(mock_db.get_group_data(group_id)).thenReturn(Vec<Option<DataType>>(Some(grp_name), Some(0L), 
+        // Some(true), Some(false)))
+        // when(mock_db.get_group_size(group_id, 1)).thenReturn(grp_entry_count)
+        // when(mock_db.get_relation_type_data(rel_type_id)).thenReturn(Vec<Option<DataType>>(Some(relation_type_name), 
+        // Some(Database.THE_IS_HAD_BY_REVERSE_NAME), Some("xyz..")))
+        // when(mock_db.get_remote_address).thenReturn(None)
+        
+        // Now, work around the lack of above mocks:
+        let entity = Entity::create_entity(db.clone(), None, "entity1", None, None).unwrap();
+        let entity2 = Entity::create_entity(db.clone(), None, "entity2", None, None).unwrap();
+        let entity3 = Entity::create_entity(db.clone(), None, "entity3", None, None).unwrap();
+        let rel_type_id = db.create_relation_type(None, &relation_type_name, "name_in_reverse_direction_in", RelationType::UNIDIRECTIONAL).unwrap();
+        let group_id = db.create_group(None, &grp_name, true).unwrap();
+        let (rtg_id, _sorting_index) = db.create_relation_to_group(None, entity.get_id(), rel_type_id, group_id, None, date, None).unwrap();
+        let mut group: Group = Group::new2(db.clone(), None, group_id).unwrap();
+        group.add_entity(None, entity2.get_id(), None).unwrap();
+        group.add_entity(None, entity3.get_id(), None).unwrap();
+
+        // (using arbitrary numbers for the unnamed parameters):
+        let mut relation_to_group = RelationToGroup::new2(
+            db.clone(), 
+            None,
+            rtg_id, 
+            entity.get_id(), 
+            rel_type_id, 
+            group_id, 
+        ).unwrap();
+        let small_limit = 15;
+        // See comment about (lack of) TZ abbreviations, at Util.DATEFORMAT.
+        //let expected_date_output = format!("Wed 1969-12-31 17:00:00:{} MST", date);
+        let expected_date_output = format!("Wed 1969-12-31 17:00:00:{} -07:00", date);
+        let expected_longer: String = format!(
+            "{} grp {} /{}: {}, class: (mixed); valid unsp'd, obsv'd {}", 
+            relation_type_name, 
+            group_id, 
+            grp_entry_count, 
+            grp_name, 
+            expected_date_output
+        );
+        let displayed: String = relation_to_group.get_display_string(small_limit, None, None, false).unwrap();
+        let expected = format!("{}...", &expected_longer[0..small_limit - 3]);
+        
+        //let displayed_longer: String = relation_to_group.get_display_string(0, None, None, false).unwrap(); //%%
+        //debug!("displayed: {}", displayed); 
+        //debug!("longer: {}", displayed_longer);
+        //debug!("expected: {}", expected); 
+        //debug!("whole thing: {}", expected_longer);
+
+        assert_eq!(displayed, expected);
+        
+        // idea (is in tracked tasks): put next 2 lines back after color refactoring is 
+        // done (& places w/ similar comment elsewhere)
+        // let all: String = relation_to_group.get_display_string(tx.clone(), 0, None).unwrap();
+        // assert_eq!(all, whole_thing);
+
+        let mut relation_to_group2 = RelationToGroup::new2(
+            db.clone(), 
+            None,
+            rtg_id, 
+            entity.get_id(), 
+            rel_type_id, 
+            group_id, 
+        ).unwrap();
+        // when(mock_db.get_group_data(group_id)).thenReturn(Vec<Option<DataType>>(Some(grp_name), Some(0L), Some(false), Some(false)))
+        group.update(None, None, None, Some(false), None, None, None).unwrap();
+        let all2: String = relation_to_group2.get_display_string(0, None, None, false).unwrap();
+        assert!(!all2.contains("(mixed)"));
+        assert!(all2.contains(", class: (specified as None)"));
+
+        group.remove_entity(None, entity2.get_id()).unwrap();
+        group.remove_entity(None, entity3.get_id()).unwrap();
+        let mut relation_to_group3 = RelationToGroup::new2(
+            db.clone(), 
+            None,
+            rtg_id, 
+            entity.get_id(), 
+            rel_type_id, 
+            group_id, 
+        ).unwrap();
+        // when(mock_db.entity_key_exists(class_template_entity_id)).thenReturn(true)
+        // let list = new Vec<Entity>(1);
+        // list.add(new Entity(mock_db, class_template_entity_id, "asdf", None, 0L, None, false, false))
+        // when(mock_db.get_group_entry_ids(group_id, 0, Some(1))).thenReturn(list)
+        // when(mock_db.get_group_size(group_id, 3)).thenReturn(list.size)
+        let all3: String = relation_to_group3.get_display_string(0, None, None, false).unwrap();
+        assert!(!all3.contains("(mixed)"));
+        assert!(all3.contains(", class: (unspecified)"));
+
+        let mut relation_to_group4 = RelationToGroup::new2(
+            db.clone(), 
+            None,
+            rtg_id, 
+            entity.get_id(), 
+            rel_type_id, 
+            group_id, 
+        ).unwrap();
+        // let list4 = new Vec<Entity>(1);
+        // list4.add(new Entity(mock_db, class_template_entity_id, "asdf", Some(class_id), 0L, Some(true), false, false))
+        // when(mock_db.entity_key_exists(class_template_entity_id)).thenReturn(true)
+        // when(mock_db.class_key_exists(class_id)).thenReturn(true)
+        // when(mock_db.get_group_entry_ids(group_id, 0, Some(1))).thenReturn(list4)
+
+        //group.add_entity(None, entity2.get_id(), None).unwrap();
+        let class_name = "someClassName";
+        let (class_id, _class_template_entity_id) = db.create_class_and_its_template_entity(None, class_name).unwrap();
+        let entity4 = Entity::create_entity(db.clone(), None, "entity4", Some(class_id), None).unwrap();
+        group.add_entity(None, entity4.get_id(), None).unwrap();
+        // when(mock_db.get_class_data(class_id)).thenReturn(Vec<Option<DataType>>(Some(class_name), Some(class_template_entity_id), Some(true)))
+        let all4: String = relation_to_group4.get_display_string(0, None, None, false).unwrap();
+        debug!("all4 is: {}", all4);
+        assert!(!all4.contains("(mixed)"));
+        let s = format!(", class: {}", class_name);
+        assert!(all4.contains(&s));
+        
+        // no need to db.rollback_trans(), because that is automatic when tx goes out of scope, per sqlx docs.
+    }
+    // %% */
+      /*
       "getTemplateEntity" should "work right" in {
         let mock_db = mock[PostgreSQLDatabase];
         let rtgId: i64 = 300;
@@ -596,4 +748,3 @@ mod test {
 
     */
 }
-//%%%%%

@@ -17,6 +17,7 @@ use anyhow::{anyhow, Error, Result};
 use sqlx::{Postgres, Transaction};
 use std::cell::RefCell;
 use std::rc::Rc;
+use tracing::*;
 
 pub struct Group {
     id: i64,
@@ -119,7 +120,7 @@ impl Group {
     }
 
     //%%eliminate the _ parameters? who calls it w/ them & why?
-    fn update(
+    pub fn update(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         _attr_type_id_in: Option<i64>,                 /*= None*/

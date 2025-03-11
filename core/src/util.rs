@@ -22,7 +22,7 @@ use chrono::format::ParseResult;
 use chrono::LocalResult;
 // use chrono::offset::LocalResult;
 use chrono::prelude::*;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 // use futures::stream_select;
 // use sqlx::PgPool;
 use std::rc::Rc;
@@ -129,6 +129,8 @@ impl Util {
     // the 1st space.  So, this approximates iso-8601.
     // these are for input.
     //was: new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS zzz");
+    //Note: per chrono API docs (DateTime.format()), in version 4.4 it does not know time zone 
+    //abbreviations, so it can only print the offset with %Z.
     pub const DATEFORMAT: &'static str = "%Y-%m-%d %H:%M:%S:%3f %Z"; //the %Z output can be > 3 characters.
     pub const DATEFORMAT2: &'static str = "%Y-%m-%d %H:%M:%S %Z";
     pub const DATEFORMAT3: &'static str = "%Y-%m-%d %H:%M %Z";
@@ -595,6 +597,8 @@ impl Util {
     }
 
     // This came from Attribute.rs, to to be able to call it w/o  errors from rustc.
+    /// d is in milliseconds since 1970. For more on dates, see postgresql_database.rs 
+    /// under "create table RelationToEntity" for comments about dates' meanings.
     pub fn useful_date_format(d: i64) -> String {
         // No need to print "AD" unless we're really close?, as in this example:
         //scala > let DATEFORMAT_WITH_ERA = new java.text.SimpleDateFormat("GGyyyy-MM-dd HH:mm:ss:SSS zzz");
@@ -605,16 +609,28 @@ impl Util {
         //     DATEFORMAT.format(d)
         // %%need to test this date thing also to confirm works as expected/same as scala OM.
         //See also uses of this, in case need to borrow one or update both, in util.rs .
-        let date: LocalResult<DateTime<Utc>> = Utc.timestamp_opt(d, 0);
-        match date {
+        let seconds: i64 = d / 1000;
+        let milliseconds: i64 = match d.checked_rem(1000) {
+            None => return format!("Unable to calculate ms for value d={}", d),
+            Some(s) => s,
+        };
+        let utc_date: LocalResult<DateTime<Utc>> = Utc.timestamp_opt(seconds, (milliseconds * 1_000_000) as u32);
+        match utc_date {
             LocalResult::None => {
-                "Error(1) trying to format {} as a date/time; probably a bug.".to_string()
+                format!("Error(1) trying to format {:?} as a date/time; probably a bug.", utc_date)
             }
             LocalResult::Single(dt) => {
                 let typed_dt: DateTime<Utc> = dt;
-                typed_dt.format(Util::DATEFORMAT).to_string()
+                let naive_utc_dt: NaiveDateTime = typed_dt.naive_utc();
+                let local_now: DateTime<Local> = Local::now();
+                let local_time_zone: Local = local_now.timezone();
+                //debug!("local_time_zone is: {:?}", local_time_zone);
+                let local_dt: DateTime<Local> = local_time_zone.from_utc_datetime(&naive_utc_dt);
+                //alternative? In ISO-8601 format: 
+                //debug!("local_dt.to_rfc3339() is: {:?}",local_dt.to_rfc3339());
+                local_dt.format(Util::DATEFORMAT).to_string()
             }
-            _ => "Error(2) trying to format {} as a date/time; probably a bug.".to_string(),
+            _ => format!("Error(2) trying to format {:?} as a date/time; probably a bug.", utc_date)
         }
 
         //%%see above comment at ..."from Attribute.scala".

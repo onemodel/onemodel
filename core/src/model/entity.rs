@@ -28,6 +28,7 @@ use sqlx::{/*Error, */ Postgres, Transaction};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
+use tracing::*;
 
 #[derive(Clone)]
 pub struct Entity {
@@ -336,40 +337,30 @@ impl Entity {
         }
         //idea: surely there is some better way than what I am doing here? See other places similarly.
 
-        // DataType::String(self.name) = entity_data[0];
         self.name = match &entity_data[0] {
             Some(DataType::String(x)) => x.clone(),
             _ => return Err(anyhow!("How did we get here for {:?}?", entity_data[0])),
         };
 
-        //%%%FIXME TO USE: entity_data[1]; RELY ON TESTS that I find or uncomment in order, to
-        //see what will happen when a null is returned from get_entity_data above, and its dependencies
-        // that eventually call postgresql_databaseN.db_query and see how they all handle a NULL coming back from pg, therefore
-        // how to handle that when it gets here.  AND SIMILARLY/SAME do for the fixme just below!
-        // DataType::Bigint(self.m_class_id) = None;
-        self.class_id = None;
-        // self.m_class_id = match entity_data[1] {
-        //     DataType::Bigint(x) => x,
-        //     _ => return Err(anyhow!(("How did we get here for {:?}?", entity_data[1])),
-        // };
+        self.class_id = match entity_data[1] {
+            Some(DataType::Bigint(x)) => Some(x),
+            None => None,
+            _ => return Err(anyhow!("How did we get here for {:?}?", entity_data[1])),
+        };
+        self.public = match entity_data[3] {
+            Some(DataType::Boolean(x)) => Some(x),
+            None => None,
+            _ => return Err(anyhow!("How did we get here for {:?}?", entity_data[3])),
+        };
 
-        self.public = None; //%%%7FIXME TO USE:entity_data[3].asInstanceOf[Option<bool>]
-                            // self.m_public = match entity_data[3] {
-                            //     DataType::Boolean(x) => x,
-                            //     _ => return Err(anyhow!("How did we get here for {:?}?", entity_data[3])),
-                            // };
-
-        // DataType::Bigint(self.insertion_date) = entity_data[2];
         self.insertion_date = match entity_data[2] {
             Some(DataType::Bigint(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", entity_data[2])),
         };
-        // DataType::Boolean(self.m_archived) = entity_data[4];
         self.archived = match entity_data[4] {
             Some(DataType::Boolean(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", entity_data[4])),
         };
-        // DataType::Boolean(self.new_entries_stick_to_top) = entity_data[5];
         self.new_entries_stick_to_top = match entity_data[5] {
             Some(DataType::Boolean(x)) => x,
             _ => return Err(anyhow!("How did we get here for {:?}?", entity_data[5])),
@@ -1283,6 +1274,7 @@ impl Entity {
             group_id_in,
             sorting_index_in,
             None,
+            //%%%%%deprecated, see replacement in chrono docs, for everywhere I use this?
             Utc::now().timestamp_millis(),
         )
     }

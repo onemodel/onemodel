@@ -366,13 +366,14 @@ mod test {
             .unwrap();
         let whole_thing: String = format!(
             //%%later: make this not depend on my local time zone being MST!? or what? See 2nd assert below.
-            //%%%later: getting different value for it now, in Rust. Why? Is because of date
-            //handling (in the time zone & api), or due to not using a mock, or...?  Also not matching w/
-            //"date" variable just below.
-            //"{}: true; valid unsp'd, obsv'd Wed 1969-12-31 17:00:00:{} MST",
-            "{}: true; valid unsp'd, obsv'd 1970-01-01 00:05:04:{} UTC",
+            // And the same thing in other attributes. 
+            // See comment about (lack of) TZ abbreviations, at Util.DATEFORMAT.
+            //"{}: true; valid unsp'd, obsv'd 1969-12-31 17:00:00:{} MST",
+            //(Also note that it is MST, not MDT even in April, I'm guessing because 12-31 is 
+            //in the Standard Time period.)
+            "{}: true; valid unsp'd, obsv'd 1969-12-31 17:00:00:{} -07:00",
             attr_type_name,
-            "000" //date
+            date
         );
         // idea: put the real string here instead of dup logic?;
         // let expected: String = whole_thing.substring(0, small_limit - 3) + "..." ;

@@ -19,7 +19,7 @@ tokio = { version = "1", features = ["full"] }
 # next line added 9MB or 15MB to the debug binary (from 69MB to 78MB or 84MB; 4.1MB release, 2.7MB stripped!)
 futures = "0.3.25"
 # next lines added %% to the debug binary (from 84MB to %%)
-chrono = "0.4.23"
+chrono = "0.4.4"
 randlib = "0.2.0"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"

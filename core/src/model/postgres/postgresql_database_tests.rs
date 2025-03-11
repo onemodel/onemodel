@@ -1044,7 +1044,7 @@ mod test {
         debug!("new group id = {}", group.get_id());
 
         let mut rtg =
-            RelationToGroup::create_relation_to_group(db_in, transaction.clone(), rtg_id)?;
+            RelationToGroup::new3(db_in, transaction.clone(), rtg_id)?;
 
         // and verify it:
         match in_valid_on_date {
