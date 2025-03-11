@@ -68,7 +68,7 @@ impl BooleanAttribute {
         // assign_common_vars(parent_id_in, attr_type_id_in, valid_on_date, observation_date, sorting_index_in)
     }
 
-    /// This constructor instantiates an existing object from the DB (or rather, creates it minimally, and then 
+    /// This constructor instantiates an existing object from the DB (or rather, creates it minimally, and then
     /// when data is read, it reads the whole object from the DB). You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2(
@@ -154,7 +154,10 @@ impl Attribute for BooleanAttribute {
             result = format!(
                 "{}; {}",
                 result,
-                Util::get_dates_description(self.get_valid_on_date(None)?, self.get_observation_date(None)?)
+                Util::get_dates_description(
+                    self.get_valid_on_date(None)?,
+                    self.get_observation_date(None)?
+                )
             );
         }
         Ok(Util::limit_attribute_description_length(
@@ -366,14 +369,13 @@ mod test {
             .unwrap();
         let whole_thing: String = format!(
             //%%later: make this not depend on my local time zone being MST!? or what? See 2nd assert below.
-            // And the same thing in other attributes. 
+            // And the same thing in other attributes.
             // See comment about (lack of) TZ abbreviations, at Util.DATEFORMAT.
             //"{}: true; valid unsp'd, obsv'd 1969-12-31 17:00:00:{} MST",
-            //(Also note that it is MST, not MDT even in April, I'm guessing because 12-31 is 
+            //(Also note that it is MST, not MDT even in April, I'm guessing because 12-31 is
             //in the Standard Time period.)
             "{}: true; valid unsp'd, obsv'd 1969-12-31 17:00:00:{} -07:00",
-            attr_type_name,
-            date
+            attr_type_name, date
         );
         // idea: put the real string here instead of dup logic?;
         // let expected: String = whole_thing.substring(0, small_limit - 3) + "..." ;

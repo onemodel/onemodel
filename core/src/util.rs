@@ -129,7 +129,7 @@ impl Util {
     // the 1st space.  So, this approximates iso-8601.
     // these are for input.
     //was: new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS zzz");
-    //Note: per chrono API docs (DateTime.format()), in version 4.4 it does not know time zone 
+    //Note: per chrono API docs (DateTime.format()), in version 4.4 it does not know time zone
     //abbreviations, so it can only print the offset with %Z.
     pub const DATEFORMAT: &'static str = "%Y-%m-%d %H:%M:%S:%3f %Z"; //the %Z output can be > 3 characters.
     pub const DATEFORMAT2: &'static str = "%Y-%m-%d %H:%M:%S %Z";
@@ -597,7 +597,7 @@ impl Util {
     }
 
     // This came from Attribute.rs, to to be able to call it w/o  errors from rustc.
-    /// d is in milliseconds since 1970. For more on dates, see postgresql_database.rs 
+    /// d is in milliseconds since 1970. For more on dates, see postgresql_database.rs
     /// under "create table RelationToEntity" for comments about dates' meanings.
     pub fn useful_date_format(d: i64) -> String {
         // No need to print "AD" unless we're really close?, as in this example:
@@ -614,10 +614,14 @@ impl Util {
             None => return format!("Unable to calculate ms for value d={}", d),
             Some(s) => s,
         };
-        let utc_date: LocalResult<DateTime<Utc>> = Utc.timestamp_opt(seconds, (milliseconds * 1_000_000) as u32);
+        let utc_date: LocalResult<DateTime<Utc>> =
+            Utc.timestamp_opt(seconds, (milliseconds * 1_000_000) as u32);
         match utc_date {
             LocalResult::None => {
-                format!("Error(1) trying to format {:?} as a date/time; probably a bug.", utc_date)
+                format!(
+                    "Error(1) trying to format {:?} as a date/time; probably a bug.",
+                    utc_date
+                )
             }
             LocalResult::Single(dt) => {
                 let typed_dt: DateTime<Utc> = dt;
@@ -626,11 +630,14 @@ impl Util {
                 let local_time_zone: Local = local_now.timezone();
                 //debug!("local_time_zone is: {:?}", local_time_zone);
                 let local_dt: DateTime<Local> = local_time_zone.from_utc_datetime(&naive_utc_dt);
-                //alternative? In ISO-8601 format: 
+                //alternative? In ISO-8601 format:
                 //debug!("local_dt.to_rfc3339() is: {:?}",local_dt.to_rfc3339());
                 local_dt.format(Util::DATEFORMAT).to_string()
             }
-            _ => format!("Error(2) trying to format {:?} as a date/time; probably a bug.", utc_date)
+            _ => format!(
+                "Error(2) trying to format {:?} as a date/time; probably a bug.",
+                utc_date
+            ),
         }
 
         //%%see above comment at ..."from Attribute.scala".
@@ -708,7 +715,7 @@ impl Util {
                     "enter \"now\".  ESC to exit this.  ",
                     "For dates in the BC era you can prefix them with a minus sign: -3400 for example, but either way omit a space ",
                     "before the year), like -3400-01-31 23:59:59:999 GMT, entered at least up through the year, up to ~262000 years AD or BC.")
-                //IDEA: I had thought to say:  "Or for "all time", enter just 0.  ", BUT (while this is probably 
+                //IDEA: I had thought to say:  "Or for "all time", enter just 0.  ", BUT (while this is probably
                 //solved, it's not until the later part of this comment):
                 //    "There is ambiguity about BC that needs some " +
                 //    "investigation, because java allows a '0' year (which for now means 'for all \
@@ -726,17 +733,17 @@ impl Util {
                 //    entity classes, and establish relations to them, within their use of OM.")
                 //ABOUT THAT LAST COMMENT: WHY DOES JAVA ALLOW A 0 YEAR, UNLESS ONLY BECAUSE IT USES long #'S? SEE E.G.
                 // http://www.msevans.com/calendar/daysbetweendatesapplet.php
-                // which says: "...[java?] uses a year 0, which is really 1 B.C. For B.C. dates, you have 
+                // which says: "...[java?] uses a year 0, which is really 1 B.C. For B.C. dates, you have
                 // to remember that the years are off by one--10 B.C.
-                // to [java?] is really 11 B.C.", but this really needs more investigation on what is 
+                // to [java?] is really 11 B.C.", but this really needs more investigation on what is
                 // the Right Thing to do.
-                // Or, just let the dates go in & out of the data, interpreted just as they are now, but 
+                // Or, just let the dates go in & out of the data, interpreted just as they are now, but
                 // the savvy users will recognize that dates in year zero just
-                // don't mean anything, thus the long values in that range don't mean anything so can 
+                // don't mean anything, thus the long values in that range don't mean anything so can
                 // be disregarded (is that how it really works in java??), (or if
                 // so we could inform users when such a date is present, that it's bogus and to use 1 instead)?
                 // **SO:** it is already in the task list to have a separate flag in the database for "all time".
-                // AND: how does Rust (chrono crate?) address all that?  Are we storing dates in UTC or 
+                // AND: how does Rust (chrono crate?) address all that?  Are we storing dates in UTC or
                 // what? sch code for GMT, MST, UTC.
                 // and how does om know to show mst vs. mdt in the output of entities created in summer vs. winter?
             }
@@ -807,9 +814,9 @@ impl Util {
                 None => {
                     match date_type_in {
                         DateType::VALID => {
-                            // don't let user cancel from the "valid on" date: blank there means "unknown" 
+                            // don't let user cancel from the "valid on" date: blank there means "unknown"
                             // (but user can ESC again from observed date. Making these
-                            // consistent probably meant figuring out how to modify jline2 (again, now) 
+                            // consistent probably meant figuring out how to modify jline2 (again, now)
                             // so that it will distinguish between user pressing ESC and user
                             // pressing Enter with a blank line: now IIRC it just returns a blank line for both.
                             // Or something, now that using a readline library in Rust.
@@ -928,7 +935,7 @@ impl Util {
             line_opt = lines.next();
         }
         text_to_show
-        /*idea: do this again somehow, or drop the idea?  There is the issue of providing the AGPL (etc/mine?) 
+        /*idea: do this again somehow, or drop the idea?  There is the issue of providing the AGPL (etc/mine?)
           with the app, and maybe it could also address that:
                     case e: Exception =>
                       let ans = ui.ask_yes_no_question("\n\nThe file LICENSE is missing from the distribution \
@@ -1038,19 +1045,19 @@ impl Util {
 
     fn edit_multiline_text(input: &String, ui: &TextUI) -> Result<String, String> {
         //idea: allow user to change the edit command setting (ie which editor to use) from here?
-        //idea: allow user to prevent this message in future. Could be by using ui.ask_yes_no_question 
+        //idea: allow user to prevent this message in future. Could be by using ui.ask_yes_no_question
         //instead, adding to the  prompt "(ask this again?)", with
         //'y' as default, and storing the answer in the db.SYSTEM_ENTITY_NAME somewhere perhaps.
         // %%?:
-        //PUT THIS BACK (& review/test it) after taking the time to read the (Rust equivalent of the) 
+        //PUT THIS BACK (& review/test it) after taking the time to read the (Rust equivalent of the)
         //Process package's classes or something like
-        // apache commons has, and learn to launch vi workably, from scala. And will the terminal 
+        // apache commons has, and learn to launch vi workably, from scala. And will the terminal
         // settings changes by OM have to be undone/redone for it?:
         //        let command: String = db.get_text_editor_command;
-        //        ui.display_text("Using " + command + " as the text editor, but you can change that by 
+        //        ui.display_text("Using " + command + " as the text editor, but you can change that by
         //        navigating to the Main OM menu with ESC, search for
         // existing " +
-        //                       "entities, choose the first one (called " + 
+        //                       "entities, choose the first one (called " +
         //                       PostgreSQLDatabase.SYSTEM_ENTITY_NAME + "), choose " +
         //                       PostgreSQLDatabase.EDITOR_INFO_ENTITY_NAME + ", choose " +
         //                       "" + PostgreSQLDatabase.TEXT_EDITOR_INFO_ENTITY_NAME + ", then choose the " +
@@ -1287,12 +1294,12 @@ impl Util {
                 //one at the end, one in the middle, and none? adding? write tests for it or skip?
                 // if new_index_to_highlight != previously_highlighted_index_in_obj_list_in {
                 //     // %%why doesn't Rust know the element is an Entity, vs. <Unknown>? why can't just return
-                //     // objects_to_display_in.get(new_index_to_highlight)? Maybe rustc would do OK but the 
+                //     // objects_to_display_in.get(new_index_to_highlight)? Maybe rustc would do OK but the
                 //     // IDE doesn't? try changing at first 1 of the
                 //     // 3 below places back, and see if rustc gets it right? or am I mistaken?
                 //     match objects_to_display_in.get(new_index_to_highlight) {
                 //         None => Ok(None),
-                //         //does the next line actually work?? ie, unknown how clone would work w/ its db. 
+                //         //does the next line actually work?? ie, unknown how clone would work w/ its db.
                 //         //If not, remove derive clone fr entity?
                 //         //might have to create a new instance of the entity, instead, with new2()?
                 //         // Some(&e) => Some(e.to_owned()),
