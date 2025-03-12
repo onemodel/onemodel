@@ -1754,45 +1754,6 @@ fn relation_to_entity_methods_and_relation_type_methods() {
 
     db.delete_entity(tx.clone(), entity_id).unwrap();
 }
-
-/*%%%%saving for before/after reference
-      "get_containing_groups_ids" should "find groups containing the test group" in {
-        /*
-        Makes a thing like this:        entity1    entity3
-                                           |         |
-                                        group1     group3
-                                           |         |
-                                            \       /
-                                             entity2
-                                                |
-                                             group2
-         ...(and then checks in the middle that entity2 has 1 containing group, before adding entity3/group3)
-         ...and then checks that entity2 has 2 containing groups.
-         */
-    let entity_id1 = db.create_entity("test-get_containing_groups_ids-entity1");
-    let rel_type_id: i64 = db.create_relation_type("test-get_containing_groups_ids-reltype1", "", RelationType.UNIDIRECTIONAL);
-    let (groupId1, _) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id1, rel_type_id, "test-get_containing_groups_ids-group1");
-    let group1 = new Group(db,groupId1);
-    let entity_id2 = db.create_entity("test-get_containing_groups_ids-entity2");
-    group1.add_entity(entity_id2)
-    let (groupId2, _) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id2, rel_type_id, "test-get_containing_groups_ids-group1");
-    let group2 = new Group(db, groupId2);
-
-    let containingGroups:Vec<Option<DataType>>] = db.get_groups_containing_entitys_groups_ids(group2.get_id);
-    assert(containingGroups.size == 1)
-    assert(containingGroups.head(0).get.asInstanceOf[i64] == groupId1)
-
-    let entity_id3 = db.create_entity("test-get_containing_groups_ids-entity3");
-    let (groupId3, _) = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id3, rel_type_id, "test-get_containing_groups_ids-group1");
-    let group3 = new Group(db, groupId3);
-    group3.add_entity(entity_id2)
-
-    let containingGroups2:Vec<Vec<Option<DataType>>> = db.get_groups_containing_entitys_groups_ids(group2.get_id);
-    assert(containingGroups2.size == 2)
-    assert(containingGroups2.head(0).get.asInstanceOf[i64] == groupId1)
-    assert(containingGroups2.tail.head(0).get.asInstanceOf[i64] == groupId3)
-  }
-*/
     #[test]
     fn get_containing_groups_ids_finds_groups_containing_the_test_group() {
         Util::initialize_tracing();
