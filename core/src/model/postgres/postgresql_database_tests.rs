@@ -1191,17 +1191,6 @@ mod test {
         // No explicit rollback needed, as per sqlx docs.
     }
 
-    /*%%%%leaving this here for "before/after" reference info to give an LLM, possibly.
-          "Attribute and AttributeSorting row deletion" should "both happen automatically upon entity deletion" in {
-            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest sorting rows stuff");
-            create_test_quantity_attribute_with_two_entities(entity_id)
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-            assert(db.get_quantity_attribute_count(entity_id) == 1)
-            db.delete_entity(entity_id)
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-            assert(db.get_quantity_attribute_count(entity_id) == 0)
-          }
-*/
     #[test]
     fn attribute_and_attribute_sorting_row_deletion_both_happen_automatically_upon_entity_deletion() {
         Util::initialize_tracing();
@@ -1293,48 +1282,7 @@ mod test {
         // 2 more entities came during text attribute creation, which we don't care about either way, for this test
         assert_eq!(ending_entity_count, starting_entity_count + 2);
       }
-/*%%%%saving for before/after reference:
-          "DateAttribute create/delete/update methods" should "work" in {
-            let starting_entity_count = db.get_entity_count();
-            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testDateAttrs");
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)), 0);
-            let date_attribute_id: i64 = create_test_date_attribute_with_one_entity(entity_id);
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-            let da = new DateAttribute(db, date_attribute_id);
-            let (pid1, atid1) = (da.get_parent_id(), da.get_attr_type_id());
-            assert(entity_id == pid1)
-            let date = System.currentTimeMillis;
-            db.update_date_attribute(date_attribute_id, pid1, date, atid1)
-            // Have to create new instance to re-read the data: immutability makes the program easier to debug/reason about.
-            let da2 = new DateAttribute(db, date_attribute_id);
-            let (pid2, atid2, date2) = (da2.get_parent_id(), da2.get_attr_type_id(), da2.get_date);
-            assert(pid2 == pid1)
-            assert(atid2 == atid1)
-            assert(date2 == date)
-            // Also test the other constructor.
-            let da3 = new DateAttribute(db, date_attribute_id, pid1, atid1, date, 0);
-            let (pid3, atid3, date3) = (da3.get_parent_id(), da3.get_attr_type_id(), da3.get_date);
-            assert(pid3 == pid1)
-            assert(atid3 == atid1)
-            assert(date3 == date)
-            assert(db.get_date_attribute_count(entity_id) == 1)
 
-            let entity_countBeforeDateDeletion: i64 = db.get_entity_count();
-            db.delete_date_attribute(date_attribute_id)
-            assert(db.get_date_attribute_count(entity_id) == 0)
-            // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-            assert(db.get_entity_count() == entity_countBeforeDateDeletion)
-
-            // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below)
-            create_test_date_attribute_with_one_entity(entity_id)
-            db.delete_entity(entity_id)
-            assert(db.get_date_attribute_count(entity_id) == 0)
-
-            // 2 more entities came during attribute creation, which we don't care about either way, for this test
-            assert(db.get_entity_count() == starting_entity_count + 2)
-          }
-*/
     #[test]
     fn date_attribute_create_delete_update_methods() {
         Util::initialize_tracing();
@@ -1807,7 +1755,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
     db.delete_entity(tx.clone(), entity_id).unwrap();
 }
 
-/*%%%%
+/*%%%%saving for before/after reference
       "get_containing_groups_ids" should "find groups containing the test group" in {
         /*
         Makes a thing like this:        entity1    entity3
@@ -1845,6 +1793,117 @@ fn relation_to_entity_methods_and_relation_type_methods() {
     assert(containingGroups2.tail.head(0).get.asInstanceOf[i64] == groupId3)
   }
 */
+    #[test]
+    fn get_containing_groups_ids_finds_groups_containing_the_test_group() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        // Using None for simplicity for now but if tests run in parallel, might
+        // need a real one, like in other examples.
+        //let tx = None; 
+        /*This makes a thing like this:   entity1    entity3
+                                             |         |
+                                          group1     group3
+                                             |         |
+                                              \       /
+                                               entity2
+                                                  |
+                                               group2
+         ...(and then checks in the middle that entity2 has 1 containing group, before adding entity3/group3)
+         ...and then checks that entity2 has 2 containing groups. */
+        let entity_id1 = db
+            .create_entity(
+                None, //tx.clone(),
+                "test-get_containing_groups_ids-entity1",
+                None,
+                None,
+            )
+            .unwrap();
+        let entity1 = Entity::new2(db.clone(), None /*tx.clone()*/, entity_id1).unwrap();
+        let rel_type_id: i64 = db.clone()
+            .create_relation_type(
+                None, //tx.clone(),
+                "test-get_containing_groups_ids-reltype1",
+                "",
+                RelationType::UNIDIRECTIONAL,
+            )
+            .unwrap();
+        let (group_id1, _) = create_and_add_test_relation_to_group_on_to_entity(
+            db.clone(),
+            None, //tx.clone(),
+            &entity1,
+            rel_type_id,
+            "test-get_containing_groups_ids-group1",
+            None,
+            true,
+        ).unwrap();
+        let group1 = Group::new2(db.clone(), None /*tx.clone()*/, group_id1).unwrap();
+        
+        let entity_id2 = db.clone()
+            .create_entity(
+                None, //tx.clone(),
+                "test-get_containing_groups_ids-entity2",
+                None,
+                None,
+            )
+            .unwrap();
+        let entity2 = Entity::new2(db.clone(), None /*tx.clone()*/, entity_id2).unwrap();
+        group1.add_entity(None /*tx.clone()*/, entity_id2, None).unwrap();
+        let (group_id2, _) = create_and_add_test_relation_to_group_on_to_entity(
+            db.clone(),
+            None, //tx.clone(),
+            &entity2,
+            rel_type_id,
+            "test-get_containing_groups_ids-group2",
+            None,
+            true,
+        ).unwrap();
+        let group2 = Group::new2(db.clone(), None /*tx.clone()*/, group_id2).unwrap();
+        // this is a list of rows (query results) of (in this case) one element in each row.
+        let containing_groups: Vec<Vec<Option<DataType>>> = 
+            db.get_groups_containing_entitys_groups_ids(None /*tx.clone()*/, group2.get_id(), Some(5)).unwrap();
+        assert_eq!(containing_groups.len(), 1);
+        let first_group_id: i64 = match containing_groups[0].clone()[0].clone().unwrap() {
+            DataType::Bigint(x) => x,
+            _ => panic!("Unexpected value from query: {:?}", containing_groups),
+        };
+        assert_eq!(first_group_id, group_id1);
+        
+        let entity_id3 = db
+            .create_entity(
+                None, //tx.clone(),
+                "test-get_containing_groups_ids-entity3",
+                None,
+                None,
+            )
+            .unwrap();
+        let entity3 = Entity::new2(db.clone(), None /*tx.clone()*/, entity_id3).unwrap();
+        let (group_id3, _) = create_and_add_test_relation_to_group_on_to_entity(
+            db.clone(),
+            None, //tx.clone(),
+            &entity3,
+            rel_type_id,
+            "test-get_containing_groups_ids-group3",
+            None,
+            true,
+        ).unwrap();
+        
+        let group3 = Group::new2(db.clone(), None /*tx.clone()*/, group_id3).unwrap();
+        group3.add_entity(None /*tx.clone()*/, entity_id2, None).unwrap();
+        
+        let containing_groups2: Vec<Vec<Option<DataType>>> = 
+            db.get_groups_containing_entitys_groups_ids(None /*tx.clone()*/, group2.get_id(), Some(5)).unwrap();
+        assert_eq!(containing_groups2.len(), 2);
+        let first_group_id: i64 = match containing_groups2[0].clone()[0].clone().unwrap() {
+            DataType::Bigint(x) => x,
+            _ => panic!("Unexpected value from row 0: {:?}", containing_groups2),
+        };
+        let second_group_id: i64 = match containing_groups2[1].clone()[0].clone().unwrap() {
+            DataType::Bigint(x) => x,
+            _ => panic!("Unexpected value from row 1: {:?}", containing_groups2),
+        };
+        assert_eq!(first_group_id, group_id1);
+        assert_eq!(second_group_id, group_id3);
+    }
 
 #[test]
 fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error>> {

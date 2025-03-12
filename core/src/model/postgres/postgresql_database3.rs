@@ -3803,6 +3803,8 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// For a given group, find all the RelationsToGroup that contain entities that contain the provided group id, and return their group_ids.
+    /// Better description: For a given group, find all the entities that contain it, then all the
+    /// groups that contain those entities.
     /// What is really the best name for this method (concise but clear on what it does)?
     fn get_groups_containing_entitys_groups_ids(
         &self,
@@ -3817,7 +3819,9 @@ impl Database for PostgreSQLDatabase {
                           format!("SELECT entity_id from relationtogroup where group_id={} order by entity_id limit {}", group_id_in, limit).as_str(),
                           "i64")?;
         let mut containing_entity_ids: String = "".to_string();
-        //for all those entity ids, get every rtg id containing that entity
+
+        //For all those entity ids, get every rtg id containing that entity
+        //(but first make a String w/ a comma-delimited list of the entity IDs).
         for row in containing_entity_id_list {
             let entity_id = match row.get(0) {
                 Some(Some(DataType::Bigint(x))) => x,
@@ -3826,7 +3830,7 @@ impl Database for PostgreSQLDatabase {
             containing_entity_ids = format!("{}{},", containing_entity_ids, entity_id);
         }
         if containing_entity_ids.len() > 0 {
-            // remove the last comma
+            // (remove the last comma)
             containing_entity_ids.pop();
             let rtg_rows: Vec<Vec<Option<DataType>>> = self.db_query(
                 transaction.clone(),
