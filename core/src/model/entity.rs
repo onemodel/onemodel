@@ -1274,7 +1274,6 @@ impl Entity {
             group_id_in,
             sorting_index_in,
             None,
-            //%%%%%deprecated, see replacement in chrono docs, for everywhere I use this?
             Utc::now().timestamp_millis(),
         )
     }

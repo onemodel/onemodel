@@ -45,7 +45,7 @@ impl DateAttribute {
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new(
+    pub fn new(
         db: Rc<dyn Database>,
         id: i64,
         parent_id: i64,

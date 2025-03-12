@@ -1190,7 +1190,8 @@ mod test {
         // Rollback transaction (handled automatically when tx goes out of scope)
         // No explicit rollback needed, as per sqlx docs.
     }
-    /*%%
+
+    /*%%%%leaving this here for "before/after" reference info to give an LLM, possibly.
           "Attribute and AttributeSorting row deletion" should "both happen automatically upon entity deletion" in {
             let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest sorting rows stuff");
             create_test_quantity_attribute_with_two_entities(entity_id)
@@ -1201,6 +1202,35 @@ mod test {
             assert(db.get_quantity_attribute_count(entity_id) == 0)
           }
 */
+    #[test]
+    fn attribute_and_attribute_sorting_row_deletion_both_happen_automatically_upon_entity_deletion() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Not needing to deal w/ complexity of a tx in this method.
+        //let tx = db.begin_trans().unwrap();
+        //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+        let entity_id = db.create_entity(None, "test: org.onemodel.PSQLDbTest sorting rows stuff", None, None)
+            .unwrap();
+        create_test_quantity_attribute_with_two_entities(&db, None, entity_id, None);
+        assert_eq!(
+            db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(),
+            1
+        );
+        assert_eq!(
+            db.get_quantity_attribute_count(None, entity_id).unwrap(),
+            1
+        );
+        db.delete_entity(None, entity_id).unwrap();
+        assert_eq!(
+            db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(),
+            0
+        );
+        assert_eq!(
+            db.get_quantity_attribute_count(None, entity_id).unwrap(),
+            0
+        );
+        // no need to db.rollback_trans(), because that is automatic when tx goes out of scope, per sqlx docs.
+    }
 
     #[test]
     fn text_attribute_create_delete_update_methods() {
@@ -1263,8 +1293,7 @@ mod test {
         // 2 more entities came during text attribute creation, which we don't care about either way, for this test
         assert_eq!(ending_entity_count, starting_entity_count + 2);
       }
-/*%%
- 
+/*%%%%saving for before/after reference:
           "DateAttribute create/delete/update methods" should "work" in {
             let starting_entity_count = db.get_entity_count();
             let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testDateAttrs");
@@ -1305,8 +1334,76 @@ mod test {
             // 2 more entities came during attribute creation, which we don't care about either way, for this test
             assert(db.get_entity_count() == starting_entity_count + 2)
           }
-
-          //%%(keeping this copy of the test in scala temporarily to provide a before/after for chatgpt etc.)
+*/
+    #[test]
+    fn date_attribute_create_delete_update_methods() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        
+        // If tests are run in parallel, we probably need to start using transactions in this test.
+        // See other examples, and parameters to all fns. Some might need a transaction parameter
+        // to be added.
+        let starting_entity_count = db.get_entity_count(None).unwrap();
+        let entity_id = db
+            .create_entity(
+                None,
+                "test: org.onemodel.PSQLDbTest.testDateAttrs",
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!(db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(), 0);
+        let date_attribute_id: i64 = create_test_date_attribute_with_one_entity(&db, entity_id);
+        assert_eq!(db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(), 1);
+        
+        let mut da = DateAttribute::new2(db.clone(), None, date_attribute_id).unwrap();
+        let (pid1, atid1) = (da.get_parent_id(None).unwrap(), da.get_attr_type_id(None).unwrap());
+        assert_eq!(entity_id, pid1);
+        
+        let date = Utc::now().timestamp_millis();
+        db.update_date_attribute(None, date_attribute_id, pid1, date, atid1).unwrap();
+        
+        // Have to create new instance to re-read the data: immutability makes the program easier to debug/reason about.
+        let mut da2 = DateAttribute::new2(db.clone(), None, date_attribute_id).unwrap();
+        let (pid2, atid2, date2) = (
+            da2.get_parent_id(None).unwrap(),
+            da2.get_attr_type_id(None).unwrap(),
+            da2.get_date(None).unwrap()
+        );
+        assert_eq!(pid2, pid1);
+        assert_eq!(atid2, atid1);
+        assert_eq!(date2, date);
+        
+        // Also test the other constructor.
+        let mut da3 = DateAttribute::new(db.clone(), date_attribute_id, pid1, atid1, date, 0);
+        let (pid3, atid3, date3) = (
+            da3.get_parent_id(None).unwrap(),
+            da3.get_attr_type_id(None).unwrap(),
+            da3.get_date(None).unwrap()
+        );
+        assert_eq!(pid3, pid1);
+        assert_eq!(atid3, atid1);
+        assert_eq!(date3, date);
+        
+        assert_eq!(db.clone().get_date_attribute_count(None, entity_id).unwrap(), 1);
+        
+        let entity_count_before_date_deletion: u64 = db.get_entity_count(None).unwrap();
+        db.delete_date_attribute(None, date_attribute_id).unwrap();
+        assert_eq!(db.get_date_attribute_count(None, entity_id).unwrap(), 0);
+        
+        // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
+        assert_eq!(db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(), 0);
+        assert_eq!(db.get_entity_count(None).unwrap(), entity_count_before_date_deletion);
+        
+        // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below)
+        create_test_date_attribute_with_one_entity(&db, entity_id);
+        db.delete_entity(None, entity_id).unwrap();
+        assert_eq!(db.get_date_attribute_count(None, entity_id).unwrap(), 0);
+        
+        // 2 more entities came during attribute creation, which we don't care about either way, for this test
+        assert_eq!(db.get_entity_count(None).unwrap(), starting_entity_count + 2);
+    }
+          /* //%%(keeping this copy of the test, partially converted from scala, temporarily to provide a before/after for chatgpt etc.)
           "BooleanAttribute create/delete/update methods" should "work" in {
             let starting_entity_count = db.get_entity_count();
             let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testBooleanAttrs");
@@ -1710,7 +1807,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
     db.delete_entity(tx.clone(), entity_id).unwrap();
 }
 
-/*%%
+/*%%%%
       "get_containing_groups_ids" should "find groups containing the test group" in {
         /*
         Makes a thing like this:        entity1    entity3
@@ -1949,7 +2046,7 @@ impl TestStruct<'_>{
 
 
 
-    /*
+    /*%%%%
   "get_groups" should "work" in {
     let group3id = db.create_group("g3");
     let number = db.get_groups(0).size;
@@ -2056,7 +2153,7 @@ impl TestStruct<'_>{
     }
     assert(foundQA && foundTA && foundRTE && foundRTG && foundDA && foundBA && foundFA)
   }
-%%*/
+*/
 
     #[test]
     fn om_instance_read_data_from_db() {
@@ -2131,7 +2228,7 @@ impl TestStruct<'_>{
         db.delete_relation_type(trans.clone(), rel_type_id).unwrap();
     }
 
-/*%%
+/*%%%%
 #[test]
 fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
     let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
