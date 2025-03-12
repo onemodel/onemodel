@@ -488,7 +488,7 @@ impl Database for PostgreSQLDatabase {
         Ok(results_in_out)
     }
 
-    /// Returns the class_id and entity_id, in a tuple. 
+    /// Returns the class_id and entity_id, in a tuple.
     fn create_class_and_its_template_entity<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
@@ -4086,12 +4086,17 @@ impl Database for PostgreSQLDatabase {
         } else {
             ""
         };
-        let result = self.db_query_wrapper_for_one_row(transaction,
-                                          format!("select name, name_in_reverse_direction, directionality \
+        let result = self.db_query_wrapper_for_one_row(
+            transaction,
+            format!(
+                "select name, name_in_reverse_direction, directionality \
                                               from RelationType r, Entity e \
                                               where {} e.id=r.entity_id and r.entity_id={}",
-                                              not_archived, id_in).as_str(),
-                                              Util::GET_RELATION_TYPE_DATA__RESULT_TYPES);
+                not_archived, id_in
+            )
+            .as_str(),
+            Util::GET_RELATION_TYPE_DATA__RESULT_TYPES,
+        );
         result
     }
 
@@ -4624,26 +4629,24 @@ impl Database for PostgreSQLDatabase {
         // dependencies; is a cleaner design?)  (and similar ones)
         for result in early_results {
             // None of these values should be of "None" type. If they are it's a bug:
-            //%%%
-            //final_results.push(RelationType::new(&self, result[0].get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(6).get.asInstanceOf[String],
-            //                                    result(7).get.asInstanceOf[String]))
-            //let Some(DataType::Bigint(entity_id)): i64 = result[0];
-            let entity_id: i64 =
-                match result[0] {
-                    Some(DataType::Bigint(x)) => x,
-                    _ => return Err(anyhow!(
+           let entity_id: i64 = match result[0] {
+                Some(DataType::Bigint(x)) => x,
+                _ => {
+                    return Err(anyhow!(
                         "In get_relation_types, Did not expect {:?} in retrieved column for id.",
                         result[0]
-                    )),
-                };
-            let name: String =
-                match result[1].clone() {
-                    Some(DataType::String(x)) => x,
-                    _ => return Err(anyhow!(
+                    ))
+                }
+            };
+            let name: String = match result[1].clone() {
+                Some(DataType::String(x)) => x,
+                _ => {
+                    return Err(anyhow!(
                         "In get_relation_types, Did not expect {:?} in retrieved column for name.",
                         result[1]
-                    )),
-                };
+                    ))
+                }
+            };
             let name_in_reverse_direction = match result[7].clone() {
                 Some(DataType::String(x)) => x,
                 _ => {
@@ -4964,36 +4967,78 @@ impl Database for PostgreSQLDatabase {
     //     }
     //     Ok(final_results)
     //   }
-    //%%:
-    //   /// Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
-    //   // 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
-    // fn get_groups(&self,
-    //    transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    // starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/,
-    //               group_to_omit_id_in: Option<i64> /*= None*/)  -> Result<Vec<Group>, anyhow::Error>  {
-    //     let omission_expression: String = match group_to_omit_id_in {
-    //       None => "true".to_string(),
-    //       Some(gtoii) => format!("(not id={})", gtoii),
-    //     };
-    //     let sql = format!("SELECT id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top from grupo where {} \
-    //                       order by id limit {} offset {}",
-    //               omission_expression, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in).as_str();
-    //     let early_results = self.db_query(transaction, sql, "i64,String,i64,bool,bool");
-    //     let final_results: Vec<Group> = Vec::new();
-    //     // idea: should the remainder of this method be moved to RTG, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-    //     // dependencies; is a cleaner design?)
-    //     for result in early_results {
-    //       // None of these values should be of "None" type. If they are it's a bug:
-    //         //%%
-    //       // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
-    //       //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
-    //     }
-    //     if final_results.len() != early_results.len() {
-    //         return Err(anyhow!("In get_groups, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
-    //     }
-    //     Ok(final_results)
-    //   }
 
+    /// Allows querying for a range of objects in the database;
+    /// (in Scala it) returns a java.util.Map with keys and names.
+    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    /// The starting_object_index is the index to start with (0-based),
+    /// The max_vals is # of obj's to return (if None, means no limit).
+    fn get_groups(
+        &self,
+        db: Rc<dyn Database>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        starting_object_index_in: i64,
+        max_vals_in: Option<i64>,         /*= None*/
+        group_to_omit_id_in: Option<i64>, /*= None*/
+    ) -> Result<Vec<Group>, anyhow::Error> {
+        let omission_expression: String = match group_to_omit_id_in {
+            None => "true".to_string(),
+            Some(gtoii) => format!("(not id={})", gtoii),
+        };
+        let how_many = Self::check_if_should_be_all_results(max_vals_in);
+        let sql = format!(
+            "SELECT id, name, insertion_date, allow_mixed_classes, new_entries_stick_to_top \
+                        from grupo where {} order by id limit {} offset {}",
+            omission_expression, how_many, starting_object_index_in
+        );
+        let early_results: Vec<Vec<Option<DataType>>> =
+            self.db_query(transaction, sql.as_str(), "i64,String,i64,bool,bool")?;
+        let mut final_results: Vec<Group> = Vec::new();
+        // idea: should the remainder of this method be moved to RTG, so the persistence layer doesn't know anything about the Model? (helps avoid circular
+        // dependencies; is a cleaner design?)
+        for result in &early_results {
+            // None of these values should be of "None" type. If they are it's a bug:
+            let gid: i64 = match result[0] {
+                Some(DataType::Bigint(x)) => x,
+                _ => return Err(anyhow!("Unexpected value: {:?}", result[0])),
+            };
+            let name: String = match &result[1] {
+                Some(DataType::String(x)) => x.clone(),
+                _ => return Err(anyhow!("Unexpected value: {:?}", result[1])),
+            };
+            let insertion_date: i64 = match result[2] {
+                Some(DataType::Bigint(x)) => x,
+                _ => return Err(anyhow!("Unexpected value: {:?}", result[2])),
+            };
+            let mixed_classes_allowed: bool = match result[3] {
+                Some(DataType::Boolean(x)) => x,
+                _ => return Err(anyhow!("Unexpected value: {:?}", result[3])),
+            };
+            let new_entries_stick_to_top: bool = match result[4] {
+                Some(DataType::Boolean(x)) => x,
+                _ => return Err(anyhow!("Unexpected value: {:?}", result[4])),
+            };
+            let group = Group::new(
+                db.clone(),
+                gid,
+                name.as_str(),
+                insertion_date,
+                mixed_classes_allowed,
+                new_entries_stick_to_top,
+            );
+            final_results.push(group);
+        }
+        if final_results.len() != early_results.len() {
+            return Err(anyhow!(
+                "In get_groups, final_results.len() ({}) != early_results.len() ({})",
+                final_results.len(),
+                early_results.len()
+            ));
+        }
+        Ok(final_results)
+    }
+
+    //%%:
     // fn get_classes(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/)  -> Result<Vec<EntityClass>, anyhow::Error>  {
     //     let sql: String = format!("SELECT id, name, defining_entity_id, create_default_attributes from class order by id limit {} offset {}",
     //                       check_if_should_be_all_results(max_vals_in), starting_object_index_in);

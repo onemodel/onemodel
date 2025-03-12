@@ -856,7 +856,14 @@ pub trait Database {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error>;
-    //%% fn get_groups(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/, group_to_omit_id_in: Option<i64> /*= None*/) -> Result<Vec<Group>, anyhow::Error>;
+    fn get_groups(
+        &self,
+        db: Rc<dyn Database>, 
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        starting_object_index_in: i64, 
+        max_vals_in: Option<i64> /*= None*/, 
+        group_to_omit_id_in: Option<i64> /*= None*/
+    ) -> Result<Vec<Group>, anyhow::Error>;
     fn create_group(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,

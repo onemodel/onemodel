@@ -2026,7 +2026,7 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
-    /*%%
+    /*Just some leftover experimental test code once used to help isolate an issue:
 #[test]
 fn test_lifetime_issue() -> Result<(), Box<dyn std::error::Error>> {
     //why does the order of next 2 lines matter?? Or only sometimes?
@@ -2066,16 +2066,23 @@ impl TestStruct<'_>{
 
 
 
-    /*%%%%
-  "get_groups" should "work" in {
-    let group3id = db.create_group("g3");
-    let number = db.get_groups(0).size;
-    let number2 = db.get_groups(0, None, Some(group3id)).size;
-    assert(number == number2 + 1)
-    let number3 = db.get_groups(1).size;
-    assert(number == number3 + 1)
-  }
+    #[test]
+    fn get_groups_works() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but probably would have to change if 
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        let group3id = db.create_group(None /*tx.clone()*/, "g3", false).unwrap();
+        let number = db.get_groups(db.clone(), None /*tx.clone()*/, 0, None, None).unwrap().len();
+        let number2 = db.get_groups(db.clone(), None /*tx.clone()*/, 0, None, Some(group3id)).unwrap().len();
+        assert_eq!(number, number2 + 1);
+        let number3 = db.get_groups(db.clone(), None /*tx.clone()*/, 1, None, None).unwrap().len();
+        assert_eq!(number, number3 + 1);
+    }
 
+    /*%%%%
   "deleting entity" should "work even if entity is in a relationtogroup" in {
     let starting_entity_count = db.get_entities_only_count();
     let relToGroupName = "test:PSQLDbTest.testDelEntity_InGroup";
