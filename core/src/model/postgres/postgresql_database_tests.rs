@@ -2082,49 +2082,101 @@ impl TestStruct<'_>{
         assert_eq!(number, number3 + 1);
     }
 
-    /*%%%%
-  "deleting entity" should "work even if entity is in a relationtogroup" in {
-    let starting_entity_count = db.get_entities_only_count();
-    let relToGroupName = "test:PSQLDbTest.testDelEntity_InGroup";
-    let entityName = relToGroupName + "--theEntity";
-    let entity_id = db.create_entity(entityName);
-    let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
-    let valid_on_date = 12345L;
-    let groupId = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, relToGroupName, Some(valid_on_date))._1;
-    //val rtg: RelationToGroup = new RelationToGroup
-    let group:Group = new Group(db, groupId);
-    group.add_entity(db.create_entity(entityName + 1))
-    assert(db.get_entities_only_count() == starting_entity_count + 2)
-    assert(db.get_group_size(groupId) == 1)
+    #[test]
+    fn deleting_entity_works_even_if_entity_is_in_a_relationtogroup() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if 
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        let starting_entity_count = db.get_entities_only_count(None, false, None, None).unwrap();
+        let rel_to_group_name = "test:PSQLDbTest.testDelEntity_InGroup";
+        let entity_name = format!("{}--theEntity", rel_to_group_name);
+        let entity_id = db
+            .create_entity(
+                None,
+                &entity_name.as_str(),
+                None,
+                None,
+            )
+            .unwrap();
+        let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
+        let rel_type_id: i64 = db
+            .create_relation_type(
+                None,
+                "contains",
+                "",
+                RelationType::UNIDIRECTIONAL,
+            )
+            .unwrap();
+        let valid_on_date = Some(12345i64);
+        let (group_id, _) = create_and_add_test_relation_to_group_on_to_entity(
+            db.clone(),
+            None,
+            &entity,
+            rel_type_id,
+            rel_to_group_name,
+            valid_on_date,
+            true,
+        ).unwrap();
+        let group = Group::new2(db.clone(), None, group_id).unwrap();
+        let entity_id1 = db
+            .create_entity(
+                None,
+                &format!("{}{}", entity_name, 1),
+                None,
+                None,
+            )
+            .unwrap();
+        group.add_entity(None, entity_id1, None).unwrap();
+        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), starting_entity_count + 2);
+        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), 1);
+        
+        let entity_id2 = db
+            .create_entity(
+                None,
+                &format!("{}{}", entity_name, 2),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), starting_entity_count + 3);
+        assert_eq!(db.get_count_of_groups_containing_entity(None, entity_id2).unwrap(), 0);
+        group.add_entity(None, entity_id2, None).unwrap();
+        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), 2);
+        assert_eq!(db.get_count_of_groups_containing_entity(None, entity_id2).unwrap(), 1);
+        
+        let descriptions = db.get_containing_relation_to_group_descriptions(None, entity_id2, Some(9999)).unwrap();
+        assert_eq!(descriptions.len(), 1);
+        assert_eq!(descriptions[0], format!("{}->{}", entity_name, rel_to_group_name));
+        // Doesn't get an error
+        db.delete_entity(None, entity_id2).unwrap();
+        
+        let descriptions2 = db.get_containing_relation_to_group_descriptions(None, entity_id2, Some(9999)).unwrap();
+        assert_eq!(descriptions2.len(), 0);
+        assert_eq!(db.get_count_of_groups_containing_entity(None, entity_id2).unwrap(), 0);
+        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), starting_entity_count + 2);
+        // Check that creating an Entity with deleted id returns error
+        let result = Entity::new2(db.clone(), None, entity_id2);
+        assert!(result.is_err());
+        let error_message = format!("{}", result.err().unwrap());
+        assert!(error_message.contains("does not exist"));
+        
+        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), 1);
+        
+        let list = db.get_group_entry_ids(None, group_id, 0, None).unwrap();
+        assert_eq!(list.len(), 1);
+        let remaining_contained_entity_id = list[0];
+        //Ensure the first entities still exist: not deleted by that delete command
+        let result = Entity::new2(db.clone(), None, entity_id);
+        assert!(result.is_ok());
+        let result = Entity::new2(db.clone(), None, remaining_contained_entity_id);
+        assert!(result.is_ok());
+    }
 
-    let entity_id2 = db.create_entity(entityName + 2);
-    assert(db.get_entities_only_count() == starting_entity_count + 3)
-    assert(db.get_count_of_groups_containing_entity(entity_id2) == 0)
-    group.add_entity(entity_id2)
-    assert(db.get_group_size(groupId) == 2)
-    assert(db.get_count_of_groups_containing_entity(entity_id2) == 1)
-    let descriptions = db.get_containing_relation_to_group_descriptions(entity_id2, Some(9999));
-    assert(descriptions.size == 1)
-    assert(descriptions.get(0) == entityName + "->" + relToGroupName) //doesn't get an error:
-    db.delete_entity(entity_id2)
-
-    let descriptions2 = db.get_containing_relation_to_group_descriptions(entity_id2, Some(9999));
-    assert(descriptions2.size == 0)
-    assert(db.get_count_of_groups_containing_entity(entity_id2) == 0)
-    assert(db.get_entities_only_count() == starting_entity_count + 2)
-    assert(intercept[Exception] {
-                                  new Entity(db, entity_id2)
-                                }.getMessage.contains("does not exist"))
-
-    assert(db.get_group_size(groupId) == 1)
-
-    let list = db.get_group_entry_ids(groupId, 0);
-    assert(list.size == 1)
-    let remainingContainedEntityId = list.get(0).get_id; // ensure the first entities still exist: not deleted by that delete command
-    new Entity(db, entity_id)
-    new Entity(db, remainingContainedEntityId)
-  }
-
+/*%%%%
   "get_sorted_attributes" should "return them all and correctly" in {
     let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
     create_test_text_attribute_with_one_entity(entity_id)

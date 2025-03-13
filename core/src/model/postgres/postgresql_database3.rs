@@ -3797,7 +3797,7 @@ impl Database for PostgreSQLDatabase {
                 Some(Some(DataType::String(x))) => x,
                 _ => return Err(anyhow!("In get_containing_relation_to_group_descriptions, expected a group name at index 1 of {:?}", row)),
             };
-            results.push(format!("{} -> {}", entity_name, group_name));
+            results.push(format!("{}->{}", entity_name, group_name));
         }
         Ok(results)
     }
@@ -5262,7 +5262,6 @@ impl Database for PostgreSQLDatabase {
         group_id_in: i64,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-                                  //) -> Result<Vec<Entity>, anyhow::Error> {
     ) -> Result<Vec<i64>, anyhow::Error> {
         let not_archived = if !self.include_archived_entities {
             " and (not e.archived) "
