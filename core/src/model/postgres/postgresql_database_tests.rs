@@ -23,7 +23,7 @@ use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::date_attribute::DateAttribute;
 use crate::model::om_instance::OmInstance;
 use crate::model::relation_type::RelationType;
-//use crate::model::file_attribute::FileAttribute;
+use crate::model::file_attribute::FileAttribute;
 use crate::model::quantity_attribute::QuantityAttribute;
 use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
@@ -2176,63 +2176,110 @@ impl TestStruct<'_>{
         assert!(result.is_ok());
     }
 
-/*%%%%
-  "get_sorted_attributes" should "return them all and correctly" in {
-    let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testRelsNRelTypes()");
-    create_test_text_attribute_with_one_entity(entity_id)
-    create_test_quantity_attribute_with_two_entities(entity_id)
-    let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
-    let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id);
-    DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id)
-    create_test_date_attribute_with_one_entity(entity_id)
-    create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
-    create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "desc", 2, verify_in = false)
+    #[test]
+    fn get_sorted_attributes_returns_them_all_and_correctly() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if 
+        //running tests in parallel. 
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
 
-    db.update_entity_only_public_status(related_entity_id, None)
-    let onlyPublicTotalAttrsAvailable1 = db.get_sorted_attributes(entity_id, 0, 999, only_public_entities_in = true)._2;
-    db.update_entity_only_public_status(related_entity_id, Some(false))
-    let onlyPublicTotalAttrsAvailable2 = db.get_sorted_attributes(entity_id, 0, 999, only_public_entities_in = true)._2;
-    db.update_entity_only_public_status(related_entity_id, Some(true))
-    let onlyPublicTotalAttrsAvailable3 = db.get_sorted_attributes(entity_id, 0, 999, only_public_entities_in = true)._2;
-    assert(onlyPublicTotalAttrsAvailable1 == onlyPublicTotalAttrsAvailable2)
-    assert((onlyPublicTotalAttrsAvailable3 - 1) == onlyPublicTotalAttrsAvailable2)
+        let entity_id = db
+            .create_entity(None, "test: org.onemodel.PSQLDbTest.testRelsNRelTypes()", None, None)
+            .unwrap();
+        let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
+        create_test_text_attribute_with_one_entity(&db.clone(), None, entity_id, None);
+        create_test_quantity_attribute_with_two_entities(&db.clone(), None, entity_id, None);
+        let rel_type_id: i64 = db
+            .create_relation_type(
+                None,
+                "contains",
+                "",
+                RelationType::UNIDIRECTIONAL,
+            )
+            .unwrap();
+        let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(
+            &db.clone(),
+            None,
+            entity_id,
+            rel_type_id,
+            None,
+        );
+        let (_, _) = create_and_add_test_relation_to_group_on_to_entity(
+            db.clone(), None, &entity, rel_type_id, "test-relation-to-group", None, true,
+        ).unwrap();
+        // if using transactions, might have to add such a parameter to the next-called function:
+        create_test_date_attribute_with_one_entity(&db.clone(), entity_id);
+        create_test_boolean_attribute_with_one_entity(&db.clone(), None, entity_id, false, None, 0);
+        //%%latertests after FileAttribute is more completed.
+        //create_test_file_attribute_and_one_entity(&entity, "desc", 2, false);
+        db.update_entity_only_public_status(None, related_entity_id, None).unwrap();
+        let (_, only_public_total_attrs_available1) = db.get_sorted_attributes(None, entity_id, 0, 999, true).unwrap();
+        db.update_entity_only_public_status(None, related_entity_id, Some(false)).unwrap();
+        let (_, only_public_total_attrs_available2) = db.get_sorted_attributes(None, entity_id, 0, 999, true).unwrap();
+        db.update_entity_only_public_status(None, related_entity_id, Some(true)).unwrap();
+        let (_, only_public_total_attrs_available3) = db.get_sorted_attributes(None, entity_id, 0, 999, true).unwrap();
+        assert_eq!(only_public_total_attrs_available1, only_public_total_attrs_available2);
+        assert_eq!((only_public_total_attrs_available3 - 1), only_public_total_attrs_available2);
+        
+        let (attr_tuples, total_attrs_available) = db.get_sorted_attributes(None, entity_id, 0, 999, false).unwrap();
+        assert!(total_attrs_available > only_public_total_attrs_available1);
+        let counter: i64 = attr_tuples.len() as i64;
+        // Should be the same since we didn't create enough to span screens (requested them all)
+        assert_eq!(counter, total_attrs_available);
+        if counter != 7 {
+            panic!("We added attributes (RelationToLocalEntity, quantity & text, date, bool, file, RTG), but get_sorted_attributes() returned {}?", counter);
+        }
 
-    let (attrTuples: Array[(i64, Attribute)], totalAttrsAvailable) = db.get_sorted_attributes(entity_id, 0, 999, only_public_entities_in = false);
-    assert(totalAttrsAvailable > onlyPublicTotalAttrsAvailable1)
-    let counter: i64 = attrTuples.length; // should be the same since we didn't create enough to span screens (requested them all):
-    assert(counter == totalAttrsAvailable)
-    if counter != 7 {
-      fail("We added attributes (RelationToLocalEntity, quantity & text, date,bool,file,RTG), but getAttributeIdsAndAttributeTypeIds() returned " + counter + "?")
+        let mut found_qa = false;
+        let mut found_ta = false;
+        let mut found_rte = false;
+        let mut found_rtg = false;
+        let mut found_da = false;
+        let mut found_ba = false;
+        let mut found_fa = false;
+        for (_, attr) in attr_tuples {
+            //match attr {
+                if let Some(qa) = attr.downcast_ref::<QuantityAttribute>() {
+                    assert_eq!(attr.get_number(), 50);
+                    found_qa = true;
+                }
+                //else if let Attribute::TextAttribute(attribute) => {
+                else if let Some(ta) = attr.downcast_ref::<TextAttribute>() {
+                    assert_eq!(attr.get_text(), "some test text");
+                    found_ta = true;
+                }
+                //else if let Attribute::RelationToLocalEntity(attribute) => {
+                else if let Some(a) = attr.downcast_ref::<RelationToLocalEntity>() {
+                    assert_eq!(attr.get_attr_type_id(), rel_type_id);
+                    found_rte = true;
+                }
+                //Attribute::RelationToGroup(_) => {
+                else if let Some(a) = attr.downcast_ref::<RelationToGroup>() {
+                    found_rtg = true;
+                }
+                //Attribute::DateAttribute(_) => {
+                else if let Some(a) = attr.downcast_ref::<DateAttribute>() {
+                    found_da = true;
+                }
+                //Attribute::BooleanAttribute(_) => {
+                else if let Some(a) = attr.downcast_ref::<BooleanAttribute>() {
+                    found_ba = true;
+                }
+                //Attribute::FileAttribute(_) => {
+                else if let Some(a) = attr.downcast_ref::<FileAttribute>() {
+                    found_fa = true;
+                }
+                //_ => panic!("unexpected attribute type"),
+                else { 
+                    panic!("unexpected attribute type");
+                }
+            //}
+        }
+        assert!(found_qa && found_ta && found_rte && found_rtg && found_da && found_ba);
+        assert!(found_fa);
     }
-
-    let mut (foundQA, foundTA, foundRTE, foundRTG, foundDA, foundBA, foundFA) = (false, false, false, false, false, false, false);
-    for (attr <- attrTuples) {
-      attr._2 match {
-        case attribute: QuantityAttribute =>
-          assert(attribute.get_number == 50)
-          foundQA = true
-    case attribute: TextAttribute => //strangely, running in the intellij 12 IDE wouldn't report this line as a failure when necessary, but
-                                     // the cli does.
-    assert(attribute.get_text == "some test text")
-          foundTA = true
-        case attribute: RelationToLocalEntity =>
-          assert(attribute.get_attr_type_id() == rel_type_id)
-          foundRTE = true
-        case attribute: RelationToGroup =>
-          foundRTG = true
-        case attribute: DateAttribute =>
-          foundDA = true
-        case attribute: BooleanAttribute =>
-          foundBA = true
-        case attribute: FileAttribute =>
-          foundFA = true
-        case _ =>
-          throw new Exception("unexpected")
-      }
-    }
-    assert(foundQA && foundTA && foundRTE && foundRTG && foundDA && foundBA && foundFA)
-  }
-*/
 
     #[test]
     fn om_instance_read_data_from_db() {

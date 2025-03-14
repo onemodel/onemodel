@@ -7,6 +7,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+use crate::model::attribute::Attribute;
 use crate::model::entity::Entity;
 use crate::model::group::Group;
 use crate::model::relation_to_group::RelationToGroup;
@@ -443,12 +444,15 @@ pub trait Database {
         name_in: &str,
         self_id_to_ignore_in: Option<i64>, /*= None*/
     ) -> Result<bool, anyhow::Error>;
-    //%%
-    //   fn get_sorted_attributes(&self,
-    //transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    //   entity_id_in: i64,
-    //                            starting_object_index_in: usize /*= 0*/, max_vals_in: usize /*= 0*/,
-    //                                only_public_entities_in: bool /*= true*/) -> (Array[(i64, Attribute)], Int);
+    fn get_sorted_attributes(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        entity_id_in: i64,
+        starting_object_index_in: usize /*= 0*/, 
+        max_vals_in: usize /*= 0*/,
+        only_public_entities_in: bool /*= true*/
+    ) -> Result<(Vec<(i64, Attribute)>, usize), anyhow::Error>;
+    //) -> (Array[(i64, Attribute)], Int);
     fn get_relation_type_data(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,

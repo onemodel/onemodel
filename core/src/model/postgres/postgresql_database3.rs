@@ -4518,7 +4518,8 @@ impl Database for PostgreSQLDatabase {
 
     /// Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
     /// 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
-    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    /// This takes a db parameter for the same reasons as in the comment on 
+    /// fn get_entities_generic in postgresql_database2.rs.
     fn get_entities(
         &self,
         db: Rc<dyn Database>,
@@ -4539,14 +4540,19 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    /// Excludes those entities that are really relationtypes, attribute types, or quantity units. Otherwise similar to get_entities.
-    /// *****NOTE*****: The limit_by_class:Boolean parameter is not redundant with the in_class_id: in_class_id could be None and we could still want
-    /// to select only those entities whose class_id is NULL, such as when enforcing group uniformity (see method has_mixed_classes and its
+    /// Excludes those entities that are really relationtypes, attribute types, or 
+    /// quantity units. Otherwise similar to get_entities.
+    /// *****NOTE*****: The limit_by_class:Boolean parameter is not redundant with the 
+    /// in_class_id: in_class_id could be None and we could still want to select only those entities 
+    /// whose class_id is NULL, such as when enforcing group uniformity (see method has_mixed_classes and its
     /// uses, for more info).
     ///
-    /// The parameter omitEntity is (at this writing) used for the id of a class-defining (template) entity, which we shouldn't show for editing when showing all the
+    /// The parameter omitEntity is (at this writing) used for the id of a class-defining (template) 
+    /// entity, which we shouldn't show for editing when showing all the
     /// entities in the class (editing that is a separate menu option), otherwise it confuses things.
-    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    ///
+    /// This takes a db parameter for the same reasons as in the comment on 
+    /// fn get_entities_generic in postgresql_database2.rs.
     fn get_entities_only(
         &self,
         db: Rc<dyn Database>,
@@ -4574,7 +4580,8 @@ impl Database for PostgreSQLDatabase {
     ///// similar to get_entities*
     // This fn used to be integrated with get_entities_generic. Probably want to check both when
     // making changes?
-    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    /// This takes a db parameter for the same reasons as in the comment on 
+    /// fn get_entities_generic in postgresql_database2.rs.
     fn get_relation_types(
         &self,
         db: Rc<dyn Database>,
@@ -4970,7 +4977,8 @@ impl Database for PostgreSQLDatabase {
 
     /// Allows querying for a range of objects in the database;
     /// (in Scala it) returns a java.util.Map with keys and names.
-    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    /// This takes a db parameter for the same reasons as in the comment on 
+    /// fn get_entities_generic in postgresql_database2.rs.
     /// The starting_object_index is the index to start with (0-based),
     /// The max_vals is # of obj's to return (if None, means no limit).
     fn get_groups(
