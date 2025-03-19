@@ -9,7 +9,7 @@
 */
 /// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
 /// faster.
-// use crate::model::boolean_attribute::BooleanAttribute;
+use crate::model::attribute::Attribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
@@ -17,10 +17,6 @@ use crate::model::om_instance::OmInstance;
 use crate::model::postgres::postgresql_database::*;
 use crate::model::relation_to_group::RelationToGroup;
 // use crate::model::postgres::*;
-use crate::model::relation_to_local_entity::RelationToLocalEntity;
-// use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
-use crate::model::relation_type::RelationType;
-//use crate::model::text_attribute::TextAttribute;
 use crate::util::Util;
 use anyhow::anyhow;
 use chrono::Utc;
@@ -798,59 +794,129 @@ impl PostgreSQLDatabase {
         let id: i64 = match result.get(0) {
             Some(val) => match val {
                 Some(DataType::Bigint(x)) => *x,
-                _ => return Err(anyhow!("Expected Some(DataType::Bigint(id)), got {:?}", val))
+                _ => {
+                    return Err(anyhow!(
+                        "Expected Some(DataType::Bigint(id)), got {:?}",
+                        val
+                    ))
+                }
             },
-            _ => return Err(anyhow!("Expected Some(Some(DataType::Bigint(id))), got {:?}", result.get(0)))
+            _ => {
+                return Err(anyhow!(
+                    "Expected Some(Some(DataType::Bigint(id))), got {:?}",
+                    result.get(0)
+                ))
+            }
         };
         //let DataType::String(name) = result.get(1)?;
         let name: String = match result.get(1) {
             Some(val) => match val {
                 Some(DataType::String(name)) => name.clone(),
-                _ => return Err(anyhow!("Expected Some(DataType::String(name)), got {:?}", val))
+                _ => {
+                    return Err(anyhow!(
+                        "Expected Some(DataType::String(name)), got {:?}",
+                        val
+                    ))
+                }
             },
-            _ => return Err(anyhow!("Expected Some(Some(DataType::String(name))), got {:?}", result.get(1)))
+            _ => {
+                return Err(anyhow!(
+                    "Expected Some(Some(DataType::String(name))), got {:?}",
+                    result.get(1)
+                ))
+            }
         };
         //let Option(DataType::Bigint(class_id)) = result.get(2);
         let class_id: Option<i64> = match result.get(2) {
             Some(val) => match val {
                 Some(DataType::Bigint(id)) => Some(*id),
                 None => None,
-                _ => return Err(anyhow!("Expected Option<DataType::Bigint(class_id)>, got {:?}", val))
+                _ => {
+                    return Err(anyhow!(
+                        "Expected Option<DataType::Bigint(class_id)>, got {:?}",
+                        val
+                    ))
+                }
             },
-            _ => return Err(anyhow!("Expected Some(Option<DataType::Bigint(class_id)>), got {:?}", result.get(2)))
+            _ => {
+                return Err(anyhow!(
+                    "Expected Some(Option<DataType::Bigint(class_id)>), got {:?}",
+                    result.get(2)
+                ))
+            }
         };
         //let DataType::Bigint(insertion_date) = result.get(3)?;
         let insertion_date: i64 = match result.get(3) {
             Some(val) => match val {
                 Some(DataType::Bigint(x)) => *x,
-                _ => return Err(anyhow!("Expected Some(DataType::Bigint(insertion_date)), got {:?}", val))
+                _ => {
+                    return Err(anyhow!(
+                        "Expected Some(DataType::Bigint(insertion_date)), got {:?}",
+                        val
+                    ))
+                }
             },
-            _ => return Err(anyhow!("Expected Some(Some(DataType::Bigint(insertion_date))), got {:?}", result.get(3)))
+            _ => {
+                return Err(anyhow!(
+                    "Expected Some(Some(DataType::Bigint(insertion_date))), got {:?}",
+                    result.get(3)
+                ))
+            }
         };
         //let Option(DataType::Boolean(public)) = result.get(4);
         let public: Option<bool> = match result.get(4) {
             Some(val) => match val {
                 Some(DataType::Boolean(x)) => Some(*x),
                 None => None,
-                _ => return Err(anyhow!("Expected Option<DataType::Boolean(public)>, got {:?}", val))
+                _ => {
+                    return Err(anyhow!(
+                        "Expected Option<DataType::Boolean(public)>, got {:?}",
+                        val
+                    ))
+                }
             },
-            _ => return Err(anyhow!("Expected Some(Option<DataType::Bigint(public)>), got {:?}", result.get(4)))
+            _ => {
+                return Err(anyhow!(
+                    "Expected Some(Option<DataType::Bigint(public)>), got {:?}",
+                    result.get(4)
+                ))
+            }
         };
         //let DataType::Boolean(archived) = result.get(5)?;
         let archived: bool = match result.get(5) {
             Some(val) => match val {
                 Some(DataType::Boolean(x)) => *x,
-                _ => return Err(anyhow!("Expected Some(DataType::Boolean(archived)), got {:?}", val))
+                _ => {
+                    return Err(anyhow!(
+                        "Expected Some(DataType::Boolean(archived)), got {:?}",
+                        val
+                    ))
+                }
             },
-            _ => return Err(anyhow!("Expected Some(Some(DataType::Bigint(archived))), got {:?}", result.get(5)))
+            _ => {
+                return Err(anyhow!(
+                    "Expected Some(Some(DataType::Bigint(archived))), got {:?}",
+                    result.get(5)
+                ))
+            }
         };
         //let DataType::Boolean(new_entries_stick_to_top) = result.get(6)?;
         let new_entries_stick_to_top: bool = match result.get(6) {
             Some(val) => match val {
                 Some(DataType::Boolean(x)) => *x,
-                _ => return Err(anyhow!("Expected Some(DataType::Boolean(new_entries_stick_to_top)), got {:?}", val))
+                _ => {
+                    return Err(anyhow!(
+                        "Expected Some(DataType::Boolean(new_entries_stick_to_top)), got {:?}",
+                        val
+                    ))
+                }
             },
-            _ => return Err(anyhow!("Expected Some(Some(DataType::Bigint(new_entries_stick_to_top))), got {:?}", result.get(6)))
+            _ => {
+                return Err(anyhow!(
+                    "Expected Some(Some(DataType::Bigint(new_entries_stick_to_top))), got {:?}",
+                    result.get(6)
+                ))
+            }
         };
 
         let e: Entity = Entity::new(
@@ -939,7 +1005,7 @@ impl PostgreSQLDatabase {
     }
 
     /// This also takes a db *parameter*, to handle lifetime issues that arose. There is probably a better
-    /// way, but I tried and considered various things and it got complicated (like making this 
+    /// way, but I tried and considered various things and it got complicated (like making this
     /// an associated function, or returning a collection of
     /// values to build an Entity or RelationType rather than an Entity or RelationType as such),
     /// and I didn't want to make do_query part of the Database trait,
@@ -1016,11 +1082,7 @@ impl PostgreSQLDatabase {
         // dependencies; is a cleaner design?)  (and similar ones)
         for result in early_results {
             // None of these values should be of "None" type. If they are it's a bug:
-            self.add_new_entity_to_results(
-                db.clone(),
-                &mut final_results,
-                result,
-            )?;
+            self.add_new_entity_to_results(db.clone(), &mut final_results, result)?;
         }
         if final_results.len() != early_results_len {
             return Err(anyhow!(
@@ -1064,7 +1126,7 @@ impl PostgreSQLDatabase {
     //     }
     //     tas[0].get_text()
     // }
-
+    
     fn get_entities_from_relations_to_local_entity(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -1107,206 +1169,6 @@ impl PostgreSQLDatabase {
         }
         Ok(final_result)
     }
-
-    // %%
-    // /// Returns an array of tuples, each of which is of (sorting_index, Attribute), and a i64 indicating the total # that could be returned with
-    // /// infinite display space (total existing).
-    // ///
-    // /// The parameter max_vals_in can be 0 for 'all'.
-    // ///
-    // /// Idea to improve efficiency: make this able to query only those attributes needed to satisfy the max_vals_in parameter (by first checking
-    // /// the AttributeSorting table).  In other words, no need to read all 1500 attributes to display on the screen, just to know which ones come first, if
-    // /// only 10 can be displayed right now and the rest might not need to be displayed.  Because right now, we have to query all data from the AttributeSorting
-    // /// table, then all attributes (since remember they might not *be* in the AttributeSorting table), then sort them with the best available information,
-    // /// then decide which ones to return.  Maybe instead we could do that smartly, on just the needed subset.  But it still need to gracefully handle it
-    // /// when a given attribute (or all) is not found in the sorting table.
-    // fn get_sorted_attributes(&self,
-    //    transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    //                          entity_id_in: i64, starting_object_index_in: usize /*= 0*/, max_vals_in: usize /*= 0*/,
-    //                          only_public_entities_in: bool /*= true*/) -> Result<(Vec<(i64, Attribute)>, usize), anyhow::Error> {
-    //     let allResults: java.util.ArrayList[(Option<i64>, Attribute)] = new java.util.ArrayList[(Option<i64>, Attribute)];
-    //     // First select the counts from each table, keep a running total so we know when to select attributes (compared to inStartingObjectIndex)
-    //     // and when to stop.
-    //     let tables: Vec<String> = Array(Util.QUANTITY_TYPE, Util.BOOLEAN_TYPE, Util.DATE_TYPE, Util.TEXT_TYPE, Util.FILE_TYPE, Util.RELATION_TO_LOCAL_ENTITY_TYPE,;
-    //     Util.RELATION_TO_GROUP_TYPE, Util.RELATION_TO_REMOTE_ENTITY_TYPE)
-    //     let columnsSelectedByTable: Vec<String> = Array("id,entity_id,attr_type_id,unit_id,quantity_number,valid_on_date,observation_date",;
-    //     "id,entity_id,attr_type_id,boolean_value,valid_on_date,observation_date",
-    //     "id,entity_id,attr_type_id,date",
-    //     "id,entity_id,attr_type_id,textvalue,valid_on_date,observation_date",
-    //
-    //     "id,entity_id,attr_type_id,description,original_file_date,stored_date,original_file_path,readable," +
-    //     "writable,executable,size,md5hash",
-    //
-    //     "id,rel_type_id,entity_id,entity_id_2,valid_on_date,observation_date",
-    //     "id,entity_id,rel_type_id,group_id,valid_on_date,observation_date",
-    //     "id,rel_type_id,entity_id,remote_instance_id,entity_id_2,valid_on_date,observation_date")
-    //     let typesByTable: Vec<String> = Array("i64,i64,i64,i64,i64,Float,i64,i64",;
-    //     "i64,i64,i64,i64,bool,i64,i64",
-    //     "i64,i64,i64,i64,i64",
-    //     "i64,i64,i64,i64,String,i64,i64",
-    //     "i64,i64,i64,i64,String,i64,i64,String,bool,bool,bool,i64,String",
-    //     "i64,i64,i64,i64,i64,i64,i64",
-    //     "i64,i64,i64,i64,i64,i64,i64",
-    //     "i64,i64,i64,i64,String,i64,i64,i64")
-    //     let where_clausesByTable: Vec<String> = Array(tables(0) + ".entity_id=" + entity_id_in, tables(1) + ".entity_id=" + entity_id_in,;
-    //     tables(2) + ".entity_id=" + entity_id_in, tables(3) + ".entity_id=" + entity_id_in,
-    //     tables(4) + ".entity_id=" + entity_id_in, tables(5) + ".entity_id=" + entity_id_in,
-    //     tables(6) + ".entity_id=" + entity_id_in, tables(7) + ".entity_id=" + entity_id_in)
-    //     let orderByClausesByTable: Vec<String> = Array("id", "id", "id", "id", "id", "entity_id", "group_id", "entity_id");
-    //
-    //     // *******************************************
-    //     //****** NOTE **********: some logic here for counting & looping has been commented out because it is not yet updated to work with the sorting of
-    //     // attributes on an entity.  But it is left here because it was so carefully debugged, once, and seems likely to be used again if we want to limit the
-    //     // data queried and sorted to that amount which can be displayed at a given time.  For example,
-    //     // we could query first from the AttributeSorting table, then based on that decide for which ones to get all the data. But maybe for now there's a small
-    //     // enough amount of data that we can query all rows all the time.
-    //     // *******************************************
-    //
-    //     // first just get a total row count for UI convenience later (to show how many left not viewed yet)
-    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-    //     //    let mut totalRowsAvailable: i64 = 0;
-    //     //    let mut tableIndexForrow_counting = 0;
-    //     //    while ((max_vals_in == 0 || totalRowsAvailable <= max_vals_in) && tableIndexForrow_counting < tables.length) {
-    //     //      let table_name = tables(tableIndexForrow_counting);
-    //     //      totalRowsAvailable += extract_row_count_from_count_query("select count(*) from " + table_name + " where " + where_clausesByTable(tableIndexForrow_counting))
-    //     //      tableIndexForrow_counting += 1
-    //     //    }
-    //
-    //     // idea: this could change to a let and be filled w/ a recursive helper method; other vars might go away then too.;
-    //     let mut tableListIndex: i32 = 0;
-    //
-    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-    //     //keeps track of where we are in getting rows >= inStartingObjectIndex and <= max_vals_in
-    //     //    let mut counter: i64 = 0;
-    //     //    while ((max_vals_in == 0 || counter - inStartingObjectIndex <= max_vals_in) && tableListIndex < tables.length) {
-    //     while (tableListIndex < tables.length) {
-    //     let table_name = tables(tableListIndex);
-    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-    //     //val thisTablesrow_count: i64 = extract_row_count_from_count_query("select count(*) from " + table_name + " where " + where_clausesByTable(tableListIndex))
-    //     //if thisTablesrow_count > 0 && counter + thisTablesrow_count >= inStartingObjectIndex) {
-    //     //try {
-    //
-    //     // Idea: could speed this query up in part? by doing on each query something like:
-    //     //       limit max_vals_in+" offset "+ inStartingObjectIndex-counter;
-    //     // ..and then incrementing the counters appropriately.
-    //     // Idea: could do the sorting (currently done just before the end of this method) in sql? would have to combine all queries to all tables, though.
-    //     let key = where_clausesByTable(tableListIndex).substring(0, where_clausesByTable(tableListIndex).indexOf("="));
-    //     let columns = table_name + "." + columnsSelectedByTable(tableListIndex).replace(",", "," + table_name + ".");
-    //     let mut sql: String = "select attributesorting.sorting_index, " + columns +;
-    //     " from " +
-    //     // idea: is the RIGHT JOIN really needed, or can it be a normal join? ie, given tables' setup can there really be
-    //     // rows of any Attribute (or RelationTo*) table without a corresponding attributesorting row?  Going to assume not,
-    //     // for some changes below adding the sortingindex parameter to the Attribute constructors, for now at least until this is studied
-    //     // again.  Maybe it had to do with the earlier unreliability of always deleting rows from attributesorting when Attributes were
-    //     // deleted (and in fact an attributesorting can in theory still be created without an Attribute row, and maybe other such problems).
-    //     "   attributesorting RIGHT JOIN " + table_name +
-    //     "     ON (attributesorting.attribute_form_id=" + Database.get_attribute_form_id(table_name) +
-    //     "     and attributesorting.attribute_id=" + table_name + ".id )" +
-    //     "   JOIN entity ON entity.id=" + key +
-    //     " where " +
-    //     (if !include_archived_entities) {
-    //     "(not entity.archived) and "
-    //     } else {
-    //     ""
-    //     }) +
-    //     where_clausesByTable(tableListIndex)
-    //     if table_name == Util.RELATION_TO_LOCAL_ENTITY_TYPE && !include_archived_entities) {
-    //     sql += " and not exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
-    //     " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.archived)"
-    //     }
-    //     if table_name == Util.RELATION_TO_LOCAL_ENTITY_TYPE && only_public_entities_in) {
-    //     sql += " and exists(select 1 from entity e2, relationtoentity rte2 where e2.id=rte2.entity_id_2" +
-    //     " and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.public)"
-    //     }
-    //     sql += " order by " + table_name + "." + orderByClausesByTable(tableListIndex)
-    //     let results = db_query(sql, typesByTable(tableListIndex));
-    //     for (result: Vec<Option<DataType>> <- results) {
-    //     // skip past those that are outside the range to retrieve
-    //     //idea: use some better scala/function construct here so we don't keep looping after counter hits the max (and to make it cleaner)?
-    //     //idea: move it to the same layer of code that has the Attribute classes?
-    //
-    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-    //     // Don't get it if it's not in the requested range:
-    //     //            if counter >= inStartingObjectIndex && (max_vals_in == 0 || counter <= inStartingObjectIndex + max_vals_in)) {
-    //     if table_name == Util.QUANTITY_TYPE) {
-    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-    //     new QuantityAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-    //     result(4).get.asInstanceOf[i64], result(5).get.asInstanceOf[Float],
-    //     if result(6).isEmpty) None else Some(result(6).get.asInstanceOf[i64]), result(7).get.asInstanceOf[i64],
-    //     result(0).get.asInstanceOf[i64])))
-    //     } else if table_name == Util.TEXT_TYPE) {
-    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-    //     new TextAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-    //     result(4).get.asInstanceOf[String], if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]),
-    //     result(6).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
-    //     } else if table_name == Util.DATE_TYPE) {
-    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-    //     new DateAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-    //     result(4).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
-    //     } else if table_name == Util.BOOLEAN_TYPE) {
-    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-    //     new BooleanAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-    //     result(4).get.asInstanceOf[Boolean], if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]),
-    //     result(6).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
-    //     } else if table_name == Util.FILE_TYPE) {
-    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-    //     new FileAttribute(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-    //     result(4).get.asInstanceOf[String], result(5).get.asInstanceOf[i64], result(6).get.asInstanceOf[i64],
-    //     result(7).get.asInstanceOf[String], result(8).get.asInstanceOf[Boolean], result(9).get.asInstanceOf[Boolean],
-    //     result(10).get.asInstanceOf[Boolean], result(11).get.asInstanceOf[i64], result(12).get.asInstanceOf[String],
-    //     result(0).get.asInstanceOf[i64])))
-    //     } else if table_name == Util.RELATION_TO_LOCAL_ENTITY_TYPE) {
-    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-    //     new RelationToLocalEntity(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-    //     result(4).get.asInstanceOf[i64],
-    //     if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]), result(6).get.asInstanceOf[i64],
-    //     result(0).get.asInstanceOf[i64])))
-    //     } else if table_name == Util.RELATION_TO_GROUP_TYPE) {
-    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-    //     new RelationToGroup(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64], result(3).get.asInstanceOf[i64],
-    //     result(4).get.asInstanceOf[i64],
-    //     if result(5).isEmpty) None else Some(result(5).get.asInstanceOf[i64]),
-    //     result(6).get.asInstanceOf[i64], result(0).get.asInstanceOf[i64])))
-    //     } else if table_name == Util.RELATION_TO_REMOTE_ENTITY_TYPE) {
-    //     allResults.add((if result(0).isEmpty) None else Some(result(0).get.asInstanceOf[i64]),
-    //     new RelationToRemoteEntity(this, result(1).get.asInstanceOf[i64], result(2).get.asInstanceOf[i64],
-    //     result(3).get.asInstanceOf[i64],
-    //     result(4).get.asInstanceOf[String], result(5).get.asInstanceOf[i64],
-    //     if result(6).isEmpty) None else Some(result(6).get.asInstanceOf[i64]),
-    //     result(7).get.asInstanceOf[i64],
-    //     result(0).get.asInstanceOf[i64])))
-    //     } else throw new OmDatabaseException("invalid table type?: '" + table_name + "'")
-    //
-    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-    //     //}
-    //     //            counter += 1
-    //     }
-    //
-    //     // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
-    //     //}
-    //     //remove the try permanently, or, what should be here as a 'catch'? how interacts w/ 'throw' or anything related just above?
-    //     //} else {
-    //     //  counter += thisTablesrow_count
-    //     //}
-    //     tableListIndex += 1
-    //     }
-    //
-    //     let allResultsArray: Array[(i64, Attribute)] = new Array[(i64, Attribute)](allResults.size);
-    //     let mut index = -1;
-    //     for (element: (Option<i64>, Attribute) <- allResults.toArray(new Array[(Option<i64>, Attribute)](0))) {
-    //     index += 1
-    //     // using max_id_value as the max value of a long so those w/o sorting information will just sort last:
-    //     allResultsArray(index) = (element._1.getOrElse(self.max_id_value()), element._2)
-    //     }
-    //     // Per the scalaDocs for scala.math.Ordering, this sorts by the first element of the tuple (ie, .z_1) which at this point is attributesorting.sorting_index.
-    //     // (The "getOrElse" on next line is to allow for the absence of a value in case the attributeSorting table doesn't have an entry for some attributes.
-    //     Sorting.quickSort(allResultsArray)(Ordering[i64].on(x => x._1.asInstanceOf[i64]))
-    //
-    //     let from: i32 = starting_object_index_in;
-    //     let numVals: i32 = if max_vals_in > 0) max_vals_in else allResultsArray.length;
-    //     let until: i32 = Math.min(starting_object_index_in + numVals, allResultsArray.length);
-    //     (allResultsArray.slice(from, until), allResultsArray.length)
-    // }
 
     /// The in_self_id_to_ignore parameter is to avoid saying a class is a duplicate of itself: checks for all others only.
     pub fn is_duplicate_row(
@@ -1484,7 +1346,7 @@ impl PostgreSQLDatabase {
     pub fn get_local_om_instance_data(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    //) -> Result<OmInstance, anyhow::Error> {
+        //) -> Result<OmInstance, anyhow::Error> {
     ) -> Result<(String, bool, String, i64, Option<i64>), anyhow::Error> {
         let sql = "SELECT id, address, insertion_date, entity_id from omInstance where local=TRUE";
         let results = self.db_query(transaction, sql, "UUID,String,i64,i64")?;
@@ -1526,15 +1388,10 @@ impl PostgreSQLDatabase {
                 ))
             }
         };
-        // return a tuple instead of an OmInstance because I don't know how to construct one with 
+        // return a tuple instead of an OmInstance because I don't know how to construct one with
         // "self" as a parameter, rather than an owned db parameter. The caller can deal with it.
         //Ok(OmInstance::new(
         //    self,
-        Ok((id,
-            true,
-            address,
-            insertion_date,
-            entity_id,
-        ))
+        Ok((id, true, address, insertion_date, entity_id))
     }
 }

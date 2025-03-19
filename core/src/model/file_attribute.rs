@@ -54,7 +54,7 @@ impl FileAttribute {
     /// can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new(
+    pub fn new(
         db: Rc<dyn Database>,
         id: i64,
         parent_id: i64,
@@ -594,9 +594,7 @@ impl Attribute for FileAttribute {
 
     fn get_form_id(&self) -> Result<i32, Error> {
         // self.db.get_attribute_form_id(was in scala:  this.getClass.getSimpleName)
-        //%% Since not using the reflection(?) from the line above, why not just return a constant
-        //here?  What other places call the below method and its reverse? Do they matter now?
-        self.db.get_attribute_form_id(Util::BOOLEAN_TYPE)
+        self.db.get_attribute_form_id(Util::FILE_TYPE)
     }
 
     fn get_attr_type_id(

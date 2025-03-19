@@ -128,7 +128,8 @@ impl RelationToLocalEntity {
 
     /// This is for times when you want None if it doesn't exist, instead of the Err Result returned
     /// by the Entity constructor.  Or for convenience in tests.
-    pub fn get_relation_to_local_entity<'a, 'b>(
+    /// Was called "get_relation_to_local_entity" but that was harder to remember.
+    pub fn new3<'a, 'b>(
         db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         id: i64,

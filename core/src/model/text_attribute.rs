@@ -243,9 +243,7 @@ impl Attribute for TextAttribute {
 
     fn get_form_id(&self) -> Result<i32, Error> {
         // self.db.get_attribute_form_id(was in scala:  this.getClass.getSimpleName)
-        //%% Since not using the reflection(?) from the line above, why not just return a constant
-        //here?  What other places call the below method and its reverse? Do they matter now?
-        self.db.get_attribute_form_id(Util::BOOLEAN_TYPE)
+        self.db.get_attribute_form_id(Util::TEXT_TYPE)
     }
 
     fn get_attr_type_id(

@@ -1,5 +1,5 @@
 /* . This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2004, 2010, 2011, 2013-2017 inclusive, and 2023-2024 inclusive, Luke A Call.
+    Copyright in each year of 2004, 2010, 2011, 2013-2017 inclusive, and 2023-2025 inclusive, Luke A Call.
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
     and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -17,6 +17,22 @@ use crate::model::relation_type::RelationType;
 use sqlx::{Postgres, Transaction};
 use std::cell::RefCell;
 use std::rc::Rc;
+
+impl std::fmt::Debug for dyn Attribute {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // to enhance, see std lib docs for Debug or fmt.
+        //let desc = match self.get_display_string(0, None, None, false) {
+        //    Ok(s) => s,
+        //    Err(e) => e.to_string(),
+        //};
+        let form = match self.get_form_id() {
+            Ok(id) => id.to_string(),
+            Err(e) => e.to_string(),
+        };
+        let desc = format!("Attribute [form: {}, id: {}]", form, self.get_id());
+        write!(f, "Attribute: [{}]", desc)
+    }
+}
 
 /// Represents one attribute object in the system (usually [always, as of 1/2004] used as an attribute on a Entity).
 /// Originally created as a place to put common stuff between Relation/QuantityAttribute/TextAttribute.

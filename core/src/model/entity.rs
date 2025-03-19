@@ -1625,7 +1625,8 @@ mod test {
         let nearestSortingIndex2 = e1.get_nearest_attribute_entrys_sorting_index(Database::min_id_value).get;
         assert(nearestSortingIndex2 > nearestSortingIndex)
 
-        let rte = RelationToLocalEntity.get_relation_to_local_entity(db, rteId).get;
+        //let rte = RelationToLocalEntity.get_relation_to_local_entity(db, rteId).get;
+        let rte = RelationToLocalEntity::new3(db, rteId).get;
         assert(! e1.is_attribute_sorting_index_in_use(Database::max_id_value))
         e1.update_attribute_sorting_index(rte.get_form_id, rte.get_id, Database::max_id_value)
         assert(e1.get_attribute_sorting_index(rte.get_form_id, rte.get_id) == Database::max_id_value)

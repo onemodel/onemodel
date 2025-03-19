@@ -11,6 +11,7 @@
 */
 // use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 use crate::model::database::Database;
+use crate::model::database::DataType;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
 // use std::error::Error;
@@ -18,6 +19,7 @@ use std::str::FromStr;
 // use crate::controllers::controller::Controller;
 // use crate::model::relation_type::*;
 use crate::text_ui::TextUI;
+use anyhow::anyhow;
 use chrono::format::ParseResult;
 use chrono::LocalResult;
 // use chrono::offset::LocalResult;
@@ -1587,6 +1589,47 @@ impl Util {
             }
     %%*/
 
+    //Some convenience functions. 
+    //%%Now that they exist, should probably use them in more of the
+    //model classes like those with read_data_from_db, etc? 
+    //Is there an even better way to do this?
+    pub fn get_value_bigint(description: &str, x: &Option<DataType>) -> Result<i64, anyhow::Error> {
+        match x {
+            Some(DataType::Bigint(x)) => Ok(*x),
+            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+        }
+    }
+    pub fn get_value_bigint_option(description: &str, x: &Option<DataType>) -> Result<Option<i64>, anyhow::Error> {
+        match x {
+            Some(DataType::Bigint(x)) => Ok(Some(*x)),
+            None => Ok(None),
+            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+        }
+    }
+    pub fn get_value_float(description: &str, x: &Option<DataType>) -> Result<f64, anyhow::Error> {
+        match x {
+            Some(DataType::Float(x)) => Ok(*x),
+            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+        }
+    }
+    pub fn get_value_bool(description: &str, x: &Option<DataType>) -> Result<bool, anyhow::Error> {
+        match x {
+            Some(DataType::Boolean(x)) => Ok(*x),
+            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+        }
+    }
+    pub fn get_value_string(description: &str, x: &Option<DataType>) -> Result<String, anyhow::Error> {
+        match x {
+            Some(DataType::String(x)) => Ok(x.to_string()),
+            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+        }
+    }
+    pub fn get_value_smallint(description: &str, x: &Option<DataType>) -> Result<i32, anyhow::Error> {
+        match x {
+            Some(DataType::Smallint(x)) => Ok(*x),
+            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+        }
+    }
     /*
     package org.onemodel.core
 

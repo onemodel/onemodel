@@ -24,6 +24,7 @@ use std::rc::Rc;
 // due to Rust limitations on OO.  Maintain them all similarly.
 
 /// Represents one quantity object in the system (usually [always, as of 9/2002] used as an attribute on a Entity).
+#[derive(Debug)]
 pub struct QuantityAttribute {
     // For descriptions of the meanings of these variables, see the comments
     // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
@@ -49,7 +50,7 @@ impl QuantityAttribute {
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
-    fn new(
+    pub fn new(
         db: Rc<dyn Database>,
         id: i64,
         parent_id: i64,

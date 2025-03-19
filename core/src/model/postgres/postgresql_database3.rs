@@ -17,12 +17,15 @@ use crate::model::entity_class::EntityClass;
 use crate::model::group::Group;
 use crate::model::postgres::postgresql_database::*;
 // use crate::model::postgres::*;
-use crate::model::relation_to_entity::RelationToEntity;
-use crate::model::relation_to_group::RelationToGroup;
+use crate::model::date_attribute::DateAttribute;
+use crate::model::file_attribute::FileAttribute;
+use crate::model::quantity_attribute::QuantityAttribute;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::relation_type::RelationType;
 use crate::model::text_attribute::TextAttribute;
+use crate::model::relation_to_entity::RelationToEntity;
+use crate::model::relation_to_group::RelationToGroup;
 use crate::util::Util;
 use anyhow::anyhow;
 use chrono::Utc;
@@ -37,6 +40,7 @@ use std::collections::HashSet;
 use crate::model::attribute::Attribute;
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 use tracing::*;
 
@@ -1678,7 +1682,7 @@ impl Database for PostgreSQLDatabase {
                 }
             }
         }
-        Ok(RelationToRemoteEntity {}) //%%%%really: self, rte_id, relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in
+        Ok(RelationToRemoteEntity {}) //%%really: self, rte_id, relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in
     }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
@@ -4518,7 +4522,8 @@ impl Database for PostgreSQLDatabase {
 
     /// Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
     /// 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
-    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    /// This takes a db parameter for the same reasons as in the comment on 
+    /// fn get_entities_generic in postgresql_database2.rs.
     fn get_entities(
         &self,
         db: Rc<dyn Database>,
@@ -4539,14 +4544,19 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    /// Excludes those entities that are really relationtypes, attribute types, or quantity units. Otherwise similar to get_entities.
-    /// *****NOTE*****: The limit_by_class:Boolean parameter is not redundant with the in_class_id: in_class_id could be None and we could still want
-    /// to select only those entities whose class_id is NULL, such as when enforcing group uniformity (see method has_mixed_classes and its
+    /// Excludes those entities that are really relationtypes, attribute types, or 
+    /// quantity units. Otherwise similar to get_entities.
+    /// *****NOTE*****: The limit_by_class:Boolean parameter is not redundant with the 
+    /// in_class_id: in_class_id could be None and we could still want to select only those entities 
+    /// whose class_id is NULL, such as when enforcing group uniformity (see method has_mixed_classes and its
     /// uses, for more info).
     ///
-    /// The parameter omitEntity is (at this writing) used for the id of a class-defining (template) entity, which we shouldn't show for editing when showing all the
+    /// The parameter omitEntity is (at this writing) used for the id of a class-defining (template) 
+    /// entity, which we shouldn't show for editing when showing all the
     /// entities in the class (editing that is a separate menu option), otherwise it confuses things.
-    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    ///
+    /// This takes a db parameter for the same reasons as in the comment on 
+    /// fn get_entities_generic in postgresql_database2.rs.
     fn get_entities_only(
         &self,
         db: Rc<dyn Database>,
@@ -4574,7 +4584,8 @@ impl Database for PostgreSQLDatabase {
     ///// similar to get_entities*
     // This fn used to be integrated with get_entities_generic. Probably want to check both when
     // making changes?
-    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    /// This takes a db parameter for the same reasons as in the comment on 
+    /// fn get_entities_generic in postgresql_database2.rs.
     fn get_relation_types(
         &self,
         db: Rc<dyn Database>,
@@ -4593,7 +4604,6 @@ impl Database for PostgreSQLDatabase {
         } else {
             ""
         };
-        //%%%%
         //let more5 = Self::class_limit(limit_by_class, class_id_in)?;
         //let more5 = "".to_string();
         //let more6 = "".to_string();
@@ -4970,7 +4980,8 @@ impl Database for PostgreSQLDatabase {
 
     /// Allows querying for a range of objects in the database;
     /// (in Scala it) returns a java.util.Map with keys and names.
-    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    /// This takes a db parameter for the same reasons as in the comment on 
+    /// fn get_entities_generic in postgresql_database2.rs.
     /// The starting_object_index is the index to start with (0-based),
     /// The max_vals is # of obj's to return (if None, means no limit).
     fn get_groups(
@@ -5621,6 +5632,14 @@ impl Database for PostgreSQLDatabase {
         let id = self.get_local_om_instance_data(transaction)?.0;
         Ok(id)
     }
+    fn id_all(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    ) -> Result<String, anyhow::Error> {
+        let all = self.get_local_om_instance_data(transaction)?;
+        let all = format!("omInstance: id: {}, address: {}, insertion_date: {}, entity_id: {:?}", all.0, all.2, all.3, all.4);
+        Ok(all)
+    }
 
     fn om_instance_key_exists(
         &self,
@@ -5744,4 +5763,369 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<u64, anyhow::Error> {
         self.delete_object_by_id2(transaction, "omInstance", id_in)
     }
+
+    /// Returns an array of tuples, each of which is of (sorting_index, Attribute), and a i64
+    /// indicating the total # that could be returned with infinite display space (total existing).
+    ///
+    /// The parameter max_vals_in can be 0 for 'all'.
+    ///
+    /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
+    ///
+    /// Idea to improve efficiency: make this able to query only those attributes needed to satisfy the
+    /// max_vals_in parameter (by first checking the AttributeSorting table).  In other words, no need
+    /// to read all 1500 attributes to display on the screen, just to know which ones come first, if
+    /// only 10 can be displayed right now and the rest might not need to be displayed.  Because right
+    /// now, we have to query all data from the AttributeSorting
+    /// table, then all attributes (since remember they might not *be* in the AttributeSorting table),
+    /// then sort them with the best available information,
+    /// then decide which ones to return.  Maybe instead we could do that smartly, on just the needed
+    /// subset.  But it still need to gracefully handle it
+    /// when a given attribute (or all) is not found in the sorting table.
+    fn get_sorted_attributes(
+        &self,
+        db: Rc<dyn Database>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        entity_id_in: i64,
+        starting_object_index_in: usize, // = 0
+        max_vals_in: usize,              // = 0
+        only_public_entities_in: bool,   // = true
+    ) -> Result<(Vec<(i64, Rc<dyn Attribute>)>, usize), anyhow::Error> {
+        let mut all_results: Vec<(Option<i64>, Rc<dyn Attribute>)> = Vec::new();
+        // First select the counts from each table, keep a running total so we know when to select
+        // attributes (compared to starting_object_index_in) and when to stop.
+        let tables = vec![
+            Util::QUANTITY_TYPE.to_string(),
+            Util::BOOLEAN_TYPE.to_string(),
+            Util::DATE_TYPE.to_string(),
+            Util::TEXT_TYPE.to_string(),
+            Util::FILE_TYPE.to_string(),
+            Util::RELATION_TO_LOCAL_ENTITY_TYPE.to_string(),
+            Util::RELATION_TO_GROUP_TYPE.to_string(),
+            Util::RELATION_TO_REMOTE_ENTITY_TYPE.to_string(),
+        ];
+        let columns_selected_by_table = vec![
+            "id,entity_id,attr_type_id,unit_id,quantity_number,valid_on_date,observation_date".to_string(),
+            "id,entity_id,attr_type_id,boolean_value,valid_on_date,observation_date".to_string(),
+            "id,entity_id,attr_type_id,date".to_string(),
+            "id,entity_id,attr_type_id,textvalue,valid_on_date,observation_date".to_string(),
+            "id,entity_id,attr_type_id,description,original_file_date,stored_date,original_file_path,\
+                readable,writable,executable,size,md5hash".to_string(),
+            "id,rel_type_id,entity_id,entity_id_2,valid_on_date,observation_date".to_string(),
+            "id,entity_id,rel_type_id,group_id,valid_on_date,observation_date".to_string(),
+            "id,rel_type_id,entity_id,remote_instance_id,entity_id_2,valid_on_date,observation_date".to_string(),
+        ];
+        let types_by_table = vec![
+            "i64,i64,i64,i64,i64,Float,i64,i64".to_string(),
+            "i64,i64,i64,i64,bool,i64,i64".to_string(),
+            "i64,i64,i64,i64,i64".to_string(),
+            "i64,i64,i64,i64,String,i64,i64".to_string(),
+            "i64,i64,i64,i64,String,i64,i64,String,bool,bool,bool,i64,String".to_string(),
+            "i64,i64,i64,i64,i64,i64,i64".to_string(),
+            "i64,i64,i64,i64,i64,i64,i64".to_string(),
+            "i64,i64,i64,i64,String,i64,i64,i64".to_string(),
+        ];
+        let where_clauses_by_table = vec![
+            format!("{}.entity_id={}", tables[0], entity_id_in),
+            format!("{}.entity_id={}", tables[1], entity_id_in),
+            format!("{}.entity_id={}", tables[2], entity_id_in),
+            format!("{}.entity_id={}", tables[3], entity_id_in),
+            format!("{}.entity_id={}", tables[4], entity_id_in),
+            format!("{}.entity_id={}", tables[5], entity_id_in),
+            format!("{}.entity_id={}", tables[6], entity_id_in),
+            format!("{}.entity_id={}", tables[7], entity_id_in),
+        ];
+        let order_by_clauses_by_table = vec![
+            "id".to_string(),
+            "id".to_string(),
+            "id".to_string(),
+            "id".to_string(),
+            "id".to_string(),
+            "entity_id".to_string(),
+            "group_id".to_string(),
+            "entity_id".to_string(),
+        ];
+
+        // *******************************************
+        //****** NOTE **********: some logic here for counting & looping has been commented out
+        // because it is not yet updated to work with the sorting of attributes on an entity.  But
+        // it is left here because it was so carefully debugged, once, and seems likely to be used
+        // again if we want to limit the data queried and sorted to that amount which can be displayed at
+        // a given time.  For example, we could query first from the AttributeSorting table, then
+        // based on that decide for which ones to get all the data. But maybe for now there's a small
+        // enough amount of data that we can query all rows all the time.
+        // *******************************************
+        // first just get a total row count for UI convenience later (to show how many left
+        // not viewed yet)
+        // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+        //    let mut total_rows_available: i64 = 0;
+        //    let mut table_index_for_row_counting = 0;
+        //    while ((max_vals_in == 0 || total_rows_available <= max_vals_in)
+        //    && table_index_for_row_counting < tables.len()) {
+        //      let table_name = &tables[table_index_for_row_counting];
+        //      total_rows_available += self.extract_row_count_from_count_query(
+        //          &format!("select count(*) from {} where {}", table_name,
+        //          where_clauses_by_table[table_index_for_row_counting]))?;
+        //      table_index_for_row_counting += 1;
+        //    }
+
+        // idea: this could change to immutable and be filled w/ a recursive helper method; other vars
+        // might go away then too.
+        let mut table_list_index: usize = 0;
+
+        // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+        // keeps track of where we are in getting rows >= starting_object_index_in and <= max_vals_in
+        //    let mut counter: i64 = 0;
+        //    while ((max_vals_in == 0 || counter - starting_object_index_in <= max_vals_in)
+        //        && table_list_index < tables.len()) {
+        while table_list_index < tables.len() {
+            let table_name = &tables[table_list_index];
+            debug!("%%%%%%table_name: {}", table_name);
+            // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+            // let this_tables_row_count: i64 = self.extract_row_count_from_count_query(
+            //     &format!("select count(*) from {} where {}", table_name, where_clauses_by_table[table_list_index]))?;
+            // if this_tables_row_count > 0 && counter + this_tables_row_count >= starting_object_index_in {
+            //try {
+
+            // Idea: could speed this query up in part? by doing on each query something like:
+            //       limit max_vals_in+" offset "+ starting_object_index_in-counter;
+            // ..and then incrementing the counters appropriately.
+            // Idea: could do the sorting (currently done just before the end of this method) in sql?
+            // Would have to combine all queries to all tables, though.
+            let key_end_index = where_clauses_by_table[table_list_index].find('=').unwrap();
+            let key = &where_clauses_by_table[table_list_index][0..key_end_index];
+            let columns = columns_selected_by_table[table_list_index]
+                .split(',')
+                .map(|col| format!("{}.{}", table_name, col))
+                .collect::<Vec<String>>()
+                .join(",");
+            let include_archived_entities = self.include_archived_entities();
+            // idea: is the RIGHT JOIN really needed, or can it be a normal join? ie, given tables' setup
+            // can there really be rows of any Attribute (or RelationTo*) table without a corresponding
+            // attributesorting row?  Going to assume not, for some changes below adding the sortingindex
+            // parameter to the Attribute constructors, for now at least until this is studied
+            // again.  Maybe it had to do with the earlier unreliability of always deleting rows from
+            // attributesorting when Attributes were deleted (and in fact an attributesorting can in theory
+            // still be created without an Attribute row, and maybe other such problems).
+            let mut sql = format!(
+                "select attributesorting.sorting_index, {} from attributesorting \
+                RIGHT JOIN {} ON (attributesorting.attribute_form_id={} and attributesorting.attribute_id={}.id) \
+                JOIN entity ON entity.id={} where {}{}",
+                columns,
+                table_name,
+                self.get_attribute_form_id(table_name)?,
+                table_name,
+                key,
+                if !include_archived_entities { "(not entity.archived) and " } else { "" },
+                where_clauses_by_table[table_list_index]
+            );
+            if table_name == Util::RELATION_TO_LOCAL_ENTITY_TYPE && !include_archived_entities {
+                sql.push_str(" and not exists(select 1 from entity e2, relationtoentity rte2 where 
+                    e2.id=rte2.entity_id_2 and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.archived)");
+            }
+            if table_name == Util::RELATION_TO_LOCAL_ENTITY_TYPE && only_public_entities_in {
+                sql.push_str(" and exists(select 1 from entity e2, relationtoentity rte2 
+                    where e2.id=rte2.entity_id_2 and relationtoentity.entity_id_2=rte2.entity_id_2 and e2.public)");
+            }
+
+            sql.push_str(&format!(
+                " order by {}.{}",
+                table_name, order_by_clauses_by_table[table_list_index]
+            ));
+
+            let results: Vec<Vec<Option<DataType>>> =
+                self.db_query(transaction.clone(), &sql, &types_by_table[table_list_index])?;
+
+            for result in results {
+                // Skip past those that are outside the range to retrieve
+                // Idea: use some better function/construct here so we don't keep looping
+                // after counter hits the max (and to make it cleaner)?
+                // Idea: move it to the same layer of code that has the Attribute classes?
+                // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+                // Don't get it if it's not in the requested range:
+                // if counter >= starting_object_index_in && (max_vals_in == 0 || counter <= starting_object_index_in + max_vals_in) {
+                if table_name == Util::QUANTITY_TYPE {
+                    let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
+                    all_results.push((
+                        sorting_index,
+                        Rc::new(QuantityAttribute::new(
+                            db.clone(),
+                            Util::get_value_bigint("result[1]", &result[1])?,
+                            Util::get_value_bigint("result[2]", &result[2])?,
+                            Util::get_value_bigint("result[3]", &result[1])?,
+                            Util::get_value_bigint("result[4]", &result[4])?,
+                            Util::get_value_float("result[5]", &result[5])?,
+                            Util::get_value_bigint_option("result[6]", &result[6])?,
+                            Util::get_value_bigint("result[7]", &result[7])?,
+                            Util::get_value_bigint("result[0]", &result[0])?,
+                        )),
+                    ));
+                } else if table_name == Util::TEXT_TYPE {
+                    let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
+                    all_results.push((
+                        sorting_index,
+                        Rc::new(TextAttribute::new(
+                            db.clone(),
+                            Util::get_value_bigint("result[1]", &result[1])?,
+                            Util::get_value_bigint("result[2]", &result[2])?,
+                            Util::get_value_bigint("result[3]", &result[3])?,
+                            Util::get_value_string("result[4]", &result[4])?.as_str(),
+                            Util::get_value_bigint_option("result[5]", &result[5])?,
+                            Util::get_value_bigint("result[6]", &result[6])?,
+                            Util::get_value_bigint("result[0]", &result[0])?,
+                        )),
+                    ));
+                } else if table_name == Util::DATE_TYPE {
+                    let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
+                    all_results.push((
+                        sorting_index,
+                        Rc::new(DateAttribute::new(
+                            db.clone(),
+                            Util::get_value_bigint("result[1]", &result[1])?,
+                            Util::get_value_bigint("result[2]", &result[2])?,
+                            Util::get_value_bigint("result[3]", &result[3])?,
+                            Util::get_value_bigint("result[4]", &result[4])?,
+                            Util::get_value_bigint("result[0]", &result[0])?,
+                        )),
+                    ));
+                } else if table_name == Util::BOOLEAN_TYPE {
+                    let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
+                    all_results.push((
+                        sorting_index,
+                        Rc::new(BooleanAttribute::new(
+                            db.clone(),
+                            Util::get_value_bigint("result[1]", &result[1])?,
+                            Util::get_value_bigint("result[2]", &result[2])?,
+                            Util::get_value_bigint("result[3]", &result[3])?,
+                            Util::get_value_bool("result[4]", &result[4])?,
+                            Util::get_value_bigint_option("result[5]", &result[5])?,
+                            Util::get_value_bigint("result[6]", &result[6])?,
+                            Util::get_value_bigint("result[0]", &result[0])?,
+                        )),
+                    ));
+                } else if table_name == Util::FILE_TYPE {
+                    let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
+                    all_results.push((
+                        sorting_index,
+                        Rc::new(FileAttribute::new(
+                            db.clone(),
+                            Util::get_value_bigint("result[1]", &result[1])?,
+                            Util::get_value_bigint("result[2]", &result[2])?,
+                            Util::get_value_bigint("result[3]", &result[3])?,
+                            Util::get_value_string("result[4]", &result[4])?,
+                            Util::get_value_bigint("result[5]", &result[5])?,
+                            Util::get_value_bigint("result[6]", &result[6])?,
+                            Util::get_value_string("result[7]", &result[7])?,
+                            Util::get_value_bool("result[8]", &result[8])?,
+                            Util::get_value_bool("result[9]", &result[9])?,
+                            Util::get_value_bool("result[10]", &result[10])?,
+                            Util::get_value_bigint("result[11]", &result[11])?,
+                            Util::get_value_string("result[12]", &result[12])?,
+                            Util::get_value_bigint("result[0]", &result[0])?,
+                        )),
+                    ));
+                } else if table_name == Util::RELATION_TO_LOCAL_ENTITY_TYPE {
+                    let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
+                    all_results.push((
+                        sorting_index,
+                        Rc::new(RelationToLocalEntity::new(
+                            db.clone(),
+                            Util::get_value_bigint("result[1]", &result[1])?,
+                            Util::get_value_bigint("result[2]", &result[2])?,
+                            Util::get_value_bigint("result[3]", &result[3])?,
+                            Util::get_value_bigint("result[4]", &result[4])?,
+                            Util::get_value_bigint_option("result[5]", &result[5])?,
+                            Util::get_value_bigint("result[6]", &result[6])?,
+                            Util::get_value_bigint("result[0]", &result[0])?,
+                        )),
+                    ));
+                } else if table_name == Util::RELATION_TO_GROUP_TYPE {
+                    let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
+                    all_results.push((
+                        sorting_index,
+                        Rc::new(RelationToGroup::new(
+                            db.clone(),
+                            Util::get_value_bigint("result[1]", &result[1])?,
+                            Util::get_value_bigint("result[2]", &result[2])?,
+                            Util::get_value_bigint("result[3]", &result[3])?,
+                            Util::get_value_bigint("result[4]", &result[4])?,
+                            Util::get_value_bigint_option("result[5]", &result[5])?,
+                            Util::get_value_bigint("result[6]", &result[6])?,
+                            Util::get_value_bigint("result[0]", &result[0])?,
+                        )),
+                    ));
+                } else if table_name == Util::RELATION_TO_REMOTE_ENTITY_TYPE {
+                    unimplemented!(); //%%needs the RTRE to be converted w/ a new().
+                                      //%%when adding it, also add a test for it (fail then pass!)
+                                      //to pg db_tests.rs fn get_sorted_attributes_returns_them_all_and_correctly() 
+                    //let sorting_index = Util::get_value_bigint_option("result[1]", &result[1])?;
+                    //all_results.push((
+                    //    sorting_index,
+                    //    Rc::new(RelationToRemoteEntity::new(
+                    //        db.clone(),
+                    //        Util::get_value_bigint("result[1]", &result[1])?,
+                    //        Util::get_value_bigint("result[2]", &result[2])?,
+                    //        Util::get_value_bigint("result[3]", &result[3])?,
+                    //        Util::get_value_string("result[4]", &result[4])?,
+                    //        Util::get_value_bigint("result[5]", &result[5])?,
+                    //        Util::get_value_bigint_option("result[6]", &result[6])?,
+                    //        Util::get_value_bigint("result[7]", &result[7])?,
+                    //        Util::get_value_bigint("result[0]", &result[0])?,
+                    //        //result[1].clone().unwrap().as_bigint()?,
+                    //        //result[2].clone().unwrap().as_bigint()?,
+                    //        //result[3].clone().unwrap().as_bigint()?,
+                    //        //result[4].clone().unwrap().as_string()?,
+                    //        //result[5].clone().unwrap().as_bigint()?,
+                    //        //if result[6].is_none() {
+                    //        //    None
+                    //        //} else {
+                    //        //    Some(result[6].clone().unwrap().as_bigint()?)
+                    //        //},
+                    //        //result[7].clone().unwrap().as_bigint()?,
+                    //        //result[0].clone().unwrap().as_bigint()?,
+                    //    )),
+                    //));
+                } else {
+                    return Err(anyhow::anyhow!("invalid table type?: '{}'", table_name));
+                }
+
+                // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+                // }
+                // counter += 1
+            }
+
+            // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
+            // }
+            // Remove the try permanently, or, what should be here as a 'catch'? how interacts
+            // w/ 'throw' or anything related just above?
+            // } else {
+            //   counter += this_tables_row_count
+            // }
+            table_list_index += 1;
+        }
+
+        let mut all_results_array: Vec<(i64, Rc<dyn Attribute>)> =
+            Vec::with_capacity(all_results.len());
+
+        for (sorting_index, attribute) in all_results {
+            // using max_id_value as the max value of a long so those w/o sorting information will just sort last:
+            all_results_array.push((sorting_index.unwrap_or(self.max_id_value()), attribute));
+        }
+
+        // Sort by the first element of the tuple which is the sorting_index
+        all_results_array.sort_by_key(|a| a.0);
+
+        // (old, from scala, where the max_vals_in could theoretically be negative?:)
+        //let num_vals = if max_vals_in > 0 { max_vals_in } else { all_results_array.len() };
+        let num_vals = max_vals_in;
+        let until = std::cmp::min(starting_object_index_in + num_vals, all_results_array.len());
+        let mut return_attrs: Vec<(i64, Rc<dyn Attribute>)> = Vec::new();
+        for (sorting_index, attr) in all_results_array[starting_object_index_in..until].iter() {
+            return_attrs.push((*sorting_index, attr.clone()));
+        };
+        Ok((
+            return_attrs,
+            all_results_array.len(),
+        ))
+    }
+
 }
