@@ -2358,7 +2358,7 @@ impl Database for PostgreSQLDatabase {
     }
 
     // SEE ALSO METHOD find_unused_attribute_sorting_index **AND DO MAINTENANCE IN BOTH PLACES**
-    // idea: this needs a test, and/or combining with findIdWhichIsNotKeyOfAnyEntity.
+    // idea: this needs a test, and/or combining with find_id_which_is_not_key_of_any_entity.
     // **ABOUT THE SORTINGINDEX:  SEE the related comment on method add_attribute_sorting_row.
     fn find_unused_group_sorting_index(
         &self,
@@ -2380,7 +2380,7 @@ impl Database for PostgreSQLDatabase {
                     // means we did a full loop across all possible ids!?  Doubtful. Probably would turn into a performance problem long before. It's a bug.
                     return Err(anyhow!(Util::UNUSED_GROUP_ERR1.to_string()));
                 }
-                // idea: see comment at similar location in findIdWhichIsNotKeyOfAnyEntity
+                // idea: see comment at similar location in find_id_which_is_not_key_of_any_entity.
                 if counter > 10_000 {
                     return Err(anyhow!(Util::UNUSED_GROUP_ERR2.to_string()));
                 }

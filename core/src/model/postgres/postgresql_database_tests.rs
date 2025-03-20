@@ -2271,17 +2271,21 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
     create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, Some(0));
 }
 
-/*%%%%
-  "testAddQuantityAttributeWithBadParentID" should "not work" in {
-    println!("starting testAddQuantityAttributeWithBadParentID")
-    let badParentId: i64 = db.findIdWhichIsNotKeyOfAnyEntity; // Database should not allow adding quantity with a bad parent (Entity) ID!
-                                                              // idea: make it a more specific exception type, so we catch only the error we want...
-    intercept[Exception] {
-                           create_test_quantity_attribute_with_two_entities(badParentId)
-                         }
-
-  }
-*/
+    #[test]
+    #[should_panic]
+    fn test_add_quantity_attribute_with_bad_parent_id_does_not_work() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        println!("starting test_add_quantity_attribute_with_bad_parent_id");
+        // Database should not allow adding quantity with a bad parent (Entity) ID!
+        let bad_parent_id: i64 = db.find_id_which_is_not_key_of_any_entity(None).unwrap();
+        // idea: make it a more specific failure type, so we catch only the error we want...?
+        let _quantity_id = create_test_quantity_attribute_with_two_entities(&db.clone(), None, bad_parent_id, None);
+    }
 
     fn create_test_quantity_attribute_with_two_entities<'a, 'b>(
         db: &'a Rc<PostgreSQLDatabase>,
