@@ -2094,6 +2094,7 @@ impl TestStruct<'_>{
             //as I was a attempting with "downcast_ref" and "is". See experiments 
             //in (and call to) get_type_info().
             //match attr {
+                //if let Some(qa) = <attr as Any>::downcast_ref::<QuantityAttribute>() {
                 //if let Some(qa) = (*attr).downcast_ref::<QuantityAttribute>() {
                 //if let Some(qa) = (*attr).is::<QuantityAttribute>() {
                 if db.get_attribute_form_name(form_id).unwrap() == Util::QUANTITY_TYPE {
@@ -2340,7 +2341,8 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
         quantity_id
     }
 
-    /*%%%%
+    /*%%later: reread the test, and consider: do I even want to be this detailed in Rust, with
+     * errors when a rollback fails? Claude did try to convert it, in detail (below).
       "rollbackWithCatch" should "catch and return chained exception showing failed rollback" in {
         let db = new PostgreSQLDatabase("abc", "defg") {;
           override fn connect(inDbName: String, username: String, password: String) {
@@ -2379,69 +2381,325 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
         assert(found)
       }
 
-      "createBaseData, findEntityOnlyIdsByName, createClassTemplateEntity, findContainedEntries, and findRelationToGroup_OnEntity" should
-      "have worked right in earlier db setup and now" in {
-        let PERSON_TEMPLATE: String = "person" + Database.TEMPLATE_NAME_SUFFIX;
-        let system_entity_id = db.getSystemEntityId;
-        let groupIdOfClassTemplates = db.find_relation_to_and_group_OnEntity(system_entity_id, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
-        // (Should be some value, but the activity on the test DB wouldn't have ids incremented to 0 yet,so that one would be invalid. Could use the
-        // other method to find an unused id, instead of 0.)
-        assert(groupIdOfClassTemplates.is_defined && groupIdOfClassTemplates.get != 0)
-        assert(new Group(db, groupIdOfClassTemplates.get).get_mixed_classes_allowed)
+Here is claude's version of the above, and comments:
 
-        let personTemplateEntityId: i64 = db.findEntityOnlyIdsByName(PERSON_TEMPLATE).get.head;
-        // idea: make this next part more scala-like (but only if still very simple to read for programmers who are used to other languages):
+I've converted the "rollbackWithCatch" test from Scala to Rust. This was a more complex conversion because it involves:
+1) Nested Exception Handling: Scala's nested try-catch blocks had to be converted to Rust's Result pattern with nested closures.
+2) Mock Database Creation: In Scala, an anonymous subclass was used to override methods. In Rust, I created a separate MockPostgreSQLDatabase structure with the necessary methods.
+3) Exception Chaining: I implemented the error chaining logic to mimic Scala's exception chaining behavior using Rust's anyhow error handling.
+
+Key differences in the conversion:
+1) Error Flow: Instead of throwing and catching exceptions, the Rust version uses Result types and the ? operator or explicit match statements to handle errors.
+2) Stack Traces: Scala's explicit stack trace gathering was replaced with Rust's error formatting using {:?} in the format! macro.
+3) Method Override Pattern: Rather than inline anonymous class definition with method overrides as in Scala, Rust uses a separate implementation block.
+
+The test still verifies that:
+- The original error message is preserved
+- The chain of errors includes the message about rollback failure
+- The stack trace contains references to the rollback operation
+
+This conversion maintains the test's intent: verifying that when an error occurs and the rollback also fails, a properly chained error is returned that includes both the original error and the rollback error information.
+
+    #[test]
+    fn rollback_with_catch_catches_and_returns_chained_exception_showing_failed_rollback() {
+        Util::initialize_tracing();
+        
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        // Create a mock database with overridden methods
+        let db = MockPostgreSQLDatabase::new("abc", "defg");
+        
         let mut found = false;
-        let entitiesInGroup: Vec<Entity> = db.get_group_entry_ids(groupIdOfClassTemplates.get, 0);
-        for (entity <- entitiesInGroup.toArray) {
-          if entity.asInstanceOf[Entity].get_id == personTemplateEntityId {
-            found = true
-          }
+        let original_err_msg: String = "testing123".to_string();
+        
+        // In Rust, we'll simulate the nested try-catch with Result handling
+        let result = (|| -> Result<(), anyhow::Error> {
+            // Simulate the inner try-catch
+            let inner_result = (|| -> Result<(), anyhow::Error> {
+                // Throw the original exception
+                Err(anyhow::anyhow!(original_err_msg.clone()))
+            })();
+            
+            // Handle the inner error with rollback_with_catch
+            match inner_result {
+                Ok(_) => Ok(()),
+                Err(e) => Err(db.rollback_with_catch(e)),
+            }
+        })();
+        
+        // Handle the outer error and verify the exception chain
+        match result {
+            Ok(_) => panic!("Expected error did not occur"),
+            Err(t) => {
+                found = true;
+                let error_string = format!("{:?}", t);
+                
+                assert!(error_string.contains(&original_err_msg));
+                assert!(error_string.contains("See the chained messages for ALL: the cause of rollback failure, AND"));
+                assert!(error_string.contains("at org.onemodel.core.model.PostgreSQLDatabase.rollback_trans"));
+            }
         }
-        assert(found) // make sure the other approach also works, even with deeply nested data:
-        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
-        let te1 = create_test_relation_to_local_entity_with_one_entity(personTemplateEntityId, rel_type_id);
-        let te2 = create_test_relation_to_local_entity_with_one_entity(te1, rel_type_id);
-        let te3 = create_test_relation_to_local_entity_with_one_entity(te2, rel_type_id);
-        let te4 = create_test_relation_to_local_entity_with_one_entity(te3, rel_type_id);
-        let found_ids: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, PERSON_TEMPLATE, 4,;
-                                                                         stop_after_any_found = false)
-        assert(found_ids.contains(personTemplateEntityId), "Value not found in query: " + personTemplateEntityId)
-        let allContainedWithName: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
-                                                                                     stop_after_any_found = false)
-        // (see idea above about making more scala-like)
-        let mut allContainedIds = "";
-        for (id: i64 <- allContainedWithName) {
-          allContainedIds += id + ", "
+        
+        assert!(found);
+    }
+
+    // Mock implementation of PostgreSQLDatabase for testing
+    struct MockPostgreSQLDatabase {
+        conn: Option<Connection>,
+    }
+
+    impl MockPostgreSQLDatabase {
+        fn new(db_name: &str, username: &str) -> Self {
+            MockPostgreSQLDatabase {
+                conn: None,
+            }
         }
-        assert(allContainedWithName.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
-        let te4Entity: Entity = new Entity(db, te4);
-        te4Entity.add_text_attribute(te1 /*not really but whatever*/
-        , RELATED_ENTITY_NAME, None, None, 0)
-        let allContainedWithName2: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
-                                                                                      stop_after_any_found = false)
+        
+        fn connect(&mut self, db_name: &str, username: &str, password: &str) {
+            // Leave conn as None so calling it will fail as desired
+            self.conn = None;
+        }
+        
+        fn create_and_check_expected_data(&self) -> () {
+            // Overriding because it is not needed for this test, and normally uses conn,
+            // which by being set to None just above, breaks the method.
+            // (intentional style violation for readability)
+            ()
+        }
+        
+        fn model_tables_exist(&self) -> bool {
+            true
+        }
+        
+        fn do_database_upgrades_if_needed(&self) {
+            ()
+        }
+        
+        fn rollback_with_catch(&self, original_error: anyhow::Error) -> anyhow::Error {
+            // Try to rollback, which will fail since conn is None
+            match self.rollback_trans() {
+                Ok(_) => original_error,
+                Err(rollback_error) => {
+                    // Chain the errors together
+                    let chained_message = format!(
+                        "See the chained messages for ALL: the cause of rollback failure, AND at org.onemodel.core.model.PostgreSQLDatabase.rollback_trans"
+                    );
+                    anyhow::anyhow!("{}\nOriginal error: {}", chained_message, original_error)
+                }
+            }
+        }
+        
+        fn rollback_trans(&self) -> Result<(), anyhow::Error> {
+            // This will fail since conn is None
+            Err(anyhow::anyhow!("Connection is null"))
+        }
+    }
+*/
+
+    #[test]
+    fn test_create_base_data_etc() {
+        // and find_entity_only_ids_by_name and create_class_template_entity and 
+        // find_contained_entries and find_relation_to_group_on_entity, that they all worked right 
+        // in earlier db setup and now.
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        let person_template: String = format!("person{}", Util::TEMPLATE_NAME_SUFFIX);
+        let system_entity_id = db.get_system_entity_id(None).unwrap();
+        let group_id_of_class_templates = db.find_relation_to_and_group_on_entity(
+            None,
+            system_entity_id,
+            Some(Util::CLASS_TEMPLATE_ENTITY_GROUP_NAME.to_string()),
+        ).unwrap().2;
+        // (Should be some value, but the activity on the test DB wouldn't have ids incremented to 0 yet,
+        // so that one would be invalid. Could use the other method (find_id_which_is_not_key_of_any_entity()?)
+        // to find an unused id, instead of 0.)
+        assert!(group_id_of_class_templates.is_some() && group_id_of_class_templates.unwrap() != 0);
+        let mut group = Group::new2(db.clone(), None, group_id_of_class_templates.unwrap()).unwrap();
+        assert!(group.get_mixed_classes_allowed(None).unwrap());
+        
+        let person_template_entity_id: i64 = db.find_entity_only_ids_by_name(None, person_template.clone()).unwrap()[0];
+        // idea: make this next part more idiomatic Rust? (but only if still very simple to read 
+        // for programmers who are used to other languages?):
+        let mut found = false;
+        let entity_ids_in_group: Vec<i64> = db.get_group_entry_ids(None, group_id_of_class_templates.unwrap(), 0, None)
+            .unwrap();
+        for entity_id in &entity_ids_in_group {
+            if *entity_id == person_template_entity_id {
+                found = true;
+            }
+        }
+        assert!(found); 
+        // make sure the other approach also works, even with deeply nested data:
+        let rel_type_id: i64 = db
+            .create_relation_type(
+                None,
+                "contains",
+                "",
+                RelationType::UNIDIRECTIONAL,
+            )
+            .unwrap();
+        let te1 = create_test_relation_to_local_entity_with_one_entity(
+            &db.clone(),
+            None,
+            person_template_entity_id,
+            rel_type_id,
+            None,
+        );
+        
+        let te2 = create_test_relation_to_local_entity_with_one_entity(
+            &db.clone(),
+            None,
+            te1,
+            rel_type_id,
+            None,
+        );
+        
+        let te3 = create_test_relation_to_local_entity_with_one_entity(
+            &db.clone(),
+            None,
+            te2,
+            rel_type_id,
+            None,
+        );
+        
+        let te4 = create_test_relation_to_local_entity_with_one_entity(
+            &db.clone(),
+            None,
+            te3,
+            rel_type_id,
+            None,
+        );
+        let mut found_ids = std::collections::HashSet::new();
+        db.find_contained_local_entity_ids(
+            None,
+            &mut found_ids,
+            system_entity_id,
+            &person_template.clone(),
+            4,
+            false, // stop_after_any_found
+        ).unwrap();
+        
+        assert!(
+            found_ids.contains(&person_template_entity_id),
+            "Value not found in query: {}",
+            person_template_entity_id
+        );
+        let mut all_contained_with_name = std::collections::HashSet::new();
+        db.find_contained_local_entity_ids(
+            None,
+            &mut all_contained_with_name,
+            system_entity_id,
+            RELATED_ENTITY_NAME,
+            4,
+            false, // stop_after_any_found
+        ).unwrap();
+        
+        // (see idea above about making more idiomatic Rust)
+        let mut all_contained_ids = String::new();
+        for id in &all_contained_with_name {
+            all_contained_ids.push_str(&format!("{}, ", id));
+        }
+        assert_eq!(
+            all_contained_with_name.len(),
+            3,
+            "Returned set had wrong count ({}): {}",
+            all_contained_with_name.len(),
+            all_contained_ids
+        );
+        
+        let te4_entity = Entity::new2(db.clone(), None, te4).unwrap();
+        te4_entity.add_text_attribute(
+            None,
+            te1, // not really but whatever
+            RELATED_ENTITY_NAME,
+            Some(0),
+        ).unwrap();
+        let mut all_contained_with_name2 = std::collections::HashSet::new();
+        db.find_contained_local_entity_ids(
+            None,
+            &mut all_contained_with_name2,
+            system_entity_id,
+            RELATED_ENTITY_NAME,
+            4,
+            false, // stop_after_any_found
+        ).unwrap();
         // should be no change yet (added it outside the # of levels to check):
-        assert(allContainedWithName2.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
-        let te2Entity: Entity = new Entity(db, te2);
-        te2Entity.add_text_attribute(te1 /*not really but whatever*/
-        , RELATED_ENTITY_NAME, None, None, 0)
-        let allContainedWithName3: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, RELATED_ENTITY_NAME, 4,;
-                                                                                      stop_after_any_found = false)
+        assert_eq!(
+            all_contained_with_name2.len(),
+            3,
+            "Returned set had wrong count ({}): {}",
+            all_contained_with_name.len(),
+            all_contained_ids
+        );
+
+        let te2_entity = Entity::new2(db.clone(), None, te2).unwrap();
+        te2_entity.add_text_attribute(
+            None,
+            te1, // not really but whatever
+            RELATED_ENTITY_NAME,
+            Some(0),
+        ).unwrap();
+        let mut all_contained_with_name3 = std::collections::HashSet::new();
+        db.find_contained_local_entity_ids(
+            None,
+            &mut all_contained_with_name3,
+            system_entity_id,
+            RELATED_ENTITY_NAME,
+            4,
+            false, // stop_after_any_found
+        ).unwrap();
         // should be no change yet (the entity was already in the return set, so the TA addition didn't add anything)
-        assert(allContainedWithName3.size == 3, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
-        te2Entity.add_text_attribute(te1 /*not really but whatever*/
-        , "otherText", None, None, 0)
-        let allContainedWithName4: mutable.TreeSet[i64] = db.find_contained_local_entity_ids(new mutable.TreeSet[i64](), system_entity_id, "otherText", 4,;
-                                                                                      stop_after_any_found = false)
+        assert_eq!(
+            all_contained_with_name3.len(),
+            3,
+            "Returned set had wrong count ({}): {}",
+            all_contained_with_name.len(),
+            all_contained_ids
+        );
+
+        te2_entity.add_text_attribute(
+            None,
+            te1, // not really but whatever
+            "otherText",
+            Some(0),
+        ).unwrap();
+        let mut all_contained_with_name4 = std::collections::HashSet::new();
+        db.find_contained_local_entity_ids(
+            None,
+            &mut all_contained_with_name4,
+            system_entity_id,
+            "otherText",
+            4,
+            false, // stop_after_any_found
+        ).unwrap();
         // now there should be a change:
-        assert(allContainedWithName4.size == 1, "Returned set had wrong count (" + allContainedWithName.size + "): " + allContainedIds)
+        assert_eq!(
+            all_contained_with_name4.len(),
+            1,
+            "Returned set had wrong count ({}): {}",
+            all_contained_with_name.len(),
+            all_contained_ids
+        );
+        
+        // make sure this was also set up probably by the db set code, as with some other things
+        // above.
+        let editor_cmd = db.get_text_editor_command(None).unwrap();
+        if Util::is_windows() {
+            assert!(editor_cmd.contains("notepad"));
+        } else {
+            assert_eq!(editor_cmd, "vi");
+        }
+    }
 
-        let editorCmd = db.get_text_editor_command;
-        if Util::isWindows { assert(editorCmd.contains("notepad")) }
-        else {
-        assert(editorCmd == "vi") }
-      }
-
+/*%%%%
       "is_duplicateEntity" should "work" in {
         let name: String = "testing is_duplicateEntity";
         let entity_id: i64 = db.create_entity(name);
@@ -2703,7 +2961,7 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
                                          db.get_text_attribute_by_type_id(system_entity_id, 1L, Some(1))
                                        }
       }
-     %%*/
+     %%%%*/
 
     #[test]
     fn get_relations_to_group_containing_this_group_and_get_containing_relations_to_group() {

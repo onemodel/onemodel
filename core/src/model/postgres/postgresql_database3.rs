@@ -350,11 +350,12 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// @param search_string_in is case-insensitive.
-    /// @param stop_after_any_found is to prevent a serious performance problem when searching for the default entity at startup, if that default entity
-    ///                          eventually links to 1000's of others.  Alternatives included specifying a different levels_remaining parameter in that
-    ///                          case, or not following any RelationTo[Local|Remote]Entity links (which defeats the ability to organize the preferences in a hierarchy),
-    ///                          or flagging certain ones to skip by marking them as a preference (not a link to follow in the preferences hierarchy), but
-    ///                          those all seemed more complicated.
+    /// @param stop_after_any_found is to prevent a serious performance problem when searching for 
+    /// the default entity at startup, if that default entity eventually links to 1000's of others.  
+    /// Alternatives included specifying a different levels_remaining parameter in that case, or 
+    /// not following any RelationTo[Local|Remote]Entity links (which defeats the ability to organize 
+    /// the preferences in a hierarchy), or flagging certain ones to skip by marking them as a preference 
+    /// (not a link to follow in the preferences hierarchy), but those all seemed more complicated.
     fn find_contained_local_entity_ids<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -367,8 +368,10 @@ impl Database for PostgreSQLDatabase {
     where
         'b: 'a,
     {
-        // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two places).  But that has other complexities: see
-        // comments on ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of levels total, it might not matter anyway
+        // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two 
+        // places).  But that has other complexities: see comments on 
+        // ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of 
+        // levels total, it might not matter anyway
         // (ie, probably the current code is not optimized but is simpler and good enough for now).
 
         if levels_remaining <= 0 || (stop_after_any_found && results_in_out.len() > 0) {
@@ -411,7 +414,8 @@ impl Database for PostgreSQLDatabase {
                     .contains(&search_string_in.to_lowercase())
                 {
                     // if lower_cased_regex_pattern.matcher(name.toLowerCase).find {
-                    // have to do the name check here because we need to traverse all contained entities, so we need all those back from the sql, not just name matches.
+                    // have to do the name check here because we need to traverse all contained entities, 
+                    // so we need all those back from the sql, not just name matches.
                     results_in_out.insert(id);
                 }
                 self.find_contained_local_entity_ids(

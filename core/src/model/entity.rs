@@ -902,7 +902,7 @@ impl Entity {
     */
 
     /// See add_quantity_attribute(...) methods for comments.
-    fn add_text_attribute<'a, 'b>(
+    pub fn add_text_attribute<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_attr_type_id: i64,

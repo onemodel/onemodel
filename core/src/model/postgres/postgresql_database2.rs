@@ -16,6 +16,7 @@ use crate::model::entity::Entity;
 use crate::model::om_instance::OmInstance;
 use crate::model::postgres::postgresql_database::*;
 use crate::model::relation_to_group::RelationToGroup;
+use crate::model::text_attribute::TextAttribute;
 // use crate::model::postgres::*;
 use crate::util::Util;
 use anyhow::anyhow;
@@ -1094,38 +1095,72 @@ impl PostgreSQLDatabase {
         Ok(final_results)
     }
 
-    //%%
-    // fn get_text_editor_command(&self, transaction: &Option<&mut Transaction<Postgres>>) -> Result<String, anyhow::Error> {
-    //     let system_entity_id = self.get_system_entity_id(transaction)?;
-    //     let has_relation_type_id: i64 = self.find_relation_type(transaction, Util::THE_HAS_RELATION_TYPE_NAME)?;
-    //     let editor_info_system_entities: Vec<Entity> = self.get_entities_from_relations_to_local_entity(transaction, system_entity_id,
-    //                                                                                              Util::EDITOR_INFO_ENTITY_NAME,
-    //                                                                                              Some(has_relation_type_id),
-    //                                                                                                   Some(1))?;
-    //     if editor_info_system_entities.len() < 1 {
-    //         return Err(anyhow!("In get_text_editor_command, Unexpected # of results in get_text_editor_command a: {}", editor_info_system_entities.len()));
-    //     }
-    //     let id = editor_info_system_entities[0].get_id();
-    //     let text_editor_info_system_entities: Vec<Entity> = self.get_entities_from_relations_to_local_entity(transaction, id,
-    //                         Util::TEXT_EDITOR_INFO_ENTITY_NAME, Some(has_relation_type_id), Some(1))?;
-    //     if text_editor_info_system_entities.len() < 1 {
-    //         return Err(anyhow!("In get_text_editor_command, Unexpected # of results in get_text_editor_command b: {}", text_editor_info_system_entities.len()));
-    //     }
-    //     let text_editor_info_system_entity_id = text_editor_info_system_entities[0].get_id();
-    //     let text_editor_command_name_attr_types: Vec<Entity> = self.get_entities_from_relations_to_local_entity(transaction,
-    //                                                                            text_editor_info_system_entity_id,
-    //                 Util::TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME, Some(has_relation_type_id), Some(1))?;
-    //     if text_editor_command_name_attr_types.len() < 1 {
-    //         return Err(anyhow!("In get_text_editor_command, Unexpected # of results in get_text_editor_command c: {}", text_editor_command_name_attr_types.len()));
-    //     }
-    //     let text_editor_command_name_attr_type_id = text_editor_command_name_attr_types[0].get_id();
-    //     let tas: Vec<TextAttribute> = self.get_text_attribute_by_type_id(transaction, text_editor_info_system_entity_id,
-    //                                                                      text_editor_command_name_attr_type_id, Some(1))?;
-    //     if tas.len() < 1 {
-    //         return Err(anyhow!("In get_text_editor_command, Unexpected # of results in get_text_editor_command d: {}", tas.len()));
-    //     }
-    //     tas[0].get_text()
-    // }
+    pub fn get_text_editor_command(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    ) -> Result<String, anyhow::Error> {
+        let system_entity_id = self.get_system_entity_id(transaction.clone())?;
+        let has_relation_type_id: i64 = self.find_relation_type(
+            transaction.clone(),
+            Util::THE_HAS_RELATION_TYPE_NAME,
+        )?;
+        let editor_info_system_entities: Vec<i64> = self.get_entities_from_relations_to_local_entity(
+            transaction.clone(),
+            system_entity_id,
+            Util::EDITOR_INFO_ENTITY_NAME,
+            Some(has_relation_type_id),
+            Some(1),
+        )?;
+        if editor_info_system_entities.len() < 1 {
+            return Err(anyhow!(
+                "In get_text_editor_command, Unexpected # of results in get_text_editor_command a: {}",
+                editor_info_system_entities.len()
+            ));
+        }
+        let id = editor_info_system_entities[0];
+        let text_editor_info_system_entities: Vec<i64> = self.get_entities_from_relations_to_local_entity(
+            transaction.clone(),
+            id,
+            Util::TEXT_EDITOR_INFO_ENTITY_NAME,
+            Some(has_relation_type_id),
+            Some(1),
+        )?;
+        if text_editor_info_system_entities.len() < 1 {
+            return Err(anyhow!(
+                "In get_text_editor_command, Unexpected # of results in get_text_editor_command b: {}",
+                text_editor_info_system_entities.len()
+            ));
+        }
+        let text_editor_info_system_entity_id = text_editor_info_system_entities[0];
+        let text_editor_command_name_attr_types: Vec<i64> = self.get_entities_from_relations_to_local_entity(
+            transaction.clone(),
+            text_editor_info_system_entity_id,
+            Util::TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME,
+            Some(has_relation_type_id),
+            Some(1),
+        )?;
+        if text_editor_command_name_attr_types.len() < 1 {
+            return Err(anyhow!(
+                "In get_text_editor_command, Unexpected # of results in get_text_editor_command c: {}",
+                text_editor_command_name_attr_types.len()
+            ));
+        }
+        let text_editor_command_name_attr_type_id = text_editor_command_name_attr_types[0];
+        let tas: Vec<(i64, i64, i64, String, Option<i64>, i64, i64)> = self.get_text_attribute_by_type_id(
+            transaction.clone(),
+            text_editor_info_system_entity_id,
+            text_editor_command_name_attr_type_id,
+            Some(1),
+        )?;
+        if tas.len() < 1 {
+            return Err(anyhow!(
+                "In get_text_editor_command, Unexpected # of results in get_text_editor_command d: {}",
+                tas.len()
+            ));
+        }
+        //return the text value
+        Ok(tas[0].3.clone())
+    }
     
     fn get_entities_from_relations_to_local_entity(
         &self,
