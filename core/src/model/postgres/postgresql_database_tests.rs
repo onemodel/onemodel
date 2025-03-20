@@ -666,7 +666,7 @@ mod test {
         boolean_attribute_id
     }
 
-    /*%%latertests after FileAttribute is more completed.
+    /*%%file_attr latertests after FileAttribute is more completed.
     fn create_test_file_attribute_and_one_entity(in_parent_entity: Entity, in_descr: String, added_kilobytes_in: i32, verify_in: bool /*= true*/) -> FileAttribute {
         let attr_type_id: i64 = db.create_entity("fileAttributeType");
         let file: java.io.File = java.io.File.createTempFile("om-test-file-attr-", null);
@@ -727,9 +727,6 @@ mod test {
     }
     */
 
-    //fn create_test_relation_to_local_entity_with_one_entity<'a, 'b>(
-    //    db: 'a Rc<dyn Database>,
-    //    tx: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
     fn create_test_relation_to_local_entity_with_one_entity<'a, 'b>(
         db: &'a Rc<PostgreSQLDatabase>,
         tx: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
@@ -1353,62 +1350,7 @@ mod test {
         // 2 more entities came during attribute creation, which we don't care about either way, for this test
         assert_eq!(db.get_entity_count(None).unwrap(), starting_entity_count + 2);
     }
-          /* //%%(keeping this copy of the test, partially converted from scala, temporarily to provide a before/after for chatgpt etc.)
-          "BooleanAttribute create/delete/update methods" should "work" in {
-            let starting_entity_count = db.get_entity_count();
-            let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testBooleanAttrs");
-            let val1 = true;
-            let observation_date: i64 = System.currentTimeMillis;
-            let valid_on_date: Option<i64> = Some(1234L);
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-            let boolean_attribute_id: i64 = create_test_boolean_attribute_with_one_entity(entity_id, val1, valid_on_date, observation_date);
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-
-            let ba = new BooleanAttribute(db, boolean_attribute_id);
-            let (pid1, atid1) = (ba.get_parent_id(), ba.get_attr_type_id());
-            assert(entity_id == pid1)
-
-            let val2 = false;
-            db.update_boolean_attribute(boolean_attribute_id, pid1, atid1, val2, Some(123), 456)
-            // have to create new instance to re-read the data:
-            let ba2 = new BooleanAttribute(db, boolean_attribute_id);
-            let (pid2, atid2, bool2, vod2, od2) = (ba2.get_parent_id(), ba2.get_attr_type_id(), ba2.get_boolean, ba2.get_valid_on_date(), ba2.get_observation_date());
-            assert(pid2 == pid1)
-            assert(atid2 == atid1)
-            assert(bool2 == val2)
-            // (the ".contains" suggested by the IDE just caused another problem)
-            //noinspection OptionEqualsSome
-            assert(vod2 == Some(123L))
-            assert(od2 == 456)
-
-            assert(db.get_boolean_attribute_count(entity_id) == 1)
-
-            let entity_count_before_attr_deletion: i64 = db.get_entity_count();
-            db.delete_boolean_attribute(boolean_attribute_id)
-            assert(db.get_boolean_attribute_count(entity_id) == 0)
-            // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-            assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-            let entity_count_after_attr_deletion: i64 = db.get_entity_count();
-            if entity_count_after_attr_deletion != entity_count_before_attr_deletion {
-              fail("Got constraint backwards? Deleting boolean attribute changed Entity count from " + entity_count_before_attr_deletion + " to " +
-                   entity_count_after_attr_deletion)
-            }
-
-            // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below; and to verify behavior with other values)
-            let testval2: bool = true;
-            let valid_on_date2: Option<i64> = None;
-            let bool_attribute_id2: i64 = db.create_boolean_attribute(pid1, atid1, testval2, valid_on_date2, observation_date);
-            let ba3: BooleanAttribute = new BooleanAttribute(db, bool_attribute_id2);
-            assert(ba3.get_boolean == testval2)
-            assert(ba3.get_valid_on_date().isEmpty)
-            db.delete_entity(entity_id)
-            assert(db.get_boolean_attribute_count(entity_id) == 0)
-
-            let ending_entity_count = db.get_entity_count();
-            // 2 more entities came during attribute creation, but we deleted one and (unlike similar tests) didn't recreate it.
-            assert(ending_entity_count == starting_entity_count + 1)
-          }
-    */
+    
     #[test]
     fn boolean_create_delete_update_methods() {
         Util::initialize_tracing();
@@ -1541,105 +1483,9 @@ mod test {
     }
 
     /*%%
-      "FileAttribute create/delete/update methods" should "work" in {
-        let starting_entity_count = db.get_entity_count();
-        let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.testFileAttrs");
-        let descr = "somedescr";
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        let fa: FileAttribute = create_test_file_attribute_and_one_entity(new Entity(db, entity_id), descr, 1);
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 1)
-        let fileAttributeId = fa.get_id;
-        let (pid1, atid1, desc1) = (fa.get_parent_id(), fa.get_attr_type_id(), fa.get_description());
-        assert(desc1 == descr)
-        let descNew = "otherdescription";
-        let original_file_dateNew = 1;
-        let stored_dateNew = 2;
-        let pathNew = "/a/b/cd.efg";
-        let sizeNew = 1234;
-        let hashNew = "hashchars...";
-        let b11 = false;
-        let b12 = true;
-        let b13 = false;
-        db.update_file_attribute(fa.get_id, pid1, atid1, descNew, original_file_dateNew, stored_dateNew, pathNew, b11, b12, b13, sizeNew, hashNew)
-        // have to create new instance to re-read the data:
-        let fa2 = new FileAttribute(db, fa.get_id);
-        let (pid2, atid2, desc2, ofd2, sd2, ofp2, b21, b22, b23, size2, hash2) = (fa2.get_parent_id(), fa2.get_attr_type_id(), fa2.get_description(), fa2.get_original_file_date(),;
-          fa2.get_stored_date(), fa2.get_original_file_path(), fa2.get_readable(), fa2.get_writeable(), fa2.get_executable(), fa2.get_size(), fa2.get_md5hash())
-        assert(pid2 == pid1)
-        assert(atid2 == atid1)
-        assert(descNew == desc2)
-        assert(ofd2 == original_file_dateNew)
-        assert(sd2 == stored_dateNew)
-        assert(ofp2 == pathNew)
-        assert((b21 == b11) && (b22 == b12) && (b23 == b13))
-        assert(size2 == sizeNew)
-        // (startsWith, because the db pads with characters up to the full size)
-        assert(hash2.startsWith(hashNew))
-        assert(db.get_file_attribute_count(entity_id) == 1)
-
-        let someRelTypeId = db.create_relation_type("test: org.onemodel.PSQLDbTest.testFileAttrs-reltyp", "reversed", "BI");
-        let descNewer = "other-newer";
-        new FileAttribute(db, fa.get_id).update(Some(someRelTypeId), Some(descNewer))
-
-        // have to create new instance to re-read the data:
-        let fa3 = new FileAttribute(db, fileAttributeId);
-        let (pid3, atid3, desc3, ofd3, sd3, ofp3, b31, b32, b33, size3, hash3) = (fa3.get_parent_id(), fa3.get_attr_type_id(), fa3.get_description(), fa3.get_original_file_date(),;
-          fa3.get_stored_date(), fa3.get_original_file_path(), fa3.get_readable(), fa3.get_writeable(), fa3.get_executable(), fa3.get_size(), fa3.get_md5hash())
-        assert(pid3 == pid1)
-        assert(atid3 == someRelTypeId)
-        assert(desc3 == descNewer)
-        assert(ofd3 == original_file_dateNew)
-        assert(sd3 == stored_dateNew)
-        assert(ofp3 == pathNew)
-        assert(size3 == sizeNew)
-        assert((b31 == b11) && (b32 == b12) && (b33 == b13))
-        // (startsWith, because the db pads with characters up to the full size)
-        assert(hash3.startsWith(hashNew))
-        assert(db.get_file_attribute_count(entity_id) == 1)
-
-        let fileAttribute4 = new FileAttribute(db, fileAttributeId);
-        fileAttribute4.update()
-        // have to create new instance to re-read the data:
-        let fa4 = new FileAttribute(db, fileAttributeId);
-        let (atid4, d4, ofd4, sd4, ofp4, b41) =;
-          (fa4.get_attr_type_id(), fa4.get_description(), fa4.get_original_file_date(), fa4.get_stored_date(), fa4.get_original_file_path(), fa4.get_readable())
-        // these 2 are the key ones for this section: make sure they didn't change since we passed None to the update:
-        assert(atid4 == atid3)
-        assert(d4 == desc3)
-        //throw in a few more
-        assert(ofd4 == original_file_dateNew)
-        assert(sd4 == stored_dateNew)
-        assert(ofp4 == pathNew)
-        assert(b41 == b11)
-
-        let entity_countBeforeFileAttrDeletion: i64 = db.get_entity_count();
-        db.delete_file_attribute(fileAttributeId)
-        assert(db.get_file_attribute_count(entity_id) == 0)
-        // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-        assert(db.get_attribute_sorting_rows_count(Some(entity_id)) == 0)
-        let entity_countAfterFileAttrDeletion: i64 = db.get_entity_count();
-        if entity_countAfterFileAttrDeletion != entity_countBeforeFileAttrDeletion {
-          fail("Got constraint backwards? Deleting FileAttribute changed Entity count from " + entity_countBeforeFileAttrDeletion + " to " +
-               entity_countAfterFileAttrDeletion)
-        }
-
-
-        // and check larger content:
-        create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "somedesc", 1200)
-
-        // then recreate the file attribute (to verify its auto-deletion when Entity is deleted, below)
-        // (w/ dif't file size for testing)
-        create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "somedesc", 0)
-        db.delete_entity(entity_id)
-        assert(db.get_file_attribute_count(entity_id) == 0)
-
-
-        // more entities came during attribute creation, which we don't care about either way, for this test
-        assert(db.get_entity_count() == starting_entity_count + 4)
-      }
-
     // for a test just below
-    %%MAYBE CAN make this a parameter instead, wherever used? see fn just below, add as parm there.
+    %%file_attr stuff:
+    MAYBE CAN make this a parameter instead, wherever used? see fn just below, add as parm there.
     private let mut mDoDamageBuffer = false;
 
     // instantiation does DB setup (creates tables, default data, etc):
@@ -1656,7 +1502,6 @@ mod test {
     }
     }
     }
-
 
     //idea: recall why mocks would be better here than testing the real system and if needed switch, to speed up tests.
       // (Because we're not testing the filesystem or postgresql, and test speed matters. What is the role of integration tests for this system?)
@@ -2407,7 +2252,6 @@ impl TestStruct<'_>{
         db.delete_relation_type(trans.clone(), rel_type_id).unwrap();
     }
 
-/*%%%%
 #[test]
 fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
     let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
@@ -2427,6 +2271,7 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
     create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, Some(0));
 }
 
+/*%%%%
   "testAddQuantityAttributeWithBadParentID" should "not work" in {
     println!("starting testAddQuantityAttributeWithBadParentID")
     let badParentId: i64 = db.findIdWhichIsNotKeyOfAnyEntity; // Database should not allow adding quantity with a bad parent (Entity) ID!
@@ -2459,14 +2304,10 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
         let number: f64 = 50.0;
 
         //let ref rc_db = &db.clone();
-        //let tx = transaction.clone();
         //let ref cloned = rc_db.clone();
-        //let quantity_id: i64 = cloned
-        //let quantity_id: i64 = &rc_db
         let quantity_id: i64 = db
             .create_quantity_attribute(
                 transaction.clone(),
-                //tx,
                 in_parent_id,
                 attr_type_id,
                 unit_id,
