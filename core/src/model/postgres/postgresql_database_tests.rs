@@ -2831,72 +2831,117 @@ This conversion maintains the test's intent: verifying that when an error occurs
         assert!(!EntityClass::is_duplicate(db.clone(), None, &name, Some(class_id)).unwrap());
         assert!(!EntityClass::is_duplicate(db.clone(), None, &name, None).unwrap());
     }
-/*%%%%
-      "EntitiesInAGroup and getclasses/classcount methods" should "work, and should enforce class_id uniformity within a group of entities" in {
+
+    #[test]
+    fn entities_in_a_group_and_getclasses_classcount_methods_work() {
+        // ... and_enforce_class_id_uniformity_within_a_group_of_entities,
         // ...for now anyway. See comments at this table in psqld.create_tables and/or hasMixedClasses.
 
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
         // This also tests db.create_entity and db.updateEntityOnlyClass.
-        let entityName = "test: PSQLDbTest.testgroup-class-uniqueness" + "--theEntity";
-        let (classId, entity_id) = db.createClassAndItsTemplateEntity(entityName, entityName);
-        let (classId2, entity_id2) = db.createClassAndItsTemplateEntity(entityName + 2, entityName + 2);
-        let classCount = db.get_class_count();
-        let classes = db.get_classes(0);
-        assert(classCount == classes.size)
-        let classCountLimited = db.get_class_count(Some(entity_id2));
-        assert(classCountLimited == 1) //whatever, just need some relation type to go with:
-        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
-        let groupId = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, "test: PSQLDbTest.testgroup-class-uniqueness",;
-                                                                                 Some(12345L), allow_mixed_classes_in = false)._1
-        let group: Group = new Group(db, groupId);
-        assert(! db.is_entity_in_group(groupId, entity_id))
-        assert(! db.is_entity_in_group(groupId, entity_id))
-        group.add_entity(entity_id)
-        assert(db.is_entity_in_group(groupId, entity_id))
-        assert(! db.is_entity_in_group(groupId, entity_id2)) //should fail due to mismatched classId (a long):
-        assert(intercept[Exception] {
-                                      group.add_entity(entity_id2)
-                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
-        // should succeed (same class now):
-        db.update_entitys_class(entity_id2, Some(classId))
-        group.add_entity(entity_id2) // ...and for convenience while here, make sure we can't make mixed classes with changing the *entity* either:
-        assert(intercept[Exception] {
-                                      db.update_entitys_class(entity_id2, Some(classId2))
-                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
-        assert(intercept[Exception] {
-                                      db.update_entitys_class(entity_id2, None)
-                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
-        //should fail due to mismatched classId (NULL):
-        let entity_id3 = db.create_entity(entityName + 3);
-        assert(intercept[Exception] {
-                                      group.add_entity(entity_id3)
-                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
+        let entity_name = "test: PSQLDbTest.testgroup-class-uniqueness--theEntity";
+        let (class_id, entity_id) = db
+            .create_class_and_its_template_entity(None, entity_name)
+            .unwrap();
+        let (class_id2, entity_id2) = db
+            .create_class_and_its_template_entity(
+                None,
+                &format!("{}{}", entity_name, 2),
+            )
+            .unwrap();
+        let class_count = db.get_class_count(None, None).unwrap();
+        let classes = db.get_classes(db.clone(), None, 0, None).unwrap();
+        assert_eq!(class_count, classes.len());
+        let class_count_limited = db.get_class_count(None, Some(entity_id2)).unwrap();
+        assert_eq!(class_count_limited, 1);
+        
+        // Whatever, just need some relation type to go with:
+        let rel_type_id: i64 = db
+            .create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL)
+            .unwrap();
+        let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
+        let (group_id, _) = create_and_add_test_relation_to_group_on_to_entity(
+            db.clone(),
+            None,
+            &entity,
+            rel_type_id,
+            "test: PSQLDbTest.testgroup-class-uniqueness",
+            Some(12345),
+            false, // allow_mixed_classes_in
+        ).unwrap();
+        let group = Group::new2(db.clone(), None, group_id).unwrap();
+        
+        assert!(!db.is_entity_in_group(None, group_id, entity_id).unwrap());
+        group.add_entity(None, entity_id, None).unwrap();
+        assert!(db.is_entity_in_group(None, group_id, entity_id).unwrap());
+        assert!(!db.is_entity_in_group(None, group_id, entity_id2).unwrap());
+        // Should fail due to mismatched classId (a long):
+        let result = group.add_entity(None, entity_id2, None);
+        assert!(result.is_err());
+        let error_message = format!("{}", result.err().unwrap());
+        assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
+        
+        // Should succeed (same class now):
+        db.update_entitys_class(None, entity_id2, Some(class_id)).unwrap();
+        group.add_entity(None, entity_id2, None).unwrap();
+        // ...and for convenience while here, make sure we can't make mixed classes with changing the *entity* either:
+        let result = db.update_entitys_class(None, entity_id2, Some(class_id2));
+        assert!(result.is_err());
+        let error_message = format!("{}", result.err().unwrap());
+        assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
+        let result = db.update_entitys_class(None, entity_id2, None);
+        assert!(result.is_err());
+        let error_message = format!("{}", result.err().unwrap());
+        assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
+        
+        // Should fail due to mismatched classId (NULL):
+        let entity_id3 = db
+            .create_entity(None, &format!("{}{}", entity_name, 3), None, None)
+            .unwrap();
+        let result = group.add_entity(None, entity_id3, None);
+        assert!(result.is_err());
+        let error_message = format!("{}", result.err().unwrap());
+        assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
+        
+        assert!(!db.are_mixed_classes_allowed(None, &group_id).unwrap());
+        
+        let system_entity_id = db.get_system_entity_id(None).unwrap();
+        //let (_, _, class_group_id) = db.find_relation_to_and_group_on_entity(
+        let vals: (Option<i64>, Option<i64>, Option<i64>, Option<std::string::String>, bool) 
+            = db.find_relation_to_and_group_on_entity(
+            None,
+            system_entity_id,
+            Some(Util::CLASS_TEMPLATE_ENTITY_GROUP_NAME.to_string()),
+        ).unwrap();
+        let class_group_id = vals.2;
+        
+        assert!(db.are_mixed_classes_allowed(None, &class_group_id.unwrap()).unwrap());
+        
+        let group_size_before_removal = db.get_group_size(None, group_id, 3).unwrap();
+        assert_eq!(db.get_group_size(None, group_id, 2).unwrap(), 0);
+        assert_eq!(db.get_group_size(None, group_id, 1).unwrap(), group_size_before_removal);
+        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), group_size_before_removal);
+        
+        db.archive_entity(None, entity_id2).unwrap();
+        assert_eq!(db.get_group_size(None, group_id, 2).unwrap(), 1);
+        assert_eq!(db.get_group_size(None, group_id, 1).unwrap(), group_size_before_removal - 1);
+        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), group_size_before_removal);
+        
+        db.remove_entity_from_group(None, group_id, entity_id2).unwrap();
+        let group_size_after_removal = db.get_group_size(None, group_id, 3).unwrap();
+        assert!(group_size_after_removal < group_size_before_removal);
+        assert_eq!(db.get_group_size(None, group_id, 2).unwrap(), 0);
+        assert_eq!(db.get_group_size(None, group_id, 1).unwrap(), group_size_before_removal - 1);
+        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), group_size_before_removal - 1);
+    }
 
-        assert(!db.areMixedClassesAllowed(groupId))
-
-
-        let system_entity_id = db.getSystemEntityId; // idea: (noted at other use of this method)
-        let classGroupId = db.find_relation_to_and_group_OnEntity(system_entity_id, Some(Database.CLASS_TEMPLATE_ENTITY_GROUP_NAME))._3;
-        assert(db.areMixedClassesAllowed(classGroupId.get))
-
-        let groupSizeBeforeRemoval = db.get_group_size(groupId);
-
-        assert(db.get_group_size(groupId, 2) == 0)
-        assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval)
-        assert(db.get_group_size(groupId) == groupSizeBeforeRemoval)
-        db.archive_entity(entity_id2)
-        assert(db.get_group_size(groupId, 2) == 1)
-        assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval - 1)
-        assert(db.get_group_size(groupId) == groupSizeBeforeRemoval)
-
-        db.remove_entity_from_group(groupId, entity_id2)
-        let groupSizeAfterRemoval = db.get_group_size(groupId);
-        assert(groupSizeAfterRemoval < groupSizeBeforeRemoval)
-
-        assert(db.get_group_size(groupId, 2) == 0)
-        assert(db.get_group_size(groupId, 1) == groupSizeBeforeRemoval - 1)
-        assert(db.get_group_size(groupId) == groupSizeBeforeRemoval - 1)
-      }
-
+/* %%%%
       "get_entities_only and ...Count" should "allow limiting results by classId and/or group containment" in {
         // idea: this could be rewritten to not depend on pre-existing data to fail when it's supposed to fail.
         let starting_entity_count = db.get_entities_only_count();
@@ -2934,7 +2979,8 @@ This conversion maintains the test's intent: verifying that when an error occurs
         let resultSizeWithGroupOmission = db.get_entities_only(0, None, group_to_omit_id_in = Some(group.get_id)).size();
         assert(entity_countAfterCreating - 1 == resultSizeWithGroupOmission)
       }
-
+*/
+/*%%%%
       "EntitiesInAGroup table (or methods? ick)" should "allow all a group's entities to have no class" in {
         // ...for now anyway.  See comments at this table in psqld.create_tables and/or hasMixedClasses.
         let entityName = "test: PSQLDbTest.testgroup-class-allowsAllNulls" + "--theEntity";

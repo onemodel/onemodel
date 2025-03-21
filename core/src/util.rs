@@ -1618,6 +1618,13 @@ impl Util {
             _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
         }
     }
+    pub fn get_value_bool_option(description: &str, x: &Option<DataType>) -> Result<Option<bool>, anyhow::Error> {
+        match x {
+            Some(DataType::Boolean(x)) => Ok(Some(*x)),
+            None => Ok(None),
+            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+        }
+    }
     pub fn get_value_string(description: &str, x: &Option<DataType>) -> Result<String, anyhow::Error> {
         match x {
             Some(DataType::String(x)) => Ok(x.to_string()),

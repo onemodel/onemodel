@@ -3223,12 +3223,12 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         template_entity_id_in: Option<i64>, /*= None*/
-    ) -> Result<u64, anyhow::Error> {
+    ) -> Result<usize, anyhow::Error> {
         let where_clause = match template_entity_id_in {
             Some(x) => format!(" where defining_entity_id={}", x),
             _ => "".to_string(),
         };
-        let cnt: u64 = self
+        let cnt: usize = self
             .extract_row_count_from_count_query(
                 transaction,
                 format!("SELECT count(1) from class{}", where_clause).as_str(),
@@ -5053,25 +5053,49 @@ impl Database for PostgreSQLDatabase {
         Ok(final_results)
     }
 
-    //%%:
-    // fn get_classes(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/)  -> Result<Vec<EntityClass>, anyhow::Error>  {
-    //     let sql: String = format!("SELECT id, name, defining_entity_id, create_default_attributes from class order by id limit {} offset {}",
-    //                       check_if_should_be_all_results(max_vals_in), starting_object_index_in);
-    //     let early_results = self.db_query(transaction, sql.as_str(), "i64,String,i64,bool");
-    //     let final_results: Vec<EntityClass> = Vec::new();
-    //     // idea: should the remainder of this method be moved to EntityClass, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-    //     // dependencies; is a cleaner design?; see similar comment in get_entities_generic.)
-    //     for result in early_results {
-    //       // Only one of these values should be of "None" type.  If they are it's a bug:
-    //         //%%
-    //       // final_results.push(new EntityClass(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
-    //       //                                  if result(3).isEmpty) None else Some(result(3).get.asInstanceOf[Boolean])))
-    //     }
-    //     if final_results.len() != early_results.len() {
-    //         return Err(anyhow!("In get_classes, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
-    //     }
-    //     Ok(final_results)
-    //   }
+    fn get_classes(
+        &self,
+        db: Rc<dyn Database>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        starting_object_index_in: i64,
+        max_vals_in: Option<i64>, // = None
+    ) -> Result<Vec<EntityClass>, anyhow::Error> {
+        let sql: String = format!(
+            "SELECT id, name, defining_entity_id, create_default_attributes from class order by id limit {} offset {}",
+            Self::check_if_should_be_all_results(max_vals_in),
+            starting_object_index_in
+        );
+        
+        let early_results: Vec<Vec<Option<DataType>>> = self.db_query(transaction.clone(), &sql, "i64,String,i64,bool")?;
+        let mut final_results: Vec<EntityClass> = Vec::new();
+        // idea: should the remainder of this method be moved to EntityClass, so the 
+        // persistence layer doesn't know anything about the Model? (helps avoid circular 
+        // dependencies; is a cleaner design?; see similar comment in get_entities_generic.)
+        for result in early_results.iter() {
+            // Only one of these values should be of "None" type. If more are it's a bug:
+            let id = Util::get_value_bigint("result[0]", &result[0])?;
+            //let id = result[0].clone().unwrap().as_bigint()?;
+            let name = Util::get_value_string("result[1]", &result[1])?;
+            let defining_entity_id = Util::get_value_bigint("result[2]", &result[2])?;
+            let create_default_attributes: Option<bool> = Util::get_value_bool_option("result[3]", &result[3])?;
+            let entity_class = EntityClass::new(
+                db.clone(), //Rc::new(self as dyn Database),
+                id,
+                &name,
+                defining_entity_id,
+                create_default_attributes,
+            );
+            final_results.push(entity_class);
+        }
+        if final_results.len() != early_results.len() {
+            return Err(anyhow!(
+                "In get_classes, final_results.len() ({}) != early_results.len() ({})",
+                final_results.len(),
+                early_results.len()
+            ));
+        }
+        Ok(final_results)
+    }
 
     fn get_group_entries_data(
         &self,

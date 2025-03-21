@@ -1279,7 +1279,7 @@ impl PostgreSQLDatabase {
             Utc::now().timestamp_millis().to_string()
         };
         let sql = format!(
-            "update {} set (archived, archived_date) = ({}, {}), {}",
+            "update {} set (archived, archived_date) = ({}, {}) {}",
             table_name_in, archive, archived_date, where_clause_in
         );
         let rows_affected = self.db_action(transaction.clone(), sql.as_str(), true, false)?;

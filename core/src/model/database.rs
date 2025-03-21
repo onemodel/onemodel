@@ -9,6 +9,7 @@
 */
 use crate::model::attribute::Attribute;
 use crate::model::entity::Entity;
+use crate::model::entity_class::EntityClass;
 use crate::model::group::Group;
 use crate::model::relation_to_group::RelationToGroup;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
@@ -29,7 +30,7 @@ use std::rc::Rc;
 pub enum DataType {
     Float(f64),
     String(String),
-    // not supported in return values from sqlx: see db_query in postgresql_database.rs 
+    // not supported in return values from sqlx: see db_query in postgresql_database.rs
     // for another, related comment:
     // UnsignedInt(u64),
     Bigint(i64),
@@ -44,7 +45,12 @@ impl std::fmt::Debug for dyn Database {
             Ok(s) => s,
             Err(e) => e.to_string(),
         };
-        write!(f, "Database [is_remote: {}, id details: {}]", self.is_remote(), id_all)
+        write!(
+            f,
+            "Database [is_remote: {}, id details: {}]",
+            self.is_remote(),
+            id_all
+        )
     }
 }
 
@@ -464,9 +470,9 @@ pub trait Database {
         db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
-        starting_object_index_in: usize /*= 0*/, 
-        max_vals_in: usize /*= 0*/,
-        only_public_entities_in: bool /*= true*/
+        starting_object_index_in: usize, /*= 0*/
+        max_vals_in: usize,              /*= 0*/
+        only_public_entities_in: bool,   /*= true*/
     ) -> Result<(Vec<(i64, Rc<dyn Attribute>)>, usize), anyhow::Error>;
     fn get_relation_type_data(
         &self,
@@ -624,7 +630,8 @@ pub trait Database {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: Option<i64>, /*= None*/
-    ) -> Result<u64, anyhow::Error>;
+    ) -> Result<usize, anyhow::Error>;
+    //) -> Result<u64, anyhow::Error>;
     fn get_class_name(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -758,7 +765,7 @@ pub trait Database {
         entity_id_in: i64,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
-    //) -> Result<Vec<RelationToGroup>, anyhow::Error>;
+                                  //) -> Result<Vec<RelationToGroup>, anyhow::Error>;
     ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error>;
     //%% fn get_should_create_default_attributes(&self, transaction: &Option<&mut Transaction<Postgres>>, class_id_in: i64) -> Result<Option<bool>, anyhow::Error>;
     fn update_class_create_default_attributes(
@@ -814,7 +821,7 @@ pub trait Database {
         group_id_in: i64,
         starting_index_in: i64,
         max_vals_in: Option<u64>, /*= None*/
-    //) -> Result<Vec<RelationToGroup>, anyhow::Error>;
+                                  //) -> Result<Vec<RelationToGroup>, anyhow::Error>;
     ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error>;
     fn get_entities(
         &self,
@@ -851,7 +858,13 @@ pub trait Database {
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<RelationType>, anyhow::Error>;
-    //%% fn get_classes(&self, transaction: &Option<&mut Transaction<Postgres>>, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/) -> Result<Vec<EntityClass>, anyhow::Error>;
+    fn get_classes(
+        &self,
+        db: Rc<dyn Database>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        starting_object_index_in: i64,
+        max_vals_in: Option<i64>, /*= None*/
+    ) -> Result<Vec<EntityClass>, anyhow::Error>;
     fn get_relation_type_count(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -877,11 +890,11 @@ pub trait Database {
     ) -> Result<u64, anyhow::Error>;
     fn get_groups(
         &self,
-        db: Rc<dyn Database>, 
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64, 
-        max_vals_in: Option<i64> /*= None*/, 
-        group_to_omit_id_in: Option<i64> /*= None*/
+        starting_object_index_in: i64,
+        max_vals_in: Option<i64>,         /*= None*/
+        group_to_omit_id_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Group>, anyhow::Error>;
     fn create_group(
         &self,
@@ -1219,9 +1232,8 @@ pub trait Database {
         transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         group_id_in: i64,
     ) -> Result<(), anyhow::Error>
-    where 
-        'a: 'b
-    ;
+    where
+        'a: 'b;
     fn delete_om_instance<'a>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
