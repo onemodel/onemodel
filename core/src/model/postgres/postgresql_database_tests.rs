@@ -1281,7 +1281,7 @@ mod test {
         let ending_entity_count = db.get_entity_count(tx.clone()).unwrap();
         // 2 more entities came during text attribute creation, which we don't care about either way, for this test
         assert_eq!(ending_entity_count, starting_entity_count + 2);
-      }
+    }
 
     #[test]
     fn date_attribute_create_delete_update_methods() {
@@ -3064,44 +3064,81 @@ This conversion maintains the test's intent: verifying that when an error occurs
         let error_message = format!("{}", result.err().unwrap());
         assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
     }
-/*%%%%
 
-      "get_entities_only_count" should "not count entities used as relation types or attribute types" in {
-        let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.get_entities_only_count");
-        let c1 = db.get_entities_only_count();
-        assert(db.get_entities_only_count() == c1)
-        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
-        assert(db.get_entities_only_count() == c1)
-        create_test_relation_to_local_entity_with_one_entity(entity_id, rel_type_id)
+ #[test]
+    fn test_get_entities_only_count() {
+        // ...should_not_count_entities_used_as_relation_types_or_attribute_types.
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        let entity_id = db.create_entity(None, "test: org.onemodel.PSQLDbTest.get_entities_only_count", None, None).unwrap();
+        let c1 = db.get_entities_only_count(None, false, None, None).unwrap();
+        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c1);
+        let rel_type_id: i64 = db.create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
+        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c1);
+        
+        create_test_relation_to_local_entity_with_one_entity(&db.clone(), None, entity_id, rel_type_id, None);
         let c2 = c1 + 1;
-        assert(db.get_entities_only_count() == c2) // this kind shouldn't matter--confirming:
-        let rel_type_id2: i64 = db.create_relation_type("contains2", "", RelationType.UNIDIRECTIONAL);
-        DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id2)
-        assert(db.get_entities_only_count() == c2)
-
-        let prevEntitiesUsedAsAttributeTypes = db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false);
-        let date_attribute_id = create_test_date_attribute_with_one_entity(entity_id);
-        let dateAttribute = new DateAttribute(db, date_attribute_id);
-        assert(db.get_count_of_entities_used_as_attribute_types(Util::DATE_TYPE, quantity_seeks_unit_not_type_in = false) == prevEntitiesUsedAsAttributeTypes + 1)
-        assert(db.get_entities_only_count() == c2)
-        let dateAttributeTypeEntities: Array[Entity] = db.get_entities_used_as_attribute_types(Util::DATE_TYPE, 0, quantity_seeks_unit_not_type_in = false);
-                                                       .toArray(new Array[Entity](0 ))
+        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
+        
+        // this kind shouldn't matter--confirming:
+        let rel_type_id2: i64 = db.create_relation_type(None, "contains2", "", RelationType::UNIDIRECTIONAL).unwrap();
+        let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
+        create_and_add_test_relation_to_group_on_to_entity(
+            db.clone(),
+            None,
+            &entity,
+            rel_type_id2,
+            "test-group",
+            None,
+            true,
+        ).unwrap();
+        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
+        
+        let prev_entities_used_as_attribute_types = db.get_count_of_entities_used_as_attribute_types(
+            None, 
+            Util::DATE_TYPE.to_string(), 
+            false
+        ).unwrap();
+        let date_attribute_id = create_test_date_attribute_with_one_entity(&db.clone(), entity_id);
+        let mut date_attribute = DateAttribute::new2(db.clone(), None, date_attribute_id).unwrap();
+        assert_eq!(
+            db.get_count_of_entities_used_as_attribute_types(None, Util::DATE_TYPE.to_string(), false).unwrap(), 
+            prev_entities_used_as_attribute_types + 1
+        );
+        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
+        
+        let date_attribute_type_entities: Vec<Entity> = db.get_entities_used_as_attribute_types(
+            db.clone(),
+            None, 
+            Util::DATE_TYPE.to_string(), 
+            0, 
+            false,
+            None,
+        ).unwrap();
         let mut found = false;
-        for (dateAttributeType: Entity <- dateAttributeTypeEntities.toArray) {
-          if dateAttributeType.get_id == dateAttribute.get_attr_type_id()) {
-            found = true
-          }
+        for date_attribute_type in date_attribute_type_entities.iter() {
+            if date_attribute_type.get_id() == date_attribute.get_attr_type_id(None).unwrap() {
+                found = true;
+                break;
+            }
         }
-        assert(found)
+        assert!(found);
+        
+        create_test_boolean_attribute_with_one_entity(&db.clone(), None, entity_id, false, None, 0);
+        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
+        
+        let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
+        //%%file_attr latertests after FileAttribute is more completed.
+        //create_test_file_attribute_and_one_entity(&db.clone(), None, &entity, "desc", 2, false).unwrap();
+        //assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
+    }
 
-        create_test_boolean_attribute_with_one_entity(entity_id, val_in = false, None, 0)
-        assert(db.get_entities_only_count() == c2)
-
-        create_test_file_attribute_and_one_entity(new Entity(db, entity_id), "desc", 2, verify_in = false)
-        assert(db.get_entities_only_count() == c2)
-
-      }
-
+/*%%%%
       "get_matching_entities & Groups" should "work" in {
         let entity_id1 = db.create_entity("test: org.onemodel.PSQLDbTest.get_matching_entities1--abc");
         let entity1 = new Entity(db, entity_id1);
@@ -3140,7 +3177,9 @@ This conversion maintains the test's intent: verifying that when an error occurs
         let results: util.ArrayList[(i64, String, i64)] = db.find_journal_entries(startDataSetupTime, endDataSetupTime);
         assert(results.size > 0)
       }
+*/
 
+/*%%%%
       "get_textAttributeByNameForEntity" should "fail when no rows found" in {
         intercept[org.onemodel.core.OmDatabaseException] {
                                          let system_entity_id = db.getSystemEntityId;

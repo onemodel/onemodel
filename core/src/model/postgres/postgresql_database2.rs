@@ -784,12 +784,12 @@ impl PostgreSQLDatabase {
     }
 
     /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
-    fn add_new_entity_to_results(
+    pub fn add_new_entity_to_results(
         &self,
         db: Rc<dyn Database>,
         //transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         final_results: &mut Vec<Entity>,
-        intermediate_result_in: Vec<Option<DataType>>,
+        intermediate_result_in: &Vec<Option<DataType>>,
     ) -> Result<(), anyhow::Error> {
         let result = intermediate_result_in;
         let id: i64 = match result.get(0) {
@@ -1083,7 +1083,7 @@ impl PostgreSQLDatabase {
         // dependencies; is a cleaner design?)  (and similar ones)
         for result in early_results {
             // None of these values should be of "None" type. If they are it's a bug:
-            self.add_new_entity_to_results(db.clone(), &mut final_results, result)?;
+            self.add_new_entity_to_results(db.clone(), &mut final_results, &result)?;
         }
         if final_results.len() != early_results_len {
             return Err(anyhow!(

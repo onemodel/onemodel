@@ -847,10 +847,15 @@ pub trait Database {
         object_type_in: String,
         quantity_seeks_unit_not_type_in: bool,
     ) -> Result<u64, anyhow::Error>;
-    // fn get_entities_used_as_attribute_types(&self,
-    //transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    // object_type_in: String, starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/,
-    //                                     quantity_seeks_unit_not_type_in: bool) -> Result<Vec<Entity>, anyhow::Error>;
+    fn get_entities_used_as_attribute_types(
+        &self,
+        db: Rc<dyn Database>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        object_type_in: String,
+        starting_object_index_in: i64,
+        quantity_seeks_unit_not_type_in: bool,
+        max_vals_in: Option<i64>, /*= None*/
+    ) -> Result<Vec<Entity>, anyhow::Error>;
     fn get_relation_types(
         &self,
         db: Rc<dyn Database>,

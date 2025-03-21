@@ -4963,24 +4963,29 @@ impl Database for PostgreSQLDatabase {
         self.extract_row_count_from_count_query(transaction, sql.as_str())
     }
 
-    // fn get_entities_used_as_attribute_types(&self,
-    //    transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    // attribute_type_in: String,
-    //                                         starting_object_index_in: i64, max_vals_in: Option<i64> /*= None*/,
-    //                                       quantity_seeks_unit_not_type_in: bool) -> Result<Vec<Entity>, anyhow::Error>  {
-    //     let sql = format!("{}{}", Util::SELECT_ENTITY_START, self.get_entities_used_as_attribute_types_sql(attribute_type_in, quantity_seeks_unit_not_type_in)?).as_str();
-    //     let early_results = self.db_query(transaction, sql, "i64,String,i64,i64,bool,bool,bool")?;
-    //     let final_results: Vec<Entity> = Vec::new();
-    //     // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't know anything about the Model? (helps avoid circular
-    //     // dependencies; is a cleaner design.)  (and similar ones)
-    //     for result in early_results {
-    //       add_new_entity_to_results(final_results, result)
-    //     }
-    //     if final_results.len() != early_results.len() {
-    //         return Err(anyhow!("In get_entities_used_as_attribute_types, final_results.len() ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
-    //     }
-    //     Ok(final_results)
-    //   }
+    fn get_entities_used_as_attribute_types(&self,
+        db: Rc<dyn Database>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        attribute_type_in: String,
+        _starting_object_index_in: i64, 
+        quantity_seeks_unit_not_type_in: bool,
+        _max_vals_in: Option<i64>, /*= None*/
+    ) -> Result<Vec<Entity>, anyhow::Error> {
+        let sql = format!("{}{}", Util::SELECT_ENTITY_START, self.get_entities_used_as_attribute_types_sql(attribute_type_in, quantity_seeks_unit_not_type_in)?);
+        let early_results = self.db_query(transaction.clone(), &sql, "i64,String,i64,i64,bool,bool,bool")?;
+        let mut final_results: Vec<Entity> = Vec::new();
+        // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't 
+        // know anything about the Model? (helps avoid circular dependencies; is a cleaner design.)  
+        // (and similar ones)
+        for result in early_results.iter() {
+            self.add_new_entity_to_results(db.clone(), &mut final_results, result)?;
+        }
+        if final_results.len() != early_results.len() {
+            return Err(anyhow!("In get_entities_used_as_attribute_types, final_results.len() \
+                    ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
+        }
+        Ok(final_results)
+    }
 
     /// Allows querying for a range of objects in the database;
     /// (in Scala it) returns a java.util.Map with keys and names.
