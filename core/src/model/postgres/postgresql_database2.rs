@@ -724,7 +724,7 @@ impl PostgreSQLDatabase {
     //     (fileSize, md5hash)
     // }
 
-    fn relation_to_group_keys_exist(
+    pub fn relation_to_group_keys_exist(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id: i64,

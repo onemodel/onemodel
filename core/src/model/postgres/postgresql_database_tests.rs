@@ -2071,7 +2071,7 @@ impl TestStruct<'_>{
         assert_eq!(only_public_total_attrs_available1, only_public_total_attrs_available2);
         assert_eq!((only_public_total_attrs_available3 - 1), only_public_total_attrs_available2);
         
-        let (mut attr_tuples, total_attrs_available) = db.get_sorted_attributes(db.clone(), None, entity_id, 0, 999, false).unwrap();
+        let (attr_tuples, total_attrs_available) = db.get_sorted_attributes(db.clone(), None, entity_id, 0, 999, false).unwrap();
         assert!(total_attrs_available > only_public_total_attrs_available1);
         let counter = attr_tuples.len();
         // Should be the same since we didn't create enough to span screens (requested them all)
@@ -2089,7 +2089,7 @@ impl TestStruct<'_>{
         let mut found_da = false;
         let mut found_ba = false;
         let mut found_fa = false;
-        for (_, mut attr) in attr_tuples {
+        for (_, attr) in attr_tuples {
             let form_id: i32 = attr.get_form_id().unwrap();
             //Hopefully, there is some better way to do the below group of "if" expressions, such
             //as I was a attempting with "downcast_ref" and "is". See experiments 
@@ -2941,45 +2941,87 @@ This conversion maintains the test's intent: verifying that when an error occurs
         assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), group_size_before_removal - 1);
     }
 
-/* %%%%
-      "get_entities_only and ...Count" should "allow limiting results by classId and/or group containment" in {
-        // idea: this could be rewritten to not depend on pre-existing data to fail when it's supposed to fail.
-        let starting_entity_count = db.get_entities_only_count();
-        let someClassId: i64 = db.db_query_wrapper_for_one_row("select id from class limit 1", "i64")(0).get.asInstanceOf[i64];
-        let numEntitiesInClass = db.extract_row_count_from_count_query("select count(1) from entity where class_id=" + someClassId);
-        assert(starting_entity_count > numEntitiesInClass)
-        let allEntitiesInClass = db.get_entities_only(0, None, Some(someClassId), limit_by_class = true);
-        let allEntitiesInClassCount1 = db.get_entities_only_count(limit_by_class = true, Some(someClassId));
-        let allEntitiesInClassCount2 = db.get_entities_only_count(limit_by_class = true, Some(someClassId), None);
-        assert(allEntitiesInClassCount1 == allEntitiesInClassCount2)
-        let templateClassId: i64 = new EntityClass(db, someClassId).get_template_entity_id;
-        let allEntitiesInClassCountWoClass = db.get_entities_only_count(limit_by_class = true, Some(someClassId), Some(templateClassId));
-        assert(allEntitiesInClassCountWoClass == allEntitiesInClassCount1 - 1)
-        assert(allEntitiesInClass.size == allEntitiesInClassCount1)
-        assert(allEntitiesInClass.size < db.get_entities_only(0, None, Some(someClassId), limit_by_class = false).size)
-        assert(allEntitiesInClass.size == numEntitiesInClass)
-        let e: Entity = allEntitiesInClass.get(0);
-        assert(e.get_class_id.get == someClassId) // part 2:
-                                                  // some setup, confirm good
-        let starting_entity_count2 = db.get_entities_only_count();
-        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
-        let id1: i64 = db.create_entity("name1");
-        let (group, rtg) = new Entity(db, id1).add_group_and_relation_to_group(rel_type_id, "someRelToGroupName", allow_mixed_classes_inGroupIn = false, None, 1234L,;
-                                                                           None)
-        assert(db.relation_to_group_keys_exist(rtg.get_parent_id(), rtg.get_attr_type_id(), rtg.get_group_id))
-        assert(db.attribute_key_exists(rtg.get_form_id, rtg.get_id))
-        let id2: i64 = db.create_entity("name2");
-        group.add_entity(id2)
-        let entity_countAfterCreating = db.get_entities_only_count();
-        assert(entity_countAfterCreating == starting_entity_count2 + 2)
-        let resultSize = db.get_entities_only(0).size();
-        assert(entity_countAfterCreating == resultSize)
-        let resultSizeWithNoneParameter = db.get_entities_only(0, None, group_to_omit_id_in = None).size();
-        assert(entity_countAfterCreating == resultSizeWithNoneParameter) // the real part 2 test
-        let resultSizeWithGroupOmission = db.get_entities_only(0, None, group_to_omit_id_in = Some(group.get_id)).size();
-        assert(entity_countAfterCreating - 1 == resultSizeWithGroupOmission)
-      }
-*/
+    #[test]
+    fn get_entities_only_and_its_count_method() {
+        // Those methods should "allow limiting results by classId and/or group containment".
+        // Idea: this could be rewritten to not depend on pre-existing data to fail when it's supposed to fail.
+
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        let starting_entity_count = db.get_entities_only_count(None, false, None, None).unwrap();
+        let row: Vec<Option<DataType>> = db.db_query_wrapper_for_one_row(None, 
+            "select id from class limit 1", 
+            "i64")
+            .unwrap();
+        let value: Option<DataType> = row[0].clone();
+        let value: DataType = value.unwrap();
+        let some_class_id: i64 = match value {
+            DataType::Bigint(x) => x,
+            _ => panic!("Unexpected value from query"),
+        };
+        let num_entities_in_class = db.extract_row_count_from_count_query(None, &format!("select count(1) from entity where class_id={}", some_class_id)).unwrap();
+        assert!(starting_entity_count > num_entities_in_class);
+        
+        let all_entities_in_class = db.get_entities_only(db.clone(), None, 0, None, Some(some_class_id), true, None, None).unwrap();
+        let all_entities_in_class_count1 = db.get_entities_only_count(None, true, Some(some_class_id), None).unwrap();
+        let all_entities_in_class_count2 = db.get_entities_only_count(None, true, Some(some_class_id), None).unwrap();
+        assert_eq!(all_entities_in_class_count1, all_entities_in_class_count2);
+        
+        let template_class_id: i64 
+            = EntityClass::new2(db.clone(), None, some_class_id).unwrap()
+            .get_template_entity_id(None).unwrap();
+        let all_entities_in_class_count_wo_class = db.get_entities_only_count(None, true, Some(some_class_id), Some(template_class_id)).unwrap();
+        assert_eq!(all_entities_in_class_count_wo_class, all_entities_in_class_count1 - 1);
+        assert_eq!(all_entities_in_class.len(), all_entities_in_class_count1 as usize);
+        assert!(all_entities_in_class.len() 
+            < db.get_entities_only(db.clone(), None, 0, None, Some(some_class_id), false, None, None).unwrap().len());
+        assert_eq!(all_entities_in_class.len(), num_entities_in_class as usize);
+        
+        let mut e: Entity = all_entities_in_class[0].clone();
+        assert_eq!(e.get_class_id(None).unwrap().unwrap(), some_class_id); 
+
+        // part 2:
+        // some setup, confirm good
+        let starting_entity_count2 = db.get_entities_only_count(None, false, None, None).unwrap();
+        let rel_type_id: i64 = db.create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
+        let id1: i64 = db.create_entity(None, "name1", None, None).unwrap();
+        let entity1 = Entity::new2(db.clone(), None, id1).unwrap();
+        let (group_id, rtg_id) = entity1.add_group_and_relation_to_group(
+            None, 
+            rel_type_id, 
+            "someRelToGroupName", 
+            false, 
+            None, 
+            1234,
+            None
+        ).unwrap();
+        let mut rtg = RelationToGroup::new2(db.clone(), None, rtg_id, id1, rel_type_id, group_id).unwrap();
+        assert!(db.relation_to_group_keys_exist(None, rtg.get_parent_id(None).unwrap(), 
+                rtg.get_attr_type_id(None).unwrap(), 
+                rtg.get_group_id(None).unwrap()).unwrap());
+        assert!(db.attribute_key_exists(None, rtg.get_form_id().unwrap(), rtg.get_id()).unwrap());
+        
+        let id2: i64 = db.create_entity(None, "name2", None, None).unwrap();
+        let group: Group = Group::new2(db.clone(), None, group_id).unwrap();
+        group.add_entity(None, id2, None).unwrap();
+        let entity_count_after_creating = db.get_entities_only_count(None, false, None, None).unwrap();
+        assert_eq!(entity_count_after_creating, starting_entity_count2 + 2);
+        
+        let result_size = db.get_entities_only(db.clone(), None, 0, None, None, false, None, None).unwrap().len();
+        assert_eq!(entity_count_after_creating as usize, result_size);
+        
+        let result_size_with_none_parameter = db.get_entities_only(db.clone(), None, 0, None, None, false, None, None).unwrap().len();
+        assert_eq!(entity_count_after_creating as usize, result_size_with_none_parameter); 
+        // the real part 2 test (or prev line?)
+        let result_size_with_group_omission = db.get_entities_only(db.clone(), None, 0, None, None, false, None, Some(group.get_id())).unwrap().len();
+        assert_eq!(entity_count_after_creating as usize - 1, result_size_with_group_omission);
+    }
+
 /*%%%%
       "EntitiesInAGroup table (or methods? ick)" should "allow all a group's entities to have no class" in {
         // ...for now anyway.  See comments at this table in psqld.create_tables and/or hasMixedClasses.

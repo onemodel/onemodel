@@ -4377,7 +4377,7 @@ impl Database for PostgreSQLDatabase {
     fn attribute_key_exists(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        form_id_in: i64,
+        form_id_in: i32,
         id_in: i64,
     ) -> Result<bool, anyhow::Error> {
         //MAKE SURE THESE MATCH WITH THOSE IN get_attribute_form_id !
