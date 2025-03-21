@@ -13,6 +13,7 @@
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
+use crate::model::entity_class::EntityClass;
 use crate::model::postgres::postgresql_database::*;
 // use crate::model::postgres::*;
 use crate::model::group::Group;
@@ -2782,40 +2783,55 @@ This conversion maintains the test's intent: verifying that when an error occurs
             &rel_type_name,
             Some(rel_type_id)
         ).unwrap()); 
-        // The rollback was because setting an entity name to rel_type_name (above) doesn't really make sense, 
+        // Maybe the rollback (and "tx.clone()" in 3 places just above) was because setting an 
+        // entity name to rel_type_name (above) doesn't really make sense, 
         // but was just for that part of the test. But maybe it doesnt matter, since it is just a test.
         //db.rollback_trans(tx).unwrap();
     }
+
+    #[test]
+    fn is_duplicate_entity_class_and_class_update_deletion_works() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        let name: String = "testing is_duplicateEntityClass".to_string();
+        let (class_id, entity_id) = db
+            .create_class_and_its_template_entity(None, &name)
+            .unwrap();
+        assert!(EntityClass::is_duplicate(db.clone(), None, &name, None).unwrap());
+        assert!(!EntityClass::is_duplicate(db.clone(), None, &name, Some(class_id)).unwrap());
+        
+        db.update_class_name(None, class_id, name.to_lowercase()).unwrap();
+        assert!(!EntityClass::is_duplicate(db.clone(), None, &name, Some(class_id)).unwrap());
+        assert!(EntityClass::is_duplicate(db.clone(), None, &name.to_lowercase(), None).unwrap());
+        assert!(!EntityClass::is_duplicate(db.clone(), None, &name.to_lowercase(), Some(class_id)).unwrap());
+        
+        db.update_class_name(None, class_id, name.clone()).unwrap();
+        db.update_class_create_default_attributes(None, class_id, Some(false)).unwrap();
+        let mut entity_class = EntityClass::new2(db.clone(), None, class_id).unwrap();
+        let should1: Option<bool> = entity_class.get_create_default_attributes(None).unwrap();
+        assert!(!should1.unwrap());
+        
+        db.update_class_create_default_attributes(None, class_id, None).unwrap();
+        let mut entity_class = EntityClass::new2(db.clone(), None, class_id).unwrap();
+        let should2: Option<bool> = entity_class.get_create_default_attributes(None).unwrap();
+        assert!(should2.is_none());
+        
+        db.update_class_create_default_attributes(None, class_id, Some(true)).unwrap();
+        let mut entity_class = EntityClass::new2(db.clone(), None, class_id).unwrap();
+        let should3: Option<bool> = entity_class.get_create_default_attributes(None).unwrap();
+        assert!(should3.unwrap());
+        
+        db.update_entitys_class(None, entity_id, None).unwrap();
+        db.delete_class_and_its_template_entity(class_id).unwrap();
+        assert!(!EntityClass::is_duplicate(db.clone(), None, &name, Some(class_id)).unwrap());
+        assert!(!EntityClass::is_duplicate(db.clone(), None, &name, None).unwrap());
+    }
 /*%%%%
-      "is_duplicateEntityClass and class update/deletion" should "work" in {
-        let name: String = "testing is_duplicateEntityClass";
-        let (classId, entity_id) = db.createClassAndItsTemplateEntity(name, name);
-        assert(EntityClass.is_duplicate(db, name))
-        assert(!EntityClass.is_duplicate(db, name, Some(classId)))
-
-        db.update_class_name(classId, name.toLowerCase)
-        assert(!EntityClass.is_duplicate(db, name, Some(classId)))
-        assert(EntityClass.is_duplicate(db, name.toLowerCase))
-        assert(!EntityClass.is_duplicate(db, name.toLowerCase, Some(classId)))
-        db.update_class_name(classId, name)
-
-        db.update_class_create_default_attributes(classId, Some(false))
-        let should1: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
-        assert(!should1.get)
-        db.update_class_create_default_attributes(classId, None)
-        let should2: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
-        assert(should2.isEmpty)
-        db.update_class_create_default_attributes(classId, Some(true))
-        let should3: Option<bool> = new EntityClass(db, classId).get_create_default_attributes;
-        assert(should3.get)
-
-        db.update_entitys_class(entity_id, None)
-        db.delete_class_and_its_template_entity(classId)
-        assert(!EntityClass.is_duplicate(db, name, Some(classId)))
-        assert(!EntityClass.is_duplicate(db, name))
-
-      }
-
       "EntitiesInAGroup and getclasses/classcount methods" should "work, and should enforce class_id uniformity within a group of entities" in {
         // ...for now anyway. See comments at this table in psqld.create_tables and/or hasMixedClasses.
 

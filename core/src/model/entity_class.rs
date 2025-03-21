@@ -32,7 +32,7 @@ impl EntityClass {
         Util::class_name_length()
     }
 
-    fn is_duplicate(
+    pub fn is_duplicate(
         db_in: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
@@ -129,7 +129,7 @@ impl EntityClass {
         Ok(template_entity_id)
     }
 
-    fn get_create_default_attributes(
+    pub fn get_create_default_attributes(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<bool>, Error> {
