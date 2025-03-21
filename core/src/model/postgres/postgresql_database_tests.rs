@@ -2699,37 +2699,94 @@ This conversion maintains the test's intent: verifying that when an error occurs
         }
     }
 
+    #[test]
+    fn test_is_duplicate_entity() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        let name: String = "testing is_duplicateEntity".to_string();
+        let entity_id: i64 = db
+            .create_entity(None, &name, None, None,)
+            .unwrap();
+        assert!(db.is_duplicate_entity_name(None, &name, None).unwrap());
+        assert!(!db.is_duplicate_entity_name(None, &name, Some(entity_id)).unwrap());
+        
+        let entity_with_space_in_name_id: i64 = db
+            .create_entity(None, &format!("{} ", name), None, None,)
+            .unwrap();
+        assert!(!db.is_duplicate_entity_name(
+            None,
+            &format!("{} ", name),
+            Some(entity_with_space_in_name_id)
+        ).unwrap());
+
+        let entity_id_with_lowercase_name: i64 = db
+            .create_entity(None, &name.to_lowercase(), None, None,)
+            .unwrap();
+        assert!(db.is_duplicate_entity_name(
+            None,
+            &name,
+            Some(entity_id_with_lowercase_name)
+        ).unwrap());
+        
+        db.update_entity_only_name(None, entity_id, &name.to_lowercase()).unwrap();
+        assert!(db.is_duplicate_entity_name(
+            None,
+            &name,
+            Some(entity_id_with_lowercase_name)
+        ).unwrap());
+        assert!(db.is_duplicate_entity_name(
+            None,
+            &name,
+            Some(entity_id)
+        ).unwrap());
+        
+        db.delete_entity(None, entity_id_with_lowercase_name).unwrap();
+        assert!(!db.is_duplicate_entity_name(
+            None,
+            &name,
+            Some(entity_id)
+        ).unwrap());
+
+        // Intentionally put some uppercase letters for later comparison w/ lowercase.
+        let rel_type_name = format!("{}-RelationType", name);
+        let rel_type_id: i64 = db.create_relation_type(
+                None,
+                "testingOnly",
+                &rel_type_name,
+                RelationType::UNIDIRECTIONAL,
+            )
+            .unwrap();
+        assert!(db.is_duplicate_entity_name(None, &rel_type_name, None).unwrap());
+        assert!(!db.is_duplicate_entity_name(None, &rel_type_name, Some(rel_type_id)).unwrap());
+        
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        db.update_entity_only_name(
+            None, //tx.clone(),
+            entity_id,
+            &rel_type_name.to_lowercase()
+        ).unwrap();
+        assert!(db.is_duplicate_entity_name(
+            None, //tx.clone(),
+            &rel_type_name,
+            Some(entity_id)
+        ).unwrap());
+        
+        assert!(db.is_duplicate_entity_name(
+            None, //tx.clone(),
+            &rel_type_name,
+            Some(rel_type_id)
+        ).unwrap()); 
+        // The rollback was because setting an entity name to rel_type_name (above) doesn't really make sense, 
+        // but was just for that part of the test. But maybe it doesnt matter, since it is just a test.
+        //db.rollback_trans(tx).unwrap();
+    }
 /*%%%%
-      "is_duplicateEntity" should "work" in {
-        let name: String = "testing is_duplicateEntity";
-        let entity_id: i64 = db.create_entity(name);
-        assert(db.is_duplicate_entity_name(name))
-        assert(!db.is_duplicate_entity_name(name, Some(entity_id)))
-
-        let entityWithSpaceInNameId: i64 = db.create_entity(name + " ");
-        assert(!db.is_duplicate_entity_name(name + " ", Some(entityWithSpaceInNameId)))
-
-        let entity_idWithLowercaseName: i64 = db.create_entity(name.toLowerCase);
-        assert(db.is_duplicate_entity_name(name, Some(entity_idWithLowercaseName)))
-
-        db.update_entity_only_name(entity_id, name.toLowerCase)
-        assert(db.is_duplicate_entity_name(name, Some(entity_idWithLowercaseName)))
-        assert(db.is_duplicate_entity_name(name, Some(entity_id)))
-
-        db.delete_entity(entity_idWithLowercaseName)
-        assert(!db.is_duplicate_entity_name(name, Some(entity_id))) // intentionally put some uppercase letters for later comparison w/ lowercase.
-        let relTypeName = name + "-RelationType";
-        let rel_type_id: i64 = db.create_relation_type("testingOnly", relTypeName, RelationType.UNIDIRECTIONAL);
-        assert(db.is_duplicate_entity_name(relTypeName))
-        assert(!db.is_duplicate_entity_name(relTypeName, Some(rel_type_id)))
-
-        db.begin_trans()
-        db.update_entity_only_name(entity_id, relTypeName.toLowerCase)
-        assert(db.is_duplicate_entity_name(relTypeName, Some(entity_id)))
-        assert(db.is_duplicate_entity_name(relTypeName, Some(rel_type_id))) // because setting an entity name to relTypeName doesn't really make sense, was just for that part of the test.
-        db.rollback_trans()
-      }
-
       "is_duplicateEntityClass and class update/deletion" should "work" in {
         let name: String = "testing is_duplicateEntityClass";
         let (classId, entity_id) = db.createClassAndItsTemplateEntity(name, name);
