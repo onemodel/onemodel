@@ -801,6 +801,7 @@ pub trait Database {
     ) -> Result<Vec<String>, anyhow::Error>;
     fn get_matching_entities(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
@@ -809,6 +810,7 @@ pub trait Database {
     ) -> Result<Vec<Entity>, anyhow::Error>;
     fn get_matching_groups(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/

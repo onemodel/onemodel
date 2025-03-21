@@ -709,7 +709,7 @@ impl PostgreSQLDatabase {
         let pool = rt.block_on(future)?;
         // pool.options().
         // let pool = future;
-        //%%%just some testing, can delete after next commit, or use for a while for reference.
+        //just some testing, can delete after next commit, or use for a while for reference.
         // // let future = sqlx::query_as("SELECT $1")
         // let future = sqlx::query_as("SELECT count(1) from entity")
         //     .bind(150_i64)
@@ -718,11 +718,10 @@ impl PostgreSQLDatabase {
         // let row: (i64, ) = rt.block_on(future).unwrap();
         // // assert_eq!(row.0, 150);
         // debug!("in connect: Result returned from sql!: {}  ******************************", row.0);
-
-        //%%query examples at:
-        //      https://gist.github.com/jeremychone/34d1e3daffc38eb602b1a9ab21298d10
-        //      https://betterprogramming.pub/how-to-interact-with-postgresql-from-rust-using-sqlx-cfa2a7c758e7?gi=bfc149911f80
-        //      from ddg/web search for:  rust sqlx examples postgres
+        //query examples at:
+        //  https://gist.github.com/jeremychone/34d1e3daffc38eb602b1a9ab21298d10
+        //  https://betterprogramming.pub/how-to-interact-with-postgresql-from-rust-using-sqlx-cfa2a7c758e7?gi=bfc149911f80
+        //  from ddg/web search for:  rust sqlx examples postgres
 
         //%%the below does not show anything, and it is probably not set.  Maybe later if there is a
         // way to seek support or q/a for sqlx, ask how to set/check it?  Could maybe set it by the

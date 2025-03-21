@@ -4701,6 +4701,7 @@ impl Database for PostgreSQLDatabase {
 
     fn get_matching_entities(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
@@ -4721,8 +4722,10 @@ impl Database for PostgreSQLDatabase {
         let limit = Self::check_if_should_be_all_results(max_vals_in);
         let sql = format!("{} from entity e where {}{} and name ~* '{}' \
                                 UNION \
-                                select id, name, class_id, insertion_date, public, archived, new_entries_stick_to_top from entity where {}{} \
-                                 and id in (select entity_id from textattribute where textvalue ~* '{}') ORDER BY id limit {} offset {}",
+                                select id, name, class_id, insertion_date, public, archived, \
+                                new_entries_stick_to_top from entity where {}{} \
+                                and id in (select entity_id from textattribute where textvalue ~* '{}') \
+                                ORDER BY id limit {} offset {}",
                           select_columns, not_archived, omission_expression, name_regex,
                           not_archived, omission_expression, name_regex, limit, starting_object_index_in);
         let early_results = self.db_query(
@@ -4731,10 +4734,10 @@ impl Database for PostgreSQLDatabase {
             "i64,String,i64,i64,bool,bool,bool",
         )?;
         let early_results_len = early_results.len();
-        let final_results: Vec<Entity> = Vec::new();
+        let mut final_results: Vec<Entity> = Vec::new();
         // idea: (see get_entities_generic for an idea, see if it applies here)
-        for _result in early_results {
-            //%%%% add_new_entity_to_results(final_results, result)
+        for result in early_results {
+            self.add_new_entity_to_results(db.clone(), &mut final_results, &result)?;
         }
         if !(final_results.len() == early_results_len) {
             return Err(anyhow!(
@@ -4748,6 +4751,7 @@ impl Database for PostgreSQLDatabase {
 
     fn get_matching_groups(
         &self,
+        db: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
@@ -4764,13 +4768,15 @@ impl Database for PostgreSQLDatabase {
                         name_regex, omission_expression, Self::check_if_should_be_all_results(max_vals_in), starting_object_index_in);
         let early_results = self.db_query(transaction, sql.as_str(), "i64,String,i64,bool,bool")?;
         let early_results_len = early_results.len();
-        let final_results: Vec<Group> = Vec::new();
+        let mut final_results: Vec<Group> = Vec::new();
         // idea: (see get_entities_generic for idea, see if applies here)
-        for _result in early_results {
+        for result in early_results {
             // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-            //%%%%
-            // final_results.add(new Group(this, result(0).get.asInstanceOf[i64], result(1).get.asInstanceOf[String], result(2).get.asInstanceOf[i64],
-            //                            result(3).get.asInstanceOf[Boolean], result(4).get.asInstanceOf[Boolean]))
+            final_results.push(Group::new(db.clone(), Util::get_value_bigint("result[0]", &result[0])?, 
+                    Util::get_value_string("result[1]", &result[1])?.as_str(),
+                    Util::get_value_bigint("result[2]", &result[2])?, 
+                    Util::get_value_bool("result[3]", &result[3])?,
+                    Util::get_value_bool("result[4]", &result[4])?));
         }
         if final_results.len() != early_results_len {
             return Err(anyhow!("In get_matching_groups, final_results.len() ({}) != early_results.len() ({}), with sql: {}", final_results.len(), early_results_len, sql));
@@ -5686,7 +5692,7 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    //%%%%
+    //%%later when doing remote features?
     /*
                 fn get_om_instances(localIn: Option<bool> = None) -> java.util.ArrayList[OmInstance] {
                 let sql = "select id, local, address, insertion_date, entity_id from omInstance" +;
@@ -5912,7 +5918,6 @@ impl Database for PostgreSQLDatabase {
         //        && table_list_index < tables.len()) {
         while table_list_index < tables.len() {
             let table_name = &tables[table_list_index];
-            debug!("%%%%%%table_name: {}", table_name);
             // ABOUT THESE COMMENTED LINES: SEE "** NOTE **" ABOVE:
             // let this_tables_row_count: i64 = self.extract_row_count_from_count_query(
             //     &format!("select count(*) from {} where {}", table_name, where_clauses_by_table[table_list_index]))?;

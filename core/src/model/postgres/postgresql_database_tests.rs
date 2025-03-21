@@ -41,6 +41,7 @@ use sqlx::{Postgres, Row, Transaction};
 use std::any::Any;
 use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
+use std::time::*;
 use tracing::*;
 // use tracing_subscriber::FmtSubscriber;
 
@@ -3138,55 +3139,102 @@ This conversion maintains the test's intent: verifying that when an error occurs
         //assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
     }
 
-/*%%%%
-      "get_matching_entities & Groups" should "work" in {
-        let entity_id1 = db.create_entity("test: org.onemodel.PSQLDbTest.get_matching_entities1--abc");
-        let entity1 = new Entity(db, entity_id1);
-        let entity_id2 = db.create_entity("test: org.onemodel.PSQLDbTest.get_matching_entities2");
-        db.create_text_attribute(entity_id1, entity_id2, "defg", None, 0)
-        let entities1 = db.get_matching_entities(0, None, None, "abc");
-        assert(entities1.size == 1)
-        db.create_text_attribute(entity_id2, entity_id1, "abc", None, 0)
-        let entities2 = db.get_matching_entities(0, None, None, "abc");
-        assert(entities2.size == 2)
-
-        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
+    #[test]
+    fn get_matching_entities_and_groups_should_work() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        let entity_id1 = db.create_entity(None, "test: org.onemodel.PSQLDbTest.get_matching_entities1--abc", 
+            None, None).unwrap();
+        let entity1 = Entity::new2(db.clone(), None, entity_id1).unwrap();
+        let entity_id2 = db.create_entity(None, "test: org.onemodel.PSQLDbTest.get_matching_entities2", None, None).unwrap();
+        db.create_text_attribute(None, entity_id1, entity_id2, "defg", None, 0, None).unwrap();
+        
+        let entities1 = db.get_matching_entities(db.clone(), None, 0, None, None, "abc".to_string()).unwrap();
+        assert_eq!(entities1.len(), 1);
+        
+        db.create_text_attribute(None, entity_id2, entity_id1, "abc", None, 0, None).unwrap();
+        let entities2 = db.get_matching_entities(db.clone(), None, 0, None, None, "abc".to_string()).unwrap();
+        assert_eq!(entities2.len(), 2);
+        
+        let rel_type_id: i64 = db.create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
         let group_name = "someRelToGroupName";
-        entity1.add_group_and_relation_to_group(rel_type_id, group_name, allow_mixed_classes_inGroupIn = false, None, 1234L,
-                                           None)
-        assert(db.get_matching_groups(0, None, None, "some-xyz-not a grp name").size == 0)
-        assert(db.get_matching_groups(0, None, None, group_name).size > 0)
-      } //idea: should this be moved to ImportExportTest? why did i put it here originally?
-        "getJournal" should "show activity during a date range" in {
-        let startDataSetupTime = System.currentTimeMillis();
-        let entity_id: i64 = db.create_entity("test object");
-        let entity: Entity = new Entity(db, entity_id);
-        let importExport = new ImportExport(null, new Controller(null, false, Some(Database.TEST_USER), Some(Database.TEST_PASS)));
-        let importFile: File = importExport.tryImporting_FOR_TESTS("testImportFile0.txt", entity);
-        let ids: java.util.ArrayList[i64] = db.find_all_entity_ids_by_name("vsgeer-testing-getJournal-in-db");
-        let (fileContents: String, outputFile: File) = importExport.tryExportingTxt_FOR_TESTS(ids, db);
+        entity1.add_group_and_relation_to_group(
+            None,
+            rel_type_id,
+            group_name,
+            false,
+            None,
+            1234,
+            None
+        ).unwrap();
+        
+        let empty_results = db.get_matching_groups(db.clone(), None, 0, None, None, 
+            "some-xyz-not a grp name".to_string()).unwrap();
+        assert_eq!(empty_results.len(), 0);
+        
+        let results = db.get_matching_groups(db.clone(), None, 0, None, None, group_name.to_string()).unwrap();
+        assert!(results.len() > 0);
+    }
+
+    #[test]
+    fn get_journal_should_show_activity_during_a_date_range() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        let start_data_setup_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+        let entity_id: i64 = db.create_entity(None, "test object", None, None).unwrap();
+        let entity: Entity = Entity::new2(db.clone(), None, entity_id).unwrap();
+        /*%% later: put this back when ImportExport is moved to Rust
+        let import_export = ImportExport::new(
+            None, 
+            Rc::new(Controller::new(None, false, Some(Database::TEST_USER.to_string()), Some(Database::TEST_PASS.to_string())))
+        );
+        let import_file = import_export.try_importing_for_tests("testImportFile0.txt", &entity).unwrap();
+        let ids = db.find_all_entity_ids_by_name(None, "vsgeer-testing-getJournal-in-db").unwrap();
+        let (file_contents, output_file) = import_export.try_exporting_txt_for_tests(&ids, db.clone()).unwrap();
         // (next 3 lines are redundant w/ a similar test in ImportExportTest, but are here to make sure the data
         // is as expected before proceeding with the actual purpose of this test:)
-        assert(fileContents.contains("vsgeer"), "unexpected file contents:  " + fileContents)
-        assert(fileContents.contains("record/report/review"), "unexpected file contents:  " + fileContents)
-        assert(outputFile.length == importFile.length)
+        assert!(
+            file_contents.contains("vsgeer"), 
+            "unexpected file contents: {}", 
+            file_contents
+        );
+        assert!(
+            file_contents.contains("record/report/review"), 
+            "unexpected file contents: {}", 
+            file_contents
+        );
+        // check file length
+        assert_eq!(output_file.metadata().unwrap().len(), import_file.metadata().unwrap().len());
+        db.archive_entity(None, entity_id).unwrap();
+        let end_data_setup_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+        let results: Vec<(i64, String, i64)> = db.find_journal_entries(
+            None, 
+            start_data_setup_time, 
+            end_data_setup_time
+        ).unwrap();
+        
+        assert!(results.len() > 0);
+        */
+    }
 
-        db.archive_entity(entity_id)
-        let endDataSetupTime = System.currentTimeMillis();
-
-        let results: util.ArrayList[(i64, String, i64)] = db.find_journal_entries(startDataSetupTime, endDataSetupTime);
-        assert(results.size > 0)
-      }
-*/
-
-/*%%%%
-      "get_textAttributeByNameForEntity" should "fail when no rows found" in {
-        intercept[org.onemodel.core.OmDatabaseException] {
-                                         let system_entity_id = db.getSystemEntityId;
-                                         db.get_text_attribute_by_type_id(system_entity_id, 1L, Some(1))
-                                       }
-      }
-     %%%%*/
+    #[test]
+    fn get_text_attribute_by_name_for_entity() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let system_entity_id = db.get_system_entity_id(None).unwrap();
+        let result = db.get_text_attribute_by_type_id(None, system_entity_id, 1, Some(1));
+        assert!(result.is_err());
+    }
 
     #[test]
     fn get_relations_to_group_containing_this_group_and_get_containing_relations_to_group() {
