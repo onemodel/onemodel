@@ -3022,24 +3022,49 @@ This conversion maintains the test's intent: verifying that when an error occurs
         assert_eq!(entity_count_after_creating as usize - 1, result_size_with_group_omission);
     }
 
-/*%%%%
-      "EntitiesInAGroup table (or methods? ick)" should "allow all a group's entities to have no class" in {
+    #[test]
+    fn entities_in_a_group_table_should_allow_all_a_groups_entities_to_have_no_class() {
         // ...for now anyway.  See comments at this table in psqld.create_tables and/or hasMixedClasses.
-        let entityName = "test: PSQLDbTest.testgroup-class-allowsAllNulls" + "--theEntity";
-        let (classId, entity_id) = db.createClassAndItsTemplateEntity(entityName, entityName);
-        let rel_type_id: i64 = db.create_relation_type("contains", "", RelationType.UNIDIRECTIONAL);
-        let groupId = DatabaseTestUtils.create_and_add_test_relation_to_group_on_to_entity(db, entity_id, rel_type_id, "test: PSQLDbTest.testgroup-class-allowsAllNulls",;
-                                                                                 Some(12345L), allow_mixed_classes_in = false)._1
-        let group: Group = new Group(db, groupId); // 1st one has a NULL class_id
-        let entity_id3 = db.create_entity(entityName + 3);
-        group.add_entity(entity_id3) // ...so it works to add another one that's NULL
-        let entity_id4 = db.create_entity(entityName + 4);
-        group.add_entity(entity_id4) // but adding one with a class_id fails w/ mismatch:
-        let entity_id5 = db.create_entity(entityName + 5, Some(classId));
-        assert(intercept[Exception] {
-                                      group.add_entity(entity_id5)
-                                    }.getMessage.contains(Database.MIXED_CLASSES_EXCEPTION))
-      }
+        
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        
+        let entity_name = "test: PSQLDbTest.testgroup-class-allowsAllNulls--theEntity";
+        let (class_id, entity_id) = db.create_class_and_its_template_entity(None, entity_name).unwrap();
+        let rel_type_id: i64 = db.create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
+        let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
+        let (group_id, _) = create_and_add_test_relation_to_group_on_to_entity(
+            db.clone(),
+            None,
+            &entity,
+            rel_type_id,
+            "test: PSQLDbTest.testgroup-class-allowsAllNulls",
+            Some(12345),
+            false,
+        ).unwrap();
+        
+        let group: Group = Group::new2(db.clone(), None, group_id).unwrap();
+        // 1st one has a NULL class_id
+        let entity_id3 = db.create_entity(None, &format!("{}{}", entity_name, 3), None, None).unwrap();
+        // ...so it works to add another one that's NULL
+        group.add_entity(None, entity_id3, None).unwrap();
+        
+        let entity_id4 = db.create_entity(None, &format!("{}{}", entity_name, 4), None, None).unwrap();
+        // ...so it works to add another one that's NULL
+        group.add_entity(None, entity_id4, None).unwrap();
+        
+        // but adding one with a class_id fails w/ mismatch:
+        let entity_id5 = db.create_entity(None, &format!("{}{}", entity_name, 5), Some(class_id), None).unwrap();
+        let result = group.add_entity(None, entity_id5, None);
+        assert!(result.is_err());
+        let error_message = format!("{}", result.err().unwrap());
+        assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
+    }
+/*%%%%
 
       "get_entities_only_count" should "not count entities used as relation types or attribute types" in {
         let entity_id = db.create_entity("test: org.onemodel.PSQLDbTest.get_entities_only_count");
