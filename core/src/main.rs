@@ -30,27 +30,16 @@ use crate::text_ui::TextUI;
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
 /// or a library and/or good REST api for such.
 fn main() -> Result<(), anyhow::Error> {
-    /*%%%%next tasks?:
-       do all util, db, pg, & their tests at once: style and compile and test.
-       MAKE TESTS for code be4 ckin! see them each fail then pass.
-       Debug/breakpoints...? ??? (esp in pg and util?)
-       make code compile that i have now?
-       fix more/warnings? formatting? (sep't ckin)
-       In OM,  using #[derive(Debug)] on a all? And fmt::Display (vs fmt::Debug) on all public types.
-       other %%%s, %%s &c
-    */
-    //%%pledge/unveil here?  examples in crates.io? or sch for openbsd or libc?
-
     // According to the docs for the crate anyhow, and stack overflow, this is to get backtraces
     // to work by default.  Tests might still need it provided on the command-line.  And it said
     // "this method needs to be inside main() method".
-    // env::set_var("RUST_BACKTRACE", "1");
-    // (more verbose:)
-    env::set_var("RUST_BACKTRACE", "full");
+    env::set_var("RUST_BACKTRACE", "1");
+    // more verbose (rust internals):
+    //env::set_var("RUST_BACKTRACE", "full");
 
     let args: Vec<String> = env::args().collect();
     // dbg!(args.as_slice());
-    //%%see std::env::args() docs: next 2 args dift on windows, might be 0 & 1 not 1 & 2? If a change,
+    //see std::env::args() docs: next 2 args dift on windows, might be 0 & 1 not 1 & 2? If a change,
     // see next cmt also about args.len() and adjust if needed, for windows.
     let default_username: Option<&String> = args.get(1);
     let default_password: Option<&String> = args.get(2);
@@ -60,12 +49,8 @@ fn main() -> Result<(), anyhow::Error> {
     // java, only user-provided arguments being included in args, so the length check then was
     // just 1 to set forceUsernamePasswordPrompt to true.)
     let force_user_pass_prompt: bool = if args.len() == 2 { true } else { false };
-    println!("args.len: {}", args.len()); //%%
-    println!(
-        //%%
-        "forceUsernamePasswordPrompt: {}",
-        force_user_pass_prompt
-    );
+    println!("args.len: {}", args.len());
+    println!("forceUsernamePasswordPrompt: {}", force_user_pass_prompt);
 
     let ui = TextUI { testing: false };
 

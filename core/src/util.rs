@@ -51,7 +51,7 @@ static TEST_TRACING_INIT: std::sync::Once = std::sync::Once::new();
 // static mut TEST_DB: Option<PostgreSQLDatabase> = None;
 
 impl Util {
-    /// These constants are%%/were here because their presence in database.rs prevents Database from being used
+    /// These constants are here because their presence in database.rs prevents Database from being used
     /// as a trait object.  See https://doc.rust-lang.org/reference/items/traits.html#object-safety etc for details.
     /// (Maybe they could go into model/mod.rs or some new struct file instead; haven't tried that.)
     pub const DB_NAME_PREFIX: &'static str = "om_";
@@ -120,7 +120,7 @@ impl Util {
         )
     }
 
-    // %%use \n for now but maybe do platform-specifically, per this advice later, per
+    // %%later: use \n for now but maybe do platform-specifically, per this advice later, per
     // https://stackoverflow.com/questions/47541191/how-to-get-current-platform-end-of-line-character-sequence-in-rust
     // ... (but even so, is "\r" the Mac one, or what?).
     // or just use fns like "is_windows()" below, instead of compilation flags? is either preferred/faster one?

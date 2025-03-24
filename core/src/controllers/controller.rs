@@ -22,9 +22,10 @@ use crate::TextUI;
 /// shorter methods, other better style?, etc.
 ///
 /// * * * *IMPORTANT * * * * * IMPORTANT* * * * * * *IMPORTANT * * * * * * * IMPORTANT* * * * * * * * *IMPORTANT * * * * * *
-/// Don't ever instantiate a Controller from a *test* without passing in username/password parameters, because it will try to log in to the user's
+/// Don't ever instantiate a Controller from a *test* without passing in username/password 
+/// parameters, because it will try to log in to the user's
 /// default, live Database and run the tests there (ie, they could be destructive)!:
-/// %%: How make that better/safer!?--just use the new_* methods below as reminders?
+/// %%: How make that better/safer/more certain!?--just use the new_* methods below as reminders?
 /// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ///
 pub struct Controller {
@@ -265,7 +266,7 @@ impl Controller {
                                     match db_with_user_entered_pwd {
                                         Ok(db) => break Ok(db),
                                         Err(e) => {
-                                            let msg = format!("Login failed; retrying ({}) to quit if needed):  {}", ui.how_quit(), e.to_string());
+                                            let msg = format!("Login failed; retrying ({} to quit if needed):  {}", ui.how_quit(), e.to_string());
                                             ui.display_text2(msg.as_str(), false)
                                         }
                                     }

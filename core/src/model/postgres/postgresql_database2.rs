@@ -253,7 +253,7 @@ impl PostgreSQLDatabase {
                 if preference_type == Util::PREF_TYPE_BOOLEAN {
                     // (Using the preference_entity.get_id for attr_type_id, just for convenience since it seemed as good as any.  ALSO USED IN THE SAME WAY,
                     // IN setUserPreference METHOD CALL TO create_boolean_attribute!)
-                    let sql2 = format!("select id, boolean_value from booleanattribute where entity_id={} and attr_type_id={}", preference_entity_id, preference_entity_id);
+                    let sql2 = format!("select id, booleanvalue from booleanattribute where entity_id={} and attr_type_id={}", preference_entity_id, preference_entity_id);
                     self.db_query(transaction.clone(), sql2.as_str(), "i64,bool")?
                 } else if preference_type == Util::PREF_TYPE_ENTITY_ID {
                     let sql2 = format!("select rel_type_id, entity_id, entity_id_2 from relationtoentity where entity_id={}", preference_entity_id);
