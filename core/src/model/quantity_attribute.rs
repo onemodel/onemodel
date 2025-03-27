@@ -253,7 +253,7 @@ impl Attribute for QuantityAttribute {
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned
     // regardless of already_read_data / read_data_from_db().
-    fn get_id(&self) -> i64 {
+    pub fn get_id(&self) -> i64 {
         self.id
     }
 

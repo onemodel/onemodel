@@ -538,9 +538,9 @@ impl PostgreSQLDatabase {
     ///
     /// In the scala code this was called login().
     pub fn new(
-        /*%%hopefully del this cmt, was: &self, */ username: &str,
+        username: &str,
         password: &str,
-    ) -> Result<Box<dyn Database>, anyhow::Error> {
+    ) -> Result<Rc<dyn Database>, anyhow::Error> {
         let include_archived_entities = false;
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -559,7 +559,7 @@ impl PostgreSQLDatabase {
             include_archived_entities,
         };
         new_db.setup_db()?;
-        Ok(Box::new(new_db))
+        Ok(Rc::new(new_db))
     }
 
     //Idea: why does having this here instead inline in new() (above) cause
