@@ -14,9 +14,10 @@ use crate::model::date_attribute::DateAttribute;
 use crate::model::file_attribute::FileAttribute;
 use crate::model::group::Group;
 use crate::model::id_wrapper::IdWrapper;
+use crate::model::relation_to_entity::RelationToEntity;
 use crate::model::relation_to_group::RelationToGroup;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
-use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
+//use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 //use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
 use crate::color::Color;
 use crate::model::quantity_attribute::QuantityAttribute;
@@ -75,11 +76,14 @@ impl Entity {
     }
 
     /// Represents one object in the system.
-    /// Allows create_entity to return an instance without duplicating the database check that it Entity(long, Database) does.
-    /// This constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
-    /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
-    /// (At least that has been the idea. But that might change as I just discovered a case where that causes a bug and it seems cleaner to have a
-    /// set... method to fix it.)
+    /// Allows create_entity to return an instance without duplicating the database check that
+    /// it Entity(long, Database) does.
+    /// This constructor instantiates an existing object from the DB. Generally use Model.createObject()
+    /// to create a new object.
+    /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs,
+    /// similarly to reasons for immutability in scala.
+    /// (At least that has been the idea. But that might change as I just discovered a case where
+    /// that causes a bug and it seems cleaner to have a set... method to fix it.)
     // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and
     // EntityTest etc could be with mocks instead of real db use.)  Does this really skip that other check though?
     pub fn new2(
@@ -130,7 +134,7 @@ impl Entity {
 
     /// This is for times when you want None if it doesn't exist, instead of the Error returned by
     /// the Entity constructor.  Or for convenience in tests.
-    fn get_entity(
+    pub fn get_entity(
         db_in: Rc<dyn Database>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
@@ -178,7 +182,8 @@ impl Entity {
         match class_id {
             None => Ok(None),
             Some(id) => {
-                // let template_entity_id: Option<i64> = self.db.get_class_data(transaction, class_id.unwrap()).get(1).asInstanceOf[Option<i64>];
+                // let template_entity_id: Option<i64> = self.db.get_class_data(transaction, class_id.unwrap())
+                // .get(1).asInstanceOf[Option<i64>];
                 let row = self.db.get_class_data(transaction.clone(), id)?;
                 let template_entity_id: Result<Option<i64>> = match row.get(1) {
                     None => Err(anyhow!("In get_class_template_entity_id: How got not enough values in the row for id {} ?", id)),
@@ -263,17 +268,17 @@ impl Entity {
         }
     }
 
-    // fn get_archived_status(
-    //     &mut self,
-    // transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    // ) -> Result<bool, anyhow::Error> {
-    //     if !self.already_read_data {
-    //         self.read_data_from_db(transaction)?;
-    //     }
-    //     Ok(archived)
-    //   }
+    fn get_archived_status(
+        &mut self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    ) -> Result<bool, anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction)?;
+        }
+        Ok(self.archived)
+    }
 
-    fn is_archived(
+    pub fn is_archived(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, anyhow::Error> {
@@ -378,9 +383,11 @@ impl Entity {
     }
 
     // idea: change this back to a lazy value as it was in scala? To be slightly more efficient?
-    /// Intended as a temporarily unique string to distinguish an entity, across OM Instances.  NOT intended as a permanent unique ID (since
-    /// the remote address for a given OM instance can change! and the local address is displayed as blank!), see get_unique_identifier
-    /// for that.  This one is like that other in a way, but more for human consumption (eg data export for human reading, not for re-import -- ?).
+    /// Intended as a temporarily unique string to distinguish an entity, across OM Instances.  
+    /// NOT intended as a permanent unique ID (since the remote address for a given OM instance
+    /// can change! and the local address is displayed as blank!), see get_unique_identifier
+    /// for that.  This one is like that other in a way, but more for human consumption (eg data
+    /// export for human reading, not for re-import -- ?).
     fn get_readable_identifier(&self) -> String {
         let remote_prefix = match self.db.get_remote_address() {
             None => "".to_string(),
@@ -389,7 +396,8 @@ impl Entity {
         format!("{}{}", remote_prefix, self.get_id().to_string())
     }
 
-    /// Intended as a unique string to distinguish an entity, even across OM Instances.  Compare to getHumanIdentifier (get_readable_identifier?)
+    /// Intended as a unique string to distinguish an entity, even across OM Instances.  
+    /// Compare to getHumanIdentifier (get_readable_identifier?)
     /// Idea: would any (future?) use cases be better served by including *both* the human-readable address (as in
     /// getHumanIdentifier) and the instance id? Or, just combine the methods into one?
     fn get_unique_identifier(
@@ -467,8 +475,12 @@ impl Entity {
         // try {
         let result = self.get_display_string_helper(transaction, with_color);
         // } catch {
-        // This was the old way in scala.  Delete comments and this fn, and just use _helper()? Or,
-        // why was this needed, or was it really?:
+        // This was the old way in scala. Put back if we want to provide the error message
+        // instead of the display string, at some future point instead?
+        // If it is put back for that reason, see the test code deleted in the commit on or just after 2025-03-28,
+        // labeled:
+        //     "get_display_string" should "return a useful stack trace string, when called with a nonexistent entity" in
+        //
         //   case e: Exception =>
         //     result += "Unable to get entity description due to: "
         //     result += {
@@ -503,10 +515,11 @@ impl Entity {
         )
     }
 
-    /// Creates a quantity attribute on this Entity (i.e., "6 inches length"), with default values of "now" for the dates. See "add_quantity_attribute" comment
-    /// in db implementation file,
-    /// for explanation of the parameters. It might also be nice to add the recorder's ID (person or app), but we'd have to do some kind
-    /// of authentication/login 1st? And a GUID for users (as Entities?)?
+    /// Creates a quantity attribute on this Entity (i.e., "6 inches length"), with default values
+    /// of "now" for the dates. See "add_quantity_attribute" comment in db implementation file,
+    /// for explanation of the parameters.
+    /// It might also be nice to add the recorder's ID (person
+    /// or app), but we'd have to do some kind of authentication/login 1st? And a GUID for users (as Entities?)?
     /// See PostgreSQLDatabase.create_quantity_attribute(...) for details.
     fn add_quantity_attribute2<'a, 'b>(
         &'a self,
@@ -865,41 +878,143 @@ impl Entity {
         )
     }
 
-    /* //%%why do we have both add..() (just below) and create..() here? If import_export.rs (as
-     //noted there) can use add_text_attribute or 2 (below) instead, then can delete this.
-      fn create_text_attribute(attr_type_id_in: i64, text_in: String, valid_on_date_in: Option<i64> /*= None*/,
-                            observation_date_in: i64 = Utc::now().timestamp_millis(), caller_manages_transactions_in: bool /*= false*/,
-                            sorting_index_in: Option<i64> /*= None*/) -> /*id*/ i64 {
-      db.create_text_attribute(get_id, attr_type_id_in, text_in, valid_on_date_in, observation_date_in, caller_manages_transactions_in, sorting_index_in)
+    /// Returns the id of the newly created attribute.
+    //%%why do we have both add..() (just below) and create..() here? If import_export.rs (as
+    //noted there) can use add_text_attribute or 2 (below) instead, then can delete this.
+    fn create_text_attribute<'a, 'b>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        attr_type_id_in: i64,
+        text_in: &str,
+        valid_on_date_in: Option<i64>, /*= None*/
+        observation_date_in: i64,      /*= Utc::now().timestamp_millis()*/
+        sorting_index_in: Option<i64>, /*= None*/
+    ) -> Result<i64, anyhow::Error>
+    where
+        'a: 'b,
+    {
+        self.db.create_text_attribute(
+            transaction,
+            self.get_id(),
+            attr_type_id_in,
+            text_in,
+            valid_on_date_in,
+            observation_date_in,
+            sorting_index_in,
+        )
     }
 
-      fn updateContainedEntitiesPublicStatus(newValueIn: Option<bool>) -> Int {
-      let (attrTuples: Array[(i64, Attribute)], _) = get_sorted_attributes(0, 0, only_public_entities_in = false);
-      let mut count = 0;
-      for (attr <- attrTuples) {
-        attr._2 match {
-          case attribute: RelationToEntity =>
-            // Using RelationToEntity here because it actually makes sense. But usually it is best to make sure to use either RelationToLocalEntity
-            // or RelationToRemoteEntity, to be clearer about the logic.
-            require(attribute.get_related_id1 == get_id, "Unexpected value: " + attribute.get_related_id1)
-            let e: Entity = new Entity(Database.currentOrRemoteDb(attribute, db), attribute.get_related_id2);
-            e.updatePublicStatus(newValueIn)
-            count += 1
-          case attribute: RelationToGroup =>
-            let group_id: i64 = attribute.get_group_id;
-            let entries: Vec<Vec<Option<DataType>>> = db.get_group_entries_data(group_id, None, include_archived_entities_in = false);
-            for (entry <- entries) {
-              let entity_id = entry(0).get.asInstanceOf[i64];
-              db.update_entity_only_public_status(entity_id, newValueIn)
-              count += 1
+    /// Returns the count of entities updated.
+    pub fn update_contained_entities_public_status(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        new_value_in: Option<bool>,
+    ) -> Result<i32, anyhow::Error> {
+        let (attr_tuples, _) = self.get_sorted_attributes(transaction.clone(), 0, 0, false)?;
+        let attr_tuples_len = attr_tuples.len();
+        let mut count = 0;
+        for attr in attr_tuples {
+            match attr.1 {
+                attribute
+                    if attribute.get_form_id()?
+                        == self
+                            .db
+                            .get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?
+                        || attribute.get_form_id()?
+                            == self
+                                .db
+                                .get_attribute_form_id(Util::RELATION_TO_REMOTE_ENTITY_TYPE)? =>
+                {
+                    debug!("gh1 in update_contained_entities_public_status");
+                    // (Was) using RelationToEntity here because it actually makes sense. But usually it is
+                    // best to make sure to use either RelationToLocalEntity or RelationToRemoteEntity, to
+                    // be clearer about the logic.
+                    let related_id2 = if attribute.get_form_id()?
+                        == self
+                            .db
+                            .get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?
+                    {
+                        debug!("gh2 in update_contained_entities_public_status");
+                        //let rtle = attribute.downcast_ref::<RelationToLocalEntity>()
+                        //    .ok_or_else(|| anyhow!("Downcast failed for RelationToLocalEntity"))?;
+                        let rtle: Option<RelationToLocalEntity> = RelationToLocalEntity::new3(
+                            self.db.clone(),
+                            transaction.clone(),
+                            attribute.get_id(),
+                        )?;
+                        match rtle {
+                            Some(mut r) => {
+                                debug!("gh3 in update_contained_entities_public_status");
+                                let related_id1 = r.get_parent_id(transaction.clone())?;
+                                if related_id1 != self.get_id() {
+                                    return Err(anyhow!("Unexpected value: {}", related_id1));
+                                }
+                                r.get_related_id2()
+                            }
+                            None => {
+                                return Err(anyhow!(
+                                    "No RTLE returned for id {}?",
+                                    attribute.get_id()
+                                ))
+                            }
+                        }
+                    } else {
+                        // %%For remote entities, we'd need to get the ID differently
+                        // This would depend on how RelationToRemoteEntity is implemented
+                        // For now, let's skip this part until we have RelationToRemoteEntity fully implemented
+                        unimplemented!();
+                    };
+                    let mut e = Entity::new2(self.db.clone(), transaction.clone(), related_id2)?;
+                    e.update_public_status(transaction.clone(), new_value_in)?;
+                    debug!("gh4 in update_contained_entities_public_status");
+                    count += 1;
+                }
+                attribute
+                    if attribute.get_form_id()?
+                        == self
+                            .db
+                            .get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)? =>
+                {
+                    debug!("gh5 in update_contained_entities_public_status");
+                    //let rtg = attribute.downcast_ref::<RelationToGroup>()
+                    //    .ok_or_else(|| anyhow!("Downcast failed for RelationToGroup"))?;
+                    let mut rtg = RelationToGroup::new3(
+                        self.db.clone(),
+                        transaction.clone(),
+                        attribute.get_id(),
+                    )?;
+                    let group_id = rtg.get_group_id(transaction.clone())?;
+                    let entries: Vec<Vec<Option<DataType>>> = self.db.get_group_entries_data(
+                        transaction.clone(),
+                        group_id,
+                        None,
+                        false,
+                    )?;
+                    for entry in entries {
+                        debug!("gh6 in update_contained_entities_public_status");
+                        if let Some(DataType::Bigint(entity_id)) = entry[0] {
+                            debug!("gh7 in update_contained_entities_public_status");
+                            self.db.update_entity_only_public_status(
+                                transaction.clone(),
+                                entity_id,
+                                new_value_in,
+                            )?;
+                            count += 1;
+                        } else {
+                            return Err(anyhow!("unexpected value: {:?}", entry));
+                        }
+                    }
+                }
+                _ => {
+                    debug!("Value for attr.1 is: {:?}", attr.1);
+                    // do nothing
+                }
             }
-          case _ =>
-          // do nothing
         }
-      }
-      count
+        debug!("gh8 in update_contained_entities_public_status; count is {:?}, attr_tuples.len() is {:?}", 
+            count, attr_tuples_len);
+        Ok(count)
     }
-    */
 
     /// See add_quantity_attribute(...) methods for comments.
     pub fn add_text_attribute<'a, 'b>(
@@ -1012,7 +1127,7 @@ impl Entity {
         BooleanAttribute::new2(self.db.clone(), transaction, id)
     }
 
-    /*%%
+    /*%%file_attr later when impld:
                     fn add_file_attribute(in_attr_type_id: i64, inFile: java.io.File) -> FileAttribute {
                     add_file_attribute(in_attr_type_id, inFile.get_name, inFile)
                   }
@@ -1071,7 +1186,7 @@ impl Entity {
         ))
     }
 
-    /*%%put back after converting RelationToRemoteEntity
+    /*%%put back after converting RelationToRemoteEntity to Rust
     fn add_relation_to_remote_entity(&self,
                                         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
                                          in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
@@ -1314,76 +1429,144 @@ impl Entity {
         ))
     }
 
-    /*
-            fn get_sorted_attributes(starting_object_index_in: Int = 0, max_vals_in: Int = 0, only_public_entities_in: bool = true) -> (Array[(i64, Attribute)], Int) {
-            db.get_sorted_attributes(get_id, starting_object_index_in, max_vals_in, only_public_entities_in = only_public_entities_in)
-          }
+    pub fn get_sorted_attributes(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        starting_object_index_in: usize, /*= 0*/
+        max_vals_in: usize,              /*= 0*/
+        only_public_entities_in: bool,   /*= true*/
+    ) -> Result<(Vec<(i64, Rc<dyn Attribute>)>, usize), anyhow::Error> {
+        self.db.get_sorted_attributes(
+            self.db.clone(),
+            transaction,
+            self.get_id(),
+            starting_object_index_in,
+            max_vals_in,
+            only_public_entities_in,
+        )
+    }
 
-            fn updateClass(class_id_in: Option<i64>) /*%% -> Unit*/ {
-            if !already_read_data) read_data_from_db()
-            if class_id_in != m_class_id) {
-              db.update_entitys_class(this.get_id, class_id_in)
-              m_class_id = class_id_in
-            }
-          }
+    pub fn update_class<'a, 'b>(
+        &'a mut self,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        class_id_in: Option<i64>,
+    ) -> Result<(), anyhow::Error>
+    where
+        'a: 'b,
+    {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction.clone())?;
+        }
+        if class_id_in != self.class_id {
+            self.db
+                .update_entitys_class(transaction, self.get_id(), class_id_in)?;
+            self.class_id = class_id_in;
+        }
+        Ok(())
+    }
 
-            fn updateNewEntriesStickToTop(b: bool) {
-            if !already_read_data) read_data_from_db()
-            if b != new_entries_stick_to_top) {
-              db.update_entity_only_new_entries_stick_to_top(get_id, b)
-              new_entries_stick_to_top = b
-            }
-          }
+    pub fn update_new_entries_stick_to_top(
+        &mut self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        b: bool,
+    ) -> Result<(), anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction.clone())?;
+        }
+        if b != self.new_entries_stick_to_top {
+            self.db
+                .update_entity_only_new_entries_stick_to_top(transaction, self.get_id(), b)?;
+            self.new_entries_stick_to_top = b;
+        }
+        Ok(())
+    }
 
-            fn updatePublicStatus(newValueIn: Option<bool>) {
-            if !already_read_data) read_data_from_db()
-            if newValueIn != m_public) {
-              // The condition for this (when it was part of EntityMenu) used to include " && !entity_in.isInstanceOf[RelationType]", but maybe it's better w/o that.
-              db.update_entity_only_public_status(get_id, newValueIn)
-              m_public = newValueIn
-            }
-          }
+    pub fn update_public_status(
+        &mut self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        new_value_in: Option<bool>,
+    ) -> Result<(), anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction.clone())?;
+        }
+        if new_value_in != self.public {
+            // The condition for this (when it was part of EntityMenu) used to include
+            // " && !entity_in.isInstanceOf[RelationType]", but maybe it's better w/o that.
+            self.db
+                .update_entity_only_public_status(transaction, self.get_id(), new_value_in)?;
+            self.public = new_value_in;
+        }
+        Ok(())
+    }
 
-            fn updateName(name_in: String) /*%% -> Unit*/ {
-            if !already_read_data) read_data_from_db()
-            if name_in != name) {
-              db.update_entity_only_name(get_id, name_in);
-              name = name_in
-            }
-          }
+    pub fn update_name(
+        &mut self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        name_in: &str,
+    ) -> Result<(), anyhow::Error> {
+        if !self.already_read_data {
+            self.read_data_from_db(transaction.clone())?;
+        }
+        if name_in != self.name {
+            self.db
+                .update_entity_only_name(transaction, self.get_id(), name_in)?;
+            self.name = name_in.to_string();
+        }
+        Ok(())
+    }
 
-            fn archive() {
-            db.archive_entity(id);
-            m_archived = true
-          }
+    pub fn archive<'a, 'b>(
+        &'a mut self,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    ) -> Result<(), anyhow::Error>
+    where
+        'a: 'b,
+    {
+        self.db.archive_entity(transaction, self.get_id())?;
+        self.archived = true;
+        Ok(())
+    }
 
-            fn unarchive() {
-            db.unarchive_entity(id);
-            m_archived = false
-          }
+    pub fn unarchive<'a, 'b>(
+        &'a mut self,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    ) -> Result<(), anyhow::Error>
+    where
+        'a: 'b,
+    {
+        self.db.unarchive_entity(transaction, self.get_id())?;
+        self.archived = false;
+        Ok(())
+    }
 
-          /** Removes this object from the system. */
-            fn delete() {
-              db.delete_entity(id)
-          }
-
-    %%*/
+    /// Removes this object from the system.
+    pub fn delete<'a, 'b>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    ) -> Result<(), anyhow::Error>
+    where
+        'a: 'b,
+    {
+        self.db.delete_entity(transaction, self.get_id())
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::Entity;
+    use crate::color::Color;
+    use crate::model::attribute::Attribute;
+    use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
     use crate::model::boolean_attribute::BooleanAttribute;
-    //use crate::model::database::{DataType, Database};
+    use crate::model::database::{DataType, Database};
     use crate::model::date_attribute::DateAttribute;
     use crate::model::file_attribute::FileAttribute;
+    use crate::model::group::Group;
     use crate::model::id_wrapper::IdWrapper;
     use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
+    use crate::model::quantity_attribute::QuantityAttribute;
     use crate::model::relation_to_group::RelationToGroup;
     use crate::model::relation_to_local_entity::RelationToLocalEntity;
-    //use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
-    use crate::color::Color;
-    use crate::model::quantity_attribute::QuantityAttribute;
     use crate::model::text_attribute::TextAttribute;
     use crate::util::Util;
     use anyhow::{anyhow, Result};
@@ -1392,225 +1575,309 @@ mod test {
     use std::cell::RefCell;
     use std::collections::HashSet;
     use std::rc::Rc;
+    use tracing::*;
 
-    /*%%latertests
-          let mut mUnitId: i64 = 0;
-          let mut quantity_attr_type_id: i64 = 0;
-          let mut mTextAttrTypeId: i64 = 0;
-          let mut mDateAttrTypeId = 0L;
-          let mut m_booleanAttrTypeId = 0L;
-          let mut mFileAttrTypeId = 0L;
-          let mut mRelationTypeId = 0L;
-
-          override fn runTests(testName: Option<String>, args: Args) -> Status {
-            setUp()
-            let result: Status = super.runTests(testName, args);
-            // (not calling tearDown: see comment inside PostgreSQLDatabaseTest.runTests about "db setup/teardown")
-            result
-          }
-
-          protected fn setUp() {
-            //start fresh
-            PostgreSQLDatabaseTest.tearDownTestDB()
-
-            // instantiation does DB setup (creates tables, default data, etc):
-            db = new PostgreSQLDatabase(Database::TEST_USER, Database::TEST_PASS)
-
-            mUnitId = db.create_entity("centimeters")
-            mTextAttrTypeId = db.create_entity("someName")
-            mDateAttrTypeId = db.create_entity("someName")
-            m_booleanAttrTypeId = db.create_entity("someName")
-            mFileAttrTypeId = db.create_entity("someName")
-            mRelationTypeId = db.create_relation_type("someRelationType", "reversedName", "NON")
-            let id: i64 = db.create_entity("test object");
-            mEntity = new Entity(db, id)
-          }
-
-          protected fn tearDown() {
-            PostgreSQLDatabaseTest.tearDownTestDB()
-          }
-    */
-    /* %%latertests
     #[test]
     fn test_add_quantity_attribute() {
         Util::initialize_tracing();
-        let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
-        let tx = db.begin_trans().unwrap();
-        let tx = Some(Rc::new(RefCell::new(tx)));
-        //%%latertests Maybe move things like this into a setup method that does "once" like util.rs does, equiv to the above?
-        //Or one that returns the various values? or just fill in & keep copy/pasting as needed?
-        //%%latertests Or look up the once_cell crate -- would it help fill in vars w/ boxes? at what level? *singletons*?
-        let quantity_attr_type_id = Entity::create_entity(&DB, tx, "length", None, None).unwrap();
-        let e: Entity = Entity::create_entity(&DB, tx, "testEntityName", None, None).unwrap();
-        let id: i64 = e.add_quantity_attribute(quantity_attr_type_id, mUnitId, 100, None).get_id();
-        let qo: QuantityAttribute = mEntity.get_quantity_attribute(id);
-        if qo == null {
-          fail("add_quantity_attribute then get_quantity_attribute returned null")
-        }
-        assert(qo.get_id == id)
-        db.rollback_trans()
-      }
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let e = Entity::create_entity(db.clone(), None, "testEntityName", None, None).unwrap();
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        let tx = None;
 
-      "testAddTextAttribute" should "also work" in {
-        db.begin_trans()
-        println!("starting testAddTextAttribute")
-        let id: i64 = mEntity.add_text_attribute(mTextAttrTypeId, "This is someName given to an object", None).get_id;
-        let t: TextAttribute = mEntity.get_textAttribute(id);
-        if t == null {
-          fail("add_text_attribute then get_textAttribute returned null")
-        }
-        assert(t.get_id == id)
-        db.rollback_trans()
-      }
+        //%%latertests Maybe move things like this into a setup method that does "once" like util.rs does, equiv to what
+        //I used to do in Scala? Or one that returns the various values? or just fill in & keep copy/pasting as needed?
+        //Or look up the once_cell crate -- would it help fill in vars w/ boxes? at what level? *singletons*?
+        //Same for other tests below?
+        let quantity_attr_type_id =
+            Entity::create_entity(db.clone(), tx.clone(), "length", None, None)
+                .unwrap()
+                .get_id();
+        let unit_id = Entity::create_entity(db.clone(), tx.clone(), "centimeters", None, None)
+            .unwrap()
+            .get_id();
+        let qa: QuantityAttribute = e
+            .add_quantity_attribute(tx.clone(), quantity_attr_type_id, unit_id, 100.0, None)
+            .unwrap();
+        let qa_retrieved: QuantityAttribute =
+            e.get_quantity_attribute(tx.clone(), qa.get_id()).unwrap();
+        assert_eq!(qa_retrieved.get_id(), qa.get_id());
+    }
 
-      "testAddDateAttribute" should "also work" in {
-        db.begin_trans()
-        println!("starting testAddDateAttribute")
-        let id: i64 = mEntity.add_date_attribute(mDateAttrTypeId, 2).get_id;
-        let t: DateAttribute = mEntity.get_date_Attribute(id);
-        assert(t != null)
-        assert(t.get_id == id)
-        assert(t.get_attr_type_id() == mDateAttrTypeId)
-        assert(t.get_date == 2)
-        db.rollback_trans()
-      }
+    #[test]
+    fn test_add_text_attribute() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let entity = Entity::create_entity(db.clone(), None, "testEntityName", None, None).unwrap();
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        let tx = None;
+        println!("starting testAddTextAttribute");
+        let text_attr_type: Entity =
+            Entity::create_entity(db.clone(), tx.clone(), "description", None, None).unwrap();
+        let text_attr_type_id: i64 = text_attr_type.get_id();
+        let text = "This is some text given to an object";
+        let ta = entity
+            .add_text_attribute(tx.clone(), text_attr_type_id, text, None)
+            .unwrap();
+        let ta_retrieved = entity.get_text_attribute(tx.clone(), ta.get_id()).unwrap();
+        assert_eq!(ta_retrieved.get_id(), ta.get_id());
+    }
 
-      "testAddBooleanAttribute" should "also work" in {
-        db.begin_trans()
-        println!("starting testAddBooleanAttribute")
-        let startTime = Utc::now().timestamp_millis();
-        let id: i64 = mEntity.add_boolean_attribute(m_booleanAttrTypeId, in_boolean = true, None).get_id;
-        let t: BooleanAttribute = mEntity.get_boolean_attribute(id);
-        assert(t != null)
-        assert(t.get_id == id)
-        assert(t.get_boolean)
-        assert(t.get_parent_id() == mEntity.get_id)
-        assert(t.get_valid_on_date().isEmpty)
-        assert(t.get_observation_date() > (startTime - 1) && t.get_observation_date() < (Utc::now().timestamp_millis() + 1))
-        db.rollback_trans()
-      }
+    #[test]
+    fn test_add_date_attribute() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let entity = Entity::create_entity(db.clone(), None, "testEntityName", None, None).unwrap();
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        let tx = None;
+        println!("starting testAddDateAttribute");
+        let date_attr_type_id =
+            Entity::create_entity(db.clone(), tx.clone(), "birthdate", None, None)
+                .unwrap()
+                .get_id();
+        let date_value = 2; // Using simple value for test
+        let da = entity
+            .add_date_attribute(tx.clone(), date_attr_type_id, date_value, None)
+            .unwrap();
+        let mut da_retrieved = entity.get_date_attribute(tx.clone(), da.get_id()).unwrap();
+        assert_eq!(da_retrieved.get_id(), da.get_id());
+        assert_eq!(
+            da_retrieved.get_attr_type_id(tx.clone()).unwrap(),
+            date_attr_type_id
+        );
+        assert_eq!(da_retrieved.get_date(tx.clone()).unwrap(), date_value);
+    }
 
-      "testAddFileAttribute" should "also work" in {
-        db.begin_trans()
-        let mut file: java.io.File = null;
-        let mut fw: java.io.FileWriter = null;
-        println!("starting testAddFileAttribute")
-        try {
-          file = java.io.File.createTempFile("om-test-file-attr-", null)
-          fw = new java.io.FileWriter(file)
-          fw.write("1234" + new String("\n"))
-          fw.close()
-          assert(FileAttribute::md5_hash(file) == "e7df7cd2ca07f4f1ab415d457a6e1c13")
-          let path = file.getCanonicalPath;
-          let id0: i64 = mEntity.add_file_attribute(mFileAttrTypeId, file).get_id;
-          let t0: FileAttribute = mEntity.get_file_attribute(id0);
-          assert(t0 != null)
-          assert(t0.get_id == id0)
-          assert(t0.get_description() == file.get_name)
+    #[test]
+    fn test_add_boolean_attribute() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let entity = Entity::create_entity(db.clone(), None, "testEntityName", None, None).unwrap();
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        let tx = None;
+        println!("starting testAddBooleanAttribute");
+        let start_time = Utc::now().timestamp_millis();
+        let boolean_attr_type_id: i64 =
+            Entity::create_entity(db.clone(), tx.clone(), "isComplete", None, None)
+                .unwrap()
+                .get_id();
+        let ba = entity
+            .add_boolean_attribute(tx.clone(), boolean_attr_type_id, true, None)
+            .unwrap();
+        let mut ba_retrieved: BooleanAttribute = entity
+            .get_boolean_attribute(tx.clone(), ba.get_id())
+            .unwrap();
+        assert_eq!(ba_retrieved.get_id(), ba.get_id());
+        assert_eq!(ba_retrieved.get_boolean(tx.clone()).unwrap(), true);
+        assert_eq!(
+            ba_retrieved.get_parent_id(tx.clone()).unwrap(),
+            entity.get_id()
+        );
+        assert!(ba_retrieved
+            .get_valid_on_date(tx.clone())
+            .unwrap()
+            .is_none());
+        let observation_date = ba_retrieved.get_observation_date(tx.clone()).unwrap();
+        assert!(
+            observation_date > (start_time - 1)
+                && observation_date < (Utc::now().timestamp_millis() + 1)
+        );
+    }
 
-          let id: i64 = mEntity.add_file_attribute(mFileAttrTypeId, "file desc here, long or short", file).get_id;
-          let t: FileAttribute = mEntity.get_file_attribute(id);
-          assert(t.get_parent_id() == mEntity.get_id)
-          assert(t.get_attr_type_id() == mFileAttrTypeId)
-          assert(t.get_description() == "file desc here, long or short")
-          assert(t.get_original_file_date() > 1389461364000L)
-          let now = Utc::now().timestamp_millis();
-          assert(t.get_stored_date() < now && t.get_stored_date() > now - (5 * 1000 * 60))
-          assert(t.get_original_file_path() == path)
-          assert(t.self.get_readable())
-          assert(t.get_writeable())
-          assert(!t.get_executable())
-          assert(t.get_size == 5)
-        }
-        finally {
-          if fw != null { fw.close() }
-          if file != null { file.delete() }
-        }
-        db.rollback_trans()
-      }
+    /* %%file_attr: put back next test after file_attribute things are more implemented
+          "testAddFileAttribute" should "also work" in {
+            db.begin_trans()
+            let mut file: java.io.File = null;
+            let mut fw: java.io.FileWriter = null;
+            println!("starting testAddFileAttribute")
+            try {
+              file = java.io.File.createTempFile("om-test-file-attr-", null)
+              fw = new java.io.FileWriter(file)
+              fw.write("1234" + new String("\n"))
+              fw.close()
+              assert(FileAttribute::md5_hash(file) == "e7df7cd2ca07f4f1ab415d457a6e1c13")
+              let path = file.getCanonicalPath;
+              let id0: i64 = mEntity.add_file_attribute(mFileAttrTypeId, file).get_id;
+              let t0: FileAttribute = mEntity.get_file_attribute(id0);
+              assert(t0 != null)
+              assert(t0.get_id == id0)
+              assert(t0.get_description() == file.get_name)
 
-      "get_display_string" should "return a useful stack trace string, when called with a nonexistent entity" in {
-        // for example, if the entity has been deleted by one part of the code, or one user process in a console window (as an example), and is still
-        // referenced and attempted to be displayed by another (or to be somewhat helpful if we try to get info on an entity that's gone due to a bug).
-        // (But should this issue go away w/ better design involving more use of immutability or something?)
-        let id = 0L;
-        let mock_db = mock[PostgreSQLDatabase];
-        when(mock_db.entity_key_exists(id)).thenReturn(true)
-        when(mock_db.get_entity_data(id)).thenThrow(new RuntimeException("some exception"))
-        when(mock_db.get_remote_address).thenReturn(None)
-        let entity = new Entity(mock_db, id);
-        let se = entity.get_display_string();
-        assert(se.contains("Unable to get entity description due to"))
-        assert(se.toLowerCase.contains("exception"))
-        assert(se.toLowerCase.contains("at org.onemodel"))
-      }
+              let id: i64 = mEntity.add_file_attribute(mFileAttrTypeId, "file desc here, long or short", file).get_id;
+              let t: FileAttribute = mEntity.get_file_attribute(id);
+              assert(t.get_parent_id() == mEntity.get_id)
+              assert(t.get_attr_type_id() == mFileAttrTypeId)
+              assert(t.get_description() == "file desc here, long or short")
+              assert(t.get_original_file_date() > 1389461364000L)
+              let now = Utc::now().timestamp_millis();
+              assert(t.get_stored_date() < now && t.get_stored_date() > now - (5 * 1000 * 60))
+              assert(t.get_original_file_path() == path)
+              assert(t.self.get_readable())
+              assert(t.get_writeable())
+              assert(!t.get_executable())
+              assert(t.get_size == 5)
+            }
+            finally {
+              if fw != null { fw.close() }
+              if file != null { file.delete() }
+            }
+            db.rollback_trans()
+          }
+    */
 
-      "get_display_string" should "return name & class info" in {
-        let id = 0L;
-        let classId = 1L;
-        let mock_db = mock[PostgreSQLDatabase];
-        when(mock_db.entity_key_exists(id)).thenReturn(true)
-        when(mock_db.get_class_name(classId)).thenReturn(Some("class1Name"))
-        when(mock_db.get_entity_data(id)).thenReturn(Vec<Option<DataType>>(Some("entity1Name"), Some(classId)))
-        // idea (is in tracked tasks): put next 3 lines back after color refactoring is done (& places w/ similar comment elsewhere)
-        //val entity = new Entity(mock_db, id)
-        //val ds = entity.get_display_string
-        //assert(ds == "entity1Name (class: class1Name)")
+    #[test]
+    fn test_display_string() {
+        Util::initialize_tracing();
+        let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        let tx = None;
 
-        let id2 = 2L;
-        let classId2 = 4L;
-        let name2 = "entity2Name";
-        let mock_db2 = mock[PostgreSQLDatabase];
-        when(mock_db2.entity_key_exists(id2)).thenReturn(true)
-        when(mock_db2.get_entity_data(id2)).thenReturn(Vec<Option<DataType>>(Some(name2), None))
-        when(mock_db2.get_class_name(classId2)).thenReturn(None)
-        // idea (is in tracked tasks): put next lines back after color refactoring is done (& places w/ similar comment elsewhere)
-        //val entity2 = new Entity(mock_db2, id2, name2, Some(false), Some(classId2))
-        //val ds2 = entity2.get_display_string
-        //assert(ds2 == name2)
-
-        when(mock_db2.get_class_name(classId2)).thenReturn(Some("class2Name"))
-        when(mock_db2.get_class_count(Some(id2))).thenReturn(1)
-        when(mock_db2.get_entity_data(id2)).thenReturn(Vec<Option<DataType>>(Some(name2), Some(classId2)))
-        // idea (is in tracked tasks): put next line back after color refactoring is done (& places w/ similar comment elsewhere)
+        let class_name = "class1Name";
+        let (class_id, template_entity_id) = db
+            .create_class_and_its_template_entity(tx.clone(), class_name)
+            .unwrap();
+        let mut entity =
+            Entity::create_entity(db.clone(), tx.clone(), "entity1Name", Some(class_id), None)
+                .unwrap();
+        let display_string = entity.get_display_string(tx.clone(), false).unwrap();
+        // Inconvenient to test exact string due to color formatting, so check for important parts
+        assert!(display_string.contains("entity1Name"));
+        assert!(display_string.contains(&format!("class: {}", class_name)));
+        // Second test: Entity without class
+        let mut entity2 =
+            Entity::create_entity(db.clone(), tx.clone(), "entity2Name", None, None).unwrap();
+        let display_string2 = entity2.get_display_string(tx.clone(), false).unwrap();
+        assert_eq!(display_string2, "entity2Name");
+        assert!(!display_string2.contains("class:"));
+        // Third test: Entity as template
+        // Create an entity that is a template for a class
+        let display_string3 = Entity::new2(db.clone(), tx.clone(), template_entity_id)
+            .unwrap()
+            .get_display_string(tx.clone(), false)
+            .unwrap();
+        debug!("display_string3 is: {}", display_string3);
+        assert!(display_string3.contains("(template (defining entity) for class: "));
+        assert!(display_string3.contains(class_name));
         //assert(entity2.get_display_string == name2 + " (template entity (template) for class: " + "class2Name)")
-      }
+    }
 
-      "get_class_template_entity_id" should "work right" in {
-        let mock_db = mock[PostgreSQLDatabase];
-        let id = 1L;
-        let classId = 2L;
-        let className = "classname";
-        let template_entity_id = 3L;
-        when(mock_db.entity_key_exists(id)).thenReturn(true)
-        let e = new Entity(mock_db, id, "entityname", None, 0L, Some(true), false, false);
-        assert(e.get_class_template_entity_id.isEmpty)
+    #[test]
+    fn test_get_class_template_entity_id() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        let tx = None;
+        let class_name = "classname";
+        let (class_id, template_entity_id) = db
+            .create_class_and_its_template_entity(tx.clone(), class_name)
+            .unwrap();
+        // Entity without class
+        let mut entity =
+            Entity::create_entity(db.clone(), tx.clone(), "entityname", None, None).unwrap();
+        assert!(entity
+            .get_class_template_entity_id(tx.clone())
+            .unwrap()
+            .is_none());
+        // Entity with class
+        let mut entity2 =
+            Entity::create_entity(db.clone(), tx.clone(), "entityname", Some(class_id), None)
+                .unwrap();
+        assert_eq!(
+            entity2
+                .get_class_template_entity_id(tx.clone())
+                .unwrap()
+                .unwrap(),
+            template_entity_id
+        );
+    }
 
-        let e2 = new Entity(mock_db, id, "entityname", Option(classId), 0L, Some(false), false, false);
-        when(mock_db.class_key_exists(classId)).thenReturn(true)
-        when(mock_db.get_class_data(classId)).thenReturn(Vec<Option<DataType>>(Some(className), Some(template_entity_id)))
-        assert(e2.get_class_template_entity_id.get == template_entity_id)
-      }
+    #[test]
+    fn test_update_contained_entities_public_status() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let container = Entity::create_entity(db.clone(), None, "container", None, None).unwrap();
+        let mut entity1 =
+            Entity::create_entity(db.clone(), None, "test object1", None, None).unwrap();
+        let mut entity2 =
+            Entity::create_entity(db.clone(), None, "test object2", None, None).unwrap();
+        debug!(
+            "In test_update_contained_entities_public_status, 3 entities' ids: {}, {}, {}.",
+            container.get_id(),
+            entity1.get_id(),
+            entity2.get_id()
+        );
+        let rel_type_id = db
+            .find_relation_type(None, Util::THE_HAS_RELATION_TYPE_NAME)
+            .unwrap();
+        let (group_id, _) = container
+            .add_group_and_relation_to_group(
+                None, //tx.clone(),
+                rel_type_id,
+                "grpName",
+                true,
+                None,
+                Utc::now().timestamp_millis(),
+                None,
+            )
+            .unwrap();
+        let group = Group::new2(db.clone(), None, group_id).unwrap();
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        let tx = None;
 
-      "updateContainedEntitiesPublicStatus" should "work" in {
-        let e1Id: i64 = db.create_entity("test object1");
-        let e1 = new Entity(db, e1Id);
-        mEntity.add_has_relation_to_local_entity(e1.get_id, Some(0), 0)
-        let (group: Group, _/*rtg: RelationToGroup*/) = mEntity.add_group_and_relation_to_group(mRelationTypeId, "grpName",;
-                                                                                        allow_mixed_classes_inGroupIn = true, Some(0), 0, None)
-        let e2Id: i64 = db.create_entity("test object2");
-        let e2 = new Entity(db, e1Id);
-        group.add_entity(e2Id)
+        // Create container entity
+        // Create entity (above) and add has relation to container
+        container
+            .add_has_relation_to_local_entity(
+                tx.clone(),
+                entity1.get_id(),
+                None,
+                Utc::now().timestamp_millis(),
+            )
+            .unwrap();
+        // Create group (above) and add relation to container (above, for transaction lifetime issues)
+        // Create entity2 (above) and add to group
+        group
+            .add_entity(tx.clone(), entity2.get_id(), None)
+            .unwrap();
+        // Check initial status
+        //let mut e1 = Entity::new2(db.clone(), tx.clone(), entity1.get_id()).unwrap();
+        //let mut e2 = Entity::new2(db.clone(), tx.clone(), entity2.get_id()).unwrap();
+        assert!(entity1.get_public(tx.clone()).unwrap().is_none());
+        assert!(entity2.get_public(tx.clone()).unwrap().is_none());
+        // Update status
+        let count = container
+            .update_contained_entities_public_status(tx.clone(), Some(true))
+            .unwrap();
+        assert_eq!(count, 2);
+        // Check updated status
+        let mut e1_reread = Entity::new2(db.clone(), tx.clone(), entity1.get_id()).unwrap();
+        let mut e2_reread = Entity::new2(db.clone(), tx.clone(), entity2.get_id()).unwrap();
+        assert_eq!(e1_reread.get_public(tx.clone()).unwrap(), Some(true));
+        assert_eq!(e2_reread.get_public(tx.clone()).unwrap(), Some(true));
+    }
 
-        assert(e1.get_public.isEmpty)
-        assert(e2.get_public.isEmpty)
-        mEntity.updateContainedEntitiesPublicStatus(Some(true))
-        let e1reRead = new Entity(db, e1Id);
-        let e2reRead = new Entity(db, e2Id);
-        assert(e1reRead.get_public.get)
-        assert(e2reRead.get_public.get)
-      }
-
+    /*
       "get_count_of_containing_local_entities etc" should "work" in {
         let e1 = Entity.create_entity(db, "e1");
         let (e2id: i64, rteId: i64) = db.create_entityAndRelationToLocalEntity(e1.get_id, mRelationTypeId, "e2", None, None, 0L);
@@ -1657,4 +1924,165 @@ mod test {
         assert(e1.get_containing_relation_to_group_descriptions().size == 1)
       }
     */
+
+    fn test_get_count_of_containing_local_entities_etc() {
+        Util::initialize_tracing();
+        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let e1 = Entity::create_entity(db.clone(), None, "e1", None, None).unwrap();
+        let rel_type_id = db
+            .find_relation_type(None, Util::THE_HAS_RELATION_TYPE_NAME)
+            .unwrap();
+        let (e2_id, rte_id) = db
+            .create_entity_and_relation_to_local_entity(
+                None,
+                e1.get_id(),
+                rel_type_id,
+                "e2",
+                None,
+                None,
+                Utc::now().timestamp_millis(),
+            )
+            .unwrap();
+        let e2 = Entity::new2(db.clone(), None, e2_id).unwrap();
+        let g1_id = db.create_group(None, "g1", false).unwrap();
+        let g1 = Group::new2(db.clone(), None, g1_id).unwrap();
+        //Using None instead of tx here for simplicity, but might have to change if
+        //running tests in parallel.
+        //let tx = db.begin_trans().unwrap();
+        //let tx = Some(Rc::new(RefCell::new(tx)));
+        let tx = None;
+
+        // e2 should be contained in one entity (e1)
+        let (count, _) = e2
+            .get_count_of_containing_local_entities(tx.clone())
+            .unwrap();
+        assert_eq!(count, 1);
+        let entities = e2
+            .get_local_entities_containing_entity(tx.clone(), 0, None)
+            .unwrap();
+        assert_eq!(entities.len(), 1);
+        // Create e3 with relation from e1
+        db.create_entity_and_relation_to_local_entity(
+            tx.clone(),
+            e1.get_id(),
+            rel_type_id,
+            "e3",
+            None,
+            None,
+            Utc::now().timestamp_millis(),
+        )
+        .unwrap();
+        // Test adjacent attributes sorting indexes
+        let indexes: Vec<Vec<Option<DataType>>> = e1
+            .get_adjacent_attributes_sorting_indexes(tx.clone(), i64::MIN, None, true)
+            .unwrap();
+        assert!(!indexes.is_empty());
+        let nearest_index = e1
+            .get_nearest_attribute_entrys_sorting_index(tx.clone(), i64::MIN, true)
+            .unwrap();
+        assert!(nearest_index.unwrap() > i64::MIN);
+        // Test renumbering
+        e1.renumber_sorting_indexes(tx.clone()).unwrap();
+        let nearest_index2 = e1
+            .get_nearest_attribute_entrys_sorting_index(tx.clone(), i64::MIN, true)
+            .unwrap();
+        assert!(nearest_index2.unwrap() > nearest_index.unwrap());
+
+        // Test attribute sorting index operations
+        let rte = RelationToLocalEntity::new3(db.clone(), tx.clone(), rte_id)
+            .unwrap()
+            .unwrap(); //, rel_type_id, e1.get_id(), e2_id).unwrap();
+        let form_id = rte.get_form_id().unwrap();
+        assert!(!e1
+            .is_attribute_sorting_index_in_use(tx.clone(), i64::MAX)
+            .unwrap());
+        e1.update_attribute_sorting_index(tx.clone(), form_id.into(), rte_id, i64::MAX)
+            .unwrap();
+        assert_eq!(
+            e1.get_attribute_sorting_index(tx.clone(), form_id.into(), rte_id)
+                .unwrap(),
+            i64::MAX
+        );
+        assert!(e1
+            .is_attribute_sorting_index_in_use(tx.clone(), i64::MAX)
+            .unwrap());
+        let unused_index = e1
+            .find_unused_attribute_sorting_index(tx.clone(), None)
+            .unwrap();
+        assert_ne!(unused_index, i64::MAX);
+
+        // Test relation to entity counts
+        assert_eq!(
+            e1.get_relation_to_local_entity_count(tx.clone(), true)
+                .unwrap(),
+            2
+        );
+        // Test entity archiving and counting
+        {
+            //let mut e2 = Entity::new2(db.clone(), tx.clone(), e2_id).unwrap();
+            //e2.archive(tx.clone()).unwrap();
+            let mut e2 = Entity::new2(db.clone(), None, e2_id).unwrap();
+            e2.archive(None).unwrap();
+        }
+        assert_eq!(
+            e1.get_relation_to_local_entity_count(tx.clone(), false)
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            e1.get_relation_to_local_entity_count(tx.clone(), true)
+                .unwrap(),
+            2
+        );
+
+        // Test text attribute operations
+        let text_attr_results = e1
+            .get_text_attribute_by_type_id(tx.clone(), rel_type_id, None)
+            .unwrap();
+        assert_eq!(text_attr_results.len(), 0);
+        let text = "test text for relation type";
+        e1.add_text_attribute(tx.clone(), rel_type_id, text, None)
+            .unwrap();
+        let text_attr_results2 = e1
+            .get_text_attribute_by_type_id(tx.clone(), rel_type_id, None)
+            .unwrap();
+        assert_eq!(text_attr_results2.len(), 1);
+
+        // Test entity name update
+        let mut e1 = Entity::new2(db.clone(), None, e1.get_id()).unwrap();
+        assert_ne!(e1.get_name(tx.clone()).unwrap(), "updated");
+        e1.update_name(tx.clone(), "updated").unwrap();
+        let mut updated_e1 = Entity::new2(db.clone(), tx.clone(), e1.get_id()).unwrap();
+        assert_eq!(updated_e1.get_name(tx.clone()).unwrap(), "updated");
+        // Test name duplication check
+        assert!(Entity::is_duplicate(db.clone(), tx.clone(), "updated", None).unwrap());
+        assert!(!Entity::is_duplicate(db.clone(), tx.clone(), "xyzNOTANAMEupdated", None).unwrap());
+
+        // Test group containment operations
+        g1.add_entity(tx.clone(), e1.get_id(), None).unwrap();
+        let containing_groups = e1.get_containing_groups_ids(tx.clone()).unwrap();
+        assert_eq!(containing_groups.len(), 1);
+        assert_eq!(e1.get_count_of_containing_groups(tx.clone()).unwrap(), 1);
+
+        let e2 = e2.clone();
+        //e2.add_relation_to_group(tx.clone(), rel_type_id, g1_id, None).unwrap();
+        e2.add_relation_to_group(None, rel_type_id, g1_id, None)
+            .unwrap();
+        let rtgs = e1
+            .get_containing_relations_to_group(tx.clone(), 0, None)
+            .unwrap();
+        assert_eq!(rtgs.len(), 1);
+
+        let descriptions = e1
+            .get_containing_relation_to_group_descriptions(tx.clone(), None)
+            .unwrap();
+        assert!(descriptions.is_empty());
+        let mut e2 = e2.clone();
+        //e2.unarchive(tx.clone()).unwrap();
+        e2.unarchive(None).unwrap();
+        let descriptions = e1
+            .get_containing_relation_to_group_descriptions(tx.clone(), None)
+            .unwrap();
+        assert!(descriptions.len() == 1);
+    }
 }

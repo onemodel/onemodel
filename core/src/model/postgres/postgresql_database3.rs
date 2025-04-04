@@ -854,7 +854,7 @@ impl Database for PostgreSQLDatabase {
             None => "NULL".to_string(),
             Some(date) => date.to_string(),
         };
-        self.db_action(transaction, format!("update BooleanAttribute set (boolean_value, attr_type_id, valid_on_date, observation_date) \
+        self.db_action(transaction, format!("update BooleanAttribute set (booleanvalue, attr_type_id, valid_on_date, observation_date) \
                         = ({},{},{},{}) where id={} and entity_id={}",
                                             boolean_in, attr_type_id_in, if_valid_on_date, observation_date_in, id_in, parent_id_in).as_str(),
                        false, false)?;
@@ -875,10 +875,10 @@ impl Database for PostgreSQLDatabase {
             transaction,
             format!(
                 //see comment just above about not using parent_id_in.
-                //"update BooleanAttribute set (boolean_value) \
+                //"update BooleanAttribute set (booleanvalue) \
                 //        = ({}) where id={} and entity_id={}",
                 //boolean_in, id_in, parent_id_in
-                "update BooleanAttribute set (boolean_value) \
+                "update BooleanAttribute set (booleanvalue) \
                         = ({}) where id={}",
                 boolean_in, id_in
             )
@@ -1423,7 +1423,7 @@ impl Database for PostgreSQLDatabase {
             transaction.clone(),
             format!(
                 "insert into BooleanAttribute (id, \
-            entity_id, boolean_value, attr_type_id, valid_on_date, observation_date) \
+            entity_id, booleanvalue, attr_type_id, valid_on_date, observation_date) \
             values ({},{},'{}',{},{},{})",
                 id, parent_id_in, boolean_in, attr_type_id_in, vod, observation_date_in
             )
@@ -4144,7 +4144,7 @@ impl Database for PostgreSQLDatabase {
         boolean_id_in: i64,
     ) -> Result<Vec<Option<DataType>>, anyhow::Error> {
         let form_id = self.get_attribute_form_id(Util::BOOLEAN_TYPE)?;
-        self.db_query_wrapper_for_one_row(transaction, format!("select ba.entity_id, ba.boolean_value, ba.attr_type_id, asort.sorting_index, ba.valid_on_date, ba.observation_date \
+        self.db_query_wrapper_for_one_row(transaction, format!("select ba.entity_id, ba.booleanvalue, ba.attr_type_id, asort.sorting_index, ba.valid_on_date, ba.observation_date \
                                     from BooleanAttribute ba, AttributeSorting asort where id={} and ba.entity_id=asort.entity_id and asort.attribute_form_id={} \
                                      and ba.id=asort.attribute_id",
                                                                boolean_id_in, form_id).as_str(),
@@ -5844,7 +5844,7 @@ impl Database for PostgreSQLDatabase {
         ];
         let columns_selected_by_table = vec![
             "id,entity_id,attr_type_id,unit_id,quantity_number,valid_on_date,observation_date".to_string(),
-            "id,entity_id,attr_type_id,boolean_value,valid_on_date,observation_date".to_string(),
+            "id,entity_id,attr_type_id,booleanvalue,valid_on_date,observation_date".to_string(),
             "id,entity_id,attr_type_id,date".to_string(),
             "id,entity_id,attr_type_id,textvalue,valid_on_date,observation_date".to_string(),
             "id,entity_id,attr_type_id,description,original_file_date,stored_date,original_file_path,\
@@ -5972,6 +5972,7 @@ impl Database for PostgreSQLDatabase {
 
             let results: Vec<Vec<Option<DataType>>> =
                 self.db_query(transaction.clone(), &sql, &types_by_table[table_list_index])?;
+            debug!("In get_sorted_attributes, {} results for sql: {}", results.len(), sql); 
 
             for result in results {
                 // Skip past those that are outside the range to retrieve
@@ -6140,6 +6141,7 @@ impl Database for PostgreSQLDatabase {
             // }
             table_list_index += 1;
         }
+        debug!("In get_sorted_attributes, all_results.len(): {}", all_results.len());
 
         let mut all_results_array: Vec<(i64, Rc<dyn Attribute>)> =
             Vec::with_capacity(all_results.len());
@@ -6151,15 +6153,21 @@ impl Database for PostgreSQLDatabase {
 
         // Sort by the first element of the tuple which is the sorting_index
         all_results_array.sort_by_key(|a| a.0);
+        debug!("In get_sorted_attributes, all_results_array.len(): {}", all_results_array.len());
 
-        // (old, from scala, where the max_vals_in could theoretically be negative?:)
-        //let num_vals = if max_vals_in > 0 { max_vals_in } else { all_results_array.len() };
-        let num_vals = max_vals_in;
+        let num_vals = if max_vals_in > 0 { 
+            max_vals_in 
+        } else { 
+            all_results_array.len() 
+        };
         let until = std::cmp::min(starting_object_index_in + num_vals, all_results_array.len());
         let mut return_attrs: Vec<(i64, Rc<dyn Attribute>)> = Vec::new();
         for (sorting_index, attr) in all_results_array[starting_object_index_in..until].iter() {
             return_attrs.push((*sorting_index, attr.clone()));
         };
+        debug!("In get_sorted_attributes, return_attrs.len(): {}, starting_object_index_in={}, max_vals_in={}, 
+            until={}", 
+            return_attrs.len(), starting_object_index_in, max_vals_in, until);
         Ok((
             return_attrs,
             all_results_array.len(),

@@ -299,6 +299,9 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       }
     }
   } catch {
+      //%%%%example of handling (catching) Results! All those outside these *Menu structs that have these things, and outside of Controller, should probably return Results up!
+      //%%%%when this is implemented, find first "expect()" call in controller and note this place as
+      //an example to find, of error handling. 
     case e: Throwable =>
       // catching Throwable instead of Exception here, because sometimes depending on how I'm running X etc I might get the InternalError
       // "Can't connect to X11 window server ...", and it's better to recover from that than to abort the app (ie, when eventually calling
