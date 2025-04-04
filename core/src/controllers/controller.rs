@@ -27,7 +27,7 @@ use std::rc::Rc;
 /// Don't ever instantiate a Controller from a *test* without passing in username/password 
 /// parameters, because it will try to log in to the user's
 /// default, live Database and run the tests there (ie, they could be destructive)!
-/// %%%%: How make that better/safer/more certain!?--just use the new_* methods below as reminders?
+/// %%: How make that better/safer/more certain!?--just use the new_* methods below as reminders?
 /// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ///
 pub struct Controller {
@@ -59,8 +59,8 @@ impl Controller {
             default_password,
         )
         .unwrap_or_else(|e| {
-            //%%should panic instead, at all places like this? to get a stack trace and for style?
-            //%%OR, only if it is truly something unanticipated? Are there not times when returning a failure is expected?
+            //idea: should panic instead, at all places like this? to get a stack trace and for style?
+            //OR, only if it is truly something unanticipated? Are there not times when returning a failure is expected?
             //%%should eprintln at other places like this also?
             // ui.display_text1(e.to_string().as_str());
             eprintln!("{}", e.to_string().as_str());
@@ -72,10 +72,12 @@ impl Controller {
             Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE,
             None,
         )?;
-        //%%%temp values:
-        // let show_public_private_status_preference: Option<bool> = Some(true);
-        // let default_display_entity_id: Option<i64> = localDb.get_user_preference_entity_id(Util::DEFAULT_ENTITY_PREFERENCE);
-        let default_display_entity_id: Option<i64> = Some(-9223372036854745151);
+        //let default_display_entity_id: Option<i64> = Some(-9223372036854745151);
+        let default_display_entity_id: Option<i64> = 
+             //localDb.get_user_preference_entity_id(Util::DEFAULT_ENTITY_PREFERENCE);
+             //(see comment in call to expect() in get_default_entity() .)
+             db.get_user_preference_entity_id(None, Util::DEFAULT_ENTITY_PREFERENCE, None)
+                 .expect("Faiure in call to get_user_preference_entity_id()");
         Ok(Controller {
             ui,
             force_user_pass_prompt,
@@ -2212,18 +2214,3 @@ impl Controller {
       }
     */
 }
-
-/*  %%
-package org.onemodel.core.controllers
-
-import java.io._
-import java.util
-
-import org.onemodel.core._
-import org.onemodel.core.model._
-
-import scala.annotation.tailrec
-import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
-
-*/

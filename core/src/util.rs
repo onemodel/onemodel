@@ -206,7 +206,7 @@ impl Util {
     pub const USER_PREFERENCES: &'static str = "User preferences";
     pub const SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE: &'static str =
         "Should entity lists show public/private status for each?";
-    const DEFAULT_ENTITY_PREFERENCE: &'static str =
+    pub const DEFAULT_ENTITY_PREFERENCE: &'static str =
         "Which entity should be displayed as default, when starting the program?";
     // (If change next line, also change the hard-coded use in the file first.exp.)
     const HEADER_CONTENT_TAG: &'static str = "htmlHeaderContent";
