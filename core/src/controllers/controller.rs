@@ -89,7 +89,6 @@ impl Controller {
         })
     }
 
-    /*%%%%
     /// Returns the id and the entity, if they are available from the preferences lookup (id) 
     /// and then finding that in the db (Entity). 
     fn get_default_entity(&self) -> Option<(i64, Entity)> {
@@ -114,7 +113,7 @@ impl Controller {
                             let ans = self.ui.ask_which(Some(vec!(msg)), vec!("Un-archive the default entity now", "Display archived entities"));
                             if ans.is_defined() {
                                 if ans.get == 1 {
-                                    entity.unarchive();
+                                    entity.unarchive(None);
                                 } else if ans.get == 2 {
                                     self.db.set_include_archived_entities(true);
                                 }
@@ -126,7 +125,7 @@ impl Controller {
             }
         }
     }
-*/
+
     pub fn start(&self) {
         // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  
         // make it save their answer 'yes/i agree' or such in the DB, and don't make them press 
