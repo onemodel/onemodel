@@ -89,7 +89,6 @@ impl Controller {
         })
     }
 
-    /*%%%%
     /// Returns the id and the entity, if they are available from the preferences lookup (id) 
     /// and then finding that in the db (Entity). 
     fn get_default_entity(&self) -> Option<(i64, Entity)> {
@@ -99,11 +98,11 @@ impl Controller {
                 // Calling expect() here because we generally handle Errors in the *Menu
                 // struct impls. Errors are not expected to occur here (and didn't, in long use
                 // of the version of OM written in Scala).
-                let entity: Option<Entity> = Entity::get_entity(self.db, None, ddei)
+                let entity: Option<Entity> = Entity::get_entity(self.db.clone(), None, ddei)
                     .expect("Failure in call to Entity::get_entity.");
                 match entity {
                     None => None,
-                    Some(entity) => {
+                    Some(mut entity) => {
                         if entity.is_archived(None).expect("Unable to determine if entity.is_archived.") {
                             let msg = format!("The default entity \n    {}: \"{} \"\n\
                                 ... was found but is archived.  You might run into problems \
@@ -111,12 +110,19 @@ impl Controller {
                                 the default, or display all archived entities then search for \
                                 this entity and un-archive it under its Entity Menu options 9, 4.",
                                 entity.get_id(), entity.get_name(None).expect("Error running entity.get_name(."));
-                            let ans = self.ui.ask_which(Some(vec!(msg)), vec!("Un-archive the default entity now", "Display archived entities"));
-                            if ans.is_defined() {
-                                if ans.get == 1 {
-                                    entity.unarchive();
-                                } else if ans.get == 2 {
-                                    self.db.set_include_archived_entities(true);
+                            let ans = self.ui.ask_which(Some(vec!(&msg.as_str())), 
+                                vec!("Un-archive the default entity now", "Display archived entities"),
+                                vec!(),
+                                true, None, None, None, None);
+                            if ans.is_some() {
+                                if ans.unwrap() == 1 {
+                                    entity.unarchive(None);
+                                } else if ans.unwrap() == 2 {
+                                    //let db: dyn Database = *self.db.clone();
+                                    //(*(self.db.clone())).set_include_archived_entities(true);
+                                    //let mut db_mut = Rc::make_mut(&mut self.db);
+                                    //db_mut.set_include_archived_entities(true);
+                                    (*(self.db.clone())).set_include_archived_entities(true);
                                 }
                             }
                         }
@@ -126,7 +132,7 @@ impl Controller {
             }
         }
     }
-*/
+
     pub fn start(&self) {
         // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  
         // make it save their answer 'yes/i agree' or such in the DB, and don't make them press 
