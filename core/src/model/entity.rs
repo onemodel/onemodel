@@ -522,9 +522,11 @@ impl Entity {
     /// It might also be nice to add the recorder's ID (person
     /// or app), but we'd have to do some kind of authentication/login 1st? And a GUID for users (as Entities?)?
     /// See PostgreSQLDatabase.create_quantity_attribute(...) for details.
-    fn add_quantity_attribute2<'a, 'b>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    //%%%%%%
+    //fn add_quantity_attribute2<'a, 'b>(
+    fn add_quantity_attribute2(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_attr_type_id: i64,
         in_unit_id: i64,
         in_number: f64,
@@ -532,14 +534,14 @@ impl Entity {
         in_valid_on_date: Option<i64>,
         observation_date_in: i64,
     ) -> Result<QuantityAttribute, anyhow::Error>
-    where
-        'a: 'b,
+    //where
+        //'a: 'b,
     {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        //let db = &self.db.borrow();
+        let db = self.db.borrow();
         //let new_id = {
-        let db: Ref<'b, dyn Database> = self.db.borrow();
+        //let db: Ref<'b, dyn Database> = self.db.borrow();
         //let id = &Ref::clone(&db).create_quantity_attribute(
         let id: i64 = db.create_quantity_attribute(
         //let ref id = &Ref::clone(&db).create_quantity_attribute(

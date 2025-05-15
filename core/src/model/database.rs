@@ -77,6 +77,7 @@ pub trait Database {
     fn begin_trans(&self) -> Result<Transaction<Postgres>, anyhow::Error>;
     fn rollback_trans(&self, tx: Transaction<Postgres>) -> Result<(), anyhow::Error>;
     fn commit_trans(&self, tx: Transaction<Postgres>) -> Result<(), anyhow::Error>;
+    fn commit_local_trans(&self, local_tx_option: Option<Rc<RefCell<Transaction<Postgres>>>>) -> Result<(), anyhow::Error>;
 
     // where we create the table also calls this.
     // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
@@ -347,9 +348,13 @@ pub trait Database {
     ///         call the db for themselves, rather than everything touching the db entrails directly.
     ///    ...but should be avoided when going through the model object (like Entity) causes enough more db hits to not be worth it (performance vs.
     ///    clarity & ease of maintenance).
-    fn create_quantity_attribute<'a, 'b>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    //%%%%%
+    //fn create_quantity_attribute<'a, 'b>(
+    fn create_quantity_attribute(
+        //&'a self,
+        &self,
+        //transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         unit_id_in: i64,
@@ -358,8 +363,25 @@ pub trait Database {
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<i64, anyhow::Error>
-    where
-        'a: 'b;
+    //where
+        //'a: 'b
+        ;
+    fn create_quantity_attribute_helper(
+        //&'a self,
+        &self,
+        //transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        parent_id_in: i64,
+        attr_type_id_in: i64,
+        unit_id_in: i64,
+        number_in: f64,
+        valid_on_date_in: Option<i64>,
+        observation_date_in: i64,
+        sorting_index_in: Option<i64>, /*= None*/
+    ) -> Result<i64, anyhow::Error>
+    //where
+        //'a: 'b
+        ;
 
     fn create_date_attribute<'a>(
         &'a self,

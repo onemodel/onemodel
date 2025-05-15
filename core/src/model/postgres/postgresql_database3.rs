@@ -322,6 +322,31 @@ impl Database for PostgreSQLDatabase {
         //%% see comments in fn connect() re this
         // connection.setAutoCommit(true);
     }
+    fn commit_local_trans(&self, 
+                          local_tx_option: Option<Rc<RefCell<Transaction<Postgres>>>>
+    ) -> Result<(), anyhow::Error> {
+                    //if transaction_in.is_none() && transaction.is_some() {
+                    // see comments at similar location in delete_objects about local_tx
+                    // see comments in delete_objects about rollback
+                    //%%%%%%simplify further: just use the pre-unwrapped local_tx above?
+                    let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+                        Rc::into_inner(local_tx_option.unwrap());
+                    match local_tx_cell {
+                        Some(t) => {
+                            let unwrapped_local_tx = t.into_inner();
+                            match self.commit_trans(unwrapped_local_tx) {
+                                Err(e) => return Err(anyhow!(e.to_string())),
+                                _ => return Ok(()),
+                            };
+                        }
+                        None => {
+                            //%%%%%%use this modd comt in copied code also? or no need now that it
+                            //is extracted.
+                            return Err(anyhow!("Data not saved. Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How did the caller send that value?"));
+                        }
+                    }
+                //}
+    }
 
     fn find_all_entity_ids_by_name(
         &self,
@@ -700,9 +725,13 @@ impl Database for PostgreSQLDatabase {
     /// of the data you can do some research and let us know what you find.
     /// <p/>
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_quantity_attribute<'a, 'b>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    //%%%%%
+    //fn create_quantity_attribute<'a, 'b>(
+    fn create_quantity_attribute(
+        //&'a self,
+        &self,
+        //transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         unit_id_in: i64,
@@ -711,9 +740,10 @@ impl Database for PostgreSQLDatabase {
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result</*id*/ i64, anyhow::Error>
-    where
-        'a: 'b,
+    //where
+        //'a: 'b,
     {
+        //%%%%%%simplify everywhere that has this??? remove many lifetime annotations as a result?? %%CK ALL???
         //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
         // Try creating a local transaction whether we use it or not, to handle compiler errors
         // about variable moves. I'm not seeing a better way to get around them by just using
@@ -723,14 +753,43 @@ impl Database for PostgreSQLDatabase {
         // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
         // I didn't try a proc macro but based on some reading I think it would have the same
         // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
-        };
+        //let transaction = if transaction_in.clone().is_some() {
+            //transaction_in.clone()
+        //} else {
+            //%%%%%if necessary, move next 2 lines back to above the just-prior "let transaction = "?
+            //%%%%%if not, change the comment (here and) and code in all the copied blocks, to reflect this mod?
+            //let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            //let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            //local_tx_option
+        //};
+        let id = match transaction_in {
+            Some(_) => self.create_quantity_attribute_helper(transaction_in, parent_id_in, attr_type_id_in, unit_id_in,
+                number_in, valid_on_date_in, observation_date_in, sorting_index_in),
+            None => {
+                let local_tx: Transaction<Postgres> = self.begin_trans()?;
+                let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+                let id = self.create_quantity_attribute_helper(local_tx_option.clone(), parent_id_in, attr_type_id_in, unit_id_in,
+                    number_in, valid_on_date_in, observation_date_in, sorting_index_in);
+                self.commit_local_trans(local_tx_option); 
+                id
+            }
+        }?;
         //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
+
+        Ok(id)
+    }
+    fn create_quantity_attribute_helper(
+        &self,
+        //transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        parent_id_in: i64,
+        attr_type_id_in: i64,
+        unit_id_in: i64,
+        number_in: f64,
+        valid_on_date_in: Option<i64>,
+        observation_date_in: i64,
+        sorting_index_in: Option<i64>, /*= None*/
+    ) -> Result</*id*/ i64, anyhow::Error> {
 
         let id: i64 = self.get_new_key(transaction.clone(), "QuantityAttributeKeySequence")?;
         let form_id = self.get_attribute_form_id(Util::QUANTITY_TYPE)?;
@@ -750,23 +809,7 @@ impl Database for PostgreSQLDatabase {
                                          quantity_number, attr_type_id, valid_on_date, observation_date) values ({},{},{},{},\
                                          {},{},{})", id, parent_id_in, unit_id_in, number_in, attr_type_id_in, valid_on, observation_date_in).as_str(),
                        false, false)?;
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
+        //%%%%%also update other places and comments like this?:
         Ok(id)
     }
 
